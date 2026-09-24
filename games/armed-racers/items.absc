@@ -1,0 +1,178 @@
+-- items.absc — アイテム・コイン・ブースト床・オイル・スリップストリーム
+
+let hazards = []     -- {block, kind, until, owner}
+let item_clock = 0
+
+func hit_by(p, why, owner)
+  if active_until(p.star_until) then return false end
+  if p.shield then
+    p.shield = false
+    p.message("🛡 シールドが守った！", 1.5)
+    return false
+  end
+  p.slow_until = time() + 1.5
+  p.race_coins = max(0, (p.race_coins or 0) - 3)
+  p.message(why, 1.5)
+  p.launch(0, 7, 0)
+  apply_speed(p)
+  if owner != nil then kit_quest_progress(owner, "hits", 1) end
+  return true
+end
+
+func roll_item(p)
+  let luck = place_of(p) > 2
+  if car_info(p.car).perk == "lucky" then luck = true end
+  let pool = ITEMS
+  if luck and random() < 0.4 then pool = filter(ITEMS, func(it) return it.good end) end
+  return kit_pick(pool, 1).id
+end
+
+func missile_target(p, reach)
+  -- すぐ前の人（ポリスは2つ前まで）
+  let ahead = filter(racers(), func(q) return q.id != p.id and not q.done and progress(q) >= progress(p) end)
+  let sorted = sort(ahead, func(a, b) return progress(a) < progress(b) end)
+  if len(sorted) == 0 then return nil end
+  return sorted[min(reach, len(sorted))]
+end
+
+func drop_hazard(p, kind, secs)
+  let spot = p.position - p.look * 4
+  let color = "#111111"
+  if kind == "bomb" then color = "#DC2626" end
+  let b = create_block({name: kind, shape: "cylinder", position: spot + {x: 0, y: 0.1, z: 0}, size: {x: 3, y: 0.1, z: 3},
+                        color: color, behavior: "trigger", tags: [kind], solid: false})
+  append(hazards, {block: b, kind: kind, until: time() + secs, owner: p, at: spot})
+end
+
+func use_item(p)
+  if p.item == nil or not racing or not p.in_race then return end
+  let id = p.item
+  p.item = nil
+  p.items_used = (p.items_used or 0) + 1
+  kit_quest_progress(p, "items", 1)
+  if id == "boost" then
+    let secs = 2.5
+    if car_info(p.car).perk == "longboost" then secs = 4 end
+    p.boost_until = time() + secs
+  elif id == "missile" or id == "triple" then
+    let reach = 1
+    if car_info(p.car).perk == "homing" then reach = 2 end
+    let shots = 1
+    if id == "triple" then shots = 3 end
+    for k in 1 to shots do
+      kit_later(p, (k - 1) * 0.6, func()
+        let t = missile_target(p, reach)
+        if t != nil then
+          hit_by(t, "🎯 " + p.name + " のミサイルが命中！", p)
+        elif k == 1 then
+          p.message("前にだれもいない！", 1)
+        end
+      end)
+    end
+  elif id == "oil" then
+    drop_hazard(p, "oil", 25)
+  elif id == "bomb" then
+    drop_hazard(p, "bomb", 2)
+  elif id == "shield" then
+    p.shield = true
+    p.message("🛡 シールド（1回）", 1)
+  elif id == "lightning" then
+    for q in racers() do
+      if q.id != p.id and progress(q) > progress(p) then hit_by(q, "⚡ " + p.name + " のサンダー！", p) end
+    end
+    announce("⚡ " + p.name + " のサンダー！", 2)
+  elif id == "star" then
+    p.star_until = time() + 5
+    p.message("⭐ スター！ 5びょう無敵で速い", 1.5)
+  elif id == "emp" then
+    for q in racers() do
+      if q.id != p.id and distance(p, q) < 30 and q.item != nil then
+        q.item = nil
+        q.message("📡 " + p.name + " のEMPでアイテムが消えた！", 1.5)
+        show(q)
+      end
+    end
+  end
+  apply_speed(p)
+  show(p)
+end
+
+-- 0.25びょうごと: ボムの爆発・古いオイル・スリップストリーム・速さ
+on tick(dt)
+  item_clock = item_clock + dt
+  if item_clock < 0.25 then return end
+  let passed = item_clock
+  item_clock = 0
+  let keep = []
+  for h in hazards do
+    if time() >= h.until then
+      if h.kind == "bomb" and racing then
+        for q in racers() do
+          if distance(q, h.at) < 5 then hit_by(q, "💣 ボムが爆発！", h.owner) end
+        end
+      end
+      kit_gone(h.block)
+    else
+      append(keep, h)
+    end
+  end
+  hazards = keep
+  if not racing then return end
+  for p in racers() do
+    if not p.done then
+      -- 前の車のすぐうしろを走ると、風よけで少し速くなる
+      let drafting = false
+      for q in racers() do
+        if q.id != p.id and not q.done and distance(p, q) < 6 and dot(normalize(q.position - p.position), p.look) > 0.8 then drafting = true end
+      end
+      if drafting then
+        p.draft_time = (p.draft_time or 0) + passed
+        if p.draft_time >= 2 and not active_until(p.draft_until) then
+          p.draft_until = time() + 1.5
+          p.draft_time = 0
+          p.message("💨 スリップストリーム！", 0.8)
+        end
+      else
+        p.draft_time = 0
+      end
+      apply_speed(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.in_race or p.done then return end
+  if contains(b.tags, "itembox") and b.visible then
+    if p.item == nil then
+      p.item = roll_item(p)
+      b.visible = false
+      after(5, func()
+        if still(b) then b.visible = true end
+      end)
+      p.sound("collect")
+      show(p)
+    end
+  elif contains(b.tags, "coin") and b.visible then
+    b.visible = false
+    after(12, func()
+      if still(b) then b.visible = true end
+    end)
+    p.race_coins = min(COIN_MAX, (p.race_coins or 0) + 1)
+    kit_give(p, 2)
+    p.sound("collect")
+    apply_speed(p)
+  elif contains(b.tags, "oil") then
+    if car_info(p.car).perk == "oilproof" then return end
+    if quiet_ready(p, "oil", 2) then hit_by(p, "🛢 オイルですべった！", nil) end
+  elif contains(b.tags, "boostpad") then
+    if quiet_ready(p, "pad", 1) then
+      p.boost_until = time() + 1.5
+      p.launch(0, 6, 0)
+      apply_speed(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "item" then use_item(p) end
+end

@@ -1,0 +1,57 @@
+-- common.absc — 小さな道具
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.cars != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func car_info(id)
+  for c in CARS do
+    if c.id == id then return c end
+  end
+  return CARS[1]
+end
+
+func item_info(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return ITEMS[1]
+end
+
+func track_info(id)
+  for t in TRACKS do
+    if t.id == id then return t end
+  end
+  return TRACKS[1]
+end
+
+-- 今の速さ（車・コイン・ブースト・スター・スリップストリーム・すべり）
+func car_speed(p)
+  let s = car_info(p.car).speed * (1 + min(COIN_MAX, p.race_coins or 0) * 0.01)
+  if active_until(p.slow_until) then return 0.6 end
+  if active_until(p.star_until) then return s * 1.45 end
+  if active_until(p.boost_until) then return s * 1.6 end
+  if active_until(p.draft_until) then return s * 1.2 end
+  return s
+end
+
+func apply_speed(p)
+  let s = car_speed(p)
+  if p.speed != s then p.speed = s end
+end

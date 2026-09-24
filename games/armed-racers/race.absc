@@ -1,0 +1,258 @@
+-- race.absc — 投票 → レース（3周）→ グランプリ（3レース）
+
+let phase = "vote"
+let track = TRACKS[1]
+let votes = {}
+let vote_ends = 0
+let racing = false
+let finish_order = []
+let first_done_at = 0
+let race_start = 0
+let gp_race = 0
+let round_id = 0
+let race_clock = 0
+
+func racers()
+  return filter(players(), func(p) return ready(p) and p.in_race end)
+end
+
+func progress(p)
+  return (p.lap or 0) * track.cps + (p.cp or 0)
+end
+
+func place_of(p)
+  let n = 1
+  for q in racers() do
+    if q.id != p.id and (progress(q) > progress(p) or (q.done and not p.done)) then n = n + 1 end
+  end
+  return n
+end
+
+func show(p)
+  if not ready(p) then return end
+  if p.in_race then
+    p.ui_text("race", "🏁 " + min(LAPS, p.lap + 1) + "/" + LAPS + " 周   " + place_of(p) + " 位   🪙 " + (p.race_coins or 0),
+              {at: "top", dy: 26, size: 22, bold: true})
+  end
+  if p.item != nil then
+    p.ui_button("item", item_info(p.item).name, {at: "bottom_right", dx: -120, dy: -160, w: 150, h: 64, size: 15, bg: "#7C3AED", radius: 16})
+  else
+    p.ui_remove("item")
+  end
+end
+
+-- MARK: 投票
+
+func start_vote()
+  phase = "vote"
+  votes = {}
+  vote_ends = time() + VOTE_SECS
+  if gp_race == 0 then
+    for p in players() do
+      if ready(p) then p.gp_points = 0 end
+    end
+  end
+end
+
+func vote(p, id)
+  if phase != "vote" then return end
+  votes[p.id] = id
+  if len(keys(votes)) >= len(players()) then vote_ends = min(vote_ends, time() + 1) end
+end
+
+func vote_ui()
+  let parts = []
+  for t in TRACKS do
+    let n = 0
+    for pid in keys(votes) do
+      if votes[pid] == t.id then n = n + 1 end
+    end
+    append(parts, t.name + " " + n)
+  end
+  ui_text("vote", "🗳 グランプリ " + (gp_race + 1) + "/" + GP_RACES + " — コースを投票（のこり " + max(0, ceil(vote_ends - time())) + "）  " + join(parts, "  "),
+          {at: "top", dy: 26, size: 17, bold: true})
+end
+
+-- MARK: レース
+
+func start_race()
+  let best = TRACKS[1]
+  let best_n = -1
+  for t in shuffle(copy(TRACKS)) do
+    let n = 0
+    for pid in keys(votes) do
+      if votes[pid] == t.id then n = n + 1 end
+    end
+    if n > best_n then
+      best = t
+      best_n = n
+    end
+  end
+  track = best
+  ui_remove("vote")
+  phase = "race"
+  round_id = round_id + 1
+  gp_race = gp_race + 1
+  finish_order = []
+  racing = false
+  let i = 0
+  for p in players() do
+    if ready(p) then
+      i = i + 1
+      p.in_race = true
+      p.lap = 0
+      p.cp = 0
+      p.done = false
+      p.item = nil
+      p.shield = false
+      p.race_coins = 0
+      p.lap_start = 0
+      p.frozen = true
+      p.color = car_info(p.car).color
+      apply_speed(p)
+      p.teleport(block(track.grid + " " + ((i - 1) % 8 + 1)))
+      show(p)
+    end
+  end
+  let rid = round_id
+  announce("🏎 " + track.name + "（グランプリ " + gp_race + "/" + GP_RACES + "）", 3)
+  for k in 1 to 3 do
+    after(k, func()
+      if rid == round_id then announce(str(4 - k), 0.8) end
+    end)
+  end
+  after(4, func()
+    if rid != round_id then return end
+    racing = true
+    race_start = time()
+    for p in racers() do
+      p.frozen = false
+      p.lap_start = time()
+    end
+    announce("GO! 🏎", 1)
+    sound("goal")
+  end)
+end
+
+func pass_checkpoint(p, b)
+  if not racing or p.done or not contains(b.tags, track.tag) then return end
+  let n = num(split(b.name, " ")[2])
+  if n != p.cp + 1 then return end
+  p.cp = n
+  if p.cp < track.cps then return end
+  p.cp = 0
+  p.lap = p.lap + 1
+  let lap_time = time() - p.lap_start
+  p.lap_start = time()
+  record_lap(p, lap_time)
+  if p.lap >= LAPS then
+    finish_racer(p)
+  else
+    p.message("🔁 " + (p.lap + 1) + " 周目！（ラップ " + fixed(lap_time, 1) + "びょう）", 1.5)
+    p.sound("checkpoint")
+  end
+end
+
+func finish_racer(p)
+  p.done = true
+  append(finish_order, p)
+  let place = len(finish_order)
+  let pts = GP_POINTS[min(place, len(GP_POINTS))]
+  p.gp_points = (p.gp_points or 0) + pts
+  kit_give(p, 60 + max(0, 5 - place) * 30)
+  if place == 1 then
+    first_done_at = time()
+    p.wins = (p.wins or 0) + 1
+    kit_quest_progress(p, "first", 1)
+    kit_badge(p, "winner", "レースチャンピオン")
+  end
+  p.races = (p.races or 0) + 1
+  kit_quest_progress(p, "race", 1)
+  announce("🏁 " + p.name + " が " + place + " 位でゴール！（+" + pts + " pt）", 3)
+  p.speed = 1
+  if len(filter(racers(), func(q) return not q.done end)) == 0 then end_race("🏁 全員ゴール！") end
+end
+
+func end_race(message)
+  if phase != "race" then return end
+  phase = "results"
+  racing = false
+  -- ゴールしていない人にも順位のポイント
+  let rest = sort(filter(racers(), func(q) return not q.done end), func(a, b) return progress(a) > progress(b) end)
+  let place = len(finish_order)
+  for p in rest do
+    place = place + 1
+    p.gp_points = (p.gp_points or 0) + GP_POINTS[min(place, len(GP_POINTS))]
+  end
+  for p in racers() do
+    p.in_race = false
+    p.speed = 1
+    p.ui_remove("race")
+    p.ui_remove("item")
+  end
+  if gp_race >= GP_RACES then
+    let ranked = sort(filter(players(), func(p) return ready(p) end), func(a, b) return (a.gp_points or 0) > (b.gp_points or 0) end)
+    if len(ranked) > 0 then
+      let champ = ranked[1]
+      champ.cups = (champ.cups or 0) + 1
+      champ.score = champ.cups
+      kit_give(champ, 300)
+      kit_quest_progress(champ, "cup", 1)
+      message = message + "  🏆 グランプリ優勝: " + champ.name + "（" + (champ.gp_points or 0) + " pt）"
+    end
+    gp_race = 0
+  else
+    message = message + "  （次のレースへ）"
+  end
+  show_standings(message)
+  after(7, func() start_vote() end)
+end
+
+func show_standings(headline)
+  let ranked = sort(filter(players(), func(p) return ready(p) end), func(a, b) return (a.gp_points or 0) > (b.gp_points or 0) end)
+  let lines = []
+  let i = 0
+  for p in slice(ranked, 1, 6) do
+    i = i + 1
+    append(lines, i + ". " + p.name + "   " + (p.gp_points or 0) + " pt")
+  end
+  let h = 100 + len(lines) * 30
+  for p in players() do
+    p.ui_panel("gp_box", {at: "center", w: 540, h: h, bg: "#000000D0", radius: 22, layer: 40})
+    p.ui_text("gp_t", headline, {parent: "gp_box", y: 28 / h, size: 16, bold: true, color: "#FDE68A"})
+    let k = 0
+    for line in lines do
+      k = k + 1
+      p.ui_text("gp_" + k, line, {parent: "gp_box", y: (40 + k * 30) / h, size: 15})
+    end
+    kit_later(p, 6.5, func() p.ui_remove("gp_box") end)
+  end
+end
+
+on tick(dt)
+  race_clock = race_clock + dt
+  if race_clock < 1 then return end
+  race_clock = 0
+  if phase == "vote" then
+    vote_ui()
+    if time() >= vote_ends then start_race() end
+  elif phase == "race" then
+    for p in racers() do show(p) end
+    if racing and len(finish_order) > 0 and time() - first_done_at > 45 then end_race("🏁 レース終了！") end
+    if racing and time() - race_start > 300 then end_race("⏱ 時間切れ！") end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "cp") and p.in_race then pass_checkpoint(p, b)
+  elif contains(b.tags, "vote_track") then
+    for t in TRACKS do
+      if contains(b.tags, t.id) and quiet_ready(p, "vote", 1) then vote(p, t.id) end
+    end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "vote_") then vote(p, replace(id, "vote_", "")) end
+end

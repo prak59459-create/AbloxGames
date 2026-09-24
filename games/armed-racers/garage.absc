@@ -1,0 +1,83 @@
+-- garage.absc — ガレージ（車を買う・えらぶ）・ベストラップ・成績
+
+func garage(p)
+  let h = 140 + len(CARS) * 46
+  p.ui_panel("gar_box", {at: "center", w: 560, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("gar_t", "🔧 ガレージ（🪙 " + kit_money(p) + "）", {parent: "gar_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in CARS do
+    i = i + 1
+    let label = c.name + "  🪙" + c.price + "  速さ " + c.speed + "  " + c.text
+    let bg = "#92400E"
+    if contains(p.cars, c.id) then
+      label = c.name + " に乗る  " + c.text
+      bg = "#0F766E"
+    end
+    if p.car == c.id then
+      label = "✅ " + c.name + "（乗っている）"
+      bg = "#374151"
+    end
+    p.ui_button("car_" + c.id, label, {parent: "gar_box", y: (30 + i * 46) / h, w: 520, h: 38, size: 13, bg: bg})
+  end
+  p.ui_button("gar_close", "閉じる", {parent: "gar_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_car(p, id)
+  let c = car_info(id)
+  if not contains(p.cars, id) then
+    if not kit_pay(p, c.price) then return end
+    append(p.cars, id)
+    p.sound("goal")
+    kit_quest_progress(p, "car", 1)
+  end
+  p.car = id
+  if not p.in_race then p.color = c.color end
+  garage(p)
+end
+
+func record_lap(p, secs)
+  if p.best_laps == nil then p.best_laps = {} end
+  let best = p.best_laps[track.id]
+  if best == nil or secs < best then
+    p.best_laps[track.id] = secs
+    p.message("⏱ ベストラップ！ " + fixed(secs, 1) + "びょう", 2)
+  end
+end
+
+func stats(p)
+  let laps = []
+  for t in TRACKS do
+    let v = "—"
+    if p.best_laps != nil and p.best_laps[t.id] != nil then v = fixed(p.best_laps[t.id], 1) + "びょう" end
+    append(laps, t.name + " " + v)
+  end
+  let lines = [
+    "🏁 1位 " + (p.wins or 0) + " / " + (p.races or 0) + " レース   🏆 グランプリ優勝 " + (p.cups or 0),
+    "⏱ ベストラップ: " + join(laps, "  "),
+    "🎯 アイテム " + (p.items_used or 0) + " 回",
+    "🚗 車 " + len(p.cars) + " / " + len(CARS)
+  ]
+  let h = 110 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 600, h: h, bg: "#111827F2", radius: 22, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 14})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "garage") and quiet_ready(p, "garage", 4) then garage(p) end
+end
+
+on button(p, id)
+  if id == "garage" then garage(p)
+  elif id == "gar_close" then p.ui_remove("gar_box")
+  elif starts_with(id, "car_") then pick_car(p, replace(id, "car_", ""))
+  elif id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  end
+end

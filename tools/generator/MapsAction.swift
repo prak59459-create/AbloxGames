@@ -298,30 +298,59 @@ func powerRoulette(_ m: MapBuilder) {
 
 func armedRacers(_ m: MapBuilder) {
     m.day(ground: "#4D7C0F")
-    m.ground(260, 200, color: "#65A30D")
-    // An oval-ish loop of straight pieces and checkpoints.
-    let points: [(Float, Float)] = [(-90, -60), (0, -75), (90, -60), (110, 0), (90, 60), (0, 75), (-90, 60), (-110, 0)]
-    for i in 0..<points.count {
-        let a = points[i], b = points[(i + 1) % points.count]
-        m.road(from: a, to: b, width: 14, name: "Track \(i + 1)")
-        m.part("Corner \(i + 1)", at: (a.0, 0.02, a.1), size: (14, 0.04, 14), color: "#34353B", shape: .cylinder, material: .matte)
-        m.part("CP \(i + 1)", at: (a.0, 2, a.1), size: (14, 4, 14), color: "#FFFFFF", shape: .cylinder, behavior: .trigger,
-               tags: ["cp"], solid: false, visible: true, opacity: 0.08)
-    }
-    // Item boxes on the straights.
-    for i in 0..<points.count {
-        let a = points[i], b = points[(i + 1) % points.count]
-        for k in 0..<3 {
-            let t = Float(k + 1) / 4
-            m.part("Item Box", at: (a.0 + (b.0 - a.0) * t + Float(k - 1) * 3, 1, a.1 + (b.1 - a.1) * t), size: (1.2, 1.2, 1.2),
-                   color: "#A855F7", material: .neon, behavior: .trigger, tags: ["itembox"], solid: false, rotation: (45, 45, 0))
-        }
-    }
+    m.ground(300, 560, color: "#65A30D")
+    // Track 1, the green oval: a loop of straights and checkpoints.
+    racingTrack(m, prefix: "", cz: 0, points: [(-90, -60), (0, -75), (90, -60), (110, 0), (90, 60), (0, 75), (-90, 60), (-110, 0)],
+                road: "#34353B")
     m.part("Start Line", at: (-110, 0.06, 0), size: (14, 0.04, 2), color: "#FFFFFF", material: .neon, solid: false)
     for i in 0..<8 {
         m.spawn(-114 + Float(i % 4) * 2.5, -6 - Float(i / 4) * 4, name: "Grid \(i + 1)", color: "#F97316")
     }
     m.slab("Grandstand", x: -135, y: 0, z: 0, w: 8, h: 4, d: 40, color: "#9CA3AF")
+    m.pad("Garage", x: -128, z: 26, size: 3.4, color: "#F59E0B", tags: ["garage"])
+    m.pad("Vote Oval", x: -128, z: -24, size: 3, color: "#22C55E", tags: ["vote_track", "oval"])
+    m.pad("Vote Canyon", x: -128, z: -30, size: 3, color: "#C2410C", tags: ["vote_track", "canyon"])
+
+    // Track 2, the canyon: sandier, tighter, with two ramps over gaps.
+    let cz: Float = 280
+    m.slab("Canyon Floor", x: 0, y: -0.3, z: cz, w: 280, h: 0.3, d: 200, color: "#D6B97A")
+    let canyon: [(Float, Float)] = [(-80, -50), (0, -60), (60, -20), (100, 40), (40, 70), (-30, 40), (-60, 70), (-110, 10)]
+    racingTrack(m, prefix: "2", cz: cz, points: canyon, road: "#7C2D12")
+    for (i, ramp) in [(30, -40), (-45, 55)].enumerated() {
+        m.part("Ramp \(i + 1)", at: (Float(ramp.0), 0.8, cz + Float(ramp.1)), size: (12, 0.4, 6), color: "#F59E0B", rotation: (0, 0, 12))
+        m.part("Ramp Boost \(i + 1)", at: (Float(ramp.0), 1.2, cz + Float(ramp.1)), size: (4, 0.1, 4), color: "#F97316",
+               material: .neon, behavior: .trigger, tags: ["boostpad"], solid: false)
+    }
+    for i in 0..<8 {
+        m.part("Grid2 \(i + 1)", at: (-114 + Float(i % 4) * 2.5, 0.1, cz + 4 + Float(i / 4) * 4), size: (2, 0.2, 2),
+               color: "#F97316", shape: .cylinder, material: .neon, solid: false)
+    }
+    for i in 0..<6 {
+        m.part("Mesa \(i + 1)", at: (Float(-120 + i * 48), 6, cz + (i % 2 == 0 ? -95 : 95)), size: (20, 12, 16), color: "#B45309")
+    }
+}
+
+/// One racing loop: road straights between corners, a see-through checkpoint
+/// ring at each corner ("CP<prefix> n"), item boxes and coins on the straights.
+func racingTrack(_ m: MapBuilder, prefix: String, cz: Float, points raw: [(Float, Float)], road: String) {
+    let points = raw.map { ($0.0, $0.1 + cz) }
+    for i in 0..<points.count {
+        let a = points[i], b = points[(i + 1) % points.count]
+        m.road(from: a, to: b, width: 14, name: "Track\(prefix) \(i + 1)")
+        m.part("Corner\(prefix) \(i + 1)", at: (a.0, 0.02, a.1), size: (14, 0.04, 14), color: road, shape: .cylinder, material: .matte)
+        m.part("CP\(prefix) \(i + 1)", at: (a.0, 2, a.1), size: (14, 4, 14), color: "#FFFFFF", shape: .cylinder, behavior: .trigger,
+               tags: ["cp", "track\(prefix.isEmpty ? "1" : prefix)"], solid: false, visible: true, opacity: 0.08)
+        for k in 0..<3 {
+            let t = Float(k + 1) / 4
+            m.part("Item Box", at: (a.0 + (b.0 - a.0) * t + Float(k - 1) * 3, 1, a.1 + (b.1 - a.1) * t), size: (1.2, 1.2, 1.2),
+                   color: "#A855F7", material: .neon, behavior: .trigger, tags: ["itembox"], solid: false, rotation: (45, 45, 0))
+        }
+        for k in 0..<2 {
+            let t = Float(k) * 0.3 + 0.35
+            m.part("Track Coin", at: (a.0 + (b.0 - a.0) * t - 4, 0.8, a.1 + (b.1 - a.1) * t), size: (0.8, 0.8, 0.15),
+                   color: "#FACC15", shape: .cylinder, material: .neon, behavior: .trigger, tags: ["coin"], solid: false, rotation: (90, 0, 0))
+        }
+    }
 }
 
 // MARK: 28 Blade & Revolver
