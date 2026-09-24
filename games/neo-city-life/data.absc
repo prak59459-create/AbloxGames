@@ -1,0 +1,47 @@
+-- data.absc — Neo City Life の表
+-- 仕事6・乗り物5・スマートホーム5段階・仕事の階級・レースのコース
+
+let JOBS = [
+  {pad: "Job Engineer", id: "engineer", name: "🔧 エンジニア", color: "#22D3EE", pay: 30, task: "こわれた機械（赤く光る）のそばで修理"},
+  {pad: "Job Medic", id: "medic", name: "🩺 メディック", color: "#F87171", pay: 32, task: "たおれている人のそばで手当て"},
+  {pad: "Job Officer", id: "officer", name: "🚓 オフィサー", color: "#60A5FA", pay: 36, task: "逃げるハッカーロボを追いかけてつかまえる"},
+  {pad: "Job Chef", id: "chef", name: "🍜 シェフ", color: "#FBBF24", pay: 26, task: "キッチンで作って、ビーコンへ届ける"},
+  {pad: "Job Pilot", id: "pilot", name: "✈️ パイロット", color: "#A78BFA", pay: 40, task: "空の家へ荷物を届ける（空を飛べる乗り物で）"},
+  {pad: "Job Hacker", id: "hacker", name: "💻 ハッカー", color: "#A3E635", pay: 55, task: "ATMをハックしてかせぐ。でも指名手配される"}
+]
+
+-- 仕事レベル（その仕事の回数）
+let JOB_LEVELS = [
+  {need: 0, name: "見習い", mult: 1},
+  {need: 5, name: "一人前", mult: 1.2},
+  {need: 15, name: "ベテラン", mult: 1.45},
+  {need: 35, name: "エース", mult: 1.75},
+  {need: 70, name: "レジェンド", mult: 2.1}
+]
+
+let VEHICLES = [
+  {id: "walk", name: "🚶 歩く", price: 0, speed: 1, jump: 1, gravity: 1, fly: false},
+  {id: "hover", name: "🚗 ホバーカー", price: 0, speed: 2.6, jump: 1, gravity: 0.8, fly: false},
+  {id: "board", name: "🛹 ホバーボード", price: 150, speed: 2.1, jump: 1.8, gravity: 0.6, fly: false},
+  {id: "jet", name: "🚀 ジェットパック", price: 300, speed: 1.4, jump: 3.2, gravity: 0.35, fly: true},
+  {id: "skybike", name: "🏍 スカイバイク", price: 900, speed: 3.2, jump: 2.6, gravity: 0.45, fly: true}
+]
+
+-- スマートホーム（1分ごとに家賃収入）
+let HOME_LEVELS = [
+  {name: "からっぽ", price: 0, income: 0, color: "#A5B4FC"},
+  {name: "ネオンライト", price: 200, income: 8, color: "#22D3EE"},
+  {name: "ホロ家具", price: 500, income: 18, color: "#F472B6"},
+  {name: "AIアシスタント", price: 1200, income: 35, color: "#A3E635"},
+  {name: "空中ペントハウス", price: 3000, income: 70, color: "#FDE047"}
+]
+
+-- 空のレース（リングを順にくぐる）
+let RACE_RINGS = [
+  {x: 0, y: 12, z: 40}, {x: 30, y: 18, z: 20}, {x: 50, y: 24, z: -10}, {x: 30, y: 20, z: -45},
+  {x: -10, y: 16, z: -50}, {x: -45, y: 22, z: -20}, {x: -40, y: 18, z: 25}, {x: 0, y: 14, z: 55}
+]
+let RACE_EVERY = 150
+let NEON_NIGHT_EVERY = 240
+let WANTED_JAIL = 25      -- つかまったら何びょう刑務所
+let BAIL = 120

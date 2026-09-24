@@ -1,0 +1,201 @@
+-- city.absc — 乗り物・空の家（スマートホーム）・スマホ・ネオンナイト
+-- 乗り物ベイ（オレンジ）で乗りかえ・購入。リフト（ピンク）で空の家へ。空いていれば自分の家に。
+-- 家はスマホからスマートホームに強化でき、1分ごとに家賃収入。家の中のピンクのパッドで地上へ。
+-- 4分ごとに「ネオンナイト」: 1分間 給料2倍。
+
+let homes = {}
+let neon_until = 0
+let city_clock = 0
+let income_clock = 0
+let neon_clock = 0
+
+-- MARK: 乗り物
+
+func ride(p, id)
+  let v = vehicle_info(id)
+  p.speed = v.speed
+  p.jump = v.jump
+  p.gravity = v.gravity
+  p.vehicle = id
+  hud(p)
+end
+
+func vehicle_panel(p)
+  let h = 110 + len(VEHICLES) * 52
+  p.ui_panel("veh", {at: "center", w: 420, h: h, bg: "#1E1B4BEE", radius: 22, layer: 30})
+  p.ui_text("veh_t", "🚗 乗り物（" + kit_short(kit_money(p)) + " クレジット）", {parent: "veh", y: 26 / h, size: 19, bold: true})
+  let i = 0
+  for v in VEHICLES do
+    i = i + 1
+    let label = v.name
+    if v.fly then label = label + " ✈" end
+    if not contains(p.owned, v.id) then label = label + "  🔒 " + v.price end
+    if p.vehicle == v.id then label = "✅ " + label end
+    let bg = "#7C3AED"
+    if not contains(p.owned, v.id) then bg = "#374151" end
+    p.ui_button("veh_" + v.id, label, {parent: "veh", y: (26 + i * 52) / h, w: 340, h: 44, size: 16, bg: bg})
+  end
+  p.ui_button("veh_close", "閉じる", {parent: "veh", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func pick_vehicle(p, id)
+  if active_until(p.jailed_until) then return end
+  let v = vehicle_info(id)
+  if not contains(p.owned, id) then
+    if not kit_pay(p, v.price) then return end
+    append(p.owned, id)
+    p.message("🎉 " + v.name + " を買った！", 2)
+    kit_quest_progress(p, "vehicle", 1)
+  end
+  ride(p, id)
+  vehicle_panel(p)
+end
+
+-- MARK: 空の家
+
+func home_floor(n)
+  return block("Sky Home " + n + " Floor")
+end
+
+func claim_or_visit(p, n)
+  if active_until(p.jailed_until) then return end
+  p.teleport(home_floor(n))
+  if homes[n] == nil and p.home == nil then
+    homes[n] = p.id
+    p.home = n
+    p.home_lv = 0
+    p.message("🏙 空の家 " + n + " があなたの家に！ スマホで強化すると家賃収入", 3)
+    kit_quest_progress(p, "home", 1)
+    hud(p)
+  elif homes[n] != nil and homes[n] != p.id then
+    let o = player_by_id(homes[n])
+    if o != nil then p.message("🏙 " + o.name + " の家におじゃまします", 1.5) end
+  end
+end
+
+func upgrade_home(p)
+  if p.home == nil then
+    p.message("まず空の家を手に入れよう（ピンクのリフト）", 1.5)
+    return
+  end
+  if p.home_lv >= len(HOME_LEVELS) - 1 then
+    p.message("もう最高の家！", 1.2)
+    return
+  end
+  let nx = HOME_LEVELS[p.home_lv + 2]
+  if not kit_pay(p, nx.price) then return end
+  p.home_lv = p.home_lv + 1
+  paint_home(p)
+  announce("🏙 " + p.name + " の空の家が「" + nx.name + "」に！", 3)
+  kit_quest_progress(p, "smart", 1)
+  hud(p)
+end
+
+func paint_home(p)
+  if p.home == nil then return end
+  let lv = HOME_LEVELS[p.home_lv + 1]
+  for b in blocks() do
+    if starts_with(b.name, "Sky Home " + p.home + " Wall") then b.color = lv.color end
+  end
+end
+
+-- MARK: スマホ
+
+func phone(p)
+  let h = 330
+  p.ui_panel("phone", {at: "center", w: 360, h: h, bg: "#0F172AF2", radius: 26, layer: 30})
+  p.ui_text("ph_t", "📱 NeoPhone", {parent: "phone", y: 24 / h, size: 19, bold: true, color: "#A5B4FC"})
+  p.ui_text("ph_m", "💳 " + kit_short(kit_money(p)) + " クレジット", {parent: "phone", y: 54 / h, size: 15, color: "#FDE68A"})
+  let home_label = "🏙 家を強化"
+  if p.home != nil and p.home_lv < len(HOME_LEVELS) - 1 then home_label = home_label + "（" + HOME_LEVELS[p.home_lv + 2].name + " " + HOME_LEVELS[p.home_lv + 2].price + "）" end
+  p.ui_button("ph_home", home_label, {parent: "phone", y: 96 / h, w: 300, h: 40, size: 13, bg: "#7C3AED"})
+  p.ui_button("ph_go", "🏠 家へワープ", {parent: "phone", y: 144 / h, w: 300, h: 40, size: 14, bg: "#4F46E5"})
+  p.ui_button("ph_veh", "🚗 乗り物", {parent: "phone", y: 192 / h, w: 300, h: 40, size: 14, bg: "#EA580C"})
+  p.ui_button("ph_quit", "💼 仕事をやめる", {parent: "phone", y: 240 / h, w: 300, h: 40, size: 14, bg: "#475569"})
+  p.ui_button("ph_close", "閉じる", {parent: "phone", y: (h - 26) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  city_clock = city_clock + dt
+  if city_clock < 1 then return end
+  city_clock = 0
+  income_clock = income_clock + 1
+  neon_clock = neon_clock + 1
+  if income_clock >= 60 then
+    income_clock = 0
+    for p in players() do
+      if ready(p) and p.home != nil and p.home_lv > 0 then
+        let inc = HOME_LEVELS[p.home_lv + 1].income
+        kit_give(p, inc)
+        p.message("🏙 家賃収入 +" + inc, 1.2)
+      end
+    end
+  end
+  if neon_clock >= NEON_NIGHT_EVERY then
+    neon_clock = 0
+    neon_until = time() + 60
+    world.sky_top = "#831843"
+    world.sky_bottom = "#22D3EE"
+    announce("🌃 ネオンナイト！ 1分間 お給料2倍！", 4)
+  end
+  if neon_until > 0 and not active_until(neon_until) then
+    neon_until = 0
+    world.sky_top = "#0F172A"
+    world.sky_bottom = "#7C3AED"
+    announce("🌃 ネオンナイトはおしまい", 2)
+  end
+  if active_until(neon_until) then ui_text("neon", "🌃 ネオンナイト 給料2倍 " + ceil(neon_until - time()) + "s", {at: "top", dy: 26, size: 16, bold: true, color: "#F472B6"}) else ui_remove("neon") end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "vehicle") and quiet_ready(p, "bay", 3) then vehicle_panel(p)
+  elif contains(b.tags, "lift") and quiet_ready(p, "lift", 2) then claim_or_visit(p, split(b.name, " ")[3])
+  elif contains(b.tags, "down") and quiet_ready(p, "down", 2) then
+    let n = split(b.name, " ")[3]
+    let lift = block("Sky Home " + n + " Lift")
+    if lift != nil then p.teleport(lift.position + {x: 3, y: 0, z: 0}) end
+  elif contains(b.tags, "phone") and quiet_ready(p, "phone_pad", 3) then phone(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "vehicles" then vehicle_panel(p)
+  elif id == "veh_close" then p.ui_remove("veh")
+  elif starts_with(id, "veh_") then pick_vehicle(p, replace(id, "veh_", ""))
+  elif id == "open_phone" then phone(p)
+  elif id == "ph_close" then p.ui_remove("phone")
+  elif id == "ph_home" then
+    upgrade_home(p)
+    phone(p)
+  elif id == "ph_go" then
+    p.ui_remove("phone")
+    if active_until(p.jailed_until) then
+      p.message("刑務所からは出られない", 1)
+    elif p.home == nil then
+      p.message("まだ家がない", 1)
+    else
+      p.teleport(home_floor(p.home))
+    end
+  elif id == "ph_veh" then
+    p.ui_remove("phone")
+    vehicle_panel(p)
+  elif id == "ph_quit" then
+    p.ui_remove("phone")
+    quit_job(p)
+  elif id == "drone" then
+    if p.camera == "top" then
+      p.camera_reset()
+    else
+      p.camera = "top"
+      p.camera_distance = 40
+    end
+  end
+end
+
+on chat(p, text)
+  if text == "/home" and p.home != nil and not active_until(p.jailed_until) then p.teleport(home_floor(p.home)) end
+end

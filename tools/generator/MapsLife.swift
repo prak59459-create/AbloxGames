@@ -13,7 +13,7 @@ let lifeGames: [Game] = [
          summary: "ピザ屋でみんなで働こう。レジで注文、レシピどおりに具をのせて、こげる前にオーブンから出して手わたし・配達！ ★評価と店のお金で店を強化、昇進で給料アップ。",
          tags: ["jobs", "coop", "classic"], maxPlayers: 12, build: pizzaShift),
     Game(number: 36, id: "neo-city-life", title: "Neo City Life",
-         summary: "未来のハイテク都市でくらすRP。ホバーカー、ジェットパック、ドローン視点。仕事でかせいで、空飛ぶ家を手に入れよう。",
+         summary: "未来都市のRP。6つの仕事（修理・救助・逮捕・料理・空の配達・ハッキング）でかせぎ、乗り物を集めて空の家をスマートホームに。指名手配と刑務所、ドローンレース、ネオンナイトも。",
          tags: ["rp", "city", "future"], maxPlayers: 16, build: neoCity),
     Game(number: 37, id: "club-hangout", title: "Club Hangout",
          summary: "家族をつくって、家を建てて、クラブのダンスパーティーへ。家具を置いて自分だけの部屋を作ろう。",
@@ -205,29 +205,56 @@ func neoCity(_ m: MapBuilder) {
         m.part("Neon Cross \(i + 3)", at: (0, 0.03, Float(i) * 40), size: (220, 0.04, 1), color: "#F472B6", material: .neon, solid: false)
     }
     m.spawnRing(0, 0, radius: 6, count: 8, color: "#A78BFA")
+    // Places the scripts use, kept clear of the towers.
+    let keepClear: [(Float, Float)] = [(30, 30), (-30, 30), (30, -30), (-30, -30), (60, 0), (-60, 0), (0, 60), (0, -60), (-70, -70),
+                                       (70, 70), (-70, 70), (70, -70), (40, 80), (-40, -80)]
     var r = Seeded("neo")
-    for i in 0..<18 {
+    var towers = 0
+    for _ in 0..<40 where towers < 18 {
         let x = r.range(-95, 95), z = r.range(-95, 95)
-        if abs(x) < 15 && abs(z) < 15 { continue }
         let h = r.range(12, 50)
-        m.slab("Tower \(i + 1)", x: x, y: 0, z: z, w: 10, h: h, d: 10, color: r.pick(["#1E293B", "#312E81", "#0F766E"]), material: .metal)
-        m.part("Tower \(i + 1) Glow", at: (x, h + 0.2, z), size: (10.2, 0.4, 10.2), color: r.pick(["#22D3EE", "#F472B6", "#A3E635"]), material: .neon)
+        let body = r.pick(["#1E293B", "#312E81", "#0F766E"])
+        let glow = r.pick(["#22D3EE", "#F472B6", "#A3E635"])
+        if abs(x) < 15 && abs(z) < 15 { continue }
+        if keepClear.contains(where: { abs($0.0 - x) < 13 && abs($0.1 - z) < 13 }) { continue }
+        // Sky homes sit on a ring of radius 70 at 30 m: keep towers out from under them.
+        if abs(hypot(x, z) - 70) < 12 { continue }
+        towers += 1
+        m.slab("Tower \(towers)", x: x, y: 0, z: z, w: 10, h: h, d: 10, color: body, material: .metal)
+        m.part("Tower \(towers) Glow", at: (x, h + 0.2, z), size: (10.2, 0.4, 10.2), color: glow, material: .neon)
     }
     let jobs: [(String, Float, Float, String)] = [("Job Engineer", 30, 30, "#22D3EE"), ("Job Medic", -30, 30, "#F87171"),
                                                 ("Job Officer", 30, -30, "#60A5FA"), ("Job Chef", -30, -30, "#FBBF24"),
-                                                ("Job Pilot", 60, 0, "#A78BFA")]
+                                                ("Job Pilot", 60, 0, "#A78BFA"), ("Job Hacker", 0, -60, "#A3E635")]
     for j in jobs {
         m.slab("\(j.0) Base", x: j.1, y: 0, z: j.2, w: 8, h: 0.3, d: 8, color: "#334155")
         m.pad(j.0, x: j.1, z: j.2, y: 0.3, size: 5, color: j.3, tags: ["job"])
     }
     m.pad("Vehicle Bay", x: -60, z: 0, size: 6, color: "#F97316", tags: ["vehicle"])
-    // Sky homes, reached by the elevator pads.
+    m.pad("Neo Kitchen", x: -36, z: -24, size: 2.4, color: "#F59E0B", tags: ["kitchen"])
+    m.pad("Race Start", x: 0, z: 60, size: 5, color: "#E879F9", tags: ["race"])
+    m.pad("Phone Shop", x: 36, z: 24, size: 2.4, color: "#38BDF8", tags: ["phone"])
+    // Machines that break (engineers), street spots (medics, hackers' ATMs).
+    for (i, p) in [(20, 0), (-20, 0), (0, 20), (0, -20), (45, 45), (-45, 45), (45, -45), (-45, -45)].enumerated() {
+        m.part("Machine \(i + 1)", at: (Float(p.0), 1, Float(p.1)), size: (1.6, 2, 1.6), color: "#475569", material: .metal, tags: ["machine"])
+    }
+    for (i, p) in [(70, 70), (-70, 70), (70, -70), (-40, -80)].enumerated() {
+        m.part("ATM \(i + 1)", at: (Float(p.0), 1.1, Float(p.1)), size: (1.2, 2.2, 0.8), color: "#16A34A", material: .neon, tags: ["atm"])
+    }
+    m.markers("Street Spot", points: ring(10, radius: 50, phase: 0.3), color: "#000000", visible: false, behavior: .none)
+    // The jail, where officers send wanted hackers.
+    m.slab("Jail Floor", x: -70, y: 0, z: -70, w: 14, h: 0.2, d: 14, color: "#111827")
+    m.walls(-70, -70, w: 14, d: 14, h: 5, y: 0.2, color: "#64748B", thickness: 0.4, name: "Jail Wall", opacity: 0.6)
+    m.markers("Jail Cell", points: [(-70, -70)], y: 0.2, color: "#F87171", visible: true, size: 2, behavior: .none)
+    m.markers("Jail Exit", points: [(-60, -60)], color: "#000000", visible: false, behavior: .none)
+    // Sky homes, reached by the lift pads; a down pad inside each brings you back.
     for i in 0..<6 {
         let a = Float(i) / 6 * 2 * .pi
         let x = cos(a) * 70, z = sin(a) * 70
         m.slab("Sky Home \(i + 1) Floor", x: x, y: 30, z: z, w: 12, h: 0.4, d: 12, color: "#E0E7FF", material: .glass, tags: ["skyhome"])
         m.walls(x, z, w: 12, d: 12, h: 3, y: 30.4, color: "#A5B4FC", thickness: 0.2, name: "Sky Home \(i + 1) Wall", opacity: 0.5)
         m.pad("Sky Home \(i + 1) Lift", x: x * 0.8, z: z * 0.8, size: 2.4, color: "#E879F9", tags: ["lift"])
+        m.pad("Sky Home \(i + 1) Down", x: x + 4, z: z + 4, y: 30.4, size: 1.6, color: "#E879F9", tags: ["down"])
     }
 }
 

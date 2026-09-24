@@ -1,14 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 102,
+  "blockCount" : 138,
   "id" : "neo-city-life",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/neo-city-life\/data.absc",
+    "games\/neo-city-life\/city.absc",
+    "games\/neo-city-life\/common.absc",
+    "games\/neo-city-life\/crime.absc",
+    "games\/neo-city-life\/jobs.absc",
+    "games\/neo-city-life\/race.absc",
     "games\/neo-city-life\/main.absc"
   ],
-  "summary" : "未来のハイテク都市でくらすRP。ホバーカー、ジェットパック、ドローン視点。仕事でかせいで、空飛ぶ家を手に入れよう。",
+  "summary" : "未来都市のRP。6つの仕事（修理・救助・逮捕・料理・空の配達・ハッキング）でかせぎ、乗り物を集めて空の家をスマートホームに。指名手配と刑務所、ドローンレース、ネオンナイトも。",
   "tags" : [
     "rp",
     "city",

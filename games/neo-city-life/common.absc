@@ -1,0 +1,85 @@
+-- common.absc — 小さな道具・画面の左上
+
+func ready(p)
+  return p.owned != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func job_by_pad(name)
+  for j in JOBS do
+    if j.pad == name then return j end
+  end
+  return nil
+end
+
+func job_info(id)
+  for j in JOBS do
+    if j.id == id then return j end
+  end
+  return nil
+end
+
+func vehicle_info(id)
+  for v in VEHICLES do
+    if v.id == id then return v end
+  end
+  return VEHICLES[1]
+end
+
+func job_level(p, id)
+  let n = p.job_count[id] or 0
+  let lv = JOB_LEVELS[1]
+  for x in JOB_LEVELS do
+    if n >= x.need then lv = x end
+  end
+  return lv
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let line = "💼 なし"
+  if p.job != nil then
+    let j = job_info(p.job)
+    line = j.name + "「" + job_level(p, p.job).name + "」"
+  end
+  if p.wanted > 0 then
+    let stars = ""
+    for k in 1 to p.wanted do stars = stars + "⭐" end
+    line = line + "   🚨 指名手配 " + stars
+  end
+  if p.home != nil then line = line + "   🏙 " + HOME_LEVELS[p.home_lv + 1].name end
+  p.ui_text("hud", line, {at: "top_left", dy: 34, size: 14, bold: true, color: "#E0E7FF"})
+  p.ui_text("hud2", vehicle_info(p.vehicle).name, {at: "top_left", dy: 54, size: 13, color: "#C4B5FD"})
+end

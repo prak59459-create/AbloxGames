@@ -1,0 +1,92 @@
+-- crime.absc — 指名手配と刑務所
+-- ハッカーがATMをハックすると⭐が増える（最大5）。⭐は1分ごとに1つずつへる。
+-- オフィサーは⭐のある人の近く（3m）で「🚨 逮捕」→ 刑務所へ（⭐×25びょう）。保釈金をはらうと出られる。
+
+let crime_clock = 0
+
+func add_wanted(p, n)
+  let before = p.wanted
+  p.wanted = min(5, p.wanted + n)
+  p.wanted_at = time()
+  if p.wanted > before then
+    for q in players() do
+      if ready(q) and q.job == "officer" then q.message("🚨 " + p.name + " が指名手配 ⭐" + p.wanted, 2) end
+    end
+  end
+  hud(p)
+end
+
+func arrest(cop)
+  if cop.job != "officer" then return end
+  let target = nil
+  for q in players() do
+    if q.id != cop.id and ready(q) and q.wanted > 0 and not active_until(q.jailed_until) and distance(cop, q) < 3.2 then target = q end
+  end
+  if target == nil then
+    cop.message("🚨 近くに指名手配の人がいない", 1)
+    return
+  end
+  let stars = target.wanted
+  send_to_jail(target, stars * WANTED_JAIL)
+  kit_give(cop, 40 * stars)
+  cop.message("🚨 " + target.name + " を逮捕！ +" + 40 * stars, 2)
+  kit_quest_progress(cop, "arrest", 1)
+  announce("🚓 " + cop.name + " が指名手配の " + target.name + " を逮捕！", 3)
+end
+
+func send_to_jail(p, secs)
+  p.wanted = 0
+  p.jailed_until = time() + secs
+  clear_task(p)
+  ride(p, "walk")
+  let cell = block("Jail Cell 1")
+  if cell != nil then p.teleport(cell) end
+  p.ui_button("bail", "💰 保釈 " + BAIL, {at: "bottom", dy: -80, w: 180, h: 46, size: 16, bg: "#B45309"})
+  p.message("🚔 刑務所… " + secs + "びょう（保釈金で出られる）", 3)
+  hud(p)
+end
+
+func release(p)
+  p.jailed_until = nil
+  p.ui_remove("bail")
+  p.ui_remove("jail")
+  let out = block("Jail Exit 1")
+  if out != nil then p.teleport(out) end
+  p.message("🚪 釈放された", 2)
+  hud(p)
+end
+
+on tick(dt)
+  crime_clock = crime_clock + dt
+  if crime_clock < 1 then return end
+  crime_clock = 0
+  let wanted = filter(players(), func(p) return ready(p) and p.wanted > 0 end)
+  for p in players() do
+    if ready(p) then
+      if p.jailed_until != nil then
+        if time() >= p.jailed_until then release(p) else p.ui_text("jail", "🚔 のこり " + ceil(p.jailed_until - time()) + "s", {at: "top", dy: 80, size: 16, bold: true, color: "#FCA5A5"}) end
+      end
+      if p.wanted > 0 and time() - p.wanted_at > 60 then
+        p.wanted = p.wanted - 1
+        p.wanted_at = time()
+        hud(p)
+      end
+      if p.job == "officer" then
+        if len(wanted) > 0 then
+          let s = "🚨 手配中: " + join(map(wanted, func(w) return w.name + "⭐" + w.wanted + "（" + floor(distance(p, w)) + "m）" end), "  ")
+          p.ui_text("wanted", s, {at: "top", dy: 80, size: 13, bold: true, color: "#93C5FD"})
+        else
+          p.ui_remove("wanted")
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "arrest" then arrest(p)
+  elif id == "bail" then
+    if p.jailed_until != nil and kit_pay(p, BAIL) then release(p) end
+  end
+end

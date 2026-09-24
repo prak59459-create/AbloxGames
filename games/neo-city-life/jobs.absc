@@ -1,0 +1,278 @@
+-- jobs.absc — 仕事（6種類）
+-- 🔧 エンジニア: 赤く光った機械のそばに3びょう → 修理
+-- 🩺 メディック: たおれている人のそばに3びょう → 手当て
+-- 🚓 オフィサー: 逃げるハッカーロボに追いつく → 確保（指名手配のプレイヤーは「🚨 逮捕」）
+-- 🍜 シェフ: キッチンのパッドで3びょう料理 → ビーコンへ届ける
+-- ✈️ パイロット: 荷物を空の家のビーコンへ（空を飛べる乗り物で）
+-- 💻 ハッカー: ATMのそばに5びょう → 大きくかせぐが指名手配⭐が増える
+-- 同じ仕事をつづけると仕事レベルが上がって給料アップ。ネオンナイト中は2倍。
+
+let broken = {}        -- 機械の名前 → true
+let atm_cd = {}        -- ATMの名前 → 次に使える時間
+let job_clock = 0
+let trouble_clock = 0
+
+func pay_job(p, extra, why)
+  let j = job_info(p.job)
+  let before = job_level(p, p.job)
+  p.job_count[p.job] = (p.job_count[p.job] or 0) + 1
+  let pay = floor((j.pay + extra) * before.mult)
+  if active_until(neon_until) then pay = pay * 2 end
+  kit_give(p, pay)
+  p.score = p.score + pay
+  p.message(why + " +" + pay + " クレジット", 1.5)
+  p.sound("collect")
+  kit_quest_progress(p, "job10", 1)
+  kit_quest_progress(p, "job50", 1)
+  let now = job_level(p, p.job)
+  if now.name != before.name then
+    announce("💼 " + p.name + " が" + j.name + "の「" + now.name + "」に！", 3)
+    kit_quest_progress(p, "job_rank", 1)
+  end
+  hud(p)
+end
+
+func set_job(p, j)
+  if p.jailed_until != nil and time() < p.jailed_until then return end
+  if p.job == j.id then return end
+  clear_task(p)
+  p.job = j.id
+  p.leg_color = j.color
+  if not contains(p.tried, j.id) then
+    append(p.tried, j.id)
+    kit_quest_progress(p, "jobs3", 1)
+  end
+  p.message(j.name + " になった！ " + j.task, 3)
+  if j.id == "chef" then p.message("🍜 まずはキッチン（オレンジのパッド）へ", 2) end
+  if j.id == "pilot" then new_beacon(p, "sky") end
+  if j.id == "officer" then p.ui_button("arrest", "🚨 逮捕", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 60, size: 17, bg: "#1D4ED8", radius: 16}) else p.ui_remove("arrest") end
+  hud(p)
+end
+
+func quit_job(p)
+  clear_task(p)
+  p.job = nil
+  p.ui_remove("arrest")
+  hud(p)
+end
+
+-- MARK: ビーコン（シェフとパイロット）
+
+func clear_task(p)
+  if p.beacon != nil then gone(p.beacon) end
+  p.beacon = nil
+  p.food = false
+  p.work_t = 0
+  p.ui_remove("work")
+  p.ui_remove("task")
+end
+
+func new_beacon(p, kind)
+  if p.beacon != nil then gone(p.beacon) end
+  let j = job_info(p.job)
+  let pos = nil
+  if kind == "sky" then
+    let home = block("Sky Home " + random(1, 6) + " Floor")
+    pos = home.position + {x: 0, y: 1.4, z: 0}
+  else
+    let spot = block("Street Spot " + random(1, 10))
+    pos = spot.position + {x: 0, y: 1.2, z: 0}
+  end
+  p.beacon = create_block({name: "Beacon", shape: "cylinder", position: pos, size: {x: 1.8, y: 2.4, z: 1.8}, color: j.color,
+                           material: "neon", opacity: 0.7, solid: false, behavior: "trigger", tags: ["beacon", p.id]})
+  p.beacon_at = time()
+  p.ui_text("task", "📍 ビーコンへ届けよう（" + floor(distance(p, pos)) + "m）", {at: "top", dy: 56, size: 14, bold: true, color: j.color})
+end
+
+-- MARK: トラブルを起こす（機械の故障・けが人・ハッカーロボ）
+
+func workers(id)
+  return filter(players(), func(p) return ready(p) and p.job == id end)
+end
+
+func make_trouble()
+  if len(workers("engineer")) > 0 and len(keys(broken)) < 4 then
+    let name = "Machine " + random(1, 8)
+    let m = block(name)
+    if m != nil and broken[name] == nil then
+      broken[name] = true
+      m.color = "#EF4444"
+      m.material = "neon"
+    end
+  end
+  if len(workers("medic")) > 0 and len(filter(npcs(), func(n) return n.kind == "hurt" end)) < 3 then
+    let spot = block("Street Spot " + random(1, 10))
+    let n = create_npc({name: "けが人", position: spot.position + {x: 0, y: 1, z: 0}, color: random(["#FDE68A", "#93C5FD", "#F9A8D4"]),
+                        head_color: "#F5D0A9", health: 100000, speed: 0.8, team: "citizens"})
+    n.kind = "hurt"
+    n.frozen = true
+    n.say("たすけて…")
+  end
+  if len(workers("officer")) > 0 and len(filter(npcs(), func(n) return n.kind == "bot" end)) < 2 then
+    let spot = block("Street Spot " + random(1, 10))
+    let n = create_npc({name: "ハッカーロボ", position: spot.position + {x: 0, y: 1, z: 0}, color: "#A3E635", head_color: "#111827",
+                        health: 100000, speed: 1.05, team: "bots"})
+    n.kind = "bot"
+    n.say("ヒヒヒ、データはいただいた！")
+  end
+end
+
+-- MARK: その場にいつづける仕事
+
+func hold(p, key, secs, color)
+  if p.work_key != key then
+    p.work_key = key
+    p.work_t = 0
+  end
+  p.work_t = p.work_t + 0.5
+  p.ui_bar("work", {at: "center", dy: 90, w: 220, h: 14, value: p.work_t, max: secs, color: color, bg: "#00000099"})
+  if p.work_t >= secs then
+    p.work_t = 0
+    p.work_key = nil
+    p.ui_remove("work")
+    return true
+  end
+  return false
+end
+
+func job_step(p)
+  let j = job_info(p.job)
+  if p.job == "engineer" then
+    for name in keys(broken) do
+      let m = block(name)
+      if m != nil and distance(p, m.position) < 3.2 then
+        if hold(p, name, 3, j.color) then
+          remove(broken, name)
+          m.color = "#475569"
+          m.material = "metal"
+          fx_ball(m.position + {x: 0, y: 1.5, z: 0}, 2, "#22D3EE", 0.4)
+          pay_job(p, 0, "🔧 修理完了")
+        end
+        return
+      end
+    end
+  elif p.job == "medic" then
+    for n in npcs() do
+      if n.kind == "hurt" and kit_here(n) and distance(p, n) < 3.2 then
+        if hold(p, n.id, 3, j.color) then
+          n.kind = "healed"
+          n.frozen = false
+          n.say("ありがとう！ 元気になった！")
+          n.move_to(n.position + {x: random(-8, 8), y: 0, z: random(-8, 8)})
+          let nn = n
+          after(3, func() gone(nn) end)
+          pay_job(p, 0, "🩺 手当て完了")
+        end
+        return
+      end
+    end
+  elif p.job == "officer" then
+    for n in npcs() do
+      if n.kind == "bot" and kit_here(n) and distance(p, n) < 2.8 then
+        n.kind = "caught"
+        n.say("しまった！")
+        n.frozen = true
+        let nn = n
+        after(1.5, func() gone(nn) end)
+        pay_job(p, 10, "🚓 ハッカーロボを確保")
+        return
+      end
+    end
+  elif p.job == "chef" and not p.food then
+    let k = block("Neo Kitchen")
+    if k != nil and distance(p, k.position) < 2.5 then
+      if hold(p, "kitchen", 3, j.color) then
+        p.food = true
+        p.message("🍜 できた！ ビーコンへ届けよう", 2)
+        new_beacon(p, "street")
+      end
+      return
+    end
+  elif p.job == "hacker" then
+    for i in 1 to 4 do
+      let name = "ATM " + i
+      let a = block(name)
+      if a != nil and distance(p, a.position) < 3 then
+        if active_until(atm_cd[name]) then
+          if quiet_ready(p, "atm_msg", 3) then p.message("🏧 このATMは警戒中（" + ceil(atm_cd[name] - time()) + "s）", 1.2) end
+          return
+        end
+        if hold(p, name, 5, j.color) then
+          atm_cd[name] = time() + 30
+          pay_job(p, 0, "💻 ハック成功")
+          add_wanted(p, 1)
+        end
+        return
+      end
+    end
+  end
+  if p.work_t > 0 then
+    p.work_t = 0
+    p.work_key = nil
+    p.ui_remove("work")
+  end
+end
+
+-- ハッカーロボは近くのオフィサーから逃げる
+func bot_step()
+  for n in npcs() do
+    if n.kind == "bot" and kit_here(n) then
+      let cop = nil
+      for p in workers("officer") do
+        if cop == nil or distance(n, p) < distance(n, cop) then cop = p end
+      end
+      if cop != nil and distance(n, cop) < 18 then
+        let away = normalize({x: n.x - cop.x, y: 0, z: n.z - cop.z})
+        let dest = n.position + away * 8
+        dest = {x: max(-100, min(100, dest.x)), y: dest.y, z: max(-100, min(100, dest.z))}
+        n.move_to(dest)
+      elif random() < 0.2 then
+        n.move_to(n.position + {x: random(-10, 10), y: 0, z: random(-10, 10)})
+      end
+    end
+  end
+end
+
+on tick(dt)
+  job_clock = job_clock + dt
+  trouble_clock = trouble_clock + dt
+  if trouble_clock >= 12 then
+    trouble_clock = 0
+    make_trouble()
+  end
+  if job_clock < 0.5 then return end
+  job_clock = 0
+  for p in players() do
+    if ready(p) and p.job != nil and p.alive and not active_until(p.jailed_until) then
+      job_step(p)
+      if p.beacon != nil and still(p.beacon) then
+        p.ui_text("task", "📍 ビーコンへ（" + floor(distance(p, p.beacon.position)) + "m）", {at: "top", dy: 56, size: 14, bold: true, color: job_info(p.job).color})
+      end
+    end
+  end
+  bot_step()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "job") then
+    let j = job_by_pad(b.name)
+    if j != nil then set_job(p, j) end
+  elif contains(b.tags, "beacon") and contains(b.tags, p.id) then
+    let fast = time() - p.beacon_at < 40
+    let extra = 0
+    if fast then extra = 10 end
+    if p.job == "chef" and p.food then
+      clear_task(p)
+      pay_job(p, extra, "🍜 お届け完了")
+    elif p.job == "pilot" then
+      clear_task(p)
+      pay_job(p, extra, "✈️ 空の配達完了")
+      kit_later(p, 1, func() if p.job == "pilot" then new_beacon(p, "sky") end end)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "quit_job" then quit_job(p) end
+end

@@ -1,0 +1,114 @@
+-- race.absc — 空のドローンレース
+-- 2分30秒ごとに受付（20びょう）。レース台（ピンク）に乗るとエントリー。
+-- 空に8つのリングがあらわれる。順番にくぐって、ゴールの早い3人にごほうび。飛べる乗り物が有利！
+
+let race = nil          -- {state, until, rings, racers: {id: next}, finished: []}
+let race_clock = 0
+let race_wait = 60
+
+func make_rings()
+  let list = []
+  let i = 0
+  for r in RACE_RINGS do
+    i = i + 1
+    let col = "#E879F9"
+    if i == 1 then col = "#22C55E" end
+    if i == len(RACE_RINGS) then col = "#FDE047" end
+    append(list, create_block({name: "Race Ring", shape: "cylinder", position: {x: r.x, y: r.y, z: r.z}, size: {x: 7, y: 0.5, z: 7},
+                               rotation: {x: 90, y: 0, z: 0}, color: col, material: "neon", solid: false, opacity: 0.55}))
+  end
+  return list
+end
+
+func open_race()
+  race = {state: "entry", until: time() + 20, rings: [], racers: {}, finished: []}
+  announce("🏁 ドローンレースの受付開始！ ピンクのレース台（北）に乗ろう（20びょう）", 4)
+end
+
+func start_race()
+  if len(keys(race.racers)) == 0 then
+    announce("🏁 だれもエントリーしなかった…", 2)
+    race = nil
+    return
+  end
+  race.state = "run"
+  race.until = time() + 90
+  race.rings = make_rings()
+  announce("🏁 スタート！ リングを順番にくぐれ！", 3)
+end
+
+func end_race()
+  for b in race.rings do gone(b) end
+  let prizes = [300, 150, 80]
+  let i = 0
+  let msg = "🏁 レース終了！"
+  for id in race.finished do
+    i = i + 1
+    let p = player_by_id(id)
+    if p != nil and i <= 3 then
+      kit_give(p, prizes[i])
+      msg = msg + "  " + i + "位 " + p.name
+      if i == 1 then
+        kit_quest_progress(p, "race_win", 1)
+        kit_badge(p, "race", "空の王者")
+      end
+    end
+  end
+  for id in keys(race.racers) do
+    let p = player_by_id(id)
+    if p != nil then p.ui_remove("race") end
+  end
+  announce(msg, 4)
+  race = nil
+end
+
+on tick(dt)
+  race_clock = race_clock + dt
+  if race_clock < 0.25 then return end
+  let step_t = race_clock
+  race_clock = 0
+  if race == nil then
+    race_wait = race_wait - step_t
+    if race_wait <= 0 then
+      race_wait = RACE_EVERY
+      open_race()
+    end
+    return
+  end
+  if race.state == "entry" then
+    let pad = block("Race Start")
+    for p in players() do
+      if ready(p) and pad != nil and distance(p, pad.position) < 3.5 and race.racers[p.id] == nil and not active_until(p.jailed_until) then
+        race.racers[p.id] = 1
+        p.message("🏁 エントリーした！", 1.5)
+        kit_quest_progress(p, "race", 1)
+      end
+    end
+    ui_text("race_info", "🏁 レース受付中 " + ceil(race.until - time()) + "s（" + len(keys(race.racers)) + "人）", {at: "top", dy: 102, size: 14, bold: true, color: "#F0ABFC"})
+    if time() >= race.until then start_race() end
+    return
+  end
+  ui_text("race_info", "🏁 レース中 " + ceil(race.until - time()) + "s", {at: "top", dy: 102, size: 14, bold: true, color: "#F0ABFC"})
+  for id in keys(race.racers) do
+    let p = player_by_id(id)
+    let nxt = race.racers[id]
+    if p != nil and nxt <= len(RACE_RINGS) then
+      let r = RACE_RINGS[nxt]
+      if distance(p, {x: r.x, y: r.y - 1, z: r.z}) < 4.5 then
+        race.racers[id] = nxt + 1
+        p.sound("checkpoint")
+        if nxt == len(RACE_RINGS) then
+          append(race.finished, id)
+          p.message("🏁 ゴール！ " + len(race.finished) + "位", 2)
+        end
+      end
+      p.ui_text("race", "🏁 リング " + min(nxt, len(RACE_RINGS)) + "/" + len(RACE_RINGS) + "（" + floor(distance(p, {x: r.x, y: r.y, z: r.z})) + "m）",
+                {at: "top", dy: 124, size: 14, bold: true, color: "#F0ABFC"})
+    end
+  end
+  let all_done = len(race.finished) >= len(keys(race.racers))
+  if time() >= race.until or all_done then
+    ui_remove("race_info")
+    end_race()
+  end
+end

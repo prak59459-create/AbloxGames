@@ -1,94 +1,45 @@
 -- Neo City Life — 未来都市でくらすRP
+-- 仕事6種類（仕事レベルで給料アップ）、指名手配と刑務所、乗り物5種、
+-- 空の家（スマートホームで家賃収入）、スマホ、ネオンナイト、空のドローンレース。
+--
+-- ファイル:
+--   data.absc     表（仕事・仕事レベル・乗り物・家・レースのコース）
+--   common.absc   小さな道具・画面の左上
+--   jobs.absc     仕事（修理・手当て・確保・料理・空の配達・ハック）
+--   crime.absc    指名手配・逮捕・刑務所・保釈
+--   city.absc     乗り物・空の家・スマホ・ネオンナイト
+--   race.absc     ドローンレース
+--   main.absc     このファイル
 
 kit_setup("Neo City Life", "未来の街で働いて、空の家へ", [
-  "光るパッドで仕事を選ぶ: エンジニア・メディック・オフィサー・シェフ・パイロット",
-  "仕事中は街に光るビーコンが出る。さわると仕事完了",
-  "オレンジのベイで乗り物: ホバーカー・ジェットパック",
-  "紫のリフトで空の家へ。空いていれば自分の家に",
-  "「🛸 ドローン」で空から街を見下ろせる"
+  "💼 光るパッドで仕事: エンジニア・メディック・オフィサー・シェフ・パイロット・ハッカー",
+  "🔧🩺 こわれた機械やけが人のそばにいると仕事が進む。🚓 逃げるロボを追いかけろ",
+  "💻 ハッカーはかせげるけど指名手配⭐。オフィサーに逮捕されると刑務所",
+  "🚗 オレンジのベイで乗り物。🚀 飛べる乗り物で空の配達やレース",
+  "🏙 ピンクのリフトで空の家。📱 スマホで強化すると家賃収入",
+  "🏁 ときどきドローンレース、🌃 ネオンナイトは給料2倍！"
 ])
 kit_currency = "クレジット"
-
-let jobs = {
-  "Job Engineer": {name: "🔧 エンジニア", color: "#22D3EE", pay: 30, task: "こわれた機械を直す"},
-  "Job Medic": {name: "🩺 メディック", color: "#F87171", pay: 30, task: "けが人を助ける"},
-  "Job Officer": {name: "🚓 オフィサー", color: "#60A5FA", pay: 35, task: "パトロール地点を回る"},
-  "Job Chef": {name: "🍜 シェフ", color: "#FBBF24", pay: 25, task: "料理を届ける"},
-  "Job Pilot": {name: "✈️ パイロット", color: "#A78BFA", pay: 40, task: "空の家へ荷物を届ける"}
-}
-let vehicles = [
-  {id: "walk", name: "🚶 歩く", speed: 1, jump: 1, gravity: 1},
-  {id: "hover", name: "🚗 ホバーカー", speed: 3, jump: 1, gravity: 0.7},
-  {id: "jet", name: "🚀 ジェットパック", speed: 1.4, jump: 3.2, gravity: 0.35},
-  {id: "board", name: "🛹 ホバーボード", speed: 2.2, jump: 1.8, gravity: 0.6}
-]
-let homes = {}
-let beacons = {}
-
-kit_shop_title = "ベイ"
-kit_shop_add("jet", "ジェットパック", 250, func(p)
-  append(p.owned, "jet")
-  ride(p, "jet")
-end)
-kit_shop_add("board", "ホバーボード", 150, func(p)
-  append(p.owned, "board")
-  ride(p, "board")
-end)
+kit_shop_title = "ネオンショップ"
 kit_shop_add("paint", "ネオンカラーに光る", 80, func(p)
   p.color = random(["#22D3EE", "#F472B6", "#A3E635", "#FACC15", "#A78BFA"])
 end)
+kit_shop_add("visor", "ホロバイザー", 200, func(p) p.hat = "antenna" end)
+kit_shop_add("halo", "ネオンヘイロー", 600, func(p) p.hat = "halo" end)
 
-kit_quest("job5", "仕事を5回こなす", 5, 150)
+kit_quest("jobs3", "3種類の仕事をする", 3, 150)
+kit_quest("job10", "仕事を10回こなす", 10, 200)
+kit_quest("job50", "仕事を50回こなす", 50, 1000)
+kit_quest("job_rank", "仕事レベルを上げる", 1, 150)
+kit_quest("arrest", "指名手配の人を逮捕", 1, 200)
 kit_quest("home", "空の家を手に入れる", 1, 100)
-kit_quest("jobs3", "3種類の仕事をする", 3, 200)
-
-func find_vehicle(id)
-  for v in vehicles do
-    if v.id == id then return v end
-  end
-  return vehicles[1]
-end
-
-func ride(p, id)
-  let v = find_vehicle(id)
-  p.speed = v.speed
-  p.jump = v.jump
-  p.gravity = v.gravity
-  p.vehicle = id
-  p.message(v.name, 1.2)
-end
-
-func vehicle_panel(p)
-  let h = 100 + len(vehicles) * 52
-  p.ui_panel("veh", {at: "center", w: 360, h: h, bg: "#1E1B4BEE", radius: 22, layer: 30})
-  p.ui_text("veh_t", "乗り物", {parent: "veh", y: 26 / h, size: 22, bold: true})
-  let i = 0
-  for v in vehicles do
-    i = i + 1
-    let owned = v.id == "walk" or v.id == "hover" or contains(p.owned, v.id)
-    p.ui_button("veh_" + v.id, v.name + (owned and "" or " 🔒"), {parent: "veh", y: (26 + i * 52) / h, w: 280, h: 44, size: 16,
-                bg: owned and "#7C3AED" or "#374151"})
-  end
-  p.ui_button("veh_shop", "🛒 買う", {parent: "veh", x: 0.3, y: (h - 26) / h, w: 120, h: 38, size: 14, bg: "#0EA5E9"})
-  p.ui_button("veh_close", "閉じる", {parent: "veh", x: 0.7, y: (h - 26) / h, w: 120, h: 38, size: 14, bg: "gray"})
-end
-
-func new_task(p)
-  let old = beacons[p.id]
-  if old != nil then old.destroy() end
-  let job = jobs[p.job]
-  let pos = {x: random(-90, 90), y: 1.2, z: random(-90, 90)}
-  if p.job == "Job Pilot" then
-    let home = block("Sky Home " + random(1, 6) + " Floor")
-    pos = home.position + {x: 0, y: 1.2, z: 0}
-  end
-  let b = create_block({name: "Beacon", shape: "cylinder", position: pos, size: {x: 1.6, y: 2.4, z: 1.6}, color: job.color,
-                        material: "neon", opacity: 0.7, solid: false, behavior: "trigger", tags: ["beacon", p.id]})
-  beacons[p.id] = b
-  p.message("📍 " + job.task + "（光るビーコンへ）", 2.5)
-end
+kit_quest("smart", "家を強化する", 1, 150)
+kit_quest("vehicle", "乗り物を買う", 1, 100)
+kit_quest("race", "レースに出る", 1, 80)
+kit_quest("race_win", "レースで1位", 1, 400)
 
 on start()
+  for n in npcs() do n.destroy() end
   every(12, func() kit_leaderboard("💎") end)
 end
 
@@ -96,83 +47,34 @@ on join(p)
   kit_welcome(p)
   kit_quest_button(p)
   kit_camera_button(p)
-  p.owned = []
-  p.done_jobs = []
-  kit_give(p, 80)
+  kit_shop_button(p)
+  p.owned = ["walk", "hover"]
+  p.tried = []
+  p.job_count = {}
+  p.wanted = 0
+  p.wanted_at = 0
+  p.home_lv = 0
+  p.vehicle = "walk"
+  kit_give(p, 100)
+  p.ui_button("open_phone", "📱 スマホ", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#4F46E5"})
   p.ui_button("vehicles", "🚗 乗り物", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#F97316"})
   p.ui_button("drone", "🛸 ドローン", {at: "right", dy: 0, w: 150, h: 50, size: 17, bg: "#7C3AED"})
+  hud(p)
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  ride(p, p.vehicle)
+  if active_until(p.jailed_until) then
+    let cell = block("Jail Cell 1")
+    if cell != nil then p.teleport(cell) end
+  end
 end
 
 on leave(p)
-  let b = beacons[p.id]
-  if b != nil then b.destroy() end
-  remove(beacons, p.id)
+  clear_task(p)
   for key in keys(homes) do
-    if homes[key] == p.id then remove(homes, key) end
+    if homes[key] == p.id then homes[key] = nil end
   end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "job") then
-    if p.job != b.name then
-      p.job = b.name
-      let job = jobs[b.name]
-      p.leg_color = job.color
-      p.ui_text("job", job.name + "（1件 " + job.pay + "）", {at: "top_left", dy: 34, size: 17, bold: true, color: job.color})
-      if not contains(p.done_jobs, b.name) then
-        append(p.done_jobs, b.name)
-        kit_quest_progress(p, "jobs3", 1)
-      end
-      new_task(p)
-    end
-  elif contains(b.tags, "beacon") and contains(b.tags, p.id) then
-    let job = jobs[p.job]
-    remove(beacons, p.id)
-    b.destroy()
-    kit_give(p, job.pay)
-    p.score = p.score + job.pay
-    p.sound("collect")
-    kit_quest_progress(p, "job5", 1)
-    kit_later(p, 1, func() if p.job != nil then new_task(p) end end)
-  elif contains(b.tags, "vehicle") and kit_ready(p, "bay", 3) then
-    vehicle_panel(p)
-  elif contains(b.tags, "lift") then
-    let n = split(b.name, " ")[3]
-    p.teleport(block("Sky Home " + n + " Floor"))
-    if homes[n] == nil and p.home == nil then
-      homes[n] = p.id
-      p.home = n
-      p.message("🏙 空の家 " + n + " があなたの家に！", 3)
-      kit_quest_progress(p, "home", 1)
-    end
-  end
-end
-
-on button(p, id)
-  if id == "vehicles" then vehicle_panel(p)
-  elif id == "veh_close" then p.ui_remove("veh")
-  elif id == "veh_shop" then
-    p.ui_remove("veh")
-    kit_open_shop(p)
-  elif starts_with(id, "veh_") then
-    let key = replace(id, "veh_", "")
-    if key == "walk" or key == "hover" or contains(p.owned, key) then
-      ride(p, key)
-      p.ui_remove("veh")
-    else
-      p.message("🔒 ショップで買おう", 1.5)
-    end
-  elif id == "drone" then
-    if p.camera == "top" then
-      p.camera_reset()
-    else
-      p.camera = "top"
-      p.camera_distance = 40
-    end
-  end
-end
-
-on chat(p, text)
-  if text == "/home" and p.home != nil then p.teleport(block("Sky Home " + p.home + " Floor")) end
+  if race != nil then remove(race.racers, p.id) end
 end
