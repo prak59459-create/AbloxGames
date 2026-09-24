@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 41,
+  "id" : "smile-outbreak",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/smile-outbreak\/main.absc"
+  ],
+  "summary" : "笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！",
+  "tags" : [
+    "tag",
+    "infection",
+    "party"
+  ],
+  "title" : "Smile Outbreak",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/smile-outbreak\/world.ablox"
+}

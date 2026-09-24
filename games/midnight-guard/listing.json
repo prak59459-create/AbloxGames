@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 52,
+  "id" : "midnight-guard",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/midnight-guard\/main.absc"
+  ],
+  "summary" : "真夜中の施設を見回る警備員。発電機を動かし続け、懐中電灯で怪異を追い払え。",
+  "tags" : [
+    "horror",
+    "guard",
+    "coop"
+  ],
+  "title" : "Midnight Guard",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/midnight-guard\/world.ablox"
+}

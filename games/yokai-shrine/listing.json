@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 109,
+  "id" : "yokai-shrine",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/yokai-shrine\/main.absc"
+  ],
+  "summary" : "夜の神社に散らばった5枚のお札を集めて祭壇へ。仲間のふりをする妖怪に気をつけて…和風ホラー。",
+  "tags" : [
+    "horror",
+    "japanese",
+    "coop"
+  ],
+  "title" : "Yokai Shrine",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/yokai-shrine\/world.ablox"
+}

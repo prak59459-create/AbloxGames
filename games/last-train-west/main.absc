@@ -1,0 +1,169 @@
+-- Last Train West — 石炭をくべて列車を走らせ、終点をめざす
+
+kit_setup("Last Train West", "列車を止めるな。終点まで10km", [
+  "黒い石炭の山にさわって石炭を持つ（3つまで）",
+  "オレンジのボイラーにさわってくべると列車が走る",
+  "2kmごとに駅で止まる。町の箱から物資（石炭・金・包帯）を集めよう",
+  "発車の汽笛が鳴ったら列車にもどる！",
+  "夜は怪物が列車をおそう。金で武器を買って戦え（🛒）",
+  "10km走りきれば勝ち！"
+])
+kit_currency = "金貨"
+kit_shop_title = "駅の店"
+kit_shop_add("revolver", "リボルバー", 20, func(p) p.give("pistol") end)
+kit_shop_add("shotgun", "ショットガン", 60, func(p) p.give("shotgun") end)
+kit_shop_add("rifle", "ライフル", 120, func(p) p.give("rifle") end)
+kit_shop_add("bandage", "包帯（回復）", 8, func(p) p.heal(50) end)
+
+let fuel = 60
+let km = 0
+let stopped = false
+let station_until = 0
+let next_station = 2
+let night = false
+let travel_time = 0
+
+kit_quest("coal", "石炭を20個くべる", 20, 80)
+kit_quest("loot", "物資を10個集める", 10, 60)
+kit_quest("end", "終点にたどりつく", 1, 500)
+
+func show()
+  let status = stopped and ("🚉 駅に停車中（あと " + ceil(station_until - time()) + " 秒）") or ("🚂 走行中 " + fixed(fuel / 10, 1) + " km/分")
+  ui_text("train", "🛤 " + fixed(km, 2) + " / 10 km   " + status, {at: "top", dy: 26, size: 18, bold: true})
+  ui_bar("fuel", fuel, 100, {at: "top", dy: 56, w: 260, h: 12, color: "#F97316"})
+end
+
+func show_hand(p)
+  p.ui_text("coal", "⚫ 石炭 " + p.coal, {at: "top_left", dy: 34, size: 18, bold: true})
+end
+
+func arrive()
+  stopped = true
+  station_until = time() + 45
+  announce("🚉 駅に着いた！45秒で町の物資を集めよう", 4)
+  for i in 1 to 6 do
+    let spot = block("Loot Spot " + i)
+    create_block({name: "Crate", position: spot.position + {x: random(-2, 2), y: 0.6, z: random(-2, 2)}, size: 1.1, color: "#A16207",
+                  tags: ["crate"], behavior: "trigger", solid: false})
+  end
+end
+
+func depart()
+  stopped = false
+  next_station = next_station + 2
+  for b in blocks("crate") do b.destroy() end
+  sound("goal")
+  announce("🚂 ポーーッ！発車！", 3)
+  for p in players() do
+    if distance(p, block("Engine")) > 30 then
+      p.teleport(block("Passenger Car"))
+      p.message("乗りおくれそうだった！（金貨を半分落とした）", 2.5)
+      p.coins = floor(kit_money(p) / 2)
+      kit_show_money(p)
+    end
+  end
+end
+
+func monsters()
+  let count = min(20, 3 + floor(km * 2))
+  for i in 1 to count do
+    let spot = block("Monster Spawn " + random(1, 5))
+    create_npc({name: random(["荒野のゾンビ", "コヨーテ", "ガイコツ"]), position: spot.position + {x: random(-5, 5), y: 1, z: random(-5, 5)},
+                color: "#57534E", head_color: "#A8A29E", health: 50 + km * 15, speed: 0.8, team: "monster"})
+  end
+end
+
+on start()
+  game.respawn_time = 8
+  every(1, func()
+    if stopped then
+      if time() >= station_until then depart() end
+    else
+      travel_time = travel_time + 1
+      fuel = max(0, fuel - 1.2)
+      km = km + fuel / 600
+      if fuel <= 0 and random() < 0.3 then announce("⚠️ 燃料切れ！石炭をくべて！", 1.5) end
+      if km >= next_station then arrive() end
+      -- 夜と昼
+      let is_night = travel_time % 90 > 60
+      if is_night and not night then
+        night = true
+        world.sky_top = "#0B1026"
+        world.sky_bottom = "#3B1D4A"
+        world.light = 0.25
+        announce("🌙 夜だ。何かが近づいてくる…", 3)
+        monsters()
+      elif not is_night and night then
+        night = false
+        world.sky_top = "#FF8A5B"
+        world.sky_bottom = "#FFD29D"
+        world.light = 0.6
+        for n in npcs() do n.destroy() end
+      end
+      if km >= 10 then
+        for p in players() do
+          p.score = p.score + 10
+          kit_quest_progress(p, "end", 1)
+        end
+        kit_finish("🏁 終点に着いた！みんなで生きのびた！", 10)
+      end
+    end
+    show()
+    if len(players()) > 0 and len(kit_alive_players()) == 0 then kit_finish("💀 列車の旅はここで終わった… " + fixed(km, 1) + " km", 8) end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  p.coal = 0
+  p.give("pistol")
+  kit_give(p, 10)
+  show_hand(p)
+end
+
+on tick(dt)
+  for n in npcs() do
+    if kit_chase(n, 50, 12, dt) == nil then n.move_to(block("Passenger Car")) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "coal") and p.coal < 3 then
+    p.coal = p.coal + 1
+    show_hand(p)
+  elif contains(b.tags, "boiler") and p.coal > 0 then
+    fuel = min(100, fuel + p.coal * 12)
+    kit_quest_progress(p, "coal", p.coal)
+    p.score = p.score + p.coal
+    p.coal = 0
+    show_hand(p)
+    show()
+  elif contains(b.tags, "crate") then
+    b.destroy()
+    kit_quest_progress(p, "loot", 1)
+    let r = random()
+    if r < 0.4 then
+      p.coal = min(3, p.coal + 2)
+      p.message("⚫ 石炭を見つけた", 1.5)
+    elif r < 0.8 then
+      let g = random(5, 20)
+      kit_give(p, g)
+      p.message("💰 金貨 +" + g, 1.5)
+    else
+      p.heal(40)
+      p.message("🩹 包帯で回復", 1.5)
+    end
+    show_hand(p)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and killer != nil and not killer.is_npc then kit_give(killer, 3) end
+end
+
+on respawn(p)
+  if not p.is_npc then p.teleport(block("Passenger Car")) end
+end

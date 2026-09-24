@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 87,
+  "id" : "last-train-west",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/last-train-west\/main.absc"
+  ],
+  "summary" : "荒野を走る最後の列車。石炭をくべて走らせ、駅で物資を集め、夜におそってくる怪物から列車を守りぬけ。",
+  "tags" : [
+    "survival",
+    "train",
+    "coop"
+  ],
+  "title" : "Last Train West",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/last-train-west\/world.ablox"
+}

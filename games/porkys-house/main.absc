@@ -1,0 +1,126 @@
+-- Porky's House — アイテムを探してドアを開け、ブタの怪物から逃げて脱出
+
+kit_setup("Porky's House", "カギを見つけて、にげ出せ！", [
+  "家のどこかに 🔑赤いカギ・🔑青いカギ・🔨ハンマー・🗝出口のカギ・📝暗号メモ",
+  "アイテムにさわると拾う（1人1つまで持てる。拾いなおすと交換）",
+  "同じ色のドアをタップ → 開く。木の板はハンマーでこわす",
+  "出口のドアには「出口のカギ」と「暗号」の両方が必要",
+  "ブタの怪物に見つかったら逃げろ！つかまると1回休み",
+  "外の緑のパッドにたどりついたら脱出成功！"
+])
+
+let unlocked = {}
+let code_found = false
+let porky = nil
+let escaped = 0
+let item_icons = {"Red Key": "🔑赤いカギ", "Blue Key": "🔑青いカギ", "Hammer": "🔨ハンマー", "Exit Key": "🗝出口のカギ", "Code Note": "📝暗号メモ"}
+let door_needs = {"Red Door": "Red Key", "Blue Door": "Blue Key", "Wooden Boards": "Hammer", "Exit Door": "Exit Key"}
+
+kit_quest("item", "アイテムを3回使う", 3, 80)
+kit_quest("escape", "脱出する", 1, 300)
+
+func show(p)
+  p.ui_text("hold", "✋ " + (p.item != nil and item_icons[p.item] or "なし"), {at: "top_left", dy: 34, size: 18, bold: true})
+end
+
+func show_doors()
+  let n = len(keys(unlocked))
+  ui_text("doors", "🚪 開いたドア " + n + " / 4" + (code_found and "   📝 暗号あり" or ""), {at: "top", dy: 26, size: 18, bold: true})
+end
+
+func drop(p)
+  if p.item == nil then return end
+  let it = block(p.item)
+  if it != nil then
+    it.position = p.position + {x: 0, y: 0.7, z: 0}
+    it.visible = true
+  end
+  p.item = nil
+end
+
+on start()
+  game.respawn_time = 10
+  show_doors()
+  after(8, func()
+    porky = create_npc({name: "ポーキー", position: block("Porky Home").position + {x: 0, y: 1, z: 0}, color: "#F9A8D4",
+                        head_color: "#F472B6", size: 1.4, health: 999999, speed: 0.95})
+    announce("🐷 …何かが起きた。ブタの怪物がうろついている", 3)
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  show(p)
+end
+
+on tick(dt)
+  if porky == nil or not kit_here(porky) then return end
+  let target = nil
+  for p in players() do
+    if p.alive and not p.escaped and distance(p, porky) < 18 then
+      if target == nil or distance(p, porky) < distance(target, porky) then target = p end
+    end
+  end
+  if target != nil then
+    porky.follow(target)
+    if distance(porky, target) < 2 then
+      drop(target)
+      target.shake(0.8, 0.5)
+      target.kill()
+      target.message("🐷 つかまった！10秒で復活", 2.5)
+      porky.stop()
+      porky.frozen = true
+      after(3, func() if kit_here(porky) then porky.frozen = false end end)
+    end
+  elif random() < 0.03 then
+    porky.move_to({x: random(-20, 20), y: 0.5, z: random(-15, 15)})
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "item") and b.visible then
+    if b.name == "Code Note" then
+      code_found = true
+      b.visible = false
+      announce("📝 " + p.name + " が暗号メモを見つけた！", 2)
+      show_doors()
+      return
+    end
+    drop(p)
+    p.item = b.name
+    b.visible = false
+    p.sound("collect")
+    show(p)
+  elif contains(b.tags, "escape") and not p.escaped then
+    p.escaped = true
+    escaped = escaped + 1
+    p.score = p.score + 5
+    kit_quest_progress(p, "escape", 1)
+    announce("🎉 " + p.name + " が脱出した！", 3)
+    if escaped >= len(players()) then kit_finish("🏆 全員脱出成功！", 8) end
+  end
+end
+
+on tap(p, b)
+  if not contains(b.tags, "lock") or not b.visible or distance(p, b) > 5 then return end
+  let need = door_needs[b.name]
+  if p.item != need then
+    p.message("🔒 " + item_icons[need] + " が必要", 1.5)
+    return
+  end
+  if b.name == "Exit Door" and not code_found then
+    p.message("🔒 暗号もわからないと開かない", 1.5)
+    return
+  end
+  b.visible = false
+  b.solid = false
+  unlocked[b.name] = true
+  p.item = nil
+  show(p)
+  kit_quest_progress(p, "item", 1)
+  sound("teleport")
+  announce("🚪 " + p.name + " が「" + b.name + "」を開けた！", 2)
+  show_doors()
+end

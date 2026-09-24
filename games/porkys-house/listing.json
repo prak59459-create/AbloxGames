@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 42,
+  "id" : "porkys-house",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/porkys-house\/main.absc"
+  ],
+  "summary" : "カギやハンマーを探してドアを開け、家から脱出するなぞ解きホラー。見つかったら全力で逃げろ、ブタの怪物が追ってくる！",
+  "tags" : [
+    "horror",
+    "puzzle",
+    "escape"
+  ],
+  "title" : "Porky's House",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/porkys-house\/world.ablox"
+}

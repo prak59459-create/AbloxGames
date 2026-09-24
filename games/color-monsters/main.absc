@@ -1,0 +1,183 @@
+-- Color Monsters — カラフルなモンスターから隠れて部品を集める
+
+kit_setup("Color Monsters", "箱をかぶって、見つからずに集めろ", [
+  "夜ごとに、倉庫のどこかに光る部品が出る。全部集めて緑の穴へ",
+  "🔵 ブルー: 歩き回る。見つかると追いかけてくる",
+  "🟢 グリーン: 目が見えないけど、近くで走ると気づく",
+  "🟠 オレンジ: とても速い。通り道に気をつけて",
+  "🟣 パープル: 通気口（黒い四角）にひそんでいる",
+  "「📦 箱」ボタンで箱をかぶるとモンスターに見つからない（遅くなる）",
+  "5夜を生きのびればクリア！"
+])
+
+let night = 0
+let parts_needed = 0
+let parts_done = 0
+let monsters = {}
+let over = false
+
+kit_quest("parts", "部品を10個届ける", 10, 150)
+kit_quest("night3", "3夜目をこえる", 1, 200)
+kit_quest("hide", "箱で10回隠れる", 10, 60)
+
+func hidden(p)
+  return p.boxed == true
+end
+
+func show()
+  ui_text("night", "🌙 " + night + " 夜目   部品 " + parts_done + " / " + parts_needed, {at: "top", dy: 26, size: 20, bold: true})
+end
+
+func spawn_monster(kind)
+  let spot = block("Monster Spot " + random(1, 5))
+  let spec = {
+    blue: {name: "ブルー", color: "#2563EB", speed: 0.75, size: 2.2, sight: 22},
+    green: {name: "グリーン", color: "#16A34A", speed: 0.6, size: 2.4, sight: 9},
+    orange: {name: "オレンジ", color: "#EA580C", speed: 1.4, size: 1.8, sight: 14},
+    purple: {name: "パープル", color: "#7E22CE", speed: 0.9, size: 2, sight: 0}
+  }[kind]
+  let n = create_npc({name: spec.name, position: spot.position + {x: 0, y: 1, z: 0}, color: spec.color, head_color: spec.color,
+                      size: spec.size, health: 999999, speed: spec.speed, team: "monsters"})
+  n.kind = kind
+  n.sight = spec.sight
+  monsters[kind] = n
+  if kind == "purple" then
+    n.visible = false
+    n.frozen = true
+  end
+end
+
+func start_night()
+  night = night + 1
+  if night > 5 then
+    over = true
+    for p in players() do p.score = p.score + 10 end
+    kit_finish("🌅 5夜を生きのびた！クリア！", 10)
+    return
+  end
+  parts_needed = 3 + night * 2
+  parts_done = 0
+  for b in blocks("part") do b.destroy() end
+  let spots = shuffle(range(1, 20))
+  for i in 1 to parts_needed do
+    let spot = block("Part Spot " + spots[i])
+    create_block({name: "Part", shape: random(["box", "sphere", "cylinder"]), position: spot.position + {x: 0, y: 0.8, z: 0}, size: 0.9,
+                  color: random(["#F472B6", "#FACC15", "#34D399", "#60A5FA"]), material: "neon", solid: false, behavior: "trigger", tags: ["part"]})
+  end
+  if night == 1 then spawn_monster("blue") end
+  if night == 2 then spawn_monster("green") end
+  if night == 3 then spawn_monster("orange") end
+  if night == 4 then spawn_monster("purple") end
+  announce("🌙 " + night + " 夜目。部品を " + parts_needed + " 個集めろ", 3)
+  for p in players() do
+    if not p.alive then p.respawn() end
+  end
+  show()
+  if night == 4 then
+    for p in players() do kit_quest_progress(p, "night3", 1) end
+  end
+end
+
+func catch(n, p)
+  if p.boxed or not p.alive then return end
+  p.shake(0.8, 0.6)
+  p.fade("#000000", 0.2)
+  kit_later(p, 0.6, func() p.fade(nil, 1) end)
+  p.kill()
+  if p.carrying > 0 then
+    p.message("部品を落とした…", 2)
+    p.carrying = 0
+  end
+  announce("😱 " + p.name + " が " + n.name + " につかまった！", 2)
+  if len(kit_alive_players()) == 0 and len(players()) > 0 then
+    over = true
+    kit_finish("💀 全員つかまった… " + night + " 夜目", 8)
+  end
+end
+
+on start()
+  game.respawn_time = 12
+  after(3, func() start_night() end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.carrying = 0
+  p.boxed = false
+  p.ui_button("box", "📦 箱", {at: "bottom_right", dx: -120, dy: -160, w: 110, h: 64, size: 20, bg: "#A16207", radius: 16})
+  show()
+end
+
+on tick(dt)
+  if over then return end
+  for n in npcs() do
+    if n.kind == "purple" then
+      -- 通気口の近くで待ちぶせ
+    else
+      let target = nil
+      for p in players() do
+        if p.alive and not hidden(p) then
+          let d = distance(n, p)
+          let noticed = d < n.sight
+          if n.kind == "green" then noticed = d < n.sight and magnitude(p.velocity) > 3 end
+          if noticed and (target == nil or d < distance(n, target)) then target = p end
+        end
+      end
+      if target != nil then
+        n.follow(target)
+        if distance(n, target) < 2.2 then catch(n, target) end
+      elif random() < 0.02 then
+        n.move_to(block("Part Spot " + random(1, 20)))
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "part") then
+    b.destroy()
+    p.carrying = p.carrying + 1
+    p.message("🔧 部品を拾った（" + p.carrying + "）穴へ運ぼう", 1.5)
+    p.sound("collect")
+  elif contains(b.tags, "chute") and p.carrying > 0 then
+    parts_done = parts_done + p.carrying
+    p.score = p.score + p.carrying
+    kit_quest_progress(p, "parts", p.carrying)
+    p.carrying = 0
+    show()
+    if parts_done >= parts_needed then
+      announce("✅ 部品がそろった！夜が明ける…", 3)
+      after(4, func() start_night() end)
+    end
+  elif contains(b.tags, "vent") and monsters.purple != nil and kit_here(monsters.purple) and not p.boxed then
+    let n = monsters.purple
+    n.visible = true
+    n.teleport(b)
+    p.message("🟣 通気口から何かが…！", 1)
+    after(0.8, func()
+      if kit_here(n) and kit_here(p) and distance(n, p) < 4 then catch(n, p) end
+      if kit_here(n) then n.visible = false end
+    end)
+  end
+end
+
+on button(p, id)
+  if id == "box" and p.alive then
+    p.boxed = not p.boxed
+    if p.boxed then
+      p.speed = 0.3
+      p.size = 0.7
+      p.color = "#A16207"
+      p.head_color = "#A16207"
+      p.message("📦 箱の中…", 1)
+      kit_quest_progress(p, "hide", 1)
+    else
+      p.speed = 1
+      p.size = 1
+      p.color = "#F59E0B"
+      p.head_color = "#F5D0A9"
+    end
+  end
+end

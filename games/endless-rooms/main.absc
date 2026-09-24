@@ -1,0 +1,94 @@
+-- Endless Rooms — 黄色い部屋の迷路で出口を探す
+
+kit_setup("Endless Rooms", "出口を見つけて、次のレベルへ", [
+  "どこかに光る出口がある。見つけたら全員で次のレベルへ",
+  "徘徊する「何か」に見つかったら逃げろ",
+  "ボトルの水（水色）を拾うと回復",
+  "レベルが上がるほど暗く、敵が増える",
+  "レベル5の出口を抜ければ脱出！"
+])
+
+let level = 1
+let exit = nil
+let changing = false
+let colors = [["#1A1606", "#2A2408", 0.55], ["#0B0F14", "#1F2937", 0.35], ["#140505", "#3B0A0A", 0.3], ["#020617", "#111827", 0.2], ["#000000", "#0A0A0A", 0.12]]
+let names = ["Level 0: 黄色い部屋", "Level 1: 倉庫", "Level 2: 赤いパイプ", "Level 3: 暗やみ", "Level 4: 何もない場所"]
+
+kit_quest("water", "水を5本飲む", 5, 60)
+kit_quest("level3", "レベル3に着く", 1, 200)
+kit_quest("escape", "脱出する", 1, 500)
+
+func set_level(n)
+  level = n
+  let c = colors[n]
+  world.sky_top = c[1]
+  world.sky_bottom = c[2]
+  world.light = c[3]
+  for m in npcs() do m.destroy() end
+  for b in blocks("water") do b.destroy() end
+  if exit != nil then exit.destroy() end
+  let spot = block("Exit Spot " + random(1, 8))
+  exit = create_block({name: "Exit", shape: "box", position: spot.position + {x: 0, y: 1.5, z: 0}, size: {x: 2, y: 3, z: 2},
+                       color: "#FFFFFF", material: "neon", opacity: 0.8, solid: false, behavior: "trigger", tags: ["exit"]})
+  for i in 1 to level + 1 do
+    let s = block("Entity Spawn " + random(1, 4))
+    create_npc({name: "何か", position: s.position + {x: random(-3, 3), y: 1, z: random(-3, 3)}, color: "#0A0A0A",
+                head_color: "#0A0A0A", size: 2, health: 999999, speed: 0.55 + level * 0.1})
+  end
+  for i in 1 to 6 do
+    create_block({name: "Water", shape: "cylinder", position: {x: random(-70, 70), y: 0.4, z: random(-70, 70)}, size: {x: 0.4, y: 0.8, z: 0.4},
+                  color: "#67E8F9", material: "neon", solid: false, behavior: "trigger", tags: ["water"]})
+  end
+  for p in players() do
+    if not p.alive then p.respawn() end
+    p.teleport(block("Spawn " + random(1, 8)))
+    p.score = max(p.score, level)
+  end
+  announce("🟨 " + names[n], 4)
+  ui_text("level", names[n], {at: "top", dy: 26, size: 20, bold: true})
+  if n >= 3 then
+    for p in players() do kit_quest_progress(p, "level3", 1) end
+  end
+end
+
+on start()
+  game.respawn_time = 6
+  set_level(1)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+end
+
+on tick(dt)
+  for n in npcs() do
+    if kit_chase(n, 14, 30, dt) == nil and random() < 0.02 then
+      n.move_to({x: random(-70, 70), y: 0.5, z: random(-70, 70)})
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "exit") and not changing then
+    changing = true
+    if level >= 5 then
+      for q in players() do kit_quest_progress(q, "escape", 1) end
+      kit_finish("🚪 " + p.name + " が出口を見つけた！脱出成功！", 10)
+    else
+      announce("🚪 " + p.name + " が出口を見つけた！", 2)
+      p.score = p.score + 1
+      fade("#FFFFFF", 0.3)
+      after(0.6, func()
+        set_level(level + 1)
+        fade(nil, 1)
+        changing = false
+      end)
+    end
+  elif contains(b.tags, "water") then
+    b.destroy()
+    p.heal(40)
+    kit_quest_progress(p, "water", 1)
+  end
+end

@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 41,
+  "id" : "watch-the-house",
+  "maxPlayers" : 6,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/watch-the-house\/main.absc"
+  ],
+  "summary" : "ひとけのない家で、窓やドアに近づく何かを見張る。カメラと懐中電灯で追い払い、5夜を乗り切れ。",
+  "tags" : [
+    "horror",
+    "cameras",
+    "hard"
+  ],
+  "title" : "Watch The House",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/watch-the-house\/world.ablox"
+}

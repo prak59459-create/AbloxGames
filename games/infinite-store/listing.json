@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 121,
+  "id" : "infinite-store",
+  "maxPlayers" : 10,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/infinite-store\/main.absc"
+  ],
+  "summary" : "終わりのない巨大家具店。昼は家具を集めて基地を作り、夜は店員の怪物から基地を守れ。何日生きのびられる？",
+  "tags" : [
+    "survival",
+    "build",
+    "horror"
+  ],
+  "title" : "Infinite Store",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/infinite-store\/world.ablox"
+}

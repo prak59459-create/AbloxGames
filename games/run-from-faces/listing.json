@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 53,
+  "id" : "run-from-faces",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/run-from-faces\/main.absc"
+  ],
+  "summary" : "巨大な顔がものすごい速さで追いかけてくる！全力で逃げて、つかまった仲間は助け起こそう。3分生きのびたら勝ち。",
+  "tags" : [
+    "chase",
+    "coop",
+    "funny"
+  ],
+  "title" : "Run From The Faces",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/run-from-faces\/world.ablox"
+}

@@ -1,0 +1,132 @@
+-- Infinite Store — 家具で基地を作り、夜の店員から生きのびる
+
+kit_setup("Infinite Store", "家具を集めて、夜を越えろ", [
+  "昼: 家具をタップすると持てる（10個まで）",
+  "「🪑 置く」で目の前に置いて、かべや基地を作ろう",
+  "夜: 店員（怪物）が歩き回る。基地にこもって守れ",
+  "食べ物（光るもの）を拾うと回復",
+  "バット（最初から）で店員をたたける。何日生きのびられる？"
+])
+kit_melee("バット", 25, 1.8, 5)
+
+let day = 1
+let night = false
+let left = 90
+let foods = ["ホットドッグ", "ミートボール", "ジュース"]
+
+kit_quest("carry", "家具を15個置く", 15, 100)
+kit_quest("day3", "3日目の朝をむかえる", 1, 200)
+kit_quest("fight", "店員を5体たおす", 5, 150)
+
+func show()
+  ui_text("clock", (night and "🌙 夜 " or "☀️ 昼 ") + day + " 日目  ⏱ " + kit_clock(left), {at: "top", dy: 26, size: 20, bold: true})
+end
+
+func show_bag(p)
+  p.ui_text("bag", "🪑 持っている家具 " + len(p.bag) + " / 10", {at: "top_left", dy: 34, size: 17, bold: true})
+end
+
+func start_day()
+  night = false
+  left = 90
+  world.light = 0.8
+  world.sky = "#F3F4F6"
+  for n in npcs() do n.destroy() end
+  for i in 1 to 10 do
+    let spot = block("Food Spot " + i)
+    create_block({name: random(foods), shape: "sphere", position: spot.position + {x: 0, y: 0.6, z: 0}, size: 0.7, color: "#F59E0B",
+                  material: "neon", solid: false, behavior: "trigger", tags: ["food"]})
+  end
+  announce("☀️ " + day + " 日目。家具を集めて基地を作ろう", 3)
+end
+
+func start_night()
+  night = true
+  left = 60
+  world.light = 0.12
+  world.sky = "#111827"
+  let count = min(30, 3 + day * 3)
+  for i in 1 to count do
+    let spot = block("Employee Spawn " + random(1, 6))
+    create_npc({name: "店員", position: spot.position + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: "#FACC15",
+                head_color: "#1D4ED8", size: 1.5, health: 80 + day * 15, speed: 0.75, team: "staff"})
+  end
+  announce("🌙 夜… 店員たちが動き出した", 3)
+end
+
+on start()
+  game.respawn_time = 15
+  start_day()
+  every(1, func()
+    left = left - 1
+    if left <= 0 then
+      if night then
+        day = day + 1
+        for p in players() do
+          p.score = day
+          if day >= 3 then kit_quest_progress(p, "day3", 1) end
+        end
+        start_day()
+      else
+        start_night()
+      end
+    end
+    show()
+    if night and len(players()) > 0 and len(kit_alive_players()) == 0 then
+      kit_finish("💀 全員つかまった… " + day + " 日目", 8)
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.bag = []
+  p.give("バット")
+  p.ui_button("place", "🪑 置く", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#2563EB"})
+  show_bag(p)
+end
+
+on tick(dt)
+  for n in npcs() do kit_chase(n, 35, 20, dt) end
+end
+
+on tap(p, b)
+  if not contains(b.tags, "furniture") or distance(p, b) > 6 then return end
+  if len(p.bag) >= 10 then
+    p.message("もう持てない（10個まで）", 1)
+    return
+  end
+  append(p.bag, {size: b.size, color: b.color, shape: b.shape})
+  b.destroy()
+  p.sound("collect")
+  show_bag(p)
+end
+
+on button(p, id)
+  if id == "place" and p.alive then
+    if len(p.bag) == 0 then
+      p.message("家具を持っていない。タップで拾おう", 1.5)
+      return
+    end
+    let item = remove(p.bag)
+    let spot = kit_ahead(p, 2.2)
+    create_block({name: "Placed Furniture", shape: item.shape, position: {x: spot.x, y: item.size.y / 2, z: spot.z}, size: item.size,
+                  color: item.color, rotation: {x: 0, y: p.yaw, z: 0}, tags: ["furniture"]})
+    kit_quest_progress(p, "carry", 1)
+    show_bag(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "food") then
+    b.destroy()
+    p.heal(35)
+    p.message("🍽 " + b.name + "！", 1)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and killer != nil and not killer.is_npc then kit_quest_progress(killer, "fight", 1) end
+end

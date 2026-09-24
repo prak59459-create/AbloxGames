@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 90,
+  "id" : "color-monsters",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/color-monsters\/main.absc"
+  ],
+  "summary" : "夜の遊園地倉庫で、カラフルなモンスターから隠れながら部品を集めよう。見つかりそうになったら箱をかぶれ！5夜を生きのびろ。",
+  "tags" : [
+    "horror",
+    "hide",
+    "coop"
+  ],
+  "title" : "Color Monsters",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/color-monsters\/world.ablox"
+}

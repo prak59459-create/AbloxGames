@@ -1,0 +1,132 @@
+-- Run From The Faces — 巨大な顔から逃げる。倒れた仲間は助け起こせ
+
+kit_setup("Run From The Faces", "走れ！つかまった仲間は助けろ", [
+  "巨大な顔がものすごい速さで追ってくる！",
+  "つかまると倒れる。倒れた仲間の近くで「助ける」を3秒",
+  "緑のパッドでジャンプ。高いところに逃げるのも手",
+  "3分間、1人でも生きのこれば勝ち",
+  "ラウンドが進むほど顔が増えて速くなる"
+])
+
+let round_no = 0
+let ends_at = 0
+let live = false
+let names = ["にやけ顔", "ぎょろ目", "おこり顔", "笑い男", "ぼうし顔"]
+
+kit_quest("survive", "1ラウンド生きのこる", 1, 150)
+kit_quest("revive", "3回助ける", 3, 120)
+
+func downed_list()
+  return filter(players(), func(p) return p.downed end)
+end
+
+func start_round()
+  round_no = round_no + 1
+  live = true
+  ends_at = time() + 180
+  for p in players() do
+    p.downed = false
+    p.speed = 1
+    if not p.alive then p.respawn() end
+  end
+  for n in npcs() do n.destroy() end
+  let count = min(8, 1 + round_no)
+  for i in 1 to count do
+    let spot = block("Face Spawn " + random(1, 6))
+    create_npc({name: random(names), position: spot.position + {x: 0, y: 2, z: 0}, color: "#FDE68A", head_color: "#FEF3C7",
+                size: 2.6, health: 999999, speed: 1.35 + round_no * 0.05, team: "faces"})
+  end
+  announce("😱 ラウンド " + round_no + "！逃げろ！", 3)
+end
+
+func end_round(win)
+  if not live then return end
+  live = false
+  if win then
+    for p in players() do
+      if not p.downed then
+        p.score = p.score + 1
+        kit_quest_progress(p, "survive", 1)
+      end
+    end
+    announce("🎉 生きのびた！", 3)
+  else
+    announce("💀 全員つかまった…", 3)
+  end
+  after(6, func() start_round() end)
+end
+
+on start()
+  after(4, func() start_round() end)
+  every(1, func()
+    if live then
+      let left = ends_at - time()
+      ui_text("clock", "⏱ " + kit_clock(left) + "   😱 " + len(npcs()), {at: "top", dy: 26, size: 22, bold: true})
+      if left <= 0 then end_round(true) end
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.downed = false
+  p.ui_button("revive", "🤝 助ける", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#16A34A", radius: 16})
+end
+
+on tick(dt)
+  if not live then return end
+  for n in npcs() do
+    let target = nil
+    for p in players() do
+      if not p.downed and (target == nil or distance(n, p) < distance(n, target)) then target = p end
+    end
+    if target != nil then
+      n.follow(target)
+      if distance(n, target) < 2.6 then
+        target.downed = true
+        target.speed = 0.15
+        target.message("😵 倒れた！仲間に助けてもらおう", 2)
+        target.shake(0.5, 0.4)
+        if len(filter(players(), func(p) return not p.downed end)) == 0 then end_round(false) end
+      end
+    end
+  end
+  -- 助けている途中
+  for p in players() do
+    if p.reviving != nil then
+      let other = nil
+      for q in players() do
+        if q.id == p.reviving then other = q end
+      end
+      if other == nil or not other.downed or distance(p, other) > 4 then
+        p.reviving = nil
+        p.ui_remove("rev")
+      else
+        p.rev_time = p.rev_time + dt
+        p.ui_bar("rev", p.rev_time, 3, {at: "center", dy: 80, w: 200, h: 14, color: "#22C55E"})
+        if p.rev_time >= 3 then
+          other.downed = false
+          other.speed = 1
+          other.message("🙌 " + p.name + " が助けてくれた！", 2)
+          kit_quest_progress(p, "revive", 1)
+          p.reviving = nil
+          p.ui_remove("rev")
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "revive" and not p.downed then
+    for q in downed_list() do
+      if q.id != p.id and distance(p, q) < 4 then
+        p.reviving = q.id
+        p.rev_time = 0
+        return
+      end
+    end
+    p.message("近くに倒れた仲間はいない", 1)
+  end
+end

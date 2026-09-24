@@ -920,6 +920,266 @@
       "title" : "Street Drive Empire",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/street-drive-empire\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 90,
+      "id" : "color-monsters",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/color-monsters\/main.absc"
+      ],
+      "summary" : "夜の遊園地倉庫で、カラフルなモンスターから隠れながら部品を集めよう。見つかりそうになったら箱をかぶれ！5夜を生きのびろ。",
+      "tags" : [
+        "horror",
+        "hide",
+        "coop"
+      ],
+      "title" : "Color Monsters",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/color-monsters\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 42,
+      "id" : "porkys-house",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/porkys-house\/main.absc"
+      ],
+      "summary" : "カギやハンマーを探してドアを開け、家から脱出するなぞ解きホラー。見つかったら全力で逃げろ、ブタの怪物が追ってくる！",
+      "tags" : [
+        "horror",
+        "puzzle",
+        "escape"
+      ],
+      "title" : "Porky's House",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/porkys-house\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 53,
+      "id" : "run-from-faces",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/run-from-faces\/main.absc"
+      ],
+      "summary" : "巨大な顔がものすごい速さで追いかけてくる！全力で逃げて、つかまった仲間は助け起こそう。3分生きのびたら勝ち。",
+      "tags" : [
+        "chase",
+        "coop",
+        "funny"
+      ],
+      "title" : "Run From The Faces",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/run-from-faces\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 25,
+      "id" : "anomaly-hallway",
+      "maxPlayers" : 6,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/anomaly-hallway\/main.absc"
+      ],
+      "summary" : "終わらない病院の廊下。いつもとちがう「異変」があれば引き返し、なければ進む。8回続けて正解すれば出口へ。",
+      "tags" : [
+        "horror",
+        "puzzle",
+        "observe"
+      ],
+      "title" : "Anomaly Hallway",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/anomaly-hallway\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 87,
+      "id" : "last-train-west",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/last-train-west\/main.absc"
+      ],
+      "summary" : "荒野を走る最後の列車。石炭をくべて走らせ、駅で物資を集め、夜におそってくる怪物から列車を守りぬけ。",
+      "tags" : [
+        "survival",
+        "train",
+        "coop"
+      ],
+      "title" : "Last Train West",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/last-train-west\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 109,
+      "id" : "yokai-shrine",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/yokai-shrine\/main.absc"
+      ],
+      "summary" : "夜の神社に散らばった5枚のお札を集めて祭壇へ。仲間のふりをする妖怪に気をつけて…和風ホラー。",
+      "tags" : [
+        "horror",
+        "japanese",
+        "coop"
+      ],
+      "title" : "Yokai Shrine",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/yokai-shrine\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 107,
+      "id" : "night-lockdown",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/night-lockdown\/main.absc"
+      ],
+      "summary" : "昼は町で食料と板を集め、夜は家の窓に板を打ちつけて立てこもる。侵入者から家族を守って3夜を生きのびろ。",
+      "tags" : [
+        "survival",
+        "story",
+        "defend"
+      ],
+      "title" : "Night Lockdown",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/night-lockdown\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 40,
+      "id" : "toy-factory-night-shift",
+      "maxPlayers" : 6,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/toy-factory-night-shift\/main.absc"
+      ],
+      "summary" : "おもちゃ工場の夜間警備。カメラで動くおもちゃを見張り、電力を節約しながらドアを閉めて、朝6時まで耐えろ。",
+      "tags" : [
+        "horror",
+        "cameras",
+        "coop"
+      ],
+      "title" : "Toy Factory Night Shift",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/toy-factory-night-shift\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 52,
+      "id" : "midnight-guard",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/midnight-guard\/main.absc"
+      ],
+      "summary" : "真夜中の施設を見回る警備員。発電機を動かし続け、懐中電灯で怪異を追い払え。",
+      "tags" : [
+        "horror",
+        "guard",
+        "coop"
+      ],
+      "title" : "Midnight Guard",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/midnight-guard\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 253,
+      "id" : "endless-rooms",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/endless-rooms\/main.absc"
+      ],
+      "summary" : "どこまでも続く黄色い部屋の迷路。徘徊する何かから逃げながら出口を探し、次のレベルへ進め。",
+      "tags" : [
+        "horror",
+        "maze",
+        "explore"
+      ],
+      "title" : "Endless Rooms",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/endless-rooms\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 121,
+      "id" : "infinite-store",
+      "maxPlayers" : 10,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/infinite-store\/main.absc"
+      ],
+      "summary" : "終わりのない巨大家具店。昼は家具を集めて基地を作り、夜は店員の怪物から基地を守れ。何日生きのびられる？",
+      "tags" : [
+        "survival",
+        "build",
+        "horror"
+      ],
+      "title" : "Infinite Store",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/infinite-store\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 41,
+      "id" : "smile-outbreak",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/smile-outbreak\/main.absc"
+      ],
+      "summary" : "笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！",
+      "tags" : [
+        "tag",
+        "infection",
+        "party"
+      ],
+      "title" : "Smile Outbreak",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/smile-outbreak\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 41,
+      "id" : "watch-the-house",
+      "maxPlayers" : 6,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/watch-the-house\/main.absc"
+      ],
+      "summary" : "ひとけのない家で、窓やドアに近づく何かを見張る。カメラと懐中電灯で追い払い、5夜を乗り切れ。",
+      "tags" : [
+        "horror",
+        "cameras",
+        "hard"
+      ],
+      "title" : "Watch The House",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/watch-the-house\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

@@ -1,0 +1,176 @@
+-- Night Lockdown — 昼は集めて、夜は立てこもる
+
+kit_setup("Night Lockdown", "板を打ちつけて、3夜を守りぬけ", [
+  "昼: 町に出て、光る箱から「板」や「食べ物」を集める",
+  "家の食料庫（オレンジ）にさわると食べ物をしまえる",
+  "夜: 窓やドアをタップすると板を打ちつけられる（最大3枚）",
+  "侵入者が板をはがしにくる。0枚になると入ってくる！",
+  "バットで追い払おう。食べ物がないと夜は体力が減る",
+  "3夜を生きのびれば、助けが来る"
+])
+kit_melee("バット", 30, 1.6, 5)
+
+let day = 1
+let night = false
+let left = 70
+let food = 3
+let boards = {}
+let entered = 0
+
+kit_quest("board", "板を10枚打つ", 10, 100)
+kit_quest("supply", "物資を8個集める", 8, 80)
+kit_quest("defend", "侵入者を5人追い払う", 5, 150)
+
+func show()
+  ui_text("clock", (night and "🌙 " or "☀️ ") + day + " 日目  ⏱ " + kit_clock(left) + "   🍞 食料 " + food, {at: "top", dy: 26, size: 20, bold: true})
+end
+
+func show_hand(p)
+  p.ui_text("hand", "🪵 板 " + p.planks + "   🍞 " + p.food, {at: "top_left", dy: 34, size: 18, bold: true})
+end
+
+func update_window(name)
+  let b = block(name)
+  let n = boards[name] or 0
+  if b == nil then return end
+  if n == 0 then b.color = "#93C5FD" elif n == 1 then b.color = "#B45309" elif n == 2 then b.color = "#92400E" else b.color = "#78350F" end
+end
+
+func start_day()
+  night = false
+  left = 70
+  world.sky_top = "#FF8A5B"
+  world.sky_bottom = "#FFD29D"
+  world.light = 0.6
+  for n in npcs() do n.destroy() end
+  for b in blocks("supply") do b.destroy() end
+  for i in 1 to 12 do
+    let spot = block("Supply " + i)
+    let kind = random(["板", "板", "食べ物"])
+    create_block({name: kind, position: spot.position + {x: 0, y: 0.7, z: 0}, size: 1, color: kind == "板" and "#A16207" or "#F59E0B",
+                  material: "neon", solid: false, behavior: "trigger", tags: ["supply"]})
+  end
+  announce("☀️ " + day + " 日目の朝。物資を集めよう", 3)
+end
+
+func start_night()
+  night = true
+  left = 60
+  world.sky_top = "#050816"
+  world.sky_bottom = "#1B2340"
+  world.light = 0.2
+  if food > 0 then
+    food = food - 1
+  else
+    announce("🍞 食料がない…体力が減っていく", 3)
+  end
+  let count = 2 + day * 2
+  for i in 1 to count do
+    let spot = block("Intruder Spawn " + random(1, 6))
+    let n = create_npc({name: "侵入者", position: spot.position + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: "#111827",
+                        head_color: "#DC2626", health: 70 + day * 20, speed: 0.7, team: "intruder"})
+    n.window = random(["Window 1", "Window 2", "Window 3", "Window 4", "Window 5", "Window 6", "Front Door"])
+    n.inside = false
+    n.move_to(block(n.window))
+  end
+  announce("🌙 夜が来た。窓を守れ！", 3)
+end
+
+on start()
+  game.respawn_time = 10
+  start_day()
+  every(1, func()
+    left = left - 1
+    if left <= 0 then
+      if night then
+        day = day + 1
+        if day > 3 then
+          for p in players() do p.score = p.score + 10 end
+          kit_finish("🚁 助けが来た！3夜を生きのびた！", 10)
+          return
+        end
+        start_day()
+      else
+        start_night()
+      end
+    end
+    if night and food <= 0 then
+      for p in players() do if p.alive then p.damage(1) end end
+    end
+    show()
+    if len(players()) > 0 and len(kit_alive_players()) == 0 then kit_finish("💀 家は落ちた… " + day + " 日目", 8) end
+  end)
+  every(3, func()
+    -- 侵入者が板をはがす
+    for n in npcs() do
+      if not n.inside and distance(n, block(n.window)) < 3 then
+        let b = boards[n.window] or 0
+        if b > 0 then
+          boards[n.window] = b - 1
+          update_window(n.window)
+          sound("hit")
+        else
+          n.inside = true
+          entered = entered + 1
+          n.teleport(block("Safehouse Floor"))
+          announce("🚨 侵入者が入ってきた！", 2)
+        end
+      end
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.planks = 2
+  p.food = 0
+  p.give("バット")
+  show_hand(p)
+end
+
+on tick(dt)
+  for n in npcs() do
+    if n.inside then kit_chase(n, 40, 15, dt) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "supply") then
+    if b.name == "板" then p.planks = p.planks + 2 else p.food = p.food + 1 end
+    b.destroy()
+    kit_quest_progress(p, "supply", 1)
+    show_hand(p)
+  elif contains(b.tags, "pantry") and p.food > 0 then
+    food = food + p.food
+    p.message("🍞 食べ物を " + p.food + " こしまった", 1.5)
+    p.food = 0
+    show_hand(p)
+    show()
+  end
+end
+
+on tap(p, b)
+  if not contains(b.tags, "window") or distance(p, b) > 5 then return end
+  let n = boards[b.name] or 0
+  if n >= 3 then
+    p.message("もう3枚打ってある", 1)
+  elif p.planks <= 0 then
+    p.message("板がない。昼に集めよう", 1.5)
+  else
+    p.planks = p.planks - 1
+    boards[b.name] = n + 1
+    update_window(b.name)
+    kit_quest_progress(p, "board", 1)
+    p.sound("hit")
+    show_hand(p)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and killer != nil and not killer.is_npc then
+    kit_quest_progress(killer, "defend", 1)
+    killer.score = killer.score + 1
+  end
+end

@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 25,
+  "id" : "anomaly-hallway",
+  "maxPlayers" : 6,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/anomaly-hallway\/main.absc"
+  ],
+  "summary" : "終わらない病院の廊下。いつもとちがう「異変」があれば引き返し、なければ進む。8回続けて正解すれば出口へ。",
+  "tags" : [
+    "horror",
+    "puzzle",
+    "observe"
+  ],
+  "title" : "Anomaly Hallway",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/anomaly-hallway\/world.ablox"
+}

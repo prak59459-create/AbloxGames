@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 40,
+  "id" : "toy-factory-night-shift",
+  "maxPlayers" : 6,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/toy-factory-night-shift\/main.absc"
+  ],
+  "summary" : "おもちゃ工場の夜間警備。カメラで動くおもちゃを見張り、電力を節約しながらドアを閉めて、朝6時まで耐えろ。",
+  "tags" : [
+    "horror",
+    "cameras",
+    "coop"
+  ],
+  "title" : "Toy Factory Night Shift",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/toy-factory-night-shift\/world.ablox"
+}

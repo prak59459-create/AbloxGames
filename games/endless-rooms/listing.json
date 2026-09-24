@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 253,
+  "id" : "endless-rooms",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/endless-rooms\/main.absc"
+  ],
+  "summary" : "どこまでも続く黄色い部屋の迷路。徘徊する何かから逃げながら出口を探し、次のレベルへ進め。",
+  "tags" : [
+    "horror",
+    "maze",
+    "explore"
+  ],
+  "title" : "Endless Rooms",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/endless-rooms\/world.ablox"
+}

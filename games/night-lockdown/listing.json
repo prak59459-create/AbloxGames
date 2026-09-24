@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 107,
+  "id" : "night-lockdown",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/night-lockdown\/main.absc"
+  ],
+  "summary" : "昼は町で食料と板を集め、夜は家の窓に板を打ちつけて立てこもる。侵入者から家族を守って3夜を生きのびろ。",
+  "tags" : [
+    "survival",
+    "story",
+    "defend"
+  ],
+  "title" : "Night Lockdown",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/night-lockdown\/world.ablox"
+}

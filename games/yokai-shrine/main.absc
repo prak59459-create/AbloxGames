@@ -1,0 +1,128 @@
+-- Yokai Shrine — 5枚のお札を集める和風ホラー
+
+kit_setup("Yokai Shrine", "お札を集めて、神社から出よ", [
+  "境内のどこかに光るお札が5枚ある。さわると持てる（1枚ずつ）",
+  "本殿の祭壇（金色）にお札を納めよう",
+  "仲間のふりをした妖怪がいる…近づくと正体をあらわす！",
+  "つかまるとお札を落として、しばらく動けない",
+  "「🏮 ちょうちん」で少しの間まわりが明るくなる",
+  "5枚納めたら鳥居の緑のパッドから脱出！"
+])
+
+let placed = 0
+let needed = 5
+let yokai = []
+let open = false
+let escaped = 0
+
+kit_quest("ofuda", "お札を2枚納める", 2, 150)
+kit_quest("escape", "神社から脱出", 1, 300)
+
+func show()
+  ui_text("ofuda", "📜 お札 " + placed + " / " + needed + (open and "   ⛩ 鳥居が開いた！" or ""), {at: "top", dy: 26, size: 20, bold: true})
+end
+
+func spawn_ofuda()
+  let spot = block("Ofuda Spot " + random(1, 8))
+  create_block({name: "Ofuda", position: spot.position + {x: random(-2, 2), y: 1, z: random(-2, 2)}, size: {x: 0.4, y: 0.8, z: 0.05},
+                color: "#FEF3C7", material: "neon", solid: false, behavior: "trigger", tags: ["ofuda"]})
+end
+
+func spawn_mimic()
+  -- だれかの名前と見た目をまねる
+  let list = players()
+  let copy_of = nil
+  if len(list) > 0 then copy_of = random(list) end
+  let spot = block("Ofuda Spot " + random(1, 8))
+  let n = create_npc({name: copy_of != nil and copy_of.name or "だれか", position: spot.position + {x: 0, y: 1, z: 0},
+                      color: copy_of != nil and copy_of.color or "#FFFFFF", head_color: copy_of != nil and copy_of.head_color or "#F5D0A9",
+                      health: 999999, speed: 0.5})
+  n.revealed_until = 0
+  append(yokai, n)
+end
+
+on start()
+  game.respawn_time = 8
+  for i in 1 to needed do spawn_ofuda() end
+  spawn_mimic()
+  show()
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.ofuda = false
+  p.ui_button("lantern", "🏮 ちょうちん", {at: "bottom_right", dx: -120, dy: -160, w: 140, h: 60, size: 17, bg: "#EA580C", radius: 16})
+end
+
+on tick(dt)
+  for n in yokai do
+    if kit_here(n) then
+      let near = kit_nearest_player(n)
+      if near != nil and distance(n, near) < 6 and time() > n.revealed_until then
+        n.revealed_until = time() + 8
+        n.color = "#111111"
+        n.head_color = "#DC2626"
+        n.size = 1.9
+        n.speed = 1.05
+        n.say("みぃつけた…")
+        shake(0.2, 0.4)
+      end
+      if time() < n.revealed_until and near != nil then
+        n.follow(near)
+        if distance(n, near) < 2.2 then
+          if near.ofuda then
+            near.ofuda = false
+            spawn_ofuda()
+          end
+          near.kill()
+          near.message("👹 つかまった…", 2)
+          n.revealed_until = 0
+        end
+      elif time() >= n.revealed_until and n.size > 1.5 then
+        n.size = 1
+        n.speed = 0.5
+        n.color = "#FFFFFF"
+        n.head_color = "#F5D0A9"
+        n.move_to(block("Ofuda Spot " + random(1, 8)))
+      elif random() < 0.01 then
+        n.move_to(block("Ofuda Spot " + random(1, 8)))
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "ofuda") and not p.ofuda then
+    b.destroy()
+    p.ofuda = true
+    p.message("📜 お札を手に入れた！祭壇へ", 2)
+  elif contains(b.tags, "altar") and p.ofuda then
+    p.ofuda = false
+    placed = placed + 1
+    p.score = p.score + 2
+    kit_quest_progress(p, "ofuda", 1)
+    announce("📜 お札が納められた（" + placed + " / " + needed + "）", 2.5)
+    if placed == 3 then spawn_mimic() end
+    if placed >= needed then
+      open = true
+      announce("⛩ 鳥居の結界がとけた！脱出しよう！", 4)
+    end
+    show()
+  elif contains(b.tags, "exit") and open and not p.escaped then
+    p.escaped = true
+    escaped = escaped + 1
+    kit_quest_progress(p, "escape", 1)
+    announce("🎉 " + p.name + " が脱出した！", 3)
+    if escaped >= len(players()) then kit_finish("🏆 全員、神社から脱出！", 8) end
+  end
+end
+
+on button(p, id)
+  if id == "lantern" and kit_ready(p, "lantern", 20) then
+    world.light = 0.7
+    after(5, func() world.light = 0.25 end)
+    p.message("🏮 まわりが明るくなった", 1)
+  end
+end
