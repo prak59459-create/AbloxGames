@@ -1,0 +1,392 @@
+-- race.absc — 4つのレース
+-- 緑のスタートパッドでエントリー → 10びょう後にグリッドへ → 3・2・1・GO → チェックポイントを順に → ゴール
+-- ライバル（NPCの車）も走る。順位で賞金。コースごとの最速記録。
+-- ドラッグ: GOの瞬間に🔥でパーフェクトスタート（早すぎるとフライング）
+
+let races = {}             -- track id → {track, state, until, racers, finish, rivals, t0}
+let race_clock = 0
+let race_uid = 0
+let best = {}              -- track id → {t, name}
+
+func track_by_id(id)
+  for t in TRACKS do
+    if t.id == id then return t end
+  end
+  return nil
+end
+
+func track_of_start(name)
+  for t in TRACKS do
+    if t.start == name then return t end
+  end
+  return nil
+end
+
+func cp_block(tr, i)
+  return block(tr.cp + " " + i)
+end
+
+func race_line(tr)
+  let b = best[tr.id]
+  if b == nil then return tr.name + "  記録なし" end
+  return tr.name + "  🏆 " + b.name + " " + fixed(b.t, 2) + "秒"
+end
+
+-- MARK: エントリー
+
+func join_race(p, tr)
+  if p.race != nil then return end
+  if lic_index(p) < tr.lic then
+    p.message("🔒 " + tr.name + " は " + LICENSES[tr.lic].name + " から", 2)
+    return
+  end
+  if not p.driving then
+    p.message("🚗 車に乗ってからエントリーしよう", 1.5)
+    return
+  end
+  let r = races[tr.id]
+  if r == nil then
+    race_uid = race_uid + 1
+    r = {uid: race_uid, track: tr.id, state: "lobby", until: time() + RACE_LOBBY_SECS, racers: [], finish: [], rivals: [], t0: 0}
+    races[tr.id] = r
+    announce("🏁 " + tr.name + " のエントリー開始！ 緑のスタートへ（" + RACE_LOBBY_SECS + "びょう）", 3)
+  elif r.state != "lobby" then
+    p.message("🏁 いまレース中。終わったら次に出よう", 1.5)
+    return
+  end
+  append(r.racers, p.id)
+  p.race = {track: tr.id, state: "lobby", cp: 1, launched: false, false_start: false}
+  p.message("🏁 エントリーした！ まもなくスタート", 2)
+  p.ui_button("retire", "🏳 リタイア", {at: "right", dy: 180, w: 150, h: 46, size: 15, bg: "#7F1D1D"})
+end
+
+func leave_race(p, why)
+  if p.race == nil then return end
+  let r = races[p.race.track]
+  if r != nil then r.racers = filter(r.racers, func(id) return id != p.id end) end
+  p.race = nil
+  p.frozen = false
+  p.ui_remove("race")
+  p.ui_remove("retire")
+  apply_move(p)
+  if why != nil then p.message(why, 1.5) end
+end
+
+-- MARK: スタート
+
+func grid_spot(tr, k)
+  let s = block(tr.start).position
+  let c = cp_block(tr, 1).position
+  let dx = c.x - s.x
+  let dz = c.z - s.z
+  let len_ = max(0.1, sqrt(dx * dx + dz * dz))
+  let fx = dx / len_
+  let fz = dz / len_
+  let row = floor((k - 1) / 2)
+  let lane = ((k - 1) % 2) * 2 - 1
+  return {x: s.x - fx * row * 5 - fz * lane * 3, y: s.y + 1, z: s.z - fz * row * 5 + fx * lane * 3}
+end
+
+func rival_pace(tr, r)
+  let total = 0
+  let n = 0
+  for id in r.racers do
+    let p = player_by_id(id)
+    if p != nil then
+      total = total + lic_index(p)
+      n = n + 1
+    end
+  end
+  let lic = 1
+  if n > 0 then lic = total / n end
+  return tr.pace * (0.84 + lic * 0.08)
+end
+
+func start_countdown(r)
+  let tr = track_by_id(r.track)
+  r.state = "countdown"
+  let k = 0
+  for id in r.racers do
+    let p = player_by_id(id)
+    if p != nil then
+      k = k + 1
+      if not p.driving then toggle_drive(p) end
+      p.teleport(grid_spot(tr, k))
+      p.look_at(cp_block(tr, 1))
+      p.frozen = true
+      p.race.state = "countdown"
+    end
+  end
+  let pace = rival_pace(tr, r)
+  let names = shuffle(copy(RIVAL_NAMES))
+  for i in 1 to tr.rivals do
+    k = k + 1
+    let spot = grid_spot(tr, k)
+    let n = create_npc({name: "🏎 " + names[i], position: spot, color: random(["#1F2937", "#F8FAFC", "#7F1D1D"]),
+                        head_color: random(["#F5D0A9", "#E0AC69", "#8D5524"]), ride: random(["sports", "car", "kart"]),
+                        ride_color: random(["#EF4444", "#3B82F6", "#FACC15", "#22C55E", "#A855F7", "#F97316"]),
+                        speed: pace * (0.93 + random() * 0.14), health: 999999})
+    n.frozen = true
+    n.rival = {cp: 1, best_d: 99999, stuck: 0, done: false}
+    append(r.rivals, n)
+  end
+  for k in [3, 2, 1] do count_later(r, k) end
+  after(3, func() go(r) end)
+end
+
+func count_later(r, k)
+  after(3 - k, func()
+    for id in r.racers do
+      let p = player_by_id(id)
+      if p != nil then
+        p.ui_text("count", "" + k, {at: "center", dy: -40, size: 64, bold: true, color: "#FACC15"})
+        p.sound("tick")
+      end
+    end
+  end)
+end
+
+func go(r)
+  let now = races[r.track]
+  if now == nil or now.uid != r.uid then return end
+  let tr = track_by_id(r.track)
+  r.state = "run"
+  r.t0 = time()
+  for id in r.racers do
+    let p = player_by_id(id)
+    if p != nil and p.race != nil then
+      p.race.state = "run"
+      p.ui_text("count", "GO!", {at: "center", dy: -40, size: 64, bold: true, color: "#22C55E"})
+      kit_later(p, 1, func() p.ui_remove("count") end)
+      p.sound("goal")
+      if p.race.false_start then
+        p.message("🚦 フライング！ 1びょう待ち", 1.5)
+        kit_later(p, 1, func() p.frozen = false end)
+      else
+        p.frozen = false
+      end
+    end
+  end
+  for n in r.rivals do
+    if kit_here(n) then
+      n.frozen = false
+      n.move_to(cp_block(tr, 1).position)
+    end
+  end
+end
+
+-- ドラッグ: GOの直後の🔥はパーフェクトスタート。早すぎるとフライング
+func drag_launch(p)
+  if p.race == nil or p.race.track != "drag" then return false end
+  if p.race.state == "countdown" then
+    p.race.false_start = true
+    p.message("🚦 まだ！", 0.8)
+    return true
+  end
+  let r = races["drag"]
+  if r == nil or r.state != "run" or p.race.launched then return false end
+  p.race.launched = true
+  let t = time() - r.t0
+  if t < 0.6 and not p.race.false_start then
+    p.nitro_until = time() + 3
+    apply_move(p)
+    kit_later(p, 3.1, func() apply_move(p) end)
+    p.message("🚦 パーフェクトスタート！ " + fixed(t, 2) + "びょう", 1.8)
+    kit_quest_progress(p, "drag", 1)
+    return true
+  end
+  return false
+end
+
+-- MARK: ゴール
+
+func finish(r, tr, name, p)
+  let place = len(r.finish) + 1
+  let t = time() - r.t0
+  append(r.finish, {name: name, t: t})
+  if p == nil then
+    for id in r.racers do
+      let q = player_by_id(id)
+      if q != nil then q.message("🏎 " + name + " が " + place + "位でゴール", 1.2) end
+    end
+    return
+  end
+  let prize = 30
+  if place <= len(tr.prize) then prize = tr.prize[place] end
+  earn(p, prize, tr.xp, "🏁 " + place + "位！ " + fixed(t, 2) + "秒")
+  kit_quest_progress(p, "race", 1)
+  if place == 1 then
+    kit_quest_progress(p, "win", 1)
+    kit_badge(p, "win_" + tr.id, tr.name + " 優勝")
+  end
+  if not contains(p.tracks_done, tr.id) then
+    append(p.tracks_done, tr.id)
+    kit_quest_progress(p, "alltracks", 1)
+  end
+  if p.pb[tr.id] == nil or t < p.pb[tr.id] then p.pb[tr.id] = t end
+  let b = best[tr.id]
+  if b == nil or t < b.t then
+    best[tr.id] = {t: t, name: p.name}
+    announce("🏆 " + tr.name + " 新記録！ " + p.name + " " + fixed(t, 2) + "秒", 4)
+  end
+  leave_race(p, nil)
+  show_records()
+end
+
+func end_race(r)
+  let tr = track_by_id(r.track)
+  for id in copy(r.racers) do
+    let p = player_by_id(id)
+    if p != nil then leave_race(p, "⏱ タイムアップ…") end
+  end
+  for n in r.rivals do gone(n) end
+  remove(races, r.track)
+  if len(r.finish) > 0 then
+    let parts = []
+    let i = 0
+    for f in r.finish do
+      i = i + 1
+      if i <= 3 then append(parts, ["🥇", "🥈", "🥉"][i] + " " + f.name) end
+    end
+    announce(tr.name + "  " + join(parts, "  "), 4)
+  end
+end
+
+func show_records()
+  let lines = []
+  for t in TRACKS do append(lines, race_line(t)) end
+  ui_text("records", join(lines, "\n"), {at: "top_right", dy: 130, size: 11, color: "#E2E8F0"})
+end
+
+-- MARK: 毎0.25びょう
+
+func standing(r, tr)
+  -- まだ走っている人とライバルを、進んだチェックポイントと次までの距離でならべる
+  let rows = []
+  for id in r.racers do
+    let p = player_by_id(id)
+    if p != nil and p.race != nil then
+      let c = cp_block(tr, p.race.cp)
+      append(rows, {id: p.id, cp: p.race.cp, d: flat_distance(p.position, c.position)})
+    end
+  end
+  for n in r.rivals do
+    if kit_here(n) and not n.rival.done then
+      let c = cp_block(tr, min(n.rival.cp, tr.count))
+      append(rows, {id: "npc", cp: n.rival.cp, d: flat_distance(n.position, c.position)})
+    end
+  end
+  return sort(rows, func(a, b)
+    if a.cp != b.cp then return a.cp > b.cp end
+    return a.d < b.d
+  end)
+end
+
+func race_step(r)
+  let tr = track_by_id(r.track)
+  if r.state == "lobby" then
+    r.racers = filter(r.racers, func(id) return player_by_id(id) != nil end)
+    if len(r.racers) == 0 then
+      remove(races, r.track)
+    elif time() >= r.until then
+      start_countdown(r)
+    else
+      for id in r.racers do
+        let p = player_by_id(id)
+        p.ui_text("race", tr.name + "  スタートまで " + ceil(r.until - time()) + "s", {at: "top", dy: 80, size: 18, bold: true, color: "#FACC15"})
+      end
+    end
+    return
+  end
+  if r.state != "run" then return end
+  let t = time() - r.t0
+  for id in copy(r.racers) do
+    let p = player_by_id(id)
+    if p == nil or p.race == nil then
+      r.racers = filter(r.racers, func(x) return x != id end)
+    else
+      let c = cp_block(tr, p.race.cp)
+      if c != nil and flat_distance(p.position, c.position) < tr.radius then
+        p.race.cp = p.race.cp + 1
+        p.sound("checkpoint")
+        if p.race.cp > tr.count then
+          finish(r, tr, p.name, p)
+        else
+          p.message("🏁 " + (p.race.cp - 1) + "/" + tr.count, 0.8)
+        end
+      end
+    end
+  end
+  for n in r.rivals do
+    if kit_here(n) and not n.rival.done then
+      let c = cp_block(tr, n.rival.cp)
+      let d = flat_distance(n.position, c.position)
+      if d < 4.5 then
+        n.rival.cp = n.rival.cp + 1
+        n.rival.best_d = 99999
+        n.rival.stuck = 0
+        if n.rival.cp > tr.count then
+          n.rival.done = true
+          n.stop()
+          finish(r, tr, n.name, nil)
+        else
+          n.move_to(cp_block(tr, n.rival.cp).position)
+        end
+      else
+        -- 木や街灯に引っかかったら少し前へ
+        if d < n.rival.best_d - 0.5 then
+          n.rival.best_d = d
+          n.rival.stuck = 0
+        else
+          n.rival.stuck = n.rival.stuck + 1
+          if n.rival.stuck >= 10 then
+            n.rival.stuck = 0
+            let dir = normalize({x: c.position.x - n.position.x, y: 0, z: c.position.z - n.position.z})
+            n.teleport(n.position + {x: dir.x * 6, y: 1, z: dir.z * 6})
+            n.move_to(c.position)
+          end
+        end
+      end
+    end
+  end
+  -- 順位の表示
+  let rows = standing(r, tr)
+  let i = 0
+  for row in rows do
+    i = i + 1
+    if row.id != "npc" then
+      let p = player_by_id(row.id)
+      if p != nil then
+        p.ui_text("race", tr.name + "   ⏱ " + fixed(t, 1) + "   🏁 " + min(p.race.cp - 1, tr.count) + "/" + tr.count + "   順位 " + (len(r.finish) + i) + "/" + (len(r.finish) + len(rows)),
+                  {at: "top", dy: 80, size: 18, bold: true, color: "#F8FAFC"})
+      end
+    end
+  end
+  let rivals_left = len(filter(r.rivals, func(n) return kit_here(n) and not n.rival.done end))
+  if len(r.racers) == 0 or t > RACE_LIMIT_SECS then end_race(r)
+  elif rivals_left == 0 and len(r.racers) == 0 then end_race(r)
+  end
+end
+
+on tick(dt)
+  race_clock = race_clock + dt
+  if race_clock < 0.25 then return end
+  race_clock = 0
+  for id in keys(races) do
+    let r = races[id]
+    if r != nil then race_step(r) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "racestart") and quiet_ready(p, "race_pad", 2) then
+    let tr = track_of_start(b.name)
+    if tr != nil then join_race(p, tr) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "retire" then leave_race(p, "🏳 リタイアした") end
+end

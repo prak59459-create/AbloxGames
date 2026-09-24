@@ -40,7 +40,7 @@ let lifeGames: [Game] = [
          summary: "病院のお仕事RP。医者・看護師・外科医・薬剤師・救急隊・患者に。トリアージ、バイタル、12の病気の診断、薬の調合、手術、救急車の出動。病院の資金でベッドや設備を強化！",
          tags: ["rp", "hospital", "jobs"], maxPlayers: 12, build: willowHospital),
     Game(number: 45, id: "street-drive-empire", title: "Street Drive Empire",
-         summary: "車を買って街を走るドライブゲーム。走った距離でお金がたまり、もっと速い車へ。サーキットでレースにも挑戦！",
+         summary: "車を集めて街を走るドライブゲーム。16台の車を買って色とパーツをカスタム。4つのレース（サーキット・ドラッグ・市街地・ラリー）でライバルと勝負、配達とタクシーでかせいでライセンスを上げよう！",
          tags: ["cars", "driving", "collect"], maxPlayers: 12, build: streetDrive),
 ]
 
@@ -582,24 +582,139 @@ func willowHospital(_ m: MapBuilder) {
 
 func streetDrive(_ m: MapBuilder) {
     m.day(ground: "#4D7C0F")
-    m.ground(300, 300, color: "#65A30D", name: "Countryside")
-    // A big road loop through the map.
-    let loop: [(Float, Float)] = [(-120, -120), (120, -120), (120, 120), (-120, 120)]
-    for i in 0..<loop.count {
-        m.road(from: loop[i], to: loop[(i + 1) % loop.count], width: 12, name: "Highway \(i + 1)")
+    m.ground(420, 420, color: "#65A30D", name: "Countryside")
+
+    // The highway ring (the circuit) and a grid of city streets inside it.
+    let ring: [(Float, Float)] = [(-120, -120), (120, -120), (120, 120), (-120, 120)]
+    for i in 0..<ring.count {
+        m.road(from: ring[i], to: ring[(i + 1) % ring.count], width: 14, name: "Highway \(i + 1)")
     }
-    m.road(from: (-120, 0), to: (120, 0), width: 10, name: "Main Street")
-    m.spawnRing(0, 10, radius: 5, count: 8, color: "#F97316")
-    m.shop("Car Dealer", x: 30, z: 20, w: 18, d: 12, color: "#1F2937", sign: "#FACC15", facing: -1)
-    m.pad("Dealer Counter", x: 30, z: 18, size: 3, color: "#FACC15", tags: ["dealer"])
-    m.shop("Paint Shop", x: -30, z: 20, w: 12, d: 10, color: "#7C3AED", sign: "#F0ABFC", facing: -1)
-    m.pad("Paint Booth", x: -30, z: 18, size: 3, color: "#E879F9", tags: ["paint"])
-    for (i, p) in loop.enumerated() {
-        m.part("Race CP \(i + 1)", at: (p.0, 2, p.1), size: (14, 4, 14), color: "#FFFFFF", shape: .cylinder, behavior: .trigger,
-               tags: ["racecp"], solid: false, opacity: 0.1)
+    m.road(from: (-120, 0), to: (120, 0), width: 11, name: "Main Street")
+    m.road(from: (0, -120), to: (0, 120), width: 11, name: "Center Avenue")
+    for v: Float in [-60, 60] {
+        m.road(from: (v, -120), to: (v, 120), width: 9, name: "Street", dashed: false)
+        m.road(from: (-120, v), to: (120, v), width: 9, name: "Street", dashed: false)
     }
-    m.pad("Race Start", x: -120, z: -100, size: 6, color: "#22C55E", tags: ["racestart"])
-    for i in 0..<10 { m.lamp(-100 + Float(i) * 22, 7) }
+    for i in 0..<12 { m.lamp(-110 + Float(i) * 20, 7) }
+    for i in 0..<12 { m.lamp(7, -110 + Float(i) * 20) }
+
+    // Downtown: the spawn and the car meet plaza.
+    m.spawnRing(30, 22, radius: 5, count: 8, color: "#F97316")
+    m.slab("Meet Plaza", x: 30, y: 0, z: 36, w: 30, h: 0.06, d: 14, color: "#1E1B4B", material: .matte)
+    m.pad("Car Meet", x: 30, z: 36, size: 8, color: "#A855F7", tags: ["meet"])
+    m.part("Meet Sign", at: (30, 6, 44), size: (16, 1.6, 0.3), color: "#F0ABFC", material: .neon, solid: false)
+    m.parkedCar("Meet Car 1", x: 20, z: 36, yaw: 90, color: "#F43F5E", sporty: true)
+    m.parkedCar("Meet Car 2", x: 40, z: 36, yaw: -90, color: "#22D3EE", sporty: true)
+
+    // The dealership: a glass showroom with a doorway, and a lot of cars for sale.
+    m.slab("Showroom Floor", x: -30, y: 0, z: 30, w: 44, h: 0.15, d: 44, color: "#E5E7EB")
+    let glass = "#93C5FD"
+    m.slab("Showroom Glass", x: -30, y: 0, z: 14, w: 30, h: 5, d: 0.4, color: glass, material: .glass, opacity: 0.35)
+    m.slab("Showroom Glass", x: -45, y: 0, z: 22, w: 0.4, h: 5, d: 16, color: glass, material: .glass, opacity: 0.35)
+    m.slab("Showroom Glass", x: -15, y: 0, z: 22, w: 0.4, h: 5, d: 16, color: glass, material: .glass, opacity: 0.35)
+    m.slab("Showroom Glass", x: -39.5, y: 0, z: 30, w: 11, h: 5, d: 0.4, color: glass, material: .glass, opacity: 0.35)
+    m.slab("Showroom Glass", x: -20.5, y: 0, z: 30, w: 11, h: 5, d: 0.4, color: glass, material: .glass, opacity: 0.35)
+    m.part("Dealer Sign", at: (-30, 6.5, 30.4), size: (18, 1.6, 0.3), color: "#FACC15", material: .neon, solid: false)
+    m.pad("Dealer Counter", x: -30, z: 22, size: 4, color: "#FACC15", tags: ["dealer"])
+    m.parkedCar("Showroom Car 1", x: -39, z: 21, yaw: 150, color: "#DC2626", sporty: true)
+    m.parkedCar("Showroom Car 2", x: -21, z: 21, yaw: -150, color: "#F8FAFC", sporty: true)
+    let lot = ["#3B82F6", "#FACC15", "#10B981", "#111827", "#A855F7", "#F97316", "#EC4899", "#64748B"]
+    for (i, color) in lot.enumerated() {
+        let x = -48 + Float(i % 4) * 12
+        let z: Float = i < 4 ? 40 : 50
+        m.parkedCar("Lot Car \(i + 1)", x: x, z: z, yaw: i < 4 ? 180 : 0, color: color, sporty: i % 3 == 1)
+    }
+
+    // Garage row: paint booth and tuning shop.
+    m.shop("Paint Shop", x: -42, z: -30, w: 14, d: 12, color: "#7C3AED", sign: "#F0ABFC", facing: 1)
+    m.pad("Paint Booth", x: -42, z: -22, size: 4, color: "#E879F9", tags: ["paint"])
+    m.shop("Tuning Shop", x: -18, z: -30, w: 14, d: 12, color: "#0F172A", sign: "#38BDF8", facing: 1)
+    m.pad("Tuning Bay", x: -18, z: -22, size: 4, color: "#38BDF8", tags: ["tuning"])
+    m.pad("Garage", x: -30, z: -14, size: 4, color: "#F97316", tags: ["garage"])
+
+    // Gas stations.
+    for (i, p) in [(30, -30), (-90, 90)].enumerated() {
+        let (x, z) = (Float(p.0), Float(p.1))
+        m.slab("Gas Canopy \(i + 1)", x: x, y: 4, z: z, w: 16, h: 0.4, d: 10, color: "#DC2626")
+        for sx: Float in [-1, 1] { m.pillar("Gas Post", x: x + sx * 6, z: z, height: 4, radius: 0.3, color: "#F8FAFC") }
+        m.pad("Gas Station \(i + 1)", x: x, z: z, size: 6, color: "#22C55E", tags: ["gas"])
+    }
+
+    // The depot where deliveries start.
+    m.slab("Depot Floor", x: 90, y: 0, z: 30, w: 34, h: 0.12, d: 26, color: "#A8A29E")
+    m.walls(90, 26, w: 26, d: 14, h: 6, color: "#78716C", name: "Depot Wall")
+    m.slab("Depot Door", x: 90, y: 0, z: 33, w: 8, h: 0.02, d: 1, color: "#A8A29E", solid: false)
+    for k in 0..<6 { m.crate(80 + Float(k % 3) * 3, 22 + Float(k / 3) * 3, color: "#B45309") }
+    m.pad("Depot", x: 90, z: 38, size: 5, color: "#F59E0B", tags: ["depot"])
+
+    // Houses to deliver to, each with its own drop-off pad by the street.
+    let homes: [(Float, Float, Float)] = [(-90, -90, 1), (-90, -30, 1), (90, -90, 1), (90, -30, 1),
+                                          (-90, 30, 1), (30, 90, 1), (-30, 90, 1), (90, 90, 1)]
+    let roofs = ["#B5453B", "#1D4ED8", "#15803D", "#7C3AED", "#B45309", "#0F766E", "#BE185D", "#334155"]
+    for (i, h) in homes.enumerated() {
+        m.house("Home \(i + 1)", x: h.0, z: h.1 - 6, w: 10, d: 8, roof: roofs[i], door: false, tags: ["home"])
+        m.pad("Address \(i + 1)", x: h.0, z: h.1 + 4, size: 3.4, color: "#FDE68A", tags: ["address"])
+    }
+    m.markers("Taxi Stand", points: [(10, -50), (-50, 10), (70, 50), (-70, -50), (50, -70), (-10, 70)], color: "#FACC15",
+              tags: ["taxistand"], size: 2.4)
+
+    // Race tracks. The circuit runs round the highway ring.
+    m.pad("Circuit Start", x: -110, z: -128, size: 6, color: "#22C55E", tags: ["racestart"])
+    let circuit: [(Float, Float)] = [(0, -120), (120, -120), (120, 0), (120, 120), (0, 120), (-120, 120), (-120, 0), (-120, -120)]
+    for (i, p) in circuit.enumerated() {
+        m.part("Circuit CP \(i + 1)", at: (p.0, 3, p.1), size: (16, 6, 16), color: "#FFFFFF", shape: .cylinder,
+               behavior: .trigger, tags: ["racecp"], solid: false, opacity: 0.12)
+    }
+    // A drag strip south of the ring: 220 m, flat out.
+    m.road(from: (-110, -150), to: (110, -150), width: 16, name: "Drag Strip", dashed: false, color: "#1F2937")
+    m.pad("Drag Start", x: -112, z: -150, size: 6, color: "#22C55E", tags: ["racestart"])
+    m.part("Drag CP 1", at: (108, 3, -150), size: (16, 6, 16), color: "#FFFFFF", shape: .cylinder,
+           behavior: .trigger, tags: ["racecp"], solid: false, opacity: 0.12)
+    for k in 0..<3 {
+        m.part("Drag Light \(k + 1)", at: (-104, 4 + Float(k) * 1.1, -160), size: (1, 1, 0.4), color: ["#EF4444", "#FACC15", "#22C55E"][k],
+               shape: .sphere, material: .neon, solid: false)
+    }
+    m.pillar("Drag Tree", x: -104, z: -160.6, height: 7, radius: 0.25, color: "#334155")
+    // The city sprint through the streets.
+    m.pad("City Start", x: 8, z: -14, size: 5, color: "#22C55E", tags: ["racestart"])
+    let sprint: [(Float, Float)] = [(0, -60), (60, -60), (60, 60), (-60, 60), (-60, -60), (0, 0)]
+    for (i, p) in sprint.enumerated() {
+        m.part("Sprint CP \(i + 1)", at: (p.0, 3, p.1), size: (12, 6, 12), color: "#FFFFFF", shape: .cylinder,
+               behavior: .trigger, tags: ["racecp"], solid: false, opacity: 0.12)
+    }
+    // A dirt rally loop out in the countryside to the north.
+    let rally: [(Float, Float)] = [(-80, 150), (0, 185), (80, 150), (140, 175), (80, 200), (-60, 200), (-140, 175)]
+    for i in 0..<rally.count {
+        m.road(from: rally[i], to: rally[(i + 1) % rally.count], width: 10, name: "Dirt Road", dashed: false, color: "#92400E")
+        m.part("Rally CP \(i + 1)", at: (rally[i].0, 3, rally[i].1), size: (14, 6, 14), color: "#FFFFFF", shape: .cylinder,
+               behavior: .trigger, tags: ["racecp"], solid: false, opacity: 0.12)
+    }
+    m.pad("Rally Start", x: -90, z: 140, size: 6, color: "#22C55E", tags: ["racestart"])
     var r = Seeded("drive")
-    for _ in 0..<30 { m.tree(r.range(-140, 140), r.range(-140, 140), height: 5) }
+    for _ in 0..<26 { m.pine(r.range(-170, 170), r.range(135, 205), height: r.range(6, 11)) }
+    for _ in 0..<10 { m.rock(r.range(-150, 150), r.range(140, 200), size: r.range(1.5, 3)) }
+
+    // Speed cameras over long straights, and a stunt park with jump pads.
+    let cams: [(Float, Float, Float)] = [(120, -60, 0), (-60, 120, 90), (-80, 0, 90)]
+    for (i, c) in cams.enumerated() {
+        let along = c.2 == 0
+        m.part("Speed Cam \(i + 1)", at: (c.0, 2.5, c.1), size: along ? (16, 5, 1) : (1, 5, 16), color: "#FFFFFF",
+               behavior: .trigger, tags: ["speedcam"], solid: false, opacity: 0.08)
+        m.part("Speed Cam Beam", at: (c.0, 5.4, c.1), size: along ? (16, 0.4, 0.4) : (0.4, 0.4, 16), color: "#38BDF8", material: .neon, solid: false)
+    }
+    m.slab("Stunt Park", x: 90, y: 0, z: -90, w: 50, h: 0.1, d: 50, color: "#334155", material: .matte)
+    for k in 0..<3 {
+        m.part("Stunt Ramp \(k + 1)", at: (72 + Float(k) * 18, 0.4, -100), size: (6, 0.8, 6), color: "#F97316",
+               material: .neon, behavior: .bounce, tags: ["stunt"])
+    }
+    m.pad("Landing Zone", x: 90, z: -76, size: 10, color: "#0EA5E9", tags: ["landing"])
+
+    // Trees along the ring and a few parked cars on the streets.
+    for _ in 0..<24 {
+        let side: Float = r.range(0, 1) > 0.5 ? 1 : -1
+        m.tree(side * r.range(128, 145), r.range(-140, 120), height: 5)
+    }
+    let parked: [(Float, Float, Float, String)] = [(66, 20, 0, "#64748B"), (-66, -20, 180, "#0EA5E9"), (54, -90, 90, "#F59E0B"),
+                                                   (-54, 90, -90, "#84CC16"), (16, 66, 90, "#E11D48")]
+    for (i, c) in parked.enumerated() { m.parkedCar("Parked Car \(i + 1)", x: c.0, z: c.1, yaw: c.2, color: c.3) }
 }

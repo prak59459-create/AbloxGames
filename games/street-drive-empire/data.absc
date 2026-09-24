@@ -1,0 +1,99 @@
+-- data.absc — Street Drive Empire の表
+-- 車16台・クラス・ライセンス・塗装・チューニング・レース4コース・仕事・できごと
+
+-- ライセンス（経験値で上がる）。クラスの車はライセンスがないと買えない
+let LICENSES = [
+  {name: "🔰 仮免許", need: 0},
+  {name: "🪪 普通免許", need: 150},
+  {name: "🅱 B級ライセンス", need: 450},
+  {name: "🅰 A級ライセンス", need: 1000},
+  {name: "⭐ S級ライセンス", need: 2000},
+  {name: "👑 レジェンド", need: 3600}
+]
+
+let CLASSES = {
+  C: {name: "Cクラス", lic: 1, color: "#64748B"},
+  B: {name: "Bクラス", lic: 2, color: "#0EA5E9"},
+  A: {name: "Aクラス", lic: 3, color: "#22C55E"},
+  S: {name: "Sクラス", lic: 4, color: "#F59E0B"},
+  X: {name: "Xクラス", lic: 5, color: "#E11D48"}
+}
+let CLASS_ORDER = ["C", "B", "A", "S", "X"]
+
+-- 車: ride は見た目（app の乗り物）、speed は速さ、fuel は1mあたりのガソリン（0 は使わない）
+-- perk: delivery（配達 +30%）/ rally（ラリーで速い）/ taxi（タクシー +30%）/ jump（大ジャンプ）
+let CARS = [
+  {id: "mini", name: "ミニ", ride: "car", cls: "C", speed: 1.9, fuel: 0.04, price: 0, color: "#F87171"},
+  {id: "bmx", name: "BMXバイク", ride: "bike", cls: "C", speed: 1.7, fuel: 0, price: 60, color: "#22C55E"},
+  {id: "scooter", name: "スクーター", ride: "scooter", cls: "C", speed: 2.0, fuel: 0.03, price: 150, color: "#FACC15"},
+  {id: "sedan", name: "セダン", ride: "car", cls: "C", speed: 2.3, fuel: 0.05, price: 350, color: "#3B82F6", perk: "taxi"},
+  {id: "wagon", name: "ワゴン", ride: "car", cls: "B", speed: 2.5, fuel: 0.05, price: 700, color: "#F8FAFC", perk: "delivery"},
+  {id: "kart", name: "ゴーカート", ride: "kart", cls: "B", speed: 2.8, fuel: 0.04, price: 900, color: "#F97316"},
+  {id: "suv", name: "SUV", ride: "truck", cls: "B", speed: 2.6, fuel: 0.07, price: 1200, color: "#111827", perk: "rally"},
+  {id: "pickup", name: "ピックアップ", ride: "truck", cls: "B", speed: 2.7, fuel: 0.07, price: 1600, color: "#B45309", perk: "delivery"},
+  {id: "muscle", name: "マッスルカー", ride: "sports", cls: "A", speed: 3.1, fuel: 0.08, price: 3000, color: "#DC2626"},
+  {id: "rally", name: "ラリーカー", ride: "car", cls: "A", speed: 3.0, fuel: 0.06, price: 3800, color: "#2563EB", perk: "rally"},
+  {id: "coupe", name: "スポーツクーペ", ride: "sports", cls: "A", speed: 3.3, fuel: 0.07, price: 4800, color: "#FACC15"},
+  {id: "super", name: "スーパーカー", ride: "sports", cls: "S", speed: 3.8, fuel: 0.09, price: 9000, color: "#F97316"},
+  {id: "gt", name: "GTレーサー", ride: "sports", cls: "S", speed: 4.1, fuel: 0.09, price: 14000, color: "#10B981"},
+  {id: "hyper", name: "ハイパーカー", ride: "sports", cls: "X", speed: 4.7, fuel: 0.1, price: 30000, color: "#A855F7"},
+  {id: "hover", name: "ホバーボード", ride: "hoverboard", cls: "X", speed: 4.3, fuel: 0, price: 20000, color: "#22D3EE", perk: "jump"},
+  {id: "jet", name: "ジェットパック", ride: "jetpack", cls: "X", speed: 3.6, fuel: 0.08, price: 26000, color: "#E11D48", perk: "jump"}
+]
+
+let PAINTS = [
+  ["レッド", "#EF4444"], ["ブルー", "#3B82F6"], ["イエロー", "#FACC15"], ["グリーン", "#22C55E"],
+  ["ブラック", "#111827"], ["ホワイト", "#F8FAFC"], ["パープル", "#A855F7"], ["オレンジ", "#F97316"],
+  ["ピンク", "#EC4899"], ["シアン", "#22D3EE"], ["ゴールド", "#EAB308"], ["シルバー", "#94A3B8"]
+]
+let PAINT_COST = 50
+
+-- チューニング（車ごと）: エンジン（速さ）・ニトロ（量）・タンク（ガソリンの量）
+let TUNES = [
+  {id: "engine", name: "⚙️ エンジン", max: 5, text: "速さ +6%"},
+  {id: "nitro", name: "🔥 ニトロ", max: 3, text: "ニトロの量 +35%"},
+  {id: "tank", name: "⛽ タンク", max: 3, text: "ガソリン +30%"}
+]
+
+let TANK = 100
+let NITRO = 100
+let NITRO_BURN = 35          -- 1回のニトロで使う量
+let NITRO_REGEN = 5          -- 運転中、1びょうにたまる量
+let GAS_PRICE = 0.6          -- ガソリン1あたりのコイン
+
+-- レース: cp は "名前 1" …、count 個。rivals はライバルの数、pace はライバルの速さ
+let TRACKS = [
+  {id: "circuit", name: "🏁 ハイウェイ・サーキット", start: "Circuit Start", cp: "Circuit CP", count: 8, radius: 9,
+   prize: [320, 190, 110], xp: 60, rivals: 3, pace: 2.6, lic: 1},
+  {id: "drag", name: "🚦 ドラッグレース", start: "Drag Start", cp: "Drag CP", count: 1, radius: 9,
+   prize: [160, 90, 50], xp: 25, rivals: 1, pace: 2.9, lic: 1},
+  {id: "sprint", name: "🏙 市街地スプリント", start: "City Start", cp: "Sprint CP", count: 6, radius: 7,
+   prize: [240, 140, 80], xp: 45, rivals: 2, pace: 2.4, lic: 1},
+  {id: "rally", name: "🌲 森のラリー", start: "Rally Start", cp: "Rally CP", count: 7, radius: 8,
+   prize: [300, 180, 100], xp: 55, rivals: 2, pace: 2.7, lic: 2}
+]
+let RIVAL_NAMES = ["ライバルのケン", "ドリフトのユイ", "ハヤテ", "ミスターV", "レッドのリン", "ブレーキ知らずのゴウ"]
+let RACE_LOBBY_SECS = 10
+let RACE_LIMIT_SECS = 180
+
+-- 仕事
+let DELIVERY_BASE = 40
+let TAXI_BASE = 60
+let TAXI_NAMES = ["会社員のサトウさん", "観光客のエマ", "おばあちゃん", "急いでいる医者", "ロックスター", "迷子の子ども"]
+
+-- できごと（2分半ごと）
+let EVENTS = [
+  {id: "rush", name: "🚚 ラッシュアワー！", text: "配達とタクシーのお金が2倍（60びょう）", secs: 60},
+  {id: "night", name: "🌙 ナイトドライブ", text: "夜の街。走るとお金が1.5倍（60びょう）", secs: 60},
+  {id: "golden", name: "✨ ゴールデンカー出現！", text: "金色の車に追いついたら大もうけ（60びょう）", secs: 60},
+  {id: "meet", name: "🤝 カーミート・ナイト", text: "カーミート（紫）での写真が2倍（60びょう）", secs: 60}
+]
+
+-- 車の流れ（NPCの車がまわる道）
+let TRAFFIC_ROUTES = [
+  [[-120, -120], [120, -120], [120, 120], [-120, 120]],
+  [[120, 120], [-120, 120], [-120, -120], [120, -120]],
+  [[-120, 0], [120, 0]],
+  [[0, 120], [0, -120]],
+  [[-60, -120], [-60, 120], [60, 120], [60, -120]]
+]

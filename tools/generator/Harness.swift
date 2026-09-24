@@ -25,6 +25,25 @@ enum Harness {
     /// `rich` starts every robot with a fortune in `coins` (the kit's money),
     /// so the things that cost money — houses, cars, upgrades — get bought
     /// and used too, not only what a newcomer can afford.
+    /// The world a few seconds into a round, with three players standing at
+    /// the spawn: what the scripts built at the start (a tower, a track, the
+    /// NPCs) is there too. The covers are drawn from this.
+    static func settle(_ world: WorldDocument, seconds: Double = 6) -> (world: WorldDocument, characters: [PlayerSnapshot]) {
+        let game = GameRuntime(world: world, seed: 5)
+        for (i, name) in ["Aoi", "Ren", "Mika"].enumerated() {
+            var profile = AvatarProfile.default
+            profile.displayName = name
+            _ = game.addPlayer(PlayerSnapshot(peerID: PeerID(), profile: profile, position: world.spawnPosition(forPlayerIndex: i)))
+        }
+        _ = game.handle(.roundStarted)
+        var time = 0.0
+        while time < seconds {
+            time += 0.1
+            _ = game.advance(to: time)
+        }
+        return (game.world, game.roster.filter { !$0.isHidden })
+    }
+
     static func play(_ world: WorldDocument, seconds: Double = 150, seed: UInt64 = 11, rich: Bool = false) -> HarnessReport {
         var report = HarnessReport()
         var rng = Seeded("harness\(seed)\(world.name)")

@@ -1,0 +1,208 @@
+-- common.absc — 小さな道具・ライセンスと経験値・お金・車の速さ・画面
+
+let event_now = nil        -- {id, name, until}
+
+func ready(p)
+  return p.garage != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func event_is(id)
+  return event_now != nil and event_now.id == id
+end
+
+func flat_distance(a, b)
+  let dx = a.x - b.x
+  let dz = a.z - b.z
+  return sqrt(dx * dx + dz * dz)
+end
+
+-- MARK: 車
+
+func car_by_id(id)
+  for c in CARS do
+    if c.id == id then return c end
+  end
+  return CARS[1]
+end
+
+func car_now(p)
+  return car_by_id(p.car or "mini")
+end
+
+func owns(p, id)
+  return contains(p.garage, id)
+end
+
+func tune_level(p, car_id, what)
+  let t = p.tunes[car_id]
+  if t == nil then return 0 end
+  return t[what] or 0
+end
+
+func paint_of(p, car)
+  return p.paints[car.id] or car.color
+end
+
+func tank_size(p, car)
+  return TANK * (1 + tune_level(p, car.id, "tank") * 0.3)
+end
+
+func nitro_size(p, car)
+  return NITRO * (1 + tune_level(p, car.id, "nitro") * 0.35)
+end
+
+-- いまの速さ（車 × エンジン × ニトロ × ガソリン切れ）
+func drive_speed(p)
+  if not p.driving then return 1 end
+  let car = car_now(p)
+  if car.fuel > 0 and p.fuel <= 0 then return 1 end
+  let s = car.speed * (1 + tune_level(p, car.id, "engine") * 0.06)
+  if p.nitro_until != nil and time() < p.nitro_until then s = s * 1.6 end
+  if p.race != nil and car.perk == "rally" and p.race.track == "rally" then s = s * 1.12 end
+  return min(s, 9.5)
+end
+
+-- 速さ・ジャンプ・重さ・見た目をまとめて決めなおす（変わったときだけ送る）
+func apply_move(p)
+  if not kit_here(p) then return end
+  let car = car_now(p)
+  let speed = drive_speed(p)
+  let jump = 1
+  let gravity = 1
+  let ride = "none"
+  if p.driving then
+    ride = car.ride
+    if car.perk == "jump" then jump = 1.9 end
+    if car.ride == "jetpack" then gravity = 0.55 end
+  end
+  if p.mv_speed != speed then
+    p.speed = speed
+    p.mv_speed = speed
+  end
+  if p.mv_jump != jump then
+    p.jump = jump
+    p.mv_jump = jump
+  end
+  if p.mv_gravity != gravity then
+    p.gravity = gravity
+    p.mv_gravity = gravity
+  end
+  if p.mv_ride != ride then
+    p.ride = ride
+    p.mv_ride = ride
+  end
+  let color = paint_of(p, car)
+  if p.mv_color != color then
+    p.ride_color = color
+    p.mv_color = color
+  end
+end
+
+-- MARK: ライセンス・経験値・お金
+
+func lic_index(p)
+  let i = 1
+  let k = 0
+  for l in LICENSES do
+    k = k + 1
+    if p.xp >= l.need then i = k end
+  end
+  return i
+end
+
+func lic_name(p)
+  return LICENSES[lic_index(p)].name
+end
+
+func can_drive_class(p, cls)
+  return lic_index(p) >= CLASSES[cls].lic
+end
+
+func add_xp(p, amount)
+  let before = lic_index(p)
+  p.xp = p.xp + amount
+  let now = lic_index(p)
+  if now > before then
+    announce("🪪 " + p.name + " が「" + LICENSES[now].name + "」に！", 3)
+    p.sound("goal")
+    kit_give(p, 100 * now)
+    kit_quest_progress(p, "license", now - before)
+    if now >= 4 then kit_badge(p, "lic_a", "A級ドライバー") end
+    if now >= 6 then kit_badge(p, "lic_legend", "伝説のドライバー") end
+    for cls in CLASS_ORDER do
+      if CLASSES[cls].lic == now then p.message("🔓 " + CLASSES[cls].name + " の車が買えるようになった！", 3) end
+    end
+  end
+  hud(p)
+end
+
+-- お金と経験値をまとめて。why があれば表示
+func earn(p, coins, xp, why)
+  let c = floor(coins)
+  if c > 0 then
+    kit_give(p, c)
+    p.score = p.score + c
+  end
+  if xp > 0 then add_xp(p, xp) end
+  if why != nil then
+    p.message(why + "  +" + c + " 💰", 1.8)
+    p.sound("collect")
+  end
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let car = car_now(p)
+  let i = lic_index(p)
+  let line = lic_name(p)
+  if i < len(LICENSES) then line = line + "  " + p.xp + "/" + LICENSES[i + 1].need else line = line + "  " + p.xp end
+  p.ui_text("lic", line, {at: "top_left", dy: 34, size: 15, bold: true, color: "#FDE68A"})
+  let state = "🚶 歩き"
+  if p.driving then state = "🚗 運転中" end
+  p.ui_text("carline", CLASSES[car.cls].name + " " + car.name + "   " + state, {at: "top_left", dy: 56, size: 14, color: "#E0F2FE"})
+  if car.fuel > 0 then
+    p.ui_bar("fuel", {at: "top_left", dx: 8, dy: 80, w: 150, h: 10, value: max(0, p.fuel), max: tank_size(p, car), color: "#22C55E", bg: "#00000088"})
+    p.ui_text("fuel_t", "⛽", {at: "top_left", dx: 164, dy: 75, size: 12})
+  else
+    p.ui_remove("fuel")
+    p.ui_remove("fuel_t")
+  end
+  p.ui_bar("nitro", {at: "top_left", dx: 8, dy: 96, w: 150, h: 10, value: max(0, p.nitro), max: nitro_size(p, car), color: "#F97316", bg: "#00000088"})
+  p.ui_text("nitro_t", "🔥", {at: "top_left", dx: 164, dy: 91, size: 12})
+  let job = job_line(p)
+  if job != "" then p.ui_text("job", job, {at: "top_left", dy: 118, size: 13, color: "#FDE68A"}) else p.ui_remove("job") end
+end
+
+func speedo(p)
+  if p.driving then
+    p.ui_text("speed", floor(p.kmh or 0) + " km/h", {at: "bottom", dy: -26, size: 26, bold: true, color: "#F8FAFC"})
+  else
+    p.ui_remove("speed")
+  end
+end

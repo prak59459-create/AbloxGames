@@ -140,19 +140,47 @@ final class MapBuilder {
     }
 
     /// A road strip with dashed centre marks.
-    func road(from a: (Float, Float), to b: (Float, Float), width: Float = 6, y: Float = 0.02, name: String = "Road") {
+    func road(from a: (Float, Float), to b: (Float, Float), width: Float = 6, y: Float = 0.02, name: String = "Road",
+              dashed: Bool = true, color: String = "#34353B") {
         let dx = b.0 - a.0, dz = b.1 - a.1
         let length = (dx * dx + dz * dz).squareRoot()
         let yaw = atan2(dx, dz) * 180 / .pi
-        part(name, at: ((a.0 + b.0) / 2, y, (a.1 + b.1) / 2), size: (width, 0.04, length), color: "#34353B",
+        part(name, at: ((a.0 + b.0) / 2, y, (a.1 + b.1) / 2), size: (width, 0.04, length), color: color,
              material: .matte, rotation: (0, yaw, 0))
-        let dashes = Int(length / 5)
+        let dashes = dashed ? Int(length / 5) : 0
         if dashes > 0 {
             for i in 0..<dashes {
                 let t = (Float(i) + 0.5) / Float(dashes)
                 part("\(name) Line", at: (a.0 + dx * t, y + 0.03, a.1 + dz * t), size: (0.25, 0.02, 2), color: "#F5D547",
                      material: .neon, solid: false, rotation: (0, yaw, 0))
             }
+        }
+    }
+
+    /// A parked car made of blocks, the same shape as the car a player rides:
+    /// body, windshield, seats, wheels, lights. Front toward `yaw`.
+    func parkedCar(_ name: String, x: Float, z: Float, yaw: Float = 0, color: String, sporty: Bool = false) {
+        let turn = Quat.yaw(degrees: yaw)
+        func at(_ dx: Float, _ dy: Float, _ dz: Float) -> V {
+            let p = turn.act(Vec3(dx, dy, dz))
+            return (x + p.x, p.y, z + p.z)
+        }
+        let length: Float = sporty ? 4 : 3.6
+        let height: Float = sporty ? 0.45 : 0.6
+        part("\(name) Body", at: at(0, sporty ? 0.42 : 0.5, 0), size: (1.9, height, length), color: color, rotation: (0, yaw, 0))
+        part("\(name) Glass", at: at(0, sporty ? 0.78 : 1.0, sporty ? -0.5 : -0.6), size: (1.7, 0.45, 0.08), color: "#BAE6FD",
+             solid: false, rotation: (sporty ? -40 : -26, yaw, 0))
+        part("\(name) Seat", at: at(0, sporty ? 0.75 : 0.95, 0.55), size: (1.5, 0.45, 0.14), color: "#1F2937", solid: false, rotation: (0, yaw, 0))
+        for sx in [Float(-1), 1] {
+            for sz in [Float(-1), 1] {
+                part("\(name) Wheel", at: at(sx * 0.95, 0.36, sz * (sporty ? 1.3 : 1.15)), size: (0.72, 0.32, 0.72), color: "#1F2023",
+                     shape: .cylinder, solid: false, rotation: (0, yaw, 90))
+            }
+        }
+        part("\(name) Lights", at: at(0, sporty ? 0.5 : 0.62, -length / 2 - 0.02), size: (1.5, 0.14, 0.05), color: "#FEF9C3",
+             material: .neon, solid: false, rotation: (0, yaw, 0))
+        if sporty {
+            part("\(name) Spoiler", at: at(0, 0.98, length / 2 - 0.2), size: (1.8, 0.07, 0.4), color: color, solid: false, rotation: (0, yaw, 0))
         }
     }
 

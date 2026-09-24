@@ -1,0 +1,204 @@
+-- driving.absc — 走るとお金・ガソリンとニトロ・スピードメーター・スピードカメラ・ジャンプ台・カーミート
+
+let drive_clock = 0
+let cam_record = 0
+let cam_record_name = ""
+
+-- MARK: ニトロ
+
+func use_nitro(p)
+  if not p.driving then
+    p.message("🔥 ニトロは運転中だけ", 1)
+    return
+  end
+  if p.nitro_until != nil and time() < p.nitro_until then return end
+  -- ドラッグレースのスタートダッシュ（race.absc）
+  if drag_launch(p) then return end
+  if p.nitro < NITRO_BURN then
+    p.message("🔥 ニトロがたまっていない（" + floor(p.nitro) + "/" + NITRO_BURN + "）", 1)
+    return
+  end
+  p.nitro = p.nitro - NITRO_BURN
+  p.nitro_until = time() + 2.5
+  p.shake(0.25, 1.2)
+  p.sound("bounce")
+  apply_move(p)
+  kit_later(p, 2.6, func() apply_move(p) end)
+  hud(p)
+end
+
+-- MARK: 給油
+
+func refuel(p)
+  let car = car_now(p)
+  if car.fuel == 0 then
+    p.message("⚡ この車はガソリンいらず", 1.2)
+    return
+  end
+  let need = tank_size(p, car) - p.fuel
+  if need < 1 then
+    p.message("⛽ もう満タン", 1)
+    return
+  end
+  let price = ceil(need * GAS_PRICE)
+  let pay = min(price, kit_money(p))
+  if pay <= 0 then
+    -- お金がなくても少しは入れてもらえる（動けなくならないように）
+    p.fuel = min(tank_size(p, car), p.fuel + 25)
+    p.message("⛽ お金がないので、店員さんが少し入れてくれた", 2)
+  else
+    kit_pay(p, pay)
+    p.fuel = min(tank_size(p, car), p.fuel + pay / GAS_PRICE)
+    p.message("⛽ 給油した（💰" + pay + "）", 1.5)
+    kit_quest_progress(p, "refuel", 1)
+  end
+  p.sound("collect")
+  apply_move(p)
+  hud(p)
+end
+
+-- MARK: スピードカメラ
+
+func speed_cam(p, b)
+  if not p.driving or not quiet_ready(p, "cam_" + b.name, 4) then return end
+  let kmh = floor(p.kmh or 0)
+  if kmh < 40 then
+    p.message("📸 " + kmh + " km/h … もっと速く！", 1.2)
+    return
+  end
+  let reward = floor(kmh * 0.8)
+  earn(p, reward, floor(kmh / 20), "📸 スピードカメラ " + kmh + " km/h")
+  if kmh >= 120 then kit_quest_progress(p, "cam", 1) end
+  if kmh >= 170 then kit_badge(p, "cam170", "音速ドライバー") end
+  if kmh > cam_record then
+    cam_record = kmh
+    cam_record_name = p.name
+    announce("📸 最速記録！ " + p.name + " " + kmh + " km/h", 3)
+  end
+end
+
+-- MARK: ジャンプ台
+
+func stunt_start(p)
+  if p.air != nil then return end
+  p.air = {from: time(), peak: p.y, landed: false}
+end
+
+func stunt_step(p)
+  let a = p.air
+  if a == nil then return end
+  if p.y > a.peak then a.peak = p.y end
+  let t = time() - a.from
+  if t > 0.6 and p.y < 1.3 then
+    p.air = nil
+    let bonus = 1
+    let zone = block("Landing Zone")
+    if zone != nil and flat_distance(p.position, zone.position) < 6 then bonus = 2 end
+    let reward = floor((t * 40 + a.peak * 4) * bonus)
+    let text = "🦘 " + fixed(t, 1) + "びょう飛んだ！"
+    if bonus > 1 then text = text + " 🎯 着地ボーナス" end
+    earn(p, reward, floor(t * 5), text)
+    if t >= 3 then kit_quest_progress(p, "stunt", 1) end
+  elif t > 12 then
+    p.air = nil
+  end
+end
+
+-- MARK: カーミート（紫の広場で、その車の写真）
+
+func car_meet(p)
+  if not p.driving then
+    p.message("🤝 車に乗って来ると写真を撮ってもらえる", 1.5)
+    return
+  end
+  let car = car_now(p)
+  if contains(p.photos, car.id) then
+    if quiet_ready(p, "meet_again", 20) then p.message("📸 " + car.name + " はもう撮ってもらった。ほかの車で来よう", 1.5) end
+    return
+  end
+  append(p.photos, car.id)
+  let base = [30, 60, 110, 200, 350][index_of(CLASS_ORDER, car.cls)]
+  if event_is("meet") then base = base * 2 end
+  -- ほかにも人がいると盛り上がる
+  let crowd = 0
+  let meet = block("Car Meet")
+  for q in players() do
+    if q.id != p.id and ready(q) and meet != nil and flat_distance(q.position, meet.position) < 14 then crowd = crowd + 1 end
+  end
+  base = base * (1 + crowd * 0.5)
+  earn(p, base, 15, "📸 カーミートで「" + car.name + "」の写真！")
+  kit_quest_progress(p, "meet", 1)
+  if crowd > 0 then announce("🤝 " + p.name + " の" + car.name + " がカーミートで注目の的！", 2) end
+end
+
+-- MARK: 毎0.25びょう
+
+func drive_step(p, dt)
+  if not ready(p) then return end
+  let here = p.position
+  if p.driving and p.last_pos != nil then
+    let d = flat_distance(here, p.last_pos)
+    if d < 25 then
+      p.kmh = d / dt * 3.6
+      let car = car_now(p)
+      p.meters = p.meters + d
+      p.carry = p.carry + d
+      kit_quest_progress(p, "drive", d)
+      if car.fuel > 0 and p.fuel > 0 then
+        p.fuel = max(0, p.fuel - d * car.fuel)
+        if p.fuel <= 0 then
+          p.message("⛽ ガス欠！ ガソリンスタンド（緑）へ", 2.5)
+          apply_move(p)
+        elif p.fuel < tank_size(p, car) * 0.2 and quiet_ready(p, "fuel_warn", 30) then
+          p.message("⛽ ガソリンが少ない", 1.5)
+        end
+      end
+      if p.carry >= 50 then
+        let mult = 1 + (lic_index(p) - 1) * 0.1
+        if event_is("night") then mult = mult * 1.5 end
+        let coins = floor(p.carry / 50) * 2 * mult
+        p.carry = p.carry % 50
+        kit_give(p, floor(coins))
+        p.score = floor(p.meters / 100)
+      end
+      if floor(p.meters / 100) > (p.xp_marks or 0) then
+        p.xp_marks = floor(p.meters / 100)
+        add_xp(p, 1)
+      end
+    else
+      p.kmh = 0
+    end
+    let cap = nitro_size(p, car_now(p))
+    if p.nitro < cap then p.nitro = min(cap, p.nitro + NITRO_REGEN * dt) end
+  end
+  p.last_pos = here
+  stunt_step(p)
+end
+
+on tick(dt)
+  drive_clock = drive_clock + dt
+  if drive_clock < 0.25 then return end
+  let secs = drive_clock
+  drive_clock = 0
+  for p in players() do
+    if ready(p) then
+      drive_step(p, secs)
+      speedo(p)
+      if p.driving and quiet_ready(p, "hud_tick", 1) then hud(p) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "gas") and quiet_ready(p, "gas_pad", 2) then refuel(p)
+  elif contains(b.tags, "speedcam") then speed_cam(p, b)
+  elif contains(b.tags, "stunt") then stunt_start(p)
+  elif contains(b.tags, "meet") and quiet_ready(p, "meet_pad", 3) then car_meet(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "nitro" then use_nitro(p) end
+end

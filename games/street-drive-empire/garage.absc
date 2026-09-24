@@ -1,0 +1,245 @@
+-- garage.absc — 乗る・降りる、ディーラー（クラス別）、ガレージ、塗装、チューニング
+
+-- MARK: 乗る・降りる
+
+func toggle_drive(p)
+  if p.race != nil and p.race.state == "run" then
+    p.message("レース中は降りられない", 1)
+    return
+  end
+  p.driving = not p.driving
+  if p.driving then
+    let car = car_now(p)
+    p.last_pos = p.position
+    if car.fuel > 0 and p.fuel <= 0 then p.message("⛽ ガス欠！ ガソリンスタンド（緑）へ押していこう", 2.5) else p.message("🚗 " + car.name + " に乗った！", 1.2) end
+    p.sound("bounce")
+    p.ui_button("drive", "🚶 降りる", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#64748B"})
+  else
+    p.kmh = 0
+    p.ui_button("drive", "🚗 乗る", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+  end
+  apply_move(p)
+  speedo(p)
+  hud(p)
+end
+
+func choose_car(p, id)
+  if not owns(p, id) then return end
+  let car = car_by_id(id)
+  p.car = id
+  -- 車ごとにガソリンは満タンから（のりかえでズルできないように、減っていたら引きつぐ）
+  let tank = tank_size(p, car)
+  p.fuel = min(p.fuel, tank)
+  if p.fuel <= 0 and car.fuel == 0 then p.fuel = tank end
+  p.nitro = min(p.nitro, nitro_size(p, car))
+  if not p.driving then toggle_drive(p) else apply_move(p) end
+  p.message("🔑 " + car.name + " に乗りかえた", 1.5)
+  hud(p)
+end
+
+-- MARK: ディーラー
+
+func dealer(p, cls)
+  p.dealer_cls = cls
+  let list = filter(CARS, func(c) return c.cls == cls end)
+  let h = 170 + len(list) * 54
+  p.ui_remove("dealer")
+  p.ui_panel("dealer", {at: "center", w: 560, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("dealer_t", "🚘 カーディーラー   💰 " + kit_short(kit_money(p)), {parent: "dealer", y: 26 / h, size: 20, bold: true, color: "gold"})
+  let i = 0
+  for c in CLASS_ORDER do
+    i = i + 1
+    let bg = "#334155"
+    if c == cls then bg = CLASSES[c].color end
+    p.ui_button("cls_" + c, CLASSES[c].name, {parent: "dealer", x: (i - 0.5) / 5, y: 66 / h, w: 100, h: 36, size: 13, bg: bg})
+  end
+  let lock = not can_drive_class(p, cls)
+  if lock then
+    p.ui_text("dealer_lock", "🔒 " + LICENSES[CLASSES[cls].lic].name + " が必要", {parent: "dealer", y: 100 / h, size: 13, color: "#FCA5A5"})
+  end
+  let k = 0
+  for c in list do
+    k = k + 1
+    let label = c.name + "  速さ " + fixed(c.speed, 1)
+    if c.perk == "delivery" then label = label + " 📦" end
+    if c.perk == "taxi" then label = label + " 🚕" end
+    if c.perk == "rally" then label = label + " 🌲" end
+    if c.perk == "jump" then label = label + " 🦘" end
+    if c.fuel == 0 then label = label + " ⚡" end
+    let bg = "#1D4ED8"
+    if owns(p, c.id) then
+      label = label + "  ✅ 持っている"
+      bg = "#15803D"
+    else
+      label = label + "  💰" + kit_short(c.price)
+      if lock or kit_money(p) < c.price then bg = "#334155" end
+    end
+    p.ui_button("buy_" + c.id, label, {parent: "dealer", y: (100 + k * 54) / h, w: 500, h: 46, size: 14, bg: bg})
+  end
+  p.ui_text("dealer_h", "📦配達+30%  🚕タクシー+30%  🌲ラリーで速い  🦘大ジャンプ  ⚡ガソリンいらず", {parent: "dealer", y: (h - 58) / h, size: 11, color: "#94A3B8"})
+  p.ui_button("dealer_close", "閉じる", {parent: "dealer", y: (h - 24) / h, w: 120, h: 36, size: 14, bg: "gray"})
+end
+
+func buy_car(p, id)
+  let c = car_by_id(id)
+  if owns(p, id) then
+    choose_car(p, id)
+    p.ui_remove("dealer")
+    return
+  end
+  if not can_drive_class(p, c.cls) then
+    p.message("🔒 " + LICENSES[CLASSES[c.cls].lic].name + " が必要（レースや仕事で経験値をためよう）", 2.5)
+    p.sound("error")
+    return
+  end
+  if not kit_pay(p, c.price) then return end
+  append(p.garage, id)
+  announce("🚘 " + p.name + " が " + CLASSES[c.cls].name + "「" + c.name + "」を買った！", 3)
+  kit_quest_progress(p, "cars", 1)
+  if c.cls == "X" then kit_quest_progress(p, "xclass", 1) end
+  add_xp(p, 10)
+  -- 新車はガソリン満タン
+  p.car = id
+  p.fuel = tank_size(p, c)
+  choose_car(p, id)
+  dealer(p, c.cls)
+end
+
+-- MARK: ガレージ（持っている車）
+
+func garage(p)
+  let h = 120 + len(p.garage) * 46
+  p.ui_remove("garage")
+  p.ui_panel("garage", {at: "center", w: 480, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("garage_t", "🅿 ガレージ（" + len(p.garage) + " / " + len(CARS) + " 台）", {parent: "garage", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for id in p.garage do
+    i = i + 1
+    let c = car_by_id(id)
+    let label = CLASSES[c.cls].name + " " + c.name + "  ⚙" + tune_level(p, id, "engine") + " 🔥" + tune_level(p, id, "nitro") + " ⛽" + tune_level(p, id, "tank")
+    let bg = "#44403C"
+    if id == p.car then
+      label = "▶ " + label
+      bg = "#B45309"
+    end
+    p.ui_button("pick_" + id, label, {parent: "garage", y: (26 + i * 46) / h, w: 430, h: 40, size: 14, bg: bg})
+  end
+  p.ui_button("garage_close", "閉じる", {parent: "garage", y: (h - 24) / h, w: 120, h: 36, size: 14, bg: "gray"})
+end
+
+-- MARK: 塗装
+
+func paint_shop(p)
+  let car = car_now(p)
+  let h = 260
+  p.ui_remove("paint")
+  p.ui_panel("paint", {at: "center", w: 520, h: h, bg: "#3B0764F2", radius: 22, layer: 30})
+  p.ui_text("paint_t", "🎨 " + car.name + " を塗る（💰" + PAINT_COST + "）", {parent: "paint", y: 24 / h, size: 18, bold: true})
+  let i = 0
+  for c in PAINTS do
+    i = i + 1
+    let col = (i - 1) % 6
+    let row = floor((i - 1) / 6)
+    p.ui_button("paint_" + i, c[1], {parent: "paint", x: (col + 0.5) / 6, y: (80 + row * 70) / h, w: 74, h: 56, size: 11, bg: c[2], color: "#111111", radius: 14})
+  end
+  p.ui_button("paint_close", "閉じる", {parent: "paint", y: (h - 24) / h, w: 120, h: 36, size: 14, bg: "gray"})
+end
+
+func paint_car(p, i)
+  let c = PAINTS[i]
+  if c == nil then return end
+  let car = car_now(p)
+  if paint_of(p, car) == c[2] then
+    p.message("もうその色", 1)
+    return
+  end
+  if not kit_pay(p, PAINT_COST) then return end
+  p.paints[car.id] = c[2]
+  apply_move(p)
+  kit_quest_progress(p, "paint", 1)
+  p.message("🎨 " + car.name + " を" + c[1] + "に塗った！", 1.5)
+  p.sound("collect")
+end
+
+-- MARK: チューニング
+
+func tune_price(car, what, level)
+  let base = max(80, floor(car.price * 0.12))
+  if what == "engine" then return base * (level + 1) end
+  return floor(base * 0.7) * (level + 1)
+end
+
+func tuning_shop(p)
+  let car = car_now(p)
+  let h = 120 + len(TUNES) * 60
+  p.ui_remove("tune")
+  p.ui_panel("tune", {at: "center", w: 540, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("tune_t", "🔧 チューニング — " + car.name + "   💰 " + kit_short(kit_money(p)), {parent: "tune", y: 26 / h, size: 18, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for t in TUNES do
+    i = i + 1
+    let lv = tune_level(p, car.id, t.id)
+    let label = t.name + " Lv" + lv + "/" + t.max
+    let bg = "#0369A1"
+    if t.id == "tank" and car.fuel == 0 then
+      label = label + "  （この車はガソリンいらず）"
+      bg = "#334155"
+    elif lv >= t.max then
+      label = label + "  ✅ 最大"
+      bg = "#334155"
+    else
+      label = label + "  " + t.text + "  💰" + kit_short(tune_price(car, t.id, lv))
+    end
+    p.ui_button("tune_" + t.id, label, {parent: "tune", y: (30 + i * 60) / h, w: 500, h: 50, size: 14, bg: bg})
+  end
+  p.ui_button("tune_close", "閉じる", {parent: "tune", y: (h - 24) / h, w: 120, h: 36, size: 14, bg: "gray"})
+end
+
+func tune_up(p, what)
+  let car = car_now(p)
+  let spec = nil
+  for t in TUNES do
+    if t.id == what then spec = t end
+  end
+  if spec == nil then return end
+  if what == "tank" and car.fuel == 0 then return end
+  let lv = tune_level(p, car.id, what)
+  if lv >= spec.max then return end
+  if not kit_pay(p, tune_price(car, what, lv)) then return end
+  if p.tunes[car.id] == nil then p.tunes[car.id] = {} end
+  p.tunes[car.id][what] = lv + 1
+  kit_quest_progress(p, "tune", 1)
+  add_xp(p, 8)
+  p.message("🔧 " + spec.name + " Lv" + (lv + 1) + "！", 1.5)
+  p.sound("goal")
+  apply_move(p)
+  tuning_shop(p)
+  hud(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "dealer") and quiet_ready(p, "dealer_pad", 3) then dealer(p, p.dealer_cls or "C")
+  elif contains(b.tags, "paint") and quiet_ready(p, "paint_pad", 3) then paint_shop(p)
+  elif contains(b.tags, "tuning") and quiet_ready(p, "tune_pad", 3) then tuning_shop(p)
+  elif contains(b.tags, "garage") and quiet_ready(p, "garage_pad", 3) then garage(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "drive" then toggle_drive(p)
+  elif id == "open_garage" then garage(p)
+  elif id == "garage_close" then p.ui_remove("garage")
+  elif starts_with(id, "pick_") then
+    choose_car(p, replace(id, "pick_", ""))
+    garage(p)
+  elif starts_with(id, "cls_") then dealer(p, replace(id, "cls_", ""))
+  elif starts_with(id, "buy_") then buy_car(p, replace(id, "buy_", ""))
+  elif id == "dealer_close" then p.ui_remove("dealer")
+  elif starts_with(id, "paint_") and id != "paint_close" then paint_car(p, num(replace(id, "paint_", "")))
+  elif id == "paint_close" then p.ui_remove("paint")
+  elif starts_with(id, "tune_") and id != "tune_close" then tune_up(p, replace(id, "tune_", ""))
+  elif id == "tune_close" then p.ui_remove("tune")
+  end
+end

@@ -1,0 +1,265 @@
+-- jobs.absc — 配達とタクシー
+-- 📦 配達: デポ（オレンジ）で荷物を積む → 光っている家の黄色いパッドへ。📦の車は2つ積める
+-- 🚕 タクシー: 黄色いタクシー乗り場に待っているお客さんを乗せて、行き先の光へ
+-- 早く着くほどチップ。ラッシュアワーは2倍。
+
+let fares = []             -- 待っているお客さん {uid, stand, npc, name, until}
+let fare_uid = 0
+let job_clock = 0
+let fare_clock = 0
+
+func address_block(i)
+  return block("Address " + i)
+end
+
+func beacon_at(pos, color)
+  return create_block({name: "Beacon", shape: "cylinder", position: pos + {x: 0, y: 14, z: 0}, size: {x: 1.2, y: 28, z: 1.2},
+                       color: color, material: "neon", solid: false, opacity: 0.45})
+end
+
+func clear_beacons(p)
+  if p.beacons != nil then
+    for b in p.beacons do gone(b) end
+  end
+  p.beacons = []
+end
+
+func job_pay(p, base)
+  let pay = base
+  let car = car_now(p)
+  if p.job != nil and p.job.kind == "delivery" and car.perk == "delivery" then pay = pay * 1.3 end
+  if p.job != nil and p.job.kind == "taxi" and car.perk == "taxi" then pay = pay * 1.3 end
+  if event_is("rush") then pay = pay * 2 end
+  return floor(pay * (1 + (lic_index(p) - 1) * 0.08))
+end
+
+func job_line(p)
+  let j = p.job
+  if j == nil then return "" end
+  if j.kind == "delivery" then
+    if len(j.dests) == 0 then return "" end
+    let b = address_block(j.dests[1])
+    return "📦 配達 のこり " + len(j.dests) + "件 → 家 " + j.dests[1] + "（" + floor(flat_distance(p.position, b.position)) + "m）"
+  end
+  return "🚕 " + j.name + " → " + j.dest_label + "（" + floor(flat_distance(p.position, j.dest)) + "m）"
+end
+
+func show_job_button(p)
+  if p.job != nil then
+    p.ui_button("cancel_job", "✖ 仕事をやめる", {at: "right", dy: 240, w: 150, h: 42, size: 13, bg: "#475569"})
+  else
+    p.ui_remove("cancel_job")
+  end
+end
+
+-- MARK: 配達
+
+func start_delivery(p)
+  if p.job != nil then
+    p.message("いまの仕事を先に終わらせよう", 1.2)
+    return
+  end
+  if not p.driving then
+    p.message("🚗 車で来ると荷物を積める", 1.5)
+    return
+  end
+  let count = 0
+  for i in 1 to 12 do
+    if address_block(i) != nil then count = i end
+  end
+  if count == 0 then return end
+  let car = car_now(p)
+  let loads = 1
+  if car.perk == "delivery" then loads = 2 end
+  let order = shuffle(range(1, count))
+  let dests = slice(order, 1, loads)
+  p.job = {kind: "delivery", dests: dests, t0: time(), from: p.position}
+  clear_beacons(p)
+  for d in dests do append(p.beacons, beacon_at(address_block(d).position, "#FDE68A")) end
+  p.message("📦 荷物を" + loads + "つ積んだ！ 光っている家へ", 2)
+  p.sound("collect")
+  show_job_button(p)
+  hud(p)
+end
+
+func delivery_step(p)
+  let j = p.job
+  for d in copy(j.dests) do
+    let b = address_block(d)
+    if b != nil and flat_distance(p.position, b.position) < 4 then
+      let far = flat_distance(j.from, b.position)
+      let secs = time() - j.t0
+      let par = far / 12 + 8
+      let tip = 0
+      if secs < par then tip = floor((par - secs) * 3) end
+      let pay = job_pay(p, DELIVERY_BASE + far * 0.35 + tip)
+      j.dests = filter(j.dests, func(x) return x != d end)
+      let text = "📦 お届け！"
+      if tip > 0 then text = text + " ⚡はやい！" end
+      earn(p, pay, 12, text)
+      kit_quest_progress(p, "deliver", 1)
+      -- 届けた家の光を消す
+      let keep = []
+      for bb in p.beacons do
+        if still(bb) and flat_distance(bb.position, b.position) < 2 then gone(bb) else append(keep, bb) end
+      end
+      p.beacons = keep
+      if len(j.dests) == 0 then
+        p.job = nil
+        clear_beacons(p)
+        p.message("📦 配達完了！ デポ（オレンジ）で次の荷物を", 2)
+        show_job_button(p)
+      end
+      hud(p)
+      return
+    end
+  end
+end
+
+-- MARK: タクシー
+
+func free_stands()
+  let out = []
+  for i in 1 to 6 do
+    if block("Taxi Stand " + i) != nil then
+      let used = false
+      for f in fares do
+        if f.stand == i then used = true end
+      end
+      if not used then append(out, i) end
+    end
+  end
+  return out
+end
+
+func spawn_fare()
+  if len(fares) >= 3 then return end
+  let stands = free_stands()
+  if len(stands) == 0 then return end
+  let i = random(stands)
+  let pos = block("Taxi Stand " + i).position
+  let name = random(TAXI_NAMES)
+  let n = create_npc({name: "🙋 " + name, position: pos + {x: 1.5, y: 1, z: 0}, color: random(["#F472B6", "#60A5FA", "#FBBF24", "#34D399"]),
+                      head_color: random(["#F5D0A9", "#E0AC69", "#8D5524", "#FFDBAC"]), health: 999999})
+  n.frozen = true
+  n.say("タクシー！")
+  fare_uid = fare_uid + 1
+  append(fares, {uid: fare_uid, stand: i, npc: n, name: name, until: time() + 70})
+end
+
+func pick_up(p, stand)
+  if p.job != nil then
+    p.message("いまの仕事を先に終わらせよう", 1.2)
+    return
+  end
+  if not p.driving then
+    p.message("🚕 車で迎えに来てね", 1.2)
+    return
+  end
+  let fare = nil
+  for f in fares do
+    if f.stand == stand then fare = f end
+  end
+  if fare == nil then return end
+  fares = filter(fares, func(f) return f.uid != fare.uid end)
+  -- 行き先: ほかの乗り場か、だれかの家
+  let dest = nil
+  let label = ""
+  if random() < 0.5 then
+    let others = filter(range(1, 6), func(k) return k != stand and block("Taxi Stand " + k) != nil end)
+    let k = random(others)
+    dest = block("Taxi Stand " + k).position
+    label = "乗り場 " + k
+  else
+    let k = random(range(1, 8))
+    dest = address_block(k).position
+    label = "家 " + k
+  end
+  if kit_here(fare.npc) then
+    fare.npc.say("「" + label + "」までお願い！")
+    fare.npc.visible = false
+  end
+  p.job = {kind: "taxi", npc: fare.npc, name: fare.name, dest: dest, dest_label: label, t0: time(), from: p.position}
+  clear_beacons(p)
+  append(p.beacons, beacon_at(dest, "#FACC15"))
+  p.message("🚕 " + fare.name + " を乗せた！ 光の方へ", 2)
+  show_job_button(p)
+  hud(p)
+end
+
+func taxi_step(p)
+  let j = p.job
+  if flat_distance(p.position, j.dest) > 5 then return end
+  let far = flat_distance(j.from, j.dest)
+  let secs = time() - j.t0
+  let par = far / 12 + 10
+  let stars = 3
+  if secs > par then stars = 2 end
+  if secs > par * 1.6 then stars = 1 end
+  let pay = job_pay(p, TAXI_BASE + far * 0.5 + stars * 15)
+  let n = j.npc
+  if kit_here(n) then
+    n.teleport(j.dest + {x: 2, y: 1, z: 0})
+    n.visible = true
+    n.say(["ちょっと遅かったかな", "ありがとう！", "最高のドライバーだ！"][stars])
+    after(4, func() gone(n) end)
+  end
+  earn(p, pay, 14, "🚕 到着！ " + ["⭐", "⭐⭐", "⭐⭐⭐"][stars])
+  kit_quest_progress(p, "taxi", 1)
+  p.job = nil
+  clear_beacons(p)
+  show_job_button(p)
+  hud(p)
+end
+
+func cancel_job(p)
+  if p.job == nil then return end
+  if p.job.kind == "taxi" then gone(p.job.npc) end
+  p.job = nil
+  clear_beacons(p)
+  show_job_button(p)
+  p.message("仕事をやめた", 1)
+  hud(p)
+end
+
+on tick(dt)
+  job_clock = job_clock + dt
+  fare_clock = fare_clock + dt
+  if fare_clock >= 18 then
+    fare_clock = 0
+    spawn_fare()
+  end
+  if job_clock < 0.3 then return end
+  job_clock = 0
+  for p in players() do
+    if ready(p) and p.job != nil then
+      if p.job.kind == "delivery" then delivery_step(p) else taxi_step(p) end
+    end
+  end
+  for f in copy(fares) do
+    if not kit_here(f.npc) or time() > f.until then
+      if kit_here(f.npc) then f.npc.say("もういいや、歩こう…") end
+      let n = f.npc
+      after(2, func() gone(n) end)
+      fares = filter(fares, func(x) return x.uid != f.uid end)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "depot") and quiet_ready(p, "depot_pad", 2) then start_delivery(p)
+  elif contains(b.tags, "taxistand") and quiet_ready(p, "stand_pad", 2) then
+    let stand = num(replace(b.name, "Taxi Stand ", ""))
+    let waiting = false
+    for f in fares do
+      if f.stand == stand then waiting = true end
+    end
+    if waiting then pick_up(p, stand) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "cancel_job" then cancel_job(p) end
+end

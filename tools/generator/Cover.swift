@@ -42,14 +42,16 @@ enum Cover {
         var unlit: Bool
     }
 
-    static func render(_ world: WorldDocument, seed: String) -> Picture {
+    static func render(_ world: WorldDocument, characters: [PlayerSnapshot], seed: String) -> Picture {
         var random = SeededRandom(seed: seed)
         let lookup = Dictionary(world.blocks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         var opaque: [Triangle] = []
         var clear: [Triangle] = []
         var centres: [Vec3] = []
-        for block in world.blocks where block.isVisible && block.color.a > 0.03 && !isLid(block) {
+        // Triggers drawn almost clear (checkpoint rings, zones) are all but
+        // invisible in the game too; in a still picture they read as smudges.
+        for block in world.blocks where block.isVisible && block.color.a > 0.2 && !isLid(block) {
             let t = WorldIndex.worldTransform(of: block, lookup: lookup)
             let unlit = block.material.isUnlit
             let alpha = block.color.a * block.material.alphaScale
@@ -64,14 +66,18 @@ enum Cover {
             if footprint < 60 { centres.append(t.position) }
         }
 
-        // A few players at the spawn, so the world looks lived in.
+        // Everyone in the world a few seconds in: the players at the spawn,
+        // spread out a little, and whatever the scripts made — shopkeepers,
+        // zombies, cars in traffic.
         let spawns = world.spawnBlocks
-        let people = min(5, max(2, spawns.count))
-        for k in 0..<people {
-            guard !spawns.isEmpty else { break }
-            let base = world.spawnPosition(forPlayerIndex: k)
-            let around = Vec3(random.float(-2.2, 2.2), -1, random.float(-2.2, 2.2))
-            opaque += avatar(at: base + around, yaw: random.float(0, 360), random: &random)
+        for character in characters {
+            var feet = character.position
+            var yaw = character.yawDegrees
+            if !character.isNPC {
+                feet = feet + Vec3(random.float(-2.4, 2.4), -1, random.float(-2.4, 2.4))
+                yaw = random.float(0, 360)
+            }
+            opaque += avatar(character.profile, at: feet, yaw: yaw)
         }
 
         let environment = world.environment
@@ -83,7 +89,11 @@ enum Cover {
             opaque.append(Triangle(a: Vec3(-s, y, -s), b: Vec3(s, y, s), c: Vec3(-s, y, s), color: g, unlit: false))
         }
 
-        let camera = frame(centres: centres, spawn: spawns.isEmpty ? nil : world.spawnPosition(forPlayerIndex: 0))
+        let tops = world.blocks.filter { $0.isVisible && !isLid($0) }.map { block -> Float in
+            let t = WorldIndex.worldTransform(of: block, lookup: lookup)
+            return t.position.y + t.scale.y / 2
+        }
+        let camera = frame(centres: centres, tops: tops, spawn: spawns.isEmpty ? nil : world.spawnPosition(forPlayerIndex: 0))
         var canvas = Canvas(width: width * supersample, height: height * supersample, camera: camera, environment: environment)
         canvas.paintSky()
         for tri in opaque { canvas.draw(tri, blend: false) }
@@ -122,22 +132,27 @@ enum Cover {
     /// Three-quarters from above, around the middle of what was built. The
     /// middle is taken from the middle 80% of the blocks, so one far-off
     /// marker or a lone pillar at the edge does not shrink everything else.
-    private static func frame(centres: [Vec3], spawn: Vec3?) -> Camera {
+    private static func frame(centres: [Vec3], tops: [Float], spawn: Vec3?) -> Camera {
         var target = spawn ?? .zero
         var radius: Float = 20
         if centres.count >= 3 {
             func range(_ values: [Float]) -> (Float, Float) {
                 let s = values.sorted()
-                let lo = s[Int(Float(s.count - 1) * 0.1)]
-                let hi = s[Int(Float(s.count - 1) * 0.9)]
+                let lo = s[Int(Float(s.count - 1) * 0.18)]
+                let hi = s[Int(Float(s.count - 1) * 0.82)]
                 return (lo, hi)
             }
             let (x0, x1) = range(centres.map(\.x))
-            let (y0, y1) = range(centres.map(\.y))
             let (z0, z1) = range(centres.map(\.z))
+            // Height is taken whole: a tower is the point of a tower game,
+            // and there are few blocks at the top to vote for it.
+            let ys = centres.map(\.y).sorted()
+            let y0 = ys[Int(Float(ys.count - 1) * 0.05)]
+            let y1 = max(ys[ys.count - 1], tops.max() ?? 0)
             target = Vec3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
-            let size = Vec3(x1 - x0, y1 - y0, z1 - z0)
-            radius = max(12, min(80, size.length * 0.42))
+            let across = Vec3(x1 - x0, 0, z1 - z0).length * 0.42
+            let tall = (y1 - y0) * 0.62
+            radius = max(12, min(95, max(across, tall)))
         }
         // Tall worlds (towers, obbies) are seen from lower down.
         let yawDegrees: Float = 35
@@ -219,25 +234,64 @@ enum Cover {
         return out
     }
 
-    /// The blocky player, as the app draws one.
-    private static func avatar(at feet: Vec3, yaw: Float, random: inout SeededRandom) -> [Triangle] {
-        let shirts = ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B", "#A855F7", "#EC4899", "#14B8A6"]
-        let skins = ["#F5D0A9", "#E0AC69", "#8D5524", "#FFDBAC"]
-        let shirt = ColorRGBA(hex: shirts[random.int(shirts.count)]) ?? .white
-        let skin = ColorRGBA(hex: skins[random.int(skins.count)]) ?? .white
-        let legs = ColorRGBA(hex: ["#1E3A8A", "#111827", "#78350F", "#334155"][random.int(4)]) ?? .white
+    /// A character as the app draws one, in whatever they ride.
+    private static func avatar(_ profile: AvatarProfile, at feet: Vec3, yaw: Float) -> [Triangle] {
         let turn = Quat.yaw(degrees: yaw)
-        let parts: [(Vec3, Vec3, ColorRGBA)] = [
-            (Vec3(0, 0.95, 0), Vec3(0.6, 0.7, 0.35), shirt),
-            (Vec3(0, 1.53, 0), Vec3(0.45, 0.45, 0.45), skin),
-            (Vec3(-0.39, 0.95, 0), Vec3(0.18, 0.6, 0.18), skin),
-            (Vec3(0.39, 0.95, 0), Vec3(0.18, 0.6, 0.18), skin),
-            (Vec3(-0.16, 0.3, 0), Vec3(0.22, 0.6, 0.22), legs),
-            (Vec3(0.16, 0.3, 0), Vec3(0.22, 0.6, 0.22), legs)
+        let h = profile.height
+        let seat: Float
+        switch profile.ride {
+        case .car: seat = -0.45
+        case .sports, .kart: seat = -0.55
+        case .truck: seat = -0.1
+        case .bike: seat = 0.15
+        case .scooter: seat = 0.1
+        case .hoverboard: seat = 0.18
+        case .none, .jetpack: seat = 0
+        }
+        var parts: [(Vec3, Vec3, ColorRGBA)] = [
+            (Vec3(0, 0.95 + seat, 0), Vec3(0.6, 0.7, 0.35), profile.bodyColor),
+            (Vec3(0, 1.53 + seat, 0), Vec3(0.45, 0.45, 0.45), profile.headColor),
+            (Vec3(-0.39, 0.95 + seat, 0), Vec3(0.18, 0.6, 0.18), profile.headColor),
+            (Vec3(0.39, 0.95 + seat, 0), Vec3(0.18, 0.6, 0.18), profile.headColor)
         ]
+        if !profile.ride.isSeated {
+            parts.append((Vec3(-0.16, 0.3 + seat, 0), Vec3(0.22, 0.6, 0.22), profile.accentColor))
+            parts.append((Vec3(0.16, 0.3 + seat, 0), Vec3(0.22, 0.6, 0.22), profile.accentColor))
+        }
+        let paint = profile.rideColor
+        let dark = ColorRGBA(r: 0.12, g: 0.13, b: 0.16)
+        switch profile.ride {
+        case .car:
+            parts.append((Vec3(0, 0.5, 0), Vec3(1.9, 0.6, 3.6), paint))
+            parts.append((Vec3(0, 0.95, 0.55), Vec3(1.5, 0.45, 0.14), dark))
+        case .sports:
+            parts.append((Vec3(0, 0.42, 0), Vec3(1.9, 0.45, 4.0), paint))
+            parts.append((Vec3(0, 0.98, 1.8), Vec3(1.8, 0.07, 0.4), paint))
+        case .truck:
+            parts.append((Vec3(0, 0.75, 0), Vec3(2.2, 0.8, 4.4), paint))
+            parts.append((Vec3(0, 1.42, 1.25), Vec3(2.2, 0.55, 1.8), dark))
+        case .kart:
+            parts.append((Vec3(0, 0.3, 0), Vec3(1.3, 0.3, 2.0), paint))
+        case .bike, .scooter:
+            parts.append((Vec3(0, 0.45, 0), Vec3(0.12, 0.5, 1.4), paint))
+        case .hoverboard:
+            parts.append((Vec3(0, 0.12, 0), Vec3(0.8, 0.1, 1.6), paint))
+        case .jetpack:
+            parts.append((Vec3(0, 1.0, 0.32), Vec3(0.5, 0.6, 0.25), paint))
+        case .none:
+            break
+        }
+        if [.car, .sports, .truck, .kart].contains(profile.ride) {
+            let x: Float = profile.ride == .kart ? 0.72 : 1.0
+            let z: Float = profile.ride == .kart ? 0.72 : (profile.ride == .truck ? 1.5 : 1.2)
+            let r: Float = profile.ride == .truck ? 0.5 : (profile.ride == .kart ? 0.25 : 0.36)
+            for sx in [Float(-1), 1] {
+                for sz in [Float(-1), 1] { parts.append((Vec3(sx * x, r, sz * z), Vec3(0.3, r * 2, r * 2), dark)) }
+            }
+        }
         var out: [Triangle] = []
         for (offset, size, color) in parts {
-            let t = Transform3D(position: feet + turn.act(offset), rotation: turn, scale: size)
+            let t = Transform3D(position: feet + turn.act(offset * h), rotation: turn, scale: size * h)
             for tri in box() {
                 out.append(Triangle(a: place(tri.0, t), b: place(tri.1, t), c: place(tri.2, t), color: color, unlit: false))
             }

@@ -1,0 +1,135 @@
+-- world.absc — 街を走るNPCの車と、ときどき起きるできごと
+-- 🚚 ラッシュアワー / 🌙 ナイトドライブ / ✨ ゴールデンカー / 🤝 カーミート・ナイト
+
+let traffic = []           -- {npc, route, i, best_d, stuck}
+let world_clock = 0
+let event_clock = 0
+let golden = nil           -- {npc, i, best_d, stuck}
+
+-- MARK: 車の流れ
+
+func route_point(route, i)
+  let p = route[(i - 1) % len(route) + 1]
+  return {x: p[1], y: 0.5, z: p[2]}
+end
+
+func spawn_traffic()
+  let k = 0
+  for route in TRAFFIC_ROUTES do
+    k = k + 1
+    let start = route_point(route, 1)
+    let n = create_npc({name: "🚗", position: start + {x: 0, y: 1, z: 0}, color: "#334155", head_color: "#F5D0A9",
+                        ride: random(["car", "car", "truck"]), ride_color: random(["#94A3B8", "#F8FAFC", "#1F2937", "#B91C1C", "#1D4ED8", "#15803D"]),
+                        speed: 1.6 + random() * 0.6, health: 999999})
+    append(traffic, {npc: n, route: route, i: 2, best_d: 99999, stuck: 0})
+    n.move_to(route_point(route, 2))
+  end
+end
+
+-- 次の角へ。引っかかったら少し前へ
+func steer(car, radius)
+  let n = car.npc
+  if not kit_here(n) then return false end
+  let target = route_point(car.route, car.i)
+  let d = flat_distance(n.position, target)
+  if d < radius then
+    car.i = car.i + 1
+    car.best_d = 99999
+    car.stuck = 0
+    n.move_to(route_point(car.route, car.i))
+  elif d < car.best_d - 0.5 then
+    car.best_d = d
+    car.stuck = 0
+  else
+    car.stuck = car.stuck + 1
+    if car.stuck >= 8 then
+      car.stuck = 0
+      let dir = normalize({x: target.x - n.position.x, y: 0, z: target.z - n.position.z})
+      n.teleport(n.position + {x: dir.x * 6, y: 1, z: dir.z * 6})
+      n.move_to(target)
+    end
+  end
+  return true
+end
+
+-- MARK: できごと
+
+func start_event(e)
+  event_now = {id: e.id, name: e.name, until: time() + e.secs}
+  announce(e.name + " " + e.text, 4)
+  if e.id == "night" then
+    world.sky_top = "#0B1026"
+    world.sky_bottom = "#312E81"
+    world.light = 0.35
+  elif e.id == "golden" then
+    let route = TRAFFIC_ROUTES[1]
+    let n = create_npc({name: "✨ ゴールデンカー", position: route_point(route, 3) + {x: 0, y: 1, z: 0}, color: "#FDE047",
+                        head_color: "#FDE047", ride: "sports", ride_color: "#EAB308", speed: 3.4, health: 999999})
+    golden = {npc: n, route: route, i: 4, best_d: 99999, stuck: 0}
+    n.move_to(route_point(route, 4))
+  end
+end
+
+func end_event()
+  if event_now == nil then return end
+  if event_now.id == "night" then
+    world.sky_top = "#5AB2FF"
+    world.sky_bottom = "#CDEBFF"
+    world.light = 0.75
+    announce("🌅 朝になった", 2)
+  end
+  if golden != nil then
+    gone(golden.npc)
+    golden = nil
+  end
+  event_now = nil
+end
+
+func golden_step()
+  if golden == nil then return end
+  if not steer(golden, 6) then
+    golden = nil
+    return
+  end
+  let n = golden.npc
+  for p in players() do
+    if ready(p) and p.driving and flat_distance(p.position, n.position) < 6 then
+      let prize = 250 * lic_index(p)
+      earn(p, prize, 40, "✨ ゴールデンカーをつかまえた！")
+      announce("✨ " + p.name + " がゴールデンカーをつかまえた！", 3)
+      kit_quest_progress(p, "golden", 1)
+      gone(n)
+      golden = nil
+      event_now.until = time()
+      return
+    end
+  end
+end
+
+func event_hud()
+  if event_now == nil then
+    ui_remove("event")
+    return
+  end
+  ui_text("event", event_now.name + "  " + max(0, ceil(event_now.until - time())) + "s", {at: "top", dy: 50, size: 15, bold: true, color: "#FDE68A"})
+end
+
+on start()
+  after(2, func() spawn_traffic() end)
+end
+
+on tick(dt)
+  world_clock = world_clock + dt
+  if world_clock < 0.5 then return end
+  let secs = world_clock
+  world_clock = 0
+  for car in traffic do steer(car, 5) end
+  golden_step()
+  event_clock = event_clock + secs
+  if event_now != nil and time() >= event_now.until then end_event() end
+  if event_now == nil and event_clock >= 150 then
+    event_clock = 0
+    if len(players()) > 0 then start_event(random(EVENTS)) end
+  end
+  event_hud()
+end

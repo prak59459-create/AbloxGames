@@ -39,7 +39,8 @@ func existingCover(in folder: String) -> String? {
 /// so the app — which keeps covers it has fetched — sees a new file instead
 /// of its old copy. Older covers in the folder are removed.
 func drawCover(_ world: WorldDocument, id: String, folder: String) -> String? {
-    let picture = Cover.render(world, seed: id)
+    let settled = Harness.settle(world)
+    let picture = Cover.render(settled.world, characters: settled.characters, seed: id)
     let path = "\(folder)/cover-\(picture.fingerprint).png"
     if FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path) { return path }
     let raw = FileManager.default.temporaryDirectory.appendingPathComponent("ablox-cover-\(id).rgb")
@@ -86,7 +87,12 @@ for game in Catalogue.games {
     // --covers, and for any game that has none yet.
     var cover = existingCover(in: game.folder)
     if coversOnly || only == game.number || cover == nil {
-        cover = drawCover(world, id: game.id, folder: game.folder) ?? cover
+        var scripted = world
+        scripted.scripts = paths.map { path in
+            let name = String(path.split(separator: "/").last ?? "main.absc")
+            return ScriptFile(name: name, source: path == Catalogue.kitPath ? kit : (read(path) ?? ""))
+        }
+        cover = drawCover(scripted, id: game.id, folder: game.folder) ?? cover
     }
 
     let listing = GameListing(
