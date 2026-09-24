@@ -1,0 +1,138 @@
+-- steal.absc — 盗む・守る
+-- ほかの基地の台にさわると、そのキャラをかかえて運べる（足がおそくなる）。
+-- 自分の基地の真ん中のパッドまで運べば自分のもの。バットでたたかれる・クモの糸・トラップ・
+-- レーザーで落とす。45秒以内に運べないとキャラは持ち主の基地へ帰る。
+
+let CARRY_TIME = 45
+let steal_clock = 0
+
+func carry_speed(p)
+  let s = 0.7
+  if contains(p.gear, "coil") then s = 0.95 end
+  return s
+end
+
+func steal(p, b)
+  let parts = split(b.name, " ")
+  let base = parts[2]
+  let slot = num(parts[4])
+  if base == p.base or p.carrying != nil then return end
+  let item = base_slots[slot_key(base, slot)]
+  if item == nil then return end
+  if is_locked(base) then
+    p.message("🔒 この基地はロック中！", 1.5)
+    return
+  end
+  if p.base == nil then
+    p.message("盗む前に、自分の基地を持とう", 1.5)
+    return
+  end
+  clear_statue(base, slot)
+  p.carrying = {id: item.id, mut: item.mut, from: base, owner: base_owner[base], t: time()}
+  p.saved_head = p.head_color
+  p.head_color = meme_by_id(item.id).color
+  move_refresh(p)
+  set_line(p, "carry", "🏃 " + meme_title(item.id, item.mut) + " を運んでいる！自分の基地の真ん中へ！",
+           {at: "center", dy: -130, size: 20, bold: true, color: "#F87171"})
+  announce("🚨 " + p.name + " が基地 " + base + " から " + meme_title(item.id, item.mut) + " を盗んだ！", 3)
+  let owner = player_by_id(base_owner[base])
+  if owner != nil then
+    owner.message("🚨 " + p.name + " にキャラを盗まれた！たたいて取り返せ！", 3)
+    owner.sound("error")
+  end
+end
+
+-- 自分の基地に着いた
+func deliver(p)
+  let c = p.carrying
+  if c == nil then return end
+  if put_in_base(p, c.id, c.mut) then
+    p.message("✅ " + meme_title(c.id, c.mut) + " を手に入れた！", 2.5)
+    p.sound("goal")
+    p.steals = (p.steals or 0) + 1
+    kit_quest_progress(p, "steal", 1)
+    kit_quest_progress(p, "steal10", 1)
+    chat("😈 " + p.name + " が " + meme_title(c.id, c.mut) + " の盗みに成功！")
+    end_carry(p)
+  else
+    drop_carry(p, "台がいっぱいで置けなかった…キャラは帰っていった")
+  end
+end
+
+func end_carry(p)
+  p.carrying = nil
+  if p.saved_head != nil then p.head_color = p.saved_head end
+  set_line(p, "carry", nil, nil)
+  move_refresh(p)
+end
+
+-- 落とした: キャラは持ち主の基地に帰る
+func drop_carry(p, why)
+  let c = p.carrying
+  if c == nil then return end
+  end_carry(p)
+  if why != nil then p.message(why, 2) end
+  return_meme(c)
+end
+
+func return_meme(c)
+  let owner = player_by_id(c.owner)
+  if owner != nil and owner.base == c.from and put_in_base(owner, c.id, c.mut) then
+    owner.message("🛡 " + meme_title(c.id, c.mut) + " が基地に帰ってきた！", 2)
+    kit_quest_progress(owner, "defend", 1)
+  else
+    chat("💨 " + meme_title(c.id, c.mut) + " はどこかへ行ってしまった…")
+  end
+end
+
+func move_refresh(p)
+  let speed = 1
+  if contains(p.gear, "coil") then speed = 1.35 end
+  if p.carrying != nil then speed = carry_speed(p) end
+  if p.mv_speed != speed then
+    p.speed = speed
+    p.mv_speed = speed
+  end
+end
+
+on tick(dt)
+  steal_clock = steal_clock + dt
+  if steal_clock < 0.5 then return end
+  steal_clock = 0
+  for p in players() do
+    let c = p.carrying
+    if c != nil then
+      let left = CARRY_TIME - (time() - c.t)
+      if left <= 0 then
+        drop_carry(p, "⌛ 時間切れ！キャラは帰っていった")
+      else
+        set_line(p, "carry_t", "⌛ " + ceil(left), {at: "center", dy: -96, size: 18, color: "#FCA5A5"})
+        let home = home_block(p.base)
+        if home != nil and distance(p, home) < 3 then deliver(p) end
+      end
+    else
+      set_line(p, "carry_t", nil, nil)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "slot") then
+    steal(p, b)
+  elif contains(b.tags, "home") and p.carrying != nil then
+    if split(b.name, " ")[2] == p.base then deliver(p) end
+  end
+end
+
+on death(victim, killer)
+  if not victim.is_npc then drop_carry(victim, "キャラを落とした") end
+end
+
+on leave(p)
+  if p.carrying != nil then
+    let c = p.carrying
+    p.carrying = nil
+    return_meme(c)
+  end
+end

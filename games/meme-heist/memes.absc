@@ -1,0 +1,197 @@
+-- memes.absc — カーペットのキャラ
+-- ゲートから次々にキャラが歩いてくる（めずらしさ・変異はランダム）。近くで「買う」を押すと
+-- そのキャラは自分の基地まで歩いていき、台の上で像になる。📖図鑑でコレクション。
+
+let WALKER_CAP = 10
+let spawn_every = 3
+let luck = 1
+let mut_boost = {}     -- イベントで変わる変異の出やすさ
+let meme_clock = 0
+let next_walker = 0
+
+func pick_meme()
+  let list = []
+  for m in MEMES do append(list, {id: m.id, weight: RARITY[m.rarity].weight}) end
+  return kit_pick(list, luck).id
+end
+
+func pick_mutation()
+  let list = []
+  for key in MUTATION_ORDER do
+    let w = MUTATIONS[key].weight + (mut_boost[key] or 0)
+    if w > 0 then append(list, {id: key, weight: w}) end
+  end
+  return kit_pick(list, 1).id
+end
+
+func carpet_walkers()
+  return filter(npcs(), func(n) return n.state == "carpet" end)
+end
+
+func spawn_walker()
+  if len(carpet_walkers()) >= WALKER_CAP then return end
+  let id = pick_meme()
+  let mut = pick_mutation()
+  let m = meme_by_id(id)
+  let start = block("Carpet Start")
+  let label = meme_title(id, mut) + " 💰" + kit_short(meme_value(id, mut))
+  let color = m.color
+  let n = create_npc({name: label, position: start.position + {x: random(-1, 1), y: 1, z: 0}, color: color,
+                      head_color: MUTATIONS[mut].color or m.head, size: 1.1, health: 1000000000, speed: 0.35, team: "memes"})
+  n.state = "carpet"
+  n.meme_id = id
+  n.mut = mut
+  n.move_to(block("Carpet End"))
+  let r = m.rarity
+  if r == "mythic" or r == "secret" or mut == "rainbow" or mut == "galaxy" then
+    announce("✨ " + RARITY[r].name + " の " + meme_title(id, mut) + " がカーペットに登場！", 3.5)
+    sound("goal")
+  elif r == "legendary" then
+    chat("⭐ レジェンドの " + meme_title(id, mut) + " が歩いてきた！")
+  end
+end
+
+-- MARK: 買う
+
+func near_walker(p)
+  let best = nil
+  for n in carpet_walkers() do
+    if kit_here(n) and distance(p, n) < 6 then
+      if best == nil or distance(p, n) < distance(p, best) then best = n end
+    end
+  end
+  return best
+end
+
+func buy_walker(p)
+  let n = near_walker(p)
+  if n == nil then return end
+  if p.base == nil then
+    p.message("まず空いている基地の色つきパッドにさわって、自分の基地にしよう", 2)
+    return
+  end
+  if free_count(p) <= 0 then
+    p.message("台がいっぱい！（🏠で売るか、台を開けよう）", 2)
+    return
+  end
+  let price = meme_value(n.meme_id, n.mut)
+  if not kit_pay(p, price) then return end
+  n.state = "going"
+  n.buyer = p.id
+  n.speed = 1.4
+  n.at_door = false
+  n.move_to(base_door(p.base))
+  p.pending = (p.pending or 0) + 1
+  p.bought = (p.bought or 0) + 1
+  kit_quest_progress(p, "buy", 1)
+  p.message("🎉 " + meme_title(n.meme_id, n.mut) + " を買った！基地まで歩いていくよ", 2.5)
+  p.sound("collect")
+end
+
+-- MARK: 毎ティック
+
+on tick(dt)
+  meme_clock = meme_clock + dt
+  if meme_clock < 0.5 then return end
+  meme_clock = 0
+  if time() >= next_walker then
+    next_walker = time() + spawn_every
+    spawn_walker()
+  end
+  let finish = block("Carpet End")
+  for n in npcs() do
+    if kit_here(n) then
+      if n.state == "carpet" and distance(n, finish) < 3 then
+        n.destroy()
+      elif n.state == "going" then
+        let buyer = player_by_id(n.buyer)
+        if buyer == nil or buyer.base == nil then
+          n.destroy()
+        else
+          let home = home_block(buyer.base)
+          -- まず基地の入り口の前まで、それから中へ（まっすぐだと壁にぶつかる）
+          if not n.at_door and distance(n, base_door(buyer.base)) < 2.5 then n.at_door = true end
+          if not n.at_door then
+            n.move_to(base_door(buyer.base))
+          elif distance(n, home) < 3 then
+            buyer.pending = max(0, (buyer.pending or 1) - 1)
+            if not put_in_base(buyer, n.meme_id, n.mut) then
+              kit_give(buyer, meme_value(n.meme_id, n.mut))
+              buyer.message("台がいっぱいだったので返金しました", 2)
+            else
+              buyer.message("🏠 " + meme_title(n.meme_id, n.mut) + " が基地に着いた！ +" + kit_short(meme_income(n.meme_id, n.mut)) + "/秒", 2)
+            end
+            n.destroy()
+          else
+            n.move_to(home)
+          end
+        end
+      end
+    end
+  end
+  for p in players() do
+    let n = near_walker(p)
+    if n != nil then
+      set_btn(p, "buy", "買う: " + meme_title(n.meme_id, n.mut) + " 💰" + kit_short(meme_value(n.meme_id, n.mut)),
+              {at: "bottom", dy: -110, w: 380, h: 54, size: 17, bg: RARITY[meme_by_id(n.meme_id).rarity].color})
+    else
+      set_btn(p, "buy", nil, nil)
+    end
+  end
+end
+
+-- MARK: 📖 図鑑
+
+func index_menu(p)
+  let per = 11
+  let pages = ceil(len(MEMES) / per)
+  let page = clamp(p.index_page or 1, 1, pages)
+  p.index_page = page
+  let first = (page - 1) * per + 1
+  let shown = slice(MEMES, first, first + per - 1)
+  let h = 150 + len(shown) * 34
+  p.ui_remove("index")
+  p.ui_panel("index", {at: "center", w: 540, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("index_t", "📖 図鑑（" + len(p.seen) + " / " + len(MEMES) + "）  " + page + "/" + pages, {parent: "index", y: 24 / h, size: 20, bold: true, color: "gold"})
+  let i = 0
+  for m in shown do
+    i = i + 1
+    let r = RARITY[m.rarity]
+    let text = "❔ ？？？（" + r.name + "）"
+    let color = "#64748B"
+    if contains(p.seen, m.id) then
+      text = "✅ " + m.name + "（" + r.name + "） +" + kit_short(m.income) + "/秒"
+      color = r.color
+      -- 手に入れた変異
+      let muts = ""
+      for key in MUTATION_ORDER do
+        if key != "none" and contains(p.index, m.id + ":" + key) then muts = muts + " " + MUTATIONS[key].name end
+      end
+      if muts != "" then text = text + "  [" + trim(muts) + "]" end
+    end
+    if m.rarity == "secret" and color == "#111827" then color = "#E5E7EB" end
+    p.ui_text("index_" + i, text, {parent: "index", y: (38 + i * 34) / h, size: 14, color: color})
+  end
+  p.ui_button("index_next", "次へ ▶", {parent: "index", x: 0.72, y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "#4338CA"})
+  p.ui_button("index_close", "閉じる", {parent: "index", x: 0.3, y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "buy" then buy_walker(p)
+  elif id == "open_index" then index_menu(p)
+  elif id == "index_close" then p.ui_remove("index")
+  elif id == "index_next" then
+    p.index_page = (p.index_page or 1) % ceil(len(MEMES) / 11) + 1
+    index_menu(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  -- カーペットのそばのマーク: 近くのキャラをお知らせ
+  if starts_with(b.name, "Carpet Spot") and cooldown_left(p, "spot") <= 0 then
+    start_cooldown(p, "spot", 4)
+    let n = near_walker(p)
+    if n == nil then p.message("キャラが歩いてくるのを待とう", 1) end
+  end
+end

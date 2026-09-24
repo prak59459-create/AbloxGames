@@ -1,0 +1,714 @@
+-- pets.absc — ペットのしくみ
+-- ペットは1人ひとりの「ペット帳」にいて、2ひきまで連れて歩ける（NPCがついてくる）。
+-- 連れているペット（たまごも）は ときどきお願いをする → その場所にしばらくいるとお世話完了。
+-- お世話で年れいが上がる（赤ちゃん → おとな）。たまごは4回お世話でかえる。
+-- おとな4ひきで ✨ネオン、ネオンのおとな4ひきで 🌈メガネオン。名前・トリック・乗る・飛ぶ。
+
+let next_uid = 0
+let walkers = {}      -- uid → ついてくるNPC
+let bonus = 1         -- ダブルバックスのとき 2
+let pet_clock = 0
+let walk_clock = 0
+let RAINBOW = ["#F43F5E", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7"]
+
+-- MARK: ペットのデータ
+
+func new_pet(species, egg)
+  next_uid = next_uid + 1
+  return {uid: "p" + next_uid, species: species, egg: egg, name: nil, age: 1, care: 0, neon: 0,
+          fly: false, ride: false, need: nil, progress: 0, next_need: time() + 8}
+end
+
+func is_egg(pet) return pet.species == "egg" end
+
+func find_pet(p, uid)
+  for pet in p.pets do
+    if pet.uid == uid then return pet end
+  end
+  return nil
+end
+
+func equipped_pets(p)
+  let list = []
+  for uid in p.equipped do
+    let pet = find_pet(p, uid)
+    if pet != nil then append(list, pet) end
+  end
+  return list
+end
+
+func pet_kind_name(pet)
+  if is_egg(pet) then return EGGS[pet.egg].name end
+  return PETS[pet.species].name
+end
+
+func pet_title(pet)
+  if is_egg(pet) then return "🥚 " + EGGS[pet.egg].name end
+  let base = pet.name or PETS[pet.species].name
+  if pet.neon > 0 then base = NEON_NAMES[pet.neon + 1] + " " + base end
+  return base
+end
+
+func pet_label(pet)
+  if is_egg(pet) then return "🥚 " + EGGS[pet.egg].name + "（お世話 " + pet.care + "/" + EGG_CARE + "）" end
+  let text = pet_title(pet) + "（" + AGES[pet.age].name + "）"
+  if pet.name != nil then text = pet_title(pet) + "（" + PETS[pet.species].name + "・" + AGES[pet.age].name + "）" end
+  return text
+end
+
+func pet_rarity(pet)
+  if is_egg(pet) then return nil end
+  return RARITY[PETS[pet.species].rarity]
+end
+
+-- トレードの価値（めずらしさ × 年れい × ネオン）
+func pet_value(pet)
+  if is_egg(pet) then return EGGS[pet.egg].price / 100 end
+  let v = pet_rarity(pet).value * (1 + (pet.age - 1) * 0.15)
+  if pet.neon == 1 then v = v * 4.5 end
+  if pet.neon == 2 then v = v * 20 end
+  if pet.fly then v = v * 1.5 end
+  if pet.ride then v = v * 1.4 end
+  return floor(v * 10) / 10
+end
+
+func collection_value(p)
+  let v = 0
+  for pet in p.pets do v = v + pet_value(pet) end
+  return floor(v)
+end
+
+-- 次の年れいまでのお世話
+func care_to_next(pet)
+  if is_egg(pet) then return EGG_CARE - pet.care end
+  if pet.age >= len(AGES) then return 0 end
+  return AGES[pet.age + 1].care - pet.care
+end
+
+-- MARK: ついてくるNPC
+
+func walker_name(p, pet)
+  if is_egg(pet) then return "🥚たまご" end
+  let base = pet.name or PETS[pet.species].name
+  if pet.neon == 1 then base = "✨" + base end
+  if pet.neon == 2 then base = "🌈" + base end
+  return base
+end
+
+func spawn_walker(p, pet)
+  despawn_walker(pet.uid)
+  let color = "#F5F5F4"
+  let head = "#FFFFFF"
+  let legs = "#E5E7EB"
+  let size = 0.42
+  if is_egg(pet) then
+    color = EGGS[pet.egg].color
+    head = EGGS[pet.egg].color
+  else
+    let info = PETS[pet.species]
+    color = info.color
+    head = info.head
+    legs = info.legs
+    size = AGES[pet.age].size
+  end
+  let n = create_npc({name: walker_name(p, pet), position: p.position + {x: 1.5, y: 0.5, z: 1.5}, color: color,
+                      head_color: head, leg_color: legs, size: size, health: 1000000000, speed: 1.6, team: "pets"})
+  n.pet_uid = pet.uid
+  n.owner_id = p.id
+  n.follow(p)
+  walkers[pet.uid] = n
+end
+
+func despawn_walker(uid)
+  let n = walkers[uid]
+  if n != nil and kit_here(n) then n.destroy() end
+  remove(walkers, uid)
+end
+
+func walker_of(pet)
+  let n = walkers[pet.uid]
+  if n != nil and kit_here(n) then return n end
+  return nil
+end
+
+-- MARK: 連れて歩く
+
+func toggle_equip(p, uid)
+  let pet = find_pet(p, uid)
+  if pet == nil then return end
+  if contains(p.equipped, uid) then
+    remove(p.equipped, index_of(p.equipped, uid))
+    despawn_walker(uid)
+    p.message("🏠 " + pet_title(pet) + " はおうちで休んでいます", 1.5)
+  else
+    if len(p.equipped) >= 2 then
+      let old = remove(p.equipped, 1)
+      despawn_walker(old)
+    end
+    append(p.equipped, uid)
+    pet.next_need = time() + 6
+    spawn_walker(p, pet)
+    p.message("🐾 " + pet_title(pet) + " を連れて歩く", 1.5)
+    p.sound("collect")
+  end
+  ride_fly_refresh(p)
+  hud(p)
+end
+
+-- ペット帳に入れる（連れて歩く数に空きがあれば連れて歩く）
+func add_pet(p, pet)
+  append(p.pets, pet)
+  if len(p.equipped) < 2 then
+    append(p.equipped, pet.uid)
+    spawn_walker(p, pet)
+  end
+  hud(p)
+end
+
+-- ペット帳から出す（トレード・手放す・ネオン）
+func take_pet(p, uid)
+  let pet = find_pet(p, uid)
+  if pet == nil then return nil end
+  remove(p.pets, index_of(p.pets, pet))
+  if contains(p.equipped, uid) then remove(p.equipped, index_of(p.equipped, uid)) end
+  despawn_walker(uid)
+  ride_fly_refresh(p)
+  return pet
+end
+
+-- MARK: お願い
+
+func give_need(pet, p)
+  let list = []
+  for key in NEED_ORDER do
+    -- たまごと赤ちゃんは かんたんなお願いだけ
+    if not ((is_egg(pet) or pet.age == 1) and (key == "camping" or key == "school" or key == "beach")) then
+      append(list, {key: key, weight: NEEDS[key].weight})
+    end
+  end
+  let key = kit_pick(list, 1).key
+  pet.need = key
+  pet.progress = 0
+  let need = NEEDS[key]
+  let n = walker_of(pet)
+  if n != nil then n.say(need.icon + " " + need.name + "！") end
+  p.message(pet_title(pet) + "：" + need.icon + " " + need.name + " → " + need.where + " へ", 2.5)
+  p.sound("checkpoint")
+end
+
+-- お世話完了
+func finish_need(p, pet, how)
+  let need = NEEDS[pet.need]
+  pet.need = nil
+  pet.progress = 0
+  pet.next_need = time() + random(14, 24)
+  let amount = need.bucks * bonus * (1 + (pet.age - 1) * 0.1) * (1 + pet.neon * 0.5)
+  earn(p, amount, need.icon + " お世話できた！" + (how or ""))
+  p.cares = (p.cares or 0) + 1
+  kit_quest_progress(p, "care", 1)
+  kit_quest_progress(p, "care100", 1)
+  if pet.need_kinds == nil then pet.need_kinds = [] end
+  let n = walker_of(pet)
+  if n != nil then
+    n.say("❤️")
+    n.jump_now()
+  end
+  add_care(p, pet, 1)
+  hud(p)
+end
+
+func add_care(p, pet, amount)
+  pet.care = pet.care + amount
+  if is_egg(pet) then
+    if pet.care >= EGG_CARE then hatch(p, pet) end
+    return
+  end
+  let new_age = pet.age
+  for i in 1 to len(AGES) do
+    if pet.care >= AGES[i].care then new_age = i end
+  end
+  if new_age > pet.age then
+    pet.age = new_age
+    p.message("🎉 " + pet_title(pet) + " が「" + AGES[pet.age].name + "」になった！", 3)
+    p.sound("goal")
+    let n = walker_of(pet)
+    if n != nil then n.size = AGES[pet.age].size end
+    if pet.age == len(AGES) then
+      kit_quest_progress(p, "grown", 1)
+      if pet_rarity(pet).value >= 20 then announce("🌟 " + p.name + " の " + pet_title(pet) + " がおとなになった！", 3) end
+    end
+  end
+end
+
+-- MARK: たまごがかえる
+
+func hatch(p, pet)
+  let egg = EGGS[pet.egg]
+  let luck = 1
+  if p.lucky then
+    luck = 2.2
+    p.lucky = false
+  end
+  if event_now == "rainbow" then luck = luck * 1.8 end
+  let choices = map(egg.pets, func(s) return {id: s, weight: RARITY[PETS[s].rarity].weight} end)
+  let pick = kit_pick(choices, luck)
+  pet.species = pick.id
+  pet.age = 1
+  pet.care = 0
+  pet.need = nil
+  pet.next_need = time() + 10
+  let info = PETS[pick.id]
+  let r = RARITY[info.rarity]
+  p.hatched = (p.hatched or 0) + 1
+  kit_quest_progress(p, "hatch", 1)
+  p.sound("goal")
+  if info.rarity == "legendary" or info.rarity == "ultra" then
+    announce("🎉 " + p.name + " のたまごから " + r.name + " の " + info.name + " が生まれた！", 4)
+    kit_quest_progress(p, "legend", 1)
+  else
+    p.message("🎉 たまごから " + info.name + "（" + r.name + "）が生まれた！", 3)
+  end
+  if contains(p.equipped, pet.uid) then spawn_walker(p, pet) end
+  if p.dex == nil then p.dex = [] end
+  if not contains(p.dex, pick.id) then
+    append(p.dex, pick.id)
+    kit_quest_progress(p, "dex", 1)
+  end
+  name_prompt(p, pet)
+end
+
+-- MARK: 名前
+
+func name_prompt(p, pet)
+  p.naming = pet.uid
+  p.ui_panel("namebox", {at: "center", w: 480, h: 230, bg: "#831843F2", radius: 22, layer: 45})
+  p.ui_text("namebox_t", "🎉 " + PETS[pet.species].name + " に名前をつけよう", {parent: "namebox", y: 0.15, size: 20, bold: true})
+  p.ui_input("pet_name", "名前（10文字まで）", {parent: "namebox", y: 0.45, w: 320, h: 44})
+  p.ui_button("name_random", "🎲 おまかせ", {parent: "namebox", x: 0.3, y: 0.8, w: 160, h: 44, size: 16, bg: "#DB2777"})
+  p.ui_button("name_skip", "あとで", {parent: "namebox", x: 0.72, y: 0.8, w: 130, h: 44, size: 16, bg: "gray"})
+end
+
+func set_pet_name(p, text)
+  let pet = find_pet(p, p.naming)
+  p.ui_remove("namebox")
+  p.naming = nil
+  if pet == nil or is_egg(pet) then return end
+  let name = slice(trim(text), 1, 10)
+  if name == "" then return end
+  pet.name = name
+  p.message("🐾 名前は「" + name + "」！", 2)
+  if contains(p.equipped, pet.uid) then spawn_walker(p, pet) end
+  hud(p)
+end
+
+-- MARK: 乗る・飛ぶ
+
+func ride_fly_refresh(p)
+  let can_ride = false
+  let can_fly = false
+  for pet in equipped_pets(p) do
+    if pet.ride then can_ride = true end
+    if pet.fly then can_fly = true end
+  end
+  if not can_ride then p.riding = false end
+  if not can_fly then p.flying = false end
+  if can_ride then
+    let label = "🐎 乗る"
+    if p.riding then label = "🐎 おりる" end
+    set_btn(p, "ride_toggle", label, {at: "bottom_right", dx: -130, dy: -210, w: 120, h: 50, size: 15, bg: "#B45309", radius: 18})
+  else
+    set_btn(p, "ride_toggle", nil, nil)
+  end
+  if can_fly then
+    let label = "🦋 飛ぶ"
+    if p.flying then label = "🦋 おりる" end
+    set_btn(p, "fly_toggle", label, {at: "bottom_right", dx: -260, dy: -210, w: 120, h: 50, size: 15, bg: "#0891B2", radius: 18})
+  else
+    set_btn(p, "fly_toggle", nil, nil)
+  end
+  move_refresh(p)
+end
+
+func move_refresh(p)
+  let speed = 1
+  let gravity = 1
+  let jump = 1
+  if p.riding then speed = 1.9 end
+  if p.flying then
+    gravity = 0.35
+    jump = 2.4
+  end
+  if p.zoom_until != nil and time() < p.zoom_until then speed = speed * 1.3 end
+  if p.mv_speed != speed then
+    p.speed = speed
+    p.mv_speed = speed
+  end
+  if p.mv_gravity != gravity then
+    p.gravity = gravity
+    p.mv_gravity = gravity
+  end
+  if p.mv_jump != jump then
+    p.jump = jump
+    p.mv_jump = jump
+  end
+end
+
+-- MARK: トリック
+
+func tricks_menu(p)
+  let pets = filter(equipped_pets(p), func(x) return not is_egg(x) end)
+  if len(pets) == 0 then
+    p.message("トリックは生まれたペットを連れているときにできます", 2)
+    return
+  end
+  let pet = pets[1]
+  let h = 130 + len(TRICKS) * 48
+  p.ui_panel("tricks", {at: "center", w: 420, h: h, bg: "#3B0764F2", radius: 22, layer: 30})
+  p.ui_text("tricks_t", "🎾 " + pet_title(pet) + " のトリック", {parent: "tricks", y: 28 / h, size: 19, bold: true, color: "#F0ABFC"})
+  let i = 0
+  for t in TRICKS do
+    i = i + 1
+    let label = t.name
+    let bg = "#7E22CE"
+    if pet.age < t.age then
+      label = "🔒 " + t.name + "（" + AGES[t.age].name + "で覚える）"
+      bg = "#374151"
+    end
+    p.ui_button("trick_" + t.id, label, {parent: "tricks", y: (30 + i * 48) / h, w: 340, h: 40, size: 15, bg: bg})
+  end
+  p.ui_button("tricks_close", "閉じる", {parent: "tricks", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func do_trick(p, id)
+  let pets = filter(equipped_pets(p), func(x) return not is_egg(x) end)
+  if len(pets) == 0 then return end
+  let pet = pets[1]
+  let t = nil
+  for x in TRICKS do
+    if x.id == id then t = x end
+  end
+  if t == nil or pet.age < t.age then return end
+  if cooldown_left(p, "trick_" + id) > 0 then
+    p.message("少し休ませてあげて", 1)
+    return
+  end
+  start_cooldown(p, "trick_" + id, 6)
+  let n = walker_of(pet)
+  if n == nil then return end
+  if id == "sit" then
+    n.stop()
+    n.say("おすわり！")
+    after(2, func() if kit_here(n) and kit_here(p) then n.follow(p) end end)
+  elif id == "jump" then
+    n.jump_now()
+  elif id == "spin" then
+    for k in 1 to 4 do after(k * 0.2, func() if kit_here(n) then n.yaw = n.yaw + 90 end end) end
+  elif id == "beg" then
+    n.say("ちょうだい…🥺")
+  elif id == "dance" then
+    n.jump_now()
+    for k in 1 to 6 do after(k * 0.15, func() if kit_here(n) then n.yaw = n.yaw + 60 end end) end
+  elif id == "flip" then
+    n.launch(0, 14, 0)
+  end
+  let reward = 3
+  if contains(p.toys, "squeaky") then reward = 6 end
+  earn(p, reward * bonus, "🎾 " + t.name)
+  kit_quest_progress(p, "trick", 1)
+end
+
+-- MARK: ペット帳（🐾ボタン）
+
+let BOOK_PER_PAGE = 8
+
+func book(p)
+  let pages = pages_of(p.pets, BOOK_PER_PAGE)
+  let page = clamp(p.book_page or 1, 1, pages)
+  p.book_page = page
+  let shown = page_of(p.pets, page, BOOK_PER_PAGE)
+  let h = 150 + max(1, len(shown)) * 48
+  p.ui_remove("book")
+  p.ui_panel("book", {at: "center", w: 520, h: h, bg: "#831843F2", radius: 22, layer: 30})
+  p.ui_text("book_t", "🐾 ペット帳（" + len(p.pets) + "ひき・価値 " + collection_value(p) + "）  " + page + "/" + pages,
+            {parent: "book", y: 26 / h, size: 18, bold: true})
+  p.ui_text("book_s", "押すとくわしく。✅ は連れて歩いているペット", {parent: "book", y: 52 / h, size: 13, color: "#FBCFE8"})
+  if len(shown) == 0 then
+    p.ui_text("book_none", "まだペットがいません。ナーサリーでたまごを買おう", {parent: "book", y: 90 / h, size: 15})
+  end
+  let i = 0
+  for pet in shown do
+    i = i + 1
+    let mark = ""
+    if contains(p.equipped, pet.uid) then mark = "✅ " end
+    if pet.need != nil then mark = mark + NEEDS[pet.need].icon + " " end
+    let bg = "#9D174D"
+    let r = pet_rarity(pet)
+    if r != nil then bg = r.color end
+    p.ui_button("pet_" + pet.uid, mark + pet_label(pet), {parent: "book", y: (46 + i * 48) / h, w: 460, h: 40, size: 14, bg: bg})
+  end
+  if pages > 1 then
+    p.ui_button("book_next", "次へ ▶", {parent: "book", x: 0.72, y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "#BE185D"})
+    p.ui_button("book_close", "閉じる", {parent: "book", x: 0.3, y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+  else
+    p.ui_button("book_close", "閉じる", {parent: "book", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+  end
+end
+
+func pet_detail(p, uid)
+  let pet = find_pet(p, uid)
+  if pet == nil then return end
+  p.ui_remove("book")
+  p.detail = uid
+  let h = 380
+  p.ui_panel("detail", {at: "center", w: 480, h: h, bg: "#4A044EF2", radius: 22, layer: 31})
+  p.ui_text("detail_t", pet_title(pet), {parent: "detail", y: 0.08, size: 22, bold: true, color: "#F5D0FE"})
+  let lines = []
+  if is_egg(pet) then
+    append(lines, "たまご: あと " + care_to_next(pet) + " 回お世話するとかえる")
+  else
+    append(lines, "しゅるい: " + PETS[pet.species].name + "   めずらしさ: " + pet_rarity(pet).name)
+    let next = "おとな！"
+    if pet.age < len(AGES) then next = "次の年れいまで お世話 " + care_to_next(pet) + " 回" end
+    append(lines, "年れい: " + AGES[pet.age].name + "（" + next + "）")
+  end
+  let flags = ""
+  if pet.fly then flags = flags + "🦋飛べる " end
+  if pet.ride then flags = flags + "🐎乗れる " end
+  if flags == "" then flags = "とくになし" end
+  append(lines, "とくい: " + flags + "   価値: " + pet_value(pet))
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("detail_l" + i, line, {parent: "detail", y: 0.14 + i * 0.08, size: 15})
+  end
+  let equip = "🐾 連れて歩く"
+  if contains(p.equipped, uid) then equip = "🏠 休ませる" end
+  p.ui_button("pd_equip", equip, {parent: "detail", x: 0.28, y: 0.56, w: 200, h: 44, size: 16, bg: "#DB2777"})
+  p.ui_button("pd_name", "✏️ 名前", {parent: "detail", x: 0.72, y: 0.56, w: 200, h: 44, size: 16, bg: "#7C3AED"})
+  let release = "👋 手放す（💰" + floor(pet_value(pet) * 20) + "）"
+  if p.release_confirm == uid then release = "⚠️ 本当に手放す？" end
+  p.ui_button("pd_release", release, {parent: "detail", y: 0.72, w: 300, h: 42, size: 15, bg: "#991B1B"})
+  p.ui_button("pd_back", "◀ ペット帳へ", {parent: "detail", y: 0.9, w: 180, h: 40, size: 15, bg: "gray"})
+end
+
+func release_pet(p, uid)
+  if p.release_confirm != uid then
+    p.release_confirm = uid
+    pet_detail(p, uid)
+    return
+  end
+  p.release_confirm = nil
+  let pet = take_pet(p, uid)
+  if pet == nil then return end
+  earn(p, pet_value(pet) * 20, "👋 " + pet_title(pet) + " は新しいおうちへ")
+  p.ui_remove("detail")
+  book(p)
+  hud(p)
+end
+
+-- MARK: ネオン（紫の祭だん）
+
+func neon_groups(p)
+  -- しゅるい × ネオンの段階ごとに、おとなの数をかぞえる
+  let counts = {}
+  for pet in p.pets do
+    if not is_egg(pet) and pet.age == len(AGES) and pet.neon < 2 then
+      let key = pet.species + ":" + pet.neon
+      counts[key] = (counts[key] or 0) + 1
+    end
+  end
+  let list = []
+  for key in keys(counts) do
+    if counts[key] >= 4 then append(list, key) end
+  end
+  return list
+end
+
+func neon_menu(p)
+  let groups = neon_groups(p)
+  let h = 170 + max(1, len(groups)) * 50
+  p.ui_panel("neon", {at: "center", w: 500, h: h, bg: "#1E1B4BF2", radius: 22, layer: 30})
+  p.ui_text("neon_t", "✨ ネオンの祭だん", {parent: "neon", y: 26 / h, size: 21, bold: true, color: "#F0ABFC"})
+  p.ui_text("neon_s", "おとなのペット4ひき → ✨ネオン / ネオンのおとな4ひき → 🌈メガネオン", {parent: "neon", y: 56 / h, size: 13, color: "#C4B5FD"})
+  if len(groups) == 0 then
+    p.ui_text("neon_none", "まだ作れません（同じしゅるいのおとなが4ひき必要）", {parent: "neon", y: 100 / h, size: 15})
+  end
+  let i = 0
+  for key in groups do
+    i = i + 1
+    let parts = split(key, ":")
+    let level = num(parts[2])
+    let label = "✨ " + PETS[parts[1]].name + " をネオンにする"
+    if level == 1 then label = "🌈 " + PETS[parts[1]].name + " をメガネオンにする" end
+    p.ui_button("neonmake_" + i, label, {parent: "neon", y: (60 + i * 50) / h, w: 420, h: 42, size: 15, bg: "#7C3AED"})
+  end
+  p.neon_keys = groups
+  p.ui_button("neon_close", "閉じる", {parent: "neon", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func neon_make(p, i)
+  let key = p.neon_keys[i]
+  if key == nil then return end
+  let parts = split(key, ":")
+  let species = parts[1]
+  let level = num(parts[2])
+  let used = []
+  for pet in p.pets do
+    if len(used) < 4 and pet.species == species and pet.neon == level and pet.age == len(AGES) then append(used, pet.uid) end
+  end
+  if len(used) < 4 then return end
+  let fly = false
+  let ride = false
+  for uid in used do
+    let old = take_pet(p, uid)
+    if old.fly then fly = true end
+    if old.ride then ride = true end
+  end
+  let pet = new_pet(species, nil)
+  pet.neon = level + 1
+  pet.fly = fly
+  pet.ride = ride
+  add_pet(p, pet)
+  let what = "✨ネオン"
+  if pet.neon == 2 then what = "🌈メガネオン" end
+  announce("🌟 " + p.name + " が " + what + " の " + PETS[species].name + " を作った！", 4)
+  sound("goal")
+  kit_quest_progress(p, "neon", 1)
+  neon_menu(p)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "petcount", "🐾 " + len(p.pets) + "ひき   価値 " + collection_value(p), {at: "top_left", dy: 34, size: 17, bold: true, color: "#FBCFE8"})
+  let i = 0
+  for pet in equipped_pets(p) do
+    i = i + 1
+    let text = pet_title(pet)
+    if pet.need != nil then
+      let need = NEEDS[pet.need]
+      text = text + "  " + need.icon + " " + need.name + " → " + need.where
+    elif is_egg(pet) then
+      text = text + "  あと " + care_to_next(pet) + " 回でかえる"
+    else
+      text = text + "（" + AGES[pet.age].name + "）😊"
+    end
+    set_line(p, "eq" + i, text, {at: "top", dy: 60 + (i - 1) * 26, size: 16, bold: true, color: "#FDE68A"})
+  end
+  while i < 2 do
+    i = i + 1
+    set_line(p, "eq" + i, nil, nil)
+  end
+  p.score = collection_value(p)
+end
+
+-- MARK: 毎ティック
+
+on tick(dt)
+  pet_clock = pet_clock + dt
+  if pet_clock >= 0.5 then
+    let span = pet_clock
+    pet_clock = 0
+    for p in players() do
+      let i = 0
+      for pet in equipped_pets(p) do
+        i = i + 1
+        if pet.need == nil and time() >= pet.next_need then give_need(pet, p) end
+        if pet.need != nil then
+          let need = NEEDS[pet.need]
+          let place = block(need.place)
+          if place != nil and distance(p, place) < 8 then
+            pet.progress = pet.progress + span
+            set_bar(p, "needbar" + i, pet.progress, need.secs, {at: "top", dy: 60 + (i - 1) * 26, dx: 250, w: 110, h: 10, color: "#F472B6"})
+            if pet.progress >= need.secs then
+              clear_bar(p, "needbar" + i)
+              finish_need(p, pet, nil)
+            end
+          else
+            clear_bar(p, "needbar" + i)
+          end
+        else
+          clear_bar(p, "needbar" + i)
+        end
+      end
+      hud(p)
+    end
+  end
+  walk_clock = walk_clock + dt
+  if walk_clock >= 1 then
+    walk_clock = 0
+    for p in players() do
+      for pet in equipped_pets(p) do
+        let n = walker_of(pet)
+        if n == nil then
+          spawn_walker(p, pet)
+        elif distance(n, p) > 22 then
+          n.position = p.position + {x: 1.5, y: 0.5, z: 1.5}
+          n.follow(p)
+        end
+        if n != nil and pet.neon == 2 then n.color = random(RAINBOW) end
+      end
+      move_refresh(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "open_book" then
+    p.book_page = 1
+    book(p)
+  elif id == "book_close" then p.ui_remove("book")
+  elif id == "book_next" then
+    p.book_page = (p.book_page or 1) % pages_of(p.pets, BOOK_PER_PAGE) + 1
+    book(p)
+  elif starts_with(id, "pet_") then
+    pet_detail(p, replace(id, "pet_", ""))
+  elif id == "pd_equip" then
+    toggle_equip(p, p.detail)
+    pet_detail(p, p.detail)
+  elif id == "pd_name" then
+    let pet = find_pet(p, p.detail)
+    p.ui_remove("detail")
+    if pet != nil and not is_egg(pet) then name_prompt(p, pet) end
+  elif id == "pd_release" then
+    release_pet(p, p.detail)
+  elif id == "pd_back" then
+    p.ui_remove("detail")
+    p.release_confirm = nil
+    book(p)
+  elif id == "name_random" then
+    set_pet_name(p, random(NAME_IDEAS))
+  elif id == "name_skip" then
+    p.ui_remove("namebox")
+    p.naming = nil
+  elif id == "open_tricks" then tricks_menu(p)
+  elif id == "tricks_close" then p.ui_remove("tricks")
+  elif starts_with(id, "trick_") then do_trick(p, replace(id, "trick_", ""))
+  elif id == "neon_close" then p.ui_remove("neon")
+  elif starts_with(id, "neonmake_") then neon_make(p, num(replace(id, "neonmake_", "")))
+  elif id == "ride_toggle" then
+    p.riding = not p.riding
+    ride_fly_refresh(p)
+  elif id == "fly_toggle" then
+    p.flying = not p.flying
+    if p.flying then p.launch(0, 10, 0) end
+    ride_fly_refresh(p)
+  end
+end
+
+on input(p, id, text)
+  if id == "pet_name" then set_pet_name(p, text) end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "neon") and cooldown_left(p, "neon_pad") <= 0 then
+    start_cooldown(p, "neon_pad", 3)
+    neon_menu(p)
+  end
+end
+
+on leave(p)
+  for uid in copy(p.equipped) do despawn_walker(uid) end
+end

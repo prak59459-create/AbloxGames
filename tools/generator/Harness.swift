@@ -48,6 +48,10 @@ enum Harness {
         let words = ["hi", "/help", "yes", "1", "shop", "こんにちは", "ready", "red", "sell", "go"]
 
         var time = 0.0
+        // Rich robots are also patient: after walking up to something they
+        // stay there a few seconds (still pressing buttons), so things that
+        // need you to stand somewhere — a care spot, a capture point — happen.
+        var stayUntil: [PeerID: Double] = [:]
         var lateJoined = false
         var left = false
         var restarts = 0
@@ -78,7 +82,9 @@ enum Harness {
             guard Int(time * 10) % 3 == 0 else { continue }
             for peer in people {
                 guard let state = game.states[peer] else { continue }
-                switch rng.int(0, 9) {
+                var roll = rng.int(0, 9)
+                if let until = stayUntil[peer], time < until, roll >= 3 { roll = [0, 1, 2, 3, 8][roll % 5] }
+                switch roll {
                 case 0, 1, 2:
                     // Press a button that is on this player's screen.
                     let buttons = visible(game, state, kind: .button)
@@ -100,6 +106,7 @@ enum Harness {
                         game.updateTransform(PlayerTransformPayload(peerID: peer, position: spot, yawDegrees: rng.range(0, 360)))
                         report.touches += 1
                         _ = game.handle(.touched(peer: peer, blockID: block.id))
+                        if rich { stayUntil[peer] = time + 6 }
                     }
                 case 6:
                     let blocks = game.world.blocks

@@ -280,71 +280,138 @@ func fruitSeas(_ m: MapBuilder) {
 
 func petHome(_ m: MapBuilder) {
     m.day(ground: "#A7E08F")
-    m.ground(140, 140, color: "#B8E6A0")
-    m.part("Plaza", at: (0, 0.03, 0), size: (26, 0.06, 26), color: "#FDE2E4", shape: .cylinder, material: .matte)
+    m.ground(210, 210, color: "#B8E6A0")
+    m.part("Plaza", at: (0, 0.03, 0), size: (28, 0.06, 28), color: "#FDE2E4", shape: .cylinder, material: .matte)
     m.spawnRing(0, 0, radius: 6, count: 8, color: "#F9A8D4")
+    m.road(from: (-100, 0), to: (100, 0), width: 7, name: "Pet Road")
+    m.road(from: (0, -100), to: (0, 100), width: 7, name: "Pet Road")
 
-    // The nursery sells eggs.
-    m.house("Nursery", x: 0, z: -34, w: 22, d: 12, h: 4.5, wall: "#FBCFE8", roof: "#DB2777", floor: "#FFF1F2", tags: ["nursery"])
-    let eggs: [(String, String, Float)] = [("Egg Common", "#F5F5F4", -6), ("Egg Rare", "#60A5FA", 0), ("Egg Legendary", "#FACC15", 6)]
+    // The nursery sells eggs: one stand per egg.
+    m.house("Nursery", x: 0, z: -40, w: 30, d: 12, h: 4.5, wall: "#FBCFE8", roof: "#DB2777", floor: "#FFF1F2", tags: ["nursery"])
+    let eggs: [(String, String, Float)] = [("Egg Basic", "#F5F5F4", -11), ("Egg Farm", "#FDE68A", -5.5), ("Egg Forest", "#4ADE80", 0),
+                                           ("Egg Ocean", "#38BDF8", 5.5), ("Egg Space", "#6D28D9", 11)]
     for e in eggs {
-        m.slab("\(e.0) Stand", x: e.2, y: 0, z: -37, w: 2.4, h: 0.8, d: 2.4, color: "#FFFFFF")
-        m.part(e.0, at: (e.2, 1.6, -37), size: (1.3, 1.7, 1.3), color: e.1, shape: .sphere, material: .plastic,
+        m.slab("\(e.0) Stand", x: e.2, y: 0, z: -43, w: 2.4, h: 0.8, d: 2.4, color: "#FFFFFF")
+        m.part(e.0, at: (e.2, 1.6, -43), size: (1.3, 1.7, 1.3), color: e.1, shape: .sphere, material: .plastic,
                behavior: .trigger, tags: ["egg"])
     }
 
-    // Where pets get looked after.
+    // The pet shop: food, toys, potions.
+    m.shop("Pet Shop", x: -42, z: -40, w: 18, d: 10, color: "#FDBA74", sign: "#FFFFFF")
+    m.pad("Food Counter", x: -48, z: -42, size: 2.4, color: "#F97316", tags: ["shop_food"])
+    m.pad("Toy Counter", x: -42, z: -42, size: 2.4, color: "#22C55E", tags: ["shop_toy"])
+    m.pad("Potion Counter", x: -36, z: -42, size: 2.4, color: "#A855F7", tags: ["shop_potion"])
+
+    // The neon cave: four grown-up pets of a kind make one glowing pet.
+    // Back, sides and a front with a 4 m doorway facing the plaza.
+    m.slab("Neon Cave Wall", x: 42, y: 0, z: -46, w: 17, h: 5, d: 1, color: "#1E1B4B")
+    m.slab("Neon Cave Wall", x: 34, y: 0, z: -40, w: 1, h: 5, d: 12, color: "#1E1B4B")
+    m.slab("Neon Cave Wall", x: 50, y: 0, z: -40, w: 1, h: 5, d: 12, color: "#1E1B4B")
+    m.slab("Neon Cave Wall", x: 37, y: 0, z: -34, w: 6, h: 5, d: 1, color: "#1E1B4B")
+    m.slab("Neon Cave Wall", x: 47, y: 0, z: -34, w: 6, h: 5, d: 1, color: "#1E1B4B")
+    m.slab("Neon Cave Roof", x: 42, y: 5, z: -40, w: 17, h: 0.5, d: 13, color: "#312E81")
+    m.part("Neon Altar", at: (42, 0.4, -41), size: (4, 0.8, 4), color: "#E879F9", shape: .cylinder, material: .neon,
+           behavior: .trigger, tags: ["neon"])
+    for p in ring(4, radius: 5, cx: 42, cz: -41) {
+        m.part("Neon Crystal", at: (p.0, 1.4, p.1), size: (0.8, 2.8, 0.8), color: "#22D3EE", shape: .cone, material: .neon, solid: false)
+    }
+
+    // Trading plaza and the pet show stage.
+    m.part("Trade Plaza", at: (0, 0.04, 28), size: (16, 0.08, 10), color: "#FEF3C7", material: .matte)
+    m.pad("Trade Booth", x: 0, z: 28, size: 3, color: "#F59E0B", tags: ["trade"])
+    m.slab("Show Stage", x: 0, y: 0, z: 62, w: 20, h: 1, d: 10, color: "#FDE68A")
+    m.pad("Show Spot", x: 0, z: 62, y: 1, size: 4, color: "#F43F5E", tags: ["show"])
+    for i in 0..<3 {
+        m.slab("Show Step \(i + 1)", x: -3 + Float(i) * 3, y: 0, z: 56, w: 2, h: 0.35 + Float(i) * 0.3, d: 2, color: "#FDE047")
+    }
+    m.part("Show Arch", at: (0, 5, 66), size: (20, 1, 1), color: "#F472B6", material: .neon, solid: false)
+
+    // The ten places pets ask for.
     let needs: [(String, String, Float, Float, String)] = [
-        ("Food Stand", "#F97316", -32, 8, "food"), ("Water Well", "#38BDF8", 32, 8, "drink"),
-        ("Pet Bed", "#A78BFA", -32, 32, "sleep"), ("Playground", "#22C55E", 32, 32, "play"),
-        ("Bath House", "#67E8F9", 0, 42, "bath")
+        ("Food Stand", "#F97316", -62, 0, "hungry"), ("Water Well", "#38BDF8", 62, 0, "thirsty"),
+        ("Pet Beds", "#A78BFA", -62, 30, "sleepy"), ("Bath House", "#67E8F9", 62, 30, "dirty"),
+        ("Playground", "#22C55E", -36, 72, "bored"), ("Vet Clinic", "#F87171", 36, 72, "sick"),
+        ("Campsite", "#65A30D", -80, 75, "camping"), ("School", "#FACC15", 80, 75, "school"),
+        ("Pizza Place", "#DC2626", -75, -75, "pizza"), ("Beach", "#FDE68A", 0, -84, "beach")
     ]
     for n in needs {
-        m.slab("\(n.0) Base", x: n.2, y: 0, z: n.3, w: 10, h: 0.3, d: 10, color: "#FFFFFF")
-        m.pad(n.0, x: n.2, z: n.3, y: 0.3, size: 5, color: n.1, tags: ["need", n.4])
-        m.pillar("\(n.0) Post", x: n.2 + 4, z: n.3 - 4, y: 0.3, height: 3, radius: 0.3, color: n.1)
+        m.slab("\(n.0) Base", x: n.2, y: 0, z: n.3, w: 12, h: 0.3, d: 12, color: "#FFFFFF")
+        m.pad(n.0, x: n.2, z: n.3, y: 0.3, size: 6, color: n.1, tags: ["need", n.4])
+        m.pillar("\(n.0) Post", x: n.2 + 5, z: n.3 - 5, y: 0.3, height: 3.5, radius: 0.3, color: n.1)
+        m.part("\(n.0) Sign", at: (n.2 + 5, 4.2, n.3 - 5), size: (2.4, 1.2, 0.2), color: n.1, material: .neon, solid: false)
     }
-    m.part("Well Roof", at: (32, 3.6, 8), size: (6, 1.4, 6), color: "#1D4ED8", shape: .cone)
-    for i in 0..<3 { m.slab("Slide \(i + 1)", x: 28 + Float(i) * 4, y: 0.3, z: 36, w: 2, h: 2 + Float(i), d: 2, color: "#FDE047") }
+    m.part("Well Roof", at: (62, 3.6, 0), size: (6, 1.4, 6), color: "#1D4ED8", shape: .cone)
+    for i in 0..<3 { m.slab("Slide \(i + 1)", x: -40 + Float(i) * 4, y: 0.3, z: 78, w: 2, h: 2 + Float(i), d: 2, color: "#FDE047") }
+    for i in 0..<3 { m.part("Tent \(i + 1)", at: (-84 + Float(i) * 4, 1.3, 70), size: (3, 2.6, 3), color: "#EA580C", shape: .cone) }
+    m.part("Campfire", at: (-80, 0.5, 78), size: (1.4, 0.8, 1.4), color: "#F97316", shape: .cone, material: .neon, solid: false)
+    for i in 0..<4 { m.slab("Bed \(i + 1)", x: -66 + Float(i) * 2.7, y: 0.3, z: 34, w: 2.2, h: 0.5, d: 3, color: "#C4B5FD") }
+    m.house("School House", x: 80, z: 88, w: 14, d: 8, h: 4, wall: "#FEF08A", roof: "#B45309", tags: ["school"], facing: -1)
+    m.house("Pizza House", x: -75, z: -88, w: 12, d: 8, h: 4, wall: "#FECACA", roof: "#B91C1C", tags: ["pizza"], facing: 1)
+    m.part("Sea", at: (0, 0.02, -97), size: (120, 0.04, 10), color: "#0EA5E9", material: .glass, solid: false)
+    m.part("Sand", at: (0, 0.03, -86), size: (60, 0.04, 14), color: "#FDE68A", material: .matte, solid: false)
+    for x in [-20, -10, 10, 20] {
+        m.part("Umbrella", at: (Float(x), 2.2, -86), size: (3, 0.6, 3), color: "#F43F5E", shape: .cone, solid: false)
+        m.part("Umbrella Pole", at: (Float(x), 1.1, -86), size: (0.15, 2.2, 0.15), color: "#FFFFFF", shape: .cylinder)
+    }
 
-    for p in ring(12, radius: 58) { m.tree(p.0, p.1, height: 4, leaves: "#F472B6") }
-    for p in ring(10, radius: 48, phase: 0.3) { m.tree(p.0, p.1, height: 3.5, leaves: "#86EFAC") }
-    for p in grid(4, 2, spacing: 3, cx: -12, cz: 16) {
+    for p in ring(16, radius: 96) { m.tree(p.0, p.1, height: 4, leaves: "#F472B6") }
+    for p in ring(12, radius: 50, phase: 0.3) { m.tree(p.0, p.1, height: 3.5, leaves: "#86EFAC") }
+    for p in grid(4, 2, spacing: 3, cx: -14, cz: 14) {
         m.part("Flower", at: (p.0, 0.3, p.1), size: (0.8, 0.6, 0.8), color: "#F43F5E", shape: .sphere, solid: false)
     }
+    for p in [(12, 12), (-12, 12), (12, -12), (-12, -12)] { m.lamp(Float(p.0), Float(p.1)) }
 }
 
 // MARK: 4 Meme Heist
 
 func memeHeist(_ m: MapBuilder) {
     m.sky("#FF7AD9", "#FFE3A3", light: 0.8, ground: "#3B2A6B")
-    m.ground(150, 150, color: "#4C3A8A")
+    m.ground(160, 160, color: "#4C3A8A")
     // The carpet memes walk along, from the gate at -z to the stage at +z.
     m.part("Red Carpet", at: (0, 0.05, 0), size: (6, 0.1, 110), color: "#DC2626", material: .matte)
     m.slab("Meme Gate", x: 0, y: 0, z: -56, w: 10, h: 6, d: 1, color: "#FACC15", material: .neon)
+    m.slab("Meme Stage", x: 0, y: 0, z: 58, w: 12, h: 1, d: 6, color: "#FDE047")
     m.part("Carpet Start", at: (0, 0.2, -52), size: (2, 0.2, 2), color: "#FFFFFF", shape: .cylinder, visible: false)
     m.part("Carpet End", at: (0, 0.2, 52), size: (2, 0.2, 2), color: "#FFFFFF", shape: .cylinder, visible: false)
     m.spawnRing(0, -40, radius: 3, count: 4, color: "#FDE047")
+    // Carpet-side spots where robots and players stand to buy.
+    m.markers("Carpet Spot", points: [(4, -30), (-4, -10), (4, 10), (-4, 30)], color: "#FDE047", size: 1.6)
 
-    // Eight bases, four on each side of the carpet.
+    // The gear shop and the rebirth altar, at the top of the carpet.
+    m.shop("Gear Shop", x: -16, z: -48, w: 10, d: 8, color: "#1E293B", sign: "#22D3EE")
+    m.pad("Gear Counter", x: -16, z: -50, size: 2.4, color: "#22D3EE", tags: ["gear"])
+    m.part("Rebirth Altar", at: (16, 0.6, -48), size: (4, 1.2, 4), color: "#F472B6", shape: .cylinder, material: .neon,
+           behavior: .trigger, tags: ["rebirth"])
+    m.part("Rebirth Crystal", at: (16, 3, -48), size: (1.6, 3, 1.6), color: "#E879F9", shape: .cone, material: .neon, solid: false)
+
+    // Eight bases, four on each side of the carpet. The doorway faces the carpet.
     let colors = ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B", "#A855F7", "#EC4899", "#14B8A6", "#F97316"]
     for i in 0..<8 {
         let side: Float = i < 4 ? -1 : 1
         let z = -36 + Float(i % 4) * 24
         let x = side * 34
-        m.slab("Base \(i + 1) Floor", x: x, y: 0, z: z, w: 20, h: 0.4, d: 18, color: "#1F1B3A", tags: ["base"])
-        m.pad("Base \(i + 1) Claim", x: x - side * 7, z: z, y: 0.4, size: 3, color: colors[i], tags: ["claim"])
-        m.pad("Base \(i + 1) Home", x: x, z: z, y: 0.4, size: 5, color: colors[i], tags: ["home"], shape: .box)
-        m.pad("Base \(i + 1) Lock", x: x + side * 8, z: z + 6, y: 0.4, size: 2, color: "#FFFFFF", tags: ["lock"])
-        // A wall of lasers across the entrance, off until locked.
-        m.part("Base \(i + 1) Laser", at: (x - side * 10, 1.5, z), size: (0.3, 3, 16), color: colors[i], material: .neon,
-               behavior: .hazard, tags: ["laser"], solid: false, visible: false)
-        for k in 0..<5 {
-            let sz = z - 6 + Float(k) * 3
-            m.part("Base \(i + 1) Slot \(k + 1)", at: (x + side * 6, 0.9, sz), size: (2, 1, 2), color: "#D4D4D8",
+        let n = i + 1
+        m.slab("Base \(n) Floor", x: x, y: 0, z: z, w: 20, h: 0.4, d: 18, color: "#1F1B3A", tags: ["base"])
+        m.pad("Base \(n) Claim", x: x - side * 7.5, z: z - 6, y: 0.4, size: 2.5, color: colors[i], tags: ["claim"])
+        m.pad("Base \(n) Home", x: x - side * 2, z: z, y: 0.4, size: 4, color: colors[i], tags: ["home"], shape: .box)
+        m.pad("Base \(n) Lock", x: x - side * 7.5, z: z + 6, y: 0.4, size: 2, color: "#FFFFFF", tags: ["lock"])
+        // A wall of lasers across the doorway, off until locked.
+        m.part("Base \(n) Laser", at: (x - side * 10, 1.9, z), size: (0.3, 3, 7), color: colors[i], material: .neon,
+               behavior: .trigger, tags: ["laser"], solid: false, visible: false)
+        // Ten pedestals: the outer row first, the inner row unlocked later.
+        for k in 0..<10 {
+            let row: Float = k < 5 ? 7 : 3.5
+            let sz = z - 6 + Float(k % 5) * 3
+            m.part("Base \(n) Slot \(k + 1)", at: (x + side * row, 0.9, sz), size: (2, 1, 2), color: k < 5 ? "#D4D4D8" : "#6B7280",
                    shape: .cylinder, material: .metal, behavior: .trigger, tags: ["slot"])
         }
-        m.walls(x, z, w: 20, d: 18, h: 2.5, y: 0.4, color: colors[i], thickness: 0.4, name: "Base \(i + 1) Wall", opacity: 0.35)
+        // Walls: back, two sides, and the front in two parts around a 7 m doorway.
+        let wall = "Base \(n) Wall"
+        m.slab(wall, x: x + side * 10, y: 0.4, z: z, w: 0.4, h: 2.5, d: 18, color: colors[i], opacity: 0.35)
+        m.slab(wall, x: x, y: 0.4, z: z - 9, w: 20, h: 2.5, d: 0.4, color: colors[i], opacity: 0.35)
+        m.slab(wall, x: x, y: 0.4, z: z + 9, w: 20, h: 2.5, d: 0.4, color: colors[i], opacity: 0.35)
+        m.slab(wall, x: x - side * 10, y: 0.4, z: z - 6.25, w: 0.4, h: 2.5, d: 5.5, color: colors[i], opacity: 0.35)
+        m.slab(wall, x: x - side * 10, y: 0.4, z: z + 6.25, w: 0.4, h: 2.5, d: 5.5, color: colors[i], opacity: 0.35)
     }
 }
 

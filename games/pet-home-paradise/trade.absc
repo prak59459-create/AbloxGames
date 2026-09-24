@@ -1,0 +1,264 @@
+-- trade.absc — ペットのトレード
+-- 🤝ボタン（またはトレードブース）→ 相手をえらぶ → 相手が「受ける」→ おたがいに4ひきまで出す
+-- → 両方が ✅OK を押すと交換。出すペットを変えると OK は取り消し。⚖️で価値をくらべられる。
+
+let TRADE_MAX = 4
+let TRADE_PER_PAGE = 7
+
+func trade_pick(p)
+  if p.trade != nil then
+    trade_draw(p)
+    return
+  end
+  let others = filter(players(), func(o) return o.id != p.id end)
+  let rows = max(1, min(8, len(others)))
+  let h = 130 + rows * 48
+  p.ui_panel("tpick", {at: "center", w: 420, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("tpick_t", "🤝 だれとトレードする？", {parent: "tpick", y: 26 / h, size: 20, bold: true, color: "#FDE68A"})
+  if len(others) == 0 then
+    p.ui_text("tpick_none", "ほかにだれもいません", {parent: "tpick", y: 80 / h, size: 15})
+  end
+  let i = 0
+  for o in slice(others, 1, 8) do
+    i = i + 1
+    p.ui_button("treq_" + o.id, o.name + "（" + len(o.pets) + "ひき）", {parent: "tpick", y: (30 + i * 48) / h, w: 340, h: 40, size: 16, bg: "#A16207"})
+  end
+  p.ui_button("tpick_close", "閉じる", {parent: "tpick", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func trade_request(p, id)
+  p.ui_remove("tpick")
+  let o = player_by_id(id)
+  if o == nil then return end
+  if o.trade != nil then
+    p.message(o.name + " はいまトレード中です", 1.5)
+    return
+  end
+  if cooldown_left(p, "treq") > 0 then
+    p.message("少し待ってから", 1)
+    return
+  end
+  start_cooldown(p, "treq", 5)
+  o.trade_from = p.id
+  o.ui_panel("tans", {at: "bottom", dy: -170, w: 440, h: 100, bg: "#000000D8", radius: 18, layer: 40})
+  o.ui_text("tans_t", "🤝 " + p.name + " からトレードの申しこみ", {parent: "tans", y: 0.25, size: 16, color: "#FDE68A"})
+  o.ui_button("tans_yes", "受ける", {parent: "tans", x: 0.3, y: 0.7, w: 150, h: 40, size: 16, bg: "green"})
+  o.ui_button("tans_no", "ことわる", {parent: "tans", x: 0.75, y: 0.7, w: 130, h: 40, size: 15, bg: "gray"})
+  o.sound("checkpoint")
+  p.message("🤝 " + o.name + " に申しこみました", 1.5)
+end
+
+func trade_accept(o)
+  o.ui_remove("tans")
+  let p = player_by_id(o.trade_from)
+  o.trade_from = nil
+  if p == nil or p.trade != nil or o.trade != nil then
+    o.message("トレードできませんでした", 1.5)
+    return
+  end
+  let t = {a: p.id, b: o.id, offers: {}, ok: {}}
+  t.offers[p.id] = []
+  t.offers[o.id] = []
+  p.trade = t
+  o.trade = t
+  p.tpage = 1
+  o.tpage = 1
+  trade_draw(p)
+  trade_draw(o)
+end
+
+func trade_other(p)
+  let t = p.trade
+  if t == nil then return nil end
+  if t.a == p.id then return player_by_id(t.b) end
+  return player_by_id(t.a)
+end
+
+func offer_value(owner, uids)
+  let v = 0
+  for uid in uids do
+    let pet = find_pet(owner, uid)
+    if pet != nil then v = v + pet_value(pet) end
+  end
+  return v
+end
+
+func trade_draw(p)
+  let t = p.trade
+  let o = trade_other(p)
+  if t == nil or o == nil then return end
+  let mine = t.offers[p.id]
+  let theirs = t.offers[o.id]
+  let h = 500
+  p.ui_remove("trade")
+  p.ui_panel("trade", {at: "center", w: 680, h: h, bg: "#1C1917F5", radius: 22, layer: 35})
+  p.ui_text("trade_t", "🤝 " + o.name + " とトレード", {parent: "trade", y: 0.05, size: 20, bold: true, color: "#FDE68A"})
+  -- 左: 自分のペット帳（押すと出す）
+  let free = filter(p.pets, func(x) return not contains(mine, x.uid) end)
+  let pages = pages_of(free, TRADE_PER_PAGE)
+  let page = clamp(p.tpage or 1, 1, pages)
+  p.tpage = page
+  p.ui_text("trade_l", "あなたのペット（押すと出す） " + page + "/" + pages, {parent: "trade", x: 0.26, y: 0.12, size: 13, color: "#D6D3D1"})
+  let i = 0
+  for pet in page_of(free, page, TRADE_PER_PAGE) do
+    i = i + 1
+    p.ui_button("tadd_" + pet.uid, pet_label(pet), {parent: "trade", x: 0.26, y: 0.12 + i * 0.085, w: 320, h: 36, size: 12, bg: "#44403C"})
+  end
+  if pages > 1 then
+    p.ui_button("tpage", "次へ ▶", {parent: "trade", x: 0.26, y: 0.82, w: 120, h: 32, size: 13, bg: "#57534E"})
+  end
+  -- 右: 出しているもの
+  p.ui_text("trade_m", "あなたが出す（押すと もどす）", {parent: "trade", x: 0.74, y: 0.12, size: 13, color: "#FBCFE8"})
+  let j = 0
+  for uid in mine do
+    j = j + 1
+    let pet = find_pet(p, uid)
+    if pet != nil then
+      p.ui_button("trem_" + uid, pet_label(pet), {parent: "trade", x: 0.74, y: 0.12 + j * 0.075, w: 320, h: 32, size: 12, bg: "#9D174D"})
+    end
+  end
+  p.ui_text("trade_o", o.name + " が出す", {parent: "trade", x: 0.74, y: 0.47, size: 13, color: "#BAE6FD"})
+  let k = 0
+  for uid in theirs do
+    k = k + 1
+    let pet = find_pet(o, uid)
+    if pet != nil then
+      p.ui_text("tother_" + k, pet_label(pet), {parent: "trade", x: 0.74, y: 0.47 + k * 0.06, size: 13, color: "#E0F2FE"})
+    end
+  end
+  -- 価値くらべ
+  let mv = offer_value(p, mine)
+  let tv = offer_value(o, theirs)
+  let meter = "⚖️ だいたい同じ"
+  if tv > mv * 1.3 + 1 then meter = "⚖️ あなたが得" end
+  if mv > tv * 1.3 + 1 then meter = "⚖️ 相手が得" end
+  p.ui_text("trade_v", meter + "（あなた " + mv + " : 相手 " + tv + "）", {parent: "trade", x: 0.74, y: 0.8, size: 14, bold: true, color: "#FDE047"})
+  let ok_label = "✅ OK"
+  if t.ok[p.id] then ok_label = "✅ OK済み（相手を待っています）" end
+  if t.ok[o.id] then ok_label = ok_label + "  / 相手はOK" end
+  p.ui_button("trade_ok", ok_label, {parent: "trade", x: 0.35, y: 0.93, w: 330, h: 42, size: 14, bg: "#15803D"})
+  p.ui_button("trade_cancel", "❌ やめる", {parent: "trade", x: 0.8, y: 0.93, w: 150, h: 42, size: 15, bg: "#991B1B"})
+end
+
+func trade_changed(t)
+  t.ok = {}
+  let a = player_by_id(t.a)
+  let b = player_by_id(t.b)
+  if a != nil then trade_draw(a) end
+  if b != nil then trade_draw(b) end
+end
+
+func trade_add(p, uid)
+  let t = p.trade
+  if t == nil or find_pet(p, uid) == nil then return end
+  let mine = t.offers[p.id]
+  if contains(mine, uid) then return end
+  if len(mine) >= TRADE_MAX then
+    p.message("出せるのは " + TRADE_MAX + " ひきまで", 1.5)
+    return
+  end
+  append(mine, uid)
+  trade_changed(t)
+end
+
+func trade_remove(p, uid)
+  let t = p.trade
+  if t == nil then return end
+  let mine = t.offers[p.id]
+  if contains(mine, uid) then remove(mine, index_of(mine, uid)) end
+  trade_changed(t)
+end
+
+func trade_close(t, why)
+  for id in [t.a, t.b] do
+    let p = player_by_id(id)
+    if p != nil then
+      p.trade = nil
+      p.ui_remove("trade")
+      if why != nil then p.message(why, 2) end
+    end
+  end
+end
+
+func trade_ok(p)
+  let t = p.trade
+  if t == nil then return end
+  t.ok[p.id] = true
+  let a = player_by_id(t.a)
+  let b = player_by_id(t.b)
+  if a == nil or b == nil then
+    trade_close(t, "相手がいなくなりました")
+    return
+  end
+  if not (t.ok[t.a] and t.ok[t.b]) then
+    trade_draw(a)
+    trade_draw(b)
+    return
+  end
+  if len(t.offers[t.a]) == 0 and len(t.offers[t.b]) == 0 then
+    trade_close(t, "なにも出していません")
+    return
+  end
+  -- 交換
+  let from_a = []
+  for uid in t.offers[t.a] do
+    let pet = take_pet(a, uid)
+    if pet != nil then append(from_a, pet) end
+  end
+  let from_b = []
+  for uid in t.offers[t.b] do
+    let pet = take_pet(b, uid)
+    if pet != nil then append(from_b, pet) end
+  end
+  for pet in from_a do
+    pet.need = nil
+    add_pet(b, pet)
+  end
+  for pet in from_b do
+    pet.need = nil
+    add_pet(a, pet)
+  end
+  trade_close(t, "🤝 トレード成立！")
+  for p2 in [a, b] do
+    kit_quest_progress(p2, "trade", 1)
+    p2.sound("goal")
+    hud(p2)
+  end
+  chat("🤝 " + a.name + " と " + b.name + " がトレードした！")
+end
+
+on button(p, id)
+  if id == "open_trade" then trade_pick(p)
+  elif id == "tpick_close" then p.ui_remove("tpick")
+  elif starts_with(id, "treq_") then trade_request(p, replace(id, "treq_", ""))
+  elif id == "tans_yes" then trade_accept(p)
+  elif id == "tans_no" then
+    p.ui_remove("tans")
+    let from = player_by_id(p.trade_from)
+    if from != nil then from.message(p.name + " はトレードをことわりました", 1.5) end
+    p.trade_from = nil
+  elif starts_with(id, "tadd_") then trade_add(p, replace(id, "tadd_", ""))
+  elif starts_with(id, "trem_") then trade_remove(p, replace(id, "trem_", ""))
+  elif id == "tpage" then
+    p.tpage = (p.tpage or 1) + 1
+    let free = 0
+    if p.trade != nil then free = len(p.pets) - len(p.trade.offers[p.id]) end
+    if p.tpage > pages_of(range(1, max(1, free)), TRADE_PER_PAGE) then p.tpage = 1 end
+    trade_draw(p)
+  elif id == "trade_ok" then trade_ok(p)
+  elif id == "trade_cancel" and p.trade != nil then
+    trade_close(p.trade, "トレードをやめました")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "trade") and cooldown_left(p, "trade_pad") <= 0 then
+    start_cooldown(p, "trade_pad", 3)
+    trade_pick(p)
+  end
+end
+
+on leave(p)
+  if p.trade != nil then trade_close(p.trade, "相手がいなくなったのでトレードは中止") end
+end

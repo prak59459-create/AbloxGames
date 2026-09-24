@@ -1,0 +1,78 @@
+-- rebirth.absc — 転生（ピンクの祭だん）
+-- お金と「決まっためずらしさ以上のキャラ」を持っていると転生できる。
+-- 転生するとお金と台のキャラはなくなるが、かせぎがずっと何倍にもなり、ギアももらえる。
+
+func rebirth_mult(p)
+  if p.rebirth == nil or p.rebirth == 0 then return 1 end
+  return REBIRTHS[p.rebirth].mult
+end
+
+func has_rarity(p, need)
+  let rank = rarity_rank(need)
+  for item in base_memes(p) do
+    if rarity_rank(meme_by_id(item.id).rarity) >= rank then return true end
+  end
+  return false
+end
+
+func rebirth_menu(p)
+  let h = 300
+  p.ui_panel("rb", {at: "center", w: 500, h: h, bg: "#500724F2", radius: 22, layer: 30})
+  if p.rebirth >= len(REBIRTHS) then
+    p.ui_text("rb_t", "♻️ 転生（最大 " + p.rebirth + " 回）", {parent: "rb", y: 0.12, size: 22, bold: true, color: "#F9A8D4"})
+    p.ui_text("rb_s", "もう最強です！かせぎ ×" + rebirth_mult(p), {parent: "rb", y: 0.4, size: 17})
+    p.ui_button("rb_close", "閉じる", {parent: "rb", y: 0.88, w: 130, h: 38, size: 15, bg: "gray"})
+    return
+  end
+  let next = REBIRTHS[p.rebirth + 1]
+  let gift = gear_info(next.gift)
+  p.ui_text("rb_t", "♻️ 転生 " + (p.rebirth + 1) + " 回目", {parent: "rb", y: 0.1, size: 22, bold: true, color: "#F9A8D4"})
+  let ok_money = kit_money(p) >= next.money
+  let ok_meme = has_rarity(p, next.need)
+  let m1 = "⬜"
+  if ok_money then m1 = "✅" end
+  let m2 = "⬜"
+  if ok_meme then m2 = "✅" end
+  p.ui_text("rb_1", m1 + " お金 " + kit_short(next.money), {parent: "rb", y: 0.26, size: 16})
+  p.ui_text("rb_2", m2 + " " + RARITY[next.need].name + " 以上のキャラを基地に持っている", {parent: "rb", y: 0.36, size: 16})
+  p.ui_text("rb_3", "もらえる: かせぎ ×" + next.mult + " ずっと ＋ " + gift.name, {parent: "rb", y: 0.5, size: 15, color: "#FDE68A"})
+  p.ui_text("rb_4", "（お金と台のキャラはなくなります。台の数・ロック・ギアは残る）", {parent: "rb", y: 0.6, size: 13, color: "#FBCFE8"})
+  if ok_money and ok_meme then
+    p.ui_button("rb_go", "♻️ 転生する", {parent: "rb", x: 0.3, y: 0.85, w: 180, h: 44, size: 17, bg: "#DB2777"})
+    p.ui_button("rb_close", "やめる", {parent: "rb", x: 0.74, y: 0.85, w: 130, h: 44, size: 15, bg: "gray"})
+  else
+    p.ui_button("rb_close", "閉じる", {parent: "rb", y: 0.85, w: 130, h: 40, size: 15, bg: "gray"})
+  end
+end
+
+func do_rebirth(p)
+  if p.rebirth >= len(REBIRTHS) then return end
+  let next = REBIRTHS[p.rebirth + 1]
+  if kit_money(p) < next.money or not has_rarity(p, next.need) then return end
+  p.rebirth = p.rebirth + 1
+  p.coins = 100
+  kit_show_money(p)
+  p.vault = 0
+  if p.carrying != nil then drop_carry(p, nil) end
+  for s in 1 to 10 do clear_statue(p.base, s) end
+  give_gear(p, next.gift)
+  p.ui_remove("rb")
+  announce("♻️ " + p.name + " が " + p.rebirth + " 回目の転生！かせぎ ×" + next.mult, 4)
+  sound("goal")
+  kit_quest_progress(p, "rebirth", 1)
+  hud(p)
+end
+
+on button(p, id)
+  if id == "rb_close" then p.ui_remove("rb")
+  elif id == "rb_go" then do_rebirth(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "rebirth") and cooldown_left(p, "rb_pad") <= 0 then
+    start_cooldown(p, "rb_pad", 3)
+    rebirth_menu(p)
+  end
+end

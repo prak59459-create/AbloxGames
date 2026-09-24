@@ -1,0 +1,125 @@
+-- data.absc — Pet Home Paradise の表（たまご・ペット・年れい・お願い・ごはん・おもちゃ・薬・トリック）
+
+-- MARK: めずらしさ（weight が小さいほど出にくい / value はトレードの価値）
+let RARITY = {
+  common: {name: "ふつう", color: "#9CA3AF", weight: 45, value: 1},
+  uncommon: {name: "ちょっとレア", color: "#22C55E", weight: 30, value: 3},
+  rare: {name: "レア", color: "#3B82F6", weight: 15, value: 8},
+  ultra: {name: "ウルトラレア", color: "#A855F7", weight: 7, value: 20},
+  legendary: {name: "伝説", color: "#F59E0B", weight: 3, value: 60}
+}
+
+-- MARK: たまご（name はお店のブロック名）
+let EGGS = {
+  basic: {name: "ふつうのたまご", block: "Egg Basic", price: 350, color: "#F5F5F4",
+          pets: ["dog", "cat", "bunny", "hamster", "penguin", "unicorn"]},
+  farm: {name: "牧場のたまご", block: "Egg Farm", price: 750, color: "#FDE68A",
+         pets: ["chick", "pig", "cow", "goat", "donkey", "goldhen"]},
+  forest: {name: "森のたまご", block: "Egg Forest", price: 1200, color: "#4ADE80",
+           pets: ["squirrel", "fox", "deer", "owl", "spirit"]},
+  ocean: {name: "海のたまご", block: "Egg Ocean", price: 1500, color: "#38BDF8",
+          pets: ["crab", "dolphin", "octopus", "orca", "seadragon"]},
+  space: {name: "宇宙のたまご", block: "Egg Space", price: 3000, color: "#6D28D9",
+          pets: ["spacecat", "starbunny", "robodog", "spacewhale", "galaxydragon"]}
+}
+let EGG_ORDER = ["basic", "farm", "forest", "ocean", "space"]
+let EGG_CARE = 4   -- たまごは4回お世話するとかえる
+
+-- MARK: ペット（color: 体 / head: 頭 / legs: 足）
+let PETS = {
+  dog: {name: "いぬ", rarity: "common", color: "#D6A76B", head: "#B45309", legs: "#78350F"},
+  cat: {name: "ねこ", rarity: "common", color: "#F59E0B", head: "#FBBF24", legs: "#B45309"},
+  bunny: {name: "うさぎ", rarity: "uncommon", color: "#F5F5F4", head: "#FBCFE8", legs: "#E5E7EB"},
+  hamster: {name: "ハムスター", rarity: "uncommon", color: "#FCD34D", head: "#FFFFFF", legs: "#F59E0B"},
+  penguin: {name: "ペンギン", rarity: "rare", color: "#1F2937", head: "#F9FAFB", legs: "#F97316"},
+  unicorn: {name: "ユニコーン", rarity: "legendary", color: "#F0ABFC", head: "#FFFFFF", legs: "#C084FC"},
+  chick: {name: "ひよこ", rarity: "common", color: "#FDE047", head: "#FEF08A", legs: "#F97316"},
+  pig: {name: "ぶた", rarity: "common", color: "#F9A8D4", head: "#FBCFE8", legs: "#EC4899"},
+  cow: {name: "うし", rarity: "uncommon", color: "#FFFFFF", head: "#111827", legs: "#374151"},
+  goat: {name: "ヤギ", rarity: "rare", color: "#E7E5E4", head: "#A8A29E", legs: "#57534E"},
+  donkey: {name: "ロバ", rarity: "ultra", color: "#A8A29E", head: "#78716C", legs: "#44403C"},
+  goldhen: {name: "金のにわとり", rarity: "legendary", color: "#FACC15", head: "#FDE047", legs: "#CA8A04"},
+  squirrel: {name: "リス", rarity: "common", color: "#B45309", head: "#D97706", legs: "#78350F"},
+  fox: {name: "キツネ", rarity: "uncommon", color: "#EA580C", head: "#FFFFFF", legs: "#7C2D12"},
+  deer: {name: "シカ", rarity: "rare", color: "#A16207", head: "#CA8A04", legs: "#713F12"},
+  owl: {name: "フクロウ", rarity: "ultra", color: "#92400E", head: "#FDE68A", legs: "#451A03"},
+  spirit: {name: "森の精霊", rarity: "legendary", color: "#86EFAC", head: "#DCFCE7", legs: "#22C55E"},
+  crab: {name: "カニ", rarity: "common", color: "#EF4444", head: "#FCA5A5", legs: "#B91C1C"},
+  dolphin: {name: "イルカ", rarity: "uncommon", color: "#60A5FA", head: "#BFDBFE", legs: "#2563EB"},
+  octopus: {name: "タコ", rarity: "rare", color: "#F472B6", head: "#FBCFE8", legs: "#DB2777"},
+  orca: {name: "シャチ", rarity: "ultra", color: "#111827", head: "#FFFFFF", legs: "#1F2937"},
+  seadragon: {name: "海竜", rarity: "legendary", color: "#0EA5E9", head: "#22D3EE", legs: "#0369A1"},
+  spacecat: {name: "宇宙ねこ", rarity: "uncommon", color: "#6D28D9", head: "#A78BFA", legs: "#4C1D95"},
+  starbunny: {name: "星のうさぎ", rarity: "rare", color: "#FDE047", head: "#FFFFFF", legs: "#A78BFA"},
+  robodog: {name: "ロボいぬ", rarity: "ultra", color: "#9CA3AF", head: "#22D3EE", legs: "#4B5563"},
+  spacewhale: {name: "宇宙クジラ", rarity: "legendary", color: "#1E3A8A", head: "#93C5FD", legs: "#312E81"},
+  galaxydragon: {name: "銀河ドラゴン", rarity: "legendary", color: "#7C3AED", head: "#F0ABFC", legs: "#1E1B4B"}
+}
+
+-- MARK: 年れい（care: 必要なお世話の回数 / size: 大きさ）
+let AGES = [
+  {name: "赤ちゃん", care: 0, size: 0.4},
+  {name: "こども", care: 3, size: 0.5},
+  {name: "プレティーン", care: 7, size: 0.6},
+  {name: "ティーン", care: 12, size: 0.7},
+  {name: "ヤング", care: 18, size: 0.8},
+  {name: "おとな", care: 25, size: 0.92}
+]
+let NEON_NAMES = ["", "✨ネオン", "🌈メガネオン"]
+
+-- MARK: お願い（place: 行く場所のブロック / secs: そこにいる時間 / bucks: ごほうび）
+let NEEDS = {
+  hungry: {name: "おなかすいた", icon: "🍖", place: "Food Stand", where: "フードスタンド", secs: 5, bucks: 25, weight: 6},
+  thirsty: {name: "のどがかわいた", icon: "💧", place: "Water Well", where: "井戸", secs: 5, bucks: 25, weight: 6},
+  sleepy: {name: "ねむい", icon: "💤", place: "Pet Beds", where: "ペットベッド", secs: 7, bucks: 30, weight: 4},
+  dirty: {name: "おふろに入りたい", icon: "🛁", place: "Bath House", where: "おふろ屋さん", secs: 6, bucks: 30, weight: 4},
+  bored: {name: "たいくつ", icon: "⚽", place: "Playground", where: "公園", secs: 6, bucks: 30, weight: 5},
+  sick: {name: "具合が悪い", icon: "🤒", place: "Vet Clinic", where: "どうぶつ病院", secs: 6, bucks: 40, weight: 2},
+  camping: {name: "キャンプしたい", icon: "⛺", place: "Campsite", where: "キャンプ場", secs: 8, bucks: 45, weight: 2},
+  school: {name: "学校に行きたい", icon: "🏫", place: "School", where: "学校", secs: 8, bucks: 45, weight: 2},
+  pizza: {name: "ピザパーティー", icon: "🍕", place: "Pizza Place", where: "ピザ屋さん", secs: 7, bucks: 40, weight: 3},
+  beach: {name: "海に行きたい", icon: "🏖", place: "Beach", where: "ビーチ", secs: 8, bucks: 45, weight: 2}
+}
+let NEED_ORDER = ["hungry", "thirsty", "sleepy", "dirty", "bored", "sick", "camping", "school", "pizza", "beach"]
+
+-- MARK: お店の品物
+-- ごはん: fixes（治せるお願い）/ extra（おまけのお世話）
+let FOODS = [
+  {id: "apple", name: "🍎 りんご", price: 5, fixes: ["hungry"], extra: 0},
+  {id: "juice", name: "🧃 ジュース", price: 5, fixes: ["thirsty"], extra: 0},
+  {id: "cookie", name: "🍪 クッキー", price: 15, fixes: ["hungry"], extra: 0},
+  {id: "medicine", name: "💊 おくすり", price: 30, fixes: ["sick"], extra: 0},
+  {id: "pizzabox", name: "🍕 ピザ", price: 40, fixes: ["pizza", "hungry"], extra: 0},
+  {id: "cake", name: "🎂 ペットケーキ", price: 120, fixes: ["hungry", "thirsty", "sleepy", "dirty", "bored", "sick", "camping", "school", "pizza", "beach"], extra: 1}
+]
+let TOYS = [
+  {id: "ball", name: "⚽ ボール", price: 30, text: "たいくつをなおす（くり返し使える）"},
+  {id: "frisbee", name: "🥏 フリスビー", price: 80, text: "たいくつをなおして +10"},
+  {id: "rattle", name: "🪇 ガラガラ", price: 50, text: "赤ちゃんのお世話が +1"},
+  {id: "squeaky", name: "🦆 ピコピコ", price: 120, text: "トリックのごほうび2倍"}
+]
+let POTIONS = [
+  {id: "fly", name: "🦋 空飛ぶ薬", price: 1500, text: "連れているペットが飛べる（大ジャンプ）"},
+  {id: "ride", name: "🐎 乗れる薬", price: 1200, text: "連れているペットに乗って速く走れる"},
+  {id: "age", name: "🍼 成長の薬", price: 800, text: "連れているペットが1つ大きくなる"},
+  {id: "lucky", name: "🍀 幸運の薬", price: 600, text: "次のたまごでレアが出やすい"}
+]
+
+-- MARK: トリック（年れいで覚える）
+let TRICKS = [
+  {id: "sit", name: "おすわり", age: 1},
+  {id: "jump", name: "ジャンプ", age: 2},
+  {id: "spin", name: "くるくる", age: 3},
+  {id: "beg", name: "おねだり", age: 4},
+  {id: "dance", name: "おどる", age: 5},
+  {id: "flip", name: "大ジャンプ", age: 6}
+]
+
+let NAME_IDEAS = ["ポチ", "タマ", "モモ", "ソラ", "ココ", "マロン", "ルナ", "チョコ", "ハナ", "レオ", "ミント", "キナコ"]
+
+-- MARK: イベント
+let EVENTS = [
+  {id: "double", name: "💰 ダブルバックス", text: "お世話のごほうびが2倍！", seconds: 90},
+  {id: "sale", name: "🥚 たまごセール", text: "たまごが30%オフ！", seconds: 90},
+  {id: "rainbow", name: "🌈 にじの時間", text: "たまごからレアが出やすい！", seconds: 90}
+]

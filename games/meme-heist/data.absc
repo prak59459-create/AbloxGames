@@ -1,0 +1,86 @@
+-- data.absc — Meme Heist の表（ミームキャラ・めずらしさ・変異・台・ギア・転生・イベント）
+
+-- MARK: めずらしさ（weight が小さいほど出にくい）
+let RARITY = {
+  common: {name: "コモン", color: "#9CA3AF", weight: 40},
+  rare: {name: "レア", color: "#3B82F6", weight: 25},
+  epic: {name: "エピック", color: "#A855F7", weight: 15},
+  legendary: {name: "レジェンド", color: "#F59E0B", weight: 7},
+  mythic: {name: "ミシック", color: "#EF4444", weight: 2.5},
+  secret: {name: "シークレット", color: "#111827", weight: 0.5}
+}
+let RARITY_ORDER = ["common", "rare", "epic", "legendary", "mythic", "secret"]
+
+-- MARK: ミームキャラ（income: 1秒にうむお金 / price: カーペットで買う値段）
+let MEMES = [
+  {id: "toast", name: "トーストくん", rarity: "common", color: "#D97706", head: "#FDE68A", income: 2, price: 40},
+  {id: "sock", name: "ソックスねずみ", rarity: "common", color: "#E5E7EB", head: "#F472B6", income: 3, price: 60},
+  {id: "pencil", name: "鉛筆へび", rarity: "common", color: "#FACC15", head: "#F9A8D4", income: 4, price: 90},
+  {id: "mallow", name: "マシュマロうさぎ", rarity: "common", color: "#FFFFFF", head: "#FBCFE8", income: 5, price: 120},
+  {id: "pizzacat", name: "ピザねこ", rarity: "rare", color: "#F97316", head: "#FDE047", income: 8, price: 250},
+  {id: "pudding", name: "プリンペンギン", rarity: "rare", color: "#FDE68A", head: "#92400E", income: 12, price: 400},
+  {id: "banana", name: "バナナ忍者", rarity: "rare", color: "#FACC15", head: "#111827", income: 15, price: 600},
+  {id: "donut", name: "ドーナツ犬", rarity: "rare", color: "#F9A8D4", head: "#A16207", income: 20, price: 800},
+  {id: "sushi", name: "スシざめ", rarity: "epic", color: "#60A5FA", head: "#F87171", income: 35, price: 1500},
+  {id: "egg", name: "目玉焼きカメ", rarity: "epic", color: "#FFFFFF", head: "#FACC15", income: 50, price: 2500},
+  {id: "tomato", name: "トマトゾウ", rarity: "epic", color: "#EF4444", head: "#22C55E", income: 70, price: 4000},
+  {id: "ramen", name: "ラーメンぐま", rarity: "epic", color: "#FDE68A", head: "#78350F", income: 90, price: 6000},
+  {id: "octo", name: "ダンスだこ", rarity: "legendary", color: "#EC4899", head: "#F9A8D4", income: 150, price: 12000},
+  {id: "coffee", name: "コーヒーゴリラ", rarity: "legendary", color: "#78350F", head: "#D6D3D1", income: 220, price: 20000},
+  {id: "bulb", name: "電球クラゲ", rarity: "legendary", color: "#FEF08A", head: "#FFFFFF", income: 300, price: 35000},
+  {id: "balloon", name: "風船ワニ", rarity: "legendary", color: "#22C55E", head: "#F43F5E", income: 420, price: 55000},
+  {id: "neonfrog", name: "ネオンがえる", rarity: "mythic", color: "#22C55E", head: "#A3E635", income: 800, price: 120000},
+  {id: "thunderham", name: "雷ハムスター", rarity: "mythic", color: "#FACC15", head: "#FDE047", income: 1200, price: 200000},
+  {id: "kappa", name: "宇宙かっぱ", rarity: "mythic", color: "#8B5CF6", head: "#22D3EE", income: 2000, price: 400000},
+  {id: "toaster", name: "黄金のトースター", rarity: "secret", color: "#FACC15", head: "#FFFFFF", income: 6000, price: 1500000},
+  {id: "galaxypanda", name: "銀河パンダ", rarity: "secret", color: "#1E1B4B", head: "#F0ABFC", income: 10000, price: 3000000},
+  {id: "clockdragon", name: "時計じかけドラゴン", rarity: "secret", color: "#B45309", head: "#FDE68A", income: 18000, price: 6000000}
+]
+
+-- MARK: 変異（生まれつき。income が mult 倍）
+let MUTATIONS = {
+  none: {name: "", mult: 1, weight: 88, color: nil, material: "plastic"},
+  gold: {name: "ゴールド", mult: 1.5, weight: 7, color: "#FACC15", material: "metal"},
+  diamond: {name: "ダイヤ", mult: 2, weight: 3, color: "#67E8F9", material: "glass"},
+  rainbow: {name: "レインボー", mult: 4, weight: 1.2, color: "#F472B6", material: "neon"},
+  lava: {name: "ようがん", mult: 3, weight: 0, color: "#F97316", material: "neon"},
+  galaxy: {name: "ギャラクシー", mult: 6, weight: 0, color: "#6D28D9", material: "neon"}
+}
+let MUTATION_ORDER = ["none", "gold", "diamond", "rainbow", "lava", "galaxy"]
+
+-- MARK: 台（5つは最初から。6〜10は買って開ける）
+let SLOT_PRICES = [0, 0, 0, 0, 0, 5000, 15000, 50000, 150000, 500000]
+
+-- MARK: ロック（ロックパッド）: 長さを強化できる
+let LOCK_LEVELS = [
+  {secs: 30, price: 0},
+  {secs: 45, price: 8000},
+  {secs: 60, price: 40000},
+  {secs: 90, price: 200000}
+]
+
+-- MARK: ギア（ギア屋）
+let GEAR = [
+  {id: "slap", name: "👋 スラップハンド", price: 2000, text: "たたいた相手をふっとばす"},
+  {id: "web", name: "🕸 クモの糸", price: 8000, text: "当たった人を2.5秒止めて、運んでいる物を落とさせる"},
+  {id: "coil", name: "⚡ スピードコイル", price: 15000, text: "いつも速く走れる（運ぶときも）"},
+  {id: "trap", name: "🪤 トラップ", price: 25000, text: "ふんだ人を3秒止める（2こまで置ける）"},
+  {id: "cloak", name: "🫥 透明マント", price: 40000, text: "6秒 見えなくなる"},
+  {id: "magnet", name: "🧲 お金マグネット", price: 90000, text: "基地にいなくても金庫のお金が入る"}
+]
+
+-- MARK: 転生（お金とキャラをリセットするかわりに、ずっと強くなる）
+let REBIRTHS = [
+  {money: 50000, need: "epic", mult: 1.5, gift: "slap"},
+  {money: 250000, need: "legendary", mult: 2, gift: "web"},
+  {money: 1000000, need: "mythic", mult: 3, gift: "cloak"},
+  {money: 5000000, need: "secret", mult: 5, gift: "magnet"}
+]
+
+-- MARK: イベント
+let EVENTS = [
+  {id: "meteor", name: "☄️ いん石シャワー", text: "ようがんキャラが歩いてくる！", seconds: 60},
+  {id: "rainbow", name: "🌈 にじの時間", text: "レインボーが出やすい！", seconds: 60},
+  {id: "galaxy", name: "🌌 ギャラクシーナイト", text: "ギャラクシーキャラが出るかも！", seconds: 45},
+  {id: "rush", name: "🎉 ラッシュタイム", text: "キャラがたくさん歩いてくる＆レアが出やすい", seconds: 60}
+]

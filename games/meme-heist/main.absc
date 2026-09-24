@@ -1,238 +1,66 @@
 -- Meme Heist — ミームキャラを買って、守って、盗むゲーム
--- レッドカーペットを歩くキャラを買うと基地に来てお金を生む。ほかの基地から盗めば自分のものに。
+-- 22体のキャラ（6段階のめずらしさ）・6種類の変異・台10こ・ロック強化・ギア6種・転生4段階・イベント4種。
+--
+-- ファイル:
+--   data.absc     表（キャラ・めずらしさ・変異・台・ロック・ギア・転生・イベント）
+--   common.absc   人さがし・画面・キャラの名前とかせぎ
+--   bases.absc    基地・台・像・金庫・ロック・🏠メニュー（売る・台を開ける）
+--   memes.absc    カーペットのキャラ・買う・基地まで歩く・📖図鑑
+--   steal.absc    盗む・運ぶ・落とす・持ち主に帰る
+--   gear.absc     ギア屋とギア（バット・スラップ・糸・コイル・わな・マント・マグネット）
+--   rebirth.absc  転生
+--   events.absc   イベントとランキング
+--   main.absc     このファイル
 
 kit_setup("Meme Heist", "ミームキャラを集めて、盗んで、守れ！", [
-  "まず空いている基地の色つきパッドにさわって自分の基地にする",
-  "カーペットを歩くキャラに近づいて「買う」を押す",
-  "買ったキャラは基地の台にならんで、毎秒お金を生む",
-  "ほかの基地の台にさわるとキャラを盗んで運べる",
-  "自分の基地の真ん中まで運べば自分のもの！",
-  "白いパッドで30秒ロック（レーザーで守る）",
-  "バットでたたくと、運んでいる人はキャラを落とす"
+  "🏠 まず空いている基地の色つきパッドにさわって自分の基地にする",
+  "🛒 カーペットを歩くキャラに近づいて「買う」→ 基地まで歩いてきて台の像になる",
+  "💸 キャラは毎秒お金をうむ。基地の真ん中のパッドで金庫から受け取る",
+  "😈 ほかの基地の台にさわると盗める。自分の基地の真ん中まで運べ（45秒）",
+  "🏏 たたかれる・糸・わな・レーザーで落とすと、キャラは持ち主に帰る",
+  "🔒 白いパッドでロック（レーザー）。🏠で台を開ける・売る・ロック強化",
+  "🛠 ギア屋（青）でギア、♻️ ピンクの祭だんで転生（ずっと何倍もかせげる）",
+  "✨ ゴールド・ダイヤ・レインボー…変異キャラはかせぎが何倍も！"
 ])
 kit_currency = "お金"
-kit_melee("バット", 10, 2, 5)
 
-let memes = [
-  {name: "トーストくん", color: "#D97706", income: 2, price: 40, weight: 40},
-  {name: "ピザねこ", color: "#F97316", income: 5, price: 120, weight: 30},
-  {name: "バナナ忍者", color: "#FACC15", income: 12, price: 350, weight: 20},
-  {name: "スシざめ", color: "#60A5FA", income: 30, price: 900, weight: 10},
-  {name: "ダンスだこ", color: "#EC4899", income: 70, price: 2500, weight: 5},
-  {name: "コーヒーゴリラ", color: "#78350F", income: 160, price: 6000, weight: 3},
-  {name: "ネオンがえる", color: "#22C55E", income: 400, price: 15000, weight: 1.5},
-  {name: "宇宙かっぱ", color: "#8B5CF6", income: 1200, price: 50000, weight: 0.5}
-]
-let base_owner = {}   -- 基地の番号 → プレイヤーid
-let slots = {}        -- "基地:台" → キャラ番号
-let locked = {}       -- 基地の番号 → ロックが切れる時間
+-- MARK: クエスト
 
-func meme_by_name(name)
-  for m in memes do
-    if m.name == name then return m end
-  end
-  return memes[1]
-end
+kit_quest("buy", "キャラを買う", 1, 50)
+kit_quest("index", "8しゅるいのキャラを集める", 8, 3000)
+kit_quest("legend", "レジェンドを手に入れる", 1, 10000)
+kit_quest("mythic", "ミシック以上を手に入れる", 1, 50000)
+kit_quest("mutant", "変異キャラを手に入れる", 1, 2000)
+kit_quest("steal", "キャラを盗む", 1, 300)
+kit_quest("steal10", "10回盗みに成功", 10, 20000)
+kit_quest("defend", "盗まれたキャラを取り返す", 1, 1000)
+kit_quest("lock", "基地をロックする", 1, 100)
+kit_quest("slots", "台を開ける", 1, 1000)
+kit_quest("gear", "ギアを手に入れる", 1, 500)
+kit_quest("rebirth", "転生する", 1, 25000)
 
-func slot_key(base, slot)
-  return base + ":" + slot
-end
-
-func base_income(base)
-  let total = 0
-  for s in 1 to 5 do
-    let idx = slots[slot_key(base, s)]
-    if idx != nil then total = total + memes[idx].income end
-  end
-  return total
-end
-
-func show_base(p)
-  if p.base == nil then
-    p.ui_text("base", "空いている基地のパッドにさわろう", {at: "top", dy: 30, size: 16, color: "#FDE68A"})
-    return
-  end
-  p.ui_text("base", "🏠 基地 " + p.base + "  💸 " + kit_short(base_income(p.base)) + "/秒", {at: "top", dy: 30, size: 18, bold: true})
-end
-
--- 台の上にキャラの像を置く / 消す
-func place_statue(base, slot, idx)
-  let key = slot_key(base, slot)
-  let old = block("Statue " + key)
-  if old != nil then old.destroy() end
-  if idx == nil then
-    remove(slots, key)
-    return
-  end
-  slots[key] = idx
-  let m = memes[idx]
-  let pad = block("Base " + base + " Slot " + slot)
-  create_block({name: "Statue " + key, shape: "sphere", position: pad.position + {x: 0, y: 1.6, z: 0},
-                size: 1.4, color: m.color, material: "neon", solid: false})
-end
-
-func free_slot(base)
-  for s in 1 to 5 do
-    if slots[slot_key(base, s)] == nil then return s end
-  end
-  return nil
-end
-
-func spawn_walker()
-  let m = kit_pick(memes, 1)
-  let start = block("Carpet Start")
-  let n = create_npc({name: m.name + " 💰" + kit_short(m.price), position: start.position + {x: 0, y: 1, z: 0},
-                      color: m.color, head_color: m.color, size: 1.1, health: 999999, speed: 0.35, team: "memes"})
-  n.meme = m.name
-  n.move_to(block("Carpet End"))
-end
-
-func drop_carry(p, message)
-  if p.carrying == nil then return end
-  p.message(message, 2)
-  p.carrying = nil
-  p.speed = 1
-  p.ui_remove("carry")
-end
-
-on start()
-  for i in 1 to 3 do spawn_walker() end
-  every(4, func()
-    -- カーペットの終わりまで歩いたキャラは帰っていく
-    let finish = block("Carpet End")
-    for n in npcs() do
-      if distance(n, finish) < 3 then n.destroy() end
-    end
-    if len(npcs()) < 7 then spawn_walker() end
-  end)
-  every(1, func()
-    for p in players() do
-      if p.base != nil then
-        kit_give(p, base_income(p.base))
-        p.score = p.coins
-      end
-      -- 近くを歩いているキャラの「買う」ボタン
-      let near = nil
-      for n in npcs() do
-        if distance(p, n) < 5 then near = n end
-      end
-      if near != nil and p.base != nil then
-        let m = meme_by_name(near.meme)
-        p.ui_button("buy", "買う: " + m.name + " 💰" + kit_short(m.price), {at: "bottom", dy: -110, w: 320, h: 54, size: 18, bg: "green"})
-        p.near_npc = near.id
-      else
-        p.ui_remove("buy")
-        p.near_npc = nil
-      end
-    end
-    for key in keys(locked) do
-      if time() > locked[key] then
-        remove(locked, key)
-        let laser = block("Base " + key + " Laser")
-        laser.visible = false
-      end
-    end
-  end)
-  every(5, func() kit_leaderboard("💸 お金持ち") end)
-end
+-- MARK: 入ってきた人
 
 on join(p)
+  p.gear = []
+  p.seen = []
+  p.index = []
+  p.slots_open = 5
+  p.lock_level = 1
+  p.rebirth = 0
+  p.vault = 0
+  p.pending = 0
   kit_welcome(p)
-  kit_give(p, 60)
+  kit_give(p, 100)
   p.give("バット")
-  show_base(p)
+  p.ui_button("open_base", "🏠 基地", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#4338CA"})
+  p.ui_button("open_index", "📖 図鑑", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0F766E"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  hud(p)
 end
 
-on leave(p)
-  for key in keys(base_owner) do
-    if base_owner[key] == p.id then
-      remove(base_owner, key)
-      for s in 1 to 5 do place_statue(key, s, nil) end
-    end
-  end
-end
-
-on button(p, id)
-  if id == "buy" and p.near_npc != nil then
-    for n in npcs() do
-      if n.id == p.near_npc then
-        let m = meme_by_name(n.meme)
-        let slot = free_slot(p.base)
-        if slot == nil then
-          p.message("基地がいっぱい！（5体まで）", 2)
-        elif kit_pay(p, m.price) then
-          n.destroy()
-          place_statue(p.base, slot, index_of(memes, m))
-          p.message("🎉 " + m.name + " をゲット！ +" + m.income + "/秒", 2.5)
-          show_base(p)
-        end
-        return
-      end
-    end
-  end
-end
-
-on touch(p, b)
+on respawn(p)
   if p.is_npc then return end
-  let parts = split(b.name, " ")
-  if contains(b.tags, "claim") then
-    let base = parts[2]
-    if p.base == nil and base_owner[base] == nil then
-      base_owner[base] = p.id
-      p.base = base
-      p.message("🏠 基地 " + base + " があなたの基地になった！", 2.5)
-      p.sound("checkpoint")
-      show_base(p)
-    end
-  elif contains(b.tags, "slot") then
-    let base = parts[2]
-    let slot = parts[4]
-    let idx = slots[slot_key(base, slot)]
-    if idx == nil or base == p.base or p.carrying != nil then return end
-    if locked[base] != nil then
-      p.message("🔒 この基地はロック中！", 1.5)
-      return
-    end
-    -- 盗んだ！
-    place_statue(base, slot, nil)
-    p.carrying = idx
-    p.speed = 0.65
-    p.ui_text("carry", "🏃 " + memes[idx].name + " を運んでいる！自分の基地へ！", {at: "center", dy: -120, size: 20, bold: true, color: "#F87171"})
-    announce("🚨 " + p.name + " が基地 " + base + " から " + memes[idx].name + " を盗んだ！", 3)
-  elif contains(b.tags, "home") then
-    if parts[2] == p.base and p.carrying != nil then
-      let slot = free_slot(p.base)
-      if slot == nil then
-        drop_carry(p, "基地がいっぱいで置けなかった…")
-      else
-        place_statue(p.base, slot, p.carrying)
-        p.message("✅ " + memes[p.carrying].name + " を手に入れた！", 2.5)
-        p.sound("goal")
-        p.carrying = nil
-        p.speed = 1
-        p.ui_remove("carry")
-        show_base(p)
-      end
-    end
-  elif contains(b.tags, "lock") then
-    if parts[2] == p.base and locked[p.base] == nil then
-      if kit_ready(p, "lock", 60) then
-        locked[p.base] = time() + 30
-        block("Base " + p.base + " Laser").visible = true
-        p.message("🔒 30秒ロック！", 2)
-      end
-    end
-  end
-end
-
-on hit(victim, attacker, damage)
-  if victim.is_npc then return 0 end
-  if victim.carrying != nil then
-    drop_carry(victim, "💥 たたかれてキャラを落とした！")
-  end
-  return 0
-end
-
-on death(victim, killer)
-  drop_carry(victim, "キャラを落とした")
+  if contains(p.gear, "slap") then p.give("スラップハンド") else p.give("バット") end
 end

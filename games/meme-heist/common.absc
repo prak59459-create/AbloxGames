@@ -1,0 +1,69 @@
+-- common.absc — Meme Heist の道具（人さがし・画面・キャラの情報）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then p.ui_remove(id) else p.ui_button(id, label, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+-- MARK: キャラ
+
+func meme_by_id(id)
+  for m in MEMES do
+    if m.id == id then return m end
+  end
+  return MEMES[1]
+end
+
+func rarity_rank(key)
+  return index_of(RARITY_ORDER, key) or 1
+end
+
+-- 「ゴールド スシざめ」のような名前
+func meme_title(id, mut)
+  let m = meme_by_id(id)
+  let mu = MUTATIONS[mut or "none"]
+  if mu.name == "" then return m.name end
+  return mu.name + " " + m.name
+end
+
+-- 1秒のかせぎ（変異こみ）
+func meme_income(id, mut)
+  return meme_by_id(id).income * MUTATIONS[mut or "none"].mult
+end
+
+func meme_value(id, mut)
+  return meme_by_id(id).price * MUTATIONS[mut or "none"].mult
+end

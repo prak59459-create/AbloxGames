@@ -1,0 +1,174 @@
+-- gear.absc — ギア（ギア屋の青いパッド）
+-- 🏏 バット（はじめから）・👋 スラップハンド・🕸 クモの糸・⚡ スピードコイル・🪤 トラップ・
+-- 🫥 透明マント・🧲 お金マグネット。たたいても体力は減らない（キャラを落とすだけ）。
+
+kit_melee("バット", 10, 2, 5)
+kit_melee("スラップハンド", 12, 1.6, 5.5)
+
+let traps = []   -- {block, owner}
+
+func gear_info(id)
+  for g in GEAR do
+    if g.id == id then return g end
+  end
+  return nil
+end
+
+func gear_shop(p)
+  let h = 130 + len(GEAR) * 56
+  p.ui_panel("gshop", {at: "center", w: 560, h: h, bg: "#0C1A2BF2", radius: 22, layer: 30})
+  p.ui_text("gshop_t", "🛠 ギア屋", {parent: "gshop", y: 26 / h, size: 22, bold: true, color: "#67E8F9"})
+  let i = 0
+  for g in GEAR do
+    i = i + 1
+    let label = g.name + "  💰" + kit_short(g.price) + "  " + g.text
+    let bg = "#0E7490"
+    if contains(p.gear, g.id) then
+      label = "✅ " + g.name + "（持っている）"
+      bg = "#334155"
+    end
+    p.ui_button("gear_" + g.id, label, {parent: "gshop", y: (30 + i * 56) / h, w: 520, h: 46, size: 13, bg: bg})
+  end
+  p.ui_button("gshop_close", "閉じる", {parent: "gshop", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func give_gear(p, id)
+  if contains(p.gear, id) then return end
+  append(p.gear, id)
+  kit_quest_progress(p, "gear", 1)
+  if id == "slap" then p.give("スラップハンド") end
+  move_refresh(p)
+  gear_buttons(p)
+end
+
+func buy_gear(p, id)
+  let g = gear_info(id)
+  if g == nil or contains(p.gear, id) then return end
+  if not kit_pay(p, g.price) then return end
+  give_gear(p, id)
+  p.message("🛠 " + g.name + " を手に入れた！", 2)
+  p.sound("collect")
+  gear_shop(p)
+end
+
+func gear_buttons(p)
+  let x = -120
+  if contains(p.gear, "web") then
+    p.ui_button("use_web", "🕸 糸", {at: "bottom_right", dx: x, dy: -200, w: 96, h: 50, size: 16, bg: "#6B7280", radius: 18})
+    x = x - 104
+  end
+  if contains(p.gear, "trap") then
+    p.ui_button("use_trap", "🪤 わな", {at: "bottom_right", dx: x, dy: -200, w: 96, h: 50, size: 16, bg: "#92400E", radius: 18})
+    x = x - 104
+  end
+  if contains(p.gear, "cloak") then
+    p.ui_button("use_cloak", "🫥 消える", {at: "bottom_right", dx: x, dy: -200, w: 96, h: 50, size: 15, bg: "#4C1D95", radius: 18})
+  end
+end
+
+-- MARK: 使う
+
+func use_web(p)
+  if not contains(p.gear, "web") then return end
+  if cooldown_left(p, "web") > 0 then
+    p.message("🕸 あと " + ceil(cooldown_left(p, "web")) + " 秒", 1)
+    return
+  end
+  start_cooldown(p, "web", 12)
+  let hit = raycast(p, p.look, 30)
+  let dir = kit_dir(p.yaw)
+  let from = p.position + {x: 0, y: 1.3, z: 0}
+  let reach = 30
+  if hit != nil then reach = max(1, hit.distance) end
+  let mid = from + dir * (reach / 2)
+  let web = create_block({name: "Web", shape: "box", position: mid, size: {x: 0.15, y: 0.15, z: reach}, rotation: {x: 0, y: atan2(dir.x, dir.z), z: 0},
+                          color: "#F8FAFC", material: "neon", solid: false, opacity: 0.8})
+  after(0.4, func() gone(web) end)
+  if hit != nil and hit.player != nil and not hit.player.is_npc then
+    let v = hit.player
+    v.frozen = true
+    v.message("🕸 クモの糸で動けない！", 1.5)
+    after(2.5, func() if kit_here(v) then v.frozen = false end end)
+    drop_carry(v, "🕸 糸でキャラを落とした！")
+    p.message("🕸 命中！", 1)
+  end
+end
+
+func use_trap(p)
+  if not contains(p.gear, "trap") then return end
+  let mine = filter(traps, func(t) return t.owner == p.id end)
+  if len(mine) >= 2 then
+    gone(mine[1].block)
+    remove(traps, index_of(traps, mine[1]))
+  end
+  let b = create_block({name: "Trap", shape: "cylinder", position: p.position + {x: 0, y: 0.1, z: 0}, size: {x: 1.6, y: 0.15, z: 1.6},
+                        color: "#78350F", material: "metal", behavior: "trigger", tags: ["trap"], solid: false})
+  append(traps, {block: b, owner: p.id})
+  p.message("🪤 トラップを置いた（2こまで）", 1.5)
+end
+
+func trap_touch(p, b)
+  for t in copy(traps) do
+    if t.block == b and t.owner != p.id then
+      gone(b)
+      remove(traps, index_of(traps, t))
+      p.frozen = true
+      p.message("🪤 トラップにかかった！", 2)
+      after(3, func() if kit_here(p) then p.frozen = false end end)
+      drop_carry(p, "🪤 トラップでキャラを落とした！")
+      let owner = player_by_id(t.owner)
+      if owner != nil then owner.message("🪤 " + p.name + " がトラップにかかった！", 2) end
+      return
+    end
+  end
+end
+
+func use_cloak(p)
+  if not contains(p.gear, "cloak") then return end
+  if cooldown_left(p, "cloak") > 0 then
+    p.message("🫥 あと " + ceil(cooldown_left(p, "cloak")) + " 秒", 1)
+    return
+  end
+  start_cooldown(p, "cloak", 30)
+  p.visible = false
+  p.message("🫥 6秒 見えない！", 1.5)
+  kit_later(p, 6, func() p.visible = true end)
+end
+
+on hit(victim, attacker, damage)
+  if victim.is_npc or attacker == nil then return 0 end
+  if victim.carrying != nil then drop_carry(victim, "💥 たたかれてキャラを落とした！") end
+  if attacker.weapon == "スラップハンド" then
+    let d = normalize(victim.position - attacker.position)
+    victim.launch(d.x * 26, 10, d.z * 26)
+  end
+  return 0
+end
+
+on button(p, id)
+  if id == "gshop_close" then p.ui_remove("gshop")
+  elif starts_with(id, "gear_") then buy_gear(p, replace(id, "gear_", ""))
+  elif id == "use_web" then use_web(p)
+  elif id == "use_trap" then use_trap(p)
+  elif id == "use_cloak" then use_cloak(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "gear") and cooldown_left(p, "gear_pad") <= 0 then
+    start_cooldown(p, "gear_pad", 3)
+    gear_shop(p)
+  elif contains(b.tags, "trap") then
+    trap_touch(p, b)
+  end
+end
+
+on leave(p)
+  for t in copy(traps) do
+    if t.owner == p.id then
+      gone(t.block)
+      remove(traps, index_of(traps, t))
+    end
+  end
+end

@@ -1,11 +1,17 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 99,
+  "blockCount" : 308,
   "id" : "pet-home-paradise",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/pet-home-paradise\/data.absc",
+    "games\/pet-home-paradise\/common.absc",
+    "games\/pet-home-paradise\/pets.absc",
+    "games\/pet-home-paradise\/shop.absc",
+    "games\/pet-home-paradise\/town.absc",
+    "games\/pet-home-paradise\/trade.absc",
     "games\/pet-home-paradise\/main.absc"
   ],
   "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",

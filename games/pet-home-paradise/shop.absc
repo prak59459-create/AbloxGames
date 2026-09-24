@@ -1,0 +1,282 @@
+-- shop.absc — お店と持ち物
+-- ナーサリー（たまご5種類）・ペットショップ（ごはん・おもちゃ・薬）・🎒持ち物・ボーナス
+
+let egg_discount = 1   -- たまごセールのとき 0.7
+
+func egg_price(key)
+  return floor(EGGS[key].price * egg_discount)
+end
+
+func egg_key_by_block(name)
+  for key in EGG_ORDER do
+    if EGGS[key].block == name then return key end
+  end
+  return nil
+end
+
+-- MARK: ナーサリー
+
+func egg_menu(p, key)
+  let egg = EGGS[key]
+  let h = 200 + len(egg.pets) * 30
+  p.ui_panel("eggbox", {at: "center", w: 480, h: h, bg: "#500724F2", radius: 22, layer: 30})
+  p.ui_text("eggbox_t", "🥚 " + egg.name + "   💰" + egg_price(key), {parent: "eggbox", y: 28 / h, size: 21, bold: true, color: "#FBCFE8"})
+  -- 出るペットと確率
+  let total = 0
+  for s in egg.pets do total = total + RARITY[PETS[s].rarity].weight end
+  let i = 0
+  for s in egg.pets do
+    i = i + 1
+    let r = RARITY[PETS[s].rarity]
+    let chance = fixed(r.weight / total * 100, 1)
+    p.ui_text("eggbox_" + i, PETS[s].name + "（" + r.name + "）  " + chance + "%", {parent: "eggbox", y: (48 + i * 30) / h, size: 15, color: r.color})
+  end
+  p.egg_key = key
+  p.ui_button("egg_buy", "買う（4回お世話でかえる）", {parent: "eggbox", x: 0.34, y: (h - 34) / h, w: 260, h: 44, size: 16, bg: "#DB2777"})
+  p.ui_button("egg_close", "やめる", {parent: "eggbox", x: 0.8, y: (h - 34) / h, w: 120, h: 44, size: 15, bg: "gray"})
+end
+
+func egg_buy(p)
+  let key = p.egg_key
+  if key == nil then return end
+  if len(p.pets) >= 60 then
+    p.message("ペット帳がいっぱいです（60ひきまで）", 2)
+    return
+  end
+  if not kit_pay(p, egg_price(key)) then return end
+  p.ui_remove("eggbox")
+  let egg = new_pet("egg", key)
+  add_pet(p, egg)
+  if not contains(p.equipped, egg.uid) then toggle_equip(p, egg.uid) end
+  p.message("🥚 " + EGGS[key].name + " を買った！お願いをかなえると かえるよ", 3)
+  p.sound("collect")
+  kit_quest_progress(p, "egg", 1)
+end
+
+-- MARK: ペットショップ
+
+func shop_menu(p, kind)
+  let list = FOODS
+  let title = "🍖 ごはん屋さん（🎒に入る）"
+  if kind == "toy" then
+    list = TOYS
+    title = "⚽ おもちゃ屋さん"
+  elif kind == "potion" then
+    list = POTIONS
+    title = "🧪 薬屋さん（連れているペットに使う）"
+  end
+  let h = 130 + len(list) * 54
+  p.ui_panel("pshop", {at: "center", w: 540, h: h, bg: "#431407F2", radius: 22, layer: 30})
+  p.ui_text("pshop_t", title, {parent: "pshop", y: 26 / h, size: 19, bold: true, color: "#FED7AA"})
+  let i = 0
+  for item in list do
+    i = i + 1
+    let label = item.name + "  💰" + item.price
+    if kind == "toy" and contains(p.toys, item.id) then label = item.name + "（持っている）" end
+    if item.text != nil then label = label + "  " + item.text end
+    p.ui_button("buy_" + kind + "_" + item.id, label, {parent: "pshop", y: (30 + i * 54) / h, w: 490, h: 44, size: 14, bg: "#C2410C"})
+  end
+  p.ui_button("pshop_close", "閉じる", {parent: "pshop", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func find_item(list, id)
+  for item in list do
+    if item.id == id then return item end
+  end
+  return nil
+end
+
+func item_count(p, id)
+  return p.items[id] or 0
+end
+
+func buy(p, kind, id)
+  if kind == "food" then
+    let item = find_item(FOODS, id)
+    if item == nil or not kit_pay(p, item.price) then return end
+    p.items[id] = item_count(p, id) + 1
+    p.message(item.name + " を買った（🎒にあります）", 1.5)
+  elif kind == "toy" then
+    let item = find_item(TOYS, id)
+    if item == nil then return end
+    if contains(p.toys, id) then
+      p.message("もう持っています。🎒から使えます", 1.5)
+      return
+    end
+    if not kit_pay(p, item.price) then return end
+    append(p.toys, id)
+    p.message(item.name + " を買った！", 1.5)
+  elif kind == "potion" then
+    let item = find_item(POTIONS, id)
+    if item == nil then return end
+    let pets = filter(equipped_pets(p), func(x) return not is_egg(x) end)
+    if id != "lucky" and len(pets) == 0 then
+      p.message("生まれたペットを連れているときに買おう", 2)
+      return
+    end
+    if id == "fly" and pets[1].fly then
+      p.message("もう飛べます", 1.5)
+      return
+    end
+    if id == "ride" and pets[1].ride then
+      p.message("もう乗れます", 1.5)
+      return
+    end
+    if id == "age" and pets[1].age >= len(AGES) then
+      p.message("もうおとなです", 1.5)
+      return
+    end
+    if not kit_pay(p, item.price) then return end
+    use_potion(p, id, pets)
+  end
+  p.sound("collect")
+  kit_quest_progress(p, "shop", 1)
+end
+
+func use_potion(p, id, pets)
+  if id == "lucky" then
+    p.lucky = true
+    p.message("🍀 次のたまごは運がいい！", 2)
+    return
+  end
+  let pet = pets[1]
+  if id == "fly" then
+    pet.fly = true
+    p.message("🦋 " + pet_title(pet) + " が飛べるようになった！「🦋 飛ぶ」ボタン", 3)
+  elif id == "ride" then
+    pet.ride = true
+    p.message("🐎 " + pet_title(pet) + " に乗れるようになった！「🐎 乗る」ボタン", 3)
+  elif id == "age" then
+    let need = AGES[pet.age + 1].care - pet.care
+    add_care(p, pet, need)
+  end
+  kit_quest_progress(p, "potion", 1)
+  ride_fly_refresh(p)
+  hud(p)
+end
+
+-- MARK: 🎒 持ち物（ごはんとおもちゃを使う）
+
+func bag_menu(p)
+  let rows = []
+  for f in FOODS do
+    if item_count(p, f.id) > 0 then append(rows, {id: "use_food_" + f.id, label: f.name + " ×" + item_count(p, f.id)}) end
+  end
+  for t in TOYS do
+    if contains(p.toys, t.id) then append(rows, {id: "use_toy_" + t.id, label: t.name + "（おもちゃ）"}) end
+  end
+  let h = 150 + max(1, len(rows)) * 50
+  p.ui_panel("bag", {at: "center", w: 460, h: h, bg: "#1E293BF2", radius: 22, layer: 30})
+  p.ui_text("bag_t", "🎒 持ち物（連れているペットに使う）", {parent: "bag", y: 26 / h, size: 18, bold: true, color: "gold"})
+  if len(rows) == 0 then
+    p.ui_text("bag_none", "なにもありません（ペットショップで買おう）", {parent: "bag", y: 80 / h, size: 15})
+  end
+  let i = 0
+  for r in rows do
+    i = i + 1
+    p.ui_button(r.id, r.label, {parent: "bag", y: (40 + i * 50) / h, w: 380, h: 42, size: 16, bg: "#334155"})
+  end
+  p.ui_button("bag_close", "閉じる", {parent: "bag", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+-- ごはん: そのお願いをすぐかなえる
+func use_food(p, id)
+  let item = find_item(FOODS, id)
+  if item == nil or item_count(p, id) <= 0 then return end
+  for pet in equipped_pets(p) do
+    if pet.need != nil and contains(item.fixes, pet.need) then
+      p.items[id] = item_count(p, id) - 1
+      finish_need(p, pet, "（" + item.name + "）")
+      if item.extra > 0 then add_care(p, pet, item.extra) end
+      bag_menu(p)
+      return
+    end
+  end
+  p.message("いまは " + item.name + " がいらないみたい", 1.5)
+end
+
+func use_toy(p, id)
+  if not contains(p.toys, id) then return end
+  if cooldown_left(p, "toy") > 0 then
+    p.message("おもちゃは少し休けい（" + ceil(cooldown_left(p, "toy")) + "秒）", 1)
+    return
+  end
+  start_cooldown(p, "toy", 15)
+  for pet in equipped_pets(p) do
+    if id == "rattle" and not is_egg(pet) and pet.age == 1 then
+      add_care(p, pet, 1)
+      p.message("🪇 ガラガラ！赤ちゃんがよろこんだ", 1.5)
+      hud(p)
+      return
+    end
+    if pet.need == "bored" and (id == "ball" or id == "frisbee") then
+      finish_need(p, pet, "（おもちゃ）")
+      if id == "frisbee" then earn(p, 10, "🥏 ナイスキャッチ") end
+      return
+    end
+  end
+  -- お願いがなくても遊べる
+  for pet in equipped_pets(p) do
+    let n = walker_of(pet)
+    if n != nil then n.jump_now() end
+  end
+  p.message("楽しそう！", 1)
+end
+
+-- MARK: ボーナス（10分ごとに受け取れる）
+
+func claim_bonus(p)
+  let left = cooldown_left(p, "bonus")
+  if left > 0 then
+    p.message("🎁 次のボーナスまで " + kit_clock(left), 1.5)
+    return
+  end
+  start_cooldown(p, "bonus", 600)
+  p.bonus_count = (p.bonus_count or 0) + 1
+  let amount = 100 + min(10, p.bonus_count) * 50
+  earn(p, amount, "🎁 ボーナス（" + p.bonus_count + "回目）")
+  p.sound("goal")
+  if p.bonus_count % 3 == 0 then
+    let pets = filter(equipped_pets(p), func(x) return not is_egg(x) end)
+    if len(pets) > 0 then
+      add_care(p, pets[1], 1)
+      p.message("🎁 おまけ: " + pet_title(pets[1]) + " が少し育った", 2)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "egg_buy" then egg_buy(p)
+  elif id == "egg_close" then p.ui_remove("eggbox")
+  elif id == "pshop_close" then p.ui_remove("pshop")
+  elif starts_with(id, "buy_food_") then buy(p, "food", replace(id, "buy_food_", ""))
+  elif starts_with(id, "buy_toy_") then buy(p, "toy", replace(id, "buy_toy_", ""))
+  elif starts_with(id, "buy_potion_") then buy(p, "potion", replace(id, "buy_potion_", ""))
+  elif id == "open_bag" then bag_menu(p)
+  elif id == "bag_close" then p.ui_remove("bag")
+  elif starts_with(id, "use_food_") then use_food(p, replace(id, "use_food_", ""))
+  elif starts_with(id, "use_toy_") then use_toy(p, replace(id, "use_toy_", ""))
+  elif id == "bonus" then claim_bonus(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if cooldown_left(p, "shop_touch") > 0 then return end
+  if contains(b.tags, "egg") then
+    let key = egg_key_by_block(b.name)
+    if key != nil then
+      start_cooldown(p, "shop_touch", 2)
+      egg_menu(p, key)
+    end
+  elif contains(b.tags, "shop_food") then
+    start_cooldown(p, "shop_touch", 2)
+    shop_menu(p, "food")
+  elif contains(b.tags, "shop_toy") then
+    start_cooldown(p, "shop_touch", 2)
+    shop_menu(p, "toy")
+  elif contains(b.tags, "shop_potion") then
+    start_cooldown(p, "shop_touch", 2)
+    shop_menu(p, "potion")
+  end
+end

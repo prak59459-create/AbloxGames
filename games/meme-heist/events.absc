@@ -1,0 +1,72 @@
+-- events.absc — イベントとランキング
+-- 2分半ごとにイベント: いん石（ようがんキャラ）・にじ（レインボー）・ギャラクシー・ラッシュ
+
+let event_now = nil
+let event_until = 0
+let event_index = 0
+let event_clock = 0
+let meteors = []
+
+func start_event(e)
+  end_event()
+  event_now = e.id
+  event_until = time() + e.seconds
+  if e.id == "meteor" then mut_boost = {lava: 30} end
+  if e.id == "rainbow" then mut_boost = {rainbow: 8} end
+  if e.id == "galaxy" then mut_boost = {galaxy: 8} end
+  if e.id == "rush" then
+    spawn_every = 1.2
+    luck = 1.8
+  end
+  announce(e.name + "！ " + e.text, 4)
+  sound("checkpoint")
+end
+
+func end_event()
+  if event_now == nil then return end
+  event_now = nil
+  mut_boost = {}
+  spawn_every = 3
+  luck = 1
+  ui_remove("event")
+  for b in meteors do gone(b) end
+  meteors = []
+end
+
+-- いん石: 空から光る玉が落ちてくる（見た目だけ）
+func meteor_fx()
+  let x = random(-8, 8)
+  let z = random(-50, 50)
+  let b = create_block({name: "Meteor", shape: "sphere", position: {x: x, y: 40, z: z}, size: 2, color: "#F97316", material: "neon", solid: false})
+  b.move(0, -39, 0, 1.2)
+  append(meteors, b)
+  after(1.4, func()
+    gone(b)
+    if contains(meteors, b) then remove(meteors, index_of(meteors, b)) end
+  end)
+end
+
+on start()
+  every(150, func()
+    event_index = event_index % len(EVENTS) + 1
+    start_event(EVENTS[event_index])
+  end)
+  every(5, func() kit_leaderboard("💸 かせぎ/秒") end)
+end
+
+on tick(dt)
+  event_clock = event_clock + dt
+  if event_clock < 1 then return end
+  event_clock = 0
+  if event_now == nil then return end
+  let left = event_until - time()
+  if left <= 0 then
+    end_event()
+    announce("イベントはおしまい", 2)
+    return
+  end
+  for e in EVENTS do
+    if e.id == event_now then ui_text("event", e.name + "  のこり " + kit_clock(left), {at: "top", dy: 84, size: 16, bold: true, color: "#FDE047"}) end
+  end
+  if event_now == "meteor" then meteor_fx() end
+end

@@ -1,11 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 121,
+  "blockCount" : 191,
   "id" : "meme-heist",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/meme-heist\/data.absc",
+    "games\/meme-heist\/bases.absc",
+    "games\/meme-heist\/common.absc",
+    "games\/meme-heist\/events.absc",
+    "games\/meme-heist\/gear.absc",
+    "games\/meme-heist\/memes.absc",
+    "games\/meme-heist\/rebirth.absc",
+    "games\/meme-heist\/steal.absc",
     "games\/meme-heist\/main.absc"
   ],
   "summary" : "ランウェイを歩くヘンなミームキャラを買って自分の基地へ。キャラはお金を生み出す。ほかの人の基地からこっそり盗み出せ！",

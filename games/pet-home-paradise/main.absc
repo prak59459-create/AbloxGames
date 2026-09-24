@@ -1,221 +1,69 @@
 -- Pet Home Paradise — ペットを育てるゲーム
--- たまごを買う → しばらくするとかえる → お世話でコインと成長。
+-- たまご5種類・ペット27種類・年れい6段階・お願い10種類・ネオン・トレード・ペットショー。
+--
+-- ファイル:
+--   data.absc    表（たまご・ペット・年れい・お願い・ごはん・おもちゃ・薬・トリック・イベント）
+--   common.absc  人さがし・画面・お金・待ち時間
+--   pets.absc    ペット帳・連れて歩く・お願い・成長・かえる・名前・トリック・乗る/飛ぶ・ネオン
+--   shop.absc    ナーサリー・ペットショップ・🎒持ち物・ボーナス
+--   trade.absc   トレード
+--   town.absc    ペットショー・イベント・昼と夜・ランキング
+--   main.absc    このファイル（はじめの準備とクエスト）
 
-kit_setup("Pet Home Paradise", "たまごをかえしてペットを育てよう", [
-  "ナーサリー（ピンクの建物）のたまごにさわると買えます",
-  "たまごは30秒でかえります",
-  "ペットのお願い（ごはん・水・ねむい…）の場所へ行こう",
-  "お世話するとコインがもらえて、ペットが育ちます",
-  "「ペット」ボタンで連れて歩くペットを選べます",
-  "チャットで /gift 名前 と打つとペットをプレゼント"
+kit_setup("Pet Home Paradise", "たまごをかえして、ペットをおとなまで育てよう", [
+  "🥚 ナーサリー（ピンクの建物）でたまごを買う。お願いを4回かなえるとかえる",
+  "🐾 ペットのお願い（🍖💧💤…）の場所へ行って、しばらくそばにいよう",
+  "💰 お世話するとバックス。ペットは赤ちゃん → おとなに育つ",
+  "🎒 ごはんやおもちゃで、その場でお願いをかなえられる",
+  "✨ おとな4ひきで ネオン、ネオン4ひきで メガネオン（紫の洞くつ）",
+  "🤝 トレードでほかの人とペットを交換（⚖️で価値をくらべよう）",
+  "🏆 4分ごとにペットショー。ステージに出場してみんなで投票",
+  "🧪 薬でペットが飛んだり乗れたりする"
 ])
+kit_currency = "バックス"
 
-let eggs = {
-  "Egg Common": {name: "ふつうのたまご", price: 100},
-  "Egg Rare": {name: "レアたまご", price: 450},
-  "Egg Legendary": {name: "伝説のたまご", price: 1500}
-}
--- たまごごとに出るペット（weight が小さいほどレア）
-let hatch = {
-  "Egg Common": [
-    {kind: "いぬ", color: "#D6A76B", weight: 30, rarity: "ふつう"},
-    {kind: "ねこ", color: "#F59E0B", weight: 30, rarity: "ふつう"},
-    {kind: "うさぎ", color: "#F5F5F4", weight: 20, rarity: "ちょっとレア"},
-    {kind: "ペンギン", color: "#1F2937", weight: 12, rarity: "レア"},
-    {kind: "ユニコーン", color: "#F0ABFC", weight: 1, rarity: "伝説"}
-  ],
-  "Egg Rare": [
-    {kind: "キツネ", color: "#EA580C", weight: 30, rarity: "レア"},
-    {kind: "パンダ", color: "#FFFFFF", weight: 25, rarity: "レア"},
-    {kind: "フクロウ", color: "#92400E", weight: 20, rarity: "とてもレア"},
-    {kind: "ドラゴン", color: "#16A34A", weight: 4, rarity: "伝説"}
-  ],
-  "Egg Legendary": [
-    {kind: "フェニックス", color: "#F97316", weight: 30, rarity: "伝説"},
-    {kind: "ドラゴン", color: "#16A34A", weight: 30, rarity: "伝説"},
-    {kind: "ユニコーン", color: "#F0ABFC", weight: 30, rarity: "伝説"},
-    {kind: "ギャラクシーねこ", color: "#6D28D9", weight: 5, rarity: "神話"}
-  ]
-}
-let need_names = {food: "おなかがすいた 🍖", drink: "のどがかわいた 💧", sleep: "ねむい 💤", play: "あそびたい ⚽", bath: "おふろに入りたい 🛁"}
-let need_keys = ["food", "drink", "sleep", "play", "bath"]
-let stages = ["赤ちゃん", "こども", "ティーン", "おとな"]
-let pets = {}        -- プレイヤーid → ペットのリスト
-let walking = {}     -- プレイヤーid → 連れて歩いているNPC
+-- MARK: クエスト
 
-kit_shop_add("food", "特製ペットフード（成長 +2）", 80, func(p)
-  let pet = current(p)
-  if pet != nil then grow(p, pet, 2) end
-end)
-kit_shop_add("crown", "ペットの王冠（持ち主に）", 300, func(p) p.hat = "crown" end)
+kit_quest("egg", "たまごを買う", 1, 100)
+kit_quest("hatch", "たまごをかえす", 1, 150)
+kit_quest("care", "お世話を20回", 20, 300)
+kit_quest("care100", "お世話を100回", 100, 1500)
+kit_quest("grown", "ペットをおとなに育てる", 1, 800)
+kit_quest("dex", "5しゅるいのペットに会う", 5, 1000)
+kit_quest("legend", "ウルトラレア以上をかえす", 1, 1500)
+kit_quest("neon", "ネオンを作る", 1, 3000)
+kit_quest("trick", "トリックを10回", 10, 200)
+kit_quest("shop", "お店で5回買い物", 5, 150)
+kit_quest("potion", "薬を使う", 1, 300)
+kit_quest("trade", "トレードする", 1, 300)
+kit_quest("show", "ペットショーに出る", 1, 200)
+kit_quest("showwin", "ペットショーで優勝", 1, 1000)
 
-func current(p)
-  let list = pets[p.id]
-  if list == nil or p.pet_index == nil then return nil end
-  return list[p.pet_index]
-end
-
-func pet_label(pet)
-  return pet.kind + "（" + pet.rarity + "・" + stages[pet.stage] + "）"
-end
-
-func show_pet(p)
-  let pet = current(p)
-  if pet == nil then
-    p.ui_text("pet", "ペットがいません。たまごを買おう！", {at: "top", dy: 30, size: 16})
-    return
-  end
-  p.ui_text("pet", "🐾 " + pet_label(pet), {at: "top", dy: 30, size: 18, bold: true, color: pet.color})
-  if pet.need != nil then
-    p.ui_text("need", "お願い: " + need_names[pet.need], {at: "top", dy: 58, size: 16, color: "#FDE68A"})
-  else
-    p.ui_remove("need")
-  end
-end
-
-func walk_pet(p)
-  let old = walking[p.id]
-  if old != nil and kit_here(old) then old.destroy() end
-  remove(walking, p.id)
-  let pet = current(p)
-  if pet == nil then return end
-  let size = 0.35 + pet.stage * 0.12
-  let n = create_npc({name: p.name + "の" + pet.kind, position: p.position + {x: 1.5, y: 0.5, z: 1.5},
-                      color: pet.color, head_color: pet.color, size: size, health: 999999, speed: 1.3, team: "pets"})
-  n.follow(p)
-  walking[p.id] = n
-end
-
-func grow(p, pet, amount)
-  pet.care = pet.care + amount
-  let next_stage = min(4, 1 + floor(pet.care / 4))
-  if next_stage > pet.stage then
-    pet.stage = next_stage
-    p.message("🎉 " + pet.kind + " が " + stages[pet.stage] + " に育った！", 3)
-    sound("goal")
-    walk_pet(p)
-  end
-  show_pet(p)
-end
-
-func add_pet(p, pet)
-  if pets[p.id] == nil then pets[p.id] = [] end
-  append(pets[p.id], pet)
-  p.pet_index = len(pets[p.id])
-  p.score = len(pets[p.id])
-  walk_pet(p)
-  show_pet(p)
-end
-
-func open_pets(p)
-  let list = pets[p.id] or []
-  let h = 110 + min(8, len(list)) * 50
-  p.ui_panel("pets", {at: "center", w: 420, h: h, bg: "#831843EE", radius: 22, layer: 30})
-  p.ui_text("pets_title", "わたしのペット（" + len(list) + "）", {parent: "pets", y: 28 / h, size: 22, bold: true})
-  let i = 0
-  for pet in slice(list, 1, 8) do
-    i = i + 1
-    p.ui_button("pick_" + i, pet_label(pet), {parent: "pets", y: (28 + i * 50) / h, w: 360, h: 42, size: 16, bg: pet.color, color: "#111111"})
-  end
-  p.ui_button("pets_close", "閉じる", {parent: "pets", y: (h - 28) / h, w: 130, h: 40, size: 15, bg: "gray"})
-end
-
-on start()
-  -- 20秒ごとに、ペットが何かをお願いする
-  every(20, func()
-    for p in players() do
-      let pet = current(p)
-      if pet != nil and pet.need == nil then
-        pet.need = random(need_keys)
-        p.message(pet.kind + " が「" + need_names[pet.need] + "」", 2.5)
-        show_pet(p)
-      end
-    end
-  end)
-  every(15, func() kit_leaderboard("🐾 ペットの数") end)
-end
+-- MARK: 入ってきた人
 
 on join(p)
+  p.pets = []
+  p.equipped = []
+  p.items = {apple: 2, juice: 2}
+  p.toys = []
+  p.dex = []
   kit_welcome(p)
-  kit_give(p, 200)
-  p.ui_button("open_pets", "🐾 ペット", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#DB2777"})
-  kit_shop_button(p)
-  show_pet(p)
-end
-
-on leave(p)
-  let n = walking[p.id]
-  if n != nil and kit_here(n) then n.destroy() end
-  remove(walking, p.id)
-  remove(pets, p.id)
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "egg") then
-    if p.hatching then
-      p.message("いまたまごをあたためています…", 1.5)
-      return
-    end
-    let egg = eggs[b.name]
-    if kit_pay(p, egg.price) then
-      p.hatching = true
-      p.message("🥚 " + egg.name + " を買った！30秒でかえるよ", 3)
-      p.ui_text("egg", "🥚 たまごをあたため中…", {at: "top", dy: 86, size: 16, color: "#FEF3C7"})
-      let table = hatch[b.name]
-      kit_later(p, 30, func()
-        let pick = kit_pick(table, 1)
-        let pet = {kind: pick.kind, color: pick.color, rarity: pick.rarity, stage: 1, care: 0, need: nil}
-        p.hatching = false
-        p.ui_remove("egg")
-        add_pet(p, pet)
-        announce(p.name + " のたまごから " + pick.kind + "（" + pick.rarity + "）が生まれた！", 3)
-        p.sound("goal")
-      end)
-    end
-  elif contains(b.tags, "need") then
-    let pet = current(p)
-    if pet != nil and pet.need != nil and contains(b.tags, pet.need) then
-      pet.need = nil
-      let reward = 20 + pet.stage * 10
-      kit_give(p, reward)
-      p.message("❤️ " + pet.kind + " がよろこんでいる！ +" + reward, 2)
-      p.sound("collect")
-      grow(p, pet, 1)
-    end
-  end
-end
-
-on button(p, id)
-  if id == "open_pets" then
-    open_pets(p)
-  elif id == "pets_close" then
-    p.ui_remove("pets")
-  elif starts_with(id, "pick_") then
-    p.pet_index = num(replace(id, "pick_", ""))
-    p.ui_remove("pets")
-    walk_pet(p)
-    show_pet(p)
-  end
+  kit_give(p, 750)
+  -- はじめてのたまごはプレゼント
+  let egg = new_pet("egg", "basic")
+  add_pet(p, egg)
+  p.ui_button("open_book", "🐾 ペット帳", {at: "right", dy: -180, w: 160, h: 50, size: 17, bg: "#DB2777"})
+  p.ui_button("open_bag", "🎒 持ち物", {at: "right", dy: -120, w: 160, h: 50, size: 17, bg: "#334155"})
+  p.ui_button("open_tricks", "🎾 トリック", {at: "right", dy: -60, w: 160, h: 50, size: 17, bg: "#7E22CE"})
+  p.ui_button("open_trade", "🤝 トレード", {at: "right", dy: 0, w: 160, h: 50, size: 17, bg: "#A16207"})
+  p.ui_button("bonus", "🎁 ボーナス", {at: "right", dy: 60, w: 160, h: 50, size: 17, bg: "#15803D"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  kit_later(p, 4.5, func() p.message("🥚 はじめてのたまごをプレゼント！お願いをかなえて かえそう", 3) end)
+  hud(p)
 end
 
 on chat(p, text)
-  if starts_with(text, "/gift ") then
-    let other = find_player(trim(replace(text, "/gift ", "")))
-    let pet = current(p)
-    if other == nil or other.id == p.id then
-      p.message("その名前の人がいません", 2)
-    elif pet == nil then
-      p.message("プレゼントするペットがいません", 2)
-    else
-      remove(pets[p.id], p.pet_index)
-      p.pet_index = len(pets[p.id])
-      if p.pet_index == 0 then p.pet_index = nil end
-      walk_pet(p)
-      show_pet(p)
-      p.score = len(pets[p.id])
-      add_pet(other, pet)
-      announce("🎁 " + p.name + " が " + other.name + " に " + pet.kind + " をプレゼント！", 3)
-    end
-  end
+  if text == "/pets" then book(p) end
+  if text == "/trade" then trade_pick(p) end
 end

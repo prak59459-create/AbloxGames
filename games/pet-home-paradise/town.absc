@@ -1,0 +1,224 @@
+-- town.absc — 街のできごと
+-- 🏆 ペットショー（ステージに出場 → みんなで投票 → 優勝はバックスたくさん）
+-- イベント（ダブルバックス・たまごセール・にじの時間）・昼と夜・ランキング
+
+let event_now = nil
+let event_until = 0
+let event_index = 0
+let show = nil        -- {phase, until, entries: [{id, uid}], votes: {}}
+let town_clock = 0
+let is_night = false
+
+-- MARK: イベント
+
+func start_event(e)
+  end_event()
+  event_now = e.id
+  event_until = time() + e.seconds
+  if e.id == "double" then bonus = 2 end
+  if e.id == "sale" then egg_discount = 0.7 end
+  announce(e.name + "！ " + e.text, 4)
+  ui_text("event", e.name, {at: "top", dy: 120, size: 16, bold: true, color: "#FDE047"})
+end
+
+func end_event()
+  if event_now == nil then return end
+  event_now = nil
+  bonus = 1
+  egg_discount = 1
+  ui_remove("event")
+end
+
+func event_tick()
+  if event_now == nil then return end
+  let left = event_until - time()
+  if left <= 0 then
+    end_event()
+    announce("イベントはおしまい", 2)
+    return
+  end
+  for e in EVENTS do
+    if e.id == event_now then ui_text("event", e.name + "  のこり " + kit_clock(left), {at: "top", dy: 120, size: 16, bold: true, color: "#FDE047"}) end
+  end
+end
+
+-- MARK: ペットショー
+
+func show_start()
+  if show != nil or len(players()) == 0 then return end
+  show = {phase: "entry", until: time() + 30, entries: [], votes: {}}
+  announce("🏆 ペットショーが始まる！ステージの赤いパッドにペットを連れて来てね（30秒）", 4)
+end
+
+func show_enter(p)
+  if show == nil or show.phase != "entry" then return end
+  for e in show.entries do
+    if e.id == p.id then return end
+  end
+  let pets = filter(equipped_pets(p), func(x) return not is_egg(x) end)
+  if len(pets) == 0 then
+    if cooldown_left(p, "show_msg") <= 0 then
+      start_cooldown(p, "show_msg", 4)
+      p.message("生まれたペットを連れて出場しよう", 1.5)
+    end
+    return
+  end
+  append(show.entries, {id: p.id, uid: pets[1].uid, name: p.name, title: pet_title(pets[1])})
+  p.message("🏆 " + pet_title(pets[1]) + " で出場！", 2)
+  p.sound("checkpoint")
+  kit_quest_progress(p, "show", 1)
+end
+
+func show_vote_panel(p)
+  let list = show.entries
+  let h = 130 + len(list) * 48
+  p.ui_panel("vote", {at: "center", w: 480, h: h, bg: "#4C0519F2", radius: 22, layer: 38})
+  p.ui_text("vote_t", "🏆 いちばんすてきなペットに投票！", {parent: "vote", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for e in list do
+    i = i + 1
+    let label = e.name + " の " + e.title
+    let bg = "#BE123C"
+    if e.id == p.id then
+      label = label + "（自分）"
+      bg = "#57534E"
+    end
+    p.ui_button("vote_" + i, label, {parent: "vote", y: (30 + i * 48) / h, w: 420, h: 40, size: 15, bg: bg})
+  end
+  p.ui_button("vote_close", "閉じる", {parent: "vote", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func show_vote(p, i)
+  if show == nil or show.phase != "vote" then return end
+  let e = show.entries[i]
+  if e == nil then return end
+  if e.id == p.id then
+    p.message("自分には投票できません", 1.2)
+    return
+  end
+  show.votes[p.id] = i
+  p.ui_remove("vote")
+  p.message("🗳 投票しました！", 1.2)
+end
+
+func show_finish()
+  let s = show
+  show = nil
+  for p in players() do p.ui_remove("vote") end
+  if len(s.entries) == 0 then
+    announce("🏆 ペットショーは出場者なしでした", 2.5)
+    return
+  end
+  let counts = {}
+  for voter in keys(s.votes) do
+    let i = s.votes[voter]
+    counts[str(i)] = (counts[str(i)] or 0) + 1
+  end
+  let best = nil
+  let best_score = -1
+  let i = 0
+  for e in s.entries do
+    i = i + 1
+    let owner = player_by_id(e.id)
+    let value = 0
+    if owner != nil then
+      let pet = find_pet(owner, e.uid)
+      if pet != nil then value = pet_value(pet) end
+      earn(owner, 50, "🏆 ペットショー参加")
+    end
+    -- 投票1票 = 10点、審査員（ペットの価値）
+    let score = (counts[str(i)] or 0) * 10 + min(value, 40)
+    if score > best_score then
+      best = e
+      best_score = score
+    end
+  end
+  let winner = player_by_id(best.id)
+  announce("🏆 優勝は " + best.name + " の " + best.title + "！", 4)
+  sound("goal")
+  if winner != nil then
+    earn(winner, 500, "🏆 ペットショー優勝！")
+    kit_quest_progress(winner, "showwin", 1)
+  end
+end
+
+func show_tick()
+  if show == nil then return end
+  if show.phase == "entry" then
+    for p in players() do
+      let spot = block("Show Spot")
+      if spot != nil and distance(p, spot) < 7 then show_enter(p) end
+    end
+    if time() >= show.until then
+      if len(show.entries) <= 1 then
+        show_finish()
+      else
+        show.phase = "vote"
+        show.until = time() + 20
+        announce("🗳 投票タイム！（20秒）", 3)
+        for p in players() do show_vote_panel(p) end
+      end
+    end
+  elif show.phase == "vote" and time() >= show.until then
+    show_finish()
+  end
+end
+
+-- MARK: 昼と夜
+
+func set_sky()
+  if is_night then
+    world.sky_top = "#1E1B4B"
+    world.sky_bottom = "#6D28D9"
+    world.light = 0.45
+  else
+    world.sky_top = "#7DD3FC"
+    world.sky_bottom = "#FCE7F3"
+    world.light = 0.9
+  end
+end
+
+on start()
+  set_sky()
+  every(180, func()
+    is_night = not is_night
+    set_sky()
+    if is_night then announce("🌙 夜になりました。ペットはねむそう…", 2.5) else announce("☀️ 朝です！", 2) end
+  end)
+  every(200, func()
+    event_index = event_index % len(EVENTS) + 1
+    start_event(EVENTS[event_index])
+  end)
+  after(90, func() show_start() end)
+  every(240, func() show_start() end)
+  every(10, func()
+    for p in players() do p.score = collection_value(p) end
+    kit_leaderboard("🐾 コレクション")
+  end)
+end
+
+on tick(dt)
+  town_clock = town_clock + dt
+  if town_clock < 0.5 then return end
+  town_clock = 0
+  event_tick()
+  show_tick()
+end
+
+on button(p, id)
+  if id == "vote_close" then p.ui_remove("vote")
+  elif starts_with(id, "vote_") then show_vote(p, num(replace(id, "vote_", "")))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "show") then
+    if show != nil and show.phase == "entry" then
+      show_enter(p)
+    elif cooldown_left(p, "show_info") <= 0 then
+      start_cooldown(p, "show_info", 5)
+      p.message("🏆 ペットショーは4分ごと。始まったらここに来てね", 2)
+    end
+  end
+end

@@ -1,0 +1,72 @@
+-- common.absc — Pet Home Paradise の道具（人さがし・画面・お金・待ち時間）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then p.ui_remove(id) else p.ui_button(id, label, options) end
+end
+
+func set_bar(p, id, value, maximum, options)
+  if p.bars == nil then p.bars = {} end
+  let key = fixed(value, 1) + "/" + maximum
+  if p.bars[id] == key then return end
+  p.bars[id] = key
+  p.ui_bar(id, value, maximum, options)
+end
+
+func clear_bar(p, id)
+  if p.bars == nil or p.bars[id] == nil then return end
+  p.bars[id] = nil
+  p.ui_remove(id)
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+-- お金（バックス）をもらう
+func earn(p, amount, why)
+  if not kit_here(p) then return end
+  let n = floor(amount)
+  kit_give(p, n)
+  p.earned = (p.earned or 0) + n
+  if why != nil then p.message("💰 +" + n + "  " + why, 1.6) end
+end
+
+-- 1ページに per こずつ見せるときの、そのページの中身
+func page_of(list, page, per)
+  let first = (page - 1) * per + 1
+  return slice(list, first, first + per - 1)
+end
+
+func pages_of(list, per)
+  return max(1, ceil(len(list) / per))
+end
