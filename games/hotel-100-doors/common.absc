@@ -1,0 +1,67 @@
+-- common.absc — Hotel 100 Doors の道具
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+func room_z(n) return n * 12 - 3 end
+
+-- その人がいる部屋の番号（ロビーは0）
+func room_of(p)
+  return clamp(floor((p.z + 3) / 12 + 0.5), 0, 101)
+end
+
+func hidden(p)
+  return p.hide_at != nil and time() - p.hide_at < 1.2
+end
+
+func alive_players()
+  return filter(players(), func(p) return p.alive and not p.escaped end)
+end
+
+-- 図鑑に書く（はじめて会ったとき）
+func meet(p, id)
+  if contains(p.met, id) then return end
+  append(p.met, id)
+  let e = ENTITIES[id]
+  p.message("📖 図鑑に追加: " + e.name + "（" + e.tip + "）", 4)
+  kit_quest_progress(p, "meet", 1)
+end
+
+-- やられそう: 十字架があれば守る
+func harm(p, amount, why, entity)
+  if not p.alive then return end
+  if entity != nil then meet(p, entity) end
+  if contains(p.items, "crucifix") then
+    remove(p.items, index_of(p.items, "crucifix"))
+    p.message("✝️ 十字架が守ってくれた！", 2)
+    item_buttons(p)
+    return
+  end
+  p.damage(amount)
+  if why != nil then p.message(why, 2) end
+  p.shake(0.4, 0.4)
+end

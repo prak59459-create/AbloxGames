@@ -1,0 +1,237 @@
+-- doors.absc — ドアと部屋
+-- ドアをタップして開ける。5の倍数の部屋はカギ（その部屋の中）かピッキングが必要。
+-- 50番（図書館）は暗号のカギ: 4冊の本を調べて数字を集め、📝で入力。
+-- 引き出し: ノブ（お金）や道具が出る。ときどきニセのドアがまぎれこむ。100番の先が出口。
+
+let room = 0
+let keys_found = {}
+let searched = {}
+let code = ""
+let code_digits = {}   -- 本の番号 → 数字
+let fake_doors = []
+
+func show_room()
+  ui_text("room", "🚪 " + room + " / 100", {at: "top", dy: 26, size: 24, bold: true, color: "#FDE68A"})
+end
+
+func door_locked(n)
+  return n % 5 == 0 and keys_found[str(n)] == nil
+end
+
+func open_door(p, n)
+  let door = block("Door " + n)
+  if door == nil or not door.visible then return end
+  door.visible = false
+  door.solid = false
+  room = max(room, n)
+  show_room()
+  sound("teleport")
+  for q in players() do q.score = max(q.score, n) end
+  kit_quest_progress(p, "doors", 1)
+  room_opened(n)
+end
+
+func try_door(p, b)
+  let n = num(split(b.name, " ")[2])
+  if distance(p, b) > 7 then return end
+  if n == 50 and keys_found["50"] == nil then
+    p.message("🔒 図書館のカギは暗号！本を調べて数字を集め、📝で入力しよう", 3)
+    p.ui_button("enter_code", "📝 暗号", {at: "bottom", dy: -110, w: 150, h: 50, size: 17, bg: "#7C3AED", radius: 14})
+    return
+  end
+  if door_locked(n) then
+    if contains(p.items, "lockpick") then
+      remove(p.items, index_of(p.items, "lockpick"))
+      keys_found[str(n)] = true
+      p.message("🗝 ピッキングで開けた！", 1.5)
+      item_buttons(p)
+    else
+      p.message("🔒 カギがかかっている。この部屋のカギを探そう", 2)
+      p.sound("error")
+      return
+    end
+  end
+  open_door(p, n)
+end
+
+-- MARK: 引き出し
+
+func search(p, b)
+  if searched[b.name] then return end
+  searched[b.name] = true
+  b.color = "#292524"
+  let loot = kit_pick(DRAWER_LOOT, 1).kind
+  if loot == "knobs" then
+    let n = random(2, 7)
+    kit_give(p, n)
+    p.message("🟡 ノブ ×" + n, 1)
+    p.sound("collect")
+  elif loot == "nothing" then
+    p.message("からっぽ…", 0.8)
+  elif loot == "jack" then
+    meet(p, "jack")
+    p.fade("#000000", 0.05)
+    p.shake(0.5, 0.4)
+    p.message("😱 ジャック！（おどかしただけ）", 1.5)
+    kit_later(p, 0.4, func() p.fade(nil, 0.3) end)
+  else
+    append(p.items, loot)
+    p.message(ITEMS[loot].name + " を見つけた！", 1.5)
+    p.sound("collect")
+    item_buttons(p)
+  end
+  kit_quest_progress(p, "search", 1)
+end
+
+-- MARK: 図書館の暗号
+
+func make_code()
+  code = ""
+  code_digits = {}
+  for i in 1 to 4 do
+    let d = str(random(0, 9))
+    code = code + d
+    code_digits[str(i)] = d
+  end
+end
+
+func read_book(p, b)
+  let i = split(b.name, " ")[2]
+  let d = code_digits[i]
+  if d == nil then return end
+  p.message("📕 本 " + i + "：「" + i + "番目の数字は " + d + "」", 3)
+  if p.clues == nil then p.clues = {} end
+  p.clues[i] = d
+  kit_quest_progress(p, "book", 1)
+end
+
+func code_panel(p)
+  let known = ""
+  for i in 1 to 4 do
+    let d = "?"
+    if p.clues != nil and p.clues[str(i)] != nil then d = p.clues[str(i)] end
+    known = known + d
+  end
+  p.ui_panel("codebox", {at: "center", w: 420, h: 220, bg: "#1E1B4BF2", radius: 20, layer: 40})
+  p.ui_text("codebox_t", "📝 図書館の暗号（わかっている数字: " + known + "）", {parent: "codebox", y: 0.15, size: 16, bold: true, color: "#E9D5FF"})
+  p.ui_input("code_in", "4けたの数字", {parent: "codebox", y: 0.5, w: 240, h: 44})
+  p.ui_button("codebox_close", "閉じる", {parent: "codebox", y: 0.85, w: 120, h: 36, size: 15, bg: "gray"})
+end
+
+func try_code(p, text)
+  if trim(text) == code then
+    keys_found["50"] = true
+    p.ui_remove("codebox")
+    p.ui_remove("enter_code")
+    announce("🔓 " + p.name + " が図書館の暗号を解いた！", 3)
+    kit_quest_progress(p, "code", 1)
+    open_door(p, 50)
+  else
+    p.message("❌ ちがう…（本をもっと調べよう）", 1.5)
+    p.sound("error")
+  end
+end
+
+-- MARK: ニセのドア
+
+func maybe_fake_door(n)
+  if n < 6 or random() > 0.18 then return end
+  let z = room_z(n) + 2
+  let side = 4.75
+  if random() < 0.5 then side = -4.75 end
+  let b = create_block({name: "Fake Door", position: {x: side, y: 1.4, z: z}, size: {x: 0.3, y: 2.8, z: 2.4}, color: "#78350F",
+                        tags: ["fakedoor"]})
+  let sign = create_block({name: "Fake Sign", position: {x: side * 0.98, y: 3.1, z: z}, size: {x: 0.05, y: 0.4, z: 0.8}, color: "#FDE68A",
+                           material: "neon", solid: false})
+  append(fake_doors, b)
+  append(fake_doors, sign)
+end
+
+func fake_tap(p, b)
+  if distance(p, b) > 7 then return end
+  harm(p, 35, "🚪 ニセのドアにかみつかれた！", "dupe")
+  kit_gone(b)
+end
+
+-- MARK: 部屋が開いたとき
+
+func room_opened(n)
+  -- ノブをばらまく
+  if random() < 0.5 then
+    create_block({name: "Knob", shape: "sphere", position: {x: random(-3, 3), y: 0.4, z: room_z(n + 1) + random(-4, 4)},
+                  size: 0.5, color: "#FACC15", material: "metal", tags: ["knob"], behavior: "trigger", solid: false})
+  end
+  maybe_fake_door(n + 1)
+  entity_roll(n)
+end
+
+on start()
+  room = 0
+  keys_found = {}
+  searched = {}
+  fake_doors = []
+  make_code()
+  show_room()
+end
+
+on tap(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "door") then
+    try_door(p, b)
+  elif contains(b.tags, "fakedoor") then
+    fake_tap(p, b)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "key") then
+    let n = split(b.name, " ")[2]
+    keys_found[n] = true
+    kit_gone(b)
+    announce("🔑 " + p.name + " がカギ " + n + " を見つけた", 2)
+    p.sound("collect")
+    kit_quest_progress(p, "key", 1)
+  elif contains(b.tags, "drawer") then
+    search(p, b)
+  elif contains(b.tags, "book") then
+    read_book(p, b)
+  elif contains(b.tags, "knob") then
+    kit_gone(b)
+    kit_give(p, random(2, 6))
+    p.sound("collect")
+  elif contains(b.tags, "exit") then
+    escape(p)
+  end
+end
+
+on button(p, id)
+  if id == "enter_code" then code_panel(p)
+  elif id == "codebox_close" then p.ui_remove("codebox")
+  end
+end
+
+on input(p, id, text)
+  if id == "code_in" then try_code(p, text) end
+end
+
+func escape(p)
+  if p.escaped then return end
+  p.escaped = true
+  p.score = 101
+  p.runs = (p.runs or 0) + 1
+  kit_give(p, 50)
+  announce("🏆 " + p.name + " がホテルから脱出した！", 4)
+  kit_quest_progress(p, "escape", 1)
+  if len(filter(players(), func(q) return not q.escaped end)) == 0 then
+    kit_finish("🎉 全員脱出成功！新しいホテルへ…", 8)
+  end
+end
+
+on respawn(p)
+  if p.is_npc then return end
+  if room > 0 then
+    let floor_b = block("Room " + room + " Floor")
+    if floor_b != nil then p.teleport(floor_b) end
+  end
+end

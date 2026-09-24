@@ -1,0 +1,299 @@
+-- entities.absc — ホテルにいるもの
+-- 💨 ダッシャー: 明かりがチカチカ → 通りぬける。クローゼットにかくれていないとやられる。
+-- 🔁 リバウンダー: 何度も行ったり来たり。音がしたら またかくれる。
+-- 👁 ギョロメ: 見つめるとダメージ。🗣 シャウト: 暗い部屋で「シッ」→ 2秒以内にそっちを向く。
+-- 👂 フィギュア: 図書館（50）で音を聞く。🌫 追跡者: 30と70の部屋から全力で走れ。
+
+let busy = false
+let eyes = nil
+let figure = nil
+let seeker = nil
+let chase_end = 0
+let dark = {}         -- 暗い部屋 "12" → true
+let ent_clock = 0
+
+func entity_roll(n)
+  if n == 49 then spawn_figure() end
+  for c in CHASES do
+    if n == c - 2 then warn_chase(c) end
+    if n == c then start_chase(c) end
+  end
+  if n < 3 or busy then return end
+  let r = random()
+  if r < 0.12 then dasher(n)
+  elif r < 0.18 and n >= 15 then rebounder(n)
+  elif r < 0.27 and n >= 8 then spawn_eyes(n + 1)
+  elif r < 0.38 then make_dark(n + 1)
+  end
+end
+
+func flicker(from, count)
+  for k in from to from + count do
+    let lamp = block("Room " + k + " Lamp")
+    if lamp != nil then
+      lamp.color = "#3F3F46"
+      after(0.3 + random() * 0.4, func() lamp.color = "#FFE9A8" end)
+    end
+  end
+end
+
+-- 近くの部屋にいて、かくれていない人をやっつける
+func sweep(n, who, dmg, why)
+  let near = room_z(n)
+  for p in alive_players() do
+    if abs(p.z - near) < 70 and not hidden(p) then harm(p, dmg, why, who) end
+  end
+end
+
+-- MARK: ダッシャー
+
+func dasher(n)
+  busy = true
+  announce("💡 明かりがチカチカしている…", 2)
+  flicker(max(1, n - 3), 6)
+  after(0.8, func() flicker(max(1, n - 3), 6) end)
+  shake(0.2, 3)
+  after(4, func()
+    let thing = create_block({name: "Dasher", shape: "sphere", position: {x: 0, y: 1.8, z: room_z(max(1, n - 4))},
+                              size: 3, color: "#0A0A0A", material: "matte", solid: false})
+    thing.move_to({x: 0, y: 1.8, z: room_z(n + 4)}, 1.6)
+    sweep(n, "dasher", 200, "💨 何かにやられた… クローゼットにかくれよう")
+    for p in alive_players() do meet(p, "dasher") end
+    after(2, func()
+      kit_gone(thing)
+      busy = false
+    end)
+  end)
+end
+
+-- MARK: リバウンダー
+
+func rebounder(n)
+  busy = true
+  let passes = random(2, 4)
+  announce("💡 明かりが強くチカチカ…！", 2)
+  flicker(max(1, n - 3), 6)
+  for k in 1 to passes do
+    after(3 + k * 5, func()
+      flicker(max(1, n - 3), 6)
+      shake(0.3, 1)
+      let from = room_z(max(1, n - 4))
+      let dest = room_z(n + 4)
+      if k % 2 == 0 then
+        from = room_z(n + 4)
+        dest = room_z(max(1, n - 4))
+      end
+      let thing = create_block({name: "Rebounder", shape: "sphere", position: {x: 0, y: 1.8, z: from}, size: 3.2, color: "#16A34A",
+                                material: "neon", solid: false, opacity: 0.8})
+      thing.move_to({x: 0, y: 1.8, z: dest}, 1.4)
+      after(0.7, func() sweep(n, "rebounder", 200, "🔁 行ったり来たりするものにやられた…") end)
+      after(1.6, func() kit_gone(thing) end)
+    end)
+  end
+  after(4 + passes * 5, func()
+    busy = false
+    announce("…静かになった", 1.5)
+  end)
+end
+
+-- MARK: ギョロメ
+
+func spawn_eyes(n)
+  kit_gone(eyes)
+  eyes = create_block({name: "Eyes", shape: "sphere", position: {x: random(-3, 3), y: 2, z: room_z(n) + random(-4, 4)},
+                       size: 1.2, color: "#A855F7", material: "neon", solid: false})
+  announce("👁 なにかに見られている…", 2)
+  after(40, func()
+    kit_gone(eyes)
+    eyes = nil
+  end)
+end
+
+-- MARK: 暗い部屋とシャウト
+
+func make_dark(n)
+  dark[str(n)] = true
+  let lamp = block("Room " + n + " Lamp")
+  if lamp != nil then lamp.visible = false end
+end
+
+func in_dark(p)
+  return dark[str(room_of(p))] == true
+end
+
+func shout(p)
+  if p.shout_at != nil then return end
+  -- 後ろか横に「シッ」の声
+  let side = random([90, 180, 270])
+  let d = kit_dir(p.yaw + side)
+  p.shout_dir = d
+  p.shout_at = time()
+  p.message("🗣 「…シッ」 何かいる！そっちを向け！", 2)
+  p.sound("tick")
+  meet(p, "shout")
+  let b = create_block({name: "Shout", shape: "sphere", position: p.position + d * 3 + {x: 0, y: 2.5, z: 0}, size: 0.8, color: "#111111",
+                        material: "matte", solid: false})
+  p.shout_block = b
+end
+
+func shout_tick(p)
+  if p.shout_at == nil then return end
+  let b = p.shout_block
+  if b != nil and b.destroy != nil then
+    let look_dir = normalize(b.position - (p.position + {x: 0, y: 1.6, z: 0}))
+    if dot(look_dir, p.look) > 0.7 then
+      p.message("😮 見つけた！シャウトはにげていった", 1.2)
+      kit_quest_progress(p, "shout", 1)
+      kit_gone(b)
+      p.shout_at = nil
+      return
+    end
+  end
+  if time() - p.shout_at > 2.2 then
+    harm(p, 40, "🗣 シャウトにかまれた！", "shout")
+    kit_gone(b)
+    p.shout_at = nil
+  end
+end
+
+-- MARK: フィギュア（図書館）
+
+func spawn_figure()
+  if figure != nil then return end
+  figure = create_npc({name: "👂 フィギュア", position: {x: 0, y: 1, z: room_z(50) + 4}, color: "#7F1D1D",
+                       head_color: "#450A0A", size: 1.6, health: 1000000000, speed: 0.55})
+  announce("…何か大きなものが、音を聞いている", 3)
+end
+
+func figure_tick()
+  if figure == nil or not kit_here(figure) then return end
+  let target = nil
+  for p in alive_players() do
+    if distance(p, figure) < 16 and not hidden(p) then
+      target = p
+      meet(p, "figure")
+    end
+  end
+  if target != nil then
+    figure.follow(target)
+    if distance(figure, target) < 2 then harm(target, 200, "👂 フィギュアにつかまった…", "figure") end
+  else
+    figure.stop()
+  end
+  if room > 51 then
+    figure.destroy()
+    figure = nil
+  end
+end
+
+-- MARK: 追跡者（チェイス）
+
+func warn_chase(c)
+  for k in c - 1 to c + 1 do
+    for s in [-4.7, 4.7] do
+      let eye = create_block({name: "Seek Eye", shape: "sphere", position: {x: s, y: 1.5 + random() * 1.5, z: room_z(k) + random(-4, 4)},
+                             size: 0.5, color: "#111111", material: "matte", solid: false})
+      after(40, func() kit_gone(eye) end)
+    end
+  end
+  announce("👁 かべに目が…", 2)
+end
+
+func start_chase(c)
+  if seeker != nil then return end
+  -- 5部屋ぶんのドアが自動で開く
+  for k in c to c + 4 do
+    let d = block("Door " + k)
+    if d != nil then
+      d.visible = false
+      d.solid = false
+    end
+  end
+  room = max(room, c + 4)
+  show_room()
+  seeker = create_npc({name: "🌫 追跡者", position: {x: 0, y: 1, z: room_z(c - 1)}, color: "#111111", head_color: "#F8FAFC",
+                       size: 1.8, health: 1000000000, speed: 1.55})
+  chase_end = room_z(c + 5)
+  announce("🌫 追跡者が来た！前へ走れ！！", 3)
+  shake(0.5, 2)
+  for p in alive_players() do meet(p, "seeker") end
+end
+
+func seeker_tick()
+  if seeker == nil or not kit_here(seeker) then return end
+  let target = nil
+  for p in alive_players() do
+    if target == nil or p.z < target.z then target = p end
+  end
+  if target == nil then return end
+  seeker.follow(target)
+  if distance(seeker, target) < 2.2 and cooldown_left(target, "seek") <= 0 then
+    start_cooldown(target, "seek", 1.5)
+    harm(target, 50, "🌫 追跡者につかまれた！走れ！", "seeker")
+    target.launch(0, 6, 18)
+  end
+  -- みんながにげきったら終わり
+  let all_safe = true
+  for p in alive_players() do
+    if p.z < chase_end then all_safe = false end
+  end
+  if all_safe then
+    seeker.destroy()
+    seeker = nil
+    announce("…追跡者はいなくなった", 2)
+    for p in alive_players() do kit_quest_progress(p, "chase", 1) end
+  end
+end
+
+on start()
+  busy = false
+  eyes = nil
+  figure = nil
+  seeker = nil
+  dark = {}
+  for n in npcs() do n.destroy() end
+end
+
+on tick(dt)
+  -- ギョロメ
+  if eyes != nil then
+    for p in alive_players() do
+      if distance(p, eyes) < 30 then
+        let dir = normalize(eyes.position - (p.position + {x: 0, y: 1.6, z: 0}))
+        if dot(dir, p.look) > 0.85 then
+          p.damage(10 * dt)
+          p.shake(0.1, 0.2)
+          meet(p, "eyes")
+        end
+      end
+    end
+  end
+  ent_clock = ent_clock + dt
+  if ent_clock < 0.3 then return end
+  ent_clock = 0
+  figure_tick()
+  seeker_tick()
+  for p in alive_players() do
+    if in_dark(p) and p.shout_at == nil and random() < shout_chance(p) then shout(p) end
+    shout_tick(p)
+  end
+end
+
+func shout_chance(p)
+  if contains(p.items, "flashlight") then return 0.004 end
+  if p.light_until != nil and time() < p.light_until then return 0.006 end
+  return 0.02
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "closet") then
+    if not hidden(p) and random() < 0.03 then
+      meet(p, "jack")
+      p.message("😱 クローゼットに先客が…！", 1.5)
+      p.shake(0.5, 0.3)
+      return
+    end
+    p.hide_at = time()
+  end
+end

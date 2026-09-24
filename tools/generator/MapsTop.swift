@@ -833,7 +833,15 @@ func hotelDoors(_ m: MapBuilder) {
     m.indoor(ground: "#000000")
     m.sky("#000000", "#050505", light: 0.35, showGround: false, fall: -30)
     m.slab("Lobby", x: 0, y: -0.3, z: -10, w: 14, h: 0.3, d: 14, color: "#5B3A29")
-    m.walls(0, -10, w: 14, d: 14, h: 5, color: "#3F2A1F", name: "Lobby Wall")
+    // Lobby walls, with a doorway at +z into the hallway to room 1.
+    m.slab("Lobby Wall", x: 0, y: 0, z: -17, w: 14.4, h: 5, d: 0.4, color: "#3F2A1F")
+    m.slab("Lobby Wall", x: -7, y: 0, z: -10, w: 0.4, h: 5, d: 14, color: "#3F2A1F")
+    m.slab("Lobby Wall", x: 7, y: 0, z: -10, w: 0.4, h: 5, d: 14, color: "#3F2A1F")
+    m.slab("Lobby Wall", x: -4.5, y: 0, z: -3, w: 5, h: 5, d: 0.4, color: "#3F2A1F")
+    m.slab("Lobby Wall", x: 4.5, y: 0, z: -3, w: 5, h: 5, d: 0.4, color: "#3F2A1F")
+    m.slab("Hallway", x: 0, y: -0.3, z: 0, w: 4, h: 0.3, d: 6.2, color: "#5B3A29")
+    m.slab("Hallway Wall", x: -2.2, y: 0, z: 0, w: 0.4, h: 4, d: 6, color: "#3F2A1F")
+    m.slab("Hallway Wall", x: 2.2, y: 0, z: 0, w: 0.4, h: 4, d: 6, color: "#3F2A1F")
     m.spawnRing(0, -12, radius: 3, count: 6, color: "#FDE68A")
     m.part("Reception", at: (0, 0.6, -15), size: (6, 1.2, 1.2), color: "#7C2D12")
     let roomLength: Float = 12
@@ -858,11 +866,28 @@ func hotelDoors(_ m: MapBuilder) {
         let side: Float = n % 2 == 0 ? -3.8 : 3.8
         m.part("Closet \(n)", at: (side, 1.25, z - 2), size: (1.6, 2.5, 1.6), color: "#292524", behavior: .trigger, tags: ["closet"],
                solid: false, opacity: 0.92)
-        if n % 5 == 0 {
+        if n % 5 == 0 && n != 50 {
             m.part("Key \(n)", at: (-side * 0.6, 0.8, z + 1), size: (0.5, 0.2, 0.9), color: "#FACC15", material: .neon,
                    behavior: .trigger, tags: ["key"])
         }
+        // Two drawers to search in every room.
+        m.part("Room \(n) Drawer A", at: (-side * 0.9, 0.5, z + 3), size: (1.4, 1, 0.9), color: "#57534E", behavior: .trigger,
+               tags: ["drawer"])
+        m.part("Room \(n) Drawer B", at: (side * 0.9, 0.5, z + 1.5), size: (1.4, 1, 0.9), color: "#57534E", behavior: .trigger,
+               tags: ["drawer"])
     }
+    // Room 50 is the library: shelves, and four books that each hide a digit of the code for door 50.
+    let library = 50 * roomLength - 3
+    for (i, x) in [-4.2, 4.2].enumerated() {
+        m.slab("Bookshelf \(i + 1)", x: Float(x), y: 0, z: library, w: 1, h: 3.4, d: 9, color: "#451A03")
+    }
+    for i in 0..<4 {
+        let bx: Float = i % 2 == 0 ? -3.4 : 3.4
+        m.part("Book \(i + 1)", at: (bx, 1 + Float(i / 2) * 1.2, library - 3 + Float(i) * 2), size: (0.3, 0.8, 0.6),
+               color: ["#DC2626", "#2563EB", "#16A34A", "#CA8A04"][i], behavior: .trigger, tags: ["book"])
+    }
+    // The shop in the lobby, before the first door.
+    m.pad("Lobby Shop", x: 4, z: -6, size: 2.4, color: "#FACC15", tags: ["shop"])
     m.slab("Exit", x: 0, y: -0.3, z: 101 * roomLength, w: 20, h: 0.3, d: 20, color: "#FDE68A")
     m.pad("Exit Light", x: 0, z: 101 * roomLength, size: 5, color: "#FFFFFF", tags: ["exit"])
 }

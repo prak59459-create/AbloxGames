@@ -1,0 +1,38 @@
+-- data.absc — Hotel 100 Doors の表（道具・引き出しの中身・出てくるものの説明）
+
+-- MARK: 道具（受付のお店・引き出しで手に入る）
+let ITEMS = {
+  flashlight: {name: "🔦 懐中電灯", price: 20, text: "暗い部屋が明るく見える・シャウトが来にくい"},
+  lockpick: {name: "🗝 ピッキング", price: 25, text: "カギのかかったドアを開けられる（1回）"},
+  vitamins: {name: "💊 ビタミン", price: 15, text: "10秒 速く走れる"},
+  crucifix: {name: "✝️ 十字架", price: 60, text: "次にやられそうなとき 1回だけ守ってくれる"},
+  bandage: {name: "🩹 包帯", price: 10, text: "体力を50回復"},
+  lighter: {name: "🔥 ライター", price: 12, text: "暗い部屋を少し明るくする（30秒）"}
+}
+let ITEM_ORDER = ["flashlight", "lockpick", "vitamins", "crucifix", "bandage", "lighter"]
+
+-- MARK: 引き出しの中身（weight: 出やすさ）
+let DRAWER_LOOT = [
+  {kind: "knobs", weight: 50},
+  {kind: "nothing", weight: 20},
+  {kind: "bandage", weight: 10},
+  {kind: "vitamins", weight: 8},
+  {kind: "lighter", weight: 6},
+  {kind: "lockpick", weight: 4},
+  {kind: "jack", weight: 2}
+]
+
+-- MARK: 出てくるもの（図鑑に書かれる）
+let ENTITIES = {
+  dasher: {name: "💨 ダッシャー", tip: "明かりがチカチカ → クローゼットにかくれる"},
+  rebounder: {name: "🔁 リバウンダー", tip: "何度も行ったり来たりする。音がしたら またかくれる"},
+  eyes: {name: "👁 ギョロメ", tip: "見つめるとダメージ。目をそらそう"},
+  shout: {name: "🗣 シャウト", tip: "暗い部屋で「シッ」→ すぐにそっちを向く"},
+  figure: {name: "👂 フィギュア", tip: "図書館にいる。音を聞く。クローゼットでやりすごそう"},
+  seeker: {name: "🌫 追跡者", tip: "かべに目が出たら 全力で前へ走れ"},
+  dupe: {name: "🚪 ニセドア", tip: "部屋の番号をよく見て。ニセのドアはかみつく"},
+  jack: {name: "😱 ジャック", tip: "引き出しやクローゼットにいたずら好きが…"}
+}
+let ENTITY_ORDER = ["dasher", "rebounder", "eyes", "shout", "figure", "seeker", "dupe", "jack"]
+
+let CHASES = [30, 70]   -- この部屋から5部屋、追跡者が追いかけてくる

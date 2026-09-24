@@ -1,11 +1,16 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 1134,
+  "blockCount" : 1344,
   "id" : "hotel-100-doors",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/hotel-100-doors\/data.absc",
+    "games\/hotel-100-doors\/common.absc",
+    "games\/hotel-100-doors\/doors.absc",
+    "games\/hotel-100-doors\/entities.absc",
+    "games\/hotel-100-doors\/items.absc",
     "games\/hotel-100-doors\/main.absc"
   ],
   "summary" : "なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。",

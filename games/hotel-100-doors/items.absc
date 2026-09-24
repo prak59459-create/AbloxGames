@@ -1,0 +1,116 @@
+-- items.absc — 道具と受付のお店・図鑑
+-- 受付（黄色いパッド）でノブを使って道具を買う。引き出しでも見つかる。🎒ボタンで使う。
+
+func buy(p, id)
+  let it = ITEMS[id]
+  if it == nil or not kit_pay(p, it.price) then return end
+  append(p.items, id)
+  p.message(it.name + " を買った", 1.5)
+  p.sound("collect")
+  item_buttons(p)
+  shop(p)
+end
+
+func shop(p)
+  let h = 130 + len(ITEM_ORDER) * 48
+  p.ui_panel("shop", {at: "center", w: 520, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🛎 受付のお店（🟡 ノブ " + kit_money(p) + "）", {parent: "shop", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for id in ITEM_ORDER do
+    i = i + 1
+    let it = ITEMS[id]
+    p.ui_button("buy_" + id, it.name + "  🟡" + it.price + "  " + it.text, {parent: "shop", y: (30 + i * 48) / h, w: 480, h: 40, size: 13, bg: "#78350F"})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+-- 使える道具のボタン
+func item_buttons(p)
+  let usable = filter(p.items, func(id) return id == "vitamins" or id == "bandage" or id == "lighter" end)
+  if len(usable) > 0 then
+    p.ui_button("use_items", "🎒 道具（" + len(p.items) + "）", {at: "right", dy: 0, w: 150, h: 50, size: 16, bg: "#57534E"})
+  else
+    p.ui_remove("use_items")
+  end
+  let names = map(p.items, func(id) return ITEMS[id].name end)
+  if len(names) > 0 then
+    p.ui_text("items_line", join(names, " "), {at: "top_left", dy: 34, size: 13, color: "#E7E5E4"})
+  else
+    p.ui_remove("items_line")
+  end
+end
+
+func items_menu(p)
+  let usable = filter(p.items, func(id) return id == "vitamins" or id == "bandage" or id == "lighter" end)
+  let h = 130 + max(1, len(usable)) * 46
+  p.ui_panel("imenu", {at: "center", w: 400, h: h, bg: "#292524F2", radius: 20, layer: 30})
+  p.ui_text("imenu_t", "🎒 使う道具", {parent: "imenu", y: 26 / h, size: 18, bold: true})
+  let i = 0
+  for id in usable do
+    i = i + 1
+    p.ui_button("useit_" + i, ITEMS[id].name, {parent: "imenu", y: (30 + i * 46) / h, w: 300, h: 38, size: 15, bg: "#44403C"})
+  end
+  p.usable = usable
+  p.ui_button("imenu_close", "閉じる", {parent: "imenu", y: (h - 28) / h, w: 120, h: 34, size: 15, bg: "gray"})
+end
+
+func use(p, id)
+  if not contains(p.items, id) then return end
+  remove(p.items, index_of(p.items, id))
+  if id == "vitamins" then
+    p.speed = 1.5
+    kit_later(p, 10, func() p.speed = 1 end)
+    p.message("💊 10秒 速く走れる", 1.5)
+  elif id == "bandage" then
+    p.heal(50)
+    p.message("🩹 回復した", 1.2)
+  elif id == "lighter" then
+    p.light_until = time() + 30
+    p.message("🔥 30秒 まわりが明るい", 1.5)
+  end
+  p.ui_remove("imenu")
+  item_buttons(p)
+end
+
+-- MARK: 📖 図鑑
+
+func book_menu(p)
+  let h = 130 + len(ENTITY_ORDER) * 40
+  p.ui_panel("ebook", {at: "center", w: 560, h: h, bg: "#0C0A09F2", radius: 20, layer: 30})
+  p.ui_text("ebook_t", "📖 ホテルの図鑑（" + len(p.met) + "/" + len(ENTITY_ORDER) + "）", {parent: "ebook", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for id in ENTITY_ORDER do
+    i = i + 1
+    let e = ENTITIES[id]
+    let text = "❔ ？？？"
+    let color = "#57534E"
+    if contains(p.met, id) then
+      text = e.name + "：" + e.tip
+      color = "#E7E5E4"
+    end
+    p.ui_text("ebook_" + i, text, {parent: "ebook", y: (32 + i * 40) / h, size: 13, color: color})
+  end
+  p.ui_button("ebook_close", "閉じる", {parent: "ebook", y: (h - 28) / h, w: 120, h: 34, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "shop_close" then p.ui_remove("shop")
+  elif starts_with(id, "buy_") then buy(p, replace(id, "buy_", ""))
+  elif id == "use_items" then items_menu(p)
+  elif id == "imenu_close" then p.ui_remove("imenu")
+  elif starts_with(id, "useit_") then
+    let list = p.usable or []
+    let item = list[num(replace(id, "useit_", ""))]
+    if item != nil then use(p, item) end
+  elif id == "open_book" then book_menu(p)
+  elif id == "ebook_close" then p.ui_remove("ebook")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shop") and cooldown_left(p, "shop") <= 0 then
+    start_cooldown(p, "shop", 3)
+    shop(p)
+  end
+end

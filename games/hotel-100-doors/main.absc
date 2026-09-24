@@ -1,210 +1,55 @@
 -- Hotel 100 Doors — 100の部屋を進むホラー
+-- 出てくるもの8種（ダッシャー・リバウンダー・ギョロメ・シャウト・フィギュア・追跡者・ニセドア・ジャック）・
+-- カギとピッキング・図書館の暗号・引き出し・道具6種・受付のお店・図鑑。
+--
+-- ファイル:
+--   data.absc      表（道具・引き出しの中身・出てくるもの）
+--   common.absc    部屋の番号・かくれる・やられる
+--   doors.absc     ドア・カギ・引き出し・暗号・ニセドア・出口
+--   entities.absc  出てくるもの
+--   items.absc     道具・お店・図鑑
+--   main.absc      このファイル
 
 kit_setup("Hotel 100 Doors", "明かりがチカチカしたら、クローゼットへ", [
-  "ドアをタップすると開きます（5の倍数の部屋はカギが必要）",
-  "黄色く光るカギは、その部屋の中に落ちています",
-  "明かりがチカチカ → 何かが来る！クローゼット（黒い箱）に入れ",
-  "紫に光る目を見つめるとダメージ。目をそらそう",
-  "ノブ（金色）を拾うと、お店で道具が買えます",
-  "100番のドアの先の出口にたどりつけば勝ち！"
+  "🚪 ドアをタップすると開く（5の倍数の部屋はカギ。ピッキングでも開く）",
+  "🗄 引き出しにさわると ノブ（お金）や道具が見つかる",
+  "💡 明かりがチカチカ → 何かが来る！クローゼット（黒い箱）にかくれて",
+  "👁 紫の目を見つめるとダメージ。🗣 暗い部屋で「シッ」→ そっちを向け",
+  "📕 50番は図書館。4冊の本で暗号を集めて 📝 で入力",
+  "🌫 かべに目が出たら追跡者が来る。前へ全力で走れ",
+  "🏁 100番のドアの先の出口にたどりつけば勝ち！"
 ])
 kit_currency = "ノブ"
-kit_shop_title = "受付のお店"
 
-let room = 0          -- いちばん先に開いたドア
-let keys_found = {}
-let eyes = nil
-let figure = nil
-let busy = false
-let lit = true
-
-kit_shop_add("vitamins", "ビタミン（15秒 速く走れる）", 15, func(p)
-  p.speed = 1.5
-  kit_later(p, 15, func() p.speed = 1 end)
-end)
-kit_shop_add("crucifix", "十字架（次の襲撃を1回はね返す）", 60, func(p) p.crucifix = true end)
-kit_shop_add("bandage", "包帯（回復）", 10, func(p) p.heal(60) end)
-
-func room_z(n)
-  return n * 12 - 3
-end
-
-func hidden(p)
-  return p.hide_at != nil and time() - p.hide_at < 1.2
-end
-
-func show_room()
-  ui_text("room", "🚪 " + room + " / 100", {at: "top", dy: 26, size: 24, bold: true, color: "#FDE68A"})
-end
-
-func open_door(n)
-  let door = block("Door " + n)
-  if door == nil or not door.visible then return end
-  door.visible = false
-  door.solid = false
-  room = max(room, n)
-  show_room()
-  sound("teleport")
-  for p in players() do p.score = max(p.score, n) end
-  -- ノブを部屋にばらまく
-  if random() < 0.6 then
-    create_block({name: "Knob", shape: "sphere", position: {x: random(-3, 3), y: 0.4, z: room_z(n + 1) + random(-4, 4)},
-                  size: 0.5, color: "gold", material: "metal", tags: ["knob"], behavior: "trigger", solid: false})
-  end
-  if n >= 3 and not busy then
-    let r = random()
-    if r < 0.14 then rush(n)
-    elif r < 0.24 and n >= 8 then spawn_eyes(n + 1)
-    elif r < 0.32 then dark_room(n + 1)
-    end
-  end
-  if n == 49 then spawn_figure() end
-end
-
-func flicker(from, count)
-  for k in from to from + count do
-    let lamp = block("Room " + k + " Lamp")
-    if lamp != nil then
-      lamp.color = "#3F3F46"
-      after(0.3 + random() * 0.4, func() lamp.color = "#FFE9A8" end)
-    end
-  end
-end
-
-func rush(n)
-  busy = true
-  announce("💡 明かりがチカチカしている…", 2)
-  flicker(max(1, n - 3), 6)
-  after(0.8, func() flicker(max(1, n - 3), 6) end)
-  shake(0.2, 3)
-  after(4, func()
-    let thing = create_block({name: "Rusher", shape: "sphere", position: {x: 0, y: 1.8, z: room_z(max(1, n - 4))},
-                              size: 3, color: "#0A0A0A", material: "matte", solid: false})
-    thing.move_to({x: 0, y: 1.8, z: room_z(n + 4)}, 1.6)
-    let near = room_z(n)
-    for p in players() do
-      if p.alive and abs(p.z - near) < 60 and not hidden(p) then
-        if p.crucifix then
-          p.crucifix = false
-          p.message("✝️ 十字架が守ってくれた！", 2)
-        else
-          p.kill()
-          p.message("何かにやられた… クローゼットに隠れよう", 3)
-        end
-      end
-    end
-    after(2, func()
-      kit_gone(thing)
-      busy = false
-    end)
-  end)
-end
-
-func spawn_eyes(n)
-  kit_gone(eyes)
-  eyes = create_block({name: "Eyes", shape: "sphere", position: {x: random(-3, 3), y: 2, z: room_z(n) + random(-4, 4)},
-                       size: 1.2, color: "#A855F7", material: "neon", solid: false})
-  announce("👁 なにかに見られている…", 2)
-  after(40, func()
-    kit_gone(eyes)
-    eyes = nil
-  end)
-end
-
-func dark_room(n)
-  let lamp = block("Room " + n + " Lamp")
-  if lamp != nil then lamp.visible = false end
-  lit = false
-  world.light = 0.08
-  after(25, func()
-    world.light = 0.35
-    lit = true
-    if lamp != nil then lamp.visible = true end
-  end)
-end
-
-func spawn_figure()
-  if figure != nil then return end
-  figure = create_npc({name: "フィギュア", position: {x: 0, y: 1, z: room_z(50) + 4}, color: "#7F1D1D",
-                       head_color: "#450A0A", size: 1.6, health: 999999, speed: 0.55})
-  announce("…何か大きなものが、音を聞いている", 3)
-end
+kit_quest("doors", "ドアを20まい開ける", 20, 30)
+kit_quest("search", "引き出しを10こ調べる", 10, 20)
+kit_quest("key", "カギを見つける", 1, 15)
+kit_quest("book", "図書館の本を読む", 4, 30)
+kit_quest("code", "図書館の暗号を解く", 1, 80)
+kit_quest("shout", "シャウトを見つける", 1, 30)
+kit_quest("chase", "追跡者からにげきる", 1, 80)
+kit_quest("meet", "図鑑を5つうめる", 5, 60)
+kit_quest("escape", "ホテルから脱出", 1, 200)
 
 on start()
   game.respawn_time = 5
-  show_room()
+  for p in players() do
+    p.escaped = false
+    p.items = []
+    p.clues = {}
+    p.shout_at = nil
+    item_buttons(p)
+  end
 end
 
 on join(p)
+  p.items = []
+  p.met = []
+  p.escaped = false
   kit_welcome(p)
   kit_show_money(p)
-  kit_shop_button(p)
-end
-
-on tick(dt)
-  if eyes != nil then
-    for p in players() do
-      if p.alive and distance(p, eyes) < 30 then
-        let dir = normalize(eyes.position - (p.position + {x: 0, y: 1.6, z: 0}))
-        if dot(dir, p.look) > 0.85 then
-          p.damage(10 * dt)
-          p.shake(0.1, 0.2)
-        end
-      end
-    end
-  end
-  if figure != nil and kit_here(figure) then
-    -- 走っている人（速い人）の音を追う
-    let target = nil
-    for p in players() do
-      if p.alive and distance(p, figure) < 16 and not hidden(p) then target = p end
-    end
-    if target != nil then
-      figure.follow(target)
-      if distance(figure, target) < 2 then target.kill() end
-    else
-      figure.stop()
-    end
-  end
-end
-
-on tap(p, b)
-  if not contains(b.tags, "door") or distance(p, b) > 6 then return end
-  let n = num(split(b.name, " ")[2])
-  if n % 5 == 0 and keys_found[str(n)] == nil then
-    p.message("🔒 カギがかかっている。この部屋のカギを探そう", 2)
-    p.sound("error")
-    return
-  end
-  open_door(n)
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "closet") then
-    p.hide_at = time()
-  elif contains(b.tags, "key") then
-    let n = split(b.name, " ")[2]
-    keys_found[n] = true
-    b.destroy()
-    announce("🔑 " + p.name + " がカギ " + n + " を見つけた", 2)
-    p.sound("collect")
-  elif contains(b.tags, "knob") then
-    b.destroy()
-    kit_give(p, random(2, 6))
-    p.sound("collect")
-  elif contains(b.tags, "exit") then
-    if not p.escaped then
-      p.escaped = true
-      p.score = 101
-      announce("🏆 " + p.name + " がホテルから脱出した！", 4)
-      if len(filter(players(), func(q) return not q.escaped end)) == 0 then
-        kit_finish("🎉 全員脱出成功！", 8)
-      end
-    end
-  end
-end
-
-on respawn(p)
-  if room > 0 then p.teleport(block("Room " + room + " Floor")) end
+  p.ui_button("open_book", "📖 図鑑", {at: "right", dy: -60, w: 150, h: 50, size: 16, bg: "#44403C"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  item_buttons(p)
 end
