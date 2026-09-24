@@ -1,0 +1,99 @@
+-- shop.absc — 技のお店と剣のガチャ（上のロビーのパッド）
+
+func ability_shop(p)
+  let h = 140 + len(ABILITIES) * 46
+  p.ui_panel("ab_box", {at: "center", w: 560, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("ab_t", "✨ 技（🪙 " + kit_money(p) + "）", {parent: "ab_box", y: 26 / h, size: 19, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for a in ABILITIES do
+    i = i + 1
+    let label = a.name + "  🪙" + a.price + "  " + a.text
+    let bg = "#1D4ED8"
+    if contains(p.owned, a.id) then
+      label = a.name + " を持っていく  " + a.text
+      bg = "#0F766E"
+    end
+    if p.ability == a.id then
+      label = "✅ " + a.name + "（持っている）"
+      bg = "#374151"
+    end
+    p.ui_button("buyab_" + a.id, label, {parent: "ab_box", y: (30 + i * 46) / h, w: 520, h: 38, size: 13, bg: bg})
+  end
+  p.ui_button("ab_close", "閉じる", {parent: "ab_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_ability(p, id)
+  let a = ability_info(id)
+  if a == nil then return end
+  if not contains(p.owned, id) then
+    if not kit_pay(p, a.price) then return end
+    append(p.owned, id)
+    p.sound("goal")
+    kit_quest_progress(p, "buy", 1)
+  end
+  p.ability = id
+  ability_button(p)
+  ability_shop(p)
+end
+
+-- MARK: 剣のガチャ
+
+func equip_blade(p, id)
+  p.blade = id
+  let b = blade_info(id)
+  p.leg_color = b.color
+  p.head_color = b.color
+end
+
+func crate_menu(p)
+  let h = 190 + len(p.blades) * 30
+  p.ui_panel("crate_box", {at: "center", w: 480, h: h, bg: "#451A03F2", radius: 22, layer: 30})
+  p.ui_text("crate_t", "🗡 剣のガチャ（🪙 " + kit_money(p) + "）", {parent: "crate_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  p.ui_button("crate_roll", "🎲 ガチャ  🪙" + CRATE_PRICE, {parent: "crate_box", y: 70 / h, w: 260, h: 42, size: 16, bg: "#B45309"})
+  let i = 0
+  for id in p.blades do
+    i = i + 1
+    let b = blade_info(id)
+    let label = b.name
+    if p.blade == id then label = "✅ " + label end
+    p.ui_button("blade_" + id, label, {parent: "crate_box", y: (100 + i * 30) / h, w: 300, h: 26, size: 13, bg: b.color})
+  end
+  p.ui_button("crate_close", "閉じる", {parent: "crate_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func roll_crate(p)
+  if not kit_pay(p, CRATE_PRICE) then return end
+  let b = kit_pick(BLADES, 1)
+  if not contains(p.blades, b.id) then
+    append(p.blades, b.id)
+    p.message("🗡 新しい剣: " + b.name + "！", 2)
+  else
+    kit_give(p, 30)
+    p.message("🗡 " + b.name + "（もう持っている → 🪙30 もどってきた）", 2)
+  end
+  if b.weight <= 2 then announce("🌟 " + p.name + " が " + b.name + " を引いた！", 3) end
+  kit_quest_progress(p, "crate", 1)
+  equip_blade(p, b.id)
+  crate_menu(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "ability_shop") and quiet_ready(p, "ab_pad", 5) then ability_shop(p)
+  elif contains(b.tags, "blade_crate") and quiet_ready(p, "crate_pad", 5) then crate_menu(p)
+  elif contains(b.tags, "rank_board") and quiet_ready(p, "rank_pad", 5) then stats(p)
+  end
+end
+
+on button(p, id)
+  if id == "abilities" then ability_shop(p)
+  elif id == "ab_close" then p.ui_remove("ab_box")
+  elif starts_with(id, "buyab_") then pick_ability(p, replace(id, "buyab_", ""))
+  elif id == "blades" then crate_menu(p)
+  elif id == "crate_close" then p.ui_remove("crate_box")
+  elif id == "crate_roll" then roll_crate(p)
+  elif starts_with(id, "blade_") then
+    equip_blade(p, replace(id, "blade_", ""))
+    crate_menu(p)
+  end
+end

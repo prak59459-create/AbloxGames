@@ -1,0 +1,196 @@
+-- round.absc — モード投票 → ラウンド → 勝ち負け・レーティング
+
+let mode = MODES[1]
+let live = false
+let phase = "wait"
+let votes = {}
+let vote_ends = 0
+let round_id = 0
+let round_clock = 0
+let round_players = 0
+
+func lobby_spot()
+  return block("Lobby Spot " + random(1, 6))
+end
+
+func in_round_alive()
+  return filter(players(), func(p) return p.in_round and p.alive end)
+end
+
+-- MARK: 投票
+
+func vote_ui(p)
+  let i = 0
+  for m in MODES do
+    i = i + 1
+    let count = 0
+    for pid in keys(votes) do
+      if votes[pid] == m.id then count = count + 1 end
+    end
+    let label = m.name + " " + count
+    if votes[p.id] == m.id then label = "✅ " + label end
+    p.ui_button("mode_" + m.id, label, {at: "center", dx: (i - 2.5) * 150, dy: 120, w: 140, h: 48, size: 14, bg: "#1E1B4B"})
+  end
+  p.ui_text("vote_t", "🗳 モードを投票（のこり " + max(0, ceil(vote_ends - time())) + "）", {at: "center", dy: 80, size: 18, bold: true})
+end
+
+func clear_vote(p)
+  for m in MODES do p.ui_remove("mode_" + m.id) end
+  p.ui_remove("vote_t")
+end
+
+func start_vote()
+  if len(players()) < 2 then
+    phase = "wait"
+    ui_text("status", "あと1人以上で始まります", {at: "top", dy: 30, size: 16})
+    return
+  end
+  ui_remove("status")
+  phase = "vote"
+  votes = {}
+  vote_ends = time() + VOTE_SECS
+  for p in players() do
+    if ready(p) then vote_ui(p) end
+  end
+end
+
+func vote(p, id)
+  if phase != "vote" then return end
+  votes[p.id] = id
+  for q in players() do
+    if ready(q) then vote_ui(q) end
+  end
+  if len(keys(votes)) >= len(players()) then vote_ends = min(vote_ends, time() + 1) end
+end
+
+func winning_mode()
+  let best = MODES[1]
+  let best_count = 0
+  for m in MODES do
+    let count = 0
+    for pid in keys(votes) do
+      if votes[pid] == m.id then count = count + 1 end
+    end
+    if count > best_count then
+      best = m
+      best_count = count
+    end
+  end
+  return best
+end
+
+-- MARK: ラウンド
+
+func start_round()
+  mode = winning_mode()
+  round_id = round_id + 1
+  phase = "round"
+  clear_balls()
+  let list = shuffle(copy(players()))
+  round_players = len(list)
+  let i = 0
+  for p in list do
+    i = i + 1
+    if ready(p) then clear_vote(p) end
+    p.in_round = true
+    p.round_deflects = 0
+    p.parry_until = 0
+    p.parry_lock = 0
+    if not p.alive then p.respawn() end
+    p.teleport(block("Spawn " + ((i - 1) % 12 + 1)))
+    if mode.id == "team" then
+      if i % 2 == 0 then p.team = "blue" else p.team = "red" end
+      if p.team == "red" then p.color = "#EF4444" else p.color = "#3B82F6" end
+    else
+      p.team = nil
+      if p.own_body != nil then p.color = p.own_body end
+    end
+  end
+  announce(mode.name + " — " + mode.text, 3)
+  live = true
+  spawn_ball(2)
+  if mode.id == "double" then spawn_ball(5) end
+end
+
+func check_round_over()
+  if phase != "round" then return end
+  let left = in_round_alive()
+  if mode.id == "team" then
+    let reds = filter(left, func(p) return p.team == "red" end)
+    let blues = filter(left, func(p) return p.team == "blue" end)
+    if len(reds) == 0 or len(blues) == 0 then
+      let team = "red"
+      if len(reds) == 0 then team = "blue" end
+      if len(left) == 0 then team = nil end
+      finish_round(filter(players(), func(p) return p.in_round and p.team == team end))
+    end
+  elif len(left) <= 1 then
+    finish_round(left)
+  end
+end
+
+func finish_round(winners)
+  if phase != "round" then return end
+  phase = "over"
+  live = false
+  clear_balls()
+  ui_remove("speed")
+  let names = map(winners, func(p) return p.name end)
+  if len(winners) == 0 then
+    announce("引き分け！", 3)
+  else
+    announce("🏆 " + join(names, "・") + " の勝ち！", 4)
+  end
+  let gain = 10 + round_players * 3
+  for p in players() do
+    if ready(p) and p.in_round then
+      p.games = (p.games or 0) + 1
+      if contains(winners, p) then
+        p.wins = (p.wins or 0) + 1
+        p.streak = (p.streak or 0) + 1
+        p.best_streak = max(p.best_streak or 0, p.streak)
+        p.rating = p.rating + gain
+        p.score = p.wins
+        kit_give(p, 100)
+        kit_quest_progress(p, "win1", 1)
+        kit_quest_progress(p, "win10", 1)
+        if p.streak >= 3 then announce("🔥 " + p.name + " が " + p.streak + " 連勝！", 2) end
+        if p.wins >= 5 then kit_badge(p, "win5", "5勝のベテラン") end
+      else
+        p.streak = 0
+        p.rating = max(0, p.rating - 8)
+      end
+      hud(p)
+    end
+    p.in_round = false
+    p.ui_remove("danger")
+    if p.own_body != nil then p.color = p.own_body end
+  end
+  after(4, func()
+    for p in players() do
+      if not p.alive then p.respawn() end
+      p.teleport(lobby_spot())
+    end
+  end)
+  after(6, func() start_vote() end)
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if round_clock < 1 then return end
+  round_clock = 0
+  if phase == "vote" then
+    for p in players() do
+      if ready(p) then vote_ui(p) end
+    end
+    if time() >= vote_ends then start_round() end
+  elif phase == "wait" then
+    if len(players()) >= 2 then start_vote() end
+  elif phase == "round" then
+    check_round_over()
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "mode_") then vote(p, replace(id, "mode_", "")) end
+end

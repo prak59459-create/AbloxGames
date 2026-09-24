@@ -1,0 +1,54 @@
+-- abilities.absc — 技（1つだけ持っていける。右下の青いボタン）
+
+func ability_button(p)
+  if p.ability == nil then
+    p.ui_remove("ability")
+    return
+  end
+  let a = ability_info(p.ability)
+  p.ui_button("ability", a.name, {at: "bottom_right", dx: -240, dy: -160, w: 120, h: 60, size: 15, bg: "#0EA5E9", radius: 14})
+end
+
+func use_ability(p)
+  if not ready(p) or p.ability == nil or not p.alive or not p.in_round then return end
+  let a = ability_info(p.ability)
+  if not kit_ready(p, "ability", a.cd) then return end
+  kit_quest_progress(p, "ability", 1)
+  let id = p.ability
+  if id == "dash" then
+    p.launch(p.look.x * 26, 3, p.look.z * 26)
+  elif id == "freeze" then
+    for b in balls do b.frozen_until = time() + 1.5 end
+    for b in balls do
+      if still(b.block) then b.block.color = "#A5F3FC" end
+    end
+    announce("❄️ " + p.name + " がボールを止めた！", 1.5)
+  elif id == "super" then
+    p.super_until = time() + 1
+    p.message("✨ スーパーはじき！", 1)
+  elif id == "teleport" then
+    p.teleport(block("Spawn " + random(1, 12)))
+  elif id == "invis" then
+    p.invis_until = time() + 3
+    p.visible = false
+    kit_later(p, 3, func() p.visible = true end)
+    -- ねらわれていたら、別の人へ
+    for b in balls do
+      if b.target == p.id then mark_target(b, random_target(p)) end
+    end
+    p.message("👻 透明！ 3びょう ねらわれない", 1.5)
+  elif id == "field" then
+    p.field_until = time() + 8
+    p.message("🔰 バリア！（1回だけ）", 1.5)
+  elif id == "slow" then
+    for b in balls do b.slow_until = time() + 3 end
+    announce("🐢 " + p.name + " のスロー！", 1.5)
+  elif id == "curve" then
+    p.next_curve = true
+    p.message("🌪 次にはじいたボールはカーブ！", 1.5)
+  end
+end
+
+on button(p, id)
+  if id == "ability" then use_ability(p) end
+end

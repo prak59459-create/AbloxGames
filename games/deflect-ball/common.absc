@@ -1,0 +1,67 @@
+-- common.absc — 小さな道具
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.owned != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func find_by_id(pid)
+  for p in players() do
+    if p.id == pid then return p end
+  end
+  return nil
+end
+
+func ability_info(id)
+  for a in ABILITIES do
+    if a.id == id then return a end
+  end
+  return nil
+end
+
+func blade_info(id)
+  for b in BLADES do
+    if b.id == id then return b end
+  end
+  return BLADES[1]
+end
+
+func mode_info(id)
+  for m in MODES do
+    if m.id == id then return m end
+  end
+  return MODES[1]
+end
+
+func tier_of(p)
+  let t = TIERS[1][1]
+  for row in TIERS do
+    if (p.rating or 1000) >= row[2] then t = row[1] end
+  end
+  return t
+end
+
+func chest_of(p)
+  return p.position + {x: 0, y: 1.2, z: 0}
+end
+
+func hud(p)
+  if not ready(p) then return end
+  p.ui_text("hud", tier_of(p) + " " + p.rating + "   🏆 " + (p.wins or 0) + "   🔥 " + (p.streak or 0) + " 連勝",
+            {at: "top_left", dy: 34, size: 15, bold: true, color: "#E0E7FF"})
+end

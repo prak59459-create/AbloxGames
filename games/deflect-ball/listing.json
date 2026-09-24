@@ -1,11 +1,18 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 33,
+  "blockCount" : 44,
   "id" : "deflect-ball",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/deflect-ball\/data.absc",
+    "games\/deflect-ball\/abilities.absc",
+    "games\/deflect-ball\/ball.absc",
+    "games\/deflect-ball\/common.absc",
+    "games\/deflect-ball\/round.absc",
+    "games\/deflect-ball\/shop.absc",
+    "games\/deflect-ball\/stats.absc",
     "games\/deflect-ball\/main.absc"
   ],
   "summary" : "ねらった相手を追いかける光のボール。ギリギリで「はじく」を押して打ち返せ！最後まで残った人の勝ち。",

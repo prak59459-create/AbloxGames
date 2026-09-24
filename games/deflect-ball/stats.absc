@@ -1,0 +1,26 @@
+-- stats.absc — 成績とランク
+
+func stats(p)
+  let lines = [
+    tier_of(p) + "  レーティング " + p.rating,
+    "🏆 勝ち " + (p.wins or 0) + " / " + (p.games or 0) + " ラウンド   🔥 最高 " + (p.best_streak or 0) + " 連勝",
+    "⚔ はじいた " + (p.deflects or 0) + " 回   ⚡ 最速 " + (p.best_speed or 0) + " km/h",
+    "💥 たおした " + (p.eliminations or 0) + " 人",
+    "🗡 剣 " + len(p.blades) + " / " + len(BLADES) + "   ✨ 技 " + len(p.owned) + " / " + len(ABILITIES)
+  ]
+  let h = 110 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 540, h: h, bg: "#111827F2", radius: 22, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 15})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  end
+end

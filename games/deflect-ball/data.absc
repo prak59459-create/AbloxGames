@@ -1,0 +1,45 @@
+-- data.absc — Deflect Ball の表
+-- 技・剣（見た目）・モード・ランク
+
+-- MARK: 技（1つだけ持っていける）
+let ABILITIES = [
+  {id: "dash", name: "💨 ダッシュ", price: 0, cd: 6, text: "前へ飛びこむ"},
+  {id: "freeze", name: "❄ フリーズ", price: 300, cd: 25, text: "ボールを1.5びょう止める"},
+  {id: "super", name: "✨ スーパーはじき", price: 500, cd: 30, text: "1びょう 自動ではじく"},
+  {id: "teleport", name: "🌀 ワープ", price: 400, cd: 18, text: "アリーナのどこかへ瞬間移動"},
+  {id: "invis", name: "👻 透明", price: 600, cd: 25, text: "3びょう ねらわれなくなる"},
+  {id: "field", name: "🔰 バリア", price: 800, cd: 35, text: "8びょう、近づいたボールを1回だけ自動ではじく"},
+  {id: "slow", name: "🐢 スロー", price: 450, cd: 22, text: "3びょう ボールがおそくなる"},
+  {id: "curve", name: "🌪 カーブ", price: 700, cd: 20, text: "次にはじいたボールが速く、だれに行くかわからない"}
+]
+
+-- MARK: 剣（見た目。ガチャで手に入る）
+let BLADES = [
+  {id: "wood", name: "木の剣", color: "#A16207", weight: 40},
+  {id: "iron", name: "鉄の剣", color: "#9CA3AF", weight: 30},
+  {id: "ruby", name: "ルビーの剣", color: "#DC2626", weight: 12},
+  {id: "sapphire", name: "サファイアの剣", color: "#2563EB", weight: 12},
+  {id: "emerald", name: "エメラルドの剣", color: "#059669", weight: 10},
+  {id: "gold", name: "黄金の剣", color: "#F59E0B", weight: 5},
+  {id: "void", name: "虚無の剣", color: "#1E1B4B", weight: 2},
+  {id: "rainbow", name: "虹の剣", color: "#F0ABFC", weight: 1},
+  {id: "star", name: "星の剣", color: "#FFFFFF", weight: 0.4}
+]
+let CRATE_PRICE = 150
+
+-- MARK: モード（ラウンドの前に投票）
+let MODES = [
+  {id: "normal", name: "⚔ ノーマル", text: "ボール1つ。最後の1人が勝ち"},
+  {id: "double", name: "⚔⚔ ダブル", text: "ボールが2つ！"},
+  {id: "team", name: "🔴🔵 チーム戦", text: "赤と青に分かれて、相手チームにだけ飛ぶ"},
+  {id: "speed", name: "⚡ ハイスピード", text: "はじめから速い！"}
+]
+let VOTE_SECS = 10
+
+-- MARK: ランク（レーティング）
+let TIERS = [["🥉 ブロンズ", 0], ["🥈 シルバー", 1100], ["🥇 ゴールド", 1250], ["💠 プラチナ", 1450], ["💎 ダイヤ", 1700], ["👑 マスター", 2000]]
+
+let BALL_START_SPEED = 12
+let BALL_HIT_RANGE = 1.6
+let PARRY_WINDOW = 0.35
+let PARRY_LOCK = 0.55

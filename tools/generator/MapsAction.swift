@@ -100,9 +100,17 @@ func deflectBall(_ m: MapBuilder) {
     m.part("Arena Inner", at: (0, 0.03, 0), size: (54, 0.05, 54), color: "#1E1B4B", shape: .cylinder, material: .matte, solid: false)
     for p in ring(12, radius: 30) { m.pillar("Rim Light", x: p.0, z: p.1, height: 2, radius: 0.5, color: "#A5B4FC", material: .neon) }
     m.spawnRing(0, 0, radius: 14, count: 12, color: "#818CF8")
-    m.slab("Lobby", x: 0, y: 12, z: 0, w: 14, h: 0.4, d: 14, color: "#312E81")
-    m.walls(0, 0, w: 14, d: 14, h: 1.5, y: 12.4, color: "#4338CA", name: "Lobby Rail")
+    // The lobby floats above the arena: where you wait, shop and watch.
+    m.slab("Lobby", x: 0, y: 12, z: 0, w: 22, h: 0.4, d: 22, color: "#312E81")
+    m.walls(0, 0, w: 22, d: 22, h: 1.5, y: 12.4, color: "#4338CA", name: "Lobby Rail")
+    m.markers("Lobby Spot", points: [(0, 0), (3, 3), (-3, 3), (3, -3), (-3, -3), (0, 5)], y: 12.4, color: "#000000",
+              visible: false, behavior: .none)
+    m.pad("Ability Shop", x: -7, z: -7, y: 12.4, size: 3, color: "#0EA5E9", tags: ["ability_shop"])
+    m.pad("Blade Crate", x: 7, z: -7, y: 12.4, size: 3, color: "#F59E0B", tags: ["blade_crate"])
+    m.pad("Rank Board", x: 0, z: -8, y: 12.4, size: 3, color: "#A78BFA", tags: ["rank_board"])
     m.part("Ball Home", at: (0, 3, 0), size: (0.5, 0.5, 0.5), color: "#FFFFFF", visible: false)
+    m.part("Red Side", at: (-14, 0.04, 0), size: (8, 0.02, 8), color: "#EF4444", shape: .cylinder, material: .neon, solid: false, opacity: 0.4)
+    m.part("Blue Side", at: (14, 0.04, 0), size: (8, 0.02, 8), color: "#3B82F6", shape: .cylinder, material: .neon, solid: false, opacity: 0.4)
 }
 
 // MARK: 23 Gun Swap Arena

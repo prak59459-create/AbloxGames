@@ -1,0 +1,210 @@
+-- ball.absc — ボール
+-- ボールの位置はここで計算し（host）、見た目のブロックは0.1びょうごとになめらかに動かす。
+-- ねらわれた人が「はじく」を押すと、0.35びょうのあいだにボールが近づけば打ち返せる。
+-- 空ぶりすると0.55びょう押せない（連打はきかない）。
+
+let balls = []
+let ball_clock = 0
+let send_clock = 0
+let COLORS = ["#F87171", "#60A5FA", "#34D399", "#FBBF24", "#C084FC", "#F472B6", "#FFFFFF"]
+
+func eligible(from_player, p)
+  if p == nil or not kit_here(p) or not p.alive or not p.in_round then return false end
+  if from_player != nil and p.id == from_player.id then return false end
+  if active_until(p.invis_until) then return false end
+  if mode.id == "team" and from_player != nil and p.team == from_player.team then return false end
+  return true
+end
+
+func candidates(from_player)
+  return filter(players(), func(p) return eligible(from_player, p) end)
+end
+
+func random_target(from_player)
+  let list = candidates(from_player)
+  if len(list) == 0 then
+    -- 透明の人しか残っていないときは、透明でもねらう
+    list = filter(players(), func(p) return p.alive and p.in_round and (from_player == nil or p.id != from_player.id) end)
+  end
+  if len(list) == 0 then return nil end
+  return random(list)
+end
+
+-- 見ている方向にいちばん近い相手
+func aimed_target(p)
+  let best = nil
+  let best_dot = -2
+  for q in candidates(p) do
+    let d = dot(normalize(q.position - p.position), p.look)
+    if d > best_dot then
+      best = q
+      best_dot = d
+    end
+  end
+  return best
+end
+
+func mark_target(b, t)
+  let old = find_by_id(b.target)
+  if old != nil then old.ui_remove("danger") end
+  if t == nil then
+    b.target = nil
+    return
+  end
+  b.target = t.id
+  t.ui_text("danger", "⚠️ ねらわれている！ はじけ！", {at: "center", dy: -160, size: 26, bold: true, color: "#F87171"})
+  t.sound("tick")
+  if still(b.block) then b.block.color = "#EF4444" end
+end
+
+func spawn_ball(delay)
+  let home = block("Ball Home")
+  let start_speed = BALL_START_SPEED
+  if mode.id == "speed" then start_speed = BALL_START_SPEED * 2 end
+  let b = {pos: home.position, speed: start_speed, target: nil, last_hitter: nil, frozen_until: time() + delay,
+           slow_until: 0, curve: false,
+           block: create_block({name: "Ball", shape: "sphere", position: home.position, size: {x: 1.3, y: 1.3, z: 1.3},
+                                color: "#FFFFFF", material: "neon", solid: false})}
+  append(balls, b)
+  after(delay, func()
+    if contains(balls, b) and live then mark_target(b, random_target(nil)) end
+  end)
+end
+
+func clear_balls()
+  for b in balls do
+    kit_gone(b.block)
+    let t = find_by_id(b.target)
+    if t != nil then t.ui_remove("danger") end
+  end
+  balls = []
+end
+
+-- はじける距離: 速いほど遠くから
+func parry_range(b)
+  return 4.5 + b.speed * 0.06
+end
+
+func deflect(b, p)
+  b.last_hitter = p.id
+  b.speed = b.speed * 1.07 + 0.6
+  let next = aimed_target(p)
+  if b.curve then
+    b.curve = false
+    b.speed = b.speed * 1.3
+    next = random_target(p)
+  end
+  if next == nil then next = random_target(p) end
+  mark_target(b, next)
+  if still(b.block) then b.block.color = random(COLORS) end
+  p.parry_until = 0
+  p.deflects = (p.deflects or 0) + 1
+  p.round_deflects = (p.round_deflects or 0) + 1
+  let kmh = floor(b.speed * 3.6)
+  p.best_speed = max(p.best_speed or 0, kmh)
+  kit_give(p, 2)
+  kit_quest_progress(p, "parry20", 1)
+  kit_quest_progress(p, "parry200", 1)
+  if kmh >= 150 then kit_quest_progress(p, "parry_fast", 1) end
+  if kmh >= 400 then kit_badge(p, "lightning", "音速はじき") end
+  if p.next_curve then
+    p.next_curve = false
+    b.curve = true
+  end
+  p.sound("hit")
+  p.shake(0.12, 0.12)
+  -- 2人がつぎつぎ打ち合う「クラッシュ」
+  if next != nil and distance(p, next) < 9 and b.speed > 30 then
+    ui_text("clash", "⚔ クラッシュ！ " + p.name + " vs " + next.name, {at: "center", dy: -110, size: 22, bold: true, color: "#FDE68A"})
+    after(1, func() ui_remove("clash") end)
+  end
+  ui_text("speed", "⚡ " + kmh + " km/h", {at: "top", dy: 30, size: 18, bold: true})
+end
+
+func hit_player(b, t)
+  t.ui_remove("danger")
+  t.message("💥 当たった！アウト", 2)
+  let killer = find_by_id(b.last_hitter)
+  if killer != nil and killer.id != t.id then
+    killer.eliminations = (killer.eliminations or 0) + 1
+    kit_give(killer, 15)
+    kit_quest_progress(killer, "elim", 1)
+    chat("⚔ " + killer.name + " のボールが " + t.name + " に命中")
+  end
+  t.kill()
+  shake(0.2, 0.3)
+  b.last_hitter = nil
+  mark_target(b, random_target(t))
+  check_round_over()
+end
+
+-- 1ステップ（0.05びょう）
+func step_ball(b, dt)
+  let t = find_by_id(b.target)
+  if t == nil or not t.alive or not t.in_round then
+    mark_target(b, random_target(nil))
+    return
+  end
+  if time() < b.frozen_until then return end
+  let aim = chest_of(t)
+  let gap = aim - b.pos
+  let d = magnitude(gap)
+  -- バリア
+  if d < 3 and active_until(t.field_until) then
+    t.field_until = 0
+    t.message("🔰 バリアがはじいた！", 1)
+    deflect(b, t)
+    return
+  end
+  -- スーパーはじき・はじく窓
+  if d <= parry_range(b) and (active_until(t.super_until) or active_until(t.parry_until)) then
+    deflect(b, t)
+    return
+  end
+  if d < BALL_HIT_RANGE then
+    hit_player(b, t)
+    return
+  end
+  let speed = b.speed
+  if active_until(b.slow_until) then speed = speed * 0.5 end
+  b.pos = b.pos + normalize(gap) * min(d, speed * dt)
+end
+
+func parry(p)
+  if not ready(p) or not p.in_round or not p.alive then return end
+  if active_until(p.parry_lock) or active_until(p.parry_until) then return end
+  p.parry_until = time() + PARRY_WINDOW
+  -- すでに近ければ、その場ではじく
+  for b in balls do
+    if b.target == p.id and distance(b.pos, chest_of(p)) <= parry_range(b) then
+      deflect(b, p)
+      return
+    end
+  end
+  -- 空ぶりなら、窓がおわったあと少し押せない
+  let rid = round_id
+  kit_later(p, PARRY_WINDOW, func()
+    if rid == round_id and p.parry_until != 0 then p.parry_lock = time() + PARRY_LOCK end
+  end)
+end
+
+on tick(dt)
+  if not live then return end
+  ball_clock = ball_clock + dt
+  send_clock = send_clock + dt
+  while ball_clock >= 0.05 do
+    ball_clock = ball_clock - 0.05
+    for b in balls do step_ball(b, 0.05) end
+    if not live then return end
+  end
+  if send_clock >= 0.1 then
+    send_clock = 0
+    for b in balls do
+      if still(b.block) then b.block.move_to(b.pos, 0.1) end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "parry" then parry(p) end
+end

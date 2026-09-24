@@ -1,225 +1,71 @@
 -- Deflect Ball — 追いかけてくるボールを「はじく」で打ち返す
+-- モード投票（ノーマル・ダブル・チーム戦・ハイスピード）→ ラウンド。最後まで残った人（チーム）の勝ち。
+-- 技は1つ持っていける。剣はガチャで集める見た目。レーティングでランクが上がる。
+--
+-- ファイル:
+--   data.absc       表（技8・剣9・モード4・ランク）
+--   common.absc     小さな道具・画面の左上
+--   ball.absc       ボール（ねらい・はじく・当たる）
+--   round.absc      投票・ラウンド・勝ち負け
+--   abilities.absc  技
+--   shop.absc       技のお店・剣のガチャ
+--   stats.absc      成績
+--   main.absc       このファイル
 
 kit_setup("Deflect Ball", "ギリギリで、はじけ！", [
-  "ボールが赤く光ったら、あなたがねらわれている",
-  "ボールが近づいたら「はじく」！見ている方向の相手に飛んでいく",
-  "早すぎても遅すぎてもダメ。はじくたびにボールは速くなる",
-  "当たったらアウト。最後の1人が勝ち（コイン＋勝利数）",
-  "🛒で技（ダッシュ・フリーズ・スーパーはじき）や剣の色を買える"
+  "⚠ ボールが赤く光って「ねらわれている」が出たら、あなたの番",
+  "🔴 近づいたら「はじく」！見ている方向の相手に飛んでいく",
+  "⏱ 早すぎると空ぶり（少し押せなくなる）。はじくたびにボールは速くなる",
+  "💥 当たったらアウト。最後の1人（チーム）の勝ち",
+  "🗳 ラウンドの前にモード投票: ノーマル・ダブル・チーム戦・ハイスピード",
+  "✨ ロビーの青いパッドで技、🗡 オレンジのパッドで剣のガチャ"
 ])
 
-let ball = nil
-let target = nil
-let speed = 12
-let live = false
-let deflects = 0
-let frozen_until = 0
-let colors = ["#F87171", "#60A5FA", "#34D399", "#FBBF24", "#C084FC", "#F472B6", "#FFFFFF"]
-
-kit_shop_add("dash", "技: ダッシュ", 100, func(p)
-  p.skill = "dash"
-  skill_button(p)
-end)
-kit_shop_add("freeze", "技: フリーズ（ボールを1.5秒止める）", 300, func(p)
-  p.skill = "freeze"
-  skill_button(p)
-end)
-kit_shop_add("super", "技: スーパーはじき（1秒間、自動ではじく）", 500, func(p)
-  p.skill = "super"
-  skill_button(p)
-end)
-kit_shop_add("blade", "剣の色をかえる", 50, func(p)
-  p.leg_color = random(colors)
-  p.head_color = random(colors)
-end)
-
 kit_quest("win1", "1回勝つ", 1, 200)
+kit_quest("win10", "10回勝つ", 10, 1000)
 kit_quest("parry20", "20回はじく", 20, 150)
-kit_quest("parry_fast", "ボールが時速150以上ではじく", 1, 400)
-
-func skill_button(p)
-  let names = {dash: "ダッシュ", freeze: "フリーズ", super: "スーパー"}
-  if p.skill != nil then
-    p.ui_button("skill", names[p.skill], {at: "bottom_right", dx: -240, dy: -160, w: 110, h: 60, size: 16, bg: "#0EA5E9", radius: 14})
-  end
-end
-
-func alive_in_round()
-  return filter(players(), func(p) return p.alive and p.in_round end)
-end
-
-func pick_target(except)
-  let list = filter(alive_in_round(), func(p) return except == nil or p.id != except.id end)
-  if len(list) == 0 then return nil end
-  return random(list)
-end
-
--- 見ている方向にいちばん近い相手
-func aimed_target(p)
-  let best = nil
-  let best_dot = -2
-  for q in alive_in_round() do
-    if q.id != p.id then
-      let d = dot(normalize(q.position - p.position), p.look)
-      if d > best_dot then
-        best = q
-        best_dot = d
-      end
-    end
-  end
-  return best
-end
-
-func set_target(t)
-  if target != nil and kit_here(target) then target.ui_remove("danger") end
-  target = t
-  if target != nil then
-    target.ui_text("danger", "⚠️ ねらわれている！", {at: "center", dy: -160, size: 26, bold: true, color: "#F87171"})
-    target.sound("tick")
-    if ball != nil then ball.color = "#EF4444" end
-  end
-end
-
-func start_round()
-  if len(players()) < 2 then
-    ui_text("status", "あと1人以上で始まります（練習: 撃つボタンでボールを出す）", {at: "top", dy: 30, size: 16})
-    after(3, func() start_round() end)
-    return
-  end
-  ui_remove("status")
-  for p in players() do
-    p.in_round = true
-    if not p.alive then p.respawn() end
-    p.teleport(block("Spawn " + random(1, 12)))
-  end
-  speed = 12
-  deflects = 0
-  let home = block("Ball Home")
-  ball = create_block({name: "Ball", shape: "sphere", position: home.position, size: 1.3, color: "#FFFFFF", material: "neon", solid: false})
-  announce("⚔️ ラウンド開始！", 2)
-  after(2, func()
-    live = true
-    set_target(pick_target(nil))
-  end)
-end
-
-func end_round()
-  live = false
-  let left = alive_in_round()
-  if len(left) == 1 then
-    let w = left[1]
-    w.score = w.score + 1
-    kit_give(w, 100)
-    kit_quest_progress(w, "win1", 1)
-    announce("🏆 " + w.name + " の勝ち！", 4)
-    if w.score >= 5 then kit_badge(w, "win5", "5勝のベテラン") end
-  else
-    announce("引き分け！", 3)
-  end
-  if ball != nil then ball.destroy() end
-  ball = nil
-  target = nil
-  for p in players() do
-    p.in_round = false
-    p.ui_remove("danger")
-  end
-  after(5, func() start_round() end)
-end
-
-func deflect(p)
-  if not live or target == nil or p.id != target.id then return end
-  if distance(ball, p) > 7 then
-    p.parry_at = time()
-    return
-  end
-  deflects = deflects + 1
-  speed = speed * 1.08 + 0.5
-  kit_give(p, 2)
-  kit_quest_progress(p, "parry20", 1)
-  if speed * 3.6 >= 150 then kit_quest_progress(p, "parry_fast", 1) end
-  p.sound("hit")
-  p.shake(0.15, 0.15)
-  ball.color = random(colors)
-  let next = aimed_target(p)
-  if next == nil then next = pick_target(p) end
-  set_target(next)
-  ui_text("speed", "⚡ " + floor(speed * 3.6) + " km/h   はじいた回数 " + deflects, {at: "top", dy: 30, size: 18, bold: true})
-end
+kit_quest("parry200", "200回はじく", 200, 800)
+kit_quest("parry_fast", "時速150km以上ではじく", 1, 400)
+kit_quest("elim", "5人たおす", 5, 300)
+kit_quest("ability", "技を10回使う", 10, 200)
+kit_quest("buy", "新しい技を買う", 1, 100)
+kit_quest("crate", "剣のガチャを5回", 5, 200)
 
 on start()
   game.respawn_time = -1
-  after(3, func() start_round() end)
+  after(2, func() start_vote() end)
+  every(10, func() kit_leaderboard("🏆") end)
 end
 
 on join(p)
   kit_welcome(p)
+  p.owned = ["dash"]
+  p.ability = "dash"
+  p.blades = ["wood"]
+  p.rating = 1000
+  p.in_round = false
+  p.own_body = p.color
+  equip_blade(p, "wood")
   kit_show_money(p)
   kit_shop_button(p)
   kit_quest_button(p)
-  p.in_round = false
-  p.ui_button("parry", "はじく", {at: "bottom_right", dx: -120, dy: -160, w: 110, h: 90, size: 22, bg: "#DC2626", radius: 45})
-  skill_button(p)
+  kit_camera_button(p)
+  p.ui_button("parry", "はじく", {at: "bottom_right", dx: -110, dy: -160, w: 110, h: 90, size: 22, bg: "#DC2626", radius: 45})
+  p.ui_button("abilities", "✨ 技", {at: "right", dy: -60, w: 130, h: 46, size: 16, bg: "#0369A1"})
+  p.ui_button("blades", "🗡 剣", {at: "right", dy: 0, w: 130, h: 46, size: 16, bg: "#B45309"})
+  p.ui_button("stats", "📊", {at: "top_right", dy: 120, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
+  ability_button(p)
+  hud(p)
+  if phase == "round" then
+    p.teleport(lobby_spot())
+    p.message("ラウンド中！ 次のラウンドから参加", 2)
+  elif phase == "vote" then
+    vote_ui(p)
+  end
 end
 
 on leave(p)
-  if target != nil and target.id == p.id then set_target(pick_target(nil)) end
-end
-
-on tick(dt)
-  if not live or ball == nil then return end
-  if target == nil or not kit_here(target) or not target.alive then
-    set_target(pick_target(nil))
-    if target == nil then
-      end_round()
-      return
-    end
-  end
-  if time() < frozen_until then return end
-  let to_target = target.position + {x: 0, y: 1.2, z: 0} - ball.position
-  let d = magnitude(to_target)
-  -- スーパーはじき中なら自動で返す
-  if d < 5 and target.super_until != nil and time() < target.super_until then
-    deflect(target)
-    return
-  end
-  -- 直前に「はじく」を押していたら成功
-  if d < 5 and target.parry_at != nil and time() - target.parry_at < 0.45 then
-    target.parry_at = nil
-    deflect(target)
-    return
-  end
-  if d < 1.6 then
-    let out = target
-    out.ui_remove("danger")
-    out.message("💥 当たった！アウト", 2)
-    out.kill()
-    shake(0.2, 0.3)
-    let left = alive_in_round()
-    if len(left) <= 1 then
-      end_round()
-    else
-      set_target(pick_target(out))
-    end
-    return
-  end
-  let travel = min(d, speed * dt)
-  ball.move_to(ball.position + normalize(to_target) * travel, dt)
-end
-
-on button(p, id)
-  if id == "parry" then
-    p.parry_at = time()
-    if target != nil and p.id == target.id and ball != nil and distance(ball, p) < 5 then deflect(p) end
-  elif id == "skill" and p.skill != nil and p.alive then
-    if p.skill == "dash" and kit_ready(p, "skill", 6) then
-      p.launch(p.look * 26 + {x: 0, y: 3, z: 0})
-    elif p.skill == "freeze" and kit_ready(p, "skill", 25) and ball != nil then
-      frozen_until = time() + 1.5
-      ball.color = "#A5F3FC"
-      announce("❄️ " + p.name + " がボールを止めた！", 1.5)
-    elif p.skill == "super" and kit_ready(p, "skill", 30) then
-      p.super_until = time() + 1
-      p.message("✨ スーパーはじき！", 1)
-    end
+  for b in balls do
+    if b.target == p.id then mark_target(b, random_target(p)) end
   end
 end
