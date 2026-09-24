@@ -1,0 +1,134 @@
+-- pets.absc — ペット（たまご屋・黄色いパッド）
+-- たまごを買うとすぐかえる。1ぴきを連れて歩くと、畑を手伝ってくれる。
+--   🐰うさぎ: 早く育つ / 🐶いぬ: タネを見つける / 🐸かえる: 雨でぬれやすい
+--   🐝はち: 受粉 ×3 / 🦉ふくろう: 経験値+50% / 🪰金のとんぼ: 実をゴールドに
+
+let walkers = {}   -- プレイヤーid → NPC
+let pet_clock = 0
+
+func egg_menu(p)
+  let h = 150 + len(EGGS) * 56
+  p.ui_panel("eggs", {at: "center", w: 540, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("eggs_t", "🥚 たまご屋（買うとすぐかえる）", {parent: "eggs", y: 26 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for e in EGGS do
+    i = i + 1
+    let names = join(map(e.pets, func(k) return PETS[k].name end), " ")
+    p.ui_button("egg_" + e.id, e.name + "  💰" + kit_short(e.price) + "   " + names, {parent: "eggs", y: (34 + i * 56) / h, w: 500, h: 46, size: 13, bg: "#A16207"})
+  end
+  p.ui_button("eggs_close", "閉じる", {parent: "eggs", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_egg(p, id)
+  let egg = nil
+  for e in EGGS do
+    if e.id == id then egg = e end
+  end
+  if egg == nil or not kit_pay(p, egg.price) then return end
+  let key = random(egg.pets)
+  append(p.pets, key)
+  announce("🐣 " + p.name + " のたまごから " + PETS[key].name + " が生まれた！", 3)
+  p.sound("goal")
+  kit_quest_progress(p, "pet", 1)
+  equip_pet(p, key)
+  p.ui_remove("eggs")
+end
+
+func equip_pet(p, key)
+  p.pet = key
+  let old = walkers[p.id]
+  if old != nil and kit_here(old) then old.destroy() end
+  let info = PETS[key]
+  let n = create_npc({name: info.name, position: p.position + {x: 1.5, y: 0.5, z: 1.5}, color: info.color, head_color: info.color,
+                      size: 0.5, health: 1000000000, speed: 1.5, team: "pets"})
+  n.follow(p)
+  walkers[p.id] = n
+  p.message(info.name + " を連れている：" + info.text, 3)
+  hud(p)
+end
+
+func pet_menu(p)
+  if len(p.pets) == 0 then
+    p.message("ペットがいません（広場のたまご屋で買える）", 2)
+    return
+  end
+  let kinds = []
+  for k in p.pets do
+    if not contains(kinds, k) then append(kinds, k) end
+  end
+  let h = 130 + len(kinds) * 48
+  p.ui_panel("petm", {at: "center", w: 480, h: h, bg: "#1E293BF2", radius: 22, layer: 30})
+  p.ui_text("petm_t", "🐾 連れて歩くペット", {parent: "petm", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for k in kinds do
+    i = i + 1
+    let mark = ""
+    if p.pet == k then mark = "✅ " end
+    p.ui_button("usepet_" + k, mark + PETS[k].name + "：" + PETS[k].text, {parent: "petm", y: (30 + i * 48) / h, w: 440, h: 40, size: 13, bg: "#334155"})
+  end
+  p.ui_button("petm_close", "閉じる", {parent: "petm", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+-- 10秒ごとのペットの手伝い
+func pet_help(p)
+  if p.pet == "dog" and random() < 0.3 then
+    -- 持っていないタネより、安いタネが見つかりやすい
+    let s = kit_pick(map(SEEDS, func(x) return {id: x.id, weight: 1 / (1 + x.price / 500)} end), 1)
+    p.seeds[s.id] = (p.seeds[s.id] or 0) + 1
+    p.message("🐶 いぬが " + seed_by_id(s.id).name + " のタネを見つけた！", 2)
+  elif p.pet == "dragonfly" and random() < 0.15 and p.plot != nil then
+    let ripe = []
+    for key in keys(plants) do
+      let pl = plants[key]
+      if pl.owner == p.id and pl.ripe and not contains(pl.muts, "golden") then append(ripe, pl) end
+    end
+    if len(ripe) > 0 then
+      let pl = random(ripe)
+      add_mut(pl, "golden")
+      p.message("🪰 金のとんぼが " + seed_by_id(pl.seed).name + " をゴールドにした！", 2.5)
+    end
+  end
+end
+
+on tick(dt)
+  pet_clock = pet_clock + dt
+  if pet_clock < 1 then return end
+  pet_clock = 0
+  for p in players() do
+    let n = walkers[p.id]
+    if p.pet != nil then
+      if n == nil or not kit_here(n) then
+        equip_pet(p, p.pet)
+      elif distance(n, p) > 20 then
+        n.position = p.position + {x: 1.5, y: 0.5, z: 1.5}
+        n.follow(p)
+      end
+    end
+    if floor(time()) % 10 == 0 then pet_help(p) end
+  end
+end
+
+on button(p, id)
+  if id == "eggs_close" then p.ui_remove("eggs")
+  elif starts_with(id, "egg_") then buy_egg(p, replace(id, "egg_", ""))
+  elif id == "open_pets" then pet_menu(p)
+  elif id == "petm_close" then p.ui_remove("petm")
+  elif starts_with(id, "usepet_") then
+    equip_pet(p, replace(id, "usepet_", ""))
+    p.ui_remove("petm")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "eggs") and cooldown_left(p, "eggs") <= 0 then
+    start_cooldown(p, "eggs", 3)
+    egg_menu(p)
+  end
+end
+
+on leave(p)
+  let n = walkers[p.id]
+  if n != nil and kit_here(n) then n.destroy() end
+  remove(walkers, p.id)
+end

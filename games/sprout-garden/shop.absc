@@ -1,0 +1,305 @@
+-- shop.absc — お店
+-- タネ屋（緑）: 5分ごとに品物が入れかわる（レアなタネほど並びにくい）。夜は特別なタネも。
+-- 市場（オレンジ）: かごの実を売る（⭐お気に入りは売らない）。道具屋（青）: じょうろ・スプリンクラー・肥料・畑を広げる。
+-- 🌱ボタン: 手に持つタネをえらぶ。🧺ボタン: かごの中を見る。
+
+let RESTOCK = 300
+let next_restock = 0
+
+func restock(p)
+  p.stock = {}
+  for s in SEEDS do
+    let r = RARITY[s.rarity]
+    if random() < r.stock then p.stock[s.id] = random(1, r.most) end
+  end
+  -- にんじんは いつも少しある
+  p.stock["carrot"] = max(p.stock["carrot"] or 0, 5)
+end
+
+func restock_all()
+  next_restock = time() + RESTOCK
+  for p in players() do restock(p) end
+  chat("🌱 タネ屋に新しいタネが入荷しました！")
+end
+
+func seed_list_for_shop()
+  let list = copy(SEEDS)
+  if is_night then
+    for s in SPECIAL_SEEDS do append(list, s) end
+  end
+  return list
+end
+
+-- MARK: タネ屋
+
+func seed_shop(p)
+  let list = seed_list_for_shop()
+  let per = 8
+  let pages = ceil(len(list) / per)
+  let page = p.seed_page or 1
+  if page > pages then page = 1 end
+  p.seed_page = page
+  let shown = slice(list, (page - 1) * per + 1, page * per)
+  let h = 170 + len(shown) * 46
+  p.ui_remove("sshop")
+  p.ui_panel("sshop", {at: "center", w: 560, h: h, bg: "#14532DF2", radius: 22, layer: 30})
+  p.ui_text("sshop_t", "🌱 タネ屋（入荷まで " + kit_clock(next_restock - time()) + "）  " + page + "/" + pages, {parent: "sshop", y: 24 / h, size: 18, bold: true, color: "#BBF7D0"})
+  p.ui_text("sshop_s", "押すと1つ買う（手に持つタネになる）", {parent: "sshop", y: 50 / h, size: 13, color: "#86EFAC"})
+  let i = 0
+  for s in shown do
+    i = i + 1
+    let r = RARITY[s.rarity]
+    let count = p.stock[s.id] or 0
+    let night = contains(SPECIAL_SEEDS, s)
+    if night then count = 99 end
+    let label = s.name + "（" + r.name + "）  💰" + kit_short(s.price) + "   在庫 " + count
+    let bg = r.color
+    if count <= 0 then
+      label = s.name + "（" + r.name + "）  売り切れ"
+      bg = "#374151"
+    end
+    p.ui_button("seed_" + s.id, label, {parent: "sshop", y: (46 + i * 46) / h, w: 500, h: 40, size: 14, bg: bg})
+  end
+  p.ui_button("sshop_next", "次へ ▶", {parent: "sshop", x: 0.72, y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "#166534"})
+  p.ui_button("sshop_close", "閉じる", {parent: "sshop", x: 0.3, y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func buy_seed(p, id)
+  let s = seed_by_id(id)
+  let night = false
+  for x in SPECIAL_SEEDS do
+    if x.id == id then night = true end
+  end
+  if night and not is_night then
+    p.message("🌙 夜だけのタネです", 1.5)
+    return
+  end
+  if not night and (p.stock[id] or 0) <= 0 then
+    p.message("売り切れ！次の入荷を待とう", 1.5)
+    return
+  end
+  if not kit_pay(p, s.price) then return end
+  if not night then p.stock[id] = p.stock[id] - 1 end
+  p.seeds[id] = (p.seeds[id] or 0) + 1
+  p.hand = id
+  p.sound("collect")
+  kit_quest_progress(p, "buyseed", 1)
+  if index_of(["common", "uncommon", "rare", "legendary", "mythic", "divine"], s.rarity) >= 5 then
+    announce("🌟 " + p.name + " が " + s.name + " のタネを買った！", 3)
+  end
+  seed_shop(p)
+  hud(p)
+end
+
+-- MARK: 手に持つタネ（🌱）
+
+func pick_next_seed(p)
+  for s in all_seeds() do
+    if (p.seeds[s.id] or 0) > 0 then
+      p.hand = s.id
+      return
+    end
+  end
+  p.hand = nil
+end
+
+func seed_picker(p)
+  let owned = filter(all_seeds(), func(s) return (p.seeds[s.id] or 0) > 0 end)
+  let h = 190 + max(1, len(owned)) * 44
+  p.ui_panel("picker", {at: "center", w: 460, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("picker_t", "🌱 どのタネを持つ？", {parent: "picker", y: 24 / h, size: 19, bold: true, color: "#BBF7D0"})
+  if len(owned) == 0 then
+    p.ui_text("picker_none", "タネがありません（タネ屋で買おう）", {parent: "picker", y: 80 / h, size: 15})
+  end
+  let i = 0
+  for s in slice(owned, 1, 10) do
+    i = i + 1
+    let mark = ""
+    if p.hand == s.id then mark = "✋ " end
+    p.ui_button("hold_" + s.id, mark + s.name + " ×" + p.seeds[s.id], {parent: "picker", y: (30 + i * 44) / h, w: 380, h: 38, size: 15, bg: RARITY[s.rarity].color})
+  end
+  let fert = "🧪 肥料を使う: OFF（" + p.fert + "こ）"
+  if p.use_fert then fert = "🧪 肥料を使う: ON（" + p.fert + "こ）" end
+  p.ui_button("fert_toggle", fert, {parent: "picker", y: (h - 76) / h, w: 300, h: 36, size: 14, bg: "#6D28D9"})
+  p.ui_button("picker_close", "閉じる", {parent: "picker", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+-- MARK: 市場（かご）
+
+func basket_menu(p)
+  let per = 8
+  let pages = max(1, ceil(len(p.basket) / per))
+  let page = p.basket_page or 1
+  if page > pages then page = 1 end
+  p.basket_page = page
+  let first = (page - 1) * per + 1
+  let shown = slice(p.basket, first, first + per - 1)
+  let h = 190 + max(1, len(shown)) * 44
+  p.ui_remove("basket")
+  p.ui_panel("basket", {at: "center", w: 580, h: h, bg: "#431407F2", radius: 22, layer: 30})
+  p.ui_text("basket_t", "🧺 かご " + len(p.basket) + "/" + p.basket_size + "   ぜんぶで 💰" + kit_short(basket_value(p, false)) + "  " + page + "/" + pages,
+            {parent: "basket", y: 24 / h, size: 17, bold: true, color: "#FED7AA"})
+  p.ui_text("basket_s", "⭐ はお気に入り（全部売るで売らない）", {parent: "basket", y: 50 / h, size: 13, color: "#FDBA74"})
+  let i = 0
+  for f in shown do
+    i = i + 1
+    let star = "☆"
+    if f.fav then star = "⭐" end
+    p.ui_text("basket_" + i, fruit_label(f) + "  💰" + kit_short(fruit_value(f)), {parent: "basket", x: 0.43, y: (46 + i * 44) / h, size: 13})
+    p.ui_button("bfav_" + (first + i - 1), star, {parent: "basket", x: 0.9, y: (46 + i * 44) / h, w: 48, h: 36, size: 17, bg: "#7C2D12"})
+  end
+  p.ui_button("basket_next", "次へ ▶", {parent: "basket", x: 0.72, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "#9A3412"})
+  p.ui_button("basket_close", "閉じる", {parent: "basket", x: 0.3, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func basket_value(p, only_sellable)
+  let v = 0
+  for f in p.basket do
+    if not (only_sellable and f.fav) then v = v + fruit_value(f) end
+  end
+  return floor(v * (1 + p.level / 100))
+end
+
+func sell_menu(p)
+  p.ui_panel("sell", {at: "center", w: 460, h: 230, bg: "#7C2D12F2", radius: 22, layer: 30})
+  p.ui_text("sell_t", "🧺 市場", {parent: "sell", y: 0.14, size: 22, bold: true, color: "#FED7AA"})
+  let n = len(filter(p.basket, func(f) return not f.fav end))
+  p.ui_text("sell_s", "売れる実 " + n + " こ  💰" + kit_short(basket_value(p, true)) + "（庭師Lvで +" + p.level + "%）", {parent: "sell", y: 0.35, size: 15})
+  p.ui_button("sell_all", "全部売る（⭐以外）", {parent: "sell", y: 0.6, w: 300, h: 46, size: 17, bg: "#EA580C"})
+  p.ui_button("sell_close", "閉じる", {parent: "sell", y: 0.86, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func sell_all(p)
+  let total = basket_value(p, true)
+  let keep = filter(p.basket, func(f) return f.fav end)
+  let n = len(p.basket) - len(keep)
+  if n == 0 then
+    p.message("売れる実がありません", 1.2)
+    return
+  end
+  p.basket = keep
+  kit_give(p, total)
+  p.earned = (p.earned or 0) + total
+  kit_quest_progress(p, "sell", total)
+  p.message("💰 " + n + " こを " + kit_short(total) + " で売った！", 2.5)
+  p.sound("collect")
+  p.ui_remove("sell")
+  hud(p)
+end
+
+-- MARK: 道具屋
+
+func gear_shop(p)
+  let h = 150 + len(GEAR) * 52
+  p.ui_panel("gshop", {at: "center", w: 580, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("gshop_t", "🧰 道具屋", {parent: "gshop", y: 26 / h, size: 21, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for g in GEAR do
+    i = i + 1
+    let price = g.price
+    let label = g.name + "  💰" + kit_short(price) + "  " + g.text
+    let bg = "#0369A1"
+    if g.id == "expand" then
+      let tier = (p.soil_open - 8) / 4 + 1
+      if tier > len(EXPAND_PRICES) then
+        label = g.name + "（もう最大 16マス）"
+        bg = "#374151"
+      else
+        label = g.name + "（" + p.soil_open + " → " + (p.soil_open + 4) + "マス）  💰" + kit_short(EXPAND_PRICES[tier])
+      end
+    elif g.id == "can" and contains(p.gear, "can") then
+      label = g.name + "（持っている）"
+      bg = "#374151"
+    elif g.id == "fertilizer" then
+      label = label + "  持ち " + p.fert
+    elif g.id != "can" then
+      label = label + "  持ち " + (p.items[g.id] or 0)
+    end
+    p.ui_button("gear_" + g.id, label, {parent: "gshop", y: (34 + i * 52) / h, w: 540, h: 44, size: 13, bg: bg})
+  end
+  p.ui_button("gshop_close", "閉じる", {parent: "gshop", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_gear(p, id)
+  if id == "expand" then
+    let tier = (p.soil_open - 8) / 4 + 1
+    if tier > len(EXPAND_PRICES) then return end
+    if not kit_pay(p, EXPAND_PRICES[tier]) then return end
+    p.soil_open = p.soil_open + 4
+    if p.plot != nil then paint_soil(p) end
+    p.message("🪴 畑が " + p.soil_open + " マスになった！", 2)
+    kit_quest_progress(p, "expand", 1)
+  elif id == "can" then
+    if contains(p.gear, "can") then return end
+    if not kit_pay(p, 50000) then return end
+    append(p.gear, "can")
+    p.message("🚿 じょうろを手に入れた！畑で「水やり」", 2)
+  else
+    let g = nil
+    for x in GEAR do
+      if x.id == id then g = x end
+    end
+    if g == nil or not kit_pay(p, g.price) then return end
+    if id == "fertilizer" then
+      p.fert = p.fert + 1
+      p.use_fert = true
+    else
+      p.items[id] = (p.items[id] or 0) + 1
+    end
+    p.message(g.name + " を買った！", 1.5)
+  end
+  p.sound("collect")
+  gear_shop(p)
+end
+
+on start()
+  next_restock = time() + RESTOCK
+  every(RESTOCK, func() restock_all() end)
+end
+
+on button(p, id)
+  if id == "sshop_close" then p.ui_remove("sshop")
+  elif id == "sshop_next" then
+    p.seed_page = (p.seed_page or 1) + 1
+    seed_shop(p)
+  elif starts_with(id, "seed_") then buy_seed(p, replace(id, "seed_", ""))
+  elif id == "open_seeds" then seed_picker(p)
+  elif id == "picker_close" then p.ui_remove("picker")
+  elif starts_with(id, "hold_") then
+    p.hand = replace(id, "hold_", "")
+    p.ui_remove("picker")
+    hud(p)
+  elif id == "fert_toggle" then
+    p.use_fert = not p.use_fert
+    seed_picker(p)
+  elif id == "open_basket" then basket_menu(p)
+  elif id == "basket_close" then p.ui_remove("basket")
+  elif id == "basket_next" then
+    p.basket_page = (p.basket_page or 1) + 1
+    basket_menu(p)
+  elif starts_with(id, "bfav_") then
+    let f = p.basket[num(replace(id, "bfav_", ""))]
+    if f != nil then
+      f.fav = not f.fav
+      basket_menu(p)
+    end
+  elif id == "sell_all" then sell_all(p)
+  elif id == "sell_close" then p.ui_remove("sell")
+  elif id == "gshop_close" then p.ui_remove("gshop")
+  elif starts_with(id, "gear_") then buy_gear(p, replace(id, "gear_", ""))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "seeds") and cooldown_left(p, "sshop") <= 0 then
+    start_cooldown(p, "sshop", 3)
+    seed_shop(p)
+  elif contains(b.tags, "sell") and cooldown_left(p, "sell") <= 0 then
+    start_cooldown(p, "sell", 3)
+    sell_menu(p)
+  elif contains(b.tags, "gear") and cooldown_left(p, "gshop") <= 0 then
+    start_cooldown(p, "gshop", 3)
+    gear_shop(p)
+  end
+end

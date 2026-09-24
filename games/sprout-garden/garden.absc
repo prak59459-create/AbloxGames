@@ -1,0 +1,389 @@
+-- garden.absc — 畑
+-- 黄色いパッドで畑をもらう（8マス。道具屋で16マスまで広げられる）。
+-- タネを持って自分の土にさわると植える → 育つ（小さな芽 → 大きな芽 → 実）→ 実った土にさわると収穫。
+-- 何度も実る植物（いちご・トマト…）は収穫してもまた実る。天気で実に変異がつく。
+
+let plot_owner = {}   -- "1" → プレイヤーid
+let plants = {}       -- "1:5" → 植物
+let sprinklers = []   -- {block, owner, plot, gold, until}
+let grow_clock = 0
+
+func soil_key(plot, k) return plot + ":" + k end
+func soil_block(plot, k) return block("Plot " + plot + " Soil " + k) end
+
+func unlocked(p, k)
+  return k <= p.soil_open
+end
+
+-- MARK: 畑をもらう
+
+func claim_plot(p, plot)
+  if p.plot != nil then
+    if p.plot != plot then p.message("あなたの畑は " + p.plot + " 番です", 1.2) end
+    return
+  end
+  if plot_owner[plot] != nil then
+    p.message("ここは " + (player_by_id(plot_owner[plot]) or {name: "だれか"}).name + " の畑", 1.2)
+    return
+  end
+  plot_owner[plot] = p.id
+  p.plot = plot
+  paint_soil(p)
+  p.message("🌱 " + plot + " 番の畑があなたのもの！タネを持って土にさわろう", 3)
+  p.sound("checkpoint")
+end
+
+-- 使える土は茶色、まだの土は黒っぽく
+func paint_soil(p)
+  for k in 1 to 16 do
+    let b = soil_block(p.plot, k)
+    if b != nil then
+      if unlocked(p, k) then b.color = "#5B3A22" else b.color = "#1C1410" end
+    end
+  end
+end
+
+func release_plot(p)
+  let plot = p.plot
+  if plot == nil then return end
+  for k in 1 to 16 do remove_plant(plot, k) end
+  for s in copy(sprinklers) do
+    if s.plot == plot then
+      gone(s.block)
+      remove(sprinklers, index_of(sprinklers, s))
+    end
+  end
+  for k in 1 to 16 do
+    let b = soil_block(plot, k)
+    if b != nil then b.color = "#3B2A1E" end
+  end
+  remove(plot_owner, plot)
+  p.plot = nil
+end
+
+-- MARK: 植物
+
+func plant_seed(p, plot, k)
+  let id = p.hand
+  if id == nil or (p.seeds[id] or 0) <= 0 then
+    p.message("✋ タネを持っていません（🌱ボタンでえらぶ・タネ屋で買う）", 1.8)
+    return
+  end
+  let s = seed_by_id(id)
+  p.seeds[id] = p.seeds[id] - 1
+  let pl = {seed: id, owner: p.id, plot: plot, k: k, growth: 0, target: s.grow, ripe: false, first: true,
+            stem: nil, fruit: nil, stage: 0, muts: [], kg: 0}
+  if p.fert > 0 and p.use_fert then
+    p.fert = p.fert - 1
+    pl.growth = s.grow * 0.5
+    p.message("🧪 肥料でぐんと育った！", 1.2)
+  end
+  plants[soil_key(plot, k)] = pl
+  update_plant_look(pl)
+  p.planted = (p.planted or 0) + 1
+  kit_quest_progress(p, "plant", 1)
+  if p.kinds == nil then p.kinds = [] end
+  if not contains(p.kinds, id) then
+    append(p.kinds, id)
+    kit_quest_progress(p, "kinds", 1)
+  end
+  if (p.seeds[id] or 0) <= 0 then pick_next_seed(p) end
+  p.sound("collect")
+  hud(p)
+end
+
+func remove_plant(plot, k)
+  let key = soil_key(plot, k)
+  let pl = plants[key]
+  if pl == nil then return end
+  gone(pl.stem)
+  gone(pl.fruit)
+  remove(plants, key)
+end
+
+-- 見た目（段階が変わったときだけ作りなおす）
+func update_plant_look(pl)
+  let stage = 1
+  if pl.growth >= pl.target * 0.34 then stage = 2 end
+  if pl.ripe then stage = 3 end
+  if stage == pl.stage and not pl.dirty then return end
+  pl.stage = stage
+  pl.dirty = false
+  let soil = soil_block(pl.plot, pl.k)
+  if soil == nil then return end
+  let s = seed_by_id(pl.seed)
+  let sizes = [{x: 0.4, y: 0.5, z: 0.4}, {x: 0.7, y: 1.1, z: 0.7}, {x: 0.9, y: 1.5, z: 0.9}]
+  let size = sizes[stage]
+  let stem_color = "#22C55E"
+  if pl.first == false and stage < 3 then stem_color = "#16A34A" end
+  if pl.stem == nil or pl.stem.destroy == nil then
+    pl.stem = create_block({name: "Plant", shape: "cone", position: soil.position + {x: 0, y: 0.1 + size.y / 2, z: 0}, size: size,
+                            color: stem_color, material: "matte", solid: false})
+  else
+    pl.stem.size = size
+    pl.stem.position = soil.position + {x: 0, y: 0.1 + size.y / 2, z: 0}
+  end
+  gone(pl.fruit)
+  pl.fruit = nil
+  if stage == 3 then
+    let color = s.color
+    let material = "plastic"
+    if contains(pl.muts, "golden") then
+      color = "#FACC15"
+      material = "metal"
+    end
+    if contains(pl.muts, "frozen") then
+      color = "#BAE6FD"
+      material = "glass"
+    end
+    if contains(pl.muts, "shocked") then
+      color = "#FDE047"
+      material = "neon"
+    end
+    let fsize = clamp(0.45 + (pl.kg / s.kg[2]) * 0.6, 0.45, 1.3)
+    pl.fruit = create_block({name: "Fruit", shape: "sphere", position: soil.position + {x: 0, y: 1.9, z: 0}, size: fsize,
+                             color: color, material: material, solid: false})
+  end
+end
+
+-- 実った: 重さと、実ったときの変異
+func ripen(pl)
+  let s = seed_by_id(pl.seed)
+  let owner = player_by_id(pl.owner)
+  pl.ripe = true
+  pl.kg = s.kg[1] + random() * (s.kg[2] - s.kg[1])
+  let gold = 0.01
+  for sp in sprinklers do
+    if sp.gold and sp.plot == pl.plot then gold = 0.04 end
+  end
+  if random() < gold and not contains(pl.muts, "golden") then append(pl.muts, "golden") end
+  if owner != nil and owner.pet == "bee" and random() < 0.15 and not contains(pl.muts, "pollinated") then append(pl.muts, "pollinated") end
+  if weather_now == "rainbow" and random() < 0.08 and not contains(pl.muts, "rainbow") then append(pl.muts, "rainbow") end
+  update_plant_look(pl)
+end
+
+func add_mut(pl, m)
+  if contains(pl.muts, m) then return end
+  if m == "wet" or m == "chilled" then
+    -- ぬれた + ひえた = こおった（×10）
+    if contains(pl.muts, "frozen") then return end
+    let other = "chilled"
+    if m == "chilled" then other = "wet" end
+    if contains(pl.muts, other) then
+      remove(pl.muts, index_of(pl.muts, other))
+      append(pl.muts, "frozen")
+    else
+      append(pl.muts, m)
+    end
+  else
+    append(pl.muts, m)
+  end
+  pl.dirty = true
+  if pl.ripe then update_plant_look(pl) end
+end
+
+-- MARK: 収穫
+
+func harvest(p, plot, k)
+  let key = soil_key(plot, k)
+  let pl = plants[key]
+  if pl == nil or not pl.ripe then return false end
+  if len(p.basket) >= p.basket_size then
+    p.message("🧺 かごがいっぱい！市場（オレンジ）で売ろう", 2)
+    return false
+  end
+  let s = seed_by_id(pl.seed)
+  let f = {seed: pl.seed, kg: pl.kg, muts: copy(pl.muts), fav: false}
+  append(p.basket, f)
+  gain_xp(p, 5 + index_of(["common", "uncommon", "rare", "legendary", "mythic", "divine"], s.rarity) * 4)
+  p.harvested = (p.harvested or 0) + 1
+  kit_quest_progress(p, "harvest", 1)
+  kit_quest_progress(p, "harvest100", 1)
+  if contains(f.muts, "golden") then kit_quest_progress(p, "golden", 1) end
+  if contains(f.muts, "rainbow") then kit_quest_progress(p, "rainbow", 1) end
+  if contains(f.muts, "frozen") or contains(f.muts, "shocked") then kit_quest_progress(p, "rare_mut", 1) end
+  if len(f.muts) > 0 and fruit_value(f) >= 100000 then
+    announce("✨ " + p.name + " が「" + fruit_label(f) + "」を収穫！（💰" + kit_short(fruit_value(f)) + "）", 3.5)
+  end
+  if s.regrow > 0 then
+    -- また実る
+    pl.ripe = false
+    pl.first = false
+    pl.growth = 0
+    pl.target = s.regrow
+    pl.muts = []
+    pl.dirty = true
+    update_plant_look(pl)
+  else
+    remove_plant(plot, k)
+  end
+  return true
+end
+
+func harvest_all(p)
+  if p.plot == nil then return end
+  let n = 0
+  for k in 1 to 16 do
+    if harvest(p, p.plot, k) then n = n + 1 end
+  end
+  if n > 0 then
+    p.message("🧺 " + n + " こ収穫！", 1.5)
+    p.sound("collect")
+  else
+    p.message("実っている植物がありません", 1.2)
+  end
+  hud(p)
+end
+
+func in_own_plot(p)
+  if p.plot == nil then return false end
+  let b = block("Plot " + p.plot)
+  return b != nil and abs(p.x - b.x) < 9 and abs(p.z - b.z) < 9
+end
+
+-- MARK: じょうろ・スプリンクラー
+
+func water(p)
+  if not contains(p.gear, "can") or p.last_soil == nil then return end
+  if cooldown_left(p, "water") > 0 then return end
+  start_cooldown(p, "water", 1.5)
+  let pl = plants[p.last_soil]
+  if pl == nil or pl.owner != p.id then
+    p.message("🚿 植物のある土にさわってから", 1)
+    return
+  end
+  if pl.ripe then
+    p.message("もう実っています", 1)
+    return
+  end
+  pl.growth = pl.growth + 6
+  if random() < 0.08 then add_mut(pl, "wet") end
+  p.message("🚿 ぐんぐん育つ！", 0.8)
+end
+
+func place_sprinkler(p, gold)
+  if p.plot == nil or not in_own_plot(p) then
+    p.message("自分の畑の中で置こう", 1.2)
+    return
+  end
+  let key = "sprinkler"
+  if gold then key = "gold_sprinkler" end
+  if (p.items[key] or 0) <= 0 then return end
+  p.items[key] = p.items[key] - 1
+  let color = "#38BDF8"
+  if gold then color = "#FACC15" end
+  let b = create_block({name: "Sprinkler", shape: "cylinder", position: p.position + {x: 0, y: 0.5, z: 0}, size: {x: 0.6, y: 0.9, z: 0.6},
+                        color: color, material: "metal", solid: false})
+  append(sprinklers, {block: b, owner: p.id, plot: p.plot, gold: gold, until: time() + 300})
+  p.message("💦 スプリンクラーを置いた（5分）", 1.5)
+  kit_quest_progress(p, "sprinkler", 1)
+  tool_buttons(p)
+end
+
+func growth_rate(pl, owner)
+  let rate = 1
+  if weather_now == "rain" then rate = rate * 1.5 end
+  if owner != nil and owner.pet == "bunny" then rate = rate * 1.1 end
+  for sp in sprinklers do
+    if sp.plot == pl.plot then
+      if sp.gold then rate = rate * 1.6 else rate = rate * 1.3 end
+    end
+  end
+  return rate
+end
+
+-- MARK: 道具のボタン
+
+func tool_buttons(p)
+  if in_own_plot(p) then
+    set_btn(p, "harvest_all", "🧺 全部収穫", {at: "bottom_right", dx: -110, dy: -150, w: 140, h: 56, size: 16, bg: "#16A34A", radius: 16})
+    if contains(p.gear, "can") then
+      set_btn(p, "water", "🚿 水やり", {at: "bottom_right", dx: -260, dy: -150, w: 130, h: 56, size: 16, bg: "#0284C7", radius: 16})
+    end
+    if (p.items["sprinkler"] or 0) > 0 then
+      set_btn(p, "put_sprinkler", "💦 置く ×" + p.items["sprinkler"], {at: "bottom_right", dx: -110, dy: -214, w: 140, h: 48, size: 14, bg: "#0369A1", radius: 14})
+    else
+      set_btn(p, "put_sprinkler", nil, nil)
+    end
+    if (p.items["gold_sprinkler"] or 0) > 0 then
+      set_btn(p, "put_gold", "🌟 置く ×" + p.items["gold_sprinkler"], {at: "bottom_right", dx: -260, dy: -214, w: 130, h: 48, size: 14, bg: "#A16207", radius: 14})
+    else
+      set_btn(p, "put_gold", nil, nil)
+    end
+  else
+    for id in ["harvest_all", "water", "put_sprinkler", "put_gold"] do set_btn(p, id, nil, nil) end
+  end
+end
+
+-- MARK: 毎ティック
+
+on tick(dt)
+  grow_clock = grow_clock + dt
+  if grow_clock < 1 then return end
+  let span = grow_clock
+  grow_clock = 0
+  for key in keys(plants) do
+    let pl = plants[key]
+    if not pl.ripe then
+      let owner = player_by_id(pl.owner)
+      pl.growth = pl.growth + span * growth_rate(pl, owner)
+      if pl.growth >= pl.target then ripen(pl) else update_plant_look(pl) end
+    elif contains(pl.muts, "rainbow") and pl.fruit != nil then
+      pl.fruit.color = random(["#F43F5E", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7"])
+    end
+  end
+  for sp in copy(sprinklers) do
+    if time() > sp.until then
+      gone(sp.block)
+      remove(sprinklers, index_of(sprinklers, sp))
+    end
+  end
+  for p in players() do
+    tool_buttons(p)
+    hud(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "claim") then
+    claim_plot(p, split(b.name, " ")[2])
+  elif contains(b.tags, "soil") then
+    let parts = split(b.name, " ")
+    let plot = parts[2]
+    let k = num(parts[4])
+    if plot != p.plot then return end
+    p.last_soil = soil_key(plot, k)
+    let pl = plants[p.last_soil]
+    if pl == nil then
+      if not unlocked(p, k) then
+        p.message("🔒 まだ使えない土（道具屋で畑を広げよう）", 1.5)
+      elif cooldown_left(p, "plant") <= 0 then
+        start_cooldown(p, "plant", 0.3)
+        plant_seed(p, plot, k)
+      end
+    elif pl.ripe then
+      if harvest(p, plot, k) then
+        p.message("🧺 収穫！", 0.8)
+        p.sound("collect")
+        hud(p)
+      end
+    elif cooldown_left(p, "status") <= 0 then
+      start_cooldown(p, "status", 1.5)
+      let left = ceil((pl.target - pl.growth) / growth_rate(pl, p))
+      p.message(seed_by_id(pl.seed).name + "：あと約 " + left + " 秒", 1.2)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "harvest_all" then harvest_all(p)
+  elif id == "water" then water(p)
+  elif id == "put_sprinkler" then place_sprinkler(p, false)
+  elif id == "put_gold" then place_sprinkler(p, true)
+  end
+end
+
+on leave(p)
+  release_plot(p)
+end

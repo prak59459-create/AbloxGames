@@ -1,0 +1,105 @@
+-- common.absc — Sprout Garden の道具（人さがし・画面・タネと実の情報・レベル）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then p.ui_remove(id) else p.ui_button(id, label, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+-- MARK: タネと実
+
+func seed_by_id(id)
+  for s in SEEDS do
+    if s.id == id then return s end
+  end
+  for s in SPECIAL_SEEDS do
+    if s.id == id then return s end
+  end
+  return SEEDS[1]
+end
+
+func all_seeds()
+  let list = copy(SEEDS)
+  for s in SPECIAL_SEEDS do append(list, s) end
+  return list
+end
+
+-- 実の値段: 基本の値段 × 重さ × 変異
+func fruit_value(f)
+  let s = seed_by_id(f.seed)
+  let heavy = f.kg / s.kg[1]
+  let v = s.sell * (0.7 + heavy * 0.3)
+  for m in f.muts do v = v * MUTATIONS[m].mult end
+  return floor(v)
+end
+
+func fruit_label(f)
+  let s = seed_by_id(f.seed)
+  let tags = ""
+  for m in f.muts do tags = tags + MUTATIONS[m].name + " " end
+  return tags + s.name + "（" + fixed(f.kg, 2) + "kg）"
+end
+
+-- MARK: レベル
+
+func need_xp(level)
+  return 50 + level * 40
+end
+
+func gain_xp(p, amount)
+  if p.pet == "owl" then amount = amount * 1.5 end
+  p.xp = p.xp + floor(amount)
+  let up = false
+  while p.xp >= need_xp(p.level) do
+    p.xp = p.xp - need_xp(p.level)
+    p.level = p.level + 1
+    up = true
+  end
+  if up then
+    p.message("⬆️ 庭師レベル " + p.level + "！（売値 +" + p.level + "%）", 2.5)
+    p.sound("goal")
+    kit_quest_progress(p, "lv10", 1)
+  end
+end
+
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "lv", "🌱 庭師 Lv." + p.level, {at: "top_left", dy: 34, size: 17, bold: true, color: "#BBF7D0"})
+  p.ui_bar("xpbar", p.xp, need_xp(p.level), {at: "top_left", dy: 58, dx: 4, w: 160, h: 8, color: "#4ADE80"})
+  let seed = "タネなし"
+  if p.hand != nil and (p.seeds[p.hand] or 0) > 0 then seed = seed_by_id(p.hand).name + " ×" + p.seeds[p.hand] end
+  set_line(p, "hand", "✋ " + seed + "   🧺 " + len(p.basket) + "こ", {at: "top_left", dy: 72, size: 14, color: "#FEF3C7"})
+  p.score = floor(p.earned or 0)
+end

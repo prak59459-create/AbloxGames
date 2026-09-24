@@ -1,0 +1,85 @@
+-- data.absc — Sprout Garden の表（タネ・めずらしさ・変異・道具・ペット・天気）
+
+-- MARK: めずらしさ（stock: お店に並ぶ確率 / most: 1回に並ぶ数の最大）
+let RARITY = {
+  common: {name: "コモン", color: "#9CA3AF", stock: 1, most: 20},
+  uncommon: {name: "アンコモン", color: "#22C55E", stock: 0.8, most: 10},
+  rare: {name: "レア", color: "#3B82F6", stock: 0.55, most: 6},
+  legendary: {name: "レジェンド", color: "#F59E0B", stock: 0.3, most: 3},
+  mythic: {name: "ミシック", color: "#EF4444", stock: 0.14, most: 2},
+  divine: {name: "ディバイン", color: "#EAB308", stock: 0.05, most: 1}
+}
+
+-- MARK: タネ（grow: 実るまでの秒 / regrow: 何度も実る植物は次に実るまでの秒 / kg: 実の重さ）
+let SEEDS = [
+  {id: "carrot", name: "にんじん", rarity: "common", price: 10, sell: 18, grow: 20, regrow: 0, color: "#F97316", kg: [0.2, 0.5]},
+  {id: "strawberry", name: "いちご", rarity: "common", price: 50, sell: 14, grow: 30, regrow: 15, color: "#EF4444", kg: [0.1, 0.3]},
+  {id: "blueberry", name: "ブルーベリー", rarity: "uncommon", price: 400, sell: 22, grow: 40, regrow: 18, color: "#3B82F6", kg: [0.1, 0.2]},
+  {id: "tulip", name: "オレンジチューリップ", rarity: "uncommon", price: 600, sell: 800, grow: 45, regrow: 0, color: "#FB923C", kg: [0.05, 0.1]},
+  {id: "tomato", name: "トマト", rarity: "rare", price: 800, sell: 35, grow: 50, regrow: 20, color: "#DC2626", kg: [0.3, 0.8]},
+  {id: "corn", name: "とうもろこし", rarity: "rare", price: 1300, sell: 45, grow: 55, regrow: 22, color: "#FACC15", kg: [0.5, 1.5]},
+  {id: "daffodil", name: "スイセン", rarity: "rare", price: 1000, sell: 1100, grow: 60, regrow: 0, color: "#FEF08A", kg: [0.1, 0.2]},
+  {id: "watermelon", name: "スイカ", rarity: "legendary", price: 2500, sell: 2800, grow: 80, regrow: 0, color: "#16A34A", kg: [3, 9]},
+  {id: "pumpkin", name: "かぼちゃ", rarity: "legendary", price: 3000, sell: 3400, grow: 90, regrow: 0, color: "#EA580C", kg: [4, 12]},
+  {id: "apple", name: "りんごの木", rarity: "legendary", price: 3250, sell: 280, grow: 100, regrow: 30, color: "#B91C1C", kg: [0.2, 0.5]},
+  {id: "bamboo", name: "たけのこ", rarity: "legendary", price: 4000, sell: 4200, grow: 70, regrow: 0, color: "#65A30D", kg: [1, 4]},
+  {id: "coconut", name: "ココナッツ", rarity: "mythic", price: 6000, sell: 400, grow: 120, regrow: 35, color: "#78350F", kg: [1, 2.5]},
+  {id: "cactus", name: "サボテン", rarity: "mythic", price: 15000, sell: 3400, grow: 110, regrow: 40, color: "#15803D", kg: [2, 6]},
+  {id: "dragonfruit", name: "ドラゴンフルーツ", rarity: "mythic", price: 50000, sell: 4500, grow: 130, regrow: 40, color: "#DB2777", kg: [0.5, 1.5]},
+  {id: "mango", name: "マンゴー", rarity: "mythic", price: 100000, sell: 6500, grow: 140, regrow: 45, color: "#F59E0B", kg: [0.5, 1.2]},
+  {id: "grape", name: "ぶどう", rarity: "divine", price: 850000, sell: 8500, grow: 150, regrow: 50, color: "#7C3AED", kg: [0.3, 1]},
+  {id: "mushroom", name: "きのこ", rarity: "divine", price: 150000, sell: 150000, grow: 160, regrow: 0, color: "#A16207", kg: [0.5, 3]},
+  {id: "pepper", name: "とうがらし", rarity: "divine", price: 1000000, sell: 8000, grow: 150, regrow: 45, color: "#B91C1C", kg: [0.1, 0.4]},
+  {id: "cacao", name: "カカオ", rarity: "divine", price: 2500000, sell: 11000, grow: 170, regrow: 55, color: "#451A03", kg: [0.8, 2]},
+  {id: "beanstalk", name: "天までとどく豆の木", rarity: "divine", price: 10000000, sell: 25000, grow: 200, regrow: 60, color: "#22C55E", kg: [2, 10]}
+]
+-- 夜だけお店に出るタネ
+let SPECIAL_SEEDS = [
+  {id: "moonmelon", name: "🌙 ムーンメロン", rarity: "mythic", price: 30000, sell: 16000, grow: 120, regrow: 0, color: "#A5B4FC", kg: [4, 10]},
+  {id: "starfruit", name: "⭐ スターフルーツ", rarity: "legendary", price: 12000, sell: 1500, grow: 90, regrow: 30, color: "#FDE047", kg: [0.3, 0.8]}
+]
+
+-- MARK: 実の変異（mult: 値段の倍率。重なると かけ算）
+let MUTATIONS = {
+  wet: {name: "💧ぬれた", mult: 2},
+  chilled: {name: "❄️ひえた", mult: 2},
+  frozen: {name: "🧊こおった", mult: 10},
+  moonlit: {name: "🌙月光", mult: 2},
+  shocked: {name: "⚡しびれた", mult: 50},
+  pollinated: {name: "🐝受粉", mult: 3},
+  golden: {name: "✨ゴールド", mult: 20},
+  rainbow: {name: "🌈レインボー", mult: 50}
+}
+
+-- MARK: 道具屋
+let GEAR = [
+  {id: "can", name: "🚿 じょうろ", price: 50000, text: "水をあげると その植物がすぐ育つ（くり返し使える）"},
+  {id: "sprinkler", name: "💦 スプリンクラー", price: 20000, text: "まわりの植物が早く育ち、ぬれた変異がつきやすい"},
+  {id: "gold_sprinkler", name: "🌟 ゴールドスプリンクラー", price: 120000, text: "もっと早く育ち、ゴールドがつきやすい"},
+  {id: "fertilizer", name: "🧪 肥料", price: 8000, text: "植えたときに使うと 1回でぐんと育つ（1こ）"},
+  {id: "expand", name: "🪴 畑を広げる", price: 0, text: "土を4マス増やす"}
+]
+let EXPAND_PRICES = [5000, 40000, 250000]   -- 8 → 12 → 16 マス
+
+-- MARK: ペット（たまご）
+let EGGS = [
+  {id: "common", name: "ふつうのたまご", price: 50000, pets: ["bunny", "dog", "frog"]},
+  {id: "rare", name: "めずらしいたまご", price: 400000, pets: ["bee", "owl", "frog", "dog"]},
+  {id: "legend", name: "伝説のたまご", price: 3000000, pets: ["dragonfly", "bee", "owl"]}
+]
+let PETS = {
+  bunny: {name: "🐰 うさぎ", color: "#F5F5F4", text: "植物が少し早く育つ（+10%）"},
+  dog: {name: "🐶 いぬ", color: "#D6A76B", text: "ときどき土をほってタネを見つける"},
+  frog: {name: "🐸 かえる", color: "#22C55E", text: "雨の日、ぬれた変異がつきやすい"},
+  bee: {name: "🐝 はち", color: "#FACC15", text: "実ったとき、受粉（×3）がつくことがある"},
+  owl: {name: "🦉 ふくろう", color: "#92400E", text: "経験値が多くもらえる（+50%）"},
+  dragonfly: {name: "🪰 金のとんぼ", color: "#FDE047", text: "ときどき実をゴールドに変える"}
+}
+
+-- MARK: 天気（seconds: 続く長さ）
+let WEATHER = [
+  {id: "rain", name: "🌧 雨", seconds: 60, text: "育つのが速く、ぬれた変異がつく", top: "#475569", bottom: "#94A3B8", light: 0.65, weight: 4},
+  {id: "frost", name: "❄️ 霜", seconds: 60, text: "ひえた変異。雨とかさなると こおった（×10）", top: "#BAE6FD", bottom: "#F0F9FF", light: 0.8, weight: 2},
+  {id: "storm", name: "⛈ 雷", seconds: 45, text: "雷が落ちた植物は しびれた（×50）", top: "#1F2937", bottom: "#4B5563", light: 0.45, weight: 1},
+  {id: "rainbow", name: "🌈 虹", seconds: 45, text: "レインボー（×50）がつくかも！", top: "#F9A8D4", bottom: "#BAE6FD", light: 1, weight: 0.6}
+]

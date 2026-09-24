@@ -548,30 +548,38 @@ func clashDuels(_ m: MapBuilder) {
 
 func sproutGarden(_ m: MapBuilder) {
     m.day(ground: "#7CB342")
-    m.ground(150, 150, color: "#8BC34A")
-    m.part("Plaza", at: (0, 0.03, 0), size: (20, 0.06, 20), color: "#E7D3A8", shape: .cylinder, material: .matte)
+    m.ground(170, 170, color: "#8BC34A")
+    m.part("Plaza", at: (0, 0.03, 0), size: (24, 0.06, 24), color: "#E7D3A8", shape: .cylinder, material: .matte)
     m.spawnRing(0, 0, radius: 5, count: 8)
-    m.shop("Seed Shop", x: -10, z: -18, w: 10, d: 8, color: "#65A30D", sign: "#FEF08A")
-    m.pad("Seed Counter", x: -10, z: -16, size: 2.4, color: "#A3E635", tags: ["seeds"])
-    m.shop("Market", x: 10, z: -18, w: 10, d: 8, color: "#EA580C", sign: "#FFFFFF")
-    m.pad("Sell Counter", x: 10, z: -16, size: 2.4, color: "#FB923C", tags: ["sell"])
+    m.shop("Seed Shop", x: -14, z: -18, w: 10, d: 8, color: "#65A30D", sign: "#FEF08A")
+    m.pad("Seed Counter", x: -14, z: -20, size: 2.4, color: "#A3E635", tags: ["seeds"])
+    m.shop("Market", x: 0, z: -20, w: 10, d: 8, color: "#EA580C", sign: "#FFFFFF")
+    m.pad("Sell Counter", x: 0, z: -22, size: 2.4, color: "#FB923C", tags: ["sell"])
+    m.shop("Gear Shop", x: 14, z: -18, w: 10, d: 8, color: "#0369A1", sign: "#BAE6FD")
+    m.pad("Gear Counter", x: 14, z: -20, size: 2.4, color: "#38BDF8", tags: ["gear"])
+    m.part("Egg Stand", at: (0, 0.5, 14), size: (6, 1, 3), color: "#FDE68A", material: .matte)
+    for (i, c) in ["#F5F5F4", "#86EFAC", "#93C5FD", "#F0ABFC"].enumerated() {
+        m.part("Egg \(i + 1)", at: (-2.25 + Float(i) * 1.5, 1.5, 14), size: (0.9, 1.1, 0.9), color: c, shape: .sphere)
+    }
+    m.pad("Pet Eggs", x: 0, z: 11, size: 2.4, color: "#FBBF24", tags: ["eggs"])
 
-    // Eight plots in a ring, each three by three soil squares.
+    // Eight gardens in a ring, each four by four soil squares.
     for i in 0..<8 {
         let a = Float(i) / 8 * 2 * .pi
-        let cx = cos(a) * 42, cz = sin(a) * 42
-        m.slab("Plot \(i + 1)", x: cx, y: 0, z: cz, w: 16, h: 0.2, d: 16, color: "#6D4C2F", tags: ["plot"])
-        m.pad("Plot \(i + 1) Sign", x: cx - cos(a) * 10, z: cz - sin(a) * 10, size: 2, color: "#FDE047", tags: ["claim"])
+        let cx = cos(a) * 50, cz = sin(a) * 50
+        m.slab("Plot \(i + 1)", x: cx, y: 0, z: cz, w: 17, h: 0.2, d: 17, color: "#6D4C2F", tags: ["plot"])
+        m.pad("Plot \(i + 1) Sign", x: cx - cos(a) * 11, z: cz - sin(a) * 11, size: 2, color: "#FDE047", tags: ["claim"])
         var k = 0
-        for p in grid(3, 3, spacing: 4.5, cx: cx, cz: cz) {
+        for p in grid(4, 4, spacing: 3.8, cx: cx, cz: cz) {
             k += 1
-            m.part("Plot \(i + 1) Soil \(k)", at: (p.0, 0.3, p.1), size: (3.2, 0.2, 3.2), color: "#4A3222", material: .matte,
+            m.part("Plot \(i + 1) Soil \(k)", at: (p.0, 0.3, p.1), size: (3, 0.2, 3), color: "#3B2A1E", material: .matte,
                    behavior: .trigger, tags: ["soil"])
         }
-        m.fence(from: (cx - 8, cz + 8), to: (cx + 8, cz + 8))
-        m.fence(from: (cx - 8, cz - 8), to: (cx + 8, cz - 8))
+        m.fence(from: (cx - 8.5, cz + 8.5), to: (cx + 8.5, cz + 8.5))
+        m.fence(from: (cx - 8.5, cz - 8.5), to: (cx + 8.5, cz - 8.5))
     }
-    for p in ring(14, radius: 68) { m.tree(p.0, p.1, height: 5, leaves: "#4CAF50") }
+    for p in ring(16, radius: 78) { m.tree(p.0, p.1, height: 5, leaves: "#4CAF50") }
+    for p in [(10, 10), (-10, 10), (10, -10), (-10, -10)] { m.lamp(Float(p.0), Float(p.1)) }
 }
 
 // MARK: 8 Runway Star

@@ -1,0 +1,122 @@
+-- weather.absc — 天気と昼夜
+-- 2分ごとに天気がかわる: 🌧雨（早く育つ・ぬれた）/ ❄️霜（ひえた）/ ⛈雷（しびれた ×50）/ 🌈虹（レインボー ×50）
+-- 夜は実っている植物に 🌙月光 がつき、タネ屋に夜だけのタネが並ぶ。
+
+let weather_now = "clear"
+let weather_until = 0
+let is_night = false
+let weather_clock = 0
+
+func weather_info(id)
+  for w in WEATHER do
+    if w.id == id then return w end
+  end
+  return nil
+end
+
+func apply_sky()
+  let w = weather_info(weather_now)
+  if is_night then
+    world.sky_top = "#0F172A"
+    world.sky_bottom = "#312E81"
+    world.light = 0.4
+  elif w != nil then
+    world.sky_top = w.top
+    world.sky_bottom = w.bottom
+    world.light = w.light
+  else
+    world.sky_top = "#5AB2FF"
+    world.sky_bottom = "#DDF4FF"
+    world.light = 1
+  end
+  let text = "☀️ 晴れ"
+  if w != nil then text = w.name end
+  if is_night then text = "🌙 夜  " + text end
+  ui_text("sky", text, {at: "top", dy: 36, size: 15, bold: true, color: "#FFFFFF", bg: "#00000055", radius: 10})
+end
+
+func start_weather(w)
+  weather_now = w.id
+  weather_until = time() + w.seconds
+  apply_sky()
+  announce(w.name + "！ " + w.text, 3.5)
+  kit_quest_progress_all("weather")
+end
+
+func kit_quest_progress_all(id)
+  for p in players() do kit_quest_progress(p, id, 1) end
+end
+
+func end_weather()
+  weather_now = "clear"
+  apply_sky()
+end
+
+-- 5秒ごと: 天気の変異
+func weather_effects()
+  let list = []
+  for key in keys(plants) do append(list, plants[key]) end
+  if weather_now == "rain" then
+    for pl in list do
+      let chance = 0.12
+      let owner = player_by_id(pl.owner)
+      if owner != nil and owner.pet == "frog" then chance = 0.3 end
+      for sp in sprinklers do
+        if sp.plot == pl.plot then chance = chance + 0.05 end
+      end
+      if random() < chance then add_mut(pl, "wet") end
+    end
+  elif weather_now == "frost" then
+    for pl in list do
+      if random() < 0.12 then add_mut(pl, "chilled") end
+    end
+  elif weather_now == "storm" then
+    -- 雷が1つ落ちる
+    if len(list) > 0 then
+      let pl = random(list)
+      let soil = soil_block(pl.plot, pl.k)
+      if soil != nil then
+        let bolt = create_block({name: "Lightning", shape: "box", position: soil.position + {x: 0, y: 12, z: 0}, size: {x: 0.4, y: 24, z: 0.4},
+                                 color: "#FDE047", material: "neon", solid: false})
+        after(0.4, func() gone(bolt) end)
+        add_mut(pl, "shocked")
+        shake(0.3, 0.3)
+        let owner = player_by_id(pl.owner)
+        if owner != nil then owner.message("⚡ あなたの " + seed_by_id(pl.seed).name + " に雷が落ちた！（×50）", 2.5) end
+      end
+    end
+  elif weather_now == "rainbow" then
+    for pl in list do
+      if pl.ripe and random() < 0.03 then add_mut(pl, "rainbow") end
+    end
+  end
+  if is_night then
+    for pl in list do
+      if pl.ripe and random() < 0.08 then add_mut(pl, "moonlit") end
+    end
+  end
+end
+
+on start()
+  apply_sky()
+  every(120, func()
+    start_weather(kit_pick(WEATHER, 1))
+  end)
+  every(150, func()
+    is_night = not is_night
+    apply_sky()
+    if is_night then
+      announce("🌙 夜になった。実に月光がつくかも。タネ屋に夜のタネ！", 3)
+    else
+      announce("☀️ 朝です", 2)
+    end
+  end)
+end
+
+on tick(dt)
+  weather_clock = weather_clock + dt
+  if weather_clock < 5 then return end
+  weather_clock = 0
+  if weather_now != "clear" and time() > weather_until then end_weather() end
+  weather_effects()
+end
