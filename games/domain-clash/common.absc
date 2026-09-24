@@ -1,0 +1,71 @@
+-- common.absc — どのファイルからも使う小さな道具
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func style_info(id)
+  for s in STYLES do
+    if s.id == id then return s end
+  end
+  return STYLES[1]
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func find_by_id(pid)
+  for p in players() do
+    if p.id == pid then return p end
+  end
+  return nil
+end
+
+func ready(p)
+  return p.owned != nil
+end
+
+func title_of(p)
+  for t in TITLES do
+    if t.id == p.title and t.name != "" then return "【" + t.name + "】" end
+  end
+  return ""
+end
+
+-- 技を当てられる相手（自分と自分の影分身はのぞく）
+func foes(p)
+  let list = []
+  for c in kit_everyone() do
+    if c.alive and c.id != p.id and c.owner_id != p.id then append(list, c) end
+  end
+  return list
+end
+
+-- 見ている方向でいちばん近い相手
+func aimed(p, range)
+  let best = nil
+  for c in foes(p) do
+    if distance(p, c) < range then
+      let dir = normalize(c.position - p.position)
+      if dot(dir, p.look) > 0.75 and (best == nil or distance(p, c) < distance(p, best)) then best = c end
+    end
+  end
+  return best
+end
+
+-- 一瞬だけ見える光（雷・爆発の見た目）
+func flash(position, size, color, secs)
+  let b = create_block({name: "Flash", shape: "sphere", position: position, size: {x: size, y: size, z: size},
+                        color: color, material: "neon", solid: false, opacity: 0.7})
+  after(secs, func() kit_gone(b) end)
+  return b
+end

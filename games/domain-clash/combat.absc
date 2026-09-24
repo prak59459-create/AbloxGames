@@ -1,0 +1,176 @@
+-- combat.absc — ダメージ・ガード・黒閃・覚醒・KO
+-- 技のダメージは deal() を通る。拳（ふつうのこうげき）は on hit を通る。
+-- どちらも相手にダメージを与えると呪力ゲージがたまり、MAX で領域展開。
+
+let awake_clock = 0
+
+func damage_mult(p)
+  let m = 1
+  if active_until(p.awake_until) then m = m * 1.25 end
+  if active_until(p.focus_until) then m = m * 1.3 end
+  if active_until(p.heavenly_until) then m = m * 1.5 end
+  if in_own_domain(p, "fire") then m = m * 1.3 end
+  return m
+end
+
+-- 受ける側でへるぶん（ガード・血の鎧・花の盾）
+func defense(c, d)
+  if c.is_npc then return d end
+  if active_until(c.shield_until) then
+    c.message("🌸 花の盾がふせいだ！", 0.6)
+    return 0
+  end
+  if active_until(c.guard_until) then d = d * 0.3 end
+  if active_until(c.armor_until) then d = d * 0.5 end
+  return d
+end
+
+func gain_meter(p, amount)
+  if p.is_npc or p.meter == nil then return end
+  p.meter = min(100, p.meter + amount)
+  show_meter(p)
+end
+
+func credit(p, c, d)
+  p.dmg = (p.dmg or 0) + d
+  if c.boss then c.hits[p.id] = (c.hits[p.id] or 0) + d end
+  let rate = 0.6
+  if c.dummy then rate = 0.8 end
+  gain_meter(p, d * rate)
+  -- 血の海: 与えたダメージの半分を回復
+  if in_own_domain(p, "blood") then p.heal(d * 0.5) end
+end
+
+-- 技のダメージ
+func deal(p, c, amount, lift)
+  if c == nil or not kit_here(c) or not c.alive or c.id == p.id or c.owner_id == p.id then return end
+  let d = defense(c, amount * damage_mult(p))
+  if d <= 0 then return end
+  credit(p, c, d)
+  c.damage(d, p)
+  if lift != 0 and kit_here(c) and c.alive then c.launch(0, lift, 0) end
+end
+
+-- まわりの相手にまとめて
+func area(p, center, radius, amount, lift)
+  let n = 0
+  for c in foes(p) do
+    if distance(center, c) <= radius then
+      deal(p, c, amount, lift)
+      n = n + 1
+    end
+  end
+  break_things(center, radius)
+  return n
+end
+
+-- 柱やかべは技でこわれる（25びょうでもどる）
+func break_things(center, radius)
+  for b in blocks("breakable") do
+    if b.visible and distance(center, b) < radius + 2 then
+      b.visible = false
+      b.solid = false
+      after(25, func()
+        if still(b) then
+          b.visible = true
+          b.solid = true
+        end
+      end)
+    end
+  end
+end
+
+func guard(p)
+  if not p.alive then return end
+  if not kit_ready(p, "guard", GUARD_CD) then return end
+  p.guard_until = time() + GUARD_SECS
+  p.message("🛡 ガード！", 0.8)
+end
+
+-- 拳のこうげき（武器の弾）: ガード・黒閃・ゲージ
+on hit(victim, attacker, damage)
+  if attacker == nil or attacker.is_npc then return damage end
+  let d = damage * damage_mult(attacker)
+  if not victim.is_npc then
+    if victim.owner_id == attacker.id then return 0 end
+    d = defense(victim, d)
+  end
+  if d > 0 and random(1, BLACK_FLASH_ODDS) == 1 then
+    d = d * 2.5
+    attacker.black_flashes = (attacker.black_flashes or 0) + 1
+    announce("⚫⚡ " + attacker.name + " の 黒閃！", 2)
+    flash(victim.position + {x: 0, y: 1, z: 0}, 2.4, "#111827", 0.3)
+    gain_meter(attacker, 25)
+    kit_quest_progress(attacker, "black_flash", 1)
+  end
+  if d > 0 then credit(attacker, victim, d) end
+  return d
+end
+
+-- MARK: KO と連続KO
+
+func streak_name(n)
+  if n >= 10 then return "🌌 特級の強さ" end
+  if n >= 7 then return "🔥 手がつけられない" end
+  if n >= 5 then return "💥 止められない" end
+  if n >= 3 then return "⚡ 連続KO" end
+  return ""
+end
+
+on death(victim, killer)
+  if victim.is_npc then
+    npc_died(victim, killer)
+    return
+  end
+  let bounty = 0
+  if (victim.streak or 0) >= 3 then bounty = floor(victim.streak / 3) end
+  if (victim.streak or 0) >= 3 and killer != nil and not killer.is_npc and killer.id != victim.id then
+    announce("🛑 " + killer.name + " が " + victim.name + " の " + victim.streak + " 連続KOを止めた！", 3)
+  end
+  victim.streak = 0
+  victim.deaths = (victim.deaths or 0) + 1
+  victim.meter = floor((victim.meter or 0) / 2)
+  if killer != nil and not killer.is_npc and killer.id != victim.id then
+    killer.kos = (killer.kos or 0) + 1
+    killer.streak = (killer.streak or 0) + 1
+    killer.best_streak = max(killer.best_streak or 0, killer.streak)
+    killer.points = (killer.points or 0) + 1 + bounty
+    killer.score = killer.kos
+    killer.message("💥 KO! " + victim.name + "（呪力ポイント +" + (1 + bounty) + "）", 1.5)
+    chat("💥 " + title_of(killer) + killer.name + " → " + victim.name)
+    let name = streak_name(killer.streak)
+    if name != "" and (killer.streak == 3 or killer.streak == 5 or killer.streak == 7 or killer.streak % 5 == 0) then
+      announce(name + "！ " + killer.name + "（" + killer.streak + " 連続）", 3)
+    end
+    kit_quest_progress(killer, "ko", 1)
+    if killer.streak >= 5 then kit_quest_progress(killer, "streak", 1) end
+    hud(killer)
+  end
+end
+
+on respawn(p)
+  if p.is_npc then return end
+  p.awakened = false
+  p.guard_until = 0
+  if ready(p) then
+    show_meter(p)
+    hud(p)
+  end
+end
+
+-- 体力が1/4を切ると、1回だけ「覚醒」
+on tick(dt)
+  awake_clock = awake_clock + dt
+  if awake_clock < 0.5 then return end
+  awake_clock = 0
+  for p in players() do
+    if ready(p) and p.alive and not p.awakened and p.health < p.max_health * 0.25 then
+      p.awakened = true
+      p.awake_until = time() + 10
+      p.heal(20)
+      p.message("💢 覚醒！ 10びょう 力 ×1.25", 2)
+      flash(p.position + {x: 0, y: 1, z: 0}, 3, "#DC2626", 0.4)
+      kit_quest_progress(p, "awaken", 1)
+    end
+  end
+end

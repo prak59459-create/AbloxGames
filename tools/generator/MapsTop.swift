@@ -1123,7 +1123,7 @@ func heroTD(_ m: MapBuilder) {
 
 func domainClash(_ m: MapBuilder) {
     m.sky("#1E1B4B", "#6D28D9", light: 0.6, ground: "#1F1B2E")
-    m.ground(140, 140, color: "#2E2A3F", name: "Arena")
+    m.ground(160, 160, color: "#2E2A3F", name: "Arena")
     m.spawnRing(0, 0, radius: 26, count: 10, color: "#C084FC")
     var r = Seeded("domain")
     for i in 0..<12 {
@@ -1135,9 +1135,27 @@ func domainClash(_ m: MapBuilder) {
         m.slab("Wall Chunk \(i + 1)", x: r.range(-50, 50), y: 0, z: r.range(-50, 50), w: r.range(4, 8), h: 3, d: 1.2,
                color: "#57534E", tags: ["breakable"])
     }
+    // The shrine in the middle, where special-grade curses appear.
+    m.part("Center Seal", at: (0, 0.05, 0), size: (12, 0.1, 12), color: "#7C3AED", shape: .cylinder, material: .neon, solid: false)
+    m.markers("Boss Spot", points: [(0, 0)], color: "#000000", visible: false, behavior: .none)
+    // The torii and the style shrine behind it.
     m.part("Torii", at: (0, 5, -60), size: (14, 1, 1.2), color: "#DC2626")
     m.pillar("Torii Leg", x: -5.5, z: -60, height: 5, radius: 0.5, color: "#DC2626")
     m.pillar("Torii Leg", x: 5.5, z: -60, height: 5, radius: 0.5, color: "#DC2626")
+    m.slab("Shrine Floor", x: 0, y: 0, z: -68, w: 16, h: 0.4, d: 10, color: "#78350F")
+    m.pad("Style Shrine", x: 0, z: -68, y: 0.4, size: 3.4, color: "#E9D5FF", tags: ["style_shrine"])
+    m.part("Shrine Roof", at: (0, 5, -70), size: (14, 0.6, 8), color: "#1F2937")
+    // The dojo in one corner: training dummies that stand still.
+    m.slab("Dojo Floor", x: 58, y: 0, z: 58, w: 20, h: 0.3, d: 20, color: "#A16207")
+    for p in [(48.5, 48.5), (67.5, 48.5), (48.5, 67.5), (67.5, 67.5)] as [(Float, Float)] {
+        m.pillar("Dojo Post", x: p.0, z: p.1, y: 0.3, height: 2.4, radius: 0.35, color: "#78350F")
+    }
+    m.markers("Dummy Spot", points: [(52, 58), (58, 58), (64, 58)], y: 0.3, color: "#000000", visible: false, behavior: .none)
+    m.pad("Dojo Mat", x: 58, z: 51, y: 0.3, size: 3, color: "#FDE68A", tags: ["dojo"])
+    // The title board in another.
+    m.slab("Title Board", x: -58, y: 0, z: 62, w: 6, h: 3, d: 0.6, color: "#312E81")
+    m.pad("Title Pad", x: -58, z: 58, size: 3, color: "#FBBF24", tags: ["title_board"])
+    for p in ring(8, radius: 76) { m.part("Cursed Lantern", at: (p.0, 2, p.1), size: (0.8, 1.2, 0.8), color: "#A855F7", material: .neon, solid: false) }
 }
 
 // MARK: 20 Tsunami Dash

@@ -1,0 +1,166 @@
+-- domain.absc — 領域展開
+-- 呪力ゲージ MAX で使える。10びょう、半径14mの領域の中で術ごとのとくしゅな効果。
+-- ほかの人の領域とかさなると「領域の押し合い」— 勝ったほうだけがのこる。
+
+let domains = []
+let domain_clock = 0
+
+func domain_of(owner_id)
+  for d in domains do
+    if d.owner == owner_id then return d end
+  end
+  return nil
+end
+
+func in_own_domain(p, style)
+  let d = domain_of(p.id)
+  return d != nil and d.style == style and distance(p, d.center) <= DOMAIN_RADIUS
+end
+
+-- p がだれかの（style の）領域の中にいる？（天与の覚醒中はきかない）
+func in_enemy_domain(p, style)
+  if active_until(p.heavenly_until) then return false end
+  for d in domains do
+    if d.owner != p.id and d.style == style and distance(p, d.center) <= DOMAIN_RADIUS then return true end
+  end
+  return false
+end
+
+func show_meter(p)
+  if p.meter == nil then return end
+  p.ui_bar("meter", {at: "bottom", dy: -24, w: 300, h: 14, value: p.meter, max: 100, color: "#A855F7", bg: "#00000099"})
+  if p.meter >= 100 and p.style != nil then
+    let s = style_info(p.style)
+    p.ui_button("domain", "🌀 " + s.domain, {at: "bottom", dy: -64, w: 220, h: 50, size: 17, bg: "#6D28D9", radius: 16})
+  else
+    p.ui_remove("domain")
+  end
+end
+
+func collapse(d, message)
+  kit_gone(d.block)
+  domains = filter(domains, func(x) return x.owner != d.owner end)
+  if message != "" then announce(message, 2.5) end
+  if len(domains) == 0 then
+    world.sky_top = "#1E1B4B"
+    world.sky_bottom = "#6D28D9"
+  end
+end
+
+-- 押し合いの強さ: 運 + 連続KO + 残り体力
+func refinement(p)
+  return random(0, 60) + (p.streak or 0) * 6 + floor(p.health / p.max_health * 30)
+end
+
+func expand(p)
+  if not ready(p) or not p.alive or p.meter < 100 or p.style == nil then return end
+  p.meter = 0
+  show_meter(p)
+  p.domains_used = (p.domains_used or 0) + 1
+  kit_quest_progress(p, "domain", 1)
+  let s = style_info(p.style)
+  if p.style == "fist" then
+    -- 領域なし: 自分が超強化
+    p.heavenly_until = time() + 12
+    move_state(p)
+    announce("👊 " + p.name + " の 天与の覚醒！（12びょう）", 3)
+    flash(p.position + {x: 0, y: 1, z: 0}, 6, "#EAB308", 0.5)
+    return
+  end
+  let old = domain_of(p.id)
+  if old != nil then collapse(old, "") end
+  -- 近くの領域と押し合い
+  for other in domains do
+    if distance(other.center, p.position) < DOMAIN_RADIUS * 1.5 then
+      let rival = find_by_id(other.owner)
+      if rival != nil then
+        let mine = refinement(p)
+        let theirs = refinement(rival)
+        announce("⚔ 領域の押し合い！ " + p.name + "（" + mine + "） vs " + rival.name + "（" + theirs + "）", 3)
+        if mine >= theirs then
+          collapse(other, "💥 " + rival.name + " の領域がくずれた！")
+          root(rival, 1)
+          kit_quest_progress(p, "clash", 1)
+        else
+          p.message("💥 押し負けた…", 2)
+          root(p, 1)
+          return
+        end
+      end
+    end
+  end
+  let dome = create_block({name: "Domain", shape: "sphere", position: p.position, size: {x: DOMAIN_RADIUS * 2, y: DOMAIN_RADIUS * 2, z: DOMAIN_RADIUS * 2},
+                           color: s.color, material: "glass", opacity: 0.3, solid: false})
+  append(domains, {owner: p.id, style: p.style, center: p.position, until: time() + DOMAIN_SECS, block: dome})
+  world.sky_top = s.sky
+  world.sky_bottom = s.color
+  announce("🌀 " + p.name + " の領域展開「" + s.domain + "」！", 3)
+  shake(0.5, 1)
+end
+
+-- 0.5びょうごと: 領域の効果
+func domain_effects(dt)
+  for d in domains do
+    if time() >= d.until then
+      collapse(d, "")
+      continue
+    end
+    let owner = find_by_id(d.owner)
+    if owner == nil or not owner.alive then
+      collapse(d, "")
+      continue
+    end
+    let inside = filter(foes(owner), func(c) return distance(c, d.center) <= DOMAIN_RADIUS and not active_until(c.heavenly_until) end)
+    if d.style == "fire" then
+      for c in inside do deal(owner, c, 5, 0) end
+    elif d.style == "thunder" then
+      if len(inside) > 0 then
+        let c = random(inside)
+        flash(c.position + {x: 0, y: 1, z: 0}, 2, "#FDE047", 0.2)
+        deal(owner, c, 14, 2)
+      end
+    elif d.style == "gravity" then
+      for c in inside do
+        deal(owner, c, 3, 0)
+        if kit_here(c) and c.alive and random() < 0.3 then c.launch(random(-8, 8), 10, random(-8, 8)) end
+      end
+    elif d.style == "shadow" then
+      for c in inside do
+        deal(owner, c, 3, 0)
+        -- ときどき目の前がまっくらに
+        if kit_here(c) and c.alive and not c.is_npc and random() < 0.25 then
+          c.fade("#000000DD", 0.2)
+          kit_later(c, 0.8, func() c.fade(nil, 0.4) end)
+        end
+        if random() < 0.15 then root(c, 1) end
+      end
+    elif d.style == "ice" then
+      for c in inside do
+        deal(owner, c, 4, 0)
+        slow(c, 0.35, 1)
+      end
+    elif d.style == "blood" then
+      for c in inside do deal(owner, c, 4, 0) end
+    elif d.style == "flower" then
+      if distance(owner, d.center) <= DOMAIN_RADIUS then owner.heal(4) end
+      for c in inside do
+        deal(owner, c, 2, 0)
+        slow(c, 0.6, 1)
+      end
+    end
+  end
+  for p in players() do
+    if ready(p) then move_state(p) end
+  end
+end
+
+on tick(dt)
+  domain_clock = domain_clock + dt
+  if domain_clock < 0.5 then return end
+  domain_clock = 0
+  domain_effects(0.5)
+end
+
+on button(p, id)
+  if id == "domain" then expand(p) end
+end

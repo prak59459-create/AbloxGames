@@ -1,11 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 34,
+  "blockCount" : 58,
   "id" : "domain-clash",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/domain-clash\/data.absc",
+    "games\/domain-clash\/combat.absc",
+    "games\/domain-clash\/common.absc",
+    "games\/domain-clash\/domain.absc",
+    "games\/domain-clash\/moves.absc",
+    "games\/domain-clash\/npcs.absc",
+    "games\/domain-clash\/stats.absc",
+    "games\/domain-clash\/styles.absc",
     "games\/domain-clash\/main.absc"
   ],
   "summary" : "炎・雷・重力・影の術で戦うバトル。ゲージがたまったら「領域展開」で相手を閉じこめろ！地面や柱もこわれる。",

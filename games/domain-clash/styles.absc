@@ -1,0 +1,102 @@
+-- styles.absc — 術をえらぶ・解放する・技のボタン
+
+func style_menu(p)
+  let h = 150 + len(STYLES) * 46
+  p.ui_panel("pick", {at: "center", w: 600, h: h, bg: "#0B0620F2", radius: 22, layer: 30})
+  p.ui_text("pick_t", "術をえらべ（呪力ポイント " + (p.points or 0) + "）", {parent: "pick", y: 28 / h, size: 20, bold: true, color: "#E9D5FF"})
+  let i = 0
+  for s in STYLES do
+    i = i + 1
+    let label = s.name + "  領域「" + s.domain + "」"
+    let bg = s.color
+    let ink = "#111111"
+    if not contains(p.owned, s.id) then
+      label = "🔒 " + s.name + "  呪力ポイント " + s.price
+      bg = "#374151"
+      ink = "#FFFFFF"
+    elif p.style == s.id then
+      label = "✅ " + label
+    end
+    p.ui_button("style_" + s.id, label, {parent: "pick", y: (34 + i * 46) / h, w: 560, h: 40, size: 14, bg: bg, color: ink})
+  end
+  if p.style != nil then
+    p.ui_button("pick_close", "閉じる", {parent: "pick", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+  end
+end
+
+func pick_style(p, id)
+  let s = style_info(id)
+  if not contains(p.owned, id) then
+    if (p.points or 0) < s.price then
+      p.message("呪力ポイントが足りない（あと " + (s.price - (p.points or 0)) + "）", 1.5)
+      p.sound("error")
+      return
+    end
+    p.points = p.points - s.price
+    append(p.owned, id)
+    announce("🔓 " + p.name + " が " + s.name + " の術を会得！", 3)
+    kit_quest_progress(p, "unlock", 1)
+  end
+  p.style = id
+  p.leg_color = s.color
+  p.ui_remove("pick")
+  move_buttons(p)
+  show_meter(p)
+  hud(p)
+  p.message(s.name + " の術！ 領域は「" + s.domain + "」— " + s.domain_text, 3)
+end
+
+func move_buttons(p)
+  let s = style_info(p.style)
+  let i = 0
+  p.btn_text = {}
+  for mv in s.moves do
+    i = i + 1
+    p.ui_button("move" + i, mv.name, {at: "bottom_right", dx: -120 - ((i - 1) % 2) * 104, dy: -150 - floor((i - 1) / 2) * 62,
+                                      w: 96, h: 54, size: 15, bg: s.color, color: "#111111", radius: 14})
+    p.btn_text["move" + i] = mv.name
+  end
+  p.ui_button("guard", "🛡 ガード", {at: "bottom_right", dx: -328, dy: -150, w: 96, h: 54, size: 14, bg: "#475569", radius: 14})
+end
+
+-- 0.5びょうごと: 待ち時間をボタンに出す
+func cooldown_labels(p)
+  if p.style == nil or p.btn_text == nil then return end
+  let s = style_info(p.style)
+  let i = 0
+  for mv in s.moves do
+    i = i + 1
+    let key = p.style + i
+    let label = mv.name
+    let last = kit_cds[p.id + ":" + key]
+    if last != nil then
+      let left = ceil(mv.cd - (time() - last))
+      if left > 0 then label = mv.name + " " + left end
+    end
+    if p.btn_text["move" + i] != label then
+      p.btn_text["move" + i] = label
+      p.ui_button("move" + i, label, {})
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "style_shrine") and quiet_ready(p, "shrine", 5) then style_menu(p)
+  elif contains(b.tags, "title_board") and quiet_ready(p, "titles", 5) then titles_menu(p)
+  elif contains(b.tags, "dojo") and quiet_ready(p, "dojo", 5) then
+    p.message("🎯 道場: 人形をなぐると呪力ゲージがたまりやすい。技の練習をしよう", 3)
+  end
+end
+
+on button(p, id)
+  if id == "pick_close" then p.ui_remove("pick")
+  elif id == "open_styles" then style_menu(p)
+  elif starts_with(id, "style_") then pick_style(p, replace(id, "style_", ""))
+  elif id == "move1" then cast(p, 1)
+  elif id == "move2" then cast(p, 2)
+  elif id == "move3" then cast(p, 3)
+  elif id == "move4" then cast(p, 4)
+  elif id == "guard" then guard(p)
+  end
+end

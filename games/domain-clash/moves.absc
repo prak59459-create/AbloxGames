@@ -1,0 +1,278 @@
+-- moves.absc — 術の技（4つずつ）
+-- どの技も deal()／area() でダメージを与える。待ち時間は data.absc の cd。
+
+func fireball(p, target, radius, amount, lift, color)
+  let start = p.position + {x: 0, y: 1.4, z: 0} + p.look * 1.2
+  let ball = create_block({name: "Orb", shape: "sphere", position: start, size: {x: 1, y: 1, z: 1}, color: color,
+                           material: "neon", solid: false})
+  let secs = max(0.15, distance(start, target) / 32)
+  ball.move_to(target, secs)
+  kit_later(p, secs, func()
+    kit_gone(ball)
+    flash(target, radius * 1.6, color, 0.25)
+    area(p, target, radius, amount, lift)
+  end)
+  after(secs + 0.1, func() kit_gone(ball) end)
+end
+
+func look_point(p, range)
+  let hit = raycast(p, p.look, range)
+  if hit != nil then return hit.point end
+  return kit_ahead(p, range)
+end
+
+func root(c, secs)
+  if not kit_here(c) or not c.alive then return end
+  c.frozen = true
+  after(secs, func()
+    if kit_here(c) then c.frozen = false end
+  end)
+end
+
+func slow(c, factor, secs)
+  if not kit_here(c) or not c.alive or c.is_npc then return end
+  c.slow_until = time() + secs
+  c.slow_factor = factor
+  move_state(c)
+end
+
+-- 速さの計算（おそい・影渡り・気合・天与）
+func move_state(p)
+  if p.is_npc then return end
+  let s = 1
+  if active_until(p.slow_until) then s = s * (p.slow_factor or 0.5) end
+  if active_until(p.dash_until) then s = s * 1.8 end
+  if active_until(p.focus_until) then s = s * 1.25 end
+  if active_until(p.heavenly_until) then s = s * 1.4 end
+  if p.speed != s then p.speed = s end
+  let g = 1
+  if in_enemy_domain(p, "gravity") then g = 0.35 end
+  if p.gravity != g then p.gravity = g end
+end
+
+func cast(p, i)
+  if not ready(p) or not p.alive or p.style == nil then return end
+  let s = style_info(p.style)
+  let mv = s.moves[i]
+  if not kit_ready(p, p.style + i, mv.cd) then return end
+  p.casts = (p.casts or 0) + 1
+  kit_quest_progress(p, "casts", 1)
+  let st = p.style
+  if st == "fire" then
+    if i == 1 then fireball(p, look_point(p, 30), 3.5, 22, 4, "#F97316")
+    elif i == 2 then
+      flash(p.position + {x: 0, y: 1, z: 0}, 12, "#FB923C", 0.3)
+      area(p, p.position, 7, 26, 9)
+    elif i == 3 then
+      p.launch(p.look.x * 26, 3, p.look.z * 26)
+      kit_later(p, 0.4, func() area(p, p.position, 4, 18, 3) end)
+    else
+      let at = look_point(p, 26)
+      let pillar = create_block({name: "Fire Pillar", shape: "cylinder", position: at + {x: 0, y: 3, z: 0}, size: {x: 3, y: 6, z: 3},
+                                 color: "#EA580C", material: "neon", solid: false, opacity: 0.75})
+      for k in 1 to 4 do kit_later(p, k * 0.5, func() area(p, at, 2.5, 9, 5) end) end
+      after(2.2, func() kit_gone(pillar) end)
+    end
+  elif st == "thunder" then
+    if i == 1 then
+      let t = aimed(p, 32)
+      if t != nil then
+        flash(t.position + {x: 0, y: 1, z: 0}, 1.6, "#FDE047", 0.2)
+        deal(p, t, 26, 2)
+      else
+        p.message("相手がいない", 0.8)
+      end
+    elif i == 2 then
+      p.teleport(kit_ahead(p, 12) + {x: 0, y: 0.5, z: 0})
+      flash(p.position + {x: 0, y: 1, z: 0}, 2, "#FDE047", 0.2)
+    elif i == 3 then
+      flash(p.position + {x: 0, y: 1, z: 0}, 16, "#FACC15", 0.25)
+      for c in foes(p) do
+        if distance(p, c) < 8 then
+          deal(p, c, 16, 0)
+          root(c, 1)
+        end
+      end
+    else
+      let at = look_point(p, 30)
+      let mark = flash(at, 4, "#FEF08A", 0.9)
+      kit_later(p, 0.9, func()
+        let bolt = create_block({name: "Bolt", position: at + {x: 0, y: 10, z: 0}, size: {x: 0.6, y: 20, z: 0.6},
+                                 color: "#FDE047", material: "neon", solid: false})
+        after(0.3, func() kit_gone(bolt) end)
+        area(p, at, 4.5, 38, 6)
+      end)
+    end
+  elif st == "gravity" then
+    if i == 1 then
+      for c in foes(p) do
+        if distance(p, c) < 14 then
+          let pull = normalize(p.position - c.position) * 18
+          c.launch(pull.x, 4, pull.z)
+          deal(p, c, 8, 0)
+        end
+      end
+    elif i == 2 then
+      for c in foes(p) do
+        if distance(p, c) < 9 then
+          deal(p, c, 15, 0)
+          slow(c, 0.3, 3)
+        end
+      end
+    elif i == 3 then
+      area(p, p.position, 9, 10, 24)
+    else
+      let at = look_point(p, 24)
+      let orb = create_block({name: "Gravity Orb", shape: "sphere", position: at + {x: 0, y: 1.5, z: 0}, size: {x: 2.4, y: 2.4, z: 2.4},
+                              color: "#4C1D95", material: "neon", solid: false})
+      for k in 1 to 4 do
+        kit_later(p, k * 0.4, func()
+          for c in foes(p) do
+            if distance(at, c) < 10 and distance(at, c) > 1 then
+              let pull = normalize(at - c.position) * 9
+              c.launch(pull.x, 2, pull.z)
+            end
+          end
+        end)
+      end
+      kit_later(p, 1.9, func()
+        flash(at + {x: 0, y: 1.5, z: 0}, 9, "#7C3AED", 0.3)
+        area(p, at, 4.5, 34, 12)
+      end)
+      after(2, func() kit_gone(orb) end)
+    end
+  elif st == "shadow" then
+    if i == 1 then spawn_clones(p)
+    elif i == 2 then
+      let t = aimed(p, 25)
+      if t != nil then
+        deal(p, t, 10, 0)
+        root(t, 2)
+      else
+        p.message("相手がいない", 0.8)
+      end
+    elif i == 3 then
+      p.visible = false
+      p.dash_until = time() + 3
+      move_state(p)
+      kit_later(p, 3, func()
+        p.visible = true
+        move_state(p)
+      end)
+    else
+      let t = aimed(p, 20)
+      if t != nil then
+        let behind = t.position - normalize(t.look) * 1.5
+        p.teleport(behind + {x: 0, y: 0.3, z: 0})
+        deal(p, t, 24, 0)
+      else
+        p.message("相手がいない", 0.8)
+      end
+    end
+  elif st == "ice" then
+    if i == 1 then
+      let t = aimed(p, 30)
+      if t != nil then
+        flash(t.position + {x: 0, y: 1, z: 0}, 1.4, "#A5F3FC", 0.25)
+        deal(p, t, 16, 0)
+        slow(t, 0.5, 3)
+      else
+        fireball(p, look_point(p, 30), 2, 14, 0, "#A5F3FC")
+      end
+    elif i == 2 then
+      let center = kit_ahead(p, 4)
+      let side = kit_dir(p.yaw + 90)
+      let walls = []
+      for k in -2 to 2 do
+        append(walls, create_block({name: "Ice Wall", position: {x: center.x + side.x * k * 1.6, y: 1.5, z: center.z + side.z * k * 1.6},
+                                    size: {x: 1.6, y: 3, z: 1.6}, color: "#BAE6FD", material: "glass", opacity: 0.8}))
+      end
+      after(6, func()
+        for w in walls do kit_gone(w) end
+      end)
+    elif i == 3 then
+      flash(p.position + {x: 0, y: 1, z: 0}, 14, "#E0F2FE", 0.3)
+      for c in foes(p) do
+        if distance(p, c) < 8 then
+          deal(p, c, 12, 0)
+          root(c, 1.5)
+        end
+      end
+    else
+      for k in 1 to 5 do kit_later(p, k * 0.3, func() area(p, p.position, 6, 7, 0) end) end
+    end
+  elif st == "blood" then
+    if i == 1 then
+      if p.health > 12 then p.damage(5) end
+      let t = aimed(p, 34)
+      if t != nil then deal(p, t, 30, 1) else fireball(p, look_point(p, 34), 1.5, 22, 0, "#DC2626") end
+    elif i == 2 then
+      let got = 0
+      for c in foes(p) do
+        if distance(p, c) < 7 then
+          deal(p, c, 14, 0)
+          got = got + 14
+        end
+      end
+      p.heal(got)
+      if got > 0 then p.message("🩸 +" + got, 0.8) end
+    elif i == 3 then
+      p.armor_until = time() + 5
+      p.message("🩸 血の鎧！ 5びょう ダメージ半分", 1.2)
+    else
+      if p.health > 20 then p.damage(10) end
+      flash(p.position + {x: 0, y: 1, z: 0}, 16, "#991B1B", 0.3)
+      area(p, p.position, 8, 34, 8)
+    end
+  elif st == "flower" then
+    if i == 1 then
+      flash(p.position + {x: 0, y: 1, z: 0}, 12, "#F9A8D4", 0.25)
+      area(p, p.position, 7, 14, 2)
+    elif i == 2 then
+      p.heal(35)
+      for q in players() do
+        if q.id != p.id and q.team != nil and q.team == p.team and distance(p, q) < 10 then q.heal(20) end
+      end
+      p.message("🌸 +35", 0.8)
+    elif i == 3 then
+      let t = aimed(p, 26)
+      if t != nil then
+        deal(p, t, 8, 0)
+        root(t, 2.5)
+      else
+        p.message("相手がいない", 0.8)
+      end
+    else
+      p.shield_until = time() + 4
+      p.message("🌸 花の盾！ 4びょうダメージをふせぐ", 1.2)
+    end
+  else
+    -- 天与の拳
+    if i == 1 then
+      for k in 1 to 5 do
+        kit_later(p, k * 0.12, func()
+          let t = aimed(p, 5)
+          if t != nil then deal(p, t, 6, 0) end
+        end)
+      end
+    elif i == 2 then
+      flash(p.position, 10, "#CA8A04", 0.3)
+      area(p, p.position, 6, 18, 14)
+    elif i == 3 then
+      let t = aimed(p, 6)
+      if t != nil then
+        deal(p, t, 34, 3)
+        if kit_here(t) and t.alive then
+          let push = normalize(t.position - p.position)
+          t.launch(push.x * 28, 6, push.z * 28)
+        end
+      else
+        p.message("近くに相手がいない", 0.8)
+      end
+    else
+      p.focus_until = time() + 8
+      move_state(p)
+      p.message("👊 気合！ 8びょう 速さと力アップ", 1.2)
+    end
+  end
+end
