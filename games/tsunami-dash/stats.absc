@@ -1,0 +1,84 @@
+-- stats.absc — コースごとの最速記録・レースの結果・成績
+
+let records = {}     -- コースid → {secs, name}
+
+func record_time(p, c, secs)
+  if p.best_times == nil then p.best_times = {} end
+  let mine = p.best_times[c.id]
+  if mine == nil or secs < mine then
+    p.best_times[c.id] = secs
+    p.message("⏱ 自己ベスト！ " + c.name + " " + fmt_time(secs), 2)
+  end
+  let r = records[c.id]
+  if r == nil or secs < r.secs then
+    records[c.id] = {secs: secs, name: p.name}
+    announce("🥇 " + c.name + " の新記録！ " + p.name + "（" + fmt_time(secs) + "）", 3)
+    p.memes = p.memes + 10
+  end
+  show_records()
+end
+
+func show_records()
+  let parts = []
+  for c in COURSES do
+    let r = records[c.id]
+    if r != nil then append(parts, c.name + " " + fmt_time(r.secs) + "（" + r.name + "）") end
+  end
+  if len(parts) > 0 then ui_text("records", "🥇 " + join(parts, "   "), {at: "bottom_left", dx: 10, dy: -10, size: 12, color: "#FEF3C7"}) end
+end
+
+func show_results(headline)
+  let ranked = sort(filter(players(), func(p) return ready(p) and p.racing end), func(a, b)
+    if a.done != b.done then return a.done end
+    return a.z > b.z
+  end)
+  let lines = []
+  let i = 0
+  for p in slice(ranked, 1, 6) do
+    i = i + 1
+    let state = "🌊 " + floor(max(0, p.z)) + " m"
+    if p.done then state = "🏁 ゴール" end
+    append(lines, i + ". " + p.name + "   " + state + "   ✨+" + (p.race_memes or 0))
+  end
+  let h = 100 + len(lines) * 30
+  for p in players() do
+    p.ui_panel("res_box", {at: "center", w: 520, h: h, bg: "#000000D0", radius: 22, layer: 40})
+    p.ui_text("res_t", headline, {parent: "res_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+    let k = 0
+    for line in lines do
+      k = k + 1
+      p.ui_text("res_" + k, line, {parent: "res_box", y: (40 + k * 30) / h, size: 15})
+    end
+    kit_later(p, 5.5, func() p.ui_remove("res_box") end)
+  end
+end
+
+func stats(p)
+  let best = []
+  for c in COURSES do
+    let t = "—"
+    if p.best_times != nil and p.best_times[c.id] != nil then t = fmt_time(p.best_times[c.id]) end
+    append(best, c.name + " " + t)
+  end
+  let lines = [
+    "🏁 勝ち " + (p.wins or 0) + " / " + (p.races or 0) + " レース",
+    "⏱ " + join(best, "  "),
+    "📏 いちばん遠く " + (p.best_distance or 0) + " m",
+    "✨ ミーム " + p.memes + "   🎨 スキン " + len(p.skins) + " / " + len(SKINS)
+  ]
+  let h = 110 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 600, h: h, bg: "#111827F2", radius: 22, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 14})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  end
+end

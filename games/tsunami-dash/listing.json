@@ -1,11 +1,17 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 77,
+  "blockCount" : 296,
   "id" : "tsunami-dash",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/tsunami-dash\/data.absc",
+    "games\/tsunami-dash\/common.absc",
+    "games\/tsunami-dash\/race.absc",
+    "games\/tsunami-dash\/shop.absc",
+    "games\/tsunami-dash\/stats.absc",
+    "games\/tsunami-dash\/track.absc",
     "games\/tsunami-dash\/main.absc"
   ],
   "summary" : "うしろからせまる巨大な津波！障害物をかわし、アイテムを拾いながらゴールまで走りぬけろ。ミームだらけのにぎやかコース。",

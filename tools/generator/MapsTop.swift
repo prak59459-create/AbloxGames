@@ -1162,26 +1162,84 @@ func domainClash(_ m: MapBuilder) {
 
 func tsunamiDash(_ m: MapBuilder) {
     m.sky("#38BDF8", "#E0F2FE", light: 0.8, showGround: false, fall: -20)
-    // A 300 m course along +z, twelve wide.
-    m.slab("Start Area", x: 0, y: -1, z: -10, w: 24, h: 1, d: 20, color: "#FDE68A")
-    m.spawnRing(0, -10, radius: 4, count: 8, color: "#FB923C")
-    var r = Seeded("dash")
-    for i in 0..<15 {
-        let z = Float(i) * 20 + 10
-        let gap = i % 3 == 2
-        m.slab("Track \(i + 1)", x: 0, y: -1, z: z, w: 14, h: 1, d: gap ? 12 : 20, color: i % 2 == 0 ? "#F472B6" : "#A78BFA", tags: ["track"])
-        if gap {
-            m.part("Jump Pad \(i + 1)", at: (0, 0.1, z + 4), size: (4, 0.2, 2), color: "#22C55E", material: .neon, behavior: .bounce)
-        }
-        // Obstacles.
-        for k in 0..<2 {
-            m.slab("Block \(i + 1)-\(k + 1)", x: r.range(-5, 5), y: 0, z: z + r.range(-7, 5), w: r.range(1.5, 3), h: r.range(1, 2.2),
-                   d: 1, color: "#FFFFFF")
-        }
-        m.part("Meme \(i + 1)", at: (r.range(-5, 5), 1, z), size: (0.9, 0.9, 0.9), color: r.pick(["#FACC15", "#34D399", "#F87171"]),
-               shape: .sphere, material: .neon, behavior: .trigger, tags: ["meme"], solid: false)
+
+    // The lobby, behind the three starting lines: vote pads, the meme shop
+    // and the skin stand. Spawns are only here.
+    m.slab("Lobby", x: 0, y: -1, z: -70, w: 60, h: 1, d: 24, color: "#FDE68A")
+    m.spawnRing(0, -72, radius: 4, count: 8, color: "#FB923C")
+    let votes: [(String, Float, String)] = [("Beach", -12, "#38BDF8"), ("City", 0, "#94A3B8"), ("Volcano", 12, "#EF4444")]
+    for v in votes {
+        m.pad("Vote \(v.0)", x: v.1, z: -62, size: 3.4, color: v.2, tags: ["vote", v.0.lowercased()])
+        m.part("Vote \(v.0) Sign", at: (v.1, 3, -60), size: (4, 1.2, 0.2), color: v.2, material: .neon, solid: false)
     }
-    m.slab("Finish", x: 0, y: -1, z: 320, w: 24, h: 1, d: 16, color: "#22C55E")
-    m.pad("Finish Line", x: 0, z: 316, size: 12, color: "#FFFFFF", tags: ["finish"], shape: .box)
-    m.part("Wave Start", at: (0, 3, -30), size: (1, 1, 1), color: "#FFFFFF", visible: false)
+    m.pad("Meme Shop", x: -22, z: -74, size: 3.4, color: "#FACC15", tags: ["meme_shop"])
+    m.slab("Meme Shop Stand", x: -22, y: 0, z: -78, w: 5, h: 2, d: 1.2, color: "#CA8A04")
+    m.pad("Skin Stand", x: 22, z: -74, size: 3.4, color: "#F472B6", tags: ["skin_stand"])
+    m.slab("Skin Stand Wall", x: 22, y: 0, z: -78, w: 5, h: 2, d: 1.2, color: "#DB2777")
+    m.part("Record Board", at: (0, 3, -82), size: (14, 4, 0.4), color: "#1E293B")
+
+    // Three courses side by side, each 300 m along +z from z = 0.
+    let courses: [(String, Float)] = [("Beach", 0), ("City", 90), ("Volcano", -90)]
+    for (index, course) in courses.enumerated() {
+        let cx = course.1
+        let n = index + 1
+        var r = Seeded("dash-\(course.0)")
+        m.slab("Course \(n) Start Area", x: cx, y: -1, z: -10, w: 24, h: 1, d: 20, color: "#FDE68A")
+        m.markers("Course \(n) Start", points: [(cx - 4, -8), (cx, -8), (cx + 4, -8), (cx - 2, -12), (cx + 2, -12), (cx - 6, -12), (cx + 6, -12), (cx, -4)],
+                  color: "#000000", visible: false, behavior: .none)
+        m.part("Course \(n) Wave Start", at: (cx, 3, -30), size: (1, 1, 1), color: "#FFFFFF", visible: false)
+        for i in 0..<15 {
+            let z = Float(i) * 20 + 10
+            let gap = i % 3 == 2
+            // The city climbs and drops between rooftops; the others are flat.
+            let y: Float = course.0 == "City" ? [0, 0.5, 1, 1, 0.5, 1.5, 1.5, 1, 0.5, 0, 1, 1.5, 1, 0.5, 0][i] : 0
+            let colors: [String]
+            switch course.0 {
+            case "City": colors = ["#94A3B8", "#64748B"]
+            case "Volcano": colors = ["#44403C", "#57534E"]
+            default: colors = ["#F472B6", "#A78BFA"]
+            }
+            m.slab("Course \(n) Track \(i + 1)", x: cx, y: y - 1, z: z, w: 14, h: 1, d: gap ? 12 : 20, color: colors[i % 2], tags: ["track"])
+            if gap {
+                m.part("Course \(n) Jump Pad \(i + 1)", at: (cx, y + 0.1, z + 4), size: (4, 0.2, 2), color: "#22C55E",
+                       material: .neon, behavior: .bounce)
+            }
+            // Obstacles to weave through.
+            for k in 0..<2 {
+                m.slab("Course \(n) Block \(i + 1)-\(k + 1)", x: cx + r.range(-5, 5), y: y, z: z + r.range(-7, 5),
+                       w: r.range(1.5, 3), h: r.range(1, 2.2), d: 1, color: course.0 == "Volcano" ? "#1C1917" : "#FFFFFF")
+            }
+            m.part("Course \(n) Meme \(i + 1)", at: (cx + r.range(-5, 5), y + 1, z), size: (0.9, 0.9, 0.9),
+                   color: r.pick(["#FACC15", "#34D399", "#F87171"]), shape: .sphere, material: .neon, behavior: .trigger,
+                   tags: ["meme"], solid: false)
+            // A speed strip on every fourth section.
+            if i % 4 == 1 {
+                m.part("Course \(n) Boost \(i + 1)", at: (cx + r.range(-3, 3), y + 0.06, z - 5), size: (3, 0.12, 3), color: "#F97316",
+                       material: .neon, behavior: .trigger, tags: ["boost"], solid: false)
+            }
+            // Power-ups every third section.
+            if i % 3 == 0, i > 0 {
+                let kinds = ["speed", "shield", "jump", "freeze", "magnet"]
+                let kind = kinds[(i / 3 + index) % kinds.count]
+                m.part("Course \(n) Power \(i + 1)", at: (cx + r.range(-4, 4), y + 1.2, z + 6), size: (1.2, 1.2, 1.2),
+                       color: "#E879F9", shape: .box, material: .neon, behavior: .trigger, tags: ["power", kind], solid: false,
+                       rotation: (45, 45, 0))
+            }
+            // Course hazards: blinking lava on the volcano, gates in the city.
+            if course.0 == "Volcano", !gap, i > 0 {
+                m.part("Course \(n) Lava \(i + 1)", at: (cx, y + 0.06, z + 2), size: (14, 0.12, 2.4), color: "#EA580C",
+                       material: .neon, behavior: .hazard, tags: ["lava_strip"], solid: false)
+            }
+            if course.0 == "City", !gap, i % 2 == 1 {
+                m.slab("Course \(n) Gate \(i + 1)", x: cx + (i % 4 == 1 ? -3.5 : 3.5), y: y, z: z + 6, w: 7, h: 2.6, d: 0.6,
+                       color: "#DC2626", tags: ["gate"])
+            }
+        }
+        m.slab("Course \(n) Finish", x: cx, y: -1, z: 320, w: 24, h: 1, d: 16, color: "#22C55E")
+        m.pad("Course \(n) Finish Line", x: cx, z: 316, size: 12, color: "#FFFFFF", tags: ["finish", "course\(n)"], shape: .box)
+    }
+    m.part("Volcano Cone", at: (-90, 20, 345), size: (40, 40, 20), color: "#57534E", shape: .cone)
+    for i in 0..<6 {
+        m.part("City Tower \(i + 1)", at: (Float(70 + (i % 2) * 40), 15, Float(40 + i * 45)), size: (10, 30, 10), color: "#475569")
+    }
 }

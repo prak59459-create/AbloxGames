@@ -1,0 +1,283 @@
+-- race.absc — 投票 → カウントダウン → レース → 結果
+-- 12びょうでコースを投票。津波（かざんは溶岩）はうしろから、だんだん速くなる。
+-- 4回に1回は「メガ津波」— 速いけれどミームが2倍。
+
+let phase = "vote"
+let course = COURSES[1]
+let votes = {}
+let vote_ends = 0
+let wave = nil
+let wave_z = -30
+let wave_speed = 0
+let frozen_until = 0
+let start_time = 0
+let finished = 0
+let mega = false
+let race_clock = 0
+let wave_move_clock = 0
+let round_id = 0
+let gap_clock = 0
+
+func runners()
+  return filter(players(), func(p) return ready(p) and p.racing and not p.out and not p.done end)
+end
+
+-- MARK: 投票
+
+func vote_ui(p)
+  let lines = []
+  for c in COURSES do
+    let count = 0
+    for pid in keys(votes) do
+      if votes[pid] == c.id then count = count + 1 end
+    end
+    append(lines, c.name + " " + count)
+  end
+  p.ui_text("vote_line", "🗳 コースを投票（パッドにのる） " + join(lines, "  ") + "   のこり " + max(0, ceil(vote_ends - time())),
+            {at: "top", dy: 30, size: 18, bold: true})
+  let i = 0
+  for c in COURSES do
+    i = i + 1
+    let label = c.name
+    if votes[p.id] == c.id then label = "✅ " + label end
+    p.ui_button("vote_" + c.id, label, {at: "center", dx: (i - 2) * 170, dy: 130, w: 160, h: 50, size: 16, bg: c.color})
+  end
+end
+
+func clear_vote_ui(p)
+  p.ui_remove("vote_line")
+  for c in COURSES do p.ui_remove("vote_" + c.id) end
+end
+
+func start_vote()
+  round_id = round_id + 1
+  phase = "vote"
+  votes = {}
+  vote_ends = time() + VOTE_SECS
+  finished = 0
+  wave = nil
+  for p in players() do
+    if ready(p) then
+      p.racing = false
+      p.out = false
+      p.done = false
+      vote_ui(p)
+    end
+  end
+end
+
+func vote(p, id)
+  if phase != "vote" then return end
+  votes[p.id] = id
+  for q in players() do
+    if ready(q) then vote_ui(q) end
+  end
+  if len(keys(votes)) >= len(players()) then vote_ends = min(vote_ends, time() + 1.5) end
+end
+
+func pick_course()
+  let best = COURSES[1]
+  let best_count = -1
+  for c in shuffle(copy(COURSES)) do
+    let count = 0
+    for pid in keys(votes) do
+      if votes[pid] == c.id then count = count + 1 end
+    end
+    if count > best_count then
+      best = c
+      best_count = count
+    end
+  end
+  return best
+end
+
+-- MARK: レース
+
+func start_race()
+  course = pick_course()
+  mega = random(1, MEGA_ODDS) == 1
+  phase = "countdown"
+  let rid = round_id
+  let marker = block("Course " + course.n + " Wave Start")
+  wave_z = marker.position.z
+  wave_speed = course.base
+  frozen_until = 0
+  let wave_color = course.color
+  if mega then wave_color = "#312E81" end
+  wave = create_block({name: "Tsunami", position: {x: course.x, y: 5, z: wave_z}, size: {x: 30, y: 14, z: 6}, color: wave_color,
+                       material: "glass", opacity: 0.8, solid: false})
+  let i = 0
+  for p in players() do
+    if ready(p) then
+      clear_vote_ui(p)
+      i = i + 1
+      p.racing = true
+      p.out = false
+      p.done = false
+      p.race_memes = 0
+      p.shield = up_level(p, "shield") > 0
+      p.teleport(block("Course " + course.n + " Start " + ((i - 1) % 8 + 1)))
+      p.frozen = true
+      p.yaw = 0
+      apply_move(p)
+    end
+  end
+  let title = course.name + " — " + course.wave
+  if mega then title = "⚠ メガ" + course.wave + "！ ミーム2倍 — " + course.name end
+  announce(title, 3)
+  for k in 1 to 3 do
+    after(k, func()
+      if rid != round_id then return end
+      announce(str(4 - k), 0.8)
+      sound("tick")
+    end)
+  end
+  after(4, func()
+    if rid != round_id then return end
+    phase = "race"
+    start_time = time()
+    announce("GO! 🌊", 1)
+    sound("goal")
+    for p in players() do
+      if ready(p) and p.racing then
+        p.frozen = false
+        let dash = up_level(p, "dash")
+        if dash > 0 then p.launch(0, 3, 10 + dash * 6) end
+      end
+    end
+  end)
+end
+
+func knock_out(p, reason)
+  if p.out or p.done then return end
+  if p.shield then
+    p.shield = false
+    p.teleport(p.position + {x: 0, y: 2, z: 25})
+    p.message("🛡 シールドがまもってくれた！", 2)
+    return
+  end
+  p.out = true
+  p.best_distance = max(p.best_distance or 0, floor(p.z))
+  p.message(reason, 2)
+  p.ui_remove("gap")
+  p.shake(0.6, 0.6)
+  after(1.5, func()
+    if kit_here(p) then p.teleport(block("Spawn " + random(1, 8))) end
+  end)
+end
+
+func finish_line(p)
+  if phase != "race" or not p.racing or p.done or p.out then return end
+  p.done = true
+  finished = finished + 1
+  let secs = time() - start_time
+  let points = max(3, 15 - (finished - 1) * 4)
+  let bonus = points
+  p.score = p.score + points
+  p.memes = p.memes + bonus
+  if finished == 1 then
+    p.wins = (p.wins or 0) + 1
+    kit_quest_progress(p, "win", 1)
+  end
+  kit_quest_progress(p, "finish", 1)
+  if course.id == "volcano" then kit_quest_progress(p, "volcano", 1) end
+  announce("🏁 " + p.name + " が " + finished + " 位でゴール！（" + fmt_time(secs) + "・✨+" + bonus + "）", 3)
+  p.ui_remove("gap")
+  record_time(p, course, secs)
+  hud(p)
+end
+
+func end_race(message)
+  if phase != "race" then return end
+  phase = "over"
+  if wave != nil then kit_gone(wave) end
+  wave = nil
+  for p in players() do
+    if ready(p) and p.racing then
+      p.races = (p.races or 0) + 1
+      p.best_distance = max(p.best_distance or 0, floor(p.z))
+      kit_quest_progress(p, "races", 1)
+      p.ui_remove("gap")
+      hud(p)
+    end
+  end
+  show_results(message)
+  kit_finish(message, 6)
+end
+
+-- 0.1びょうごと: 津波を進めて、のまれた人を調べる
+func race_step(dt)
+  if phase != "race" then return end
+  let t = time() - start_time
+  if time() >= frozen_until then
+    wave_speed = course.base + t * course.accel
+    if mega then wave_speed = wave_speed * 1.2 end
+    wave_z = wave_z + wave_speed * dt
+  end
+  gap_clock = gap_clock + dt
+  let show_gap = gap_clock >= 0.4
+  if show_gap then gap_clock = 0 end
+  for p in runners() do
+    let gap = p.z - wave_z
+    if show_gap then
+      let color = "#FFFFFF"
+      if gap < 15 then color = "#F87171" end
+      p.ui_text("gap", "🌊 あと " + max(0, floor(gap)) + " m   🏁 " + max(0, floor(COURSE_LENGTH - p.z)) + " m", {at: "top", dy: 30, size: 20, bold: true, color: color})
+    end
+    if gap < 3 then knock_out(p, "🌊 " + course.wave + "にのまれた！") end
+    if p.y < -8 then knock_out(p, "💦 落ちた！") end
+  end
+  if len(runners()) == 0 then
+    end_race("🏁 レース終了！ " + finished + " 人ゴール")
+  elif wave_z > COURSE_LENGTH + 5 then
+    end_race("🌊 " + course.wave + "がゴールに…")
+  end
+end
+
+on tick(dt)
+  race_clock = race_clock + dt
+  wave_move_clock = wave_move_clock + dt
+  if race_clock >= 0.1 then
+    let passed = race_clock
+    race_clock = 0
+    race_step(passed)
+  end
+  -- 見た目の波は1びょうごとに、なめらかに動かす
+  if wave_move_clock >= 1 then
+    wave_move_clock = 0
+    if phase == "vote" then
+      for p in players() do
+        if ready(p) then vote_ui(p) end
+      end
+      if time() >= vote_ends then start_race() end
+    elif phase == "race" and wave != nil and still(wave) then
+      let ahead = wave_speed
+      if time() < frozen_until then ahead = 0 end
+      wave.move_to({x: course.x, y: 5, z: wave_z + ahead}, 1)
+    end
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  if phase == "race" and victim.racing then
+    -- 溶岩（ハザード）でやられた
+    victim.shield = false
+    knock_out(victim, "🔥 やられた！")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "vote") and phase == "vote" then
+    for c in COURSES do
+      if contains(b.tags, c.id) and quiet_ready(p, "vote_pad", 1) then vote(p, c.id) end
+    end
+  elif contains(b.tags, "finish") then
+    if contains(b.tags, "course" + course.n) then finish_line(p) end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "vote_") then vote(p, replace(id, "vote_", "")) end
+end

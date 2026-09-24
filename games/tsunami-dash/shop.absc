@@ -1,0 +1,130 @@
+-- shop.absc — ミームショップ（ずっと使える強化）とスキン屋
+
+func shop_menu(p)
+  let h = 140 + len(UPGRADES) * 48
+  p.ui_panel("shop_box", {at: "center", w: 580, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🛒 ミームショップ（✨ " + p.memes + "）", {parent: "shop_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = up_level(p, u.id)
+    let label = "✅ " + u.name + " MAX"
+    let bg = "#374151"
+    if lv < len(u.costs) then
+      let level = ""
+      if len(u.costs) > 1 then level = " Lv" + lv + "→" + (lv + 1) end
+      label = u.name + level + "  ✨" + u.costs[lv + 1] + "  " + u.text
+      bg = "#B45309"
+    end
+    p.ui_button("up_" + u.id, label, {parent: "shop_box", y: (30 + i * 48) / h, w: 540, h: 40, size: 13, bg: bg})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  let u = up_info(id)
+  if u == nil then return end
+  let lv = up_level(p, id)
+  if lv >= len(u.costs) then return end
+  let cost = u.costs[lv + 1]
+  if p.memes < cost then
+    p.message("ミームが足りない（あと " + (cost - p.memes) + "）", 1.5)
+    p.sound("error")
+    return
+  end
+  p.memes = p.memes - cost
+  p.ups[id] = lv + 1
+  p.sound("goal")
+  kit_quest_progress(p, "upgrade", 1)
+  apply_move(p)
+  hud(p)
+  shop_menu(p)
+end
+
+-- MARK: スキン
+
+func own_colors(p)
+  if p.own_body == nil then
+    p.own_body = p.color
+    p.own_head = p.head_color
+    p.own_legs = p.leg_color
+  end
+end
+
+func wear(p, id)
+  own_colors(p)
+  p.skin = id
+  if id == "own" then
+    p.color = p.own_body
+    p.head_color = p.own_head
+    p.leg_color = p.own_legs
+    return
+  end
+  for sk in SKINS do
+    if sk.id == id and sk.body != nil then
+      p.color = sk.body
+      p.head_color = sk.head
+      p.leg_color = sk.legs
+    end
+  end
+end
+
+func skin_menu(p)
+  let h = 130 + len(SKINS) * 46
+  p.ui_panel("skin_box", {at: "center", w: 440, h: h, bg: "#500724F2", radius: 22, layer: 30})
+  p.ui_text("skin_t", "🎨 スキン（✨ " + p.memes + "）", {parent: "skin_box", y: 26 / h, size: 19, bold: true, color: "#FBCFE8"})
+  let i = 0
+  for sk in SKINS do
+    i = i + 1
+    let label = sk.name + "  ✨" + sk.price
+    let bg = "#9D174D"
+    if contains(p.skins, sk.id) then
+      label = sk.name + " を着る"
+      bg = "#0F766E"
+    end
+    if p.skin == sk.id then
+      label = "✅ " + sk.name
+      bg = "#374151"
+    end
+    p.ui_button("skin_" + sk.id, label, {parent: "skin_box", y: (30 + i * 46) / h, w: 400, h: 38, size: 15, bg: bg})
+  end
+  p.ui_button("skin_close", "閉じる", {parent: "skin_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_skin(p, id)
+  if not contains(p.skins, id) then
+    let price = nil
+    for sk in SKINS do
+      if sk.id == id then price = sk.price end
+    end
+    if price == nil then return end
+    if p.memes < price then
+      p.message("ミームが足りない", 1.2)
+      p.sound("error")
+      return
+    end
+    p.memes = p.memes - price
+    append(p.skins, id)
+    p.sound("goal")
+    kit_quest_progress(p, "skin", 1)
+  end
+  wear(p, id)
+  hud(p)
+  skin_menu(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "meme_shop") and quiet_ready(p, "shop_pad", 5) then shop_menu(p)
+  elif contains(b.tags, "skin_stand") and quiet_ready(p, "skin_pad", 5) then skin_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "shop" then shop_menu(p)
+  elif id == "shop_close" then p.ui_remove("shop_box")
+  elif starts_with(id, "up_") then buy_upgrade(p, replace(id, "up_", ""))
+  elif id == "skin_close" then p.ui_remove("skin_box")
+  elif starts_with(id, "skin_") then pick_skin(p, replace(id, "skin_", ""))
+  end
+end

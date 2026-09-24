@@ -1,0 +1,101 @@
+-- track.absc — コースの上のもの
+-- ミーム（光る玉）・スピードの床・パワーアップ（⚡🛡🦘❄🧲）・かざんの溶岩（点めつ）・シティのゲート（開け閉め）
+
+let blink_clock = 0
+let lava_on = true
+let gates_open = false
+let magnet_clock = 0
+
+func grab_meme(p, b)
+  if not b.visible then return end
+  b.visible = false
+  let gain = 1
+  if mega then gain = 2 end
+  p.memes = p.memes + gain
+  p.race_memes = (p.race_memes or 0) + gain
+  p.score = p.score + gain
+  p.sound("collect")
+  kit_quest_progress(p, "memes", gain)
+  hud(p)
+end
+
+func use_power(p, b, kind)
+  if not b.visible then return end
+  b.visible = false
+  let info = POWERS[kind]
+  p.message(info.name + "！ " + info.text, 1.5)
+  p.sound("checkpoint")
+  kit_quest_progress(p, "power", 1)
+  if kind == "speed" then p.speed_until = time() + info.secs
+  elif kind == "jump" then p.jump_until = time() + info.secs
+  elif kind == "shield" then p.shield = true
+  elif kind == "magnet" then p.magnet_until = time() + info.secs
+  elif kind == "freeze" then
+    frozen_until = time() + info.secs
+    announce("❄ " + p.name + " が津波を止めた！（" + info.secs + "びょう）", 2)
+  end
+  apply_move(p)
+end
+
+-- MARK: 点めつ・開け閉め（全員の画面で同じになるよう、見た目と当たりを一緒に切りかえる）
+
+func blink_lava()
+  lava_on = not lava_on
+  for b in blocks("lava_strip") do
+    b.visible = lava_on
+    if lava_on then b.behavior = "hazard" else b.behavior = "none" end
+  end
+end
+
+func swing_gates()
+  gates_open = not gates_open
+  for b in blocks("gate") do
+    b.solid = not gates_open
+    if gates_open then b.opacity = 0.2 else b.opacity = 1 end
+  end
+end
+
+-- マグネット: 近くのミームを拾う
+func magnets()
+  for p in players() do
+    if ready(p) and p.racing and not p.out and not p.done then
+      if active_until(p.magnet_until) or up_level(p, "magnet") > 0 then
+        let reach = 3
+        if active_until(p.magnet_until) then reach = 7 end
+        for b in blocks("meme") do
+          if b.visible and distance(p, b) < reach then grab_meme(p, b) end
+        end
+      end
+      apply_move(p)
+    end
+  end
+end
+
+on tick(dt)
+  blink_clock = blink_clock + dt
+  magnet_clock = magnet_clock + dt
+  if blink_clock >= 1.5 then
+    blink_clock = 0
+    if course.id == "volcano" and phase == "race" then blink_lava() end
+    if course.id == "city" and phase == "race" then swing_gates() end
+  end
+  if magnet_clock >= 0.3 then
+    magnet_clock = 0
+    if phase == "race" then magnets() end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.racing or p.out or p.done then return end
+  if contains(b.tags, "meme") then grab_meme(p, b)
+  elif contains(b.tags, "boost") then
+    if quiet_ready(p, "boost", 1) then
+      p.launch(0, 2, 22)
+      p.message("🔥 ブースト！", 0.6)
+    end
+  elif contains(b.tags, "power") then
+    for kind in keys(POWERS) do
+      if contains(b.tags, kind) then use_power(p, b, kind) end
+    end
+  end
+end

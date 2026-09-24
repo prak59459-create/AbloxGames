@@ -1,104 +1,75 @@
 -- Tsunami Dash — うしろからせまる津波からにげて、ゴールまで走りぬけろ
+-- 3つのコースから投票 → カウントダウン → レース。ミームを集めて、ショップでずっと使える強化。
+--
+-- ファイル:
+--   data.absc    表（コース・パワーアップ・強化・スキン）
+--   common.absc  小さな道具・速さ・画面の左上
+--   race.absc    投票・カウントダウン・津波・ゴール・のまれる
+--   track.absc   ミーム・ブースト・パワーアップ・溶岩の点めつ・ゲート
+--   shop.absc    ミームショップとスキン
+--   stats.absc   最速記録・結果・成績
+--   main.absc    このファイル
 
 kit_setup("Tsunami Dash", "止まったら、のまれる！", [
-  "スタートの合図で走り出そう。津波はだんだん速くなる",
-  "とちゅうのミームキャラ（光る玉）を拾うとボーナス",
-  "緑のジャンプ台で穴を飛びこえる",
-  "ゴールした順番でポイント。津波にのまれたらアウト",
-  "全員ゴールかアウトで次のレース"
+  "🗳 パッドにのってコースを投票（🏖ビーチ・🏙シティ・🌋かざん）",
+  "🌊 GO! で走り出そう。津波はだんだん速くなる（走るボタンで速く）",
+  "✨ ミーム（光る玉）を集める。🔥 オレンジの床でブースト",
+  "📦 光る箱はパワーアップ: ⚡スピード 🛡シールド 🦘ジャンプ ❄津波ストップ 🧲マグネット",
+  "🌋 かざんの溶岩は点めつ、🏙 シティの赤いゲートは開いたり閉じたり",
+  "🛒 ミームショップでずっと使える強化、🎨 スキンも買える",
+  "⚠ ときどきメガ津波！ 速いけれどミーム2倍"
 ])
 
-let wave = nil
-let racing = false
-let start_time = 0
-let finished = 0
-let wave_z = -30
+kit_quest("races", "10レース走る", 10, 10)
+kit_quest("finish", "ゴールする", 1, 5)
+kit_quest("win", "1位になる", 1, 15)
+kit_quest("volcano", "かざんコースでゴール", 1, 25)
+kit_quest("memes", "ミームを100こ集める", 100, 20)
+kit_quest("power", "パワーアップを10回使う", 10, 10)
+kit_quest("upgrade", "強化を買う", 1, 5)
+kit_quest("skin", "スキンを買う", 1, 5)
 
-func alive_runners()
-  return len(filter(players(), func(p) return not p.out and not p.done end))
-end
-
-func begin()
-  let start = block("Wave Start")
-  wave = create_block({name: "Tsunami", position: start.position, size: {x: 40, y: 14, z: 6}, color: "#1D4ED8",
-                       material: "glass", opacity: 0.8, solid: false})
-  wave_z = start.position.z
-  for p in players() do
-    p.frozen = true
-    p.teleport(block("Spawn " + random(1, 8)))
-  end
-  for k in 1 to 3 do
-    after(k, func()
-      announce(str(4 - k), 0.8)
-      sound("tick")
-    end)
-  end
-  after(4, func()
-    racing = true
-    start_time = time()
-    for p in players() do p.frozen = false end
-    announce("GO! 🌊", 1)
-    sound("goal")
-  end)
-end
-
-func finish_race(message)
-  if not racing then return end
-  racing = false
-  kit_finish(message, 5)
-end
+let money_clock = 0
 
 on start()
-  after(2, func() begin() end)
-  every(10, func() kit_leaderboard("🏃") end)
+  start_vote()
+  show_records()
+  every(10, func() kit_leaderboard("🏁") end)
 end
 
 on join(p)
   kit_welcome(p)
+  p.ups = {}
   p.memes = 0
-  if racing then
-    p.out = true
-    p.message("次のレースから参加！", 2)
+  p.skins = ["own"]
+  p.skin = "own"
+  own_colors(p)
+  p.racing = false
+  p.out = false
+  p.done = false
+  p.ui_button("shop", "🛒 ショップ", {at: "right", dy: -60, w: 140, h: 48, size: 16, bg: "#CA8A04"})
+  p.ui_button("stats", "📊", {at: "top_right", dy: 120, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  apply_move(p)
+  hud(p)
+  if phase == "vote" then
+    vote_ui(p)
+  else
+    p.message("レース中！ 次のレースから参加できるよ", 2.5)
   end
 end
 
+-- クエストのごほうび（kit のコイン）はミームとして受けとる
 on tick(dt)
-  if not racing or wave == nil then return end
-  let t = time() - start_time
-  let speed = 5 + t * 0.06
-  wave_z = wave_z + speed * dt
-  wave.z = wave_z
+  money_clock = money_clock + dt
+  if money_clock < 1 then return end
+  money_clock = 0
   for p in players() do
-    if not p.out and not p.done then
-      p.ui_text("gap", "🌊 あと " + max(0, floor(p.z - wave_z)) + " m", {at: "top", dy: 30, size: 20, bold: true,
-                color: p.z - wave_z < 15 and "#F87171" or "#FFFFFF"})
-      if p.z < wave_z + 3 then
-        p.out = true
-        p.message("🌊 のまれた！", 2)
-        p.ui_remove("gap")
-        p.shake(0.6, 0.6)
-        p.teleport(block("Finish"))
-      end
+    if ready(p) and (p.coins or 0) > 0 then
+      p.memes = p.memes + p.coins
+      p.coins = 0
+      hud(p)
     end
-  end
-  if alive_runners() == 0 then finish_race("🏁 レース終了！ " + finished + " 人ゴール") end
-  if wave_z > 330 then finish_race("🌊 津波がゴールに…") end
-end
-
-on touch(p, b)
-  if p.is_npc or p.out then return end
-  if contains(b.tags, "meme") and b.visible then
-    b.visible = false
-    p.memes = p.memes + 1
-    p.score = p.score + 2
-    p.sound("collect")
-    p.message("✨ ミームゲット！ +2", 1)
-  elif contains(b.tags, "finish") and racing and not p.done then
-    p.done = true
-    finished = finished + 1
-    let points = max(3, 15 - (finished - 1) * 4)
-    p.score = p.score + points
-    announce("🏁 " + p.name + " が " + finished + " 位でゴール！ +" + points, 3)
-    p.ui_remove("gap")
   end
 end

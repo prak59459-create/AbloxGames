@@ -1,0 +1,41 @@
+-- data.absc — Tsunami Dash の表
+-- コース・津波・パワーアップ・ミームショップ・スキン
+
+-- MARK: コース（x: コースの位置 / base・accel: 津波の速さと加速）
+let COURSES = [
+  {id: "beach", n: 1, name: "🏖 ビーチ", x: 0, base: 5, accel: 0.08, wave: "🌊 津波", color: "#1D4ED8", text: "穴とジャンプ台。はじめてならここ"},
+  {id: "city", n: 2, name: "🏙 シティ", x: 90, base: 5.5, accel: 0.09, wave: "🌊 大波", color: "#0E7490", text: "屋上を上り下り。赤いゲートが開いたり閉じたり"},
+  {id: "volcano", n: 3, name: "🌋 かざん", x: -90, base: 6, accel: 0.1, wave: "🔥 溶岩流", color: "#C2410C", text: "点めつする溶岩の床。いちばんむずかしい"}
+]
+let COURSE_LENGTH = 320
+let VOTE_SECS = 12
+let MEGA_ODDS = 4          -- 1/4 のレースは「メガ津波」（速い・ミーム2倍）
+
+-- MARK: パワーアップ（コースの上の光る箱）
+let POWERS = {
+  speed: {name: "⚡ スピード", secs: 3, text: "3びょう 速く走れる"},
+  shield: {name: "🛡 シールド", secs: 0, text: "1回だけ津波からはじき出される"},
+  jump: {name: "🦘 ジャンプ", secs: 5, text: "5びょう 高くとべる"},
+  freeze: {name: "❄ 津波ストップ", secs: 2.5, text: "津波が2.5びょう止まる"},
+  magnet: {name: "🧲 マグネット", secs: 8, text: "8びょう 近くのミームを引きよせる"}
+}
+
+-- MARK: ミームショップ（ずっと使える強化）
+let UPGRADES = [
+  {id: "speed", name: "👟 スピード", costs: [10, 20, 40, 80, 160], text: "走る速さ +4%"},
+  {id: "jump", name: "🦘 ジャンプ", costs: [15, 40, 100], text: "ジャンプ +8%"},
+  {id: "dash", name: "🚀 スタートダッシュ", costs: [20, 50, 120], text: "GO! と同時に前へ飛び出す"},
+  {id: "magnet", name: "🧲 いつでもマグネット", costs: [60], text: "近くのミームを自動で拾う"},
+  {id: "shield", name: "🛡 はじめからシールド", costs: [150], text: "毎レース シールドつきでスタート"}
+]
+
+-- MARK: スキン
+let SKINS = [
+  {id: "own", name: "👤 いつもの", price: 0},
+  {id: "surfer", name: "🏄 サーファー", price: 20, body: "#06B6D4", head: "#FDE68A", legs: "#1E3A8A"},
+  {id: "banana", name: "🍌 バナナ", price: 40, body: "#FACC15", head: "#FEF08A", legs: "#A16207"},
+  {id: "frog", name: "🐸 カエル", price: 60, body: "#22C55E", head: "#86EFAC", legs: "#14532D"},
+  {id: "ninja", name: "🥷 ニンジャ", price: 100, body: "#111827", head: "#1F2937", legs: "#000000"},
+  {id: "lava", name: "🌋 ようがん", price: 150, body: "#EA580C", head: "#FDBA74", legs: "#7C2D12"},
+  {id: "gold", name: "🏆 ゴールド", price: 300, body: "#F59E0B", head: "#FEF3C7", legs: "#B45309"}
+]

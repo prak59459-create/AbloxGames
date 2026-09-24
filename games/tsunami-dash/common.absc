@@ -1,0 +1,64 @@
+-- common.absc — 小さな道具
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func ready(p)
+  return p.ups != nil
+end
+
+func course_info(id)
+  for c in COURSES do
+    if c.id == id then return c end
+  end
+  return COURSES[1]
+end
+
+func up_level(p, id)
+  return p.ups[id] or 0
+end
+
+func up_info(id)
+  for u in UPGRADES do
+    if u.id == id then return u end
+  end
+  return nil
+end
+
+func fmt_time(secs)
+  return fixed(secs, 1) + "びょう"
+end
+
+-- 速さ・ジャンプ（強化 + パワーアップ）
+func apply_move(p)
+  if not ready(p) then return end
+  let s = 1 + up_level(p, "speed") * 0.04
+  let j = 1 + up_level(p, "jump") * 0.08
+  if active_until(p.speed_until) then s = s * 1.5 end
+  if active_until(p.jump_until) then j = j * 1.5 end
+  let now = s + ":" + j
+  if p.move_state != now then
+    p.move_state = now
+    p.speed = s
+    p.jump = j
+  end
+end
+
+func hud(p)
+  if not ready(p) then return end
+  p.ui_text("hud", "✨ " + p.memes + " ミーム   🏁 " + (p.wins or 0) + " 勝   🏃 " + (p.races or 0) + " レース",
+            {at: "top_left", dy: 34, size: 15, bold: true, color: "#FEF3C7"})
+end
