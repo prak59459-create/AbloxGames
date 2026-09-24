@@ -1,11 +1,15 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 48,
+  "blockCount" : 67,
   "id" : "runway-star",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/runway-star\/data.absc",
+    "games\/runway-star\/common.absc",
+    "games\/runway-star\/show.absc",
+    "games\/runway-star\/wardrobe.absc",
     "games\/runway-star\/main.absc"
   ],
   "summary" : "テーマに合わせて服の色や帽子をコーディネートしてランウェイへ。みんなで星をつけ合って、トップモデルを決めよう。",

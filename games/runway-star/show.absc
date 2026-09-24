@@ -1,0 +1,338 @@
+-- show.absc — ファッションショー
+-- 1. お題が出る → 75秒で着がえ（左のパネル）
+-- 2. ひとりずつランウェイを歩く（ポーズボタンでアピール）。ほかの人は ⭐1〜5 で投票
+-- 3. 審査員（NPC）もお題に合っているかを採点 → 表しょう台で上位3人を発表
+-- 人数が少ないときは NPC のモデルも出場する。
+
+let DRESS_TIME = 75
+let WALK_TIME = 9
+let current_theme = nil
+let phase = "wait"
+let contestants = []   -- {id, npc, name, outfit, stars, votes, poses}
+let walking = nil
+let phase_until = 0
+let judges = []
+let show_clock = 0
+let podium_list = []
+
+-- MARK: 審査員
+
+func spawn_judges()
+  let i = 0
+  for name in JUDGE_NAMES do
+    i = i + 1
+    let seat = block("Judge Seat " + i)
+    if seat != nil then
+      let n = create_npc({name: name, position: seat.position + {x: 0, y: 1, z: 0}, color: random(["#111111", "#7C3AED", "#DB2777"]),
+                          head_color: "#F5D0A9", size: 1, health: 1000000000, speed: 0})
+      n.look_at(block("Runway Start"))
+      append(judges, n)
+    end
+  end
+end
+
+-- お題に合っているか（0〜5）
+func judge_score(o, theme, poses)
+  let s = 0
+  if contains(theme.colors, o.color) then s = s + 1.5 end
+  if contains(theme.colors, o.head) then s = s + 0.7 end
+  if contains(theme.colors, o.legs) then s = s + 0.7 end
+  if contains(theme.hats, o.hat) then s = s + 0.5 end
+  let acc = 0
+  for a in o.acc do
+    if contains(theme.acc, a) then acc = acc + 0.7 end
+  end
+  s = s + min(1.4, acc)
+  -- 全部同じ色はちょっとたいくつ
+  if o.color == o.head and o.head == o.legs then s = s - 0.5 end
+  s = s + min(0.8, len(poses) * 0.2)
+  return clamp(s, 0, 5)
+end
+
+func judge_comment(score)
+  if score >= 4 then return random(["完ぺき！お題にぴったり！", "今日いちばんのコーデ！", "すばらしいセンス！"]) end
+  if score >= 2.5 then return random(["いい感じ！", "色の合わせ方がすてき", "小物がかわいい！"]) end
+  return random(["お題をもう少し意識してみて", "色がお題と合っていないかも", "小物を足すともっと良くなるよ"])
+end
+
+-- MARK: NPCモデル
+
+func random_outfit(theme)
+  let basic = PALETTES[1].colors
+  let o = {color: random(basic), head: random(basic), legs: random(basic), hat: random(HATS).id, size: 0.9 + random() * 0.3, acc: []}
+  -- 半分くらいはお題を意識する
+  if random() < 0.6 then
+    o.color = random(theme.colors)
+    o.legs = random(theme.colors)
+    o.hat = random(theme.hats)
+    append(o.acc, random(theme.acc))
+  end
+  return o
+end
+
+func add_npc_models(count)
+  let names = shuffle(copy(NPC_NAMES))
+  for i in 1 to count do
+    let o = random_outfit(current_theme)
+    let spot = block("Spawn " + random(1, 8))
+    let n = create_npc({name: names[i], position: spot.position + {x: 0, y: 1, z: 0}, color: o.color, head_color: o.head,
+                        leg_color: o.legs, hat: o.hat, size: o.size, health: 1000000000, speed: 0.9})
+    n.model = true
+    append(contestants, {id: n.id, npc: n, name: names[i], outfit: o, stars: 0, votes: 0, poses: []})
+  end
+end
+
+func clear_npc_models()
+  for n in npcs() do
+    if n.model then
+      unwear(n)
+      n.destroy()
+    end
+  end
+end
+
+-- MARK: ショーの流れ
+
+func start_show()
+  if len(players()) == 0 then
+    after(5, func() start_show() end)
+    return
+  end
+  clear_npc_models()
+  for c in podium_list do unwear(c) end
+  podium_list = []
+  phase = "dress"
+  current_theme = random(THEMES)
+  contestants = []
+  phase_until = time() + DRESS_TIME
+  announce("✨ お題は「" + current_theme.name + "」！" + DRESS_TIME + "秒でコーデしよう", 4)
+  ui_text("theme", "お題: " + current_theme.name, {at: "top", dy: 26, size: 26, bold: true, color: "#F0ABFC"})
+  for p in players() do
+    p.frozen = false
+    p.camera_reset()
+    p.teleport(block("Spawn " + random(1, 8)))
+    append(contestants, {id: p.id, npc: nil, name: p.name, outfit: nil, stars: 0, votes: 0, poses: []})
+    p.tab = "body"
+    dress_panel(p)
+  end
+  if len(players()) < 4 then add_npc_models(4 - len(players())) end
+end
+
+func start_runway()
+  phase = "walk"
+  ui_remove("timer")
+  -- 着がえの結果を記録
+  for c in contestants do
+    if c.npc == nil then
+      let p = player_by_id(c.id)
+      if p != nil then
+        c.outfit = copy_outfit(p.outfit)
+        p.ui_remove("dress")
+        p.ui_remove("closet")
+      end
+    end
+  end
+  contestants = filter(contestants, func(c) return c.outfit != nil end)
+  contestants = shuffle(contestants)
+  announce("👠 ランウェイの時間です！", 2)
+  after(2, func() walk_next(1) end)
+end
+
+func contestant_char(c)
+  if c.npc != nil then
+    if kit_here(c.npc) then return c.npc end
+    return nil
+  end
+  return player_by_id(c.id)
+end
+
+func walk_next(i)
+  if phase != "walk" then return end
+  if i > len(contestants) then
+    results()
+    return
+  end
+  let c = contestants[i]
+  let who = contestant_char(c)
+  if who == nil then
+    walk_next(i + 1)
+    return
+  end
+  walking = c
+  who.teleport(block("Runway Start"))
+  who.look_at(block("Runway End"))
+  apply_outfit(who, c.outfit)
+  wear(who, c.outfit)
+  if c.npc != nil then
+    c.npc.move_to(block("Runway End"))
+    -- NPCもポーズ
+    after(3, func()
+      if kit_here(c.npc) then
+        c.npc.jump_now()
+        append(c.poses, "jump")
+      end
+    end)
+    after(5.5, func()
+      if kit_here(c.npc) then
+        c.npc.yaw = c.npc.yaw + 180
+        append(c.poses, "spin")
+      end
+    end)
+  else
+    who.message("👠 ランウェイを歩いて、ポーズボタンでアピール！", 2.5)
+    let k = 0
+    for pose in POSES do
+      k = k + 1
+      who.ui_button("pose_" + pose.id, pose.name, {at: "bottom", dx: (k - 2.5) * 130, dy: -110, w: 120, h: 50, size: 15, bg: "#C026D3", radius: 14})
+    end
+  end
+  announce("モデル: " + c.name, 2)
+  for p in players() do
+    p.camera_look(block("Camera Spot"), who)
+    if p.id != c.id then
+      p.ui_panel("vote", {at: "bottom", dy: -100, w: 460, h: 80, bg: "#000000AA", radius: 16})
+      for s in 1 to 5 do
+        p.ui_button("star_" + s, "⭐" + s, {parent: "vote", x: (s - 0.5) / 5, w: 80, h: 56, size: 18, bg: "#DB2777"})
+      end
+    end
+  end
+  after(WALK_TIME, func()
+    for p in players() do
+      p.ui_remove("vote")
+      for pose in POSES do p.ui_remove("pose_" + pose.id) end
+    end
+    if kit_here(who) then unwear(who) end
+    let js = judge_score(c.outfit, current_theme, c.poses)
+    c.judge = js
+    if len(judges) > 0 and kit_here(judges[1]) then random(judges).say(judge_comment(js)) end
+    walking = nil
+    if c.npc == nil and kit_here(who) then who.teleport(block("Spawn " + random(1, 8))) end
+    walk_next(i + 1)
+  end)
+end
+
+func vote(p, s)
+  let c = walking
+  if c == nil or c.id == p.id then return end
+  if c.voters == nil then c.voters = [] end
+  if contains(c.voters, p.id) then return end
+  append(c.voters, p.id)
+  c.stars = c.stars + s
+  c.votes = c.votes + 1
+  p.ui_remove("vote")
+  p.message("⭐" + s + " を投票しました", 1)
+  kit_quest_progress(p, "vote", 1)
+end
+
+func pose(p, id)
+  let c = walking
+  if c == nil or c.id != p.id then return end
+  if cooldown_left(p, "pose") > 0 then return end
+  start_cooldown(p, "pose", 1)
+  if not contains(c.poses, id) then append(c.poses, id) end
+  if id == "spin" then
+    for k in 1 to 4 do kit_later(p, k * 0.12, func() p.yaw = p.yaw + 90 end) end
+  elif id == "jump" then
+    p.launch(0, 9, 0)
+  elif id == "wave" then
+    chat("👋 " + p.name + " が手をふっている！")
+  elif id == "sparkle" then
+    let b = create_block({name: "Sparkle", shape: "sphere", position: p.position + {x: 0, y: 1.5, z: 0}, size: 3, color: "#FDE047", material: "neon", solid: false, opacity: 0.5})
+    after(0.8, func() gone(b) end)
+  end
+  kit_quest_progress(p, "pose", 1)
+end
+
+-- 最終の点数: みんなの星の平均（6割）＋ 審査員（4割）→ 100点満点
+func final_score(c)
+  let js = c.judge or 0
+  if c.votes == 0 then return floor(js * 20) end
+  let avg = c.stars / c.votes
+  return floor((avg * 0.6 + js * 0.4) * 20)
+end
+
+func results()
+  phase = "result"
+  for c in contestants do c.points = final_score(c) end
+  let ranked = sort(copy(contestants), func(a, b) return a.points > b.points end)
+  let line = "🏆 結果"
+  let rank = 0
+  for c in ranked do
+    rank = rank + 1
+    if rank <= 3 then line = line + "  " + rank + "位 " + c.name + "（" + c.points + "点）" end
+    let p = nil
+    if c.npc == nil then p = player_by_id(c.id) end
+    if p != nil then
+      p.total_stars = (p.total_stars or 0) + c.stars
+      let gems = 40
+      let xp = 30
+      if rank == 1 then
+        gems = 150
+        xp = 100
+        p.wins = p.wins + 1
+        kit_quest_progress(p, "win", 1)
+        p.hat = "crown"
+      elif rank == 2 then
+        gems = 100
+        xp = 70
+      elif rank == 3 then
+        gems = 70
+        xp = 50
+      end
+      if rank <= 3 then kit_quest_progress(p, "top3", 1) end
+      kit_quest_progress(p, "show", 1)
+      gain(p, xp, gems, rank + "位（" + c.points + "点・審査員 " + fixed(c.judge or 0, 1) + "）")
+    end
+  end
+  announce(line, 6)
+  -- 表しょう台
+  let spot = 0
+  for c in slice(ranked, 1, 3) do
+    spot = spot + 1
+    let who = contestant_char(c)
+    let place = block("Podium " + spot)
+    if who != nil and place != nil then
+      who.teleport(place)
+      who.look_at(block("Runway Start"))
+      apply_outfit(who, c.outfit)
+      wear(who, c.outfit)
+      append(podium_list, who)
+    end
+  end
+  for p in players() do p.camera_look(block("Camera Spot"), block("Podium 1")) end
+  sound("goal")
+  after(9, func()
+    for p in players() do p.camera_reset() end
+    start_show()
+  end)
+end
+
+on start()
+  spawn_judges()
+  after(4, func() start_show() end)
+end
+
+on tick(dt)
+  show_clock = show_clock + dt
+  if show_clock < 1 then return end
+  show_clock = 0
+  if phase == "dress" then
+    let left = phase_until - time()
+    ui_text("timer", "⏱ " + kit_clock(left), {at: "top", dy: 62, size: 20})
+    if left <= 0 then start_runway() end
+  end
+end
+
+on join(p)
+  -- ショーの途中なら、着がえ中は参加できる
+  if phase == "dress" then
+    append(contestants, {id: p.id, npc: nil, name: p.name, outfit: nil, stars: 0, votes: 0, poses: []})
+    kit_later(p, 4.5, func() dress_panel(p) end)
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "star_") then vote(p, num(replace(id, "star_", "")))
+  elif starts_with(id, "pose_") then pose(p, replace(id, "pose_", ""))
+  end
+end

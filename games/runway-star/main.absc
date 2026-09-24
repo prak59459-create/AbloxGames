@@ -1,178 +1,54 @@
--- Runway Star — テーマに合わせてコーデしてランウェイを歩くファッションショー
+-- Runway Star — お題に合わせてコーデしてランウェイを歩くファッションショー
+-- お題24種・色パレット5つ・帽子5種・アクセサリー14種（体についてくる）・ポーズ4種・
+-- 審査員NPC・NPCモデル（ひとりでも遊べる）・表しょう台・ブティック・クローゼット。
+--
+-- ファイル:
+--   data.absc      表（パレット・帽子・アクセサリー・お題・ポーズ・NPCの名前）
+--   common.absc    人さがし・画面・レベルとジェム
+--   wardrobe.absc  着がえパネル・アクセサリー・ブティック・クローゼット
+--   show.absc      ショーの流れ・ランウェイ・投票・審査員・表しょう台
+--   main.absc      このファイル
 
-kit_setup("Runway Star", "テーマに合わせてコーデ → ランウェイ → 星で投票", [
-  "1. お題（テーマ）が出たら60秒でコーディネート",
-  "   服・頭・足の色、帽子、身長を選べます",
-  "2. ひとりずつランウェイを歩きます（歩いてアピール！）",
-  "3. ほかの人が歩いているときに ⭐1〜5 で投票",
-  "星がいちばん多い人がトップモデル！"
+kit_setup("Runway Star", "お題に合わせてコーデ → ランウェイ → 星で投票", [
+  "✨ お題が出たら75秒でコーデ（左のパネル: 服・頭・足・帽子・小物）",
+  "🎨 お題に合う色・帽子・小物をえらぶと 審査員の点が上がる",
+  "👠 ランウェイでは ポーズボタンでアピール（いろんなポーズで加点）",
+  "⭐ ほかの人が歩いているときに ⭐1〜5 で投票",
+  "🏆 星の平均（6割）＋ 審査員（4割）で順位。上位3人は表しょう台へ",
+  "🛍 ピンクのパッドのブティックで 💎 を使って色や小物を買う",
+  "💾 紫のパッドのクローゼットでコーデを3つまで保存"
 ])
+kit_currency = "ジェム"
 
-let themes = ["海の日", "パーティー", "スポーツ", "お姫さま・王子さま", "ロックスター", "未来の服",
-              "ハロウィン", "雪の日", "ジャングル", "学校の制服", "おばけ", "スーパーヒーロー"]
-let palette = ["#EF4444", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7", "#EC4899", "#FFFFFF", "#111111", "#92400E"]
-let hats = ["none", "cap", "crown", "antenna", "halo"]
-let hat_names = {none: "なし", cap: "キャップ", crown: "王冠", antenna: "アンテナ", halo: "天使の輪"}
-let phase = "wait"
-let theme = ""
-let order = []
-let walker = nil
-let stars = {}      -- プレイヤーid → 星の合計
-let voted = {}      -- "投票した人:モデル" → true
+kit_quest("show", "ショーに出る", 1, 30)
+kit_quest("top3", "3位以内に入る", 1, 80)
+kit_quest("win", "優勝する", 1, 200)
+kit_quest("vote", "10回投票する", 10, 60)
+kit_quest("pose", "ポーズを10回", 10, 60)
+kit_quest("buy", "ブティックで買い物", 1, 50)
+kit_quest("save", "コーデを保存", 1, 30)
+kit_quest("lv5", "レベル5", 4, 300)
+kit_quest("lv10", "レベル10", 9, 800)
 
-func dress_panel(p)
-  p.ui_panel("dress", {at: "left", dx: 16, w: 330, h: 420, bg: "#000000B0", radius: 20, layer: 20})
-  p.ui_text("dress_t", "コーデ: " + p.part_name, {parent: "dress", y: 0.06, size: 18, bold: true, color: "#F0ABFC"})
-  p.ui_button("part_body", "服", {parent: "dress", x: 0.2, y: 0.16, w: 86, h: 40, size: 15, bg: "#7C3AED"})
-  p.ui_button("part_head", "頭", {parent: "dress", x: 0.5, y: 0.16, w: 86, h: 40, size: 15, bg: "#7C3AED"})
-  p.ui_button("part_legs", "足", {parent: "dress", x: 0.8, y: 0.16, w: 86, h: 40, size: 15, bg: "#7C3AED"})
-  let i = 0
-  for c in palette do
-    i = i + 1
-    let col = (i - 1) % 5
-    let row = floor((i - 1) / 5)
-    p.ui_button("color_" + i, " ", {parent: "dress", x: 0.12 + col * 0.19, y: 0.3 + row * 0.13, w: 50, h: 44, bg: c, radius: 22})
-  end
-  let j = 0
-  for h in hats do
-    j = j + 1
-    p.ui_button("hat_" + h, hat_names[h], {parent: "dress", x: 0.5, y: 0.52 + j * 0.075, w: 200, h: 28, size: 14, bg: "#DB2777"})
-  end
-  p.ui_button("size_small", "小さく", {parent: "dress", x: 0.25, y: 0.97, w: 110, h: 30, size: 14, bg: "#0EA5E9"})
-  p.ui_button("size_tall", "大きく", {parent: "dress", x: 0.75, y: 0.97, w: 110, h: 30, size: 14, bg: "#0EA5E9"})
-end
-
-func start_show()
-  if len(players()) == 0 then return end
-  phase = "dress"
-  theme = random(themes)
-  stars = {}
-  voted = {}
-  ui_text("theme", "お題: " + theme, {at: "top", dy: 26, size: 28, bold: true, color: "#F0ABFC"})
-  announce("✨ お題は「" + theme + "」！60秒でコーデしよう", 4)
-  for p in players() do
-    p.part = "body"
-    p.part_name = "服"
-    p.teleport(block("Spawn " + random(1, 8)))
-    dress_panel(p)
-  end
-  let left = 60
-  ui_text("timer", kit_clock(left), {at: "top", dy: 64, size: 22})
-  let t = every(1, func()
-    left = left - 1
-    ui_text("timer", kit_clock(left), {at: "top", dy: 64, size: 22})
-  end)
-  after(60, func()
-    cancel(t)
-    ui_remove("timer")
-    runway()
-  end)
-end
-
-func runway()
-  phase = "walk"
-  order = shuffle(copy(players()))
-  for p in players() do p.ui_remove("dress") end
-  announce("👠 ランウェイの時間です！", 2)
-  after(2, func() next_model(1) end)
-end
-
-func next_model(i)
-  if i > len(order) then
-    results()
-    return
-  end
-  walker = order[i]
-  if not kit_here(walker) then
-    next_model(i + 1)
-    return
-  end
-  walker.teleport(block("Runway Start"))
-  walker.look_at(block("Runway End"))
-  announce("モデル: " + walker.name, 2)
-  for p in players() do
-    p.camera_look(block("Camera Spot"), walker)
-    if p.id != walker.id then
-      p.ui_panel("vote", {at: "bottom", dy: -100, w: 460, h: 80, bg: "#000000AA", radius: 16})
-      for s in 1 to 5 do
-        p.ui_button("star_" + s, "⭐" + s, {parent: "vote", x: (s - 0.5) / 5, w: 80, h: 56, size: 18, bg: "#DB2777"})
-      end
-    end
-  end
-  after(8, func()
-    for p in players() do
-      p.ui_remove("vote")
-      p.camera_reset()
-    end
-    next_model(i + 1)
-  end)
-end
-
-func results()
-  phase = "result"
-  walker = nil
-  let best = nil
-  for p in players() do
-    let s = stars[p.id] or 0
-    p.score = p.score + s
-    p.message("あなたの星: ⭐" + s, 4)
-    if best == nil or s > (stars[best.id] or 0) then best = p end
-  end
-  if best != nil then
-    announce("👑 トップモデルは " + best.name + "！（⭐" + (stars[best.id] or 0) + "）", 5)
-    best.hat = "crown"
-    best.teleport(block("Runway End"))
-  end
-  after(8, func() start_show() end)
+on join(p)
+  p.level = 1
+  p.xp = 0
+  p.wins = 0
+  p.palettes = ["basic"]
+  p.palette = "basic"
+  p.accs = ["wings", "cape"]
+  p.saved = {}
+  p.outfit = {color: "#EC4899", head: "#FBCFE8", legs: "#111111", hat: "none", size: 1, acc: []}
+  apply_outfit(p, p.outfit)
+  kit_welcome(p)
+  kit_give(p, 100)
+  p.ui_button("open_dress", "👗 着がえ", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#C026D3"})
+  p.ui_button("open_shop", "🛍 ブティック", {at: "right", dy: -60, w: 150, h: 50, size: 16, bg: "#BE185D"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  hud(p)
 end
 
 on start()
-  after(3, func() start_show() end)
-end
-
-on join(p)
-  kit_welcome(p)
-  if phase == "dress" then
-    p.part = "body"
-    p.part_name = "服"
-    dress_panel(p)
-  end
-end
-
-on button(p, id)
-  if phase == "dress" then
-    if id == "part_body" then
-      p.part = "body"
-      p.part_name = "服"
-      dress_panel(p)
-    elif id == "part_head" then
-      p.part = "head"
-      p.part_name = "頭"
-      dress_panel(p)
-    elif id == "part_legs" then
-      p.part = "legs"
-      p.part_name = "足"
-      dress_panel(p)
-    elif starts_with(id, "color_") then
-      let c = palette[num(replace(id, "color_", ""))]
-      if p.part == "head" then p.head_color = c
-      elif p.part == "legs" then p.leg_color = c
-      else p.color = c
-      end
-    elif starts_with(id, "hat_") then
-      p.hat = replace(id, "hat_", "")
-    elif id == "size_small" then
-      p.size = max(0.8, p.size - 0.1)
-    elif id == "size_tall" then
-      p.size = min(1.3, p.size + 0.1)
-    end
-  elif phase == "walk" and starts_with(id, "star_") and walker != nil then
-    let key = p.id + ":" + walker.id
-    if voted[key] == nil and p.id != walker.id then
-      voted[key] = true
-      stars[walker.id] = (stars[walker.id] or 0) + num(replace(id, "star_", ""))
-      p.ui_remove("vote")
-      p.message("投票しました", 1)
-    end
-  end
+  every(10, func() kit_leaderboard("⭐ 星の合計") end)
 end

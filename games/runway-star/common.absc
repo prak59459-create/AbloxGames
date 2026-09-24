@@ -1,0 +1,65 @@
+-- common.absc — Runway Star の道具（人さがし・画面・レベルとジェム）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+-- MARK: レベル（ファッションレベル）と💎ジェム
+
+func need_xp(level)
+  return 60 + level * 40
+end
+
+func gain(p, xp, gems, why)
+  if not kit_here(p) then return end
+  kit_give(p, gems)
+  p.xp = p.xp + xp
+  let up = false
+  while p.xp >= need_xp(p.level) do
+    p.xp = p.xp - need_xp(p.level)
+    p.level = p.level + 1
+    up = true
+  end
+  if why != nil then p.message(why + "  +" + xp + "XP  💎+" + gems, 2.5) end
+  if up then
+    p.message("⬆️ ファッションレベル " + p.level + "！ ブティックに新しいアイテム", 3)
+    p.sound("goal")
+    kit_quest_progress(p, "lv5", 1)
+    kit_quest_progress(p, "lv10", 1)
+  end
+  hud(p)
+end
+
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "lv", "👗 Lv." + p.level + "   🏆 " + p.wins + "回優勝", {at: "top_left", dy: 34, size: 16, bold: true, color: "#F5D0FE"})
+  p.ui_bar("xpbar", p.xp, need_xp(p.level), {at: "top_left", dy: 58, dx: 4, w: 160, h: 8, color: "#E879F9"})
+  p.score = p.total_stars or 0
+end

@@ -1,0 +1,347 @@
+-- wardrobe.absc — 着がえ・アクセサリー・ブティック・クローゼット
+-- コーデは p.outfit に記録（色・帽子・身長・アクセサリー3こまで）。
+-- アクセサリーはブロックで作って、体の動きについてくる（ランウェイと表しょう台で見える）。
+
+let worn = {}   -- キャラのid → [{block, part}]
+
+-- MARK: コーデを体に
+
+func apply_outfit(c, o)
+  c.color = o.color
+  c.head_color = o.head
+  c.leg_color = o.legs
+  c.hat = o.hat
+  c.size = o.size
+end
+
+func acc_by_id(id)
+  for a in ACCESSORIES do
+    if a.id == id then return a end
+  end
+  return nil
+end
+
+func palette_by_id(id)
+  for pl in PALETTES do
+    if pl.id == id then return pl end
+  end
+  return PALETTES[1]
+end
+
+-- MARK: アクセサリー（体についてくるブロック）
+
+func wear(c, o)
+  if not kit_here(c) then return end
+  unwear(c)
+  let list = []
+  for id in o.acc do
+    let a = acc_by_id(id)
+    if a != nil then
+      for part in a.parts do
+        let color = part.color
+        if color == "own" then color = o.color end
+        let s = o.size or 1
+        let b = create_block({name: "Accessory", shape: part.shape, position: c.position, size: part.size * s, color: color,
+                              material: part.material or "plastic", opacity: part.opacity or 1, solid: false})
+        append(list, {block: b, part: part})
+      end
+    end
+  end
+  worn[c.id] = list
+  follow_acc(c)
+end
+
+func unwear(c)
+  -- いなくなったキャラの分は tick がかたづける
+  if c == nil or c.id == nil then return end
+  let list = worn[c.id]
+  if list == nil then return end
+  for w in list do gone(w.block) end
+  remove(worn, c.id)
+end
+
+-- 体の向きに合わせて位置を計算
+func follow_acc(c)
+  let list = worn[c.id]
+  if list == nil or not kit_here(c) then return end
+  let yaw = c.yaw
+  let fwd = kit_dir(yaw)
+  let right = {x: cos(yaw), y: 0, z: sin(yaw)}
+  let s = c.size or 1
+  let turn = atan2(fwd.x, fwd.z)
+  for w in list do
+    let at = w.part.at
+    let pos = c.position + right * (at.x * s) + {x: 0, y: at.y * s, z: 0} + fwd * (at.z * s)
+    w.block.position = pos
+    w.block.rotation = {x: 0, y: turn, z: 0}
+  end
+end
+
+on tick(dt)
+  for id in keys(worn) do
+    let c = nil
+    for x in players() do
+      if x.id == id then c = x end
+    end
+    if c == nil then
+      for n in npcs() do
+        if n.id == id then c = n end
+      end
+    end
+    if c == nil then
+      for w in worn[id] do gone(w.block) end
+      remove(worn, id)
+    else
+      follow_acc(c)
+    end
+  end
+end
+
+-- MARK: 着がえパネル
+
+func dress_panel(p)
+  let o = p.outfit
+  let tab = p.tab or "body"
+  p.ui_remove("dress")
+  p.ui_panel("dress", {at: "left", dx: 16, w: 370, h: 540, bg: "#000000C0", radius: 20, layer: 20})
+  let title = "👗 コーデ"
+  if current_theme != nil then title = "👗 お題「" + current_theme.name + "」" end
+  p.ui_text("dress_t", title, {parent: "dress", y: 0.05, size: 17, bold: true, color: "#F0ABFC"})
+  let tabs = [{id: "body", name: "服"}, {id: "head", name: "頭"}, {id: "legs", name: "足"}, {id: "hat", name: "帽子"}, {id: "acc", name: "小物"}]
+  let i = 0
+  for t in tabs do
+    i = i + 1
+    let bg = "#581C87"
+    if t.id == tab then bg = "#C026D3" end
+    p.ui_button("tab_" + t.id, t.name, {parent: "dress", x: 0.1 + (i - 1) * 0.2, y: 0.13, w: 66, h: 38, size: 14, bg: bg})
+  end
+  if tab == "body" or tab == "head" or tab == "legs" then
+    -- パレットのえらび
+    let owned = filter(PALETTES, func(pl) return contains(p.palettes, pl.id) end)
+    let j = 0
+    for pl in owned do
+      j = j + 1
+      let bg = "#3B0764"
+      if (p.palette or "basic") == pl.id then bg = "#7E22CE" end
+      p.ui_button("pal_" + pl.id, pl.name, {parent: "dress", x: 0.1 + (j - 1) * 0.2, y: 0.22, w: 68, h: 30, size: 11, bg: bg})
+    end
+    let pal = palette_by_id(p.palette or "basic")
+    let k = 0
+    for c in pal.colors do
+      k = k + 1
+      let col = (k - 1) % 5
+      let row = floor((k - 1) / 5)
+      let mark = " "
+      let current = o.color
+      if tab == "head" then current = o.head end
+      if tab == "legs" then current = o.legs end
+      if current == c then mark = "✓" end
+      p.ui_button("color_" + k, mark, {parent: "dress", x: 0.12 + col * 0.19, y: 0.33 + row * 0.11, w: 50, h: 46, size: 18, bg: c, radius: 23})
+    end
+  elif tab == "hat" then
+    let j = 0
+    for h in HATS do
+      j = j + 1
+      let bg = "#9D174D"
+      if o.hat == h.id then bg = "#DB2777" end
+      p.ui_button("hat_" + h.id, h.name, {parent: "dress", y: 0.2 + j * 0.08, w: 220, h: 34, size: 15, bg: bg})
+    end
+  else
+    let owned = filter(ACCESSORIES, func(a) return contains(p.accs, a.id) end)
+    p.ui_text("acc_info", "3こまで（" + len(o.acc) + "/" + MAX_ACC + "）", {parent: "dress", y: 0.21, size: 13, color: "#E9D5FF"})
+    let j = 0
+    for a in slice(owned, 1, 8) do
+      j = j + 1
+      let mark = "⬜ "
+      let bg = "#3B0764"
+      if contains(o.acc, a.id) then
+        mark = "✅ "
+        bg = "#7E22CE"
+      end
+      p.ui_button("acc_" + a.id, mark + a.name, {parent: "dress", y: 0.22 + j * 0.075, w: 260, h: 32, size: 14, bg: bg})
+    end
+  end
+  p.ui_button("size_small", "小さく", {parent: "dress", x: 0.2, y: 0.9, w: 100, h: 34, size: 14, bg: "#0EA5E9"})
+  p.ui_button("size_tall", "大きく", {parent: "dress", x: 0.5, y: 0.9, w: 100, h: 34, size: 14, bg: "#0EA5E9"})
+  p.ui_button("open_closet", "💾 保存", {parent: "dress", x: 0.8, y: 0.9, w: 100, h: 34, size: 14, bg: "#6D28D9"})
+  p.ui_button("dress_close", "✕", {parent: "dress", x: 0.93, y: 0.05, w: 36, h: 32, size: 15, bg: "#4B5563"})
+end
+
+func pick_color(p, k)
+  let pal = palette_by_id(p.palette or "basic")
+  let c = pal.colors[k]
+  if c == nil then return end
+  let tab = p.tab or "body"
+  if tab == "head" then p.outfit.head = c
+  elif tab == "legs" then p.outfit.legs = c
+  else p.outfit.color = c
+  end
+  apply_outfit(p, p.outfit)
+  dress_panel(p)
+end
+
+func toggle_acc(p, id)
+  let o = p.outfit
+  if contains(o.acc, id) then
+    remove(o.acc, index_of(o.acc, id))
+  elif len(o.acc) >= MAX_ACC then
+    p.message("小物は " + MAX_ACC + " こまで", 1.2)
+    return
+  else
+    append(o.acc, id)
+  end
+  dress_panel(p)
+end
+
+-- MARK: ブティック（💎で買う）
+
+func boutique(p)
+  let items = []
+  for pl in PALETTES do
+    if pl.price > 0 then append(items, {id: "pal_" + pl.id, name: "🎨 " + pl.name + "パレット", price: pl.price, level: pl.level, owned: contains(p.palettes, pl.id)}) end
+  end
+  for a in ACCESSORIES do
+    if a.price > 0 then append(items, {id: "acc_" + a.id, name: a.name, price: a.price, level: a.level, owned: contains(p.accs, a.id)}) end
+  end
+  let per = 8
+  let pages = ceil(len(items) / per)
+  let page = p.shop_page or 1
+  if page > pages then page = 1 end
+  p.shop_page = page
+  let shown = slice(items, (page - 1) * per + 1, page * per)
+  let h = 150 + len(shown) * 46
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 500, h: h, bg: "#500724F2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🛍 ブティック（" + page + "/" + pages + "）  💎 " + kit_money(p), {parent: "shop", y: 24 / h, size: 18, bold: true, color: "#FBCFE8"})
+  let i = 0
+  for it in shown do
+    i = i + 1
+    let label = it.name + "  💎" + it.price
+    let bg = "#BE185D"
+    if it.owned then
+      label = "✅ " + it.name
+      bg = "#4B5563"
+    elif p.level < it.level then
+      label = "🔒 " + it.name + "（Lv." + it.level + "）"
+      bg = "#4B5563"
+    end
+    p.ui_button("buy_" + it.id, label, {parent: "shop", y: (30 + i * 46) / h, w: 440, h: 38, size: 14, bg: bg})
+  end
+  p.ui_button("shop_next", "次へ ▶", {parent: "shop", x: 0.72, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "#9D174D"})
+  p.ui_button("shop_close", "閉じる", {parent: "shop", x: 0.3, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy(p, id)
+  let level = 0
+  let price = 0
+  let name = ""
+  if starts_with(id, "pal_") then
+    let pl = palette_by_id(replace(id, "pal_", ""))
+    if contains(p.palettes, pl.id) then return end
+    level = pl.level
+    price = pl.price
+    name = pl.name + "パレット"
+    if p.level < level then
+      p.message("🔒 レベル " + level + " から", 1.2)
+      return
+    end
+    if not kit_pay(p, price) then return end
+    append(p.palettes, pl.id)
+  else
+    let a = acc_by_id(replace(id, "acc_", ""))
+    if a == nil or contains(p.accs, a.id) then return end
+    if p.level < a.level then
+      p.message("🔒 レベル " + a.level + " から", 1.2)
+      return
+    end
+    if not kit_pay(p, a.price) then return end
+    append(p.accs, a.id)
+    name = a.name
+  end
+  p.message("🛍 " + name + " を手に入れた！", 2)
+  p.sound("collect")
+  kit_quest_progress(p, "buy", 1)
+  boutique(p)
+end
+
+-- MARK: クローゼット（コーデを3つまで保存）
+
+func closet(p)
+  p.ui_panel("closet", {at: "center", w: 460, h: 320, bg: "#2E1065F2", radius: 22, layer: 32})
+  p.ui_text("closet_t", "💾 クローゼット", {parent: "closet", y: 0.09, size: 20, bold: true, color: "#DDD6FE"})
+  for i in 1 to 3 do
+    let saved = p.saved[str(i)]
+    let label = "スロット " + i + "：（空）"
+    if saved != nil then label = "スロット " + i + "：小物 " + len(saved.acc) + "こ・帽子 " + saved.hat end
+    p.ui_text("closet_l" + i, label, {parent: "closet", x: 0.33, y: 0.15 + i * 0.2, size: 14})
+    p.ui_button("save_" + i, "保存", {parent: "closet", x: 0.72, y: 0.15 + i * 0.2, w: 70, h: 34, size: 14, bg: "#6D28D9"})
+    if saved != nil then
+      p.ui_button("load_" + i, "着る", {parent: "closet", x: 0.9, y: 0.15 + i * 0.2, w: 60, h: 34, size: 14, bg: "#16A34A"})
+    end
+  end
+  p.ui_button("closet_close", "閉じる", {parent: "closet", y: 0.9, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func copy_outfit(o)
+  return {color: o.color, head: o.head, legs: o.legs, hat: o.hat, size: o.size, acc: copy(o.acc)}
+end
+
+on button(p, id)
+  if starts_with(id, "tab_") then
+    p.tab = replace(id, "tab_", "")
+    dress_panel(p)
+  elif starts_with(id, "pal_") then
+    p.palette = replace(id, "pal_", "")
+    dress_panel(p)
+  elif starts_with(id, "color_") then pick_color(p, num(replace(id, "color_", "")))
+  elif starts_with(id, "hat_") then
+    p.outfit.hat = replace(id, "hat_", "")
+    apply_outfit(p, p.outfit)
+    dress_panel(p)
+  elif starts_with(id, "acc_") then toggle_acc(p, replace(id, "acc_", ""))
+  elif id == "size_small" then
+    p.outfit.size = max(0.8, p.outfit.size - 0.1)
+    apply_outfit(p, p.outfit)
+  elif id == "size_tall" then
+    p.outfit.size = min(1.3, p.outfit.size + 0.1)
+    apply_outfit(p, p.outfit)
+  elif id == "dress_close" then p.ui_remove("dress")
+  elif id == "open_dress" then dress_panel(p)
+  elif id == "open_closet" then closet(p)
+  elif id == "closet_close" then p.ui_remove("closet")
+  elif starts_with(id, "save_") then
+    p.saved[replace(id, "save_", "")] = copy_outfit(p.outfit)
+    p.message("💾 保存しました", 1.2)
+    kit_quest_progress(p, "save", 1)
+    closet(p)
+  elif starts_with(id, "load_") then
+    let saved = p.saved[replace(id, "load_", "")]
+    if saved != nil then
+      p.outfit = copy_outfit(saved)
+      apply_outfit(p, p.outfit)
+      p.ui_remove("closet")
+      dress_panel(p)
+    end
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif id == "shop_next" then
+    p.shop_page = (p.shop_page or 1) + 1
+    boutique(p)
+  elif starts_with(id, "buy_") then buy(p, replace(id, "buy_", ""))
+  elif id == "open_shop" then boutique(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "boutique") and cooldown_left(p, "shop") <= 0 then
+    start_cooldown(p, "shop", 3)
+    boutique(p)
+  elif contains(b.tags, "closet") and cooldown_left(p, "closet") <= 0 then
+    start_cooldown(p, "closet", 3)
+    closet(p)
+  end
+end
+
+on leave(p)
+  unwear(p)
+end

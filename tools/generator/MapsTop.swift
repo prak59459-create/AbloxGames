@@ -606,6 +606,24 @@ func runwayStar(_ m: MapBuilder) {
     for i in 0..<6 { m.slab("Seat \(i + 1)", x: 26, y: 0, z: -12 + Float(i) * 5, w: 2, h: 1, d: 2, color: "#9D174D") }
     m.part("Camera Spot", at: (30, 6, 24), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
     m.part("Stage Light", at: (16, 7.5, 0), size: (8, 0.3, 30), color: "#FFFFFF", material: .neon, solid: false)
+
+    // The judges' table at the end of the runway.
+    m.slab("Judge Table", x: 16, y: 0, z: 26, w: 10, h: 1.1, d: 1.2, color: "#F9A8D4")
+    m.markers("Judge Seat", points: [(13, 28), (16, 28), (19, 28)], color: "#FDE047", size: 1, behavior: .none)
+    // The podium for the top three.
+    m.slab("Podium 1 Step", x: -4, y: 0, z: 24, w: 3, h: 1.8, d: 3, color: "#FACC15")
+    m.slab("Podium 2 Step", x: -7.2, y: 0, z: 24, w: 3, h: 1.2, d: 3, color: "#D1D5DB")
+    m.slab("Podium 3 Step", x: -0.8, y: 0, z: 24, w: 3, h: 0.8, d: 3, color: "#D97706")
+    m.markers("Podium", points: [(-4, 24), (-7.2, 24), (-0.8, 24)], y: 1.8, color: "#FFFFFF", visible: false, behavior: .none)
+    // The boutique and the closet in the dressing room.
+    m.pad("Boutique", x: -28, z: -16, y: 0.2, size: 3, color: "#F472B6", tags: ["boutique"])
+    m.part("Boutique Sign", at: (-28, 3.4, -18.5), size: (5, 1, 0.2), color: "#F472B6", material: .neon, solid: false)
+    m.pad("Closet", x: -28, z: 16, y: 0.2, size: 3, color: "#A78BFA", tags: ["closet"])
+    m.part("Closet Rack", at: (-30.5, 1.8, 16), size: (0.3, 3.2, 6), color: "#78350F")
+    for i in 0..<5 {
+        m.part("Hanging Dress \(i + 1)", at: (-30, 1.6, 13.6 + Float(i) * 1.2), size: (0.2, 1.6, 0.9),
+               color: ["#F472B6", "#60A5FA", "#FACC15", "#34D399", "#A78BFA"][i], solid: false)
+    }
 }
 
 // MARK: 9 Mystery Manor

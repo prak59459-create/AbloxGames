@@ -1,0 +1,103 @@
+-- data.absc — Runway Star の表（色・帽子・アクセサリー・お題・ポーズ）
+
+-- MARK: 色（palette: はじめから使える / 買うと増えるパレット）
+let PALETTES = [
+  {id: "basic", name: "ベーシック", price: 0, level: 0,
+   colors: ["#EF4444", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7", "#EC4899", "#FFFFFF", "#111111", "#92400E"]},
+  {id: "pastel", name: "パステル", price: 150, level: 2,
+   colors: ["#FBCFE8", "#BAE6FD", "#BBF7D0", "#FEF08A", "#DDD6FE", "#FED7AA"]},
+  {id: "metal", name: "メタリック", price: 300, level: 4,
+   colors: ["#FACC15", "#D1D5DB", "#B45309", "#E5E7EB"]},
+  {id: "neon", name: "ネオン", price: 300, level: 5,
+   colors: ["#A3E635", "#22D3EE", "#F0ABFC", "#FB7185"]},
+  {id: "dark", name: "ダーク", price: 250, level: 3,
+   colors: ["#1E1B4B", "#4C0519", "#052E16", "#1F2937", "#3F3F46"]}
+]
+
+let HATS = [
+  {id: "none", name: "なし"}, {id: "cap", name: "キャップ"}, {id: "crown", name: "王冠"},
+  {id: "antenna", name: "アンテナ"}, {id: "halo", name: "天使の輪"}
+]
+
+-- MARK: アクセサリー（体にくっつく小物）
+-- parts: 形・大きさ・位置（x: 右 / y: 上 / z: 前）・色（"own" は服の色）
+let ACCESSORIES = [
+  {id: "wings", name: "🪽 天使の羽", price: 0, level: 0, parts: [
+    {shape: "box", size: {x: 1.2, y: 1.4, z: 0.1}, at: {x: 0.7, y: 1.5, z: -0.45}, color: "#FFFFFF"},
+    {shape: "box", size: {x: 1.2, y: 1.4, z: 0.1}, at: {x: -0.7, y: 1.5, z: -0.45}, color: "#FFFFFF"}]},
+  {id: "cape", name: "🦸 マント", price: 0, level: 0, parts: [
+    {shape: "box", size: {x: 1, y: 1.6, z: 0.08}, at: {x: 0, y: 1.1, z: -0.4}, color: "own"}]},
+  {id: "glasses", name: "🕶 サングラス", price: 60, level: 1, parts: [
+    {shape: "box", size: {x: 0.7, y: 0.18, z: 0.08}, at: {x: 0, y: 2.05, z: 0.38}, color: "#111111"}]},
+  {id: "bow", name: "🎀 大きなリボン", price: 80, level: 1, parts: [
+    {shape: "cone", size: {x: 0.4, y: 0.5, z: 0.3}, at: {x: 0.3, y: 2.55, z: -0.1}, color: "#EC4899"},
+    {shape: "cone", size: {x: 0.4, y: 0.5, z: 0.3}, at: {x: -0.3, y: 2.55, z: -0.1}, color: "#EC4899"}]},
+  {id: "bag", name: "👜 バッグ", price: 100, level: 2, parts: [
+    {shape: "box", size: {x: 0.3, y: 0.35, z: 0.5}, at: {x: 0.55, y: 0.9, z: 0}, color: "#92400E"}]},
+  {id: "flowers", name: "🌸 花のかんむり", price: 120, level: 2, parts: [
+    {shape: "sphere", size: {x: 0.25, y: 0.25, z: 0.25}, at: {x: 0.25, y: 2.5, z: 0.1}, color: "#F9A8D4"},
+    {shape: "sphere", size: {x: 0.25, y: 0.25, z: 0.25}, at: {x: -0.25, y: 2.5, z: 0.1}, color: "#FDE047"},
+    {shape: "sphere", size: {x: 0.25, y: 0.25, z: 0.25}, at: {x: 0, y: 2.55, z: -0.2}, color: "#A5B4FC"}]},
+  {id: "tail", name: "🦊 しっぽ", price: 150, level: 3, parts: [
+    {shape: "cone", size: {x: 0.35, y: 1, z: 0.35}, at: {x: 0, y: 0.8, z: -0.6}, color: "own"}]},
+  {id: "wand", name: "🪄 星のステッキ", price: 180, level: 3, parts: [
+    {shape: "cylinder", size: {x: 0.08, y: 1, z: 0.08}, at: {x: 0.6, y: 1.2, z: 0.3}, color: "#FFFFFF"},
+    {shape: "sphere", size: {x: 0.3, y: 0.3, z: 0.3}, at: {x: 0.6, y: 1.75, z: 0.3}, color: "#FDE047", material: "neon"}]},
+  {id: "backpack", name: "🎒 リュック", price: 120, level: 2, parts: [
+    {shape: "box", size: {x: 0.7, y: 0.8, z: 0.35}, at: {x: 0, y: 1.3, z: -0.5}, color: "own"}]},
+  {id: "tiara", name: "👑 ティアラ", price: 250, level: 4, parts: [
+    {shape: "cone", size: {x: 0.2, y: 0.35, z: 0.2}, at: {x: 0, y: 2.55, z: 0.15}, color: "#FACC15", material: "metal"},
+    {shape: "sphere", size: {x: 0.14, y: 0.14, z: 0.14}, at: {x: 0, y: 2.5, z: 0.25}, color: "#F43F5E", material: "neon"}]},
+  {id: "aura", name: "✨ キラキラオーラ", price: 400, level: 6, parts: [
+    {shape: "sphere", size: {x: 2.2, y: 3, z: 2.2}, at: {x: 0, y: 1.2, z: 0}, color: "#F0ABFC", material: "neon", opacity: 0.25}]},
+  {id: "dragonwings", name: "🐉 ドラゴンの羽", price: 600, level: 8, parts: [
+    {shape: "cone", size: {x: 1.6, y: 1.2, z: 0.1}, at: {x: 0.9, y: 1.7, z: -0.45}, color: "#7F1D1D"},
+    {shape: "cone", size: {x: 1.6, y: 1.2, z: 0.1}, at: {x: -0.9, y: 1.7, z: -0.45}, color: "#7F1D1D"}]},
+  {id: "umbrella", name: "☂️ 日がさ", price: 200, level: 4, parts: [
+    {shape: "cone", size: {x: 1.8, y: 0.6, z: 1.8}, at: {x: 0.4, y: 3.2, z: 0}, color: "own"},
+    {shape: "cylinder", size: {x: 0.06, y: 1.4, z: 0.06}, at: {x: 0.4, y: 2.3, z: 0}, color: "#FFFFFF"}]},
+  {id: "headphones", name: "🎧 ヘッドホン", price: 150, level: 3, parts: [
+    {shape: "sphere", size: {x: 0.3, y: 0.3, z: 0.3}, at: {x: 0.42, y: 2.05, z: 0}, color: "#111111"},
+    {shape: "sphere", size: {x: 0.3, y: 0.3, z: 0.3}, at: {x: -0.42, y: 2.05, z: 0}, color: "#111111"}]}
+]
+let MAX_ACC = 3
+
+-- MARK: お題（colors: 合う色 / hats: 合う帽子 / acc: 合うアクセサリー）
+let THEMES = [
+  {name: "海の日", colors: ["#3B82F6", "#BAE6FD", "#22D3EE", "#FFFFFF"], hats: ["cap"], acc: ["glasses", "umbrella", "bag"]},
+  {name: "パーティー", colors: ["#EC4899", "#A855F7", "#FACC15", "#F0ABFC"], hats: ["crown"], acc: ["aura", "bow", "tiara"]},
+  {name: "スポーツ", colors: ["#EF4444", "#3B82F6", "#FFFFFF", "#22C55E"], hats: ["cap"], acc: ["headphones", "backpack"]},
+  {name: "お姫さま・王子さま", colors: ["#FBCFE8", "#FACC15", "#DDD6FE", "#FFFFFF"], hats: ["crown"], acc: ["tiara", "cape", "wand"]},
+  {name: "ロックスター", colors: ["#111111", "#EF4444", "#1F2937", "#D1D5DB"], hats: ["none", "cap"], acc: ["glasses", "headphones"]},
+  {name: "未来の服", colors: ["#D1D5DB", "#22D3EE", "#A3E635", "#E5E7EB"], hats: ["antenna"], acc: ["glasses", "aura"]},
+  {name: "ハロウィン", colors: ["#F97316", "#111111", "#A855F7", "#052E16"], hats: ["none"], acc: ["cape", "wand", "tail"]},
+  {name: "雪の日", colors: ["#FFFFFF", "#BAE6FD", "#E5E7EB", "#3B82F6"], hats: ["cap"], acc: ["backpack", "headphones"]},
+  {name: "ジャングル", colors: ["#22C55E", "#052E16", "#92400E", "#FACC15"], hats: ["none"], acc: ["tail", "flowers"]},
+  {name: "学校の制服", colors: ["#1E1B4B", "#FFFFFF", "#1F2937", "#EF4444"], hats: ["none"], acc: ["backpack", "bow"]},
+  {name: "おばけ", colors: ["#FFFFFF", "#E5E7EB", "#DDD6FE", "#1F2937"], hats: ["halo"], acc: ["aura"]},
+  {name: "スーパーヒーロー", colors: ["#EF4444", "#3B82F6", "#FACC15"], hats: ["none"], acc: ["cape", "glasses"]},
+  {name: "天使と悪魔", colors: ["#FFFFFF", "#111111", "#4C0519", "#FACC15"], hats: ["halo"], acc: ["wings", "dragonwings", "tail"]},
+  {name: "お花畑", colors: ["#F9A8D4", "#FEF08A", "#BBF7D0", "#DDD6FE"], hats: ["none"], acc: ["flowers", "umbrella", "bag"]},
+  {name: "宇宙", colors: ["#1E1B4B", "#A855F7", "#22D3EE", "#111111"], hats: ["antenna"], acc: ["aura", "glasses"]},
+  {name: "カフェの店員", colors: ["#92400E", "#FFFFFF", "#FED7AA", "#111111"], hats: ["cap"], acc: ["bag", "bow"]},
+  {name: "王さまのパーティー", colors: ["#FACC15", "#4C0519", "#A855F7", "#E5E7EB"], hats: ["crown"], acc: ["cape", "tiara"]},
+  {name: "ドラゴン", colors: ["#7F1D1D", "#EF4444", "#052E16", "#F97316"], hats: ["none"], acc: ["dragonwings", "tail"]},
+  {name: "魔法使い", colors: ["#1E1B4B", "#A855F7", "#DDD6FE", "#FACC15"], hats: ["none"], acc: ["wand", "cape", "aura"]},
+  {name: "南の島", colors: ["#FDE047", "#22C55E", "#F97316", "#22D3EE"], hats: ["none"], acc: ["flowers", "glasses", "umbrella"]},
+  {name: "パジャマ", colors: ["#BAE6FD", "#FBCFE8", "#DDD6FE", "#FFFFFF"], hats: ["none"], acc: ["bow", "tail"]},
+  {name: "サーカス", colors: ["#EF4444", "#FACC15", "#FFFFFF", "#3B82F6"], hats: ["crown", "cap"], acc: ["bow", "wand"]},
+  {name: "モノクロ", colors: ["#111111", "#FFFFFF", "#1F2937", "#D1D5DB"], hats: ["none", "cap"], acc: ["glasses", "bag"]},
+  {name: "虹", colors: ["#EF4444", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7"], hats: ["halo"], acc: ["aura", "wings"]}
+]
+
+-- MARK: ランウェイのポーズ
+let POSES = [
+  {id: "spin", name: "💫 くるっ"},
+  {id: "jump", name: "🦘 ジャンプ"},
+  {id: "wave", name: "👋 手をふる"},
+  {id: "sparkle", name: "✨ キラキラ"}
+]
+
+-- MARK: NPCのモデル（ひとりでも遊べるように）
+let NPC_NAMES = ["モデルのリナ", "モデルのケン", "モデルのユイ", "モデルのソウ", "モデルのミオ"]
+let JUDGE_NAMES = ["審査員ベラ", "審査員ジョー", "審査員ココ"]
