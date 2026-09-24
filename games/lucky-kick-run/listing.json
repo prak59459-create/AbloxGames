@@ -1,11 +1,16 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 99,
+  "blockCount" : 103,
   "id" : "lucky-kick-run",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/lucky-kick-run\/data.absc",
+    "games\/lucky-kick-run\/bank.absc",
+    "games\/lucky-kick-run\/common.absc",
+    "games\/lucky-kick-run\/kick.absc",
+    "games\/lucky-kick-run\/tsunami.absc",
     "games\/lucky-kick-run\/main.absc"
   ],
   "summary" : "ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！",

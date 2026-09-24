@@ -1,0 +1,175 @@
+-- bank.absc — 金庫・強化・転生・コレクション
+-- 🏦 丘の上の紫の金庫にさわると、運んでいるアイテムがお金になる（転生の倍率つき）。
+-- 🛒 浜辺の水色のパッドで強化（キック力・運べる数・足・運・マグネット）。
+-- ♻️ ピンクの祭だんで転生: お金と強化はリセット、かわりにずっと稼ぎが増える。
+-- 📖 集めたアイテムの図鑑。
+
+func mult(p) return 1 + p.rebirth * 0.5 end
+
+func bank(p)
+  if len(p.carry) == 0 then return end
+  let total = 0
+  let names = []
+  for id in p.carry do
+    let it = item_by_id(id)
+    total = total + it.value
+    append(names, it.name)
+    if not contains(p.index, id) then
+      append(p.index, id)
+      kit_quest_progress(p, "index", 1)
+    end
+  end
+  total = floor(total * mult(p))
+  p.carry = []
+  kit_give(p, total)
+  p.banked = (p.banked or 0) + total
+  p.score = floor(p.banked)
+  kit_quest_progress(p, "bank", 1)
+  kit_quest_progress(p, "bank10k", total)
+  p.message("🏦 預けた！ +" + kit_short(total) + "（" + join(names, "・") + "）", 2.5)
+  p.sound("goal")
+  move_refresh(p)
+  hud(p)
+end
+
+-- MARK: 強化
+
+func up_price(p, u)
+  return floor(u.base * pow(u.grow, upgrade_level(p, u.id)))
+end
+
+func shop(p)
+  let h = 150 + len(UPGRADES) * 58
+  p.ui_panel("shop", {at: "center", w: 540, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🛒 強化ショップ", {parent: "shop", y: 26 / h, size: 21, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = upgrade_level(p, u.id)
+    let label = u.name + " Lv." + lv + " → " + (lv + 1) + "  💰" + kit_short(up_price(p, u)) + "  " + u.text
+    let bg = "#0369A1"
+    if lv >= u.max then
+      label = u.name + " Lv." + lv + "（最大）"
+      bg = "#374151"
+    end
+    p.ui_button("up_" + u.id, label, {parent: "shop", y: (34 + i * 58) / h, w: 500, h: 48, size: 13, bg: bg})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_up(p, id)
+  for u in UPGRADES do
+    if u.id == id then
+      let lv = upgrade_level(p, id)
+      if lv >= u.max then return end
+      if not kit_pay(p, up_price(p, u)) then return end
+      p.up[id] = lv + 1
+      p.message("⬆️ " + u.name + " Lv." + (lv + 1) + "！", 1.5)
+      p.sound("collect")
+      kit_quest_progress(p, "upgrade", 1)
+      move_refresh(p)
+      shop(p)
+      hud(p)
+    end
+  end
+end
+
+-- MARK: 転生
+
+func rebirth_price(p) return REBIRTH_BASE * pow(3, p.rebirth) end
+
+func rebirth_menu(p)
+  p.ui_panel("rb", {at: "center", w: 480, h: 250, bg: "#500724F2", radius: 22, layer: 30})
+  p.ui_text("rb_t", "♻️ 転生（いま " + p.rebirth + " 回・稼ぎ ×" + mult(p) + "）", {parent: "rb", y: 0.13, size: 19, bold: true, color: "#F9A8D4"})
+  p.ui_text("rb_s", "お金 💰" + kit_short(rebirth_price(p)) + " で転生 → 稼ぎ ×" + (mult(p) + 0.5), {parent: "rb", y: 0.35, size: 16})
+  p.ui_text("rb_n", "（お金と強化はリセット。図鑑は残る）", {parent: "rb", y: 0.5, size: 13, color: "#FBCFE8"})
+  p.ui_button("rb_go", "♻️ 転生する", {parent: "rb", x: 0.3, y: 0.8, w: 170, h: 44, size: 17, bg: "#DB2777"})
+  p.ui_button("rb_close", "やめる", {parent: "rb", x: 0.74, y: 0.8, w: 130, h: 44, size: 15, bg: "gray"})
+end
+
+func rebirth(p)
+  if kit_money(p) < rebirth_price(p) then
+    p.message("お金が足りない（💰" + kit_short(rebirth_price(p)) + "）", 1.5)
+    return
+  end
+  p.rebirth = p.rebirth + 1
+  p.coins = 0
+  kit_show_money(p)
+  p.up = {}
+  p.ui_remove("rb")
+  announce("♻️ " + p.name + " が転生！稼ぎ ×" + mult(p), 3.5)
+  kit_quest_progress(p, "rebirth", 1)
+  move_refresh(p)
+  hud(p)
+end
+
+-- MARK: 📖 図鑑
+
+func index_menu(p)
+  let per = 12
+  let pages = ceil(len(ITEMS) / per)
+  let page = p.index_page or 1
+  if page > pages then page = 1 end
+  p.index_page = page
+  let shown = slice(ITEMS, (page - 1) * per + 1, page * per)
+  let h = 150 + len(shown) * 30
+  p.ui_remove("index")
+  p.ui_panel("index", {at: "center", w: 500, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("index_t", "📖 図鑑 " + len(p.index) + "/" + len(ITEMS) + "  （" + page + "/" + pages + "）", {parent: "index", y: 24 / h, size: 18, bold: true, color: "gold"})
+  let i = 0
+  for it in shown do
+    i = i + 1
+    let r = RARITY[it.rarity]
+    let text = "❔ ？？？（" + r.name + "）"
+    let color = "#64748B"
+    if contains(p.index, it.id) then
+      text = "✅ " + it.name + "（" + r.name + "） 💰" + kit_short(it.value)
+      color = r.color
+      if it.rarity == "secret" then color = "#E5E7EB" end
+    end
+    p.ui_text("index_" + i, text, {parent: "index", y: (38 + i * 30) / h, size: 14, color: color})
+  end
+  p.ui_button("index_next", "次へ ▶", {parent: "index", x: 0.72, y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "#1D4ED8"})
+  p.ui_button("index_close", "閉じる", {parent: "index", x: 0.3, y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func hud(p)
+  if not kit_here(p) then return end
+  let names = map(p.carry, func(id) return item_by_id(id).name end)
+  let text = "🎒 " + len(p.carry) + "/" + carry_max(p)
+  if len(names) > 0 then text = text + "：" + join(names, "・") end
+  set_line(p, "carry", text, {at: "top", dy: 30, size: 16, bold: true, color: "#FDE68A"})
+  let rb = ""
+  if p.rebirth > 0 then rb = "   ♻️×" + mult(p) end
+  set_line(p, "stats", "🦵Lv." + upgrade_level(p, "kick") + "  🍀Lv." + upgrade_level(p, "luck") + rb, {at: "top_left", dy: 34, size: 14, color: "#BAE6FD"})
+end
+
+on button(p, id)
+  if id == "shop_close" then p.ui_remove("shop")
+  elif starts_with(id, "up_") then buy_up(p, replace(id, "up_", ""))
+  elif id == "rb_close" then p.ui_remove("rb")
+  elif id == "rb_go" then rebirth(p)
+  elif id == "open_index" then index_menu(p)
+  elif id == "index_close" then p.ui_remove("index")
+  elif id == "index_next" then
+    p.index_page = (p.index_page or 1) + 1
+    index_menu(p)
+  elif id == "open_shop" then shop(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "bank") then
+    bank(p)
+  elif contains(b.tags, "shop") and cooldown_left(p, "shop") <= 0 then
+    start_cooldown(p, "shop", 3)
+    shop(p)
+  elif contains(b.tags, "rebirth") and cooldown_left(p, "rb") <= 0 then
+    start_cooldown(p, "rb", 3)
+    rebirth_menu(p)
+  elif contains(b.tags, "index") and cooldown_left(p, "idx") <= 0 then
+    start_cooldown(p, "idx", 3)
+    index_menu(p)
+  end
+end

@@ -1,0 +1,69 @@
+-- data.absc — Lucky Kick Run の表（ラッキーブロック・アイテム・強化・津波）
+
+-- MARK: ラッキーブロックの種類（weight: 出やすさ / luck: 中身のレアさ）
+let TIERS = [
+  {id: "yellow", name: "ラッキーブロック", color: "#FACC15", weight: 70, luck: 1},
+  {id: "rainbow", name: "🌈 にじブロック", color: "#EC4899", weight: 20, luck: 1.8},
+  {id: "diamond", name: "💎 ダイヤブロック", color: "#67E8F9", weight: 8, luck: 2.8},
+  {id: "galaxy", name: "🌌 ぎんがブロック", color: "#7C3AED", weight: 2, luck: 4.5}
+]
+
+-- MARK: アイテム（kg: 重いほど運ぶとき足がおそい）
+let RARITY = {
+  common: {name: "コモン", color: "#9CA3AF", weight: 50},
+  rare: {name: "レア", color: "#3B82F6", weight: 25},
+  epic: {name: "エピック", color: "#A855F7", weight: 12},
+  legendary: {name: "レジェンド", color: "#F59E0B", weight: 5},
+  mythic: {name: "ミシック", color: "#EF4444", weight: 1.5},
+  secret: {name: "シークレット", color: "#111827", weight: 0.3}
+}
+let ITEMS = [
+  {id: "coins", name: "コイン袋", rarity: "common", value: 10, kg: 1},
+  {id: "shoe", name: "片方のくつ", rarity: "common", value: 8, kg: 1},
+  {id: "duck", name: "ゴムのアヒル", rarity: "common", value: 12, kg: 1},
+  {id: "banana", name: "バナナ", rarity: "common", value: 6, kg: 1},
+  {id: "can", name: "ジュースの缶", rarity: "common", value: 9, kg: 1},
+  {id: "yoyo", name: "ヨーヨー", rarity: "common", value: 14, kg: 1},
+  {id: "boots", name: "スピードぐつ", rarity: "rare", value: 40, kg: 1, effect: "speed"},
+  {id: "spring", name: "ジャンプばね", rarity: "rare", value: 40, kg: 1, effect: "jump"},
+  {id: "cat", name: "ミームねこ", rarity: "rare", value: 60, kg: 2},
+  {id: "radio", name: "古いラジオ", rarity: "rare", value: 55, kg: 2},
+  {id: "skate", name: "スケボー", rarity: "rare", value: 70, kg: 2, effect: "speed"},
+  {id: "trophy", name: "黄金のトロフィー", rarity: "epic", value: 150, kg: 3},
+  {id: "robot", name: "おもちゃのロボ", rarity: "epic", value: 180, kg: 2},
+  {id: "guitar", name: "ロックなギター", rarity: "epic", value: 220, kg: 3},
+  {id: "jetpack", name: "ミニジェットパック", rarity: "epic", value: 200, kg: 2, effect: "jump"},
+  {id: "crown", name: "王さまの王冠", rarity: "legendary", value: 600, kg: 2},
+  {id: "dragon", name: "ドラゴンのたまご", rarity: "legendary", value: 800, kg: 4},
+  {id: "diamond", name: "大きなダイヤ", rarity: "legendary", value: 1000, kg: 3},
+  {id: "shark", name: "サメのぬいぐるみ", rarity: "legendary", value: 700, kg: 3},
+  {id: "unicorn", name: "虹色ユニコーン", rarity: "mythic", value: 3000, kg: 5},
+  {id: "meteor", name: "いん石のかけら", rarity: "mythic", value: 4000, kg: 6},
+  {id: "phoenix", name: "フェニックスの羽", rarity: "mythic", value: 5000, kg: 1},
+  {id: "planet", name: "ミニ惑星", rarity: "secret", value: 20000, kg: 8},
+  {id: "toilet", name: "黄金の便器（なぜ？）", rarity: "secret", value: 25000, kg: 9}
+]
+-- ハズレ（ラッキーブロックの中身が悪いこともある）
+let TRAPS = [
+  {name: "バナナの皮ですべった！", kind: "slip"},
+  {name: "ばくはつ！", kind: "boom"},
+  {name: "ハチの群れ！", kind: "bees"}
+]
+
+-- MARK: 強化（ショップ）
+let UPGRADES = [
+  {id: "kick", name: "🦵 キック力", text: "遠くまでけれる（遠いほどレア）", base: 50, grow: 2.2, max: 8},
+  {id: "carry", name: "🎒 運べる数", text: "一度に運べるアイテムが増える", base: 120, grow: 2.6, max: 5},
+  {id: "speed", name: "👟 足の速さ", text: "走るのが速くなる", base: 80, grow: 2.3, max: 6},
+  {id: "luck", name: "🍀 運", text: "いいブロック・いいアイテムが出やすい", base: 150, grow: 2.5, max: 6},
+  {id: "magnet", name: "🧲 マグネット", text: "近くの自分のアイテムを自動で拾う", base: 400, grow: 3, max: 3}
+]
+
+-- MARK: 津波（height: この高さより上にいれば安全）
+let WAVES = [
+  {name: "🌊 小さな津波", height: 6, seconds: 18, color: "#60A5FA", weight: 5},
+  {name: "🌊🌊 大津波", height: 10.8, seconds: 15, color: "#1D4ED8", weight: 3},
+  {name: "🌊🌊🌊 メガ津波", height: 16, seconds: 13, color: "#1E3A8A", weight: 1.2},
+  {name: "🟣 ミームの津波", height: 8, seconds: 10, color: "#A855F7", weight: 1}
+]
+let REBIRTH_BASE = 5000

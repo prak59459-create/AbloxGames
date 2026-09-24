@@ -798,6 +798,13 @@ func luckyKick(_ m: MapBuilder) {
     m.part("Wave Start", at: (0, 2, -120), size: (1, 1, 1), color: "#FFFFFF", visible: false)
     m.part("Wave End", at: (0, 2, 110), size: (1, 1, 1), color: "#FFFFFF", visible: false)
     for p in ring(6, radius: 26, cx: 0, cz: -80) { m.tree(p.0, p.1, height: 5, leaves: "#4ADE80") }
+    // The upgrade shop on the beach, and the rebirth altar and collection board by the bank.
+    m.pad("Upgrade Shop", x: -18, z: -78, size: 3, color: "#38BDF8", tags: ["shop"])
+    m.part("Upgrade Shop Sign", at: (-18, 3.2, -80.5), size: (5, 1.1, 0.2), color: "#38BDF8", material: .neon, solid: false)
+    m.part("Rebirth Altar", at: (10, 12.6, 94), size: (3, 1, 3), color: "#F472B6", shape: .cylinder, material: .neon,
+           behavior: .trigger, tags: ["rebirth"])
+    m.part("Collection Board", at: (-10, 13.5, 96), size: (5, 3, 0.3), color: "#FEF3C7", material: .matte, behavior: .trigger,
+           tags: ["index"])
 }
 
 // MARK: 12 Battleground Legends

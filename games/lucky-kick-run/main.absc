@@ -1,127 +1,44 @@
 -- Lucky Kick Run — ラッキーブロックをけって、大津波からにげる
+-- ブロック4種・アイテム24種（6段階のめずらしさ）・ハズレ・キックのパワーゲージ・遠いほどレア・
+-- 強化5種・転生・津波4種・ラッシュタイム・図鑑。
+--
+-- ファイル:
+--   data.absc     表（ブロック・アイテム・ハズレ・強化・津波）
+--   common.absc   画面・消す・待ち時間
+--   kick.absc     ける・落ちる・拾う・運ぶ
+--   bank.absc     金庫・強化ショップ・転生・図鑑
+--   tsunami.absc  津波とラッシュ
+--   main.absc     このファイル
 
-kit_setup("Lucky Kick Run", "けって、引いて、にげろ！", [
-  "浜辺の黄色いラッキーブロックにさわると、けとばして中身が出る",
-  "出たアイテムは「持ちもの」。紫のパッド（丘の上）で預けると自分のもの",
-  "ときどき大津波が来る！高い塔の緑のパッドに登れば安全",
-  "津波にのまれると、預けていない持ちものは流される",
-  "預けたアイテムの価値がスコアになります"
+kit_setup("Lucky Kick Run", "けって、拾って、運んで、にげろ！", [
+  "⚽ 浜辺のラッキーブロックにさわる → ゲージが大きいときに「キック！」",
+  "🎁 遠くにとぶほど中身がレア。にじ・ダイヤ・ぎんがブロックはもっとレア",
+  "🎒 落ちた所まで走ってアイテムを拾う（重いと足がおそい）",
+  "🏦 丘の上の紫の金庫まで運べばお金になる",
+  "🌊 津波が来たら、決まった高さより上へ！のまれるとアイテムが流される",
+  "🛒 浜辺の水色パッドで強化、♻️ 丘の上で転生（ずっと稼ぎアップ）"
 ])
+kit_currency = "コイン"
 
-let loot = [
-  {name: "コイン袋", value: 10, weight: 40, effect: "none"},
-  {name: "スピードぐつ", value: 25, weight: 18, effect: "speed"},
-  {name: "ジャンプばね", value: 25, weight: 18, effect: "jump"},
-  {name: "黄金のトロフィー", value: 120, weight: 6, effect: "none"},
-  {name: "ミームねこ", value: 60, weight: 10, effect: "none"},
-  {name: "ダイヤモンド", value: 300, weight: 2, effect: "none"},
-  {name: "ハズレ（バナナの皮）", value: 0, weight: 14, effect: "slip"},
-  {name: "虹色ユニコーン", value: 1000, weight: 0.5, effect: "none"}
-]
-let wave = nil
-let wave_coming = false
-let next_wave = 40
-
-func show_carry(p)
-  let total = 0
-  for item in p.carry do total = total + item.value end
-  p.ui_text("carry", "🎒 持ちもの " + len(p.carry) + " 個（" + total + "）  🏦 " + p.score, {at: "top", dy: 30, size: 18, bold: true})
-end
-
-func kick(p, b)
-  if not b.visible then return end
-  b.visible = false
-  b.solid = false
-  p.launch(0, 6, 0)
-  let item = kit_pick(loot, p.luck or 1)
-  if item.effect == "speed" then
-    p.speed = 1.6
-    kit_later(p, 20, func() p.speed = 1 end)
-  elif item.effect == "jump" then
-    p.jump = 1.8
-    kit_later(p, 20, func() p.jump = 1 end)
-  elif item.effect == "slip" then
-    p.launch(random(-15, 15), 8, random(-15, 15))
-  end
-  if item.value > 0 then append(p.carry, item) end
-  p.message("🎁 " + item.name + "！", 2)
-  p.sound(item.value >= 300 and "goal" or "collect")
-  if item.value >= 300 then announce("✨ " + p.name + " が「" + item.name + "」を引いた！", 3) end
-  show_carry(p)
-  after(8, func()
-    b.visible = true
-    b.solid = true
-  end)
-end
-
-func tsunami()
-  wave_coming = true
-  announce("🌊 大津波が来る！高い塔へにげろ！", 4)
-  shake(0.4, 3)
-  after(5, func()
-    let start = block("Wave Start")
-    wave = create_block({name: "Tsunami", position: start.position + {x: 0, y: 4, z: 0}, size: {x: 70, y: 12, z: 6},
-                         color: "#1D4ED8", material: "glass", opacity: 0.85, solid: false, behavior: "trigger", tags: ["wave"]})
-    wave.move_to(block("Wave End"), 16)
-    after(16.5, func()
-      kit_gone(wave)
-      wave = nil
-      wave_coming = false
-      announce("津波が去った… 浜辺にもどろう", 2)
-    end)
-  end)
-end
-
-on start()
-  every(1, func()
-    if not wave_coming then
-      next_wave = next_wave - 1
-      ui_text("wave", "🌊 次の津波まで " + next_wave + " 秒", {at: "top", dy: 60, size: 16, color: "#BFDBFE"})
-      if next_wave <= 0 then
-        next_wave = random(35, 55)
-        tsunami()
-      end
-    else
-      ui_text("wave", "🌊 津波が来ている！", {at: "top", dy: 60, size: 18, bold: true, color: "#F87171"})
-    end
-  end)
-  every(10, func() kit_leaderboard("🏦") end)
-end
+kit_quest("kick", "ブロックを10回ける", 10, 50)
+kit_quest("bank", "金庫に預ける", 1, 30)
+kit_quest("bank10k", "合計1万コイン預ける", 10000, 2000)
+kit_quest("index", "10しゅるい集める", 10, 800)
+kit_quest("survive", "津波を5回生きのびる", 5, 200)
+kit_quest("upgrade", "強化を5回", 5, 300)
+kit_quest("snatch", "ほかの人の落とし物を拾う", 1, 50)
+kit_quest("rebirth", "転生する", 1, 3000)
 
 on join(p)
-  kit_welcome(p)
   p.carry = []
-  show_carry(p)
-end
-
-on tick(dt)
-  if wave == nil then return end
-  for p in players() do
-    let safe = p.safe_at != nil and time() - p.safe_at < 1.2
-    if p.alive and not safe and abs(p.z - wave.z) < 4 then
-      if len(p.carry) > 0 then p.message("🌊 持ちものが流された…", 2) end
-      p.carry = []
-      show_carry(p)
-      p.kill()
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "lucky") then
-    kick(p, b)
-  elif contains(b.tags, "safe") then
-    p.safe_at = time()
-  elif contains(b.tags, "bank") then
-    if len(p.carry) > 0 then
-      let total = 0
-      for item in p.carry do total = total + item.value end
-      p.score = p.score + total
-      p.carry = []
-      p.message("🏦 預けた！ +" + total, 2)
-      p.sound("goal")
-      show_carry(p)
-    end
-  end
+  p.up = {}
+  p.index = []
+  p.rebirth = 0
+  kit_welcome(p)
+  kit_give(p, 20)
+  p.ui_button("open_shop", "🛒 強化", {at: "right", dy: -120, w: 140, h: 50, size: 17, bg: "#0369A1"})
+  p.ui_button("open_index", "📖 図鑑", {at: "right", dy: -60, w: 140, h: 50, size: 17, bg: "#0F766E"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  hud(p)
 end

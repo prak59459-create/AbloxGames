@@ -1,0 +1,81 @@
+-- tsunami.absc — 津波とイベント
+-- 40〜60秒ごとに津波。種類で高さがちがう（小さな / 大 / メガ / ミーム）。
+-- その高さより上（塔の上や丘の上）にいれば安全。のまれると運んでいるアイテムは流され、浜辺にもどされる。
+-- ときどき「ラッシュ」: いいブロックが出やすくなる。
+
+let wave = nil          -- {info, block, t0, z0, z1}
+let next_wave = 45
+let rush = false
+let tsu_clock = 0
+
+func wave_z()
+  if wave == nil then return nil end
+  let k = clamp((time() - wave.t0) / wave.info.seconds, 0, 1)
+  return wave.z0 + (wave.z1 - wave.z0) * k
+end
+
+func start_wave()
+  let info = kit_pick(WAVES, 1)
+  announce(info.name + " が来る！高さ " + info.height + "m より上へ！（5秒後）", 4)
+  shake(0.4, 2)
+  after(5, func()
+    let start = block("Wave Start")
+    let finish = block("Wave End")
+    let b = create_block({name: "Tsunami", position: start.position + {x: 0, y: info.height / 2, z: 0}, size: {x: 70, y: info.height, z: 6},
+                          color: info.color, material: "glass", opacity: 0.8, solid: false})
+    b.move_to(finish.position + {x: 0, y: info.height / 2, z: 0}, info.seconds)
+    wave = {info: info, block: b, t0: time(), z0: start.z, z1: finish.z}
+    for p in players() do p.survived_wave = true end
+    after(info.seconds + 0.3, func()
+      gone(b)
+      for p in players() do
+        if p.survived_wave then kit_quest_progress(p, "survive", 1) end
+      end
+      wave = nil
+      next_wave = random(40, 60)
+      announce("津波が去った… 浜辺にもどって続けよう", 2)
+    end)
+  end)
+end
+
+func caught(p)
+  p.survived_wave = false
+  if len(p.carry) > 0 then p.message("🌊 運んでいたアイテムが流された…", 2.5) else p.message("🌊 のみこまれた！", 1.5) end
+  p.carry = []
+  p.fade("#1D4ED8", 0.3)
+  kit_later(p, 0.4, func()
+    p.teleport(block("Spawn " + random(1, 6)))
+    p.fade(nil, 0.5)
+  end)
+  move_refresh(p)
+  hud(p)
+end
+
+on start()
+  every(170, func()
+    rush = true
+    announce("🎉 ラッシュタイム！30秒 いいブロックが出やすい", 3)
+    for b in blocks("lucky") do paint_tee(b) end
+    after(30, func() rush = false end)
+  end)
+  every(10, func() kit_leaderboard("🏦 預けた合計") end)
+end
+
+on tick(dt)
+  tsu_clock = tsu_clock + dt
+  if tsu_clock >= 1 then
+    tsu_clock = 0
+    if wave == nil then
+      next_wave = next_wave - 1
+      ui_text("wave", "🌊 次の津波まで " + max(0, next_wave) + " 秒", {at: "top", dy: 60, size: 15, color: "#BFDBFE"})
+      if next_wave == 0 then start_wave() end
+    else
+      ui_text("wave", wave.info.name + "！ 高さ " + wave.info.height + "m", {at: "top", dy: 60, size: 17, bold: true, color: "#F87171"})
+    end
+  end
+  let z = wave_z()
+  if z == nil then return end
+  for p in players() do
+    if p.alive and abs(p.z - z) < 3.5 and p.y < wave.info.height and abs(p.x) < 36 then caught(p) end
+  end
+end

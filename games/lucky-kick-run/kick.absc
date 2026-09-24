@@ -1,0 +1,251 @@
+-- kick.absc — ける・拾う・運ぶ
+-- 浜辺のラッキーブロックにさわる → パワーゲージ → 「⚽ キック！」で丘の上へとんでいく。
+-- 遠くに落ちるほど中身がレア。落ちた場所まで走ってアイテムを拾い（最初の20秒は自分だけ）、
+-- 丘の上の紫の金庫まで運べば自分のもの。運んでいると足がおそくなる。
+
+let drops = []         -- {block, owner, item, until_owner, until}
+let tee_tier = {}      -- "Lucky Block 3" → TIERS の番号
+let kick_clock = 0
+
+func upgrade_level(p, id)
+  return p.up[id] or 0
+end
+
+func carry_max(p) return 1 + upgrade_level(p, "carry") end
+
+func item_by_id(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return ITEMS[1]
+end
+
+-- MARK: ブロックの種類
+
+func paint_tee(b)
+  let luck = 1
+  let list = map(TIERS, func(t) return {tier: t, weight: t.weight} end)
+  let pick = kit_pick(list, 1 + (rush and 1 or 0)).tier
+  tee_tier[b.name] = pick.id
+  b.color = pick.color
+  b.visible = true
+  b.solid = true
+end
+
+func tee_info(b)
+  let id = tee_tier[b.name] or "yellow"
+  for t in TIERS do
+    if t.id == id then return t end
+  end
+  return TIERS[1]
+end
+
+-- MARK: キックのゲージ
+
+func start_kick(p, b)
+  if p.kicking != nil or not b.visible then return end
+  if len(p.carry) >= carry_max(p) then
+    p.message("🎒 もう運べない！金庫（丘の上の紫）へ", 1.5)
+    return
+  end
+  p.kicking = b.name
+  p.kick_power = 0
+  p.kick_dir = 1
+  p.frozen = true
+  let t = tee_info(b)
+  p.ui_panel("kickbar", {at: "bottom", dy: -170, w: 420, h: 90, bg: "#000000B0", radius: 16, layer: 20})
+  p.ui_text("kickbar_t", t.name + "  ちょうどいいところで キック！", {parent: "kickbar", y: 0.22, size: 15, color: t.color})
+  p.ui_bar("kickbar_b", 0, 100, {parent: "kickbar", y: 0.62, w: 380, h: 18, color: "#F97316"})
+  p.ui_button("kick_go", "⚽ キック！", {at: "bottom_right", dx: -110, dy: -150, w: 140, h: 80, size: 22, bg: "#EF4444", radius: 20})
+end
+
+func stop_kick(p)
+  p.kicking = nil
+  p.frozen = false
+  p.ui_remove("kickbar")
+  p.ui_remove("kick_go")
+end
+
+func do_kick(p)
+  let b = block(p.kicking)
+  let power = p.kick_power / 100
+  stop_kick(p)
+  if b == nil or not b.visible then return end
+  let t = tee_info(b)
+  b.visible = false
+  b.solid = false
+  after(5, func() paint_tee(b) end)
+  -- どこまでとぶか
+  let kick = 1 + upgrade_level(p, "kick")
+  let dist = 18 + power * (25 + kick * 18)
+  let z = clamp(b.z + dist, -70, 85)
+  let x = clamp(b.x + random(-12, 12), -18, 18)
+  let terrace = clamp(floor((z + 70) / 20) + 1, 1, 8)
+  let y = terrace * 1.5 + 0.8
+  let ball = create_block({name: "Kicked Block", shape: "box", position: b.position + {x: 0, y: 1, z: 0}, size: 1.4, color: t.color,
+                           material: "neon", solid: false})
+  ball.move_to({x: x, y: y + 6, z: (b.z + z) / 2}, 0.7)
+  after(0.75, func()
+    ball.move_to({x: x, y: y, z: z}, 0.7)
+  end)
+  after(1.5, func()
+    gone(ball)
+    if kit_here(p) then land(p, t, {x: x, y: y, z: z}, terrace) end
+  end)
+  p.kicks = (p.kicks or 0) + 1
+  kit_quest_progress(p, "kick", 1)
+  p.sound("hit")
+  p.message("⚽ " + floor(dist) + "m とんだ！", 1.2)
+end
+
+-- 落ちた: 中身が決まる（遠いほど、いいブロックほどレア）
+func land(p, t, pos, terrace)
+  if random() < 0.12 then
+    trap(p, pos)
+    return
+  end
+  let luck = t.luck * (1 + terrace * 0.18) * (1 + upgrade_level(p, "luck") * 0.25)
+  if rush then luck = luck * 1.5 end
+  let list = map(ITEMS, func(it) return {item: it, weight: RARITY[it.rarity].weight} end)
+  let item = kit_pick(list, luck).item
+  let r = RARITY[item.rarity]
+  let b = create_block({name: "Drop " + item.name, shape: "sphere", position: pos + {x: 0, y: 0.6, z: 0}, size: 1.1, color: r.color,
+                        material: "neon", behavior: "trigger", tags: ["drop"], solid: false})
+  append(drops, {block: b, owner: p.id, item: item.id, until_owner: time() + 20, until: time() + 90})
+  p.message("🎁 " + item.name + "（" + r.name + "）が落ちた！拾いに行こう", 2.5)
+  if item.rarity == "mythic" or item.rarity == "secret" then
+    announce("✨ " + p.name + " のブロックから " + r.name + "「" + item.name + "」！", 3.5)
+  end
+end
+
+func trap(p, pos)
+  let tr = random(TRAPS)
+  let fx = create_block({name: "Trap FX", shape: "sphere", position: pos + {x: 0, y: 1, z: 0}, size: 4, color: "#F97316", material: "neon",
+                         solid: false, opacity: 0.5})
+  after(0.5, func() gone(fx) end)
+  p.message("💥 ハズレ！" + tr.name, 2)
+  if tr.kind == "slip" then
+    p.launch(random(-14, 14), 9, random(-14, 14))
+  elif tr.kind == "boom" then
+    let lose = floor(kit_money(p) * 0.05)
+    if lose > 0 then
+      kit_give(p, 0 - lose)
+      p.message("💥 ばくはつで " + lose + " コイン飛んでいった…", 2)
+    end
+  elif tr.kind == "bees" then
+    p.slow_until = time() + 6
+    move_refresh(p)
+  end
+end
+
+-- MARK: 拾う
+
+func pick_drop(p, d)
+  if len(p.carry) >= carry_max(p) then
+    if cooldown_left(p, "full") <= 0 then
+      start_cooldown(p, "full", 3)
+      p.message("🎒 もう運べない（" + carry_max(p) + "こまで）", 1.2)
+    end
+    return
+  end
+  if d.owner != p.id and time() < d.until_owner then
+    if cooldown_left(p, "notyours") <= 0 then
+      start_cooldown(p, "notyours", 3)
+      p.message("ほかの人のアイテム（あと " + ceil(d.until_owner - time()) + " 秒で だれでも拾える）", 1.5)
+    end
+    return
+  end
+  remove(drops, index_of(drops, d))
+  gone(d.block)
+  let item = item_by_id(d.item)
+  append(p.carry, item.id)
+  if d.owner != p.id then kit_quest_progress(p, "snatch", 1) end
+  if item.effect == "speed" then
+    p.boost_until = time() + 20
+    p.message("👟 20秒 速く走れる！", 1.5)
+  elif item.effect == "jump" then
+    p.jump_until = time() + 20
+    p.message("🦘 20秒 高くとべる！", 1.5)
+  end
+  p.message("🎒 " + item.name + " を拾った！金庫へ運ぼう", 1.8)
+  p.sound("collect")
+  move_refresh(p)
+  hud(p)
+end
+
+-- 運んでいる重さで足がおそくなる
+func move_refresh(p)
+  let kg = 0
+  for id in p.carry do kg = kg + item_by_id(id).kg end
+  let speed = (1 + upgrade_level(p, "speed") * 0.12) * max(0.55, 1 - kg * 0.04)
+  if p.boost_until != nil and time() < p.boost_until then speed = speed * 1.4 end
+  if p.slow_until != nil and time() < p.slow_until then speed = speed * 0.5 end
+  let jump = 1
+  if p.jump_until != nil and time() < p.jump_until then jump = 1.8 end
+  if p.mv_speed != speed then
+    p.speed = speed
+    p.mv_speed = speed
+  end
+  if p.mv_jump != jump then
+    p.jump = jump
+    p.mv_jump = jump
+  end
+end
+
+on start()
+  for b in blocks("lucky") do paint_tee(b) end
+end
+
+on tick(dt)
+  -- ゲージが行ったり来たり
+  for p in players() do
+    if p.kicking != nil then
+      p.kick_power = p.kick_power + p.kick_dir * dt * 140
+      if p.kick_power >= 100 then
+        p.kick_power = 100
+        p.kick_dir = -1
+      elif p.kick_power <= 0 then
+        p.kick_power = 0
+        p.kick_dir = 1
+      end
+      p.ui_bar("kickbar_b", p.kick_power, 100, {parent: "kickbar", y: 0.62, w: 380, h: 18, color: "#F97316"})
+    end
+  end
+  kick_clock = kick_clock + dt
+  if kick_clock < 0.5 then return end
+  kick_clock = 0
+  for d in copy(drops) do
+    if time() > d.until then
+      gone(d.block)
+      remove(drops, index_of(drops, d))
+    end
+  end
+  for p in players() do
+    move_refresh(p)
+    -- マグネット
+    let mag = upgrade_level(p, "magnet")
+    if mag > 0 then
+      for d in copy(drops) do
+        if d.owner == p.id and distance(p, d.block) < 4 + mag * 3 then pick_drop(p, d) end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "lucky") then
+    start_kick(p, b)
+  elif contains(b.tags, "drop") then
+    for d in drops do
+      if d.block == b then
+        pick_drop(p, d)
+        return
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "kick_go" and p.kicking != nil then do_kick(p) end
+end
