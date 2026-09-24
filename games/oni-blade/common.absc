@@ -1,0 +1,141 @@
+-- common.absc — 小さな道具・エフェクト・画面の左上
+
+func ready(p)
+  return p.stats != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func school_info(id)
+  for s in SCHOOLS do
+    if s.id == id then return s end
+  end
+  return nil
+end
+
+func stat(p, key)
+  if p.stats == nil then return 0 end
+  return p.stats[key] or 0
+end
+
+func blade_of(p)
+  return BLADES[p.blade]
+end
+
+func rank_of(p)
+  let r = RANKS[1]
+  for x in RANKS do
+    if (p.kills or 0) >= x.need then r = x end
+  end
+  -- 剣聖は鬼の大将を討った者だけ
+  if r.name == "剣聖" and (p.boss_kills or 0) == 0 then r = RANKS[len(RANKS) - 1] end
+  return r
+end
+
+func next_rank(p)
+  for x in RANKS do
+    if (p.kills or 0) < x.need then return x end
+  end
+  return nil
+end
+
+-- MARK: エフェクト
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func fx_ring(pos, radius, color, seconds)
+  let b = create_block({name: "FX", shape: "cylinder", position: {x: pos.x, y: pos.y + 0.08, z: pos.z},
+                        size: {x: radius * 2, y: 0.1, z: radius * 2}, color: color, material: "neon", solid: false, opacity: 0.45})
+  after(seconds or 0.6, func() gone(b) end)
+  return b
+end
+
+func fx_warning(pos, radius, seconds)
+  return fx_ring(pos, radius, "#EF4444", seconds)
+end
+
+func fx_beam(from, dir, len, color, width)
+  let mid = from + dir * (len / 2)
+  let yaw = atan2(dir.x, dir.z)
+  let b = create_block({name: "FX", shape: "box", position: mid, size: {x: width or 0.7, y: 0.25, z: len},
+                        rotation: {x: 0, y: yaw, z: 0}, color: color, material: "neon", solid: false, opacity: 0.7})
+  after(0.35, func() gone(b) end)
+end
+
+-- 斬撃の弧（横に長い板）
+func fx_slash(p, dist, width, color)
+  let fl = flat_look(p)
+  let pos = p.position + fl * dist + {x: 0, y: 1.1, z: 0}
+  let yaw = atan2(fl.x, fl.z)
+  let b = create_block({name: "FX", shape: "box", position: pos, size: {x: width, y: 0.15, z: 0.5},
+                        rotation: {x: 0, y: yaw, z: random(-25, 25)}, color: color, material: "neon", solid: false, opacity: 0.75})
+  after(0.25, func() gone(b) end)
+end
+
+func beam_distance(point, from, dir, len)
+  let rel = point - from
+  let along = rel.x * dir.x + rel.y * dir.y + rel.z * dir.z
+  if along < 0 or along > len then return 999 end
+  let closest = from + dir * along
+  return distance(point, closest)
+end
+
+func flat_look(p)
+  let d = {x: p.look.x, y: 0, z: p.look.z}
+  if abs(d.x) + abs(d.z) < 0.01 then return {x: 0, y: 0, z: 1} end
+  return normalize(d)
+end
+
+-- yaw を deg だけまわした向き
+func turn(dir, deg)
+  let c = cos(deg)
+  let s = sin(deg)
+  return {x: dir.x * c + dir.z * s, y: 0, z: dir.z * c - dir.x * s}
+end
+
+-- MARK: 画面の左上
+
+func hud(p)
+  if not ready(p) then return end
+  let r = rank_of(p)
+  let line = "階級「" + r.name + "」 👹 " + p.kills
+  let nx = next_rank(p)
+  if nx != nil then line = line + " / " + nx.need end
+  line = line + "   🗡 " + blade_of(p).name
+  p.ui_text("hud", line, {at: "top_left", dy: 72, size: 14, bold: true, color: "#FDE68A"})
+  let s = school_info(p.school)
+  let line2 = "🦴 角 " + p.horns + "   💎 妖石 " + p.stones + "   📊 " + p.points
+  if s != nil then line2 = s.name + " 熟練" + school_mastery(p) + "   " + line2 end
+  let col = "#E5E7EB"
+  if s != nil then col = s.color end
+  p.ui_text("hud2", line2, {at: "top_left", dy: 92, size: 13, bold: true, color: col})
+end

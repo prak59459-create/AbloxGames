@@ -37,7 +37,7 @@ let actionGames: [Game] = [
          summary: "ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。",
          tags: ["heroes", "rpg", "powers"], maxPlayers: 12, build: heroAcademy),
     Game(number: 32, id: "oni-blade", title: "Oni Blade",
-         summary: "夜になると鬼があらわれる。呼吸の型をきわめ、刀をきたえて鬼を斬れ。階級を上げて、鬼の王を討伐しよう。",
+         summary: "夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。",
          tags: ["swords", "rpg", "night"], maxPlayers: 12, build: oniBlade),
 ]
 
@@ -492,25 +492,53 @@ func heroAcademy(_ m: MapBuilder) {
 func oniBlade(_ m: MapBuilder) {
     m.sunset(ground: "#3F3F2E")
     m.ground(200, 200, color: "#5B6B3A", name: "Valley")
-    // A village.
+    // The village: six houses the oni attack at night, a well and the request board.
     for (i, p) in ring(6, radius: 18).enumerated() {
         m.house("Village House \(i + 1)", x: p.0, z: p.1, w: 7, d: 7, h: 3, wall: "#E7D8B8", roof: "#3F3F46", floor: "#8B6F47",
-                door: false, tags: ["village"])
+                door: false, tags: ["village", "house\(i + 1)"])
     }
     m.spawnRing(0, 0, radius: 5, count: 8, color: "#FCA5A5")
+    m.pillar("Village Well", x: 0, z: 0, height: 0.9, radius: 1.1, color: "#78716C")
+    m.pad("Request Board", x: 8, z: 0, size: 2.4, color: "#FDE68A", tags: ["board"])
+    m.part("Board Sign", at: (9.6, 1.4, 0), size: (0.3, 1.6, 2.4), color: "#92400E")
+    // The swordsmith's forge.
     m.shop("Swordsmith", x: 0, z: -34, w: 10, d: 8, color: "#57534E", sign: "#FDE68A")
     m.pad("Forge", x: 0, z: -32, size: 2.5, color: "#F97316", tags: ["forge"])
+    // Training: straw dummies and the waterfall.
     m.slab("Training Yard", x: -40, y: 0, z: 0, w: 18, h: 0.2, d: 18, color: "#A8A29E")
     m.markers("Dummy", points: grid(3, 1, spacing: 5, cx: -40, cz: 0), color: "#000000", visible: false, behavior: .none)
-    // The forest where oni come from, and the shrine of their king.
+    m.slab("Waterfall Cliff", x: -40, y: 0, z: -40, w: 12, h: 12, d: 3, color: "#57534E")
+    m.part("Waterfall", at: (-40, 6, -38.2), size: (5, 12, 0.6), color: "#7DD3FC", material: .glass, solid: false, opacity: 0.6)
+    m.slab("Waterfall Pool", x: -40, y: 0, z: -34, w: 10, h: 0.12, d: 6, color: "#38BDF8", opacity: 0.8)
+    m.pad("Waterfall Stone", x: -40, z: -36, size: 3, color: "#BAE6FD", tags: ["waterfall"])
+    // The dojo, where a sword school is chosen.
+    m.house("Dojo", x: 40, z: 0, w: 12, d: 10, h: 4, wall: "#FEF3C7", roof: "#7F1D1D", floor: "#A16207", tags: ["dojo"])
+    m.pad("School Mat", x: 40, z: -1, size: 3, color: "#F472B6", tags: ["school"])
+    // The forest: oni come out of it at night; firewood, herbs and lost children by day.
+    let keepClear: [(Float, Float, Float)] = [(0, 80, 16), (40, 0, 10), (-40, -38, 9), (-40, 0, 11), (0, -34, 8)]
     var r = Seeded("oni")
-    for i in 0..<40 {
+    var cedars = 0
+    for _ in 0..<60 where cedars < 44 {
         let a = r.range(0, 2 * .pi), d = r.range(45, 95)
-        m.pine(cos(a) * d, sin(a) * d, height: r.range(6, 10), leaves: "#14532D", name: "Cedar \(i + 1)")
+        let x = cos(a) * d, z = sin(a) * d
+        let h = r.range(6, 10)
+        if keepClear.contains(where: { hypot($0.0 - x, $0.1 - z) < $0.2 }) { continue }
+        cedars += 1
+        m.pine(x, z, height: h, leaves: "#14532D", name: "Cedar \(cedars)")
     }
     m.markers("Oni Spawn", points: ring(8, radius: 70), color: "#000000", visible: false, behavior: .none)
-    m.slab("Oni Shrine", x: 0, y: 0, z: 80, w: 20, h: 0.6, d: 20, color: "#450A0A")
-    m.part("Shrine Gate", at: (0, 5, 70), size: (12, 1, 1), color: "#B91C1C")
-    m.pillar("Gate Leg", x: -5, z: 70, height: 5, radius: 0.5, color: "#B91C1C")
-    m.pillar("Gate Leg", x: 5, z: 70, height: 5, radius: 0.5, color: "#B91C1C")
+    m.markers("Wood Spot", points: ring(10, radius: 50, phase: 0.2), color: "#000000", visible: false, behavior: .none)
+    m.markers("Herb Spot", points: ring(8, radius: 38, phase: 0.5), color: "#000000", visible: false, behavior: .none)
+    m.markers("Lost Spot", points: [(60, 40), (-62, 35), (-55, -60), (58, -55)], color: "#000000", visible: false, behavior: .none)
+    // The shrine where the oni lords appear.
+    m.slab("Oni Shrine", x: 0, y: 0, z: 80, w: 24, h: 0.6, d: 24, color: "#450A0A")
+    m.part("Shrine Gate", at: (0, 5, 67), size: (12, 1, 1), color: "#B91C1C")
+    m.pillar("Gate Leg", x: -5, z: 67, height: 5, radius: 0.5, color: "#B91C1C")
+    m.pillar("Gate Leg", x: 5, z: 67, height: 5, radius: 0.5, color: "#B91C1C")
+    m.house("Shrine Hall", x: 0, z: 88, w: 10, d: 6, h: 4, y: 0.6, wall: "#7F1D1D", roof: "#1C1917", floor: "#292524", door: false,
+            tags: ["shrine"])
+    for (x, z) in [(-10, 72), (10, 72), (-10, 90), (10, 90)] {
+        m.lamp(Float(x), Float(z), y: 0.6, glow: "#F87171", name: "Shrine Lantern")
+    }
+    m.markers("Boss Spot", points: [(0, 78)], y: 0.6, color: "#000000", visible: false, behavior: .none)
 }

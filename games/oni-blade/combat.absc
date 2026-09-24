@@ -1,0 +1,314 @@
+-- combat.absc — 戦いのしくみ
+-- 刀の強さ・ダメージ・やけど/しびれ/鎧くだき・気（型に使う）・闘気（ためて解放）・
+-- 鬼からのダメージ（かわし・不動・凪）・経験値とレベル・流派の熟練
+
+let body_clock = 0
+
+-- MARK: 強さ
+
+func school_mastery(p)
+  if p.school == nil or p.smxp == nil then return 0 end
+  let x = p.smxp[p.school] or 0
+  let lv = 0
+  for need in SCHOOL_MASTERY do
+    if x >= need then lv = lv + 1 end
+  end
+  return lv
+end
+
+-- 刀と型に共通の倍率（刀そのものの強さはふくまない）
+func power_mult(p)
+  let m = (1 + stat(p, "str") * 0.03) * (1 + p.level * 0.02) * (1 + school_mastery(p) * 0.06)
+  if active_until(p.awaken_until) then m = m * 1.3 end
+  if active_until(p.charm_until) then m = m * 1.1 end
+  if active_until(p.stance_until) then m = m * 1.25 end
+  return m
+end
+
+-- 型の1あたりのダメージ
+func form_power(p)
+  return blade_of(p).dmg * power_mult(p)
+end
+
+func max_ki(p)
+  return 100 + stat(p, "breath") * 5
+end
+
+func refresh_body(p)
+  if not ready(p) then return end
+  let hp = 100 + p.level * 8 + stat(p, "vit") * 10
+  if p.max_health != hp then
+    let full = p.health >= p.max_health
+    p.max_health = hp
+    if full then p.heal(hp) end
+  end
+  let sp = 1 + min(30, stat(p, "agi")) * 0.015
+  if active_until(p.awaken_until) then sp = sp * 1.2 end
+  if active_until(p.slow_until) then sp = sp * 0.55 end
+  if p.school == "thunder" then sp = sp * 1.05 end
+  if p.speed != sp then p.speed = sp end
+end
+
+-- MARK: プレイヤー → 鬼
+
+func is_foe(v)
+  return v != nil and v.is_npc and kit_here(v) and v.alive and (v.kind == "oni" or v.kind == "boss" or v.kind == "dummy")
+end
+
+func gain_touki(p, amount)
+  if not ready(p) or active_until(p.awaken_until) then return end
+  let before = p.touki
+  p.touki = min(100, p.touki + amount)
+  if before < 100 and p.touki >= 100 then
+    p.message("🔥 闘気がたまった！「闘気解放」で15びょう強くなる", 2)
+    awaken_button(p)
+  end
+end
+
+func gain_smxp(p, amount)
+  if p.school == nil then return end
+  let before = school_mastery(p)
+  p.smxp[p.school] = (p.smxp[p.school] or 0) + amount
+  let now = school_mastery(p)
+  if now > before then
+    p.message("✨ " + school_info(p.school).name + " の熟練が " + now + " に！ 型が強く、気の消費が少なくなる", 2.5)
+    p.sound("checkpoint")
+    kit_quest_progress(p, "mastery", 1)
+    hud(p)
+  end
+end
+
+-- p が v に amount。effect: "burn" "stun" "lift" "knock" "slow" "break"
+func hurt(p, v, amount, effect, power)
+  if not is_foe(v) then return 0 end
+  let dmg = amount
+  if v.armored and not active_until(v.broken_until) and not v.frozen then dmg = dmg * 0.45 end
+  if v.kind == "boss" and active_until(v.guard_until) then dmg = dmg * 0.4 end
+  if v.dmg_by != nil then v.dmg_by[p.id] = (v.dmg_by[p.id] or 0) + dmg end
+  v.last_by = p.id
+  gain_touki(p, dmg * 0.12)
+  let from = p.position
+  v.damage(dmg, p)
+  if kit_here(v) and v.alive and effect != nil then apply_effect(p, v, effect, power or 0, from, dmg) end
+  return dmg
+end
+
+func stun_for(v, seconds)
+  if v.kind == "boss" then seconds = seconds * 0.35 end
+  v.frozen_until = max(v.frozen_until or 0, time() + seconds)
+  v.frozen = true
+  if v.armored then v.broken_until = time() + 3 end
+  after(seconds + 0.05, func()
+    if kit_here(v) and v.alive and time() >= (v.frozen_until or 0) then v.frozen = false end
+  end)
+end
+
+func apply_effect(p, v, effect, power, from, dmg)
+  if effect == "stun" then stun_for(v, max(0.3, power))
+  elif effect == "burn" or effect == "burn_lift" or effect == "burn_knock" then
+    v.burn_until = time() + 3
+    v.burn_by = p.id
+    v.burn_dmg = max(3, dmg * 0.12)
+    if effect == "burn_lift" and v.kind != "boss" then v.launch(0, max(4, power), 0) end
+    if effect == "burn_knock" and v.kind != "boss" then
+      let d = v.position - from
+      let flat = normalize({x: d.x, y: 0, z: d.z})
+      v.launch(flat.x * power, 4, flat.z * power)
+    end
+  elif effect == "break" then
+    v.broken_until = time() + 4
+    if v.armored then fx_ball(v.position + {x: 0, y: 1, z: 0}, 2, "#A1A1AA", 0.3) end
+  elif effect == "slow" then
+    v.slow_until = time() + 3
+  elif effect == "lift" and v.kind != "boss" then
+    v.launch(0, max(4, power), 0)
+  elif effect == "knock" and v.kind != "boss" then
+    let d = v.position - from
+    let flat = normalize({x: d.x, y: 0, z: d.z})
+    v.launch(flat.x * power, 4, flat.z * power)
+  end
+end
+
+-- MARK: 攻撃の形
+
+func foes()
+  return filter(npcs(), is_foe)
+end
+
+func area(p, center, radius, amount, effect, power)
+  let n = 0
+  for c in foes() do
+    if kit_here(c) and c.alive and distance(center, c) <= radius + (c.size or 1) * 0.4 then
+      hurt(p, c, amount, effect, power)
+      n = n + 1
+    end
+  end
+  return n
+end
+
+func line_hit(p, from, dir, len, width, amount, effect, power, color)
+  if color != nil then fx_beam(from + dir * 0.3, dir, len, color, min(width * 1.6, 5)) end
+  let n = 0
+  for c in foes() do
+    if kit_here(c) and c.alive and beam_distance(c.position + {x: 0, y: 1, z: 0}, from, dir, len) <= width + (c.size or 1) * 0.4 then
+      hurt(p, c, amount, effect, power)
+      n = n + 1
+    end
+  end
+  return n
+end
+
+func cone(p, reach, dot_min, amount, effect, power)
+  let n = 0
+  let fl = flat_look(p)
+  for c in foes() do
+    if kit_here(c) and c.alive and distance(p, c) <= reach + (c.size or 1) * 0.4 then
+      let d = c.position - p.position
+      let flat = normalize({x: d.x, y: 0, z: d.z})
+      if distance(p, c) < 1.5 or flat.x * fl.x + flat.z * fl.z >= dot_min then
+        hurt(p, c, amount, effect, power)
+        n = n + 1
+      end
+    end
+  end
+  return n
+end
+
+-- いちばん近い敵（skip: とばすidのリスト）
+func nearest_foe(p, range, skip)
+  let best = nil
+  let best_d = range
+  for c in foes() do
+    let d = distance(p, c)
+    if d < best_d and (skip == nil or not contains(skip, c.id)) then
+      best = c
+      best_d = d
+    end
+  end
+  return best
+end
+
+func aim_point(p, range)
+  let r = raycast(p, p.look, range)
+  if r != nil and r.point != nil then return r.point - p.look * 0.5 end
+  return p.position + {x: 0, y: 1.4, z: 0} + p.look * range
+end
+
+-- MARK: 鬼 → プレイヤー
+
+func oni_hit(n, p, amount, effect, power)
+  if p == nil or not kit_here(p) or not p.alive or p.is_npc then return 0 end
+  if active_until(p.evade_until) and random() < 0.5 then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 1.5, "#F9A8D4", 0.25)
+    return 0
+  end
+  if active_until(p.nagi_until) then
+    -- 凪: 受けずに返す
+    if kit_here(n) and n.alive then hurt(p, n, form_power(p) * 1.5, "stun", 0.6) end
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 2, "#38BDF8", 0.25)
+    return 0
+  end
+  let dmg = amount
+  if active_until(p.fudo_until) then dmg = dmg * 0.4 end
+  if active_until(p.awaken_until) then dmg = dmg * 0.85 end
+  let from = n.position
+  p.damage(dmg, n)
+  if kit_here(p) and p.alive and effect != nil and not active_until(p.fudo_until) then
+    if effect == "knock" then
+      let d = p.position - from
+      let flat = normalize({x: d.x, y: 0, z: d.z})
+      p.launch(flat.x * power, 5, flat.z * power)
+    elif effect == "lift" then p.launch(0, power, 0)
+    elif effect == "slow" then p.slow_until = time() + power
+    elif effect == "stun" then
+      p.frozen = true
+      after(power, func() if kit_here(p) then p.frozen = false end end)
+    elif effect == "poison" then
+      p.poison_until = time() + power
+    end
+  end
+  return dmg
+end
+
+-- MARK: 経験値とレベル
+
+func gain_xp(p, amount)
+  if not kit_here(p) or not ready(p) or p.level >= MAX_LEVEL then return end
+  p.xp = p.xp + floor(amount)
+  let ups = 0
+  while p.xp >= kit_level_need(p.level) and p.level < MAX_LEVEL do
+    p.xp = p.xp - kit_level_need(p.level)
+    p.level = p.level + 1
+    p.points = p.points + 3
+    ups = ups + 1
+    let s = school_info(p.school)
+    if s != nil then
+      for f in s.forms do
+        if f.lv == p.level then p.message("📜 新しい型「" + f.name + "」を覚えた！", 3) end
+      end
+    end
+  end
+  if ups > 0 then
+    refresh_body(p)
+    p.heal(p.max_health)
+    p.message("⬆️ レベル " + p.level + "！ ステータスポイント +" + ups * 3, 2.5)
+    p.sound("goal")
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 4, "#FDE047", 0.6)
+    if p.level >= 3 and p.school == nil then school_panel(p) end
+    kit_quest_progress(p, "lv10", ups)
+    kit_quest_progress(p, "lv30", ups)
+    if p.stat_open then stat_menu(p) end
+    form_buttons(p)
+  end
+  kit_show_level(p)
+  hud(p)
+end
+
+func reward(p, xp, coins, why)
+  if not kit_here(p) or not ready(p) then return end
+  kit_give(p, floor(coins))
+  gain_xp(p, xp)
+  if why != nil then p.message(why + "  +" + kit_short(xp) + " XP  +" + kit_short(coins) + " 両", 1.6) end
+end
+
+-- MARK: 毎0.5びょう: 気・やけど・毒・回復
+
+on tick(dt)
+  body_clock = body_clock + dt
+  if body_clock < 0.5 then return end
+  body_clock = 0
+  for p in players() do
+    if ready(p) then
+      let mk = max_ki(p)
+      if p.ki < mk then p.ki = min(mk, p.ki + (3 + stat(p, "breath") * 0.2)) end
+      if active_until(p.poison_until) and p.alive then p.damage(p.max_health * 0.02) end
+      if active_until(p.regen_until) and p.alive then p.heal(p.max_health * 0.03) end
+      refresh_body(p)
+      show_bars(p)
+    end
+  end
+  for c in foes() do
+    if active_until(c.burn_until) then
+      let by = player_by_id(c.burn_by)
+      if by != nil then hurt(by, c, c.burn_dmg, nil, 0) end
+      if kit_here(c) and c.alive and random() < 0.4 then fx_ball(c.position + {x: 0, y: 1.2, z: 0}, 1.2, "#F97316", 0.3) end
+    end
+  end
+end
+
+-- MARK: 刀の当たり
+
+on hit(victim, attacker, damage)
+  if not victim.is_npc then return 0 end
+  if not is_foe(victim) then return 0 end
+  let dmg = damage
+  if not attacker.is_npc and ready(attacker) then
+    dmg = dmg * power_mult(attacker)
+    gain_touki(attacker, dmg * 0.15)
+    if victim.dmg_by != nil then victim.dmg_by[attacker.id] = (victim.dmg_by[attacker.id] or 0) + dmg end
+    victim.last_by = attacker.id
+  end
+  if victim.armored and not active_until(victim.broken_until) and not victim.frozen then dmg = dmg * 0.45 end
+  if victim.kind == "boss" and active_until(victim.guard_until) then dmg = dmg * 0.4 end
+  return dmg
+end

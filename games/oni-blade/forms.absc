@@ -1,0 +1,407 @@
+-- forms.absc — 流派の型（7流派 × 5つ）
+-- pw = form_power(p)（刀の強さ × 力・レベル・熟練・闘気）。型は「気」を使う。
+-- 花霞流派の「霞隠れ」のあとの型は2倍。
+
+func crit(p, chance)
+  if random() < chance then
+    fx_ball(p.position + flat_look(p) * 2 + {x: 0, y: 1.3, z: 0}, 1.2, "#FBCFE8", 0.2)
+    return 2
+  end
+  return 1
+end
+
+func eye(p)
+  return p.position + {x: 0, y: 1.2, z: 0}
+end
+
+-- MARK: 🌊 水流派
+
+func water_form(p, i, pw, col)
+  let fl = flat_look(p)
+  if i == 1 then
+    fx_slash(p, 2, 4, col)
+    cone(p, 4, 0.4, pw * 1.4, nil, 0)
+  elif i == 2 then
+    fx_ring(p.position, 5, col, 0.4)
+    area(p, p.position, 5, pw * 1.3, "lift", 6)
+  elif i == 3 then
+    for k in 0 to 2 do
+      kit_later(p, k * 0.25, func()
+        let from = eye(p)
+        let d = flat_look(p)
+        p.launch(d.x * 16, 2, d.z * 16)
+        line_hit(p, from, d, 5, 1.8, pw * 1.0, nil, 0, col)
+      end)
+    end
+  elif i == 4 then
+    p.nagi_until = time() + 3
+    fx_ring(p.position, 2, col, 3)
+    p.message("🌊 凪… 3びょう 攻撃を受けながし、はね返す", 1.5)
+    kit_later(p, 3, func()
+      fx_ring(p.position, 6, col, 0.4)
+      area(p, p.position, 6, pw * 1.5, "stun", 0.6)
+      p.heal(p.max_health * 0.2)
+    end)
+  else
+    let from = p.position + {x: 0, y: 1, z: 0}
+    for k in 1 to 4 do fx_ball(from + fl * (k * 5), 5, col, 0.5) end
+    line_hit(p, from, fl, 22, 5, pw * 4, "knock", 24, col)
+    p.heal(p.max_health * 0.3)
+  end
+  return true
+end
+
+-- MARK: 🔥 焔流派
+
+func flame_form(p, i, pw, col)
+  let fl = flat_look(p)
+  if i == 1 then
+    let from = eye(p)
+    p.launch(fl.x * 20, 2, fl.z * 20)
+    line_hit(p, from, fl, 8, 2, pw * 0.6, "burn", 0, col)
+    kit_later(p, 0.35, func()
+      fx_ball(p.position + {x: 0, y: 1, z: 0}, 4, col, 0.3)
+      area(p, p.position, 3.5, pw * 1.6, "burn", 0)
+    end)
+  elif i == 2 then
+    fx_slash(p, 1.8, 3, col)
+    cone(p, 3.5, 0.4, pw * 1.8, "burn_lift", 14)
+  elif i == 3 then
+    p.launch(fl.x * 12, 9, fl.z * 12)
+    kit_later(p, 0.6, func()
+      fx_ring(p.position, 4, col, 0.4)
+      area(p, p.position, 4, pw * 2.2, "burn_knock", 12)
+    end)
+  elif i == 4 then
+    p.stance_until = time() + 8
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 3, col, 0.6)
+    p.message("🔥 紅蓮の構え！ 8びょう ダメージ +25%", 1.5)
+  else
+    let from = p.position + {x: 0, y: 1, z: 0}
+    for k in 1 to 4 do
+      kit_later(p, k * 0.08, func() fx_ball(from + fl * (k * 5), 4 + k, col, 0.4) end)
+    end
+    line_hit(p, from, fl, 20, 4, pw * 4.5, "burn_knock", 20, col)
+    shake(0.3, 0.4)
+  end
+  return true
+end
+
+-- MARK: ⚡ 雷光流派
+
+func thunder_form(p, i, pw, col)
+  let fl = flat_look(p)
+  if i == 1 then
+    let from = eye(p)
+    p.launch(fl.x * 34, 1, fl.z * 34)
+    line_hit(p, from, fl, 12, 1.8, pw * 2, "stun", 0.3, col)
+  elif i == 2 then
+    for k in 0 to 2 do
+      kit_later(p, k * 0.15, func()
+        fx_slash(p, 2, 3, col)
+        cone(p, 3.5, 0.3, pw * 0.7, "stun", 0.25)
+      end)
+    end
+  elif i == 3 then
+    let t = nearest_foe(p, 20, nil)
+    if t == nil then
+      p.message("近くに鬼がいない", 1)
+      return false
+    end
+    let d = normalize({x: t.x - p.x, y: 0, z: t.z - p.z})
+    let spot = t.position - d * 1.6
+    fx_beam(eye(p), normalize(spot - p.position), distance(p, spot), col, 0.5)
+    p.teleport(spot)
+    p.look_at(t)
+    hurt(p, t, pw * 2.4, "stun", 0.8)
+  elif i == 4 then
+    fx_ring(p.position, 7, col, 0.4)
+    area(p, p.position, 7, pw * 1.2, "stun", 1.5)
+  else
+    let done = []
+    for k in 0 to 5 do
+      kit_later(p, k * 0.2, func()
+        let t = nearest_foe(p, 22, done)
+        if t != nil then
+          append(done, t.id)
+          let d = normalize({x: t.x - p.x, y: 0, z: t.z - p.z})
+          let spot = t.position - d * 1.4
+          fx_beam(eye(p), normalize(spot - p.position), distance(p, spot) + 0.1, col, 0.5)
+          p.teleport(spot)
+          hurt(p, t, pw * 2, "stun", 0.4)
+        end
+      end)
+    end
+  end
+  return true
+end
+
+-- MARK: 🌪 疾風流派
+
+func wind_form(p, i, pw, col)
+  let fl = flat_look(p)
+  if i == 1 then
+    line_hit(p, eye(p), fl, 16, 1.4, pw * 1.2, nil, 0, col)
+  elif i == 2 then
+    fx_ring(p.position, 6, col, 0.4)
+    area(p, p.position, 6, pw * 1.3, "lift", 10)
+  elif i == 3 then
+    p.launch(0, 10, 0)
+    kit_later(p, 0.6, func()
+      fx_ring(p.position, 5.5, col, 0.4)
+      area(p, p.position, 5.5, pw * 2, "stun", 0.5)
+    end)
+  elif i == 4 then
+    fx_ring(p.position, 9, col, 0.5)
+    area(p, p.position, 9, pw * 1.0, "knock", 22)
+    p.fudo_until = time() + 3
+  else
+    let pt = aim_point(p, 14)
+    for k in 0 to 5 do
+      kit_later(p, k * 0.4, func()
+        fx_ring(pt, 7, col, 0.3)
+        area(p, pt, 7, pw * 1.0, "lift", 8)
+      end)
+    end
+  end
+  return true
+end
+
+-- MARK: 🪨 岩砕流派
+
+func stone_form(p, i, pw, col)
+  if i == 1 then
+    fx_slash(p, 2, 3.5, col)
+    cone(p, 4, 0.5, pw * 2, "break", 0)
+  elif i == 2 then
+    fx_ring(p.position, 7, "#78716C", 0.5)
+    area(p, p.position, 7, pw * 1.6, "stun", 1)
+    p.shake(0.3, 0.3)
+  elif i == 3 then
+    p.fudo_until = time() + 8
+    p.message("🪨 不動！ 8びょう ダメージ -60%・ふっとばない", 1.5)
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 3, col, 0.6)
+  elif i == 4 then
+    let pt = aim_point(p, 18)
+    for k in 0 to 2 do
+      let spot = pt + {x: random(-3, 3), y: 0, z: random(-3, 3)}
+      fx_warning(spot, 3.5, 0.4 + k * 0.35)
+      kit_later(p, 0.4 + k * 0.35, func()
+        fx_ball(spot + {x: 0, y: 1.5, z: 0}, 3, "#57534E", 0.35)
+        area(p, spot, 3.5, pw * 1.5, "stun", 0.4)
+      end)
+    end
+  else
+    p.launch(0, 12, 0)
+    kit_later(p, 0.8, func()
+      fx_ball(p.position + {x: 0, y: 1, z: 0}, 22, "#A8A29E", 0.5)
+      area(p, p.position, 12, pw * 5, "lift", 16)
+      shake(0.5, 0.6)
+    end)
+  end
+  return true
+end
+
+-- MARK: 🌸 花霞流派
+
+func flower_form(p, i, pw, col)
+  if i == 1 then
+    for k in 0 to 3 do
+      kit_later(p, k * 0.12, func()
+        fx_slash(p, 2.4, 4, col)
+        cone(p, 5, 0.45, pw * 0.45 * crit(p, 0.3), nil, 0)
+      end)
+    end
+  elif i == 2 then
+    p.visible = false
+    p.ambush = true
+    p.message("🌸 霞隠れ… 鬼に見つからない。次の型は2倍", 1.5)
+    kit_later(p, 3, func() p.visible = true end)
+  elif i == 3 then
+    for k in 0 to 4 do
+      kit_later(p, k * 0.15, func()
+        fx_ring(p.position, 4.5, col, 0.15)
+        area(p, p.position, 4.5, pw * 0.6 * crit(p, 0.3), nil, 0)
+      end)
+    end
+  elif i == 4 then
+    p.evade_until = time() + 6
+    p.message("🌸 八重咲き！ 6びょう 半分の攻撃をかわす", 1.5)
+  else
+    for k in 0 to 7 do
+      kit_later(p, k * 0.35, func()
+        fx_ring(p.position, 10, col, 0.25)
+        area(p, p.position, 10, pw * 0.8 * crit(p, 0.4), nil, 0)
+      end)
+    end
+  end
+  return true
+end
+
+-- MARK: 🌙 月影流派
+
+func moon_form(p, i, pw, col)
+  let fl = flat_look(p)
+  if i == 1 then
+    line_hit(p, eye(p), fl, 18, 2, pw * 1.5, nil, 0, col)
+  elif i == 2 then
+    fx_ring(p.position, 6, col, 0.4)
+    area(p, p.position, 6, pw * 1.5, nil, 0)
+  elif i == 3 then
+    for deg in [-20, 0, 20] do line_hit(p, eye(p), turn(fl, deg), 16, 1.6, pw * 1.3, nil, 0, col) end
+  elif i == 4 then
+    fx_ring(p.position, 9, col, 0.6)
+    area(p, p.position, 9, pw * 2, "slow", 0)
+  else
+    for k in 0 to 7 do line_hit(p, eye(p), turn(fl, k * 45), 24, 2.4, pw * 3, "knock", 14, col) end
+    shake(0.3, 0.4)
+  end
+  return true
+end
+
+-- MARK: 使う
+
+func form_cost(p, f)
+  let c = f.cost * (1 - school_mastery(p) * 0.04)
+  if active_until(p.awaken_until) then c = c * 0.5 end
+  return floor(c)
+end
+
+func use_form(p, i)
+  if not ready(p) or not p.alive or p.frozen then return end
+  let s = school_info(p.school)
+  if s == nil then
+    p.message("レベル3で流派を選ぼう（道場のピンクのマットでも）", 1.5)
+    return
+  end
+  let f = s.forms[i]
+  if p.level < f.lv then
+    p.message("🔒「" + f.name + "」はレベル " + f.lv + " から", 1.2)
+    return
+  end
+  if p.fcd == nil then p.fcd = {} end
+  let key = "f" + i
+  if active_until(p.fcd[key]) then return end
+  let cost = form_cost(p, f)
+  if p.ki < cost then
+    p.message("🌬 気が足りない", 0.8)
+    return
+  end
+  let pw = form_power(p)
+  if p.ambush and not (s.id == "flower" and i == 2) then
+    pw = pw * 2
+    p.ambush = false
+    p.visible = true
+  end
+  let ok = false
+  let col = s.color
+  if s.id == "water" then ok = water_form(p, i, pw, col)
+  elif s.id == "flame" then ok = flame_form(p, i, pw, col)
+  elif s.id == "thunder" then ok = thunder_form(p, i, pw, col)
+  elif s.id == "wind" then ok = wind_form(p, i, pw, col)
+  elif s.id == "stone" then ok = stone_form(p, i, pw, col)
+  elif s.id == "flower" then ok = flower_form(p, i, pw, col)
+  else ok = moon_form(p, i, pw, col)
+  end
+  if not ok then return end
+  p.ki = p.ki - cost
+  p.fcd[key] = time() + f.cd
+  gain_smxp(p, 1 + i)
+  kit_quest_progress(p, "forms", 1)
+  if i == 5 then
+    announce("⚔️ " + p.name + " の「" + f.name + "」！", 2)
+    kit_quest_progress(p, "ougi", 1)
+  end
+  p.sound("hit")
+  show_bars(p)
+end
+
+func awaken(p)
+  if not ready(p) or not p.alive or p.touki < 100 then return end
+  p.touki = 0
+  p.awaken_until = time() + 15
+  p.ki = max_ki(p)
+  refresh_body(p)
+  fx_ball(p.position + {x: 0, y: 1, z: 0}, 5, "#F97316", 0.6)
+  announce("🔥 " + p.name + " が闘気を解放した！", 2)
+  p.ui_remove("awaken")
+  kit_quest_progress(p, "awaken", 1)
+  p.hat = "halo"
+  kit_later(p, 15, func()
+    if p.hat == "halo" then p.hat = p.own_hat or "none" end
+  end)
+end
+
+-- MARK: ボタンとバー
+
+func form_buttons(p)
+  if not ready(p) then return end
+  let s = school_info(p.school)
+  if s == nil then return end
+  if p.btn == nil then p.btn = {} end
+  if p.fcd == nil then p.fcd = {} end
+  let i = 0
+  for f in s.forms do
+    i = i + 1
+    let label = f.name
+    let bg = s.color
+    let fg = "#111111"
+    if p.level < f.lv then
+      label = "🔒 Lv" + f.lv
+      bg = "#1F2937"
+      fg = "#9CA3AF"
+    elif active_until(p.fcd["f" + i]) then
+      label = f.name + " " + ceil(p.fcd["f" + i] - time())
+      bg = "#374151"
+      fg = "#E5E7EB"
+    end
+    let key = label + bg
+    if p.btn["b" + i] != key then
+      p.btn["b" + i] = key
+      let row = 0
+      let col = i - 1
+      if i > 3 then
+        row = 1
+        col = i - 4
+      end
+      p.ui_button("form" + i, label, {at: "bottom_right", dx: -120 - col * 124, dy: -160 - row * 64, w: 118, h: 56, size: 12,
+                                      bg: bg, color: fg, radius: 14})
+    end
+  end
+end
+
+func awaken_button(p)
+  p.ui_button("awaken", "🔥 闘気解放", {at: "bottom", dy: -76, w: 170, h: 44, size: 16, bg: "#DC2626", radius: 16})
+end
+
+func show_bars(p)
+  if not ready(p) then return end
+  let k = floor(p.ki)
+  let mk = max_ki(p)
+  if p.bar_k != k or p.bar_mk != mk then
+    p.bar_k = k
+    p.bar_mk = mk
+    p.ui_bar("ki", {at: "bottom", dy: -28, w: 260, h: 12, value: k, max: mk, color: "#38BDF8", bg: "#00000099"})
+  end
+  let t = floor(p.touki)
+  if active_until(p.awaken_until) then t = -1 end
+  if p.bar_t != t then
+    p.bar_t = t
+    if t < 0 then
+      p.ui_bar("touki", {at: "bottom", dy: -46, w: 260, h: 8, value: 100, max: 100, color: "#FDE047", bg: "#00000099"})
+    else
+      p.ui_bar("touki", {at: "bottom", dy: -46, w: 260, h: 8, value: t, max: 100, color: "#F97316", bg: "#00000099"})
+    end
+  end
+  form_buttons(p)
+end
+
+on button(p, id)
+  if id == "form1" then use_form(p, 1)
+  elif id == "form2" then use_form(p, 2)
+  elif id == "form3" then use_form(p, 3)
+  elif id == "form4" then use_form(p, 4)
+  elif id == "form5" then use_form(p, 5)
+  elif id == "awaken" then awaken(p)
+  end
+end

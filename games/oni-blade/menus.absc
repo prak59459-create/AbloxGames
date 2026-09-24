@@ -1,0 +1,235 @@
+-- menus.absc — 画面: 流派えらび・ステータス・鍛冶場・道具・掲示板
+
+-- MARK: 流派
+
+func school_panel(p)
+  let h = 120 + ceil(len(SCHOOLS) / 2) * 62
+  p.ui_panel("school", {at: "center", w: 640, h: h, bg: "#1C1917F0", radius: 22, layer: 30})
+  let title = "流派を選べ"
+  if p.school != nil then title = "流派を変える（🪙 " + SCHOOL_CHANGE_PRICE + " 両）" end
+  p.ui_text("school_t", title, {parent: "school", y: 28 / h, size: 21, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in SCHOOLS do
+    i = i + 1
+    let col = 0.26
+    if i % 2 == 0 then col = 0.74 end
+    let y = (40 + ceil(i / 2) * 62) / h
+    let label = s.name + " — " + s.text
+    let bg = s.color
+    if s.id == "moon" and (p.boss_kills or 0) == 0 then
+      label = "🔒 " + s.name + "（鬼の大将を討つと解放）"
+      bg = "#374151"
+    end
+    if p.school == s.id then label = "✅ " + label end
+    p.ui_button("school_" + s.id, label, {parent: "school", x: col, y: y, w: 300, h: 54, size: 11, bg: bg, color: "#111111"})
+  end
+  p.ui_button("school_close", "閉じる", {parent: "school", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func pick_school(p, id)
+  let s = school_info(id)
+  if s == nil then return end
+  if p.level < 3 then
+    p.message("流派はレベル3から", 1.5)
+    return
+  end
+  if id == "moon" and (p.boss_kills or 0) == 0 then
+    p.message("🔒 月影流派は鬼の大将を討った者だけ", 1.5)
+    return
+  end
+  if p.school == id then return end
+  if p.school != nil and not kit_pay(p, SCHOOL_CHANGE_PRICE) then return end
+  let first = p.school == nil
+  p.school = id
+  p.fcd = {}
+  p.btn = {}
+  if p.smxp[id] == nil then p.smxp[id] = 0 end
+  p.leg_color = s.color
+  p.ui_remove("school")
+  p.message(s.name + " を身につけた！ " + s.text, 3)
+  if first then kit_quest_progress(p, "school", 1) end
+  for k in 1 to 5 do p.ui_remove("form" + k) end
+  form_buttons(p)
+  hud(p)
+end
+
+-- MARK: ステータス
+
+func stat_menu(p)
+  p.stat_open = true
+  let h = 330
+  p.ui_panel("stats", {at: "center", w: 520, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("st_t", "📊 ステータス（のこり " + p.points + " ポイント）", {parent: "stats", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for key in STAT_ORDER do
+    i = i + 1
+    let y = (40 + i * 52) / h
+    p.ui_text("st_n_" + key, STAT_NAME[key] + "  " + stat(p, key), {parent: "stats", x: 0.24, y: y - 0.03, size: 16, bold: true})
+    p.ui_text("st_h_" + key, STAT_HELP[key], {parent: "stats", x: 0.24, y: y + 0.045, size: 11, color: "#94A3B8"})
+    p.ui_button("st_1_" + key, "+1", {parent: "stats", x: 0.64, y: y, w: 70, h: 38, size: 15, bg: "#2563EB"})
+    p.ui_button("st_5_" + key, "+5", {parent: "stats", x: 0.8, y: y, w: 70, h: 38, size: 15, bg: "#1D4ED8"})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats", y: (h - 28) / h, w: 130, h: 36, size: 14, bg: "gray"})
+end
+
+func add_stat(p, key, n)
+  let k = min(n, p.points)
+  if k <= 0 then
+    p.message("ポイントがない（レベル・滝行で増える）", 1)
+    return
+  end
+  if key == "agi" then
+    k = min(k, 30 - stat(p, "agi"))
+    if k <= 0 then
+      p.message("速は30まで", 1)
+      return
+    end
+  end
+  p.points = p.points - k
+  p.stats[key] = stat(p, key) + k
+  refresh_body(p)
+  stat_menu(p)
+  hud(p)
+end
+
+-- MARK: 鍛冶場
+
+func forge_menu(p)
+  p.forge_open = true
+  let h = 300
+  p.ui_panel("forge", {at: "center", w: 540, h: h, bg: "#292524F2", radius: 22, layer: 30})
+  p.ui_text("fg_t", "⚒ 鍛冶場（" + kit_short(kit_money(p)) + " 両・🦴 " + p.horns + "・💎 " + p.stones + "）", {parent: "forge", y: 28 / h, size: 18, bold: true, color: "#FDBA74"})
+  let now = blade_of(p)
+  p.ui_text("fg_now", "いまの刀: " + now.name + "（攻撃 " + now.dmg + "）", {parent: "forge", y: 70 / h, size: 15, bold: true})
+  if p.blade >= len(BLADES) then
+    p.ui_text("fg_next", "これ以上の刀はない。最強の一振りだ", {parent: "forge", y: 130 / h, size: 15, color: "#FDE047"})
+  else
+    let nx = BLADES[p.blade + 1]
+    p.ui_text("fg_next", "次: " + nx.name + "（攻撃 " + nx.dmg + "）", {parent: "forge", y: 118 / h, size: 16, bold: true, color: "#FDE68A"})
+    let need = kit_short(nx.price) + " 両・🦴 " + nx.horns
+    if nx.stones > 0 then need = need + "・💎 " + nx.stones end
+    p.ui_text("fg_need", "必要: " + need, {parent: "forge", y: 150 / h, size: 14})
+    p.ui_button("fg_go", "⚒ きたえる", {parent: "forge", y: 200 / h, w: 200, h: 46, size: 17, bg: "#C2410C"})
+  end
+  p.ui_button("forge_close", "閉じる", {parent: "forge", y: (h - 26) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func do_forge(p)
+  if p.blade >= len(BLADES) then return end
+  let nx = BLADES[p.blade + 1]
+  if p.horns < nx.horns then
+    p.message("🦴 鬼の角が足りない（あと " + (nx.horns - p.horns) + "）", 1.5)
+    return
+  end
+  if p.stones < nx.stones then
+    p.message("💎 妖石が足りない（鬼の大将や上級の鬼から）", 1.5)
+    return
+  end
+  if not kit_pay(p, nx.price) then return end
+  p.horns = p.horns - nx.horns
+  p.stones = p.stones - nx.stones
+  p.blade = p.blade + 1
+  p.give(nx.name)
+  fx_ball(p.position + {x: 0, y: 1.2, z: 0}, 3, nx.color, 0.6)
+  p.sound("goal")
+  announce("⚒ " + p.name + " が「" + nx.name + "」を手に入れた！", 3)
+  kit_quest_progress(p, "forge", 1)
+  kit_quest_progress(p, "forge3", 1)
+  forge_menu(p)
+  hud(p)
+end
+
+-- MARK: 道具
+
+func items_menu(p)
+  let h = 250
+  p.ui_panel("items", {at: "center", w: 480, h: h, bg: "#1E293BF2", radius: 22, layer: 30})
+  p.ui_text("it_t", "🎒 道具（" + kit_short(kit_money(p)) + " 両）", {parent: "items", y: 28 / h, size: 19, bold: true, color: "#A7F3D0"})
+  p.ui_button("it_med", "💊 回復薬（体力全快） " + MEDICINE_PRICE + " 両", {parent: "items", y: 80 / h, w: 400, h: 42, size: 15, bg: "#15803D"})
+  p.ui_button("it_tonic", "🍵 気つけ茶（気が満タン） " + TONIC_PRICE + " 両", {parent: "items", y: 130 / h, w: 400, h: 42, size: 15, bg: "#0369A1"})
+  p.ui_button("it_charm", "🧿 厄よけのお守り（3分 ダメージ+10%） " + CHARM_PRICE + " 両", {parent: "items", y: 180 / h, w: 400, h: 42, size: 13, bg: "#7C3AED"})
+  p.ui_button("items_close", "閉じる", {parent: "items", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+-- MARK: 掲示板
+
+func board_menu(p)
+  let h = 300
+  p.ui_panel("board", {at: "center", w: 560, h: h, bg: "#451A03F2", radius: 22, layer: 30})
+  p.ui_text("bd_t", "📜 村の依頼（1つずつ受けられる）", {parent: "board", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in today_chores do
+    i = i + 1
+    let label = c.name + " — " + c.text + "（" + (c.coins + nights * 10) + " 両）"
+    let bg = "#92400E"
+    if p.chore != nil and p.chore.id == c.id then
+      label = "▶ " + c.name + " " + p.chore.got + "/" + c.need
+      bg = "#B45309"
+    end
+    p.ui_button("chore_" + c.id, label, {parent: "board", y: (40 + i * 52) / h, w: 500, h: 44, size: 13, bg: bg})
+  end
+  if p.chore != nil then
+    p.ui_button("chore_drop", "依頼をやめる", {parent: "board", x: 0.3, y: (h - 26) / h, w: 150, h: 32, size: 13, bg: "#7F1D1D"})
+  end
+  p.ui_button("board_close", "閉じる", {parent: "board", x: 0.72, y: (h - 26) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "school_") then
+    if id == "school_close" then p.ui_remove("school") else pick_school(p, replace(id, "school_", "")) end
+  elif id == "open_stats" then stat_menu(p)
+  elif id == "stats_close" then
+    p.stat_open = false
+    p.ui_remove("stats")
+  elif starts_with(id, "st_1_") then add_stat(p, replace(id, "st_1_", ""), 1)
+  elif starts_with(id, "st_5_") then add_stat(p, replace(id, "st_5_", ""), 5)
+  elif id == "fg_go" then do_forge(p)
+  elif id == "forge_close" then
+    p.forge_open = false
+    p.ui_remove("forge")
+  elif id == "open_items" then items_menu(p)
+  elif id == "items_close" then p.ui_remove("items")
+  elif id == "it_med" then
+    if kit_pay(p, MEDICINE_PRICE) then
+      p.heal(p.max_health)
+      p.poison_until = 0
+      p.message("💊 体力が回復した", 1)
+    end
+  elif id == "it_tonic" then
+    if kit_pay(p, TONIC_PRICE) then
+      p.ki = max_ki(p)
+      p.message("🍵 気が満タン", 1)
+      show_bars(p)
+    end
+  elif id == "it_charm" then
+    if kit_pay(p, CHARM_PRICE) then
+      p.charm_until = time() + 180
+      p.message("🧿 3分間 ダメージ +10%", 1.5)
+    end
+  elif id == "board_close" then p.ui_remove("board")
+  elif id == "chore_drop" then
+    p.chore = nil
+    p.ui_remove("chore")
+    board_menu(p)
+  elif starts_with(id, "chore_") then
+    let cid = replace(id, "chore_", "")
+    if p.chore != nil and p.chore.id == cid then
+      if cid == "horn" then chore_progress(p, "horn", 0) end
+    elif p.chore != nil then
+      p.message("先に今の依頼を終えるか、やめよう", 1.5)
+    else
+      take_chore(p, cid)
+    end
+    if p.chore == nil or p.chore.id == cid then board_menu(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "forge") and quiet_ready(p, "forge_pad", 3) then forge_menu(p)
+  elif contains(b.tags, "school") and quiet_ready(p, "school_pad", 3) then
+    if p.level < 3 then p.message("流派はレベル3から。まずはカカシや鬼で修行", 1.5) else school_panel(p) end
+  elif contains(b.tags, "board") and quiet_ready(p, "board_pad", 3) then board_menu(p)
+  end
+end

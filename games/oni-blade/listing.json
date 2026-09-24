@@ -1,14 +1,22 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 186,
+  "blockCount" : 256,
   "id" : "oni-blade",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/oni-blade\/data.absc",
+    "games\/oni-blade\/bosses.absc",
+    "games\/oni-blade\/combat.absc",
+    "games\/oni-blade\/common.absc",
+    "games\/oni-blade\/forms.absc",
+    "games\/oni-blade\/menus.absc",
+    "games\/oni-blade\/oni.absc",
+    "games\/oni-blade\/village.absc",
     "games\/oni-blade\/main.absc"
   ],
-  "summary" : "夜になると鬼があらわれる。呼吸の型をきわめ、刀をきたえて鬼を斬れ。階級を上げて、鬼の王を討伐しよう。",
+  "summary" : "夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。",
   "tags" : [
     "swords",
     "rpg",

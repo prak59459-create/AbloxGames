@@ -1,0 +1,238 @@
+-- oni.absc — 夜の鬼
+-- 夜になると森から鬼が出てくる（夜が進むほど多く・強く・種類がふえる）。
+-- 近くに剣士がいればおそい、いなければ村の家をこわしに行く。
+-- 鎧の鬼はしびれさせるか岩砕流派で鎧をくだくまでダメージが半分以下。妖術の鬼は遠くから妖術。
+-- たおすと経験値・両・鬼の角。上級の鬼はまれに妖石を落とす。朝日をあびた鬼は灰になる。
+
+let oni_spawned = 0
+let oni_quota = 0
+let oni_spawn_clock = 0
+let oni_ai_clock = 0
+
+func fighters()
+  return max(1, len(filter(players(), func(p) return ready(p) end)))
+end
+
+-- 夜の数・剣士の平均レベル・人数で強くなる（途中から入っても戦える）
+func avg_level()
+  let total = 0
+  let n = 0
+  for p in players() do
+    if ready(p) then
+      total = total + p.level
+      n = n + 1
+    end
+  end
+  if n == 0 then return 1 end
+  return total / n
+end
+
+func oni_scale()
+  return (1 + (nights - 1) * 0.08) * (1 + avg_level() * 0.04) * (1 + (fighters() - 1) * 0.15)
+end
+
+func live_oni()
+  return filter(npcs(), func(n) return n.kind == "oni" end)
+end
+
+func pick_oni_type()
+  let list = []
+  for key in ONI_ORDER do
+    let o = ONI[key]
+    if nights >= o.from then append(list, {key: key, weight: o.weight}) end
+  end
+  return kit_pick(list, 1).key
+end
+
+func spawn_oni(key, pos, extra)
+  let o = ONI[key]
+  let s = oni_scale()
+  let name = o.name
+  let size = o.size
+  if extra != nil and extra.name != nil then name = extra.name end
+  if extra != nil and extra.size != nil then size = extra.size end
+  let n = create_npc({name: name, position: pos + {x: 0, y: 1, z: 0}, color: o.color, head_color: o.head, size: size,
+                      health: floor(o.hp * s), speed: o.speed, team: "oni"})
+  n.kind = "oni"
+  n.otype = key
+  n.dmg = o.dmg * (1 + (nights - 1) * 0.05) * (1 + avg_level() * 0.03)
+  n.next_hit = 0
+  n.next_cast = time() + 2 + random() * 2
+  n.armored = key == "armor"
+  return n
+end
+
+func night_quota()
+  return 6 + nights * 3 + fighters() * 2
+end
+
+func start_oni_night()
+  oni_spawned = 0
+  oni_quota = night_quota()
+  oni_spawn_clock = 0
+  for k in 1 to min(8, oni_quota) do spawn_oni_at_edge() end
+end
+
+func spawn_oni_at_edge()
+  let spot = block("Oni Spawn " + random(1, 8))
+  if spot == nil then return end
+  spawn_oni(pick_oni_type(), spot.position + {x: random(-5, 5), y: 0, z: random(-5, 5)}, nil)
+  oni_spawned = oni_spawned + 1
+end
+
+-- 朝日で灰に
+func oni_dawn()
+  for n in live_oni() do
+    let pos = n.position
+    fx_ball(pos + {x: 0, y: 1, z: 0}, 2.5, "#9CA3AF", 0.6)
+    gone(n)
+  end
+end
+
+-- MARK: 動き
+
+func oni_target(n, sight)
+  let best = nil
+  let best_d = sight
+  for p in players() do
+    if ready(p) and p.alive and p.visible then
+      let d = distance(n, p)
+      if d < best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func caster_ai(n, t)
+  let d = distance(n, t)
+  if d > 13 then n.follow(t) elif d < 7 then
+    let away = normalize({x: n.x - t.x, y: 0, z: n.z - t.z})
+    n.move_to(n.position + away * 5)
+  else
+    n.stop()
+  end
+  n.look_at(t)
+  if time() > n.next_cast then
+    n.next_cast = time() + 3.2
+    let spot = t.position
+    fx_warning(spot, 2.5, 1)
+    let orb = fx_ball(n.position + {x: 0, y: 2.2, z: 0}, 1, "#A855F7", 1)
+    after(1, func()
+      if kit_here(n) and n.alive then
+        fx_ball(spot + {x: 0, y: 1, z: 0}, 5, "#7E22CE", 0.3)
+        for p in players() do
+          if p.alive and distance(spot, p) < 2.5 then oni_hit(n, p, n.dmg, "slow", 2) end
+        end
+      end
+    end)
+  end
+end
+
+func oni_ai(n)
+  let sight = 22
+  if n.otype == "fast" then sight = 30 end
+  let t = oni_target(n, sight)
+  if t != nil then
+    if n.otype == "caster" then
+      caster_ai(n, t)
+      return
+    end
+    n.follow(t)
+    let reach = 2.3 + ((n.size or 1) - 1) * 0.9
+    if distance(n, t) < reach and time() > n.next_hit then
+      let effect = nil
+      if n.otype == "greater" then effect = "knock" end
+      oni_hit(n, t, n.dmg, effect, 12)
+      if kit_here(n) then
+        if n.otype == "fast" then n.next_hit = time() + 0.8 else n.next_hit = time() + 1.1 end
+      end
+    end
+    return
+  end
+  -- 剣士がいなければ家をこわしに行く
+  let h = nearest_house(n.position)
+  if h == nil then
+    n.stop()
+    return
+  end
+  if distance(n, h.pos) > 5 then n.move_to(h.pos) else
+    n.stop()
+    damage_house(h, n.dmg * 0.3)
+  end
+end
+
+on tick(dt)
+  oni_ai_clock = oni_ai_clock + dt
+  if oni_ai_clock < 0.25 then return end
+  oni_ai_clock = 0
+  if night then
+    oni_spawn_clock = oni_spawn_clock + 0.25
+    if oni_spawn_clock >= 6 then
+      oni_spawn_clock = 0
+      let alive = len(live_oni())
+      if oni_spawned < oni_quota and alive < ONI_ALIVE_CAP then
+        for k in 1 to min(3, oni_quota - oni_spawned) do spawn_oni_at_edge() end
+      end
+    end
+  end
+  for n in npcs() do
+    if kit_here(n) and n.alive and not n.frozen then
+      if n.kind == "oni" then
+        if active_until(n.slow_until) then
+          if n.speed != 0.35 then n.speed = 0.35 end
+        elif n.otype != nil and n.speed != ONI[n.otype].speed then
+          n.speed = ONI[n.otype].speed
+        end
+        oni_ai(n)
+      elif n.kind == "child" then child_ai(n)
+      end
+    end
+  end
+end
+
+-- MARK: たおした
+
+func credit(victim, killer)
+  if killer != nil and not killer.is_npc then return killer end
+  if victim.last_by != nil then return player_by_id(victim.last_by) end
+  return nil
+end
+
+on death(victim, killer)
+  if not victim.is_npc then return end
+  if victim.kind == "dummy" then
+    let k = credit(victim, killer)
+    if k != nil and ready(k) then
+      gain_xp(k, 6 + k.level)
+      chore_progress(k, "train", 1)
+    end
+    after(3, func() respawn_dummies() end)
+    return
+  end
+  if victim.kind != "oni" then return end
+  let k = credit(victim, killer)
+  if k == nil or not ready(k) then return end
+  let o = ONI[victim.otype]
+  k.kills = k.kills + 1
+  k.night_kills = (k.night_kills or 0) + 1
+  k.score = k.kills
+  k.horns = k.horns + o.horns
+  let before = rank_of(k)
+  reward(k, o.xp * (1 + nights * 0.1), o.coins, "👹 " + victim.name + " 🦴+" + o.horns)
+  kit_quest_progress(k, "oni10", 1)
+  kit_quest_progress(k, "oni100", 1)
+  if victim.otype == "greater" and random() < 0.15 then
+    k.stones = k.stones + 1
+    k.message("💎 妖石を手に入れた！", 2)
+  end
+  let after_r = rank_of(k)
+  if after_r.name != before.name then
+    announce("🎖 " + k.name + " が階級「" + after_r.name + "」に上がった！", 3)
+    kit_give(k, 100)
+    if after_r.name == "五級" then kit_quest_progress(k, "rank", 1) end
+  end
+  hud(k)
+end

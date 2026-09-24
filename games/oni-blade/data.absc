@@ -1,0 +1,119 @@
+-- data.absc — Oni Blade の表
+-- 流派7（型5つずつ）・刀5・階級・鬼の種類・鬼の大将4・村の依頼・道具
+
+-- MARK: 刀（鍛冶場できたえる。角と妖石がいる）
+let BLADES = [
+  {name: "陽光刀", dmg: 18, price: 0, horns: 0, stones: 0, color: "#E5E7EB"},
+  {name: "鋼の陽光刀", dmg: 28, price: 300, horns: 10, stones: 0, color: "#94A3B8"},
+  {name: "黒鉄の陽光刀", dmg: 40, price: 900, horns: 30, stones: 0, color: "#1F2937"},
+  {name: "紅蓮の陽光刀", dmg: 56, price: 2500, horns: 60, stones: 1, color: "#B91C1C"},
+  {name: "天照の陽光刀", dmg: 80, price: 6000, horns: 120, stones: 3, color: "#FDE047"}
+]
+
+-- MARK: 流派と型
+-- lv: 使えるレベル / cost: 気 / cd: 待ち時間 / mult: 刀の強さに対する倍率（表示用）
+let SCHOOLS = [
+  {id: "water", name: "🌊 水流派", color: "#38BDF8", text: "攻めと守りのバランス。回復もできる", forms: [
+    {name: "流れ斬り", lv: 3, cost: 14, cd: 2.5},
+    {name: "渦潮", lv: 8, cost: 22, cd: 6},
+    {name: "清流の舞", lv: 14, cost: 28, cd: 8},
+    {name: "凪", lv: 22, cost: 30, cd: 14},
+    {name: "奥義・大海嘯", lv: 30, cost: 60, cd: 30}]},
+  {id: "flame", name: "🔥 焔流派", color: "#F97316", text: "一撃が重く、燃やす", forms: [
+    {name: "焔一閃", lv: 3, cost: 16, cd: 3},
+    {name: "昇り焔", lv: 8, cost: 22, cd: 6},
+    {name: "焔車", lv: 14, cost: 28, cd: 8},
+    {name: "紅蓮の構え", lv: 22, cost: 30, cd: 18},
+    {name: "奥義・焔虎", lv: 30, cost: 60, cd: 30}]},
+  {id: "thunder", name: "⚡ 雷光流派", color: "#FACC15", text: "目にもとまらぬ速さで斬りぬける", forms: [
+    {name: "雷閃", lv: 3, cost: 16, cd: 3},
+    {name: "稲妻返し", lv: 8, cost: 20, cd: 5},
+    {name: "遠雷", lv: 14, cost: 26, cd: 8},
+    {name: "雷鳴", lv: 22, cost: 30, cd: 12},
+    {name: "奥義・神鳴り", lv: 30, cost: 60, cd: 30}]},
+  {id: "wind", name: "🌪 疾風流派", color: "#86EFAC", text: "風で囲んで、まとめて斬る", forms: [
+    {name: "かまいたち", lv: 3, cost: 14, cd: 2.5},
+    {name: "旋風", lv: 8, cost: 22, cd: 6},
+    {name: "颪", lv: 14, cost: 26, cd: 8},
+    {name: "風の壁", lv: 22, cost: 30, cd: 14},
+    {name: "奥義・大嵐", lv: 30, cost: 60, cd: 30}]},
+  {id: "stone", name: "🪨 岩砕流派", color: "#A8A29E", text: "おそいが、とにかく重くてかたい", forms: [
+    {name: "岩割り", lv: 3, cost: 16, cd: 3.5},
+    {name: "地鳴り", lv: 8, cost: 24, cd: 7},
+    {name: "不動", lv: 14, cost: 26, cd: 16},
+    {name: "落石", lv: 22, cost: 30, cd: 10},
+    {name: "奥義・天崩し", lv: 30, cost: 60, cd: 30}]},
+  {id: "flower", name: "🌸 花霞流派", color: "#F9A8D4", text: "会心とかわしで舞うように戦う", forms: [
+    {name: "花吹雪", lv: 3, cost: 14, cd: 2.5},
+    {name: "霞隠れ", lv: 8, cost: 20, cd: 10},
+    {name: "桜花乱舞", lv: 14, cost: 26, cd: 7},
+    {name: "八重咲き", lv: 22, cost: 28, cd: 16},
+    {name: "奥義・千本桜", lv: 30, cost: 60, cd: 30}]},
+  {id: "moon", name: "🌙 月影流派", color: "#C4B5FD", text: "三日月の斬撃を飛ばす。鬼の大将を討った者だけが学べる", forms: [
+    {name: "三日月", lv: 3, cost: 14, cd: 2.5},
+    {name: "月輪", lv: 8, cost: 22, cd: 6},
+    {name: "朧月", lv: 14, cost: 26, cd: 7},
+    {name: "月下美人", lv: 22, cost: 30, cd: 12},
+    {name: "奥義・満月", lv: 30, cost: 60, cd: 30}]}
+]
+let SCHOOL_CHANGE_PRICE = 500
+
+-- 流派の熟練（型を使うほど上がる）
+let SCHOOL_MASTERY = [40, 150, 400, 900, 2000]
+
+-- MARK: ステータス
+let STAT_ORDER = ["str", "vit", "breath", "agi"]
+let STAT_NAME = {str: "💪 力", vit: "❤️ 体", breath: "🌬 気", agi: "👟 速"}
+let STAT_HELP = {str: "刀と型のダメージ +3%", vit: "体力 +10", breath: "気の最大 +5・回復が速く", agi: "走る速さ +1.5%（30まで）"}
+let MAX_LEVEL = 60
+
+-- MARK: 階級（討伐数）
+let RANKS = [
+  {need: 0, name: "十級"}, {need: 5, name: "九級"}, {need: 12, name: "八級"}, {need: 20, name: "七級"},
+  {need: 32, name: "六級"}, {need: 50, name: "五級"}, {need: 75, name: "四級"}, {need: 105, name: "三級"},
+  {need: 140, name: "二級"}, {need: 180, name: "一級"}, {need: 240, name: "師範代"}, {need: 320, name: "剣聖"}
+]
+
+-- MARK: 鬼
+-- from: 何夜目から出るか / horns: 落とす角
+let ONI = {
+  basic: {name: "鬼", color: "#7F1D1D", head: "#FCA5A5", hp: 90, speed: 0.7, dmg: 10, size: 1, from: 1, weight: 10, xp: 25, coins: 18, horns: 1},
+  fast: {name: "俊足の鬼", color: "#9A3412", head: "#FDBA74", hp: 70, speed: 1.25, dmg: 8, size: 0.9, from: 1, weight: 6, xp: 30, coins: 20, horns: 1},
+  armor: {name: "鎧の鬼", color: "#3F3F46", head: "#A1A1AA", hp: 220, speed: 0.6, dmg: 14, size: 1.2, from: 3, weight: 4, xp: 55, coins: 40, horns: 2},
+  caster: {name: "妖術の鬼", color: "#581C87", head: "#E9D5FF", hp: 80, speed: 0.7, dmg: 16, size: 1, from: 5, weight: 3, xp: 50, coins: 40, horns: 2},
+  greater: {name: "上級の鬼", color: "#450A0A", head: "#F87171", hp: 380, speed: 0.8, dmg: 20, size: 1.5, from: 6, weight: 2, xp: 120, coins: 90, horns: 5}
+}
+let ONI_ORDER = ["basic", "fast", "armor", "caster", "greater"]
+
+-- MARK: 鬼の大将（4夜ごと・神社に出る。昔話の鬼たち）
+let BOSSES = [
+  {id: "tsuchigumo", name: "🕷 土蜘蛛", color: "#1C1917", head: "#DC2626", size: 2.6, hp: 5000, dmg: 22,
+   skills: ["web", "leap", "spawn", "poison", "web", "leap"]},
+  {id: "raiju", name: "⚡ 雷獣", color: "#CA8A04", head: "#FEF08A", size: 2.3, hp: 6500, dmg: 24,
+   skills: ["bolt", "dash", "roar", "bolt", "dash"]},
+  {id: "ibaraki", name: "👺 茨木童子", color: "#7C2D12", head: "#FCA5A5", size: 2.9, hp: 8500, dmg: 30,
+   skills: ["swipe", "slam", "grab", "swipe", "slam"]},
+  {id: "shuten", name: "👹 酒呑童子", color: "#111111", head: "#DC2626", size: 3.3, hp: 12000, dmg: 34,
+   skills: ["mist", "breath", "slam", "summon", "breath", "swipe"]}
+]
+let BOSS_EVERY = 4
+
+-- MARK: 昼と夜
+let DAY_SECS = 60
+let NIGHT_SECS = 90
+let HOUSE_HP = 600
+let ONI_ALIVE_CAP = 22
+
+-- MARK: 村の依頼（掲示板）
+let CHORES = [
+  {id: "wood", name: "🪵 薪集め", text: "森で薪を5本ひろう", need: 5, coins: 120, xp: 80},
+  {id: "herb", name: "🌿 薬草つみ", text: "森で薬草を4つつむ", need: 4, coins: 110, xp: 70},
+  {id: "lost", name: "🧒 迷子さがし", text: "森の迷子を村の井戸までつれ帰る", need: 1, coins: 180, xp: 120},
+  {id: "horn", name: "📦 角の納品", text: "鬼の角を5本わたす", need: 5, coins: 220, xp: 100},
+  {id: "train", name: "🎯 カカシ修行", text: "訓練場のカカシを8体たおす", need: 8, coins: 100, xp: 90}
+]
+
+-- MARK: 道具
+let MEDICINE_PRICE = 80
+let TONIC_PRICE = 60
+let CHARM_PRICE = 250

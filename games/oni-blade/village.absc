@@ -1,0 +1,360 @@
+-- village.absc — 村と昼夜
+-- 昼（修行・依頼・鍛冶）→ 夜（鬼が村をおそう）→ 夜明け（守った家の数でごほうび）。
+-- 家は6軒。鬼に攻撃されると色が変わり、こわれると黒くなる（夜明けに村人が直す）。
+-- 滝行: 昼に滝の石の上に立つと経験値。3回ごとにステータスポイント +1（1日12回まで）。
+-- 依頼: 掲示板で1つ受ける（薪・薬草・迷子・角の納品・カカシ修行）。
+
+let night = false
+let nights = 0
+let phase_left = DAY_SECS
+let HOUSES = []
+let village_clock = 0
+let today_chores = []
+let lost_child = nil
+let dusk_warned = false
+
+let WALL_COLOR = "#E7D8B8"
+let ROOF_COLOR = "#3F3F46"
+let FLOOR_COLOR = "#8B6F47"
+
+-- MARK: 家
+
+func setup_houses()
+  HOUSES = []
+  for i in 1 to 6 do
+    let f = block("Village House " + i + " Floor")
+    if f != nil then append(HOUSES, {i: i, pos: f.position, hp: HOUSE_HP, max: HOUSE_HP, down: false, cracked: false}) end
+  end
+end
+
+func color_house(h, wall)
+  for b in blocks("house" + h.i) do
+    if ends_with(b.name, "Floor") then
+      if wall == WALL_COLOR then b.color = FLOOR_COLOR else b.color = "#44403C" end
+    elif ends_with(b.name, "Roof") then
+      if wall == WALL_COLOR then b.color = ROOF_COLOR else b.color = "#1C1917" end
+    else
+      b.color = wall
+    end
+  end
+end
+
+func nearest_house(pos)
+  let best = nil
+  for h in HOUSES do
+    if not h.down and (best == nil or distance(pos, h.pos) < distance(pos, best.pos)) then best = h end
+  end
+  return best
+end
+
+func damage_house(h, amount)
+  if h.down then return end
+  h.hp = h.hp - amount
+  if h.hp <= h.max * 0.5 and not h.cracked then
+    h.cracked = true
+    color_house(h, "#A8A29E")
+    announce("🏚 " + h.i + "番の家がこわされそう！ 鬼を止めろ！", 2.5)
+  end
+  if h.hp <= 0 then
+    h.hp = 0
+    h.down = true
+    color_house(h, "#292524")
+    fx_ball(h.pos + {x: 0, y: 2, z: 0}, 7, "#F97316", 0.6)
+    announce("🔥 " + h.i + "番の家がこわされた…", 3)
+  end
+end
+
+func repair_houses()
+  for h in HOUSES do
+    if h.cracked or h.down then color_house(h, WALL_COLOR) end
+    h.hp = h.max
+    h.down = false
+    h.cracked = false
+  end
+end
+
+func standing_houses()
+  return len(filter(HOUSES, func(h) return not h.down end))
+end
+
+func house_line()
+  let s = "🏠 "
+  for h in HOUSES do
+    if h.down then s = s + "✖" elif h.cracked then s = s + "▲" else s = s + "●" end
+  end
+  return s
+end
+
+-- MARK: カカシ
+
+func respawn_dummies()
+  if night then return end
+  let have = len(filter(npcs(), func(n) return n.kind == "dummy" end))
+  for i in 1 to 3 do
+    if have < 3 then
+      let spot = block("Dummy " + i)
+      let taken = false
+      for n in npcs() do
+        if n.kind == "dummy" and spot != nil and distance(n, spot.position) < 1.5 then taken = true end
+      end
+      if spot != nil and not taken then
+        let d = create_npc({name: "カカシ", position: spot.position + {x: 0, y: 1, z: 0}, color: "#A16207", head_color: "#FDE68A",
+                            health: 150 + nights * 30, speed: 0, team: "dummy"})
+        d.kind = "dummy"
+        d.frozen = true
+        have = have + 1
+      end
+    end
+  end
+end
+
+-- MARK: 昼と夜
+
+func sky_day()
+  world.sky_top = "#7DD3FC"
+  world.sky_bottom = "#FEF3C7"
+  world.light = 0.72
+end
+
+func sky_dusk()
+  world.sky_top = "#FF8A5B"
+  world.sky_bottom = "#FFD29D"
+  world.light = 0.55
+end
+
+func sky_night()
+  world.sky_top = "#0B0F2A"
+  world.sky_bottom = "#2E1A47"
+  world.light = 0.2
+end
+
+func start_night()
+  night = true
+  nights = nights + 1
+  phase_left = NIGHT_SECS
+  dusk_warned = false
+  sky_night()
+  for n in npcs() do
+    if n.kind == "dummy" then gone(n) end
+  end
+  for p in players() do p.night_kills = 0 end
+  clear_chore_items()
+  announce("🌙 " + nights + "夜目。鬼が来る… 村を守れ！", 3)
+  start_oni_night()
+  if nights % BOSS_EVERY == 0 then spawn_boss() end
+end
+
+func start_day()
+  night = false
+  phase_left = DAY_SECS
+  sky_day()
+  oni_dawn()
+  boss_dawn()
+  -- 夜明けのごほうび（残った家の数で）
+  let standing = standing_houses()
+  let bonus = floor((100 + nights * 30) * standing / 6)
+  let best = nil
+  for p in players() do
+    if ready(p) then
+      reward(p, bonus, bonus, nil)
+      if standing == 6 then kit_quest_progress(p, "defend", 1) end
+      if (p.night_kills or 0) > 0 and (best == nil or p.night_kills > best.night_kills) then best = p end
+    end
+  end
+  let msg = "☀️ 夜明け！ 朝日で鬼は灰になった。守った家 " + standing + "/6 → みんなに " + bonus + " 両"
+  if best != nil then msg = msg + "  MVP: " + best.name + "（" + best.night_kills + "体）" end
+  announce(msg, 5)
+  repair_houses()
+  respawn_dummies()
+  new_chores()
+  spawn_chore_items()
+  for p in players() do p.fall_today = 0 end
+end
+
+-- MARK: 依頼
+
+func new_chores()
+  today_chores = slice(shuffle(copy(CHORES)), 1, 3)
+end
+
+func chore_info(id)
+  for c in CHORES do
+    if c.id == id then return c end
+  end
+  return nil
+end
+
+func clear_chore_items()
+  for b in blocks("wood") do gone(b) end
+  for b in blocks("herb") do gone(b) end
+end
+
+func spawn_item(kind, spot)
+  if kind == "wood" then
+    create_block({name: "Firewood", shape: "cylinder", position: spot + {x: 0, y: 0.4, z: 0}, size: {x: 0.5, y: 0.8, z: 1.6},
+                  rotation: {x: 90, y: random(0, 180), z: 0}, color: "#92400E", solid: false, behavior: "trigger", tags: ["wood"]})
+  else
+    create_block({name: "Herb", shape: "sphere", position: spot + {x: 0, y: 0.4, z: 0}, size: 0.8, color: "#22C55E",
+                  material: "neon", solid: false, behavior: "trigger", tags: ["herb"]})
+  end
+end
+
+func spawn_chore_items()
+  clear_chore_items()
+  for i in 1 to 10 do
+    let s = block("Wood Spot " + i)
+    if s != nil then spawn_item("wood", s.position) end
+  end
+  for i in 1 to 8 do
+    let s = block("Herb Spot " + i)
+    if s != nil then spawn_item("herb", s.position) end
+  end
+end
+
+func take_chore(p, id)
+  let c = chore_info(id)
+  if c == nil then return end
+  if night and (id == "wood" or id == "herb" or id == "lost" or id == "train") then
+    p.message("夜は森があぶない。昼に受けよう", 1.5)
+    return
+  end
+  p.chore = {id: id, got: 0}
+  p.message("📜 依頼「" + c.name + "」: " + c.text, 3)
+  if id == "lost" then spawn_lost_child(p) end
+  if id == "horn" then chore_progress(p, "horn", 0) end
+end
+
+func chore_progress(p, id, n)
+  if p.chore == nil or p.chore.id != id then return end
+  let c = chore_info(id)
+  p.chore.got = p.chore.got + n
+  if id == "horn" then
+    if p.horns >= c.need then
+      p.horns = p.horns - c.need
+      p.chore.got = c.need
+    else
+      p.message("📦 角が " + c.need + " 本いる（いま " + p.horns + "）", 1.5)
+      return
+    end
+  end
+  p.ui_text("chore", c.name + " " + min(p.chore.got, c.need) + "/" + c.need, {at: "top_left", dy: 112, size: 13, bold: true, color: "#FDE68A"})
+  if p.chore.got >= c.need then
+    reward(p, c.xp + p.level * 5, c.coins + nights * 10, "📜 依頼達成「" + c.name + "」")
+    kit_quest_progress(p, "chores", 1)
+    p.chore = nil
+    p.ui_remove("chore")
+    hud(p)
+  end
+end
+
+-- 迷子: 見つけた人についてくる。井戸の近くまでつれ帰れば達成
+func spawn_lost_child(p)
+  if lost_child != nil and kit_here(lost_child) then
+    p.message("🧒 迷子はもう森のどこかにいる。さがそう！", 2)
+    return
+  end
+  let spot = block("Lost Spot " + random(1, 4))
+  if spot == nil then return end
+  lost_child = create_npc({name: "迷子", position: spot.position + {x: 0, y: 1, z: 0}, color: "#FDE68A", head_color: "#FDE68A",
+                           size: 0.7, health: 100000, speed: 1, team: "civ"})
+  lost_child.kind = "child"
+  lost_child.frozen = true
+  lost_child.say("えーん…")
+  p.message("🧒 森の外れで泣き声が聞こえる…（" + floor(distance(p, spot.position)) + "m）", 3)
+end
+
+func child_ai(n)
+  let r = nil
+  if n.guide != nil then r = player_by_id(n.guide) end
+  if r == nil or not r.alive then
+    n.guide = nil
+    r = nil
+    for p in players() do
+      if r == nil and p.alive and p.chore != nil and p.chore.id == "lost" and distance(p, n) < 4 then r = p end
+    end
+    if r != nil then
+      n.guide = r.id
+      n.frozen = false
+      n.say("ありがとう！ 村までつれてって")
+    end
+  end
+  if r != nil then
+    n.follow(r)
+    if distance(n, {x: 0, y: 0, z: 0}) < 7 then
+      n.say("ただいま！")
+      gone(n)
+      lost_child = nil
+      chore_progress(r, "lost", 1)
+    end
+  end
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  village_clock = village_clock + dt
+  if village_clock < 1 then return end
+  village_clock = 0
+  phase_left = phase_left - 1
+  if not night and phase_left == 10 and not dusk_warned then
+    dusk_warned = true
+    sky_dusk()
+    announce("🌇 日が沈む… あと10びょうで夜", 2.5)
+  end
+  if phase_left <= 0 then
+    if night then start_day() else start_night() end
+  end
+  let label = "☀️ 昼 "
+  if night then label = "🌙 夜 " end
+  let extra = ""
+  if night then extra = "   " + house_line() + "   👹 " + len(live_oni()) end
+  ui_text("clock", label + kit_clock(phase_left) + "   " + max(1, nights) + "夜目" + extra, {at: "top", dy: 26, size: 18, bold: true})
+  -- 滝行
+  let fall = block("Waterfall Stone")
+  for p in players() do
+    if ready(p) and fall != nil and p.alive and distance(p, fall.position) < 3 then
+      if night then
+        if quiet_ready(p, "fall_night", 8) then p.message("滝行は昼だけ", 1.2) end
+      elif (p.fall_today or 0) >= 12 then
+        if quiet_ready(p, "fall_max", 8) then p.message("今日の滝行はここまで。また明日", 1.5) end
+      else
+        p.fall_t = (p.fall_t or 0) + 1
+        p.ui_bar("fall", {at: "center", dy: 90, w: 200, h: 12, value: p.fall_t, max: 10, color: "#7DD3FC", bg: "#00000099"})
+        if p.fall_t >= 10 then
+          p.fall_t = 0
+          p.fall_today = (p.fall_today or 0) + 1
+          p.fall_total = (p.fall_total or 0) + 1
+          p.ki = max_ki(p)
+          reward(p, 30 + p.level * 3, 0, "💧 滝行")
+          kit_quest_progress(p, "waterfall", 1)
+          p.ui_remove("fall")
+          if p.fall_total % 3 == 0 then
+            p.points = p.points + 1
+            p.message("💧 修行の成果！ ステータスポイント +1", 2)
+            hud(p)
+          end
+        end
+      end
+    elif ready(p) and (p.fall_t or 0) > 0 then
+      p.fall_t = 0
+      p.ui_remove("fall")
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "wood") or contains(b.tags, "herb") then
+    let kind = "herb"
+    if contains(b.tags, "wood") then kind = "wood" end
+    if p.chore != nil and p.chore.id == kind then
+      let pos = b.position
+      gone(b)
+      p.sound("collect")
+      chore_progress(p, kind, 1)
+      after(40, func() if not night then spawn_item(kind, pos) end end)
+    elif quiet_ready(p, "item_hint", 5) then
+      if kind == "wood" then p.message("🪵 薪だ。掲示板で「薪集め」を受けるとひろえる", 1.5) else p.message("🌿 薬草だ。掲示板で「薬草つみ」を受けるとつめる", 1.5) end
+    end
+  end
+end
