@@ -28,7 +28,7 @@ let lifeGames: [Game] = [
          summary: "遊園地を作ろう。14のアトラクションと屋台、お客さんの楽しさ・空腹・のど・トイレ、入場料、故障の修理とゴミそうじ、スタッフ、ベストパーク賞。自分でも乗れる！",
          tags: ["tycoon", "theme-park", "build"], maxPlayers: 8, build: coasterPark),
     Game(number: 41, id: "life-ville", title: "Life Ville",
-         summary: "おなか・元気・楽しさ・清潔の4つのゲージを気にしながらくらすライフシム。仕事で給料をもらって家を大きくしよう。",
+         summary: "5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。",
          tags: ["life", "sim", "needs"], maxPlayers: 12, build: lifeVille),
     Game(number: 42, id: "metro-response", title: "Metro Response",
          summary: "警察・消防・救急・市民・犯罪者に分かれる街のRP。火事を消し、けが人を運び、犯人をつかまえよう。",
@@ -420,20 +420,32 @@ func lifeVille(_ m: MapBuilder) {
         let facing: Float = i < 4 ? -1 : 1
         let n = i + 1
         m.house("Home \(n)", x: x, z: z, w: 14, d: 12, h: 3.6, wall: ["#FEF3C7", "#E0F2FE", "#FCE7F3", "#DCFCE7"][i % 4], roof: "#7C2D12",
-                floor: "#D6B98C", tags: ["home"], facing: facing)
+                floor: "#D6B98C", tags: ["home", "h\(n)"], facing: facing)
         m.pad("Home \(n) Sign", x: x + 6, z: z + facing * 9, size: 1.6, color: "#FDE047", tags: ["claim"])
-        // Furniture that fills needs.
+        // Furniture that fills needs, and an easel for painting.
         m.pad("Home \(n) Fridge", x: x - 5, z: z - facing * 4, y: 0.15, size: 1.4, color: "#E5E7EB", tags: ["need", "hunger"], shape: .box)
         m.pad("Home \(n) Bed", x: x + 4, z: z - facing * 4, y: 0.15, size: 2.2, color: "#93C5FD", tags: ["need", "energy"], shape: .box)
         m.pad("Home \(n) TV", x: x - 5, z: z + facing * 2, y: 0.15, size: 1.4, color: "#111827", tags: ["need", "fun"], shape: .box)
         m.pad("Home \(n) Shower", x: x + 5, z: z + facing * 2, y: 0.15, size: 1.4, color: "#67E8F9", tags: ["need", "hygiene"], shape: .box)
+        m.pad("Home \(n) Easel", x: x - 1, z: z - facing * 4, y: 0.15, size: 1.2, color: "#F472B6", tags: ["skill", "creative"], shape: .box)
     }
+    // Workplaces.
     m.shop("Office", x: 70, z: -60, w: 14, d: 10, color: "#64748B", sign: "#FFFFFF")
-    m.pad("Work Desk", x: 70, z: -58, size: 3, color: "#0EA5E9", tags: ["work"])
+    m.pad("Work Desk", x: 70, z: -58, size: 3, color: "#0EA5E9", tags: ["job", "office"])
     m.shop("Diner", x: -70, z: -60, w: 12, d: 10, color: "#EF4444", sign: "#FEF3C7")
     m.pad("Diner Table", x: -70, z: -58, size: 3, color: "#F97316", tags: ["need", "hunger", "public"])
+    m.pad("Diner Kitchen", x: -70, z: -63, size: 2, color: "#FBBF24", tags: ["job", "chef"])
+    m.shop("Gym", x: 0, z: -60, w: 12, d: 10, color: "#1E293B", sign: "#22D3EE")
+    m.pad("Treadmill 1", x: -3, z: -62, size: 1.8, color: "#22D3EE", tags: ["skill", "fitness"])
+    m.pad("Treadmill 2", x: 3, z: -62, size: 1.8, color: "#22D3EE", tags: ["skill", "fitness"])
+    m.pad("Gym Coach", x: 0, z: -57, size: 2, color: "#A3E635", tags: ["job", "trainer"])
+    // The park: swings, chess and the ranger hut.
     m.slab("Park", x: 0, y: 0, z: 70, w: 30, h: 0.1, d: 20, color: "#4ADE80")
     m.pad("Park Swing", x: 0, z: 70, y: 0.1, size: 4, color: "#F472B6", tags: ["need", "fun", "public"])
+    m.pad("Chess Table", x: 9, z: 74, y: 0.1, size: 2, color: "#FEF3C7", tags: ["skill", "logic"])
+    m.pad("Ranger Hut", x: -11, z: 64, y: 0.1, size: 2, color: "#16A34A", tags: ["job", "ranger"])
+    m.pad("Festival Stage", x: 0, z: 78, y: 0.1, size: 5, color: "#FDE047", tags: ["festival"])
+    m.markers("Litter Spot", points: ring(10, radius: 12, cx: 0, cz: 70), y: 0.1, color: "#000000", visible: false, behavior: .none)
 }
 
 // MARK: 42 Metro Response

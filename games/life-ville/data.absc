@@ -1,0 +1,56 @@
+-- data.absc — Life Ville の表
+-- ゲージ5・仕事4（階級6）・スキル4・家具3段階・料理の注文・請求書
+
+let NEEDS = [
+  {id: "hunger", name: "🍔 おなか", decay: 0.5},
+  {id: "energy", name: "⚡ 元気", decay: 0.35},
+  {id: "fun", name: "🎈 楽しさ", decay: 0.4},
+  {id: "hygiene", name: "🧼 清潔", decay: 0.25},
+  {id: "social", name: "💬 つながり", decay: 0.3}
+]
+
+let JOBS = {
+  office: {name: "💼 オフィス", skill: "logic", tasks: "同じマークを押す", ranks: [
+    {name: "インターン", pay: 8}, {name: "社員", pay: 13}, {name: "主任", pay: 20}, {name: "課長", pay: 29}, {name: "部長", pay: 41}, {name: "社長", pay: 58}]},
+  chef: {name: "🍳 ダイナーのコック", skill: "cooking", tasks: "注文の材料を順に押す", ranks: [
+    {name: "見習い", pay: 8}, {name: "コック", pay: 13}, {name: "副料理長", pay: 20}, {name: "料理長", pay: 29}, {name: "総料理長", pay: 41}, {name: "オーナーシェフ", pay: 58}]},
+  ranger: {name: "🌳 公園レンジャー", skill: "fitness", tasks: "公園のゴミを拾う", ranks: [
+    {name: "ボランティア", pay: 7}, {name: "レンジャー", pay: 12}, {name: "主任レンジャー", pay: 19}, {name: "公園長", pay: 27}, {name: "自然保護官", pay: 38}, {name: "森の守り人", pay: 54}]},
+  trainer: {name: "🏋 ジムのトレーナー", skill: "fitness", tasks: "矢印に合わせてかけ声", ranks: [
+    {name: "アシスタント", pay: 8}, {name: "トレーナー", pay: 13}, {name: "パーソナル", pay: 20}, {name: "ヘッドコーチ", pay: 29}, {name: "総監督", pay: 41}, {name: "伝説のコーチ", pay: 58}]}
+}
+let JOB_ORDER = ["office", "chef", "ranger", "trainer"]
+let SHIFT_SECS = 40
+let TASKS_PER_RANK = 12      -- この回数の仕事で昇進
+
+let SKILLS = {
+  cooking: {name: "🍳 料理"},
+  fitness: {name: "💪 体力"},
+  creative: {name: "🎨 創作"},
+  logic: {name: "♟ 頭脳"}
+}
+let SKILL_ORDER = ["cooking", "fitness", "creative", "logic"]
+let SKILL_STEP = 30          -- スキル経験値30ごとに1レベル（10まで）
+
+-- 家具（家のパッドの回復が速くなる）
+let FURNITURE = {
+  hunger: {name: "冷蔵庫", tiers: [{name: "ふつうの冷蔵庫", mult: 1, price: 0}, {name: "大きな冷蔵庫", mult: 1.6, price: 150}, {name: "シェフのキッチン", mult: 2.3, price: 600}]},
+  energy: {name: "ベッド", tiers: [{name: "ふとん", mult: 1, price: 0}, {name: "ふかふかベッド", mult: 1.6, price: 150}, {name: "天がいつきベッド", mult: 2.3, price: 600}]},
+  fun: {name: "テレビ", tiers: [{name: "小さなテレビ", mult: 1, price: 0}, {name: "大型テレビ", mult: 1.6, price: 150}, {name: "ホームシアター", mult: 2.3, price: 600}]},
+  hygiene: {name: "シャワー", tiers: [{name: "シャワー", mult: 1, price: 0}, {name: "ジェットシャワー", mult: 1.6, price: 150}, {name: "ジャグジー", mult: 2.3, price: 600}]}
+}
+
+-- コックの注文（材料を順に）
+let RECIPES = [
+  {name: "🍔 バーガー", steps: ["🍞", "🥩", "🥬"]},
+  {name: "🍝 パスタ", steps: ["🍝", "🍅", "🧀"]},
+  {name: "🍳 目玉焼き定食", steps: ["🍚", "🥚", "🥬"]},
+  {name: "🍛 カレー", steps: ["🍚", "🥩", "🍛"]},
+  {name: "🥪 サンドイッチ", steps: ["🍞", "🧀", "🍅"]}
+]
+let INGREDIENTS = ["🍞", "🥩", "🥬", "🍝", "🍅", "🧀", "🍚", "🥚", "🍛"]
+let OFFICE_MARKS = ["◆", "●", "▲", "■", "★", "♥"]
+
+let BILL_EVERY = 180
+let DAY_SECS = 360
+let FESTIVAL_EVERY = 300

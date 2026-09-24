@@ -1,0 +1,99 @@
+-- common.absc — 小さな道具・気分・スキル・画面
+
+func ready(p)
+  return p.needs != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+-- 気分: ゲージの平均
+func mood_value(p)
+  let t = 0
+  for n in NEEDS do t = t + p.needs[n.id] end
+  return t / len(NEEDS)
+end
+
+func mood(p)
+  let v = mood_value(p)
+  if v >= 70 then return {icon: "😀", name: "ごきげん", mult: 1.2} end
+  if v >= 40 then return {icon: "😐", name: "ふつう", mult: 1} end
+  return {icon: "😣", name: "ぐったり", mult: 0.7}
+end
+
+func skill_level(p, id)
+  return min(10, floor((p.skills[id] or 0) / SKILL_STEP))
+end
+
+func add_skill(p, id, n)
+  let before = skill_level(p, id)
+  p.skills[id] = (p.skills[id] or 0) + n
+  let now = skill_level(p, id)
+  if now > before then
+    p.message("✨ " + SKILLS[id].name + " スキルが Lv." + now + " に！", 2)
+    p.sound("checkpoint")
+    kit_quest_progress(p, "skill", 1)
+    if now >= 5 then kit_quest_progress(p, "skill5", 1) end
+  end
+end
+
+func job_rank(p, id)
+  let r = JOBS[id].ranks
+  return min(len(r), 1 + floor((p.job_xp[id] or 0) / TASKS_PER_RANK))
+end
+
+func add_need(p, id, n)
+  p.needs[id] = max(0, min(100, p.needs[id] + n))
+end
+
+func show(p)
+  if not ready(p) then return end
+  let i = 0
+  for n in NEEDS do
+    i = i + 1
+    let v = floor(p.needs[n.id])
+    let col = "#22C55E"
+    if v < 25 then col = "#EF4444" elif v < 50 then col = "#F59E0B" end
+    let key = n.id + ":" + v
+    if p.shown == nil then p.shown = {} end
+    if p.shown[n.id] != key then
+      p.shown[n.id] = key
+      p.ui_text("need_" + n.id, n.name, {at: "top_left", dy: 20 + i * 24, size: 13})
+      p.ui_bar("bar_" + n.id, {at: "top_left", dy: 22 + i * 24, dx: 112, w: 120, h: 10, value: v, max: 100, color: col, bg: "#00000066"})
+    end
+  end
+  let m = mood(p)
+  let line = m.icon + " " + m.name
+  if p.job != nil then line = line + "   " + JOBS[p.job].name + "「" + JOBS[p.job].ranks[job_rank(p, p.job)].name + "」" end
+  p.ui_text("mood", line, {at: "top_left", dy: 158, size: 14, bold: true, color: "#FDE68A"})
+end

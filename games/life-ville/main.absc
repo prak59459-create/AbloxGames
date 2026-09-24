@@ -1,72 +1,61 @@
--- Life Ville — 4つのゲージを気にしながらくらすライフシム
+-- Life Ville — 5つのゲージを気にしながらくらすライフシム
+-- ゲージ（おなか・元気・楽しさ・清潔・つながり）と気分、4つの仕事（ミニゲーム・昇進）、
+-- スキル4つ、家具3段階、絵を描いて売る、昼夜と睡眠、光熱費、お祭り。
+--
+-- ファイル:
+--   data.absc     表（ゲージ・仕事・スキル・家具・料理・マーク）
+--   common.absc   小さな道具・気分・スキル・画面
+--   jobs.absc     仕事のシフトとミニゲーム・昇進
+--   life.absc     ゲージ・家・スキル・会話・昼夜・光熱費・お祭り
+--   main.absc     このファイル
 
 kit_setup("Life Ville", "くらしを整えて、キャリアを上げよう", [
-  "🍔おなか ⚡元気 🎈楽しさ 🧼清潔 の4つのゲージが減っていく",
-  "家の冷蔵庫・ベッド・テレビ・シャワーの上で回復",
-  "ゲージが少ないと歩くのがおそくなる",
-  "オフィスの青いパッドで働くとお給料（元気と楽しさは減る）",
-  "働くほど役職が上がって給料アップ",
-  "🛒 で家具をグレードアップすると回復が速くなる"
+  "🍔⚡🎈🧼💬 5つのゲージが減っていく。平均が「気分」になり、お給料にひびく",
+  "🏠 黄色い看板で家。冷蔵庫・ベッド・テレビ・シャワーの上に立つと回復",
+  "💼 仕事のパッドで出勤: オフィス・ダイナー・公園・ジム。12回うまくいくと昇進",
+  "💪 ジムのマシン・♟ 公園のチェス・🎨 家のイーゼルでスキル。絵は売れる",
+  "🌙 夜はベッドで元気が2倍。🧾 3分ごとに光熱費",
+  "🎪 5分ごとに公園でお祭り。💬 近くの人と話そう"
 ])
 
-let need_names = {hunger: "🍔 おなか", energy: "⚡ 元気", fun: "🎈 楽しさ", hygiene: "🧼 清潔"}
-let need_order = ["hunger", "energy", "fun", "hygiene"]
-let careers = [["アルバイト", 8], ["社員", 14], ["主任", 22], ["課長", 32], ["部長", 45], ["社長", 65]]
-let owners = {}
-
-kit_shop_add("fridge", "高級冷蔵庫（おなか回復2倍）", 150, func(p) p.boost.hunger = 2 end)
-kit_shop_add("bed", "ふかふかベッド（元気回復2倍）", 150, func(p) p.boost.energy = 2 end)
-kit_shop_add("tv", "大型テレビ（楽しさ回復2倍）", 150, func(p) p.boost.fun = 2 end)
-kit_shop_add("shower", "ジェットシャワー（清潔回復2倍）", 150, func(p) p.boost.hygiene = 2 end)
-kit_shop_add("coffee", "コーヒー（元気+30）", 20, func(p)
-  p.needs.energy = min(100, p.needs.energy + 30)
-  show(p)
-end)
+for key in keys(FURNITURE) do
+  let f = FURNITURE[key]
+  for t in 2 to len(f.tiers) do
+    let tier = f.tiers[t]
+    let fk = key
+    let tn = t
+    kit_shop_add(key + "_" + t, tier.name, tier.price, func(p)
+      if p.furniture[fk] >= tn then
+        p.message("もう持っている", 1)
+        kit_give(p, tier.price)
+        return
+      end
+      p.furniture[fk] = tn
+      p.message("🛋 " + tier.name + "！ 回復が速くなった", 2)
+      kit_quest_progress(p, "furniture", 1)
+    end)
+  end
+end
+kit_shop_add("coffee", "☕ コーヒー（元気+30）", 20, func(p) add_need(p, "energy", 30) end)
+kit_shop_add("snack", "🍙 おにぎり（おなか+25）", 15, func(p) add_need(p, "hunger", 25) end)
 
 kit_quest("home", "家を手に入れる", 1, 30)
-kit_quest("work", "10回働く", 10, 100)
-kit_quest("promo", "主任になる", 1, 200)
-kit_quest("happy", "全部のゲージを80以上にする", 1, 150)
+kit_quest("jobs", "仕事をはじめる", 1, 30)
+kit_quest("tasks", "仕事を30回こなす", 30, 200)
+kit_quest("shifts", "シフトを5回", 5, 150)
+kit_quest("promo", "昇進する", 1, 200)
+kit_quest("skill", "スキルのレベルを上げる", 3, 150)
+kit_quest("skill5", "スキルをLv.5に", 1, 400)
+kit_quest("gym", "ジムで30びょう走る", 30, 100)
+kit_quest("paint", "絵を3まい売る", 3, 150)
+kit_quest("furniture", "家具をグレードアップ", 1, 100)
+kit_quest("talk", "5回おしゃべり", 5, 100)
+kit_quest("happy", "ごきげん（平均80）で過ごす", 3, 150)
+kit_quest("festival", "お祭りに行く", 1, 80)
 
-func career(p)
-  let i = min(len(careers), 1 + floor(p.shifts / 12))
-  return careers[i]
-end
-
-func show(p)
-  let i = 0
-  for key in need_order do
-    i = i + 1
-    let v = p.needs[key]
-    p.ui_text("need_" + key, need_names[key], {at: "top_left", dy: 20 + i * 26, size: 14})
-    p.ui_bar("bar_" + key, v, 100, {at: "top_left", dy: 22 + i * 26, dx: 110, w: 120, h: 10, color: v < 25 and "#EF4444" or "#22C55E"})
-  end
-  let c = career(p)
-  p.ui_text("career", "💼 " + c[1] + "（時給 " + c[2] + "）", {at: "top", dy: 30, size: 17, bold: true})
-end
+let owners = {}
 
 on start()
-  every(4, func()
-    for p in players() do
-      p.needs.hunger = max(0, p.needs.hunger - 2)
-      p.needs.energy = max(0, p.needs.energy - 1.5)
-      p.needs.fun = max(0, p.needs.fun - 1.5)
-      p.needs.hygiene = max(0, p.needs.hygiene - 1)
-      let low = 0
-      for key in need_order do
-        if p.needs[key] < 20 then low = low + 1 end
-      end
-      let want = 1 - low * 0.15
-      if abs(p.speed - want) > 0.05 then p.speed = want end
-      if low > 0 and random() < 0.3 then p.message("😣 ゲージが少ない…", 1.5) end
-      let all_good = true
-      for key in need_order do
-        if p.needs[key] < 80 then all_good = false end
-      end
-      if all_good then kit_quest_progress(p, "happy", 1) end
-      show(p)
-    end
-  end)
   every(10, func() kit_leaderboard("💰") end)
 end
 
@@ -74,58 +63,33 @@ on join(p)
   kit_welcome(p)
   kit_quest_button(p)
   kit_shop_button(p)
-  p.needs = {hunger: 80, energy: 80, fun: 80, hygiene: 80}
-  p.boost = {hunger: 1, energy: 1, fun: 1, hygiene: 1}
-  p.shifts = 0
-  kit_give(p, 50)
+  kit_camera_button(p)
+  p.needs = {hunger: 80, energy: 80, fun: 80, hygiene: 80, social: 60}
+  p.skills = {}
+  p.job_xp = {}
+  p.furniture = {hunger: 1, energy: 1, fun: 1, hygiene: 1}
+  p.earned = 0
+  kit_give(p, 60)
+  p.ui_button("talk", "💬 話す", {at: "right", dy: 0, w: 150, h: 46, size: 16, bg: "#0EA5E9"})
   show(p)
 end
 
 on leave(p)
-  if p.home != nil then remove(owners, p.home) end
+  if p.home != nil then owners[p.home] = nil end
+  for b in blocks("litter_" + p.id) do gone(b) end
 end
 
 on touch(p, b)
-  if p.is_npc then return end
+  if p.is_npc or not ready(p) then return end
   if contains(b.tags, "claim") then
     let n = split(b.name, " ")[2]
     if owners[n] == nil and p.home == nil then
       owners[n] = p.id
       p.home = n
-      p.message("🏠 Home " + n + " があなたの家に", 2.5)
+      p.message("🏠 Home " + n + " があなたの家に！ 家具の上に立つとゲージが回復", 3)
       kit_quest_progress(p, "home", 1)
     end
-  elif contains(b.tags, "need") then
-    let key = b.tags[2]
-    let public = contains(b.tags, "public")
-    let mine = p.home != nil and starts_with(b.name, "Home " + p.home + " ")
-    if public or mine then
-      let amount = 8 * p.boost[key]
-      if public then amount = 5 end
-      p.needs[key] = min(100, p.needs[key] + amount)
-      if public and kit_ready(p, "public_cost", 5) then kit_pay(p, 3) end
-      show(p)
-    elif not public and p.home == nil then
-      p.message("自分の家を手に入れよう（黄色い看板）", 1.5)
-    end
-  elif contains(b.tags, "work") then
-    if p.needs.energy < 10 then
-      p.message("😴 つかれて働けない。ベッドで休もう", 1.5)
-      return
-    end
-    if not kit_ready(p, "work", 1.5) then return end
-    let before = career(p)[1]
-    p.shifts = p.shifts + 1
-    let pay = career(p)[2]
-    kit_give(p, pay)
-    p.score = p.score + pay
-    p.needs.energy = max(0, p.needs.energy - 3)
-    p.needs.fun = max(0, p.needs.fun - 2)
-    kit_quest_progress(p, "work", 1)
-    if career(p)[1] != before then
-      p.message("🎉 昇進！ " + career(p)[1] + " になった", 3)
-      if p.shifts >= 24 then kit_quest_progress(p, "promo", 1) end
-    end
-    show(p)
+  elif contains(b.tags, "need") and not contains(b.tags, "public") and p.home == nil and quiet_ready(p, "home_hint", 5) then
+    p.message("自分の家を手に入れよう（黄色い看板）", 1.5)
   end
 end

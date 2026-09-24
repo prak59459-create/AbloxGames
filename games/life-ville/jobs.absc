@@ -1,0 +1,195 @@
+-- jobs.absc — 仕事（4種類）
+-- 仕事のパッドで「出勤」→ 40びょうのシフト。うまくできた回数ぶんお給料（階級・気分・スキルで増える）。
+-- 💼 オフィス: 出たマークと同じボタン / 🍳 コック: 注文の材料を順に / 🌳 レンジャー: 公園のゴミを拾う / 🏋 トレーナー: 矢印に合わせる
+-- 12回うまくいくごとに昇進（6階級）。仕事中は元気と楽しさがへる。
+
+let job_clock = 0
+
+func start_shift(p, id)
+  if p.shift != nil then return end
+  if p.needs.energy < 12 then
+    p.message("😴 つかれて働けない。ベッドで休もう", 1.5)
+    return
+  end
+  let j = JOBS[id]
+  if p.job != id then
+    p.job = id
+    p.message(j.name + " で働くことにした！", 2)
+    kit_quest_progress(p, "jobs", 1)
+  end
+  p.shift = {id: id, until: time() + SHIFT_SECS, done: 0, pay: 0}
+  p.message("⏰ 出勤！ " + j.tasks + "（" + SHIFT_SECS + "びょう）", 2.5)
+  next_task(p)
+end
+
+func pay_task(p)
+  let s = p.shift
+  let j = JOBS[s.id]
+  let before = job_rank(p, s.id)
+  let pay = floor(j.ranks[before].pay * mood(p).mult * (1 + skill_level(p, j.skill) * 0.05))
+  kit_give(p, pay)
+  p.earned = p.earned + pay
+  p.score = p.earned
+  s.done = s.done + 1
+  s.pay = s.pay + pay
+  p.job_xp[s.id] = (p.job_xp[s.id] or 0) + 1
+  add_need(p, "energy", -1.5)
+  add_need(p, "fun", -1)
+  add_skill(p, j.skill, 1)
+  kit_quest_progress(p, "tasks", 1)
+  let now = job_rank(p, s.id)
+  if now > before then
+    announce("🎉 " + p.name + " が「" + j.ranks[now].name + "」に昇進！", 3)
+    kit_quest_progress(p, "promo", 1)
+    if now == len(j.ranks) then kit_badge(p, "top_" + s.id, j.ranks[now].name) end
+  end
+  p.sound("collect")
+end
+
+func end_shift(p)
+  let s = p.shift
+  p.shift = nil
+  p.ui_remove("task")
+  p.ui_remove("taskp")
+  for n in npcs() do
+    if n.owner == p.id then gone(n) end
+  end
+  for b in blocks("litter_" + p.id) do gone(b) end
+  p.message("🏁 おつかれさま！ " + s.done + " 回・" + s.pay + " コイン", 2.5)
+  kit_quest_progress(p, "shifts", 1)
+  show(p)
+end
+
+-- MARK: 仕事ごとのしかけ
+
+func next_task(p)
+  let s = p.shift
+  if s == nil then return end
+  if s.id == "office" then
+    let want = random(OFFICE_MARKS)
+    s.want = want
+    let opts = shuffle(copy(OFFICE_MARKS))
+    p.ui_panel("taskp", {at: "center", dy: 60, w: 460, h: 170, bg: "#1E293BEE", radius: 16, layer: 25})
+    p.ui_text("task", "💼 これと同じ: " + want, {parent: "taskp", y: 0.2, size: 22, bold: true})
+    for k in 1 to 6 do
+      p.ui_button("tk_" + k, opts[k], {parent: "taskp", x: (k - 0.5) / 6, y: 0.68, w: 64, h: 60, size: 28, bg: "#334155"})
+    end
+    s.opts = opts
+  elif s.id == "chef" then
+    let r = random(RECIPES)
+    s.recipe = r
+    s.step_i = 1
+    -- 注文の材料＋ほかの材料で6つ
+    let opts = copy(r.steps)
+    for g in shuffle(copy(INGREDIENTS)) do
+      if len(opts) < 6 and not contains(opts, g) then append(opts, g) end
+    end
+    s.opts = shuffle(opts)
+    chef_panel(p)
+  elif s.id == "ranger" then
+    let spots = []
+    for i in 1 to 10 do append(spots, i) end
+    let pick = slice(shuffle(spots), 1, 3)
+    for i in pick do
+      let spot = block("Litter Spot " + i)
+      if spot != nil then
+        create_block({name: "Litter", shape: "box", position: spot.position + {x: 0, y: 0.3, z: 0}, size: 0.5,
+                      color: random(["#FBBF24", "#E5E7EB", "#F87171", "#60A5FA"]), solid: false, behavior: "trigger", tags: ["litter", "litter_" + p.id]})
+      end
+    end
+    p.ui_text("task", "🌳 公園のゴミ（光る小さな箱）を拾おう", {at: "center", dy: 110, size: 16, bold: true})
+  elif s.id == "trainer" then
+    let arrows = ["⬆", "⬇", "⬅", "➡"]
+    s.want = random(arrows)
+    p.ui_panel("taskp", {at: "center", dy: 60, w: 380, h: 160, bg: "#14532DEE", radius: 16, layer: 25})
+    p.ui_text("task", "🏋 「" + s.want + "」のかけ声！", {parent: "taskp", y: 0.2, size: 22, bold: true})
+    let k = 0
+    for a in arrows do
+      k = k + 1
+      p.ui_button("tk_" + k, a, {parent: "taskp", x: (k - 0.5) / 4, y: 0.68, w: 70, h: 60, size: 28, bg: "#166534"})
+    end
+    s.opts = arrows
+  end
+end
+
+func chef_panel(p)
+  let s = p.shift
+  let r = s.recipe
+  let done = ""
+  for k in 1 to len(r.steps) do
+    if k < s.step_i then done = done + r.steps[k] else done = done + "・" end
+  end
+  p.ui_panel("taskp", {at: "center", dy: 60, w: 480, h: 180, bg: "#7C2D12EE", radius: 16, layer: 25})
+  p.ui_text("task", "🍳 " + r.name + "（" + join(r.steps, "→") + "）  " + done, {parent: "taskp", y: 0.18, size: 16, bold: true})
+  for k in 1 to 6 do
+    p.ui_button("tk_" + k, s.opts[k], {parent: "taskp", x: (k - 0.5) / 6, y: 0.68, w: 66, h: 60, size: 28, bg: "#9A3412"})
+  end
+end
+
+func press_task(p, k)
+  let s = p.shift
+  if s == nil or s.opts == nil then return end
+  let pick = s.opts[k]
+  if s.id == "office" or s.id == "trainer" then
+    if pick == s.want then pay_task(p) else p.message("❌", 0.5) end
+    next_task(p)
+  elif s.id == "chef" then
+    if pick == s.recipe.steps[s.step_i] then
+      s.step_i = s.step_i + 1
+      if s.step_i > len(s.recipe.steps) then
+        pay_task(p)
+        p.message("🍽 " + s.recipe.name + " できあがり！", 1)
+        next_task(p)
+      else
+        chef_panel(p)
+      end
+    else
+      p.message("❌ ちがう材料", 0.8)
+      s.step_i = 1
+      chef_panel(p)
+    end
+  end
+end
+
+func pick_litter(p, b)
+  if not still(b) then return end
+  gone(b)
+  if p.shift != nil and p.shift.id == "ranger" then
+    pay_task(p)
+    if len(filter(blocks("litter_" + p.id), func(x) return x.id != b.id end)) == 0 then next_task(p) end
+  end
+end
+
+on tick(dt)
+  job_clock = job_clock + dt
+  if job_clock < 1 then return end
+  job_clock = 0
+  for p in players() do
+    -- レンジャー: ゴミの近くに行けば拾える
+    if ready(p) and p.shift != nil and p.shift.id == "ranger" then
+      for b in blocks("litter_" + p.id) do
+        if distance(p, b.position) < 2 then pick_litter(p, b) end
+      end
+    end
+    if ready(p) and p.shift != nil then
+      let left = ceil(p.shift.until - time())
+      p.ui_text("shift", "⏰ シフト のこり " + left + "s   " + p.shift.done + " 回", {at: "top", dy: 52, size: 14, bold: true, color: "#A7F3D0"})
+      if left <= 0 or p.needs.energy <= 0 then
+        p.ui_remove("shift")
+        end_shift(p)
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "job") and quiet_ready(p, "job_pad", 3) then start_shift(p, b.tags[2])
+  elif contains(b.tags, "litter") and contains(b.tags, "litter_" + p.id) then pick_litter(p, b)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "tk_") then press_task(p, num(replace(id, "tk_", ""))) end
+end

@@ -1,0 +1,193 @@
+-- life.absc — 毎日のくらし
+-- ゲージは少しずつへる。家の冷蔵庫・ベッド・テレビ・シャワー、ダイナー、公園のブランコで回復。
+-- 近くに人がいると「つながり」が上がる。「💬 話す」でもっと。
+-- スキル: ジムのランニングマシン（体力）・公園のチェス（頭脳）・家のイーゼル（創作・絵が売れる）・家で料理（料理）。
+-- 昼と夜。夜にベッドでねると元気がぐんぐん。3分ごとに光熱費。5分ごとに公園でお祭り。
+
+let life_clock = 0
+let bill_clock = 0
+let day_clock = 0
+let festival_until = 0
+let festival_clock = 0
+
+func is_night()
+  return day_clock > DAY_SECS * 0.7
+end
+
+func near_pad(p, b, r)
+  return b != nil and distance(p, b.position) < r
+end
+
+func home_pad(p, what)
+  if p.home == nil then return nil end
+  return block("Home " + p.home + " " + what)
+end
+
+-- 家具の回復（家のパッドの上）
+func use_home(p)
+  let pads = {hunger: "Fridge", energy: "Bed", fun: "TV", hygiene: "Shower"}
+  for key in keys(pads) do
+    let b = home_pad(p, pads[key])
+    let r = 1.4
+    if key == "energy" then r = 1.8 end
+    if near_pad(p, b, r) then
+      let tier = FURNITURE[key].tiers[p.furniture[key]]
+      let amount = 6 * tier.mult
+      if key == "energy" and is_night() then amount = amount * 2 end
+      add_need(p, key, amount)
+      if key == "hunger" then add_skill(p, "cooking", 0.5) end
+      return key
+    end
+  end
+  return nil
+end
+
+func use_public(p)
+  let diner = block("Diner Table")
+  let swing = block("Park Swing")
+  if near_pad(p, diner, 2) then
+    add_need(p, "hunger", 5)
+    if quiet_ready(p, "diner_pay", 5) then kit_pay(p, 3) end
+  elif near_pad(p, swing, 2.5) then
+    add_need(p, "fun", 5)
+    add_need(p, "social", 1)
+  end
+end
+
+func use_skills(p)
+  for i in 1 to 2 do
+    if near_pad(p, block("Treadmill " + i), 1.4) then
+      add_skill(p, "fitness", 1)
+      add_need(p, "energy", -0.8)
+      add_need(p, "hygiene", -0.8)
+      kit_quest_progress(p, "gym", 1)
+    end
+  end
+  if near_pad(p, block("Chess Table"), 1.6) then
+    add_skill(p, "logic", 1)
+    add_need(p, "fun", 1.5)
+  end
+  let easel = home_pad(p, "Easel")
+  if near_pad(p, easel, 1.3) then
+    add_skill(p, "creative", 1)
+    add_need(p, "fun", 1)
+    p.paint_t = (p.paint_t or 0) + 1
+    if p.paint_t >= 15 then
+      p.paint_t = 0
+      let value = 5 + skill_level(p, "creative") * 8
+      kit_give(p, value)
+      p.earned = p.earned + value
+      p.message("🖼 絵ができた！ " + value + " コインで売れた", 2)
+      kit_quest_progress(p, "paint", 1)
+    end
+  end
+end
+
+func social_step(p)
+  for q in players() do
+    if q.id != p.id and ready(q) and distance(p, q) < 6 then
+      add_need(p, "social", 1)
+      return
+    end
+  end
+end
+
+func talk(p)
+  let best = nil
+  for q in players() do
+    if q.id != p.id and ready(q) and distance(p, q) < 5 then
+      if best == nil or distance(p, q) < distance(p, best) then best = q end
+    end
+  end
+  if best == nil then
+    p.message("💬 近くにだれもいない", 1)
+    return
+  end
+  if not quiet_ready(p, "talk_" + best.id, 15) then
+    p.message("💬 さっき話した", 1)
+    return
+  end
+  add_need(p, "social", 15)
+  add_need(best, "social", 15)
+  add_need(p, "fun", 5)
+  add_need(best, "fun", 5)
+  p.look_at(best)
+  best.look_at(p)
+  let topics = ["天気の話", "ペットの話", "仕事の話", "好きな食べ物の話", "週末の予定"]
+  let t = random(topics)
+  p.message("💬 " + best.name + " と" + t + "をした", 1.5)
+  best.message("💬 " + p.name + " と" + t + "をした", 1.5)
+  kit_quest_progress(p, "talk", 1)
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  life_clock = life_clock + dt
+  if life_clock < 1 then return end
+  life_clock = 0
+  day_clock = day_clock + 1
+  bill_clock = bill_clock + 1
+  festival_clock = festival_clock + 1
+  if day_clock >= DAY_SECS then day_clock = 0 end
+  if day_clock == floor(DAY_SECS * 0.7) then
+    world.light = 0.3
+    world.sky_top = "#0F172A"
+    world.sky_bottom = "#312E81"
+    announce("🌙 夜になった。ベッドでねると元気がぐんぐん回復", 3)
+  elif day_clock == 0 then
+    world.light = 0.75
+    world.sky_top = "#5AB2FF"
+    world.sky_bottom = "#CDEBFF"
+    announce("☀️ 朝！ 今日もがんばろう", 2)
+  end
+  if festival_clock >= FESTIVAL_EVERY then
+    festival_clock = 0
+    festival_until = time() + 60
+    announce("🎪 公園でお祭り！ 1分間、楽しさ・おなか・つながりが回復（ステージのまわり）", 4)
+  end
+  for p in players() do
+    if ready(p) then
+      for n in NEEDS do add_need(p, n.id, -n.decay) end
+      let used = use_home(p)
+      if used == nil then use_public(p) end
+      use_skills(p)
+      social_step(p)
+      if active_until(festival_until) and near_pad(p, block("Festival Stage"), 9) then
+        add_need(p, "fun", 3)
+        add_need(p, "hunger", 2)
+        add_need(p, "social", 2)
+        if quiet_ready(p, "festival_q", 60) then kit_quest_progress(p, "festival", 1) end
+      end
+      -- ゲージが低いと遅くなる
+      let low = len(filter(NEEDS, func(n) return p.needs[n.id] < 20 end))
+      let want = max(0.55, 1 - low * 0.12)
+      if abs(p.speed - want) > 0.05 then p.speed = want end
+      if mood_value(p) >= 80 and quiet_ready(p, "happy_q", 30) then kit_quest_progress(p, "happy", 1) end
+      show(p)
+    end
+  end
+  if bill_clock >= BILL_EVERY then
+    bill_clock = 0
+    for p in players() do
+      if ready(p) and p.home != nil then
+        let t = 0
+        for key in keys(p.furniture) do t = t + p.furniture[key] end
+        let bill = 10 + t * 6
+        if kit_can_pay(p, bill) then
+          kit_pay(p, bill)
+          p.message("🧾 光熱費 " + bill + " をはらった", 1.5)
+        else
+          add_need(p, "fun", -20)
+          p.message("🧾 光熱費がはらえない… 楽しさダウン", 2)
+        end
+      end
+    end
+  end
+  if active_until(festival_until) then ui_text("festival", "🎪 お祭り中 " + ceil(festival_until - time()) + "s（公園）", {at: "top", dy: 30, size: 15, bold: true, color: "#FDE047"}) else ui_remove("festival") end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "talk" then talk(p) end
+end

@@ -1,14 +1,18 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 214,
+  "blockCount" : 253,
   "id" : "life-ville",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/life-ville\/data.absc",
+    "games\/life-ville\/common.absc",
+    "games\/life-ville\/jobs.absc",
+    "games\/life-ville\/life.absc",
     "games\/life-ville\/main.absc"
   ],
-  "summary" : "おなか・元気・楽しさ・清潔の4つのゲージを気にしながらくらすライフシム。仕事で給料をもらって家を大きくしよう。",
+  "summary" : "5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。",
   "tags" : [
     "life",
     "sim",
