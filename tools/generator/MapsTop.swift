@@ -118,6 +118,43 @@ func mapleBay(_ m: MapBuilder) {
     }
     m.pad("Car Pad", x: -78, z: -8, size: 3, color: "#F97316", tags: ["car"])
 
+    // More places: post office, bank, furniture store, taxi stand, the market.
+    m.shop("Post Office", x: -52, z: 12, w: 10, d: 8, color: "#F59E0B", sign: "#1E3A8A", facing: -1)
+    m.pad("Job Courier", x: -52, z: 14, size: 2.4, color: "#FBBF24", tags: ["job"])
+    m.shop("Bank", x: 52, z: -12, w: 12, d: 9, color: "#E5E7EB", sign: "#FACC15", facing: 1)
+    m.pad("Bank Counter", x: 52, z: -14, size: 2.4, color: "#FACC15", tags: ["bank"])
+    m.shop("Furniture Store", x: -52, z: -12, w: 12, d: 9, color: "#F472B6", sign: "#FFFFFF", facing: 1)
+    m.pad("Furniture Counter", x: -52, z: -14, size: 2.4, color: "#EC4899", tags: ["furniture"])
+    m.pad("Job Taxi", x: 12, z: -6, size: 2.4, color: "#FACC15", tags: ["job"])
+    m.slab("Taxi Stand", x: 12, y: 0, z: -9, w: 4, h: 2.4, d: 0.3, color: "#FACC15")
+    m.part("Market Stalls", at: (-12, 0.03, 34), size: (18, 0.06, 8), color: "#FDE68A", material: .matte, solid: false)
+    for i in 0..<4 {
+        m.slab("Stall \(i + 1)", x: -18 + Float(i) * 4, y: 0, z: 34, w: 3, h: 1, d: 2, color: ["#EF4444", "#22C55E", "#3B82F6", "#F59E0B"][i])
+        m.part("Stall \(i + 1) Roof", at: (-18 + Float(i) * 4, 2.4, 34), size: (3.4, 0.2, 2.6), color: "#FFFFFF", solid: false)
+    }
+    m.pad("Market", x: -12, z: 37, size: 3, color: "#FDE68A", tags: ["market"])
+    // Where townsfolk walk, where fires break out and where passengers wait.
+    m.markers("Town Spot", points: [(0, 12), (-30, 6), (30, 6), (-60, 6), (60, 6), (0, 40), (0, -40), (-78, 6), (78, -6),
+                                    (40, 60), (-12, 30), (52, -6)], color: "#000000", visible: false, behavior: .none)
+    m.pillar("Clock Tower", x: 10, z: -12, height: 9, radius: 1.2, color: "#A16207")
+    m.part("Clock Face", at: (10, 8, -10.7), size: (1.6, 1.6, 0.1), color: "#FFFFFF", shape: .cylinder, material: .neon, solid: false,
+           rotation: (90, 0, 0))
+
+    // The gas station: cars run on fuel.
+    m.part("Gas Station", at: (20, 0.03, -58), size: (14, 0.06, 10), color: "#9CA3AF", material: .matte)
+    m.slab("Gas Canopy", x: 20, y: 4, z: -58, w: 12, h: 0.4, d: 8, color: "#DC2626")
+    for (i, x) in [15, 25].enumerated() {
+        m.pillar("Gas Canopy Post \(i + 1)", x: Float(x), z: -58, height: 4, radius: 0.3, color: "#E5E7EB")
+    }
+    m.slab("Gas Pump Machine", x: 20, y: 0, z: -61, w: 1.2, h: 1.8, d: 0.8, color: "#F9FAFB")
+    m.pad("Gas Pump", x: 20, z: -58, size: 2.6, color: "#22C55E", tags: ["gas"])
+    m.road(from: (20, -48), to: (20, -53), width: 5, name: "Gas Road")
+
+    // City hall: vote for the mayor.
+    m.shop("City Hall", x: -12, z: -28, w: 12, d: 9, color: "#F8FAFC", sign: "#1D4ED8", facing: 1)
+    m.pad("Ballot Box", x: -12, z: -30, size: 2.4, color: "#60A5FA", tags: ["vote"])
+    m.part("City Hall Dome", at: (-12, 5.4, -28), size: (5, 3, 5), color: "#93C5FD", shape: .sphere, material: .metal, solid: false)
+
     // A park.
     for p in ring(7, radius: 12, cx: 40, cz: 70) { m.tree(p.0, p.1, height: 4.5) }
     m.part("Pond", at: (40, 0.02, 70), size: (10, 0.04, 8), color: "#3B9DEB", shape: .cylinder, material: .glass, solid: false)

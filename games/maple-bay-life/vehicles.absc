@@ -1,0 +1,285 @@
+-- vehicles.absc — 乗り物
+-- 車屋（オレンジのパッド）で買って、🚗ボタンで乗りかえる。
+-- 車・スクーター・ジェットパックはガソリンを使う。ガソリンスタンド（緑のパッド）で給油。
+-- パトカー・消防車・タクシーは、その仕事の人だけがタダで乗れる。
+
+let FUEL_USE = {scooter: 0.6, sedan: 0.8, sports: 1.2, police: 0.7, firetruck: 0.9, taxi: 0.7, jetpack: 1.5}
+let veh_clock = 0
+
+func vehicle_find(id)
+  for v in VEHICLES do
+    if v.id == id then return v end
+  end
+  return VEHICLES[1]
+end
+
+func vehicle_now(p)
+  return vehicle_find(p.vehicle or "walk")
+end
+
+func uses_fuel(v)
+  return FUEL_USE[v.id] != nil
+end
+
+func vehicle_allowed(p, v)
+  if v.job != nil then return p.job == v.job end
+  return contains(p.garage, v.id)
+end
+
+-- 速さ・ジャンプ・重さを決めなおす（乗り物 × ブースト × ガソリン）
+func move_refresh(p)
+  if not kit_here(p) then return end
+  let v = vehicle_now(p)
+  let speed = v.speed
+  let jump = v.jump
+  let gravity = 1
+  let empty = uses_fuel(v) and (p.fuel or 0) <= 0
+  if empty then
+    speed = 1
+    jump = 1
+  elif v.id == "jetpack" then
+    gravity = 0.55
+  end
+  if p.boost_until != nil and time() < p.boost_until then speed = speed * (p.boost or 1) end
+  if p.float_until != nil and time() < p.float_until then
+    gravity = min(gravity, 0.45)
+    jump = max(jump, 1.8)
+  end
+  speed = min(speed, 10)
+  if p.mv_speed != speed then
+    p.speed = speed
+    p.mv_speed = speed
+  end
+  if p.mv_jump != jump then
+    p.jump = jump
+    p.mv_jump = jump
+  end
+  if p.mv_gravity != gravity then
+    p.gravity = gravity
+    p.mv_gravity = gravity
+  end
+end
+
+func vehicle_hud(p)
+  let v = vehicle_now(p)
+  let text = v.name
+  if uses_fuel(v) then
+    let fuel = floor(p.fuel or 0)
+    text = text + "   ⛽ " + fuel + "%"
+    if fuel <= 0 then text = text + "（ガス欠）" end
+  end
+  set_line(p, "veh", text, {at: "top_left", dy: 102, size: 15, color: "#BAE6FD"})
+  -- 車に乗っているときだけ クラクション、スポーツカーは ニトロも
+  let motor = v.id != "walk" and v.id != "bike"
+  set_side_button(p, "veh_horn", motor, "📯 ブッブー", 180, "#475569")
+  set_side_button(p, "veh_nitro", v.id == "sports", "🔥 ニトロ", 240, "#EA580C")
+end
+
+func set_side_button(p, id, show, label, dy, bg)
+  if p.side == nil then p.side = {} end
+  if p.side[id] == show then return end
+  p.side[id] = show
+  if show then
+    p.ui_button(id, label, {at: "right", dy: dy, w: 150, h: 50, size: 16, bg: bg})
+  else
+    p.ui_remove(id)
+  end
+end
+
+func vehicle_use(p, id)
+  let v = vehicle_find(id)
+  if not vehicle_allowed(p, v) then
+    if v.job != nil then
+      p.message(v.name + " は " + JOBS[v.job].name + " だけが乗れます", 2)
+    else
+      p.message("まだ持っていません。車屋（オレンジのパッド）で買おう", 2)
+    end
+    return
+  end
+  p.vehicle = v.id
+  if v.color != nil then p.leg_color = v.color else p.leg_color = p.base_legs end
+  move_refresh(p)
+  vehicle_hud(p)
+  if v.id == "walk" then
+    p.message("🚶 歩きにした", 1.2)
+  else
+    p.message(v.name + " に乗った！", 1.5)
+    p.sound("bounce")
+  end
+  p.ui_remove("garage")
+end
+
+-- 仕事がかわったら、その仕事の車からはおりる
+func vehicle_job_changed(p)
+  let v = vehicle_now(p)
+  if v.job != nil and v.job != p.job then
+    p.vehicle = "walk"
+    p.leg_color = p.base_legs
+    move_refresh(p)
+    vehicle_hud(p)
+  end
+end
+
+-- MARK: 🚗 ボタン（ガレージ）
+
+func garage_menu(p)
+  let list = filter(VEHICLES, func(v) return vehicle_allowed(p, v) end)
+  let panel_h = 130 + len(list) * 50
+  p.ui_panel("garage", {at: "center", w: 440, h: panel_h, bg: "#0C1A2BF2", radius: 22, layer: 30})
+  p.ui_text("garage_t", "🚗 乗り物をえらぶ", {parent: "garage", y: 28 / panel_h, size: 21, bold: true, color: "#7DD3FC"})
+  let i = 0
+  for v in list do
+    i = i + 1
+    let label = v.name + "   速さ×" + v.speed
+    if v.jump > 1 then label = label + "  ジャンプ×" + v.jump end
+    if p.vehicle == v.id then label = "✅ " + label end
+    p.ui_button("veh_use_" + v.id, label, {parent: "garage", y: (40 + i * 50) / panel_h, w: 380, h: 42, size: 16, bg: "#1E3A5F"})
+  end
+  p.ui_button("garage_close", "閉じる", {parent: "garage", y: (panel_h - 30) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+-- MARK: 車屋
+
+func dealer_menu(p)
+  let list = filter(VEHICLES, func(v) return v.price > 0 end)
+  let panel_h = 150 + len(list) * 56
+  p.ui_panel("dealer", {at: "center", w: 500, h: panel_h, bg: "#2A1606F2", radius: 22, layer: 30})
+  p.ui_text("dealer_t", "🚘 Maple Motors（車屋）", {parent: "dealer", y: 28 / panel_h, size: 22, bold: true, color: "#FDBA74"})
+  p.ui_text("dealer_s", "買った乗り物は 🚗ボタンからいつでも乗れます", {parent: "dealer", y: 58 / panel_h, size: 14, color: "#FED7AA"})
+  let i = 0
+  for v in list do
+    i = i + 1
+    let label = v.name + "  速さ×" + v.speed + "   💰" + kit_short(v.price)
+    let bg = "#C2410C"
+    if contains(p.garage, v.id) then
+      label = v.name + "  （持っている）"
+      bg = "#57534E"
+    end
+    p.ui_button("veh_buy_" + v.id, label, {parent: "dealer", y: (50 + i * 56) / panel_h, w: 440, h: 46, size: 16, bg: bg})
+  end
+  p.ui_button("dealer_close", "閉じる", {parent: "dealer", y: (panel_h - 30) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func vehicle_buy(p, id)
+  let v = vehicle_find(id)
+  if v.price <= 0 then return end
+  if contains(p.garage, v.id) then
+    vehicle_use(p, v.id)
+    p.ui_remove("dealer")
+    return
+  end
+  if not spend(p, v.price) then return end
+  append(p.garage, v.id)
+  p.fuel = 100
+  news(p.name + " が " + v.name + " を買った！")
+  kit_badge(p, "driver", BADGES.driver)
+  kit_quest_progress(p, "car", 1)
+  p.ui_remove("dealer")
+  vehicle_use(p, v.id)
+end
+
+-- MARK: ガソリン
+
+func refuel(p)
+  let v = vehicle_now(p)
+  let need = 100 - (p.fuel or 0)
+  if need < 1 then
+    if cooldown_ok(p, "full", 3) then p.message("⛽ 満タンです", 1.2) end
+    return
+  end
+  let cost = ceil(need * 0.4)
+  if not cooldown_ok(p, "pump", 2) then return end
+  if not spend(p, cost) then return end
+  p.fuel = 100
+  p.message("⛽ 満タン！（💰" + cost + "）", 1.5)
+  p.sound("collect")
+  kit_quest_progress(p, "gas", 1)
+  move_refresh(p)
+  vehicle_hud(p)
+end
+
+-- MARK: クラクションとニトロ
+
+func horn(p)
+  if not cooldown_ok(p, "horn", 1.5) then return end
+  for other in players() do
+    if other.id != p.id and distance(p, other) < 25 then
+      other.message("📯 " + p.name + "：ブッブー！", 1)
+      other.sound("bounce")
+    end
+  end
+  -- 近くの住人はびっくりしてとびあがる
+  for f in folk do
+    if kit_here(f.npc) and distance(p, f.npc) < 7 then f.npc.jump_now() end
+  end
+  p.sound("bounce")
+end
+
+func nitro(p)
+  if not cooldown_ok(p, "nitro", 12) then
+    p.message("ニトロは12秒に1回", 1)
+    return
+  end
+  if (p.fuel or 0) < 5 then
+    p.message("ガソリンが足りない", 1)
+    return
+  end
+  p.fuel = p.fuel - 5
+  p.boost_until = time() + 3
+  p.boost = 1.6
+  move_refresh(p)
+  p.message("🔥 ニトロ！", 1)
+  p.sound("bounce")
+end
+
+-- MARK: 毎ティック
+
+on tick(dt)
+  veh_clock = veh_clock + dt
+  if veh_clock < 0.5 then return end
+  let span = veh_clock
+  veh_clock = 0
+  for p in players() do
+    let v = vehicle_now(p)
+    if uses_fuel(v) and (p.fuel or 0) > 0 then
+      let vel = p.velocity
+      let moving = vel != nil and sqrt(vel.x * vel.x + vel.z * vel.z) > 1.5
+      if moving then
+        p.fuel = max(0, p.fuel - FUEL_USE[v.id] * span)
+        if p.fuel <= 0 then
+          p.message("⛽ ガス欠！ガソリンスタンド（緑のパッド）へ", 3)
+          p.sound("error")
+        end
+      end
+    end
+    move_refresh(p)
+    vehicle_hud(p)
+  end
+end
+
+on button(p, id)
+  if id == "car_menu" then
+    garage_menu(p)
+  elif id == "garage_close" then
+    p.ui_remove("garage")
+  elif starts_with(id, "veh_use_") then
+    vehicle_use(p, replace(id, "veh_use_", ""))
+  elif id == "dealer_close" then
+    p.ui_remove("dealer")
+  elif starts_with(id, "veh_buy_") then
+    vehicle_buy(p, replace(id, "veh_buy_", ""))
+  elif id == "veh_horn" then
+    horn(p)
+  elif id == "veh_nitro" then
+    nitro(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "car") then
+    dealer_menu(p)
+  elif contains(b.tags, "gas") then
+    refuel(p)
+  end
+end

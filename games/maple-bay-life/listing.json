@@ -1,11 +1,18 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 415,
+  "blockCount" : 510,
   "id" : "maple-bay-life",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/maple-bay-life\/data.absc",
+    "games\/maple-bay-life\/common.absc",
+    "games\/maple-bay-life\/homes.absc",
+    "games\/maple-bay-life\/jobs.absc",
+    "games\/maple-bay-life\/phone.absc",
+    "games\/maple-bay-life\/town.absc",
+    "games\/maple-bay-life\/vehicles.absc",
     "games\/maple-bay-life\/main.absc"
   ],
   "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",

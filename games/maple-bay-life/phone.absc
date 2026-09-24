@@ -1,0 +1,361 @@
+-- phone.absc — 📱 スマホ
+-- 地図（ワープ）・送金・銀行・ニュース・実績・住人名簿・通報・タクシー・出前・選挙
+
+let APPS = [
+  {id: "map", name: "🗺 地図", color: "#0EA5E9"},
+  {id: "send", name: "💸 送金", color: "#16A34A"},
+  {id: "bank", name: "🏦 銀行", color: "#CA8A04"},
+  {id: "news", name: "📰 ニュース", color: "#475569"},
+  {id: "badges", name: "🏅 実績", color: "#9333EA"},
+  {id: "people", name: "👥 名簿", color: "#0F766E"},
+  {id: "police", name: "📞 通報", color: "#1D4ED8"},
+  {id: "taxi", name: "🚕 タクシー", color: "#CA8A04"},
+  {id: "food", name: "🍔 出前", color: "#EA580C"},
+  {id: "vote", name: "🗳 選挙", color: "#2563EB"},
+  {id: "mayor", name: "🏛 市長室", color: "#B45309"},
+  {id: "home", name: "🏠 わが家", color: "#15803D"}
+]
+
+-- 画面の大きなパネル。中身を入れかえて使う
+func phone_frame(p, title, rows)
+  p.ui_remove("phone")
+  let h = 150 + rows * 50
+  p.ui_panel("phone", {at: "center", w: 460, h: h, bg: "#0B1120F5", radius: 30, layer: 40})
+  p.ui_text("phone_bar", "📱 " + clock_text() + "   " + weather_name(), {parent: "phone", y: 18 / h, size: 13, color: "#94A3B8"})
+  p.ui_text("phone_t", title, {parent: "phone", y: 46 / h, size: 21, bold: true, color: "#FFFFFF"})
+  return h
+end
+
+func phone_close_buttons(p, h, back)
+  if back then
+    p.ui_button("ph_home", "◀ もどる", {parent: "phone", x: 0.3, y: (h - 32) / h, w: 140, h: 40, size: 15, bg: "#334155"})
+    p.ui_button("ph_close", "閉じる", {parent: "phone", x: 0.7, y: (h - 32) / h, w: 140, h: 40, size: 15, bg: "gray"})
+  else
+    p.ui_button("ph_close", "閉じる", {parent: "phone", y: (h - 32) / h, w: 140, h: 40, size: 15, bg: "gray"})
+  end
+end
+
+-- MARK: ホーム画面
+
+func phone_open(p)
+  let rows = ceil(len(APPS) / 3)
+  let h = phone_frame(p, "💰 " + kit_short(kit_money(p)) + "   🏦 " + kit_short(p.bank or 0), rows + 1)
+  let i = 0
+  for app in APPS do
+    i = i + 1
+    let col = (i - 1) % 3
+    let row = floor((i - 1) / 3)
+    p.ui_button("ph_app_" + app.id, app.name, {parent: "phone", x: 0.19 + col * 0.31, y: (96 + row * 62) / h, w: 132, h: 52, size: 15, bg: app.color, radius: 16})
+  end
+  phone_close_buttons(p, h, false)
+end
+
+-- MARK: 🗺 地図
+
+func phone_map(p)
+  let rows = ceil(len(PLACES) / 2)
+  let h = phone_frame(p, "🗺 どこへ行く？（15秒に1回）", rows)
+  let i = 0
+  for place in PLACES do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    p.ui_button("ph_go_" + i, place.name, {parent: "phone", x: 0.28 + col * 0.44, y: (84 + row * 50) / h, w: 190, h: 42, size: 15, bg: "#0369A1"})
+  end
+  phone_close_buttons(p, h, true)
+end
+
+func phone_go(p, i)
+  let place = PLACES[i]
+  if place == nil then return end
+  if p.riding != nil then
+    p.message("タクシーに乗っている間はワープできません", 1.5)
+    return
+  end
+  if not cooldown_ok(p, "warp", 15) then
+    p.message("ワープは15秒に1回です", 1.2)
+    return
+  end
+  let b = block(place.block)
+  if b == nil then return end
+  p.ui_remove("phone")
+  p.teleport(b)
+  p.message(place.name + " に着いた", 1.2)
+end
+
+-- MARK: 💸 送金
+
+func phone_send(p)
+  let others = filter(players(), func(o) return o.id != p.id end)
+  let rows = max(1, min(8, len(others)))
+  let h = phone_frame(p, "💸 だれに送る？", rows)
+  if len(others) == 0 then
+    p.ui_text("ph_none", "ほかにだれもいません", {parent: "phone", y: 100 / h, size: 16, color: "#CBD5E1"})
+  end
+  let i = 0
+  for o in slice(others, 1, rows) do
+    i = i + 1
+    p.ui_button("ph_to_" + o.id, o.name, {parent: "phone", y: (84 + (i - 1) * 50) / h, w: 340, h: 42, size: 16, bg: "#166534"})
+  end
+  phone_close_buttons(p, h, true)
+end
+
+func phone_amounts(p, id)
+  let other = player_by_id(id)
+  if other == nil then return end
+  p.send_to = id
+  let h = phone_frame(p, "💸 " + other.name + " にいくら？", 2)
+  let amounts = [10, 50, 100, 500]
+  let i = 0
+  for a in amounts do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    p.ui_button("ph_amt_" + a, "💰 " + a, {parent: "phone", x: 0.28 + col * 0.44, y: (90 + row * 56) / h, w: 180, h: 46, size: 17, bg: "#15803D"})
+  end
+  phone_close_buttons(p, h, true)
+end
+
+func phone_pay(p, amount)
+  let other = player_by_id(p.send_to)
+  if other == nil then
+    p.message("相手がいなくなりました", 1.5)
+    return
+  end
+  if not spend(p, amount) then return end
+  earn(other, amount, "💸 " + p.name + " から")
+  other.sound("collect")
+  p.message("💸 " + other.name + " に " + amount + " コイン送った", 2)
+  phone_open(p)
+end
+
+-- MARK: 🏦 銀行（銀行のカウンターでも開く）
+
+func phone_bank(p)
+  let h = phone_frame(p, "🏦 Maple 銀行", 4)
+  let at_bank = near_bank(p)
+  p.ui_text("ph_b1", "よきん 🏦 " + kit_short(p.bank or 0) + "     手持ち 💰 " + kit_short(kit_money(p)), {parent: "phone", y: 86 / h, size: 17, color: "#FDE68A"})
+  p.ui_text("ph_b2", "1分ごとに 2% の利息（1回 最大50）", {parent: "phone", y: 114 / h, size: 14, color: "#CBD5E1"})
+  let fee = "（スマホは手数料 5）"
+  if at_bank then fee = "（窓口なので手数料なし）" end
+  p.ui_text("ph_b3", fee, {parent: "phone", y: 138 / h, size: 13, color: "#94A3B8"})
+  p.ui_button("ph_dep_100", "100 あずける", {parent: "phone", x: 0.28, y: 176 / h, w: 180, h: 42, size: 15, bg: "#A16207"})
+  p.ui_button("ph_dep_all", "全部あずける", {parent: "phone", x: 0.72, y: 176 / h, w: 180, h: 42, size: 15, bg: "#A16207"})
+  p.ui_button("ph_wd_100", "100 おろす", {parent: "phone", x: 0.28, y: 226 / h, w: 180, h: 42, size: 15, bg: "#0F766E"})
+  p.ui_button("ph_wd_all", "全部おろす", {parent: "phone", x: 0.72, y: 226 / h, w: 180, h: 42, size: 15, bg: "#0F766E"})
+  phone_close_buttons(p, h, true)
+end
+
+func near_bank(p)
+  let b = block("Bank Counter")
+  return b != nil and distance(p, b) < 7
+end
+
+func bank_move(p, amount, deposit)
+  let fee = 5
+  if near_bank(p) then fee = 0 end
+  if deposit then
+    let n = amount
+    if n == nil then n = kit_money(p) - fee end
+    n = min(n, kit_money(p) - fee)
+    if n <= 0 then
+      p.message("あずけるお金がありません", 1.5)
+      return
+    end
+    kit_give(p, 0 - n - fee)
+    p.bank = (p.bank or 0) + n
+    p.deposited = (p.deposited or 0) + n
+    kit_quest_progress(p, "bank", n)
+    if p.bank >= 2000 then kit_badge(p, "saver", BADGES.saver) end
+    p.message("🏦 " + n + " あずけた", 1.5)
+  else
+    let n = amount
+    if n == nil then n = p.bank or 0 end
+    n = min(n, p.bank or 0)
+    if n <= fee then
+      p.message("おろすお金がありません", 1.5)
+      return
+    end
+    p.bank = p.bank - n
+    kit_give(p, n - fee)
+    p.message("🏦 " + (n - fee) + " おろした", 1.5)
+  end
+  p.sound("collect")
+  update_score(p)
+  phone_bank(p)
+end
+
+-- MARK: 📰 ニュース・🏅 実績・👥 名簿
+
+func phone_news(p)
+  let rows = max(1, len(NEWS))
+  let h = phone_frame(p, "📰 Maple Bay ニュース", rows)
+  if len(NEWS) == 0 then
+    p.ui_text("ph_n0", "まだニュースはありません", {parent: "phone", y: 100 / h, size: 16, color: "#CBD5E1"})
+  end
+  let i = 0
+  for line in NEWS do
+    i = i + 1
+    p.ui_text("ph_n" + i, line, {parent: "phone", y: (84 + (i - 1) * 50) / h, size: 13, color: "#E2E8F0"})
+  end
+  phone_close_buttons(p, h, true)
+end
+
+func phone_badges(p)
+  let rows = ceil(len(BADGE_ORDER) / 2)
+  let h = phone_frame(p, "🏅 実績（" + len(p.badges or []) + " / " + len(BADGE_ORDER) + "）", rows)
+  let i = 0
+  for id in BADGE_ORDER do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    let mark = "⬜ "
+    let color = "#94A3B8"
+    if contains(p.badges or [], id) then
+      mark = "🏅 "
+      color = "#FDE68A"
+    end
+    p.ui_text("ph_bd" + i, mark + BADGES[id], {parent: "phone", x: 0.27 + col * 0.46, y: (84 + row * 50) / h, size: 13, color: color})
+  end
+  phone_close_buttons(p, h, true)
+end
+
+func phone_people(p)
+  let list = players()
+  let rows = min(10, len(list))
+  let h = phone_frame(p, "👥 いまの住人（" + len(list) + "人）", rows)
+  let i = 0
+  for o in slice(list, 1, rows) do
+    i = i + 1
+    let job = JOBS[o.job or "citizen"]
+    let line = job.icon + " " + o.name + "  " + job.name
+    if o.home != nil then line = line + "  🏠" + o.home end
+    if o.id == mayor_id then line = "🏛 " + line end
+    p.ui_text("ph_pp" + i, line, {parent: "phone", y: (84 + (i - 1) * 50) / h, size: 15, color: "#E2E8F0"})
+  end
+  phone_close_buttons(p, h, true)
+end
+
+-- MARK: 📞 通報・🚕 タクシー・🍔 出前
+
+func phone_report(p)
+  p.ui_remove("phone")
+  if len(workers("police")) == 0 then
+    p.message("📞 いま警察官がいません…（だれか👮になってくれるかも）", 2.5)
+    return
+  end
+  if not cooldown_ok(p, "report", 30) then
+    p.message("通報は30秒に1回", 1.2)
+    return
+  end
+  append(reports, {pos: p.position, by: p.name, t: time()})
+  p.message("📞 通報しました！警察官が来ます", 2)
+  for cop in workers("police") do
+    cop.message("📞 " + p.name + " から通報！", 2)
+    cop.sound("checkpoint")
+    if cop.task == "patrol" then police_task(cop) end
+  end
+end
+
+func phone_taxi(p)
+  p.ui_remove("phone")
+  if len(workers("taxi")) == 0 then
+    p.message("🚕 いまタクシー運転手がいません", 2)
+    return
+  end
+  for call in taxi_calls do
+    if call.id == p.id then
+      p.message("もう呼んでいます。少し待ってね", 1.5)
+      return
+    end
+  end
+  append(taxi_calls, {id: p.id, t: time()})
+  p.message("🚕 タクシーを呼びました！その場で待とう", 2)
+  for driver in workers("taxi") do
+    driver.message("📞 " + p.name + " がタクシーを呼んでいます", 2)
+    driver.sound("checkpoint")
+    if driver.fare == nil and driver.rider == nil then taxi_task(driver) end
+  end
+end
+
+func phone_food(p)
+  p.ui_remove("phone")
+  if len(workers("chef")) == 0 then
+    p.message("🍔 いまシェフがいません（カフェが休み）", 2)
+    return
+  end
+  if not spend(p, 20) then return end
+  let order = new_order(p.id, p.name)
+  if order == nil then
+    earn(p, 20, "注文がいっぱい（返金）")
+    return
+  end
+  p.message("🍔 " + order.recipe.name + " を注文した！シェフが届けてくれます", 2.5)
+end
+
+-- MARK: ボタン
+
+on button(p, id)
+  if id == "phone" or id == "ph_home" then
+    phone_open(p)
+  elif id == "ph_close" then
+    p.ui_remove("phone")
+  elif starts_with(id, "ph_app_") then
+    let app = replace(id, "ph_app_", "")
+    if app == "map" then phone_map(p)
+    elif app == "send" then phone_send(p)
+    elif app == "bank" then phone_bank(p)
+    elif app == "news" then phone_news(p)
+    elif app == "badges" then phone_badges(p)
+    elif app == "people" then phone_people(p)
+    elif app == "police" then phone_report(p)
+    elif app == "taxi" then phone_taxi(p)
+    elif app == "food" then phone_food(p)
+    elif app == "vote" then
+      p.ui_remove("phone")
+      ballot_open(p)
+    elif app == "mayor" then
+      p.ui_remove("phone")
+      mayor_menu(p)
+    elif app == "home" then
+      p.ui_remove("phone")
+      home_menu(p)
+    end
+  elif starts_with(id, "ph_go_") then
+    phone_go(p, num(replace(id, "ph_go_", "")))
+  elif starts_with(id, "ph_to_") then
+    phone_amounts(p, replace(id, "ph_to_", ""))
+  elif starts_with(id, "ph_amt_") then
+    phone_pay(p, num(replace(id, "ph_amt_", "")))
+  elif id == "ph_dep_100" then
+    bank_move(p, 100, true)
+  elif id == "ph_dep_all" then
+    bank_move(p, nil, true)
+  elif id == "ph_wd_100" then
+    bank_move(p, 100, false)
+  elif id == "ph_wd_all" then
+    bank_move(p, nil, false)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "bank") and cooldown_ok(p, "bank_pad", 3) then phone_bank(p) end
+end
+
+on start()
+  -- 利息
+  every(60, func()
+    for p in players() do
+      if (p.bank or 0) > 0 then
+        let interest = min(50, floor(p.bank * 0.02))
+        if interest > 0 then
+          p.bank = p.bank + interest
+          update_score(p)
+          p.message("🏦 利息 +" + interest, 1.5)
+          if p.bank >= 2000 then kit_badge(p, "saver", BADGES.saver) end
+        end
+      end
+    end
+  end)
+end

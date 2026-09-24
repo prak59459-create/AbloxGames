@@ -151,6 +151,9 @@ on button(p, id)
   elif id == "kit_quests" then
     p.kit_quests_open = true
     kit_open_quests(p)
+  elif id == "kit_quests_next" then
+    p.kit_qpage = (p.kit_qpage or 1) % kit_quest_pages() + 1
+    kit_open_quests(p)
   elif id == "kit_quests_close" then
     p.kit_quests_open = false
     p.ui_remove("kit_qbox")
@@ -390,14 +393,30 @@ func kit_quest_progress(p, id, amount)
   if p.kit_quests_open then kit_open_quests(p) end
 end
 
+-- 10こずつのページに分けて見せる（多いと画面からはみ出すので）
+let kit_quests_per_page = 10
+
+func kit_quest_pages()
+  return max(1, ceil(len(kit_quest_list) / kit_quests_per_page))
+end
+
 func kit_open_quests(p)
   let n = len(kit_quest_list)
-  let h = 110 + n * 34
+  let pages = kit_quest_pages()
+  let page = clamp(p.kit_qpage or 1, 1, pages)
+  p.kit_qpage = page
+  let first = (page - 1) * kit_quests_per_page + 1
+  let shown = slice(kit_quest_list, first, first + kit_quests_per_page - 1)
+  let h = 110 + len(shown) * 34
   if p.quests == nil then p.quests = {} end
+  -- 前のページの行が残らないように、いったん消してから作る
+  p.ui_remove("kit_qbox")
   p.ui_panel("kit_qbox", {at: "center", w: 540, h: h, bg: "#111827F0", radius: 20, layer: 45})
-  p.ui_text("kit_q_title", "📜 クエスト（" + (p.quests_done or 0) + " / " + n + " 達成）", {parent: "kit_qbox", y: 28 / h, size: 21, bold: true, color: "gold"})
+  let title = "📜 クエスト（" + (p.quests_done or 0) + " / " + n + " 達成）"
+  if pages > 1 then title = title + "  " + page + "/" + pages end
+  p.ui_text("kit_q_title", title, {parent: "kit_qbox", y: 28 / h, size: 21, bold: true, color: "gold"})
   let i = 0
-  for q in kit_quest_list do
+  for q in shown do
     i = i + 1
     let now = p.quests[q.id] or 0
     let mark = "⬜ "
@@ -409,7 +428,12 @@ func kit_open_quests(p)
     p.ui_text("kit_q" + i, mark + q.text + "  " + kit_short(now) + "/" + kit_short(q.goal) + "  💰" + kit_short(q.reward),
               {parent: "kit_qbox", y: (40 + i * 34) / h, size: 15, color: color})
   end
-  p.ui_button("kit_quests_close", "閉じる", {parent: "kit_qbox", y: (h - 28) / h, w: 130, h: 40, size: 15, bg: "gray"})
+  if pages > 1 then
+    p.ui_button("kit_quests_close", "閉じる", {parent: "kit_qbox", x: 0.3, y: (h - 28) / h, w: 130, h: 40, size: 15, bg: "gray"})
+    p.ui_button("kit_quests_next", "次へ ▶", {parent: "kit_qbox", x: 0.7, y: (h - 28) / h, w: 130, h: 40, size: 15, bg: "#B45309"})
+  else
+    p.ui_button("kit_quests_close", "閉じる", {parent: "kit_qbox", y: (h - 28) / h, w: 130, h: 40, size: 15, bg: "gray"})
+  end
 end
 
 func kit_quest_button(p)

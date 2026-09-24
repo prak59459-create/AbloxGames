@@ -1,0 +1,1168 @@
+-- jobs.absc — 8つの仕事
+-- 警察官: パトロールと どろぼう逮捕 / 医者: 具合の悪い住人を治療
+-- シェフ: 材料を順番に入れて料理 → 配達 / 消防士: 家の火事を消す
+-- 先生: 学校でクイズの授業 / 配達員: 荷物を家に届ける
+-- タクシー: お客さん（住人や友だち）を目的地へ / 市民: 自由
+-- 仕事をするほど経験値がたまって肩書きが上がり、給料も上がる。
+
+let pay_bonus = 1        -- 給料2倍デーのとき 2
+let thieves = []         -- {npc, until, next_move}
+let fires = []           -- {n, flames, started, grown, helpers, first}
+let orders = []          -- {recipe, spot, who, player_id, t}
+let passengers = []      -- {npc, dest, t}
+let taxi_calls = []      -- {id, t}
+let reports = []         -- {pos, by, t}
+let lesson = nil         -- 授業中のとき {teacher_id, q, number, next_q, answered, correct, students}
+let job_clock = 0
+
+let SPAWN_THIEF = 70
+let SPAWN_FIRE = 80
+let SPAWN_SICK = 45
+let SPAWN_ORDER = 30
+let SPAWN_PASSENGER = 25
+
+-- MARK: 肩書きと給料
+
+func job_rank_index(p, key)
+  let xp = p.job_xp[key] or 0
+  let r = 1
+  for i in 1 to len(RANK_XP) do
+    if xp >= RANK_XP[i] then r = i end
+  end
+  return min(r, len(JOBS[key].ranks))
+end
+
+func job_title(p)
+  let job = JOBS[p.job]
+  return job.ranks[job_rank_index(p, p.job)]
+end
+
+func job_hud(p)
+  let job = JOBS[p.job]
+  let xp = p.job_xp[p.job] or 0
+  let r = job_rank_index(p, p.job)
+  let next = ""
+  if r < len(job.ranks) then next = "  次まで " + (RANK_XP[r + 1] - xp) end
+  let mayor = ""
+  if p.id == mayor_id then mayor = "🏛市長 " end
+  set_line(p, "job", mayor + job.icon + " " + job.name + "・" + job_title(p) + next,
+           {at: "top_left", dy: 80, size: 15, bold: true, color: "#E2E8F0"})
+end
+
+func task_line(p, text)
+  if text == nil then
+    set_line(p, "task", nil, nil)
+  else
+    set_line(p, "task", "📝 " + text, {at: "top", dy: 64, size: 16, color: "#FDE68A"})
+  end
+end
+
+-- 仕事をやりとげた: 給料（肩書きで1.25倍ずつ）・経験値・クエスト
+func job_done(p, base, xp, why, quest)
+  if not kit_here(p) then return end
+  let key = p.job
+  let before = job_rank_index(p, key)
+  let pay = base * (1 + (before - 1) * 0.25) * pay_bonus
+  if p.id == mayor_id then pay = pay * 1.1 end
+  earn(p, pay, why)
+  p.job_xp[key] = (p.job_xp[key] or 0) + xp
+  p.jobs_done = (p.jobs_done or 0) + 1
+  kit_xp(p, xp)
+  kit_badge(p, "first_job", BADGES.first_job)
+  kit_quest_progress(p, "work", 1)
+  if quest != nil then kit_quest_progress(p, quest, 1) end
+  let after_rank = job_rank_index(p, key)
+  if after_rank > before then
+    let title = JOBS[key].ranks[after_rank]
+    announce("🎖 " + p.name + " が " + JOBS[key].name + " の「" + title + "」に昇進！", 3)
+    news(p.name + " が「" + title + "」に昇進")
+    p.sound("goal")
+    if after_rank == len(JOBS[key].ranks) then kit_badge(p, "top_rank", BADGES.top_rank) end
+  end
+  job_hud(p)
+end
+
+-- MARK: 仕事につく・やめる
+
+func set_job(p, key)
+  let job = JOBS[key]
+  if job == nil or p.job == key then return end
+  job_end_task(p)
+  p.job = key
+  p.color = job.color
+  p.hat = job.hat
+  if p.id == mayor_id then p.hat = "crown" end
+  if not contains(p.jobs_tried, key) then append(p.jobs_tried, key) end
+  if len(p.jobs_tried) >= len(JOB_ORDER) then kit_badge(p, "all_jobs", BADGES.all_jobs) end
+  if key != "citizen" then kit_quest_progress(p, "job", 1) end
+  job_hud(p)
+  p.message(job.icon + " " + job.name + " になりました！ " + job.task, 3)
+  p.sound("checkpoint")
+  vehicle_job_changed(p)
+  job_new_task(p)
+end
+
+-- 今の仕事の途中のものを全部かたづける
+func job_end_task(p)
+  clear_goal(p)
+  task_line(p, nil)
+  set_action(p, "job", nil, nil)
+  p.task = nil
+  p.parcels = []
+  p.dish = nil
+  p.treat = 0
+  p.ui_remove("treat")
+  p.ui_remove("kitchen")
+  if p.cooking != nil then
+    if p.cooking.order != nil then p.cooking.order.cook_id = nil end
+    p.cooking = nil
+  end
+  if p.fare != nil then
+    -- 乗せていたお客さんは その場でおりる
+    p.fare = nil
+    p.message("お客さんがおりました", 1.5)
+  end
+  taxi_drop_rider(p, false)
+  if lesson != nil and lesson.teacher_id == p.id then lesson_end(false) end
+end
+
+-- 次の仕事を決める
+func job_new_task(p)
+  if not kit_here(p) then return end
+  let key = p.job
+  if key == "police" then police_task(p)
+  elif key == "doctor" then doctor_task(p)
+  elif key == "chef" then chef_task(p)
+  elif key == "firefighter" then fire_task(p)
+  elif key == "teacher" then teacher_task(p)
+  elif key == "courier" then courier_task(p)
+  elif key == "taxi" then taxi_task(p)
+  else
+    clear_goal(p)
+    task_line(p, "街を自由に楽しもう（住人と話す・お使い・市場・パーティー）")
+  end
+end
+
+func workers(key)
+  return filter(players(), func(p) return p.job == key end)
+end
+
+-- MARK: 👮 警察官
+
+func police_task(p)
+  -- 通報 → どろぼう → パトロール の順
+  if len(reports) > 0 then
+    let r = reports[1]
+    p.task = "report"
+    set_goal(p, r.pos, "通報の場所（" + r.by + "）", "#60A5FA")
+    task_line(p, "📞 " + r.by + " から通報！現場へ急げ")
+    return
+  end
+  let thief = nearest_thief(p)
+  if thief != nil then
+    p.task = "chase"
+    set_goal(p, thief.npc, "どろぼう", "#EF4444")
+    task_line(p, "🦹 どろぼうをつかまえろ！（近づくと逮捕）")
+    return
+  end
+  p.task = "patrol"
+  let spot = random_spot(p, 25)
+  set_goal(p, spot, "パトロール地点", "#60A5FA")
+  task_line(p, "🚓 パトロール: " + place_name(spot.position) + " のあたりへ")
+end
+
+func nearest_thief(p)
+  let best = nil
+  for t in thieves do
+    if kit_here(t.npc) and (best == nil or distance(p, t.npc) < distance(p, best.npc)) then best = t end
+  end
+  return best
+end
+
+func spawn_thief()
+  if len(thieves) >= 2 then return end
+  let spot = random_spot(nil, 0)
+  let n = create_npc({name: "どろぼう", position: spot.position + {x: 0, y: 1, z: 0}, color: "#111827",
+                      head_color: "#F5D0A9", leg_color: "#1F2937", hat: "cap", speed: 1.05, health: 100})
+  append(thieves, {npc: n, until: time() + 80, next_move: 0, stolen: 0})
+  news("🦹 どろぼうが " + place_name(spot.position) + " に出た！")
+  for p in workers("police") do
+    p.sound("checkpoint")
+    police_task(p)
+  end
+end
+
+func thief_tick()
+  for t in copy(thieves) do
+    let n = t.npc
+    if not kit_here(n) then
+      remove(thieves, index_of(thieves, t))
+    elif time() > t.until then
+      news("🦹 どろぼうに逃げられた…（" + t.stolen + " コイン盗まれた）")
+      n.destroy()
+      remove(thieves, index_of(thieves, t))
+      for p in workers("police") do
+        if p.task == "chase" then police_task(p) end
+      end
+    else
+      -- 警察が近いと逃げる。そうでなければ ぶらぶら
+      let cop = nil
+      for p in workers("police") do
+        if distance(p, n) < 14 and (cop == nil or distance(p, n) < distance(cop, n)) then cop = p end
+      end
+      if cop != nil and time() > t.next_move then
+        n.move_to(random_spot(cop, 30))
+        t.next_move = time() + 4
+      elif time() > t.next_move then
+        n.move_to(random_spot(n, 15))
+        t.next_move = time() + 10
+      end
+      -- 近くの人からコインをぬすむ
+      for p in players() do
+        if p.job != "police" and distance(p, n) < 2.2 and cooldown_ok(p, "robbed", 12) then
+          let take = min(30, floor(kit_money(p) * 0.1))
+          if take > 0 then
+            kit_give(p, 0 - take)
+            update_score(p)
+            t.stolen = t.stolen + take
+            p.message("🦹 どろぼうに " + take + " コイン盗まれた！📱で通報しよう", 2.5)
+            p.sound("error")
+          end
+        end
+      end
+      -- 逮捕
+      for p in workers("police") do
+        if kit_here(n) and distance(p, n) < 2.8 then
+          police_arrest(p, t)
+        end
+      end
+    end
+  end
+end
+
+func police_arrest(p, t)
+  let n = t.npc
+  if not kit_here(n) then return end
+  n.say("くそー、つかまった！")
+  n.destroy()
+  remove(thieves, index_of(thieves, t))
+  p.arrests = (p.arrests or 0) + 1
+  if p.arrests >= 3 then kit_badge(p, "hero", BADGES.hero) end
+  news("👮 " + p.name + " が どろぼうを逮捕！")
+  sound("goal")
+  job_done(p, 80 + t.stolen, 20, "逮捕！", "thief")
+  -- 盗まれたお金は警察がみんなに返す（市のお金で）
+  for other in workers("police") do
+    if other.id != p.id and distance(other, p) < 20 then earn(other, 20, "逮捕の応援") end
+  end
+  for other in workers("police") do police_task(other) end
+end
+
+func police_tick(p)
+  if p.task == "patrol" and goal_distance(p) < 4 then
+    job_done(p, 15, 6, "パトロール完了", nil)
+    police_task(p)
+  elif p.task == "report" and goal_distance(p) < 5 then
+    remove(reports, 1)
+    job_done(p, 30, 10, "通報にかけつけた", nil)
+    police_task(p)
+  elif p.task == "chase" and p.goal == nil then
+    police_task(p)
+  elif p.task == "patrol" and len(thieves) > 0 then
+    police_task(p)
+  end
+end
+
+-- 🚨 サイレン: 6秒だけ速く走れる
+func police_siren(p)
+  if not cooldown_ok(p, "siren", 20) then
+    p.message("サイレンは20秒に1回", 1)
+    return
+  end
+  p.boost_until = time() + 6
+  p.boost = 1.5
+  move_refresh(p)
+  chat("🚨 ウーウー！ " + p.name + " のパトカーが通ります")
+  p.sound("checkpoint")
+end
+
+-- MARK: 🩺 医者
+
+func sick_folk()
+  return filter(folk, func(f) return f.sick and kit_here(f.npc) end)
+end
+
+func doctor_task(p)
+  let list = sick_folk()
+  if len(list) > 0 then
+    let best = list[1]
+    for f in list do
+      if distance(p, f.npc) < distance(p, best.npc) then best = f end
+    end
+    p.task = "cure"
+    set_goal(p, best.npc, best.info.name, "#F87171")
+    task_line(p, "🤒 " + best.info.name + " の具合が悪い！そばで3秒治療")
+    return
+  end
+  p.task = "wait"
+  set_goal(p, block("Job Doctor"), "病院", "#F87171")
+  task_line(p, "🏥 病院で待機（けがをした人は🩹手当てできる）")
+end
+
+func make_sick()
+  let healthy = filter(folk, func(f) return not f.sick and kit_here(f.npc) end)
+  if len(healthy) == 0 or len(sick_folk()) >= 2 then return end
+  let f = random(healthy)
+  f.sick = true
+  f.sick_since = time()
+  f.npc.stop()
+  f.npc.color = "#86EFAC"
+  f.npc.say("うう…具合が悪い…だれか お医者さんを…")
+  for p in workers("doctor") do
+    p.sound("checkpoint")
+    doctor_task(p)
+  end
+end
+
+func cure_folk(f)
+  f.sick = false
+  if kit_here(f.npc) then
+    f.npc.color = f.info.color
+    f.npc.say("ありがとう、先生！元気になった！")
+  end
+end
+
+func doctor_tick(p, dt)
+  -- 近くの病人を治療
+  let near = nil
+  for f in sick_folk() do
+    if distance(p, f.npc) < 3.2 then near = f end
+  end
+  if near != nil then
+    p.treat = (p.treat or 0) + dt
+    p.ui_bar("treat", p.treat, 3, {at: "center", dy: 60, w: 220, h: 14, color: "#F87171"})
+    if p.treat >= 3 then
+      p.treat = 0
+      p.ui_remove("treat")
+      cure_folk(near)
+      job_done(p, 45, 12, near.info.name + " を治療", "cure")
+      doctor_task(p)
+    end
+  elif (p.treat or 0) > 0 then
+    p.treat = 0
+    p.ui_remove("treat")
+  end
+  if p.task == "cure" and p.goal == nil then doctor_task(p) end
+  if p.task == "wait" and len(sick_folk()) > 0 then doctor_task(p) end
+end
+
+func injured_near(p)
+  for other in players() do
+    if other.id != p.id and other.alive and other.health < other.max_health and distance(p, other) < 3.5 then return other end
+  end
+  return nil
+end
+
+func doctor_heal(p)
+  let other = injured_near(p)
+  if other == nil then return end
+  if not cooldown_ok(p, "heal" + other.id, 10) then
+    p.message("少し待ってから", 1)
+    return
+  end
+  other.heal(other.max_health)
+  other.message("🩹 " + p.name + " 先生に手当てしてもらった", 2)
+  job_done(p, 12, 4, other.name + " を手当て", nil)
+end
+
+-- MARK: 👨‍🍳 シェフ
+
+func recipe_text(recipe)
+  let names = map(recipe.steps, func(s) return INGREDIENTS[s] end)
+  return join(names, " → ")
+end
+
+func chef_task(p)
+  if p.dish != nil then
+    let order = p.dish
+    p.task = "deliver"
+    let target = order.spot
+    if order.player_id != nil then
+      let buyer = player_by_id(order.player_id)
+      if buyer != nil then target = buyer end
+    end
+    set_goal(p, target, order.who + " に " + order.recipe.name, "#F59E0B")
+    task_line(p, "🛵 " + order.recipe.name + " を " + order.who + " に届けよう")
+    return
+  end
+  p.task = "cook"
+  set_goal(p, block("Job Chef"), "カフェのキッチン", "#F59E0B")
+  if len(orders) > 0 then
+    task_line(p, "📋 注文 " + len(orders) + " 件！カフェで🍳キッチンを開こう")
+  else
+    task_line(p, "☕ カフェで待機（注文が来たら料理。まかないも作れる）")
+  end
+end
+
+func new_order(player_id, who)
+  if len(orders) >= 5 then return nil end
+  let spot = random_spot(block("Job Chef"), 25)
+  let order = {recipe: random(RECIPES), spot: spot, who: who, player_id: player_id, t: time()}
+  append(orders, order)
+  for p in workers("chef") do
+    p.message("📋 新しい注文: " + order.recipe.name + "（" + who + "）", 2)
+    p.sound("checkpoint")
+    if p.dish == nil then chef_task(p) end
+  end
+  return order
+end
+
+func kitchen_open(p)
+  if p.dish != nil then
+    p.message("先に " + p.dish.recipe.name + " を届けよう", 1.5)
+    return
+  end
+  if p.cooking == nil then
+    let order = nil
+    for o in orders do
+      if o.cook_id == nil and order == nil then order = o end
+    end
+    if order != nil then
+      order.cook_id = p.id
+      p.cooking = {order: order, recipe: order.recipe, pos: 0}
+    else
+      p.cooking = {order: nil, recipe: random(RECIPES), pos: 0}
+    end
+  end
+  kitchen_draw(p)
+end
+
+func kitchen_draw(p)
+  let c = p.cooking
+  let panel_h = 420
+  p.ui_panel("kitchen", {at: "center", w: 600, h: panel_h, bg: "#3B1D0EF2", radius: 22, layer: 30})
+  let head = "🍳 まかない: " + c.recipe.name
+  if c.order != nil then head = "🍳 注文: " + c.recipe.name + "（" + c.order.who + "）" end
+  p.ui_text("kitchen_t", head, {parent: "kitchen", y: 0.07, size: 20, bold: true, color: "#FDE68A"})
+  -- 上手になるとレシピを見なくても作れる（ヒントが短くなる）
+  let hint = recipe_text(c.recipe)
+  if job_rank_index(p, "chef") >= 3 then hint = "（三つ星のうでで）材料 " + len(c.recipe.steps) + " つ" end
+  p.ui_text("kitchen_h", hint, {parent: "kitchen", y: 0.16, size: 15, color: "#FFFFFF"})
+  p.ui_text("kitchen_p", "できた数: " + c.pos + " / " + len(c.recipe.steps), {parent: "kitchen", y: 0.24, size: 15, color: "#A7F3D0"})
+  let i = 0
+  for key in INGREDIENT_ORDER do
+    i = i + 1
+    let col = (i - 1) % 3
+    let row = floor((i - 1) / 3)
+    p.ui_button("cook_" + key, INGREDIENTS[key], {parent: "kitchen", x: 0.2 + col * 0.3, y: 0.34 + row * 0.13, w: 170, h: 44, size: 16, bg: "#92400E"})
+  end
+  p.ui_button("kitchen_close", "閉じる", {parent: "kitchen", y: 0.93, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func kitchen_add(p, key)
+  let c = p.cooking
+  if c == nil then return end
+  let want = c.recipe.steps[c.pos + 1]
+  if key != want then
+    c.pos = 0
+    p.message("❌ ちがう材料！最初からやり直し", 1.5)
+    p.sound("error")
+    kitchen_draw(p)
+    return
+  end
+  c.pos = c.pos + 1
+  p.sound("collect")
+  if c.pos < len(c.recipe.steps) then
+    kitchen_draw(p)
+    return
+  end
+  -- 完成
+  p.ui_remove("kitchen")
+  p.cooking = nil
+  p.dishes = (p.dishes or 0) + 1
+  if c.order == nil then
+    job_done(p, 8, 4, "まかない " + c.recipe.name, nil)
+    chef_task(p)
+    return
+  end
+  if contains(orders, c.order) then remove(orders, index_of(orders, c.order)) end
+  p.dish = c.order
+  p.message("✨ " + c.recipe.name + " ができた！届けに行こう", 2)
+  chef_task(p)
+end
+
+func chef_tick(p)
+  if p.task == "deliver" and p.dish != nil and goal_distance(p) < 3.5 then
+    let order = p.dish
+    let pay = 35 * order.recipe.price
+    let tip = 0
+    if time() - order.t < 75 then tip = 15 end
+    p.dish = nil
+    if order.player_id != nil then
+      let buyer = player_by_id(order.player_id)
+      if buyer != nil then
+        buyer.message("🍱 " + p.name + " から " + order.recipe.name + " が届いた！（元気100%）", 2.5)
+        buyer.heal(buyer.max_health)
+        buyer.boost_until = time() + 20
+        buyer.boost = 1.3
+        move_refresh(buyer)
+        tip = tip + 10
+      end
+    end
+    job_done(p, pay + tip, 12, order.recipe.name + " を配達", "cook")
+    chef_task(p)
+  elif p.task == "deliver" and p.goal == nil then
+    -- 注文した人がいなくなった
+    p.dish = nil
+    chef_task(p)
+  end
+end
+
+func near_cafe(p)
+  let pad = block("Job Chef")
+  return pad != nil and distance(p, pad) < 14
+end
+
+-- MARK: 🚒 消防士
+
+func fire_at(n)
+  for f in fires do
+    if f.n == n then return f end
+  end
+  return nil
+end
+
+func add_flame(f)
+  let door = home_door(f.n)
+  if door == nil then return end
+  let facing = home_facing(f.n)
+  let flame = create_block({name: "Fire", shape: "cone", position: {x: door.x + random(-4.5, 4.5), y: 0.9 + random() * 2.2, z: door.z + facing * 0.7},
+                            size: {x: 1.2, y: 1.8, z: 1.2}, color: random(["#F97316", "#EF4444", "#FACC15"]), material: "neon",
+                            solid: false, behavior: "trigger", tags: ["fire"]})
+  append(f.flames, flame)
+end
+
+func start_fire()
+  if len(fires) >= 2 then return end
+  let choices = []
+  for n in 1 to 8 do
+    if fire_at(str(n)) == nil then append(choices, str(n)) end
+  end
+  if len(choices) == 0 then return end
+  let n = random(choices)
+  let f = {n: n, flames: [], started: time(), grown: time(), helpers: [], first: 0}
+  append(fires, f)
+  let count = 3
+  if weather_now == "windy" then count = 4 end
+  for i in 1 to count do add_flame(f) end
+  f.first = len(f.flames)
+  news("🔥 House " + n + " で火事！消防士は急げ！")
+  sound("error")
+  let h = home_of(n)
+  let owner = player_by_id(h.owner_id)
+  if owner != nil then owner.message("🔥 あなたの家が火事！消防士を呼ぼう", 3) end
+  for p in workers("firefighter") do fire_task(p) end
+end
+
+func fire_task(p)
+  let best = nil
+  for f in fires do
+    let door = home_door(f.n)
+    if best == nil or distance(p, door) < distance(p, home_door(best.n)) then best = f end
+  end
+  if best != nil then
+    p.task = "fire"
+    set_goal(p, home_door(best.n), "House " + best.n + " の火事", "#EF4444")
+    task_line(p, "🔥 House " + best.n + " が燃えている！近くで💦放水")
+    return
+  end
+  p.task = "wait"
+  set_goal(p, block("Job Firefighter"), "消防署", "#EF4444")
+  task_line(p, "🚒 消防署で待機（火事が起きたら出動）")
+end
+
+func fire_near(p, r)
+  let best = nil
+  let best_d = r
+  for f in fires do
+    for flame in f.flames do
+      let d = distance(p, flame)
+      if d < best_d then
+        best = f
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func fire_spray(p)
+  let f = fire_near(p, 9)
+  if f == nil then return end
+  if not cooldown_ok(p, "spray", 0.35) then return end
+  -- いちばん近い炎を1つ消す
+  let best = nil
+  for b in f.flames do
+    if best == nil or distance(p, b) < distance(p, best) then best = b end
+  end
+  if best == nil then return end
+  gone(best)
+  remove(f.flames, index_of(f.flames, best))
+  p.sound("hit")
+  if not contains(f.helpers, p.id) then append(f.helpers, p.id) end
+  if len(f.flames) == 0 then fire_out(p, f) end
+end
+
+func fire_out(p, f)
+  remove(fires, index_of(fires, f))
+  news("🚒 " + p.name + " が House " + f.n + " の火事を消した！")
+  sound("goal")
+  job_done(p, 50 + 8 * f.first, 14, "消火", "fire")
+  for id in f.helpers do
+    let other = player_by_id(id)
+    if other != nil and other.id != p.id then earn(other, 20, "消火の手伝い") end
+  end
+  let owner = player_by_id(home_of(f.n).owner_id)
+  if owner != nil and owner.id != p.id then owner.message("🚒 " + p.name + " が家の火を消してくれた！", 2.5) end
+  for other in workers("firefighter") do fire_task(other) end
+end
+
+func fire_tick()
+  for f in copy(fires) do
+    let grow = 15
+    if weather_now == "windy" then grow = 8 end
+    if weather_now == "rain" then grow = 25 end
+    if time() - f.started > 100 then
+      -- 燃えつきた
+      for b in f.flames do gone(b) end
+      remove(fires, index_of(fires, f))
+      home_scorch(f.n)
+      news("💨 House " + f.n + " の火は燃えつきた…（次は消防士が来てくれるといいね）")
+      for p in workers("firefighter") do fire_task(p) end
+    elif time() - f.grown > grow and len(f.flames) < 9 then
+      f.grown = time()
+      add_flame(f)
+    end
+  end
+end
+
+-- MARK: 📚 先生
+
+func teacher_task(p)
+  if lesson != nil and lesson.teacher_id == p.id then
+    p.task = "teaching"
+    task_line(p, "📖 授業中！ 問題 " + lesson.number + " / 5")
+    return
+  end
+  p.task = "school"
+  set_goal(p, block("Job Teacher"), "学校", "#22C55E")
+  if lesson != nil then
+    task_line(p, "🏫 ほかの先生が授業中。終わったら次はあなた")
+  else
+    task_line(p, "🏫 学校で📖授業を始めよう（近くの人がクイズに参加）")
+  end
+end
+
+func near_school(p, r)
+  let pad = block("Job Teacher")
+  return pad != nil and distance(p, pad) < r
+end
+
+func lesson_start(p)
+  if lesson != nil then
+    p.message("いまは授業中です", 1.5)
+    return
+  end
+  lesson = {teacher_id: p.id, teacher: p.name, number: 0, next_q: time() + 2, q: nil, answered: [], correct: 0, students: [], npc_right: 0}
+  clear_goal(p)
+  announce("🏫 " + p.name + " 先生の授業が始まる！学校の近くにいるとクイズに答えられる（正解でコイン）", 4)
+  teacher_task(p)
+end
+
+func lesson_question()
+  lesson.number = lesson.number + 1
+  lesson.q = random(QUIZ)
+  lesson.answered = []
+  lesson.next_q = time() + 9
+  let teacher = player_by_id(lesson.teacher_id)
+  if teacher != nil then teacher_task(teacher) end
+  for p in players() do
+    if p.id != lesson.teacher_id and near_school(p, 22) then
+      if not contains(lesson.students, p.id) then append(lesson.students, p.id) end
+      quiz_show(p)
+    end
+  end
+  -- NPCの生徒もこたえる
+  for s in school_kids do
+    if kit_here(s) and random() < 0.6 then
+      lesson.npc_right = lesson.npc_right + 1
+      s.say("はい！わかった！")
+    end
+  end
+end
+
+func quiz_show(p)
+  let q = lesson.q
+  p.ui_panel("quiz", {at: "center", dy: -60, w: 520, h: 210, bg: "#064E3BF0", radius: 20, layer: 35})
+  p.ui_text("quiz_t", "📖 問題 " + lesson.number + "：" + q.q, {parent: "quiz", y: 0.2, size: 20, bold: true, color: "#FFFFFF"})
+  p.ui_button("quiz_a", "A. " + q.a, {parent: "quiz", x: 0.18, y: 0.65, w: 150, h: 54, size: 17, bg: "#2563EB"})
+  p.ui_button("quiz_b", "B. " + q.b, {parent: "quiz", x: 0.5, y: 0.65, w: 150, h: 54, size: 17, bg: "#DB2777"})
+  p.ui_button("quiz_c", "C. " + q.c, {parent: "quiz", x: 0.82, y: 0.65, w: 150, h: 54, size: 17, bg: "#CA8A04"})
+end
+
+func quiz_answer(p, choice)
+  p.ui_remove("quiz")
+  if lesson == nil or lesson.q == nil or contains(lesson.answered, p.id) then return end
+  append(lesson.answered, p.id)
+  if choice == lesson.q.ok then
+    lesson.correct = lesson.correct + 1
+    earn(p, 10, "⭕ 正解！")
+    kit_xp(p, 5)
+    kit_quest_progress(p, "quiz", 1)
+    p.sound("collect")
+  else
+    p.message("❌ ざんねん！正解は " + upper(lesson.q.ok) + "：" + lesson.q[lesson.q.ok], 2.5)
+    p.sound("error")
+  end
+end
+
+func lesson_end(finished)
+  let l = lesson
+  lesson = nil
+  for p in players() do p.ui_remove("quiz") end
+  let teacher = player_by_id(l.teacher_id)
+  if teacher == nil then return end
+  if finished then
+    let pay = 30 + l.correct * 6 + len(l.students) * 8 + l.npc_right * 2
+    news("🏫 " + l.teacher + " 先生の授業が終わった（生徒 " + len(l.students) + " 人、正解 " + l.correct + "）")
+    job_done(teacher, pay, 15, "授業", "class")
+    if teacher.job == "teacher" then teacher_task(teacher) end
+  end
+end
+
+func lesson_tick()
+  if lesson == nil then return end
+  let teacher = player_by_id(lesson.teacher_id)
+  if teacher == nil or teacher.job != "teacher" then
+    lesson_end(false)
+    return
+  end
+  if time() >= lesson.next_q then
+    if lesson.number >= 5 then
+      lesson_end(true)
+    else
+      lesson_question()
+    end
+  end
+end
+
+-- MARK: 📦 配達員
+
+func courier_task(p)
+  if len(p.parcels) > 0 then
+    let n = p.parcels[1]
+    p.task = "parcel"
+    set_goal(p, home_door(n), "House " + n + " に荷物", "#FBBF24")
+    task_line(p, "📦 のこり " + len(p.parcels) + " こ：House " + n + " のドアへ")
+    return
+  end
+  p.task = "post"
+  set_goal(p, block("Job Courier"), "郵便局", "#FBBF24")
+  task_line(p, "📮 郵便局で📦荷物を受け取ろう")
+end
+
+func courier_pickup(p)
+  if len(p.parcels) > 0 then
+    p.message("まだ荷物が " + len(p.parcels) + " こあります", 1.5)
+    return
+  end
+  let count = 3
+  if job_rank_index(p, "courier") >= 3 then count = 4 end
+  let houses = shuffle(range(1, 8))
+  p.parcels = map(slice(houses, 1, count), func(n) return str(n) end)
+  p.parcel_t = time()
+  p.message("📦 荷物を " + count + " こ受け取った！", 2)
+  p.sound("collect")
+  courier_task(p)
+end
+
+func courier_deliver(p, n)
+  if not contains(p.parcels, n) then return end
+  remove(p.parcels, index_of(p.parcels, n))
+  let pay = 25
+  let h = home_of(n)
+  let owner = player_by_id(h.owner_id)
+  if owner != nil and owner.id != p.id then
+    pay = 35
+    earn(owner, 10, "📦 " + p.name + " から荷物が届いた")
+  end
+  job_done(p, pay, 8, "House " + n + " に配達", "parcel")
+  if len(p.parcels) == 0 then
+    let bonus = 20
+    if time() - p.parcel_t < 90 then bonus = 40 end
+    earn(p, bonus, "全部配達ボーナス")
+  end
+  courier_task(p)
+end
+
+func near_post(p)
+  let pad = block("Job Courier")
+  return pad != nil and distance(p, pad) < 9
+end
+
+-- MARK: 🚕 タクシー
+
+func taxi_task(p)
+  if p.rider != nil then
+    task_line(p, "🚕 " + p.rider_name + " を乗せています（行きたい所まで）")
+    return
+  end
+  if p.fare != nil then
+    p.task = "drive"
+    set_goal(p, p.fare.dest, "お客さんの目的地", "#FACC15")
+    task_line(p, "🚕 お客さん（" + p.fare.name + "）を " + place_name(p.fare.dest.position) + " まで")
+    return
+  end
+  -- 呼んだ友だちが先
+  for call in taxi_calls do
+    let caller = player_by_id(call.id)
+    if caller != nil then
+      p.task = "call"
+      set_goal(p, caller, caller.name + "（呼んでいる）", "#FACC15")
+      task_line(p, "📞 " + caller.name + " がタクシーを呼んでいる！近くまで行こう")
+      return
+    end
+  end
+  let best = nil
+  for w in passengers do
+    if kit_here(w.npc) and (best == nil or distance(p, w.npc) < distance(p, best.npc)) then best = w end
+  end
+  if best != nil then
+    p.task = "pickup"
+    set_goal(p, best.npc, "お客さん", "#FACC15")
+    task_line(p, "🙋 手をあげているお客さんを乗せよう（近づくと乗る）")
+    return
+  end
+  p.task = "wait"
+  set_goal(p, block("Job Taxi"), "タクシー乗り場", "#FACC15")
+  task_line(p, "🚕 タクシー乗り場で待機（お客さんが来たら迎えに）")
+end
+
+func spawn_passenger()
+  if len(passengers) >= 3 then return end
+  let spot = random_spot(nil, 0)
+  let names = ["会社員", "おばあさん", "観光客", "学生", "旅人"]
+  let who = random(names)
+  let n = create_npc({name: "🙋 " + who, position: spot.position + {x: 0, y: 1, z: 0}, color: random(["#A78BFA", "#34D399", "#F472B6", "#60A5FA"]),
+                      speed: 0.6})
+  append(passengers, {npc: n, dest: random_spot(spot, 40), t: time(), name: who})
+  for p in workers("taxi") do
+    if p.fare == nil and p.rider == nil then taxi_task(p) end
+  end
+end
+
+func passenger_tick()
+  for w in copy(passengers) do
+    if not kit_here(w.npc) then
+      remove(passengers, index_of(passengers, w))
+    elif time() - w.t > 90 then
+      w.npc.say("もういいや、歩いて行こう…")
+      w.npc.destroy()
+      remove(passengers, index_of(passengers, w))
+    end
+  end
+end
+
+func taxi_tick(p)
+  if p.rider != nil then return end
+  if p.fare != nil then
+    if goal_distance(p) < 5 then
+      let f = p.fare
+      p.fare = nil
+      let dist = distance(f.from, f.dest)
+      let pay = 20 + dist / 3
+      if weather_now == "rain" then pay = pay * 1.5 end
+      -- お客さんは目的地でおりて、少し歩いて帰る
+      let pos = f.dest.position + {x: 2, y: 1, z: 0}
+      let n = create_npc({name: f.name, position: pos, color: "#A78BFA", speed: 0.6})
+      n.say("ありがとう！はやかった！")
+      after(4, func()
+        if kit_here(n) then n.destroy() end
+      end)
+      job_done(p, pay, 12, "タクシー料金", "taxi")
+      taxi_task(p)
+    end
+    return
+  end
+  for w in passengers do
+    if kit_here(w.npc) and distance(p, w.npc) < 4 then
+      w.npc.destroy()
+      remove(passengers, index_of(passengers, w))
+      p.fare = {dest: w.dest, from: p.position, name: w.name}
+      p.message("🙋 お客さんが乗った！", 1.5)
+      p.sound("collect")
+      taxi_task(p)
+      return
+    end
+  end
+  -- 呼んだ友だちの近く
+  for call in copy(taxi_calls) do
+    let caller = player_by_id(call.id)
+    if caller == nil then
+      remove(taxi_calls, index_of(taxi_calls, call))
+    elif distance(p, caller) < 4.5 and caller.riding == nil then
+      remove(taxi_calls, index_of(taxi_calls, call))
+      caller.offer_driver = p.id
+      caller.ui_panel("ride", {at: "bottom", dy: -170, w: 420, h: 90, bg: "#000000D0", radius: 16, layer: 20})
+      caller.ui_text("ride_t", "🚕 " + p.name + " のタクシーが来た！", {parent: "ride", y: 0.25, size: 16, color: "#FDE047"})
+      caller.ui_button("ride_yes", "乗る", {parent: "ride", x: 0.3, y: 0.7, w: 140, h: 40, size: 16, bg: "green"})
+      caller.ui_button("ride_no", "やめる", {parent: "ride", x: 0.75, y: 0.7, w: 120, h: 40, size: 15, bg: "gray"})
+      p.message(caller.name + " に声をかけた", 1.5)
+      return
+    end
+  end
+  if p.task == "pickup" and p.goal == nil then taxi_task(p) end
+  if p.task == "wait" and (len(passengers) > 0 or len(taxi_calls) > 0) then taxi_task(p) end
+end
+
+-- 友だちを乗せる: 運転手の上に乗って いっしょに動く
+func taxi_board(rider)
+  rider.ui_remove("ride")
+  let driver = player_by_id(rider.offer_driver)
+  rider.offer_driver = nil
+  if driver == nil or driver.job != "taxi" or driver.rider != nil then
+    rider.message("タクシーは行ってしまった…", 1.5)
+    return
+  end
+  driver.rider = rider.id
+  driver.rider_name = rider.name
+  driver.ride_from = driver.position
+  rider.riding = driver.id
+  rider.frozen = true
+  rider.ui_button("ride_off", "🚪 おりる", {at: "bottom", dy: -170, w: 170, h: 52, size: 17, bg: "#DC2626"})
+  rider.message("🚕 乗った！行きたい所に着いたら「おりる」", 2.5)
+  driver.message("🚕 " + rider.name + " が乗った！行きたい所を聞いて運転しよう", 2.5)
+  clear_goal(driver)
+  taxi_task(driver)
+end
+
+-- おりる: 走ったきょりで料金。pay が false なら料金なし
+func taxi_drop_rider(driver, pay)
+  if driver.rider == nil then return end
+  let rider = player_by_id(driver.rider)
+  let dist = distance(driver.ride_from, driver)
+  driver.rider = nil
+  driver.rider_name = nil
+  if rider != nil then
+    rider.riding = nil
+    rider.frozen = false
+    rider.ui_remove("ride_off")
+    rider.position = driver.position + {x: 2, y: 0.5, z: 0}
+    if pay then
+      let fare = min(kit_money(rider), floor(10 + dist / 5))
+      if fare > 0 then
+        kit_give(rider, 0 - fare)
+        update_score(rider)
+      end
+      rider.message("🚕 料金 " + fare + " コイン。ありがとうございました！", 2)
+      if kit_here(driver) then job_done(driver, fare + 10, 12, rider.name + " を送った", "taxi") end
+    end
+  end
+end
+
+func rider_tick()
+  for p in players() do
+    if p.riding != nil then
+      let driver = player_by_id(p.riding)
+      if driver == nil then
+        p.riding = nil
+        p.frozen = false
+        p.ui_remove("ride_off")
+      else
+        p.position = driver.position + {x: 0, y: 2.3, z: 0}
+      end
+    end
+  end
+end
+
+-- MARK: 毎ティック
+
+on tick(dt)
+  rider_tick()
+  job_clock = job_clock + dt
+  if job_clock < 0.5 then return end
+  let span = job_clock
+  job_clock = 0
+
+  thief_tick()
+  fire_tick()
+  lesson_tick()
+  passenger_tick()
+
+  for p in players() do
+    let key = p.job
+    if key == "police" then
+      police_tick(p)
+      set_action(p, "job", "🚨 サイレン", "#1D4ED8")
+    elif key == "doctor" then
+      doctor_tick(p, span)
+      if injured_near(p) != nil then set_action(p, "job", "🩹 手当て", "#DC2626") else set_action(p, "job", nil, nil) end
+    elif key == "chef" then
+      chef_tick(p)
+      if near_cafe(p) and p.dish == nil then set_action(p, "job", "🍳 キッチン", "#B45309") else set_action(p, "job", nil, nil) end
+    elif key == "firefighter" then
+      if p.task == "fire" and len(fires) == 0 then fire_task(p) end
+      if p.task == "wait" and len(fires) > 0 then fire_task(p) end
+      if fire_near(p, 9) != nil then set_action(p, "job", "💦 放水", "#0284C7") else set_action(p, "job", nil, nil) end
+    elif key == "teacher" then
+      if lesson == nil and near_school(p, 16) then set_action(p, "job", "📖 授業開始", "#15803D") else set_action(p, "job", nil, nil) end
+    elif key == "courier" then
+      if near_post(p) and len(p.parcels) == 0 then set_action(p, "job", "📦 荷物をもらう", "#D97706") else set_action(p, "job", nil, nil) end
+    elif key == "taxi" then
+      taxi_tick(p)
+    end
+  end
+end
+
+-- MARK: できごと（どろぼう・火事・病気・注文・お客さん）
+
+on start()
+  every(SPAWN_THIEF, func()
+    if len(workers("police")) > 0 or random() < 0.3 then spawn_thief() end
+  end)
+  every(SPAWN_FIRE, func()
+    let chance = 0.35
+    if len(workers("firefighter")) > 0 then chance = 1 end
+    if weather_now == "rain" then chance = chance * 0.5 end
+    if random() < chance then start_fire() end
+  end)
+  every(SPAWN_SICK, func()
+    if len(workers("doctor")) > 0 or random() < 0.3 then make_sick() end
+    -- 長く放っておかれた病人は自分で治る
+    for f in folk do
+      if f.sick and time() - f.sick_since > 120 then cure_folk(f) end
+    end
+  end)
+  every(SPAWN_ORDER, func()
+    if len(workers("chef")) > 0 then new_order(nil, random(TOWNSFOLK).name) end
+  end)
+  every(SPAWN_PASSENGER, func()
+    if len(workers("taxi")) > 0 then spawn_passenger() end
+  end)
+  every(60, func()
+    -- 市民の生活費
+    for p in workers("citizen") do earn(p, 5, "生活費") end
+  end)
+end
+
+-- MARK: ボタンとタッチ
+
+on button(p, id)
+  if id == "act_job" then
+    let key = p.job
+    if key == "police" then police_siren(p)
+    elif key == "doctor" then doctor_heal(p)
+    elif key == "chef" then kitchen_open(p)
+    elif key == "firefighter" then fire_spray(p)
+    elif key == "teacher" and near_school(p, 16) then lesson_start(p)
+    elif key == "courier" and near_post(p) then courier_pickup(p)
+    end
+  elif id == "open_jobs" then
+    jobs_menu(p)
+  elif id == "jobs_close" then
+    p.ui_remove("jobs")
+  elif starts_with(id, "job_pick_") then
+    p.ui_remove("jobs")
+    let key = replace(id, "job_pick_", "")
+    let pad = JOBS[key].pad
+    if pad != nil and block(pad) != nil then
+      p.teleport(block(pad))
+    end
+    set_job(p, key)
+  elif starts_with(id, "cook_") and p.job == "chef" then
+    kitchen_add(p, replace(id, "cook_", ""))
+  elif id == "kitchen_close" then
+    p.ui_remove("kitchen")
+  elif id == "quiz_a" or id == "quiz_b" or id == "quiz_c" then
+    quiz_answer(p, replace(id, "quiz_", ""))
+  elif id == "ride_yes" then
+    taxi_board(p)
+  elif id == "ride_no" then
+    p.ui_remove("ride")
+    p.offer_driver = nil
+  elif id == "ride_off" then
+    let driver = player_by_id(p.riding)
+    if driver != nil then
+      taxi_drop_rider(driver, true)
+      if driver.job == "taxi" then taxi_task(driver) end
+    else
+      p.riding = nil
+      p.frozen = false
+      p.ui_remove("ride_off")
+    end
+  end
+end
+
+-- 仕事の一覧（💼ボタン）: 押すとその仕事の場所へ行って仕事につく
+func jobs_menu(p)
+  let panel_h = 120 + len(JOB_ORDER) * 54
+  p.ui_panel("jobs", {at: "center", w: 520, h: panel_h, bg: "#0F172AF0", radius: 22, layer: 30})
+  p.ui_text("jobs_title", "💼 仕事をえらぶ（押すと職場へ）", {parent: "jobs", y: 28 / panel_h, size: 21, bold: true, color: "gold"})
+  let i = 0
+  for key in JOB_ORDER do
+    i = i + 1
+    let job = JOBS[key]
+    let r = job_rank_index(p, key)
+    let label = job.icon + " " + job.name + "（" + job.ranks[r] + "）  💰" + job.pay
+    if p.job == key then label = "✅ " + label end
+    p.ui_button("job_pick_" + key, label, {parent: "jobs", y: (34 + i * 54) / panel_h, w: 440, h: 46, size: 16, bg: "#1E293B"})
+  end
+  p.ui_button("jobs_close", "閉じる", {parent: "jobs", y: (panel_h - 28) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "job") then
+    for key in JOB_ORDER do
+      if JOBS[key].pad == b.name then
+        if p.job != key then
+          set_job(p, key)
+        elif key == "courier" then
+          courier_pickup(p)
+        end
+      end
+    end
+  elif contains(b.tags, "fire") then
+    if p.job != "firefighter" and cooldown_ok(p, "burn", 1) then
+      p.damage(6)
+      p.message("🔥 あつい！消防士を呼ぼう", 1)
+    end
+  elif contains(b.tags, "door") and starts_with(b.name, "House ") and p.job == "courier" then
+    courier_deliver(p, split(b.name, " ")[2])
+  end
+end
+
+on leave(p)
+  job_end_task(p)
+  -- 呼んだタクシーを取り消す
+  for call in copy(taxi_calls) do
+    if call.id == p.id then remove(taxi_calls, index_of(taxi_calls, call)) end
+  end
+  -- 乗っていたタクシーからおりる
+  if p.riding != nil then
+    let driver = player_by_id(p.riding)
+    if driver != nil then
+      driver.rider = nil
+      driver.rider_name = nil
+      if driver.job == "taxi" then taxi_task(driver) end
+    end
+  end
+  -- 作りかけの注文をもどす
+  for o in orders do
+    if o.cook_id == p.id then o.cook_id = nil end
+  end
+  -- 出前を注文していたら取り消す
+  for o in copy(orders) do
+    if o.player_id == p.id then remove(orders, index_of(orders, o)) end
+  end
+end

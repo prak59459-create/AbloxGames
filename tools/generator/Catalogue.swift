@@ -13,7 +13,18 @@ struct Game {
     let build: (MapBuilder) -> Void
 
     var folder: String { "games/\(id)" }
-    var scriptPaths: [String] { [Catalogue.kitPath, "\(folder)/main.absc"] }
+
+    /// Every `.absc` in the game's folder, in the order they run: `data.absc`
+    /// first (tables other files read), then the rest alphabetically, then
+    /// `main.absc` last (it sets the game up with everything defined).
+    func scriptPaths(root: URL) -> [String] {
+        let dir = root.appendingPathComponent(folder)
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
+            .filter { $0.hasSuffix(".absc") }
+        let middle = names.filter { $0 != "data.absc" && $0 != "main.absc" }.sorted()
+        let ordered = (names.contains("data.absc") ? ["data.absc"] : []) + middle + (names.contains("main.absc") ? ["main.absc"] : [])
+        return [Catalogue.kitPath] + ordered.map { "\(folder)/\($0)" }
+    }
 }
 
 enum Catalogue {

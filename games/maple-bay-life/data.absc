@@ -1,0 +1,152 @@
+-- data.absc — Maple Bay の表（仕事・家・乗り物・家具・住人・実績）
+-- ほかのファイルはここの表を読むだけ。数字を変えればゲームのバランスが変わる。
+
+-- MARK: 仕事
+-- rank_names: 経験値がたまると上がる肩書き。pay: 1回の仕事の基本給
+let JOBS = {
+  citizen: {name: "市民", icon: "🧑", color: "#64748B", hat: "none", pay: 0, pad: nil,
+            task: "街を自由に楽しもう", ranks: ["市民"]},
+  police: {name: "警察官", icon: "👮", color: "#1E3A8A", hat: "cap", pay: 40, pad: "Job Police",
+           task: "パトロール地点を回って、どろぼうをつかまえる", ranks: ["巡査", "巡査長", "警部", "署長"]},
+  doctor: {name: "医者", icon: "🩺", color: "#F8FAFC", hat: "none", pay: 45, pad: "Job Doctor",
+           task: "具合の悪い住人を見つけて治療する", ranks: ["研修医", "医師", "専門医", "院長"]},
+  chef: {name: "シェフ", icon: "👨‍🍳", color: "#FFFFFF", hat: "antenna", pay: 35, pad: "Job Chef",
+         task: "カフェで料理を作って、お客さんに届ける", ranks: ["見習い", "コック", "料理長", "三つ星シェフ"]},
+  firefighter: {name: "消防士", icon: "🚒", color: "#B91C1C", hat: "cap", pay: 45, pad: "Job Firefighter",
+                task: "火事の家に行って消火する", ranks: ["新人", "隊員", "隊長", "消防長"]},
+  teacher: {name: "先生", icon: "📚", color: "#15803D", hat: "none", pay: 30, pad: "Job Teacher",
+            task: "学校で授業をする（生徒が多いほど給料アップ）", ranks: ["新任", "担任", "教頭", "校長"]},
+  courier: {name: "配達員", icon: "📦", color: "#F59E0B", hat: "cap", pay: 30, pad: "Job Courier",
+            task: "郵便局の荷物を家に届ける", ranks: ["アルバイト", "配達員", "ベテラン", "エース"]},
+  taxi: {name: "タクシー運転手", icon: "🚕", color: "#FACC15", hat: "cap", pay: 35, pad: "Job Taxi",
+         task: "お客さんを乗せて目的地まで運ぶ", ranks: ["新人ドライバー", "ドライバー", "ベテラン", "伝説の運転手"]}
+}
+let JOB_ORDER = ["citizen", "police", "doctor", "chef", "firefighter", "teacher", "courier", "taxi"]
+let RANK_XP = [0, 60, 200, 500]
+
+-- MARK: 家（番号 → 値段と格）
+let HOUSE_PRICE = {"1": 300, "2": 300, "3": 450, "4": 450, "5": 600, "6": 600, "7": 900, "8": 1200}
+let HOUSE_PAINTS = ["#F7D6E0", "#D6EAF8", "#FDEBD0", "#D5F5E3", "#E8DAEF", "#FCF3CF", "#1F2937", "#FFFFFF"]
+
+-- MARK: 家具
+let FURNITURE = [
+  {id: "sofa", name: "ソファ", price: 60, size: {x: 3, y: 1, z: 1.2}, color: "#DB2777", shape: "box"},
+  {id: "bed", name: "ベッド", price: 80, size: {x: 2.2, y: 0.7, z: 3.2}, color: "#60A5FA", shape: "box"},
+  {id: "table", name: "テーブル", price: 40, size: {x: 2.2, y: 0.9, z: 1.4}, color: "#92400E", shape: "box"},
+  {id: "chair", name: "いす", price: 20, size: {x: 0.9, y: 1, z: 0.9}, color: "#A16207", shape: "box"},
+  {id: "lamp", name: "ランプ", price: 25, size: {x: 0.6, y: 1.7, z: 0.6}, color: "#FDE68A", shape: "cylinder"},
+  {id: "plant", name: "観葉植物", price: 30, size: {x: 0.9, y: 1.6, z: 0.9}, color: "#16A34A", shape: "cone"},
+  {id: "tv", name: "大きなテレビ", price: 150, size: {x: 2.4, y: 1.4, z: 0.3}, color: "#111827", shape: "box"},
+  {id: "piano", name: "ピアノ", price: 400, size: {x: 2, y: 1.3, z: 1.2}, color: "#0F172A", shape: "box"},
+  {id: "aquarium", name: "水そう", price: 250, size: {x: 2, y: 1.2, z: 0.8}, color: "#38BDF8", shape: "box"},
+  {id: "globe", name: "キラキラボール", price: 500, size: {x: 1.2, y: 1.2, z: 1.2}, color: "#E879F9", shape: "sphere"}
+]
+
+-- MARK: 乗り物
+let VEHICLES = [
+  {id: "walk", name: "🚶 歩き", price: 0, speed: 1, jump: 1, color: nil},
+  {id: "bike", name: "🚲 自転車", price: 0, speed: 1.7, jump: 1, color: nil},
+  {id: "scooter", name: "🛵 スクーター", price: 150, speed: 2.2, jump: 1, color: nil},
+  {id: "sedan", name: "🚗 セダン", price: 500, speed: 2.7, jump: 1, color: nil},
+  {id: "sports", name: "🏎 スポーツカー", price: 1500, speed: 3.6, jump: 1, color: nil},
+  {id: "police", name: "🚓 パトカー", price: 0, speed: 3.2, jump: 1, color: "#1E3A8A", job: "police"},
+  {id: "firetruck", name: "🚒 消防車", price: 0, speed: 3, jump: 1, color: "#B91C1C", job: "firefighter"},
+  {id: "taxi", name: "🚕 タクシー", price: 0, speed: 3, jump: 1, color: "#FACC15", job: "taxi"},
+  {id: "jetpack", name: "🚀 ジェットパック", price: 2500, speed: 1.6, jump: 3, color: nil}
+]
+
+-- MARK: 住人（NPC）
+let TOWNSFOLK = [
+  {name: "パン屋のミナ", color: "#F59E0B", lines: ["焼きたてのパンはいかが？", "朝がいちばん売れるのよ", "カフェのシェフとは友だちなの"]},
+  {name: "おじいさんのゲン", color: "#78716C", lines: ["この街は昔、森だったんじゃ", "噴水にはコインが落ちとるぞ", "若いのは元気でいいのう"]},
+  {name: "学生のソラ", color: "#3B82F6", lines: ["次の授業なんだっけ？", "先生がいると勉強がはかどる！", "放課後は公園に行こう"]},
+  {name: "旅人のリオ", color: "#22C55E", lines: ["いい街だね", "バスはないの？タクシーに乗ろうかな", "市場の日は安いらしいよ"]},
+  {name: "画家のエマ", color: "#EC4899", lines: ["夕焼けの色がすき", "家のペンキ、何色にした？", "公園の池をかいているの"]},
+  {name: "郵便屋さんのタク", color: "#FBBF24", lines: ["荷物が多くて大変だ！", "配達を手伝ってくれない？", "House 8 はいつも大荷物"]}
+]
+
+-- MARK: イベント
+let EVENTS = [
+  {id: "market", name: "🛍 市場の日", text: "市場で買い物すると半額！", seconds: 90},
+  {id: "festival", name: "🎆 お祭り", text: "広場で花火！集まるとボーナス", seconds: 80},
+  {id: "payday", name: "💰 給料2倍デー", text: "仕事の給料が2倍", seconds: 90},
+  {id: "parade", name: "🎺 パレード", text: "メインストリートを車でパレード！", seconds: 60}
+]
+
+-- MARK: 実績
+let BADGES = {
+  first_job: "はじめての仕事", homeowner: "マイホーム", rich: "お金持ち（5000）", all_jobs: "何でも屋（全部の仕事）",
+  top_rank: "トップの肩書き", decorator: "インテリア名人（家具10個）", driver: "ドライバー（車を買う）", social: "街の人気者（住人と10回話す）",
+  mayor: "市長になった", hero: "街のヒーロー（どろぼう3人逮捕）", party: "パーティー好き（パーティーを開く）", saver: "貯金上手（銀行に2000）"
+}
+let BADGE_ORDER = ["first_job", "homeowner", "driver", "social", "decorator", "party", "all_jobs", "top_rank", "hero", "saver", "rich", "mayor"]
+
+-- MARK: シェフの料理（材料を正しい順に入れる）
+let INGREDIENTS = {egg: "🥚 たまご", rice: "🍚 ごはん", ketchup: "🍅 ケチャップ", noodle: "🍜 めん", soup: "🥣 スープ",
+                   bread: "🍞 パン", cheese: "🧀 チーズ", lettuce: "🥬 レタス", meat: "🥩 お肉", fruit: "🍓 いちご", cream: "🍦 クリーム"}
+let INGREDIENT_ORDER = ["egg", "rice", "ketchup", "noodle", "soup", "bread", "cheese", "lettuce", "meat", "fruit", "cream"]
+let RECIPES = [
+  {name: "🍳 オムライス", steps: ["rice", "ketchup", "egg"], price: 1},
+  {name: "🍜 ラーメン", steps: ["soup", "noodle", "egg"], price: 1},
+  {name: "🥪 サンドイッチ", steps: ["bread", "lettuce", "cheese", "bread"], price: 1.2},
+  {name: "🍔 ハンバーガー", steps: ["bread", "meat", "cheese", "lettuce", "bread"], price: 1.5},
+  {name: "🍰 ショートケーキ", steps: ["egg", "cream", "fruit", "cream"], price: 1.4},
+  {name: "🍛 カレーライス", steps: ["rice", "meat", "soup"], price: 1.2}
+]
+
+-- MARK: 先生のクイズ（答えは a / b / c）
+let QUIZ = [
+  {q: "7 × 8 = ?", a: "54", b: "56", c: "64", ok: "b"},
+  {q: "日本でいちばん高い山は？", a: "富士山", b: "エベレスト", c: "高尾山", ok: "a"},
+  {q: "1週間は何日？", a: "5日", b: "10日", c: "7日", ok: "c"},
+  {q: "水がこおるのは何度？", a: "0度", b: "10度", c: "100度", ok: "a"},
+  {q: "「ありがとう」を英語で？", a: "Hello", b: "Thank you", c: "Sorry", ok: "b"},
+  {q: "12 ÷ 4 = ?", a: "3", b: "4", c: "8", ok: "a"},
+  {q: "虹の色はいくつ？（日本では）", a: "5色", b: "7色", c: "9色", ok: "b"},
+  {q: "太陽がのぼる方角は？", a: "西", b: "北", c: "東", ok: "c"},
+  {q: "25 + 17 = ?", a: "42", b: "32", c: "43", ok: "a"},
+  {q: "クモの足は何本？", a: "6本", b: "8本", c: "10本", ok: "b"},
+  {q: "1時間は何分？", a: "100分", b: "30分", c: "60分", ok: "c"},
+  {q: "いちばん大きな海は？", a: "太平洋", b: "大西洋", c: "インド洋", ok: "a"}
+]
+
+-- MARK: スマホの地図（ワープ先）
+let PLACES = [
+  {name: "⛲ 広場", block: "Spawn 1"},
+  {name: "👮 警察署", block: "Job Police"},
+  {name: "🏥 病院", block: "Job Doctor"},
+  {name: "☕ カフェ", block: "Job Chef"},
+  {name: "🚒 消防署", block: "Job Firefighter"},
+  {name: "🏫 学校", block: "Job Teacher"},
+  {name: "📮 郵便局", block: "Job Courier"},
+  {name: "🏦 銀行", block: "Bank Counter"},
+  {name: "🛋 家具屋", block: "Furniture Counter"},
+  {name: "🛍 市場", block: "Market"},
+  {name: "🚗 車屋", block: "Car Pad"},
+  {name: "⛽ ガソリン", block: "Gas Pump"},
+  {name: "🏛 市役所", block: "Ballot Box"},
+  {name: "🚕 タクシー乗り場", block: "Job Taxi"}
+]
+
+-- MARK: 市場のおやつと小物
+-- kind: speed / heal / float / flowers / fireworks / hat
+let SNACKS = [
+  {id: "icecream", name: "🍦 アイス", price: 20, kind: "speed", text: "20秒 足が速くなる"},
+  {id: "apple", name: "🍎 りんご", price: 10, kind: "heal", text: "元気いっぱい"},
+  {id: "balloon", name: "🎈 風船", price: 35, kind: "float", text: "20秒 ふわふわジャンプ"},
+  {id: "flowers", name: "💐 花束", price: 25, kind: "flowers", text: "近くの人にプレゼント"},
+  {id: "fireworks", name: "🎆 手持ち花火", price: 40, kind: "fireworks", text: "その場で花火"},
+  {id: "sunhat", name: "👒 おしゃれ帽子", price: 60, kind: "hat", text: "天使の輪をかぶる"}
+]
+
+-- MARK: 天気
+let WEATHER = [
+  {id: "sunny", name: "☀️ 晴れ", light: 1, top: "#5AB2FF", bottom: "#CDEBFF", weight: 5},
+  {id: "cloudy", name: "☁️ くもり", light: 0.8, top: "#8A9BB0", bottom: "#D5DCE4", weight: 3},
+  {id: "rain", name: "🌧 雨", light: 0.6, top: "#4B5563", bottom: "#9CA3AF", weight: 2},
+  {id: "windy", name: "🍃 強い風", light: 0.9, top: "#7DD3FC", bottom: "#E0F2FE", weight: 1}
+]
+
+-- MARK: 1日の時間（ゲームの1分 = 本当の1秒）
+let DAY_MINUTES = 24 * 60
+let DAY_SECONDS = 480

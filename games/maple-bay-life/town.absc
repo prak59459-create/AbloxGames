@@ -1,0 +1,557 @@
+-- town.absc — 街のくらし
+-- 時計と昼夜・天気・住人NPC（話す・お使い・なかよし）・学校の生徒
+-- イベント（市場の日・お祭り・給料2倍・パレード）・市長選挙・市場・噴水
+
+let folk = []           -- {npc, info, sick, sick_since, next_move}
+let school_kids = []
+let lamps = []
+let weather_now = "sunny"
+let weather_info = nil
+let phase_now = ""
+let clock_last = ""
+let event_now = nil     -- EVENTS のどれか
+let event_until = 0
+let event_index = 0
+let market_discount = 1
+let mayor_id = nil
+let mayor_name = ""
+let mayor_used = {}
+let election = nil      -- {until, votes}
+let next_election = 0
+let town_clock = 0
+
+-- MARK: 時計
+
+func town_minutes()
+  return (7 * 60 + time() * DAY_MINUTES / DAY_SECONDS) % DAY_MINUTES
+end
+
+func clock_text()
+  let m = floor(town_minutes())
+  let h = floor(m / 60)
+  let mm = floor((m % 60) / 10) * 10
+  let hs = str(h)
+  if h < 10 then hs = "0" + h end
+  let ms = str(mm)
+  if mm < 10 then ms = "0" + mm end
+  return "🕐 " + hs + ":" + ms
+end
+
+func town_phase()
+  let h = town_minutes() / 60
+  if h >= 5 and h < 10 then return "morning" end
+  if h >= 10 and h < 17 then return "day" end
+  if h >= 17 and h < 19 then return "evening" end
+  return "night"
+end
+
+func weather_name()
+  if weather_info == nil then return "☀️ 晴れ" end
+  return weather_info.name
+end
+
+-- 空の色と明るさ（時間 × 天気）
+func apply_sky()
+  let w = weather_info or WEATHER[1]
+  let phase = town_phase()
+  if phase == "night" then
+    world.sky_top = "#0B1330"
+    world.sky_bottom = "#28315C"
+    world.light = 0.3
+  elif phase == "evening" then
+    world.sky_top = "#6D28D9"
+    world.sky_bottom = "#FB923C"
+    world.light = 0.55 * w.light + 0.1
+  elif phase == "morning" then
+    world.sky_top = w.top
+    world.sky_bottom = "#FDE68A"
+    world.light = 0.8 * w.light
+  else
+    world.sky_top = w.top
+    world.sky_bottom = w.bottom
+    world.light = 0.85 * w.light
+  end
+  -- 夜と夕方は街灯がつく
+  let lit = phase == "night" or phase == "evening"
+  for lamp in lamps do
+    if lit then
+      lamp.color = "#FFE9A8"
+      lamp.material = "neon"
+    else
+      lamp.color = "#D1D5DB"
+      lamp.material = "plastic"
+    end
+  end
+  let face = block("Clock Face")
+  if face != nil then
+    if lit then face.color = "#FDE047" else face.color = "#FFFFFF" end
+  end
+end
+
+func clock_tick()
+  let phase = town_phase()
+  if phase != phase_now then
+    let first = phase_now == ""
+    phase_now = phase
+    apply_sky()
+    if not first then
+      if phase == "morning" then announce("🌅 朝になりました。今日もがんばろう！", 2.5) end
+      if phase == "evening" then announce("🌇 夕方です。街灯がつきました", 2.5) end
+      if phase == "night" then announce("🌙 夜です。どろぼうに気をつけて！", 2.5) end
+    end
+  end
+  let text = clock_text() + "   " + weather_name()
+  if text != clock_last then
+    clock_last = text
+    ui_text("clock", text, {at: "top", dy: 40, size: 16, bold: true, color: "#FFFFFF", bg: "#00000066", radius: 10})
+  end
+end
+
+func change_weather(w)
+  weather_info = w
+  weather_now = w.id
+  apply_sky()
+  announce("お天気: " + w.name, 2.5)
+  if w.id == "rain" then chat("🌧 雨の日はタクシー料金1.5倍！火事は広がりにくい") end
+  if w.id == "windy" then chat("🍃 風が強い日は火事が広がりやすい！") end
+end
+
+-- MARK: 住人
+
+func spawn_folk(info)
+  let spot = random_spot(nil, 0)
+  let n = create_npc({name: info.name, position: spot.position + {x: 0, y: 1, z: 0}, color: info.color, speed: 0.55})
+  return {npc: n, info: info, sick: false, sick_since: 0, next_move: time() + random(2, 6)}
+end
+
+func folk_tick()
+  for f in folk do
+    if not kit_here(f.npc) then
+      let again = spawn_folk(f.info)
+      f.npc = again.npc
+      f.sick = false
+    elif not f.sick and time() > f.next_move then
+      f.npc.move_to(random_spot(f.npc, 10))
+      f.next_move = time() + random(8, 16)
+    end
+  end
+end
+
+func folk_near(p)
+  let best = nil
+  for f in folk do
+    if kit_here(f.npc) and distance(p, f.npc) < 3.8 then
+      if best == nil or distance(p, f.npc) < distance(p, best.npc) then best = f end
+    end
+  end
+  return best
+end
+
+-- 名前の後ろの部分（「パン屋のミナ」→「ミナ」）
+func short_name(name)
+  let parts = split(name, "の")
+  return parts[len(parts)]
+end
+
+func talk(p)
+  let f = folk_near(p)
+  if f == nil then return end
+  if not cooldown_ok(p, "talk", 2) then return end
+  let name = f.info.name
+  f.npc.look_at(p)
+  if f.sick then
+    p.message(short_name(name) + "：「うう…お医者さんを呼んで…」", 2.5)
+    return
+  end
+  if p.friend[name] == nil then p.friend[name] = 0 end
+  p.friend[name] = p.friend[name] + 1
+  p.talks = (p.talks or 0) + 1
+  kit_quest_progress(p, "talk", 1)
+  if p.talks >= 10 then kit_badge(p, "social", BADGES.social) end
+  let level = p.friend[name]
+  let hearts = "❤️"
+  if level >= 5 then hearts = "❤️❤️" end
+  if level >= 10 then hearts = "❤️❤️❤️" end
+  -- 5回目はプレゼント、3回ごとにお使いをたのまれる
+  if level == 5 then
+    p.message(short_name(name) + "：「いつもありがとう！これ、おれいに」 " + hearts, 3)
+    earn(p, 50, short_name(name) + " からプレゼント")
+  elif level % 3 == 0 and p.errand == nil then
+    errand_give(p, f)
+  else
+    p.message(short_name(name) + "：「" + random(f.info.lines) + "」 " + hearts, 3)
+  end
+  p.sound("checkpoint")
+end
+
+func errand_give(p, f)
+  let here = place_name(p.position)
+  let choices = filter(PLACES, func(pl) return pl.name != here end)
+  let place = random(choices)
+  let level = p.friend[f.info.name] or 0
+  p.errand = {place: place, from: short_name(f.info.name), reward: 20 + level * 3}
+  p.message(short_name(f.info.name) + "：「" + place.name + " まで行ってきてくれない？」", 3)
+  set_line(p, "errand", "🧺 お使い（" + p.errand.from + "）: " + place.name + " へ  💰" + p.errand.reward,
+           {at: "top", dy: 144, size: 15, color: "#C4B5FD"})
+end
+
+func errand_tick(p)
+  let e = p.errand
+  if e == nil then return end
+  let b = block(e.place.block)
+  if b != nil and distance(p, b) < 5 then
+    p.errand = nil
+    set_line(p, "errand", nil, nil)
+    earn(p, e.reward, "お使い完了（" + e.from + "）")
+    kit_xp(p, 8)
+    kit_quest_progress(p, "errand", 1)
+    p.sound("goal")
+  end
+end
+
+-- MARK: イベント
+
+func start_event(e)
+  if event_now != nil then end_event() end
+  event_now = e
+  event_until = time() + e.seconds
+  announce(e.name + "！ " + e.text, 4)
+  news(e.name + " が始まった")
+  if e.id == "market" then market_discount = 0.5 end
+  if e.id == "payday" then pay_bonus = 2 end
+end
+
+func end_event()
+  let e = event_now
+  if e == nil then return end
+  event_now = nil
+  market_discount = 1
+  pay_bonus = 1
+  ui_remove("event")
+  if e.id == "festival" then
+    let fountain = block("Fountain")
+    for p in players() do
+      if fountain != nil and distance(p, fountain) < 22 then
+        earn(p, 40, "お祭りに参加")
+        kit_quest_progress(p, "festival", 1)
+      end
+    end
+  end
+  announce(e.name + " はおしまい", 2)
+end
+
+func event_tick()
+  if event_now == nil then return end
+  let left = event_until - time()
+  if left <= 0 then
+    end_event()
+    return
+  end
+  ui_text("event", event_now.name + "  のこり " + kit_clock(left), {at: "top", dy: 118, size: 16, bold: true, color: "#FDE047"})
+  if event_now.id == "festival" and floor(time()) % 3 == 0 then
+    let fountain = block("Fountain")
+    if fountain != nil then firework(fountain.position) end
+  end
+  if event_now.id == "parade" and floor(time()) % 4 == 0 then
+    for p in players() do
+      let v = vehicle_now(p)
+      if v.id != "walk" and (abs(p.x) < 5 or abs(p.z) < 5) then earn(p, 4, "🎺 パレード") end
+    end
+  end
+end
+
+-- MARK: 市長選挙
+
+func ballot_open(p)
+  if election == nil then
+    let wait = max(0, ceil(next_election - time()))
+    let line = "次の選挙まで あと " + kit_clock(wait)
+    if mayor_id != nil then line = "🏛 いまの市長: " + mayor_name + "   " + line end
+    p.message(line, 2.5)
+    return
+  end
+  let list = players()
+  let rows = min(8, len(list))
+  let h = 130 + rows * 48
+  p.ui_panel("ballot", {at: "center", w: 420, h: h, bg: "#0C1E3FF2", radius: 22, layer: 36})
+  p.ui_text("ballot_t", "🗳 市長にしたい人に投票（のこり " + kit_clock(election.until - time()) + "）",
+            {parent: "ballot", y: 28 / h, size: 16, bold: true, color: "#93C5FD"})
+  let i = 0
+  for o in slice(list, 1, rows) do
+    i = i + 1
+    let mark = ""
+    if election.votes[p.id] == o.id then mark = "✅ " end
+    p.ui_button("vote_for_" + o.id, mark + o.name, {parent: "ballot", y: (36 + i * 48) / h, w: 320, h: 40, size: 16, bg: "#1D4ED8"})
+  end
+  p.ui_button("ballot_close", "閉じる", {parent: "ballot", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func vote_for(p, id)
+  if election == nil then return end
+  if player_by_id(id) == nil then return end
+  let first = election.votes[p.id] == nil
+  election.votes[p.id] = id
+  p.ui_remove("ballot")
+  p.message("🗳 投票しました！", 1.5)
+  if first then kit_quest_progress(p, "vote", 1) end
+end
+
+func start_election()
+  if len(players()) == 0 then return end
+  election = {until: time() + 40, votes: {}}
+  announce("🗳 市長選挙！ 市役所か📱の🗳で投票しよう（40秒）", 4)
+  for p in players() do ballot_open(p) end
+end
+
+func end_election()
+  let e = election
+  election = nil
+  next_election = time() + 300
+  for p in players() do p.ui_remove("ballot") end
+  let counts = {}
+  for voter in keys(e.votes) do
+    let id = e.votes[voter]
+    if player_by_id(id) != nil then counts[id] = (counts[id] or 0) + 1 end
+  end
+  let best = nil
+  let best_n = 0
+  for id in keys(counts) do
+    if counts[id] > best_n or (counts[id] == best_n and random() < 0.5) then
+      best = id
+      best_n = counts[id]
+    end
+  end
+  if best == nil then
+    announce("🗳 だれも投票しなかった…市長はそのまま", 3)
+    return
+  end
+  let old = player_by_id(mayor_id)
+  let winner = player_by_id(best)
+  mayor_id = best
+  mayor_name = winner.name
+  mayor_used = {}
+  if old != nil and old.id != best then
+    old.hat = JOBS[old.job or "citizen"].hat
+    job_hud(old)
+  end
+  winner.hat = "crown"
+  job_hud(winner)
+  announce("🏛 新しい市長は " + winner.name + "！（" + best_n + " 票）", 4)
+  news(winner.name + " が市長になった")
+  kit_badge(winner, "mayor", BADGES.mayor)
+  earn(winner, 100, "市長のお給料")
+end
+
+func election_tick()
+  if election != nil and time() >= election.until then end_election() end
+  if election == nil and time() >= next_election then start_election() end
+end
+
+-- 市長室: 市長だけが使える力（1期に1回ずつ）
+func mayor_menu(p)
+  let h = 330
+  p.ui_panel("mayor", {at: "center", w: 440, h: h, bg: "#3B2305F2", radius: 22, layer: 36})
+  if p.id != mayor_id then
+    let who = "まだいません"
+    if mayor_id != nil then who = mayor_name end
+    p.ui_text("mayor_t", "🏛 市長室", {parent: "mayor", y: 0.1, size: 22, bold: true, color: "#FCD34D"})
+    p.ui_text("mayor_s", "いまの市長: " + who, {parent: "mayor", y: 0.3, size: 17})
+    p.ui_text("mayor_s2", "選挙で市長になると、お祭りやボーナスを出せる", {parent: "mayor", y: 0.45, size: 14, color: "#FDE68A"})
+    p.ui_button("mayor_close", "閉じる", {parent: "mayor", y: 0.88, w: 130, h: 40, size: 15, bg: "gray"})
+    return
+  end
+  p.ui_text("mayor_t", "🏛 市長 " + p.name + " の仕事（1期に1回ずつ）", {parent: "mayor", y: 0.09, size: 18, bold: true, color: "#FCD34D"})
+  let rows = [
+    {id: "mayor_fest", label: "🎆 お祭りを開く"},
+    {id: "mayor_bonus", label: "💰 みんなにボーナス30"},
+    {id: "mayor_sun", label: "☀️ 天気を晴れにする"},
+    {id: "mayor_speech", label: "📢 みんなにあいさつ"}
+  ]
+  let i = 0
+  for r in rows do
+    i = i + 1
+    let bg = "#B45309"
+    if mayor_used[r.id] then bg = "#57534E" end
+    p.ui_button(r.id, r.label, {parent: "mayor", y: 0.12 + i * 0.16, w: 340, h: 42, size: 16, bg: bg})
+  end
+  p.ui_button("mayor_close", "閉じる", {parent: "mayor", y: 0.92, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func mayor_act(p, id)
+  if p.id != mayor_id then return end
+  if id != "mayor_speech" and mayor_used[id] then
+    p.message("この力は この期ではもう使いました", 1.5)
+    return
+  end
+  if id == "mayor_speech" then
+    if not cooldown_ok(p, "speech", 15) then return end
+    announce("📢 市長 " + p.name + "：「" + random(["みんな仲良く！", "今日もいい街にしよう！", "仕事、おつかれさま！", "市場で買い物してね！"]) + "」", 3)
+    return
+  end
+  mayor_used[id] = true
+  if id == "mayor_fest" then
+    for e in EVENTS do
+      if e.id == "festival" then start_event(e) end
+    end
+  elif id == "mayor_bonus" then
+    for o in players() do earn(o, 30, "市長からのボーナス") end
+    news("市長 " + p.name + " がみんなにボーナス！")
+  elif id == "mayor_sun" then
+    change_weather(WEATHER[1])
+  end
+  mayor_menu(p)
+end
+
+-- MARK: 市場
+
+func market_menu(p)
+  let n = len(SNACKS)
+  let h = 150 + ceil(n / 2) * 58
+  p.ui_panel("market", {at: "center", w: 560, h: h, bg: "#3F2A04F2", radius: 22, layer: 32})
+  let title = "🛍 市場"
+  if market_discount < 1 then title = "🛍 市場（今日は半額！）" end
+  p.ui_text("market_t", title, {parent: "market", y: 28 / h, size: 22, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in SNACKS do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    let price = ceil(s.price * market_discount)
+    p.ui_button("snack_" + s.id, s.name + " 💰" + price, {parent: "market", x: 0.27 + col * 0.46, y: (78 + row * 58) / h, w: 250, h: 48, size: 16, bg: "#A16207"})
+  end
+  p.ui_text("market_hint", "アイス=速く / りんご=元気 / 風船=ふわふわ / 花束=プレゼント", {parent: "market", y: (h - 70) / h, size: 12, color: "#FEF3C7"})
+  p.ui_button("market_close", "閉じる", {parent: "market", y: (h - 30) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func snack_buy(p, id)
+  let s = nil
+  for x in SNACKS do
+    if x.id == id then s = x end
+  end
+  if s == nil then return end
+  if not spend(p, ceil(s.price * market_discount)) then return end
+  kit_quest_progress(p, "snack", 1)
+  p.sound("collect")
+  if s.kind == "speed" then
+    p.boost_until = time() + 20
+    p.boost = 1.35
+    move_refresh(p)
+    p.message("🍦 おいしい！20秒 足が速い", 2)
+  elif s.kind == "heal" then
+    p.heal(p.max_health)
+    p.message("🍎 元気いっぱい！", 1.5)
+  elif s.kind == "float" then
+    p.float_until = time() + 20
+    move_refresh(p)
+    p.message("🎈 ふわふわ〜（20秒）", 2)
+  elif s.kind == "flowers" then
+    let near = nil
+    for o in players() do
+      if o.id != p.id and distance(p, o) < 8 then near = o end
+    end
+    if near != nil then
+      near.message("💐 " + p.name + " から花束をもらった！", 3)
+      near.sound("goal")
+      p.message("💐 " + near.name + " に花束をあげた", 2)
+      chat("💐 " + p.name + " が " + near.name + " に花束をプレゼント！")
+    else
+      p.message("💐 近くにだれもいない…お部屋にかざろう", 2)
+    end
+  elif s.kind == "fireworks" then
+    for k in 0 to 2 do
+      after(k * 0.6, func() firework(p.position) end)
+    end
+  elif s.kind == "hat" then
+    p.hat = "halo"
+    p.message("👒 おしゃれ！", 1.5)
+  end
+end
+
+-- MARK: スタートとティック
+
+on start()
+  lamps = filter(blocks(), func(b) return b.name == "Lamp" end)
+  weather_info = WEATHER[1]
+  next_election = time() + 120
+  for info in TOWNSFOLK do append(folk, spawn_folk(info)) end
+  -- 学校の生徒（授業を聞く）
+  let pad = block("Job Teacher")
+  if pad != nil then
+    let names = ["生徒のハル", "生徒のメイ", "生徒のコタ"]
+    let i = 0
+    for name in names do
+      i = i + 1
+      append(school_kids, create_npc({name: name, position: pad.position + {x: -3 + i * 1.5, y: 1, z: -1}, color: "#FDE68A", size: 0.75, speed: 0.4}))
+    end
+  end
+  apply_sky()
+  every(150, func()
+    change_weather(kit_pick(WEATHER, 1))
+  end)
+  every(160, func()
+    event_index = event_index % len(EVENTS) + 1
+    start_event(EVENTS[event_index])
+  end)
+  every(5, func()
+    for p in players() do update_score(p) end
+    kit_leaderboard("💰 お金持ち")
+  end)
+end
+
+on tick(dt)
+  town_clock = town_clock + dt
+  if town_clock < 0.5 then return end
+  town_clock = 0
+  clock_tick()
+  folk_tick()
+  event_tick()
+  election_tick()
+  for p in players() do
+    let f = folk_near(p)
+    if f != nil then
+      set_action(p, "talk", "💬 " + short_name(f.info.name), "#7C3AED")
+    else
+      set_action(p, "talk", nil, nil)
+    end
+    errand_tick(p)
+  end
+end
+
+on button(p, id)
+  if id == "act_talk" then
+    talk(p)
+  elif id == "ballot_close" then
+    p.ui_remove("ballot")
+  elif starts_with(id, "vote_for_") then
+    vote_for(p, replace(id, "vote_for_", ""))
+  elif id == "mayor_close" then
+    p.ui_remove("mayor")
+  elif starts_with(id, "mayor_") then
+    mayor_act(p, id)
+  elif id == "market_close" then
+    p.ui_remove("market")
+  elif starts_with(id, "snack_") then
+    snack_buy(p, replace(id, "snack_", ""))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "market") then
+    market_menu(p)
+  elif contains(b.tags, "vote") then
+    ballot_open(p)
+  elif contains(b.tags, "fountain") then
+    if cooldown_ok(p, "fountain", 5) and random() < 0.3 then
+      earn(p, 5, "🪙 噴水でコインを拾った")
+    end
+  end
+end
+
+on leave(p)
+  if p.id == mayor_id then
+    mayor_id = nil
+    news("市長 " + mayor_name + " が街を出ていった…")
+    mayor_name = ""
+  end
+end

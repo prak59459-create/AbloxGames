@@ -22,7 +22,10 @@ struct HarnessReport {
 
 enum Harness {
 
-    static func play(_ world: WorldDocument, seconds: Double = 150, seed: UInt64 = 11) -> HarnessReport {
+    /// `rich` starts every robot with a fortune in `coins` (the kit's money),
+    /// so the things that cost money — houses, cars, upgrades — get bought
+    /// and used too, not only what a newcomer can afford.
+    static func play(_ world: WorldDocument, seconds: Double = 150, seed: UInt64 = 11, rich: Bool = false) -> HarnessReport {
         var report = HarnessReport()
         var rng = Seeded("harness\(seed)\(world.name)")
         let game = GameRuntime(world: world, seed: seed)
@@ -34,6 +37,7 @@ enum Harness {
             let peer = PeerID()
             people.append(peer)
             _ = game.addPlayer(PlayerSnapshot(peerID: peer, profile: profile, position: world.spawnPosition(forPlayerIndex: people.count - 1)))
+            if rich { game.states[peer]?.custom["coins"] = .number(1_000_000) }
         }
         arrive("Aoi")
         arrive("Ren")

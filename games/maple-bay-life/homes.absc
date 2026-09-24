@@ -1,0 +1,574 @@
+-- homes.absc — 家を買う・カギ・ペンキ・家具・合いかぎ・パーティー
+-- 家は8けん。買った家はその人のもの。ゲームからぬけると売りに戻る。
+
+let homes = {}            -- "1" → 家の記録（下の home_of を見る）
+let home_walls = {}       -- "1" → [壁ブロック]
+let home_first_color = {} -- "1" → 最初の壁の色
+let HOME_ITEM_LIMIT = 20
+
+func home_of(n)
+  let key = str(n)
+  if homes[key] == nil then
+    homes[key] = {n: key, owner_id: nil, owner_name: "", locked: false, paint: 0, items: [], guests: [],
+                  party_until: 0, party_lights: [], partied: [], visits: 0}
+  end
+  return homes[key]
+end
+
+func home_floor(n) return block("House " + n + " Floor") end
+func home_door(n) return block("House " + n + " Door") end
+
+-- 家の向き（ドアが床の中心からどっちにあるか）: 1 か -1
+func home_facing(n)
+  let f = home_floor(n)
+  let d = home_door(n)
+  if f == nil or d == nil then return 1 end
+  if d.z >= f.z then return 1 end
+  return -1
+end
+
+-- ドアの外、3m 前
+func home_outside(n)
+  let d = home_door(n)
+  return {x: d.x, y: 1.2, z: d.z + home_facing(n) * 3}
+end
+
+func home_inside(n)
+  let f = home_floor(n)
+  return {x: f.x, y: f.y + 1.2, z: f.z - home_facing(n) * 1.5}
+end
+
+func is_inside(p, n)
+  let f = home_floor(n)
+  if f == nil then return false end
+  return abs(p.x - f.x) < 5.6 and abs(p.z - f.z) < 4.6 and p.y < f.y + 4
+end
+
+-- その人が中にいる家の番号（いなければ nil）
+func inside_which(p)
+  for n in 1 to 8 do
+    if is_inside(p, n) then return str(n) end
+  end
+  return nil
+end
+
+func home_price(n) return HOUSE_PRICE[str(n)] or 500 end
+
+func home_is_guest(h, p)
+  return h.owner_id == p.id or contains(h.guests, p.id)
+end
+
+-- MARK: 壁の色
+
+on start()
+  for b in blocks("house") do
+    let parts = split(b.name, " ")
+    if len(parts) == 3 and parts[1] == "House" and parts[3] == "Wall" then
+      let key = parts[2]
+      if home_walls[key] == nil then
+        home_walls[key] = []
+        home_first_color[key] = b.color
+      end
+      append(home_walls[key], b)
+    end
+  end
+end
+
+func home_color(n)
+  let h = home_of(n)
+  if h.paint == 0 then return home_first_color[str(n)] end
+  return HOUSE_PAINTS[h.paint]
+end
+
+func home_repaint(n)
+  let color = home_color(n)
+  if color == nil then return end
+  for b in home_walls[str(n)] or [] do b.color = color end
+end
+
+-- 火事のあと: 少しの間こげ茶色
+func home_scorch(n)
+  for b in home_walls[str(n)] or [] do b.color = "#57534E" end
+  after(25, func() home_repaint(n) end)
+end
+
+-- MARK: 買う・売る
+
+func home_offer(p, n)
+  let price = home_price(n)
+  let h = 190
+  p.ui_panel("home_offer", {at: "bottom", dy: -170, w: 440, h: h, bg: "#000000D0", radius: 18, layer: 20})
+  p.ui_text("home_offer_t", "🏠 House " + n + " は売り出し中", {parent: "home_offer", y: 0.16, size: 20, bold: true, color: "gold"})
+  let stars = "⭐"
+  if price >= 450 then stars = "⭐⭐" end
+  if price >= 600 then stars = "⭐⭐⭐" end
+  if price >= 900 then stars = "⭐⭐⭐⭐" end
+  if price >= 1200 then stars = "⭐⭐⭐⭐⭐" end
+  p.ui_text("home_offer_s", "ねだん 💰" + price + "   ランク " + stars, {parent: "home_offer", y: 0.37, size: 16})
+  if p.home != nil then
+    p.ui_text("home_offer_n", "（今の House " + p.home + " は半額で売ります）", {parent: "home_offer", y: 0.52, size: 13, color: "#CBD5E1"})
+  end
+  p.ui_button("home_buy_" + n, "買う", {parent: "home_offer", x: 0.3, y: 0.78, w: 170, h: 48, size: 17, bg: "green"})
+  p.ui_button("home_offer_no", "やめる", {parent: "home_offer", x: 0.75, y: 0.78, w: 130, h: 48, size: 16, bg: "gray"})
+end
+
+func home_buy(p, n)
+  p.ui_remove("home_offer")
+  let h = home_of(n)
+  if h.owner_id != nil then
+    p.message("その家はもう " + h.owner_name + " の家です", 2)
+    return
+  end
+  if not spend(p, home_price(n)) then return end
+  if p.home != nil then home_release(p, true) end
+  h.owner_id = p.id
+  h.owner_name = p.name
+  h.locked = false
+  h.guests = []
+  p.home = str(n)
+  p.message("🏠 House " + n + " があなたの家になりました！ 🏠ボタンで家のメニュー", 3.5)
+  sound("goal")
+  news(p.name + " が House " + n + " を買いました")
+  kit_badge(p, "homeowner", BADGES.homeowner)
+  kit_quest_progress(p, "house", 1)
+  kit_xp(p, 20)
+end
+
+-- 家を手放す。sell なら半額もどってくる
+func home_release(p, sell)
+  let n = p.home
+  if n == nil then return end
+  let h = home_of(n)
+  for item in h.items do
+    gone(item.block)
+    -- 家具は持ち物にもどる
+    if sell and kit_here(p) then append(p.inventory, item.id) end
+  end
+  home_party_stop(n)
+  h.items = []
+  h.owner_id = nil
+  h.owner_name = ""
+  h.locked = false
+  h.guests = []
+  h.paint = 0
+  home_repaint(n)
+  p.home = nil
+  if sell and kit_here(p) then
+    let back = floor(home_price(n) / 2)
+    earn(p, back, "House " + n + " を売った")
+  end
+end
+
+-- MARK: ドア
+
+on touch(p, b)
+  if p.is_npc then return end
+  if b.name == "Furniture Counter" then
+    furniture_shop(p)
+    return
+  end
+  if not contains(b.tags, "door") or not starts_with(b.name, "House ") then return end
+  let n = split(b.name, " ")[2]
+  let h = home_of(n)
+  if h.owner_id == nil then
+    if p.home != n then home_offer(p, n) end
+  elif h.owner_id == p.id then
+    if cooldown_ok(p, "door_hi", 4) then p.message("🏠 おかえり！", 1.2) end
+  elif h.locked and not home_is_guest(h, p) then
+    p.position = home_outside(n)
+    p.message("🔒 " + h.owner_name + " の家はカギがかかっています", 2)
+    let owner = player_by_id(h.owner_id)
+    if owner != nil and cooldown_ok(p, "knock" + n, 6) then
+      owner.message("🔔 " + p.name + " がドアをノックしています（🏠メニューで合いかぎをあげられます）", 3)
+      owner.sound("checkpoint")
+    end
+  else
+    if cooldown_ok(p, "visit" + n, 8) then
+      p.message(h.owner_name + " の家におじゃまします", 1.5)
+      h.visits = h.visits + 1
+    end
+    home_party_guest(p, n)
+  end
+end
+
+-- MARK: 家のメニュー（🏠ボタン）
+
+func home_menu(p)
+  p.ui_remove("home_menu")
+  if p.home == nil then
+    home_list(p)
+    return
+  end
+  let n = p.home
+  let h = home_of(n)
+  let rows = ["home_go", "home_lock", "home_paint", "home_place", "home_undo", "home_keys", "home_party", "home_sell"]
+  let panel_h = 150 + len(rows) * 50
+  p.ui_panel("home_menu", {at: "center", w: 440, h: panel_h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("home_menu_t", "🏠 House " + n + "  " + home_stars(n), {parent: "home_menu", y: 28 / panel_h, size: 22, bold: true, color: "gold"})
+  p.ui_text("home_menu_s", "家具 " + len(h.items) + "/" + HOME_ITEM_LIMIT + "   お客さん " + h.visits + "人   合いかぎ " + len(h.guests) + "人",
+            {parent: "home_menu", y: 58 / panel_h, size: 14, color: "#CBD5E1"})
+  let lock_label = "🔓 カギをかける"
+  if h.locked then lock_label = "🔒 カギをあける" end
+  let labels = {home_go: "🚪 家に帰る", home_lock: lock_label, home_paint: "🎨 ペンキをぬる（💰20）",
+                home_place: "🛋 家具を置く（" + len(p.inventory) + "こ）", home_undo: "↩️ 家具を1つ片づける",
+                home_keys: "🔑 合いかぎをあげる", home_party: "🎉 パーティー（💰50）",
+                home_sell: "💰 家を売る（" + floor(home_price(n) / 2) + "）"}
+  let i = 0
+  for id in rows do
+    i = i + 1
+    let bg = "#1D4ED8"
+    if id == "home_sell" then bg = "#B91C1C" end
+    if id == "home_party" then bg = "#DB2777" end
+    p.ui_button(id, labels[id], {parent: "home_menu", y: (60 + i * 50) / panel_h, w: 360, h: 42, size: 16, bg: bg})
+  end
+  p.ui_button("home_menu_close", "閉じる", {parent: "home_menu", y: (panel_h - 30) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+-- 家がないとき: 空いている家の一覧
+func home_list(p)
+  let free = []
+  for n in 1 to 8 do
+    if home_of(n).owner_id == nil then append(free, n) end
+  end
+  let panel_h = 130 + max(1, len(free)) * 50
+  p.ui_panel("home_menu", {at: "center", w: 440, h: panel_h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("home_menu_t", "🏠 空いている家（見に行く）", {parent: "home_menu", y: 28 / panel_h, size: 21, bold: true, color: "gold"})
+  if len(free) == 0 then
+    p.ui_text("home_menu_s", "いまは全部うまっています", {parent: "home_menu", y: 80 / panel_h, size: 16})
+  end
+  let i = 0
+  for n in free do
+    i = i + 1
+    p.ui_button("home_see_" + n, "House " + n + "   💰" + home_price(n) + "   " + home_stars(n),
+                {parent: "home_menu", y: (40 + i * 50) / panel_h, w: 360, h: 42, size: 16, bg: "#15803D"})
+  end
+  p.ui_button("home_menu_close", "閉じる", {parent: "home_menu", y: (panel_h - 30) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+-- 家の評価（ねだん + 家具）
+func home_value(n)
+  let h = home_of(n)
+  let v = home_price(n)
+  for item in h.items do v = v + item.price end
+  if h.paint != 0 then v = v + 50 end
+  return v
+end
+
+func home_stars(n)
+  let s = clamp(floor(home_value(n) / 400) + 1, 1, 5)
+  let text = ""
+  for i in 1 to s do text = text + "⭐" end
+  return text
+end
+
+-- MARK: カギ・ペンキ・合いかぎ
+
+func home_toggle_lock(p)
+  let h = home_of(p.home)
+  h.locked = not h.locked
+  if h.locked then
+    p.message("🔒 カギをかけました（合いかぎの人だけ入れます）", 2)
+    -- 中にいる他人は外へ
+    for other in players() do
+      if other.id != p.id and not home_is_guest(h, other) and is_inside(other, p.home) then
+        other.position = home_outside(p.home)
+        other.message("🔒 " + p.name + " がカギをかけました", 2)
+      end
+    end
+  else
+    p.message("🔓 カギをあけました（だれでも入れます）", 2)
+  end
+  p.sound("checkpoint")
+  home_menu(p)
+end
+
+func home_paint_next(p)
+  if not spend(p, 20) then return end
+  let h = home_of(p.home)
+  h.paint = h.paint + 1
+  if h.paint > len(HOUSE_PAINTS) then h.paint = 1 end
+  home_repaint(p.home)
+  p.message("🎨 ぬりかえました！（もう一度で次の色）", 1.5)
+  p.sound("collect")
+end
+
+func home_keys_menu(p)
+  p.ui_remove("home_menu")
+  let h = home_of(p.home)
+  let others = filter(players(), func(o) return o.id != p.id end)
+  let panel_h = 130 + max(1, len(others)) * 48
+  p.ui_panel("home_menu", {at: "center", w: 420, h: panel_h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("home_menu_t", "🔑 合いかぎ（押すと あげる/返してもらう）", {parent: "home_menu", y: 28 / panel_h, size: 18, bold: true, color: "gold"})
+  if len(others) == 0 then
+    p.ui_text("home_menu_s", "ほかにだれもいません", {parent: "home_menu", y: 80 / panel_h, size: 16})
+  end
+  let i = 0
+  for o in slice(others, 1, min(8, len(others))) do
+    i = i + 1
+    let mark = "⬜ "
+    if contains(h.guests, o.id) then mark = "🔑 " end
+    p.ui_button("home_key_" + o.id, mark + o.name, {parent: "home_menu", y: (40 + i * 48) / panel_h, w: 320, h: 40, size: 16, bg: "#334155"})
+  end
+  p.ui_button("home_menu_back", "もどる", {parent: "home_menu", y: (panel_h - 30) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func home_toggle_key(p, id)
+  let h = home_of(p.home)
+  let other = player_by_id(id)
+  if other == nil then return end
+  if contains(h.guests, id) then
+    remove(h.guests, index_of(h.guests, id))
+    other.message("🔑 " + p.name + " の合いかぎを返しました", 2)
+  else
+    append(h.guests, id)
+    other.message("🔑 " + p.name + " から House " + p.home + " の合いかぎをもらった！", 3)
+    other.sound("collect")
+  end
+  home_keys_menu(p)
+end
+
+-- MARK: 家具
+
+func furniture_find(id)
+  for f in FURNITURE do
+    if f.id == id then return f end
+  end
+  return nil
+end
+
+-- 家具屋（ピンクのパッド）
+func furniture_shop(p)
+  let n = len(FURNITURE)
+  let panel_h = 140 + ceil(n / 2) * 56
+  p.ui_panel("furn", {at: "center", w: 560, h: panel_h, bg: "#1F1030F2", radius: 22, layer: 30})
+  p.ui_text("furn_t", "🛋 家具屋さん（持ち物 " + len(p.inventory) + "こ）", {parent: "furn", y: 30 / panel_h, size: 22, bold: true, color: "#F9A8D4"})
+  let i = 0
+  for f in FURNITURE do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    p.ui_button("furn_buy_" + f.id, f.name + "  💰" + f.price,
+                {parent: "furn", x: 0.27 + col * 0.46, y: (84 + row * 56) / panel_h, w: 250, h: 46, size: 16, bg: "#9D174D"})
+  end
+  p.ui_button("furn_close", "閉じる", {parent: "furn", y: (panel_h - 30) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func furniture_buy(p, id)
+  let f = furniture_find(id)
+  if f == nil then return end
+  if not spend(p, f.price) then return end
+  append(p.inventory, f.id)
+  p.message("🛋 " + f.name + " を買った！ 🏠メニューの「家具を置く」で置けます", 2.5)
+  p.sound("collect")
+  furniture_shop(p)
+end
+
+-- 持っている家具の一覧（押すと置く）
+func furniture_pick(p)
+  p.ui_remove("home_menu")
+  if len(p.inventory) == 0 then
+    p.message("家具を持っていません。家具屋（ピンクのパッド）で買おう", 2.5)
+    return
+  end
+  -- 同じ家具はまとめて数える
+  let counts = {}
+  let order = []
+  for id in p.inventory do
+    if counts[id] == nil then
+      counts[id] = 0
+      append(order, id)
+    end
+    counts[id] = counts[id] + 1
+  end
+  let panel_h = 130 + len(order) * 48
+  p.ui_panel("home_menu", {at: "center", w: 420, h: panel_h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("home_menu_t", "🛋 どれを置く？", {parent: "home_menu", y: 28 / panel_h, size: 20, bold: true, color: "gold"})
+  let i = 0
+  for id in order do
+    i = i + 1
+    let f = furniture_find(id)
+    p.ui_button("home_put_" + id, f.name + " ×" + counts[id], {parent: "home_menu", y: (40 + i * 48) / panel_h, w: 320, h: 40, size: 16, bg: "#9D174D"})
+  end
+  p.ui_button("home_menu_back", "もどる", {parent: "home_menu", y: (panel_h - 30) / panel_h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+-- 家の中なら目の前に、外なら家の中の空いている場所に置く
+func furniture_place(p, id)
+  let n = p.home
+  if n == nil then return end
+  let h = home_of(n)
+  let at = index_of(p.inventory, id)
+  if at == nil then return end
+  if len(h.items) >= HOME_ITEM_LIMIT then
+    p.message("これ以上置けません（" + HOME_ITEM_LIMIT + "こまで）", 2)
+    return
+  end
+  let f = furniture_find(id)
+  let floor_b = home_floor(n)
+  let pos = nil
+  let yaw = 0
+  if is_inside(p, n) then
+    yaw = round(p.yaw / 90) * 90
+    let ahead = p.position + kit_dir(p.yaw) * (1.2 + max(f.size.x, f.size.z) / 2)
+    pos = {x: clamp(ahead.x, floor_b.x - 5.4 + f.size.x / 2, floor_b.x + 5.4 - f.size.x / 2), y: 0,
+           z: clamp(ahead.z, floor_b.z - 4.4 + f.size.z / 2, floor_b.z + 4.4 - f.size.z / 2)}
+  else
+    -- 空き場所: 奥の壁ぞいから順に
+    let slot = len(h.items)
+    let col = slot % 4
+    let row = floor(slot / 4)
+    pos = {x: floor_b.x - 4 + col * 2.7, y: 0, z: floor_b.z - home_facing(n) * (3.3 - row * 1.6)}
+  end
+  pos.y = floor_b.y + 0.08 + f.size.y / 2
+  let material = "plastic"
+  if f.id == "lamp" or f.id == "globe" then material = "neon" end
+  if f.id == "aquarium" then material = "glass" end
+  let b = create_block({name: "Furniture " + f.name, shape: f.shape, position: pos, size: f.size, color: f.color,
+                        material: material, rotation: {x: 0, y: yaw, z: 0}, tags: ["furniture", "home" + n]})
+  remove(p.inventory, at)
+  append(h.items, {id: f.id, price: f.price, block: b})
+  p.placed = (p.placed or 0) + 1
+  kit_quest_progress(p, "furniture", 1)
+  if len(h.items) >= 10 then kit_badge(p, "decorator", BADGES.decorator) end
+  p.message("🛋 " + f.name + " を置きました", 1.5)
+  p.sound("collect")
+  furniture_pick(p)
+end
+
+func furniture_undo(p)
+  let h = home_of(p.home)
+  if len(h.items) == 0 then
+    p.message("置いた家具はありません", 1.5)
+    return
+  end
+  let item = remove(h.items)
+  gone(item.block)
+  append(p.inventory, item.id)
+  p.message("↩️ 片づけました（持ち物にもどった）", 1.5)
+  home_menu(p)
+end
+
+-- MARK: パーティー
+
+func home_party(p)
+  let n = p.home
+  let h = home_of(n)
+  if time() < h.party_until then
+    p.message("もうパーティー中です！", 1.5)
+    return
+  end
+  if not spend(p, 50) then return end
+  h.party_until = time() + 45
+  h.partied = [p.id]
+  h.locked = false
+  announce("🎉 " + p.name + " の家（House " + n + "）でパーティー！ 来た人におこづかい", 4)
+  news(p.name + " が House " + n + " でパーティーを開いた")
+  kit_badge(p, "party", BADGES.party)
+  kit_quest_progress(p, "party", 1)
+  -- 家の中に光る玉
+  let f = home_floor(n)
+  let colors = ["#F43F5E", "#22D3EE", "#FDE047", "#A3E635"]
+  for i in 1 to 4 do
+    let light = create_block({name: "Party Light", shape: "sphere", position: {x: f.x - 3 + i * 1.5, y: 3, z: f.z}, size: 0.5,
+                              color: colors[i], material: "neon", solid: false})
+    append(h.party_lights, light)
+  end
+  p.ui_remove("home_menu")
+  after(45, func() home_party_stop(n) end)
+end
+
+func home_party_guest(p, n)
+  let h = home_of(n)
+  if time() >= h.party_until or contains(h.partied, p.id) then return end
+  append(h.partied, p.id)
+  earn(p, 25, "パーティーに参加")
+  kit_quest_progress(p, "party", 1)
+  let owner = player_by_id(h.owner_id)
+  if owner != nil then earn(owner, 15, p.name + " が来てくれた") end
+end
+
+func home_party_stop(n)
+  let h = home_of(n)
+  for light in h.party_lights do gone(light) end
+  h.party_lights = []
+  h.party_until = 0
+end
+
+on tick(dt)
+  -- パーティー中は光る玉の色が変わり、中にいる人もお客さんになる
+  if floor(time() * 10) % 10 != 0 then return end
+  for key in keys(homes) do
+    let h = homes[key]
+    if time() < h.party_until then
+      for light in h.party_lights do light.color = random(["#F43F5E", "#22D3EE", "#FDE047", "#A3E635", "#E879F9"]) end
+      for p in players() do
+        if p.id != h.owner_id and is_inside(p, key) then home_party_guest(p, key) end
+      end
+    end
+  end
+end
+
+-- MARK: ボタン
+
+on button(p, id)
+  if id == "home" then
+    home_menu(p)
+  elif id == "home_menu_close" then
+    p.ui_remove("home_menu")
+  elif id == "home_menu_back" then
+    home_menu(p)
+  elif id == "home_offer_no" then
+    p.ui_remove("home_offer")
+  elif starts_with(id, "home_buy_") then
+    home_buy(p, replace(id, "home_buy_", ""))
+  elif id == "furn_close" then
+    p.ui_remove("furn")
+  elif starts_with(id, "furn_buy_") then
+    furniture_buy(p, replace(id, "furn_buy_", ""))
+  elif starts_with(id, "home_see_") then
+    let n = replace(id, "home_see_", "")
+    p.ui_remove("home_menu")
+    p.position = home_outside(n)
+    home_offer(p, n)
+  elif p.home == nil then
+    return
+  elif id == "home_go" then
+    p.position = home_inside(p.home)
+    p.ui_remove("home_menu")
+    p.message("🏠 ただいま", 1.2)
+  elif id == "home_lock" then
+    home_toggle_lock(p)
+  elif id == "home_paint" then
+    home_paint_next(p)
+  elif id == "home_place" then
+    furniture_pick(p)
+  elif starts_with(id, "home_put_") then
+    furniture_place(p, replace(id, "home_put_", ""))
+  elif id == "home_undo" then
+    furniture_undo(p)
+  elif id == "home_keys" then
+    home_keys_menu(p)
+  elif starts_with(id, "home_key_") then
+    home_toggle_key(p, replace(id, "home_key_", ""))
+  elif id == "home_party" then
+    home_party(p)
+  elif id == "home_sell" then
+    let n = p.home
+    home_release(p, true)
+    p.ui_remove("home_menu")
+    news("House " + n + " が売りに出ました")
+  end
+end
+
+on leave(p)
+  if p.home != nil then
+    let n = p.home
+    home_release(p, false)
+    news("House " + n + " が売りに出ました")
+  end
+  -- 合いかぎも返す
+  for key in keys(homes) do
+    let h = homes[key]
+    if contains(h.guests, p.id) then remove(h.guests, index_of(h.guests, p.id)) end
+  end
+end

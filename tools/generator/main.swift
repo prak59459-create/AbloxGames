@@ -37,17 +37,21 @@ for game in Catalogue.games {
     game.build(builder)
     let world = builder.build(name: game.title, author: Catalogue.author)
 
-    guard let main = read("\(game.folder)/main.absc") else {
+    let paths = game.scriptPaths(root: root)
+    guard paths.contains("\(game.folder)/main.absc") else {
         print("✗ \(game.number) \(game.id): no main.absc")
         failures += 1
         continue
     }
     var playable = world
-    playable.scripts = [ScriptFile(name: "kit", source: kit), ScriptFile(name: "main", source: main)]
+    playable.scripts = paths.map { path in
+        let name = String(path.split(separator: "/").last ?? "main.absc")
+        return ScriptFile(name: name, source: path == Catalogue.kitPath ? kit : (read(path) ?? ""))
+    }
 
     let listing = GameListing(
         id: game.id, title: game.title, author: Catalogue.author, summary: game.summary,
-        world: "\(game.folder)/world.ablox", cover: nil, scripts: game.scriptPaths,
+        world: "\(game.folder)/world.ablox", cover: nil, scripts: paths,
         tags: game.tags, blockCount: world.blocks.count, maxPlayers: game.maxPlayers,
         schemaVersion: WorldDocument.currentSchemaVersion, updatedAt: Catalogue.date
     )
@@ -75,8 +79,12 @@ for game in Catalogue.games {
     if problems.isEmpty {
         let report = Harness.play(playable, seconds: quick ? 40 : 150)
         problems += report.errors.map { "play: \($0)" }
+        // Again with rich robots, who can buy everything.
+        let rich = Harness.play(playable, seconds: quick ? 40 : 150, seed: 29, rich: true)
+        problems += rich.errors.filter { !report.errors.contains($0) }.map { "play (rich): \($0)" }
         if verbose { for line in report.output.prefix(40) { print("    print: \(line)") } }
-        note = "\(world.blocks.count) blocks, \(report.buttonsPressed.count) buttons, \(report.touches) touches, "
+        let lines = playable.scripts.dropFirst().reduce(0) { $0 + $1.source.split(separator: "\n", omittingEmptySubsequences: false).count }
+        note = "\(playable.scripts.count - 1) files, \(lines) lines, \(world.blocks.count) blocks, \(report.buttonsPressed.count) buttons, \(report.touches) touches, "
             + "\(report.npcsSeen) npcs max, \(report.blocksAtEnd) blocks after" + (report.roundEnded ? ", round ended" : "")
     }
 
