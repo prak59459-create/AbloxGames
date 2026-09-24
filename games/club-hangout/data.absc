@@ -1,0 +1,59 @@
+-- data.absc — Club Hangout の表
+-- 建てるパーツ20・色・ジャンル・ジュース・役割
+
+-- lift: 床からの高さ（中心）。door: 通りぬけられる
+let PIECES = [
+  {id: "wall", name: "かべ", cat: "たてもの", price: 5, size: {x: 4, y: 3, z: 0.3}, color: "#F5F5F4", shape: "box", lift: 1.5},
+  {id: "halfwall", name: "こしかべ", cat: "たてもの", price: 3, size: {x: 4, y: 1.2, z: 0.3}, color: "#F5F5F4", shape: "box", lift: 0.6},
+  {id: "door", name: "ドア", cat: "たてもの", price: 6, size: {x: 1.6, y: 2.4, z: 0.2}, color: "#92400E", shape: "box", lift: 1.2, door: true},
+  {id: "window", name: "まど", cat: "たてもの", price: 6, size: {x: 2, y: 1.4, z: 0.1}, color: "#BAE6FD", shape: "box", lift: 1.6, material: "glass"},
+  {id: "floor", name: "ゆか", cat: "たてもの", price: 3, size: {x: 4, y: 0.2, z: 4}, color: "#D6B98C", shape: "box", lift: 0.1},
+  {id: "roof", name: "やね", cat: "たてもの", price: 8, size: {x: 4, y: 0.3, z: 4}, color: "#B91C1C", shape: "box", lift: 3.1},
+  {id: "stairs", name: "かいだん", cat: "たてもの", price: 10, size: {x: 1.6, y: 0.3, z: 4.6}, color: "#A16207", shape: "box", lift: 1.6, tilt: 40},
+  {id: "pillar", name: "はしら", cat: "たてもの", price: 4, size: {x: 0.5, y: 3, z: 0.5}, color: "#E7E5E4", shape: "cylinder", lift: 1.5},
+  {id: "bed", name: "ベッド", cat: "家具", price: 20, size: {x: 2, y: 0.7, z: 3}, color: "#93C5FD", shape: "box", lift: 0.35},
+  {id: "sofa", name: "ソファ", cat: "家具", price: 20, size: {x: 3, y: 1, z: 1.2}, color: "#F472B6", shape: "box", lift: 0.5},
+  {id: "table", name: "テーブル", cat: "家具", price: 12, size: {x: 2, y: 0.9, z: 1.4}, color: "#78350F", shape: "box", lift: 0.45},
+  {id: "chair", name: "いす", cat: "家具", price: 6, size: {x: 0.9, y: 1, z: 0.9}, color: "#A16207", shape: "box", lift: 0.5},
+  {id: "tv", name: "テレビ", cat: "家具", price: 30, size: {x: 2, y: 1.2, z: 0.3}, color: "#111827", shape: "box", lift: 1.2},
+  {id: "fridge", name: "れいぞうこ", cat: "家具", price: 25, size: {x: 1.2, y: 2.2, z: 1}, color: "#E5E7EB", shape: "box", lift: 1.1},
+  {id: "lamp", name: "ランプ", cat: "家具", price: 8, size: {x: 0.6, y: 1.6, z: 0.6}, color: "#FDE68A", shape: "cylinder", lift: 0.8, material: "neon"},
+  {id: "rug", name: "ラグ", cat: "家具", price: 6, size: {x: 3, y: 0.05, z: 2}, color: "#C084FC", shape: "box", lift: 0.05},
+  {id: "tree", name: "木", cat: "庭", price: 10, size: {x: 1.6, y: 3, z: 1.6}, color: "#16A34A", shape: "cone", lift: 1.5},
+  {id: "bush", name: "しげみ", cat: "庭", price: 5, size: {x: 1.2, y: 1, z: 1.2}, color: "#22C55E", shape: "sphere", lift: 0.5},
+  {id: "pool", name: "プール", cat: "庭", price: 60, size: {x: 5, y: 0.3, z: 3}, color: "#38BDF8", shape: "box", lift: 0.15, material: "glass"},
+  {id: "fence", name: "さく", cat: "庭", price: 3, size: {x: 4, y: 1, z: 0.15}, color: "#FEF3C7", shape: "box", lift: 0.5}
+]
+let PIECE_CATS = ["たてもの", "家具", "庭"]
+let PAINTS = ["#F5F5F4", "#FDE68A", "#FCA5A5", "#93C5FD", "#86EFAC", "#C4B5FD", "#1F2937", "#92400E", "#F472B6", "#FDBA74"]
+let MAX_PIECES = 150
+let FLOOR_HEIGHT = 3.2
+
+-- MARK: クラブ
+let GENRES = [
+  {id: "pop", name: "🎤 ポップ", colors: ["#EC4899", "#F472B6", "#FDE68A", "#FFFFFF"], beat: 0.5, light: 0.4, sky: "#831843"},
+  {id: "edm", name: "🎧 EDM", colors: ["#22D3EE", "#A855F7", "#22C55E", "#3B82F6"], beat: 0.3, light: 0.25, sky: "#1E1B4B"},
+  {id: "hiphop", name: "🧢 ヒップホップ", colors: ["#FACC15", "#F97316", "#111827", "#DC2626"], beat: 0.6, light: 0.35, sky: "#451A03"},
+  {id: "disco", name: "🪩 ディスコ", colors: ["#F59E0B", "#EC4899", "#22D3EE", "#A3E635", "#A855F7"], beat: 0.4, light: 0.45, sky: "#4C1D95"},
+  {id: "chill", name: "🌙 チル", colors: ["#1E3A8A", "#0E7490", "#4338CA", "#0F766E"], beat: 0.9, light: 0.55, sky: "#0F172A"}
+]
+let PARTY_SECS = 90
+let AUTO_PARTY_EVERY = 150
+
+let JUICES = [
+  {id: "berry", name: "🍓 ベリースムージー", price: 8, text: "15びょう 速くおどれる（ポイント×1.5）"},
+  {id: "lemon", name: "🍋 レモンソーダ", price: 6, text: "15びょう ジャンプが高い"},
+  {id: "mango", name: "🥭 マンゴーラッシー", price: 10, text: "体力が回復"}
+]
+
+-- MARK: 役割
+let ROLES = {
+  parent: {name: "👩 親", size: 1.1, speed: 1},
+  teen: {name: "🧑 ティーン", size: 0.95, speed: 1.1},
+  kid: {name: "🧒 子ども", size: 0.8, speed: 1.1},
+  baby: {name: "👶 赤ちゃん", size: 0.55, speed: 0.8},
+  pet: {name: "🐶 ペット", size: 0.5, speed: 1.4},
+  cat: {name: "🐱 ねこ", size: 0.45, speed: 1.3}
+}
+let ROLE_ORDER = ["parent", "teen", "kid", "baby", "pet", "cat"]
+let TOUR_EVERY = 240

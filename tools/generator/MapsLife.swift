@@ -16,7 +16,7 @@ let lifeGames: [Game] = [
          summary: "未来都市のRP。6つの仕事（修理・救助・逮捕・料理・空の配達・ハッキング）でかせぎ、乗り物を集めて空の家をスマートホームに。指名手配と刑務所、ドローンレース、ネオンナイトも。",
          tags: ["rp", "city", "future"], maxPlayers: 16, build: neoCity),
     Game(number: 37, id: "club-hangout", title: "Club Hangout",
-         summary: "家族をつくって、家を建てて、クラブのダンスパーティーへ。家具を置いて自分だけの部屋を作ろう。",
+         summary: "空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。",
          tags: ["rp", "social", "build"], maxPlayers: 16, build: clubHangout),
     Game(number: 38, id: "ridgeport-cops", title: "Ridgeport Cops & Robbers",
          summary: "警察と強盗に分かれる街アクション。強盗は店や銀行をねらい、警察はタックルで逮捕。刑務所からの脱獄もできる！",
@@ -271,14 +271,24 @@ func clubHangout(_ m: MapBuilder) {
         m.slab("Lot \(i + 1)", x: x, y: 0, z: z, w: 20, h: 0.2, d: 20, color: "#65A30D", tags: ["lot"])
         m.pad("Lot \(i + 1) Sign", x: x * 0.78, z: z * 0.78, size: 2, color: "#FDE047", tags: ["claim"])
     }
-    // The club.
+    // The club, with a doorway in the south wall facing the plaza.
     m.slab("Club Floor", x: 0, y: 0, z: -20, w: 26, h: 0.3, d: 18, color: "#111827")
-    m.walls(0, -20, w: 26, d: 18, h: 6, y: 0.3, color: "#4C1D95", name: "Club Wall")
+    m.slab("Club Wall", x: 0, y: 0.3, z: -29, w: 27, h: 6, d: 1, color: "#4C1D95")
+    m.slab("Club Wall", x: -13, y: 0.3, z: -20, w: 1, h: 6, d: 18, color: "#4C1D95")
+    m.slab("Club Wall", x: 13, y: 0.3, z: -20, w: 1, h: 6, d: 18, color: "#4C1D95")
+    m.slab("Club Wall", x: -7.75, y: 0.3, z: -11, w: 11.5, h: 6, d: 1, color: "#4C1D95")
+    m.slab("Club Wall", x: 7.75, y: 0.3, z: -11, w: 11.5, h: 6, d: 1, color: "#4C1D95")
+    m.slab("Club Wall", x: 0, y: 3.3, z: -11, w: 4, h: 3, d: 1, color: "#4C1D95")
+    m.part("Club Sign", at: (0, 5.4, -10.4), size: (8, 1, 0.2), color: "#F472B6", material: .neon, solid: false)
+    m.slab("Club Roof", x: 0, y: 6.3, z: -20, w: 27, h: 0.3, d: 19, color: "#1E1B4B")
     for (i, p) in grid(4, 3, spacing: 4, cx: 0, cz: -20).enumerated() {
         m.part("Dance Tile \(i + 1)", at: (p.0, 0.32, p.1), size: (3.8, 0.05, 3.8), color: "#EC4899", material: .neon, tags: ["tile"], solid: false)
     }
     m.part("Disco Ball", at: (0, 5.2, -20), size: (1.4, 1.4, 1.4), color: "#E5E7EB", shape: .sphere, material: .metal)
-    m.pad("DJ Booth", x: 0, z: -27, y: 0.3, size: 2.4, color: "#22D3EE", tags: ["dj"])
+    m.slab("DJ Stage", x: 0, y: 0.3, z: -27, w: 8, h: 0.4, d: 3, color: "#312E81")
+    m.pad("DJ Booth", x: 0, z: -27, y: 0.7, size: 2.4, color: "#22D3EE", tags: ["dj"])
+    m.pad("Juice Bar", x: 10, z: -14, y: 0.3, size: 2.2, color: "#F59E0B", tags: ["bar"])
+    m.slab("Bar Counter", x: 10, y: 0.3, z: -16, w: 4, h: 1.1, d: 0.8, color: "#78350F")
     m.shop("Home Store", x: 30, z: -10, w: 12, d: 8, color: "#0EA5E9", sign: "#FFFFFF")
     m.pad("Home Store Counter", x: 30, z: -8, size: 2.4, color: "#38BDF8", tags: ["store"])
 }

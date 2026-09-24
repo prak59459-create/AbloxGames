@@ -1,0 +1,249 @@
+-- build.absc — 空き地に家を建てる
+-- 黄色い看板で空き地を手に入れる。家族（親が家族にさそった人）もその空き地に建てられる。
+-- パーツは20種類。見ている方向の2.5m先に、1m単位でそろえて置く。1階〜3階をえらべる。
+-- 「↻ 回す」「🎨 ぬる」「↩ こわす（半額もどる）」は最後に置いたパーツに。
+-- よその空き地で「👍 いいね」。4分ごとに「ハウスツアー」で1つの家が紹介され、見に行くとコイン。
+
+let lots = {}        -- 番号 → {owner, pieces: [{b, id, price}]}
+let tour = nil       -- {lot, until}
+let tour_clock = 0
+
+func my_lot(p)
+  if p.lot != nil then return p.lot end
+  if p.family != nil then
+    let head = player_by_id(p.family)
+    if head != nil then return head.lot end
+  end
+  return nil
+end
+
+func lot_pieces(n)
+  if n == nil or lots[n] == nil then return 0 end
+  return len(lots[n].pieces)
+end
+
+func lot_value(n)
+  if n == nil or lots[n] == nil then return 0 end
+  let v = 0
+  for x in lots[n].pieces do v = v + x.price end
+  return v
+end
+
+func lot_here(p)
+  for i in 1 to 8 do
+    let b = block("Lot " + i)
+    if b != nil and abs(p.x - b.x) < 10.5 and abs(p.z - b.z) < 10.5 then return "" + i end
+  end
+  return nil
+end
+
+func claim_lot(p, n)
+  if p.lot != nil then return end
+  if lots[n] != nil then
+    let o = player_by_id(lots[n].owner)
+    if o != nil and quiet_ready(p, "claim", 4) then p.message("ここは " + o.name + " の空き地", 1.5) end
+    return
+  end
+  lots[n] = {owner: p.id, pieces: []}
+  p.lot = n
+  p.message("🏗 空き地 " + n + " があなたのものに！ 「🧱 建てる」でパーツを置こう", 3)
+  kit_quest_progress(p, "lot", 1)
+  hud(p)
+end
+
+-- MARK: 置く
+
+func build_menu(p, cat)
+  p.build_cat = cat
+  let list = filter(PIECES, func(x) return x.cat == cat end)
+  let rows = ceil(len(list) / 2)
+  let h = 170 + rows * 44
+  p.ui_panel("build", {at: "left", dx: 16, w: 330, h: h, bg: "#0C4A6EEE", radius: 20, layer: 30})
+  p.ui_text("build_t", "🧱 建てる（" + p.floor_level + "階）", {parent: "build", y: 22 / h, size: 18, bold: true})
+  let i = 0
+  for c in PIECE_CATS do
+    i = i + 1
+    let bg = "#075985"
+    if c == cat then bg = "#0284C7" end
+    p.ui_button("bcat_" + c, c, {parent: "build", x: (i - 0.5) / 3, y: 56 / h, w: 96, h: 32, size: 13, bg: bg})
+  end
+  i = 0
+  for x in list do
+    i = i + 1
+    let col = 0.27
+    if i % 2 == 0 then col = 0.73 end
+    p.ui_button("piece_" + x.id, x.name + " 💰" + x.price, {parent: "build", x: col, y: (70 + ceil(i / 2) * 44) / h, w: 150, h: 38, size: 13, bg: x.color, color: "#111111"})
+  end
+  let y = (h - 58) / h
+  p.ui_button("b_floor", "⬆ " + p.floor_level + "階", {parent: "build", x: 0.2, y: y, w: 90, h: 34, size: 13, bg: "#0369A1"})
+  p.ui_button("b_rot", "↻ 回す", {parent: "build", x: 0.5, y: y, w: 90, h: 34, size: 13, bg: "#0369A1"})
+  p.ui_button("b_paint", "🎨 ぬる", {parent: "build", x: 0.8, y: y, w: 90, h: 34, size: 13, bg: "#0369A1"})
+  p.ui_button("build_close", "閉じる", {parent: "build", y: (h - 20) / h, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func place(p, piece)
+  let n = my_lot(p)
+  if n == nil then
+    p.message("まず空き地を手に入れよう（黄色い看板）", 1.5)
+    return
+  end
+  let lot = block("Lot " + n)
+  if lot_here(p) != n then
+    p.message("自分（家族）の空き地の上で建てよう", 1.5)
+    return
+  end
+  if lot_pieces(n) >= MAX_PIECES then
+    p.message("パーツは " + MAX_PIECES + " 個まで", 1.5)
+    return
+  end
+  if not kit_pay(p, piece.price) then return end
+  let spot = p.position + p.look * 2.5
+  let gx = round(spot.x)
+  let gz = round(spot.z)
+  -- 空き地の外には置かない
+  gx = max(lot.x - 9.5, min(lot.x + 9.5, gx))
+  gz = max(lot.z - 9.5, min(lot.z + 9.5, gz))
+  let yaw = round(p.yaw / 90) * 90
+  let base = lot.y + 0.1 + (p.floor_level - 1) * FLOOR_HEIGHT
+  let rot = {x: 0, y: yaw, z: 0}
+  if piece.tilt != nil then rot = {x: piece.tilt, y: yaw, z: 0} end
+  let solid = true
+  if piece.door then solid = false end
+  let b = create_block({name: "Built " + n, shape: piece.shape, position: {x: gx, y: base + piece.lift, z: gz}, size: piece.size,
+                        color: piece.color, material: piece.material or "plastic", rotation: rot, solid: solid, tags: ["built", "lot" + n]})
+  append(lots[n].pieces, {b: b, id: piece.id, price: piece.price, yaw: yaw, tilt: piece.tilt})
+  kit_quest_progress(p, "build", 1)
+  kit_quest_progress(p, "build100", 1)
+  if p.floor_level >= 2 then kit_quest_progress(p, "second", 1) end
+  hud(p)
+end
+
+func last_piece(p)
+  let n = my_lot(p)
+  if n == nil or lots[n] == nil or len(lots[n].pieces) == 0 then return nil end
+  return lots[n].pieces[len(lots[n].pieces)]
+end
+
+func rotate_last(p)
+  let e = last_piece(p)
+  if e == nil or not still(e.b) then return end
+  e.yaw = (e.yaw + 90) % 360
+  if e.tilt != nil then e.b.rotation = {x: e.tilt, y: e.yaw, z: 0} else e.b.rotation = {x: 0, y: e.yaw, z: 0} end
+end
+
+func paint_last(p)
+  let e = last_piece(p)
+  if e == nil or not still(e.b) then return end
+  p.paint_i = (p.paint_i or 0) % len(PAINTS) + 1
+  e.b.color = PAINTS[p.paint_i]
+  kit_quest_progress(p, "paint", 1)
+end
+
+func undo_last(p)
+  let n = my_lot(p)
+  if n == nil or lots[n] == nil or len(lots[n].pieces) == 0 then return end
+  let e = remove(lots[n].pieces, len(lots[n].pieces))
+  gone(e.b)
+  kit_give(p, floor(e.price / 2))
+  hud(p)
+end
+
+func clear_lot(n)
+  if n == nil or lots[n] == nil then return end
+  for x in lots[n].pieces do gone(x.b) end
+  remove(lots, n)
+end
+
+-- MARK: いいねとツアー
+
+func like_lot(p)
+  let n = lot_here(p)
+  if n == nil or lots[n] == nil then
+    p.message("だれかの空き地の上で押そう", 1.2)
+    return
+  end
+  if n == my_lot(p) then
+    p.message("自分の家にはいいねできない", 1.2)
+    return
+  end
+  let o = player_by_id(lots[n].owner)
+  if o == nil then return end
+  if not quiet_ready(p, "like_" + n, 180) then
+    p.message("この家には少し前にいいねした", 1.2)
+    return
+  end
+  o.likes = o.likes + 1
+  o.score = o.likes * 10 + lot_value(n)
+  kit_give(o, 5)
+  kit_give(p, 2)
+  o.message("👍 " + p.name + " があなたの家にいいね！", 2)
+  p.message("👍 いいねした", 1)
+  kit_quest_progress(o, "likes", 1)
+  hud(o)
+end
+
+func start_tour()
+  let list = filter(keys(lots), func(k) return lot_pieces(k) >= 8 end)
+  if len(list) == 0 then return end
+  let n = random(list)
+  let o = player_by_id(lots[n].owner)
+  if o == nil then return end
+  tour = {lot: n, until: time() + 60, visited: {}}
+  announce("🏡 ハウスツアー！ 今回は " + o.name + " の家（空き地 " + n + "）。1分以内に見に行くとコイン！", 4)
+end
+
+on tick(dt)
+  tour_clock = tour_clock + dt
+  if tour_clock >= TOUR_EVERY then
+    tour_clock = 0
+    start_tour()
+  end
+  if tour == nil then return end
+  if time() > tour.until then
+    let o = nil
+    if lots[tour.lot] != nil then o = player_by_id(lots[tour.lot].owner) end
+    let n = len(keys(tour.visited))
+    if o != nil and n > 0 then
+      kit_give(o, 20 * n)
+      o.message("🏡 ツアーに " + n + " 人来てくれた！ +" + 20 * n, 2)
+      kit_quest_progress(o, "tour", 1)
+    end
+    tour = nil
+    ui_remove("tour")
+    return
+  end
+  ui_text("tour", "🏡 ハウスツアー: 空き地 " + tour.lot + "（" + ceil(tour.until - time()) + "s）", {at: "top", dy: 50, size: 14, bold: true, color: "#FDE68A"})
+  for p in players() do
+    if ready(p) and tour.visited[p.id] == nil and lot_here(p) == tour.lot and my_lot(p) != tour.lot then
+      tour.visited[p.id] = true
+      kit_give(p, 15)
+      p.message("🏡 ツアーに参加 +15", 1.5)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim_lot(p, split(b.name, " ")[2])
+  elif contains(b.tags, "store") and quiet_ready(p, "store", 3) then build_menu(p, "家具")
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_build" then build_menu(p, p.build_cat or "たてもの")
+  elif id == "build_close" then p.ui_remove("build")
+  elif starts_with(id, "bcat_") then build_menu(p, replace(id, "bcat_", ""))
+  elif starts_with(id, "piece_") then
+    let x = piece_info(replace(id, "piece_", ""))
+    if x != nil then place(p, x) end
+  elif id == "b_floor" then
+    p.floor_level = p.floor_level % 3 + 1
+    build_menu(p, p.build_cat or "たてもの")
+    hud(p)
+  elif id == "b_rot" then rotate_last(p)
+  elif id == "b_paint" then paint_last(p)
+  elif id == "undo" then undo_last(p)
+  elif id == "like" then like_lot(p)
+  end
+end

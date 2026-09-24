@@ -1,0 +1,261 @@
+-- club.absc — クラブのダンスパーティー
+-- DJブース（水色）に乗るとDJになれる。ジャンル（ポップ・EDM・ヒップホップ・ディスコ・チル）で床と空の色が変わる。
+-- ダンスフロアにいると「♪」が出る。すぐタップするとダンスポイントとコイン（コンボでふえる）。
+-- DJは「🔊 ドロップ」でみんなをジャンプさせたり「🎆 花火」を上げたり。DJがいないときはときどき自動でパーティー。
+-- ジュースバー（オレンジ）でドリンク。
+
+let party = nil        -- {genre, dj, until}
+let beat_clock = 0
+let beat_n = 0
+let club_clock = 0
+let auto_clock = 0
+
+func genre_info(id)
+  for g in GENRES do
+    if g.id == id then return g end
+  end
+  return GENRES[1]
+end
+
+func on_floor(p)
+  return abs(p.x) < 8 and p.z > -26 and p.z < -14 and p.y < 2.5
+end
+
+func start_party(dj, genre_id)
+  let g = genre_info(genre_id)
+  if party == nil then
+    let who = "オートDJ"
+    if dj != nil then who = dj.name end
+    announce("🪩 " + who + " の「" + g.name + "」パーティー！ クラブのフロアへ！", 4)
+  else
+    announce("🎶 ジャンルが「" + g.name + "」に変わった！", 2)
+  end
+  let dj_id = nil
+  if dj != nil then dj_id = dj.id end
+  party = {genre: g.id, dj: dj_id, until: time() + PARTY_SECS}
+  world.light = g.light
+  world.sky_top = g.sky
+  world.sky_bottom = "#000000"
+end
+
+func end_party()
+  party = nil
+  world.light = 0.6
+  world.sky_top = "#FF8A5B"
+  world.sky_bottom = "#FFD29D"
+  for t in blocks("tile") do t.color = "#EC4899" end
+  for p in players() do
+    p.ui_remove("note")
+    p.ui_remove("dj")
+    p.combo = 0
+  end
+  announce("🪩 パーティーおしまい！ またね", 2)
+  ui_remove("party")
+end
+
+func dj_panel(p)
+  let h = 110 + len(GENRES) * 46 + 50
+  p.ui_panel("dj", {at: "left", dx: 16, w: 300, h: h, bg: "#1E1B4BEE", radius: 20, layer: 30})
+  p.ui_text("dj_t", "🎧 DJブース", {parent: "dj", y: 24 / h, size: 19, bold: true, color: "#A5F3FC"})
+  let i = 0
+  for g in GENRES do
+    i = i + 1
+    let label = g.name
+    if party != nil and party.genre == g.id then label = "▶ " + label end
+    p.ui_button("genre_" + g.id, label, {parent: "dj", y: (24 + i * 46) / h, w: 240, h: 40, size: 15, bg: g.colors[1], color: "#111111"})
+  end
+  let y = (h - 64) / h
+  p.ui_button("dj_drop", "🔊 ドロップ", {parent: "dj", x: 0.28, y: y, w: 120, h: 36, size: 14, bg: "#DC2626"})
+  p.ui_button("dj_fire", "🎆 花火", {parent: "dj", x: 0.72, y: y, w: 120, h: 36, size: 14, bg: "#F59E0B"})
+  p.ui_button("dj_close", "閉じる", {parent: "dj", y: (h - 22) / h, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func be_dj(p)
+  if party != nil and party.dj != nil and party.dj != p.id then
+    let other = player_by_id(party.dj)
+    if other != nil then
+      p.message("🎧 いまは " + other.name + " がDJ中", 1.5)
+      return
+    end
+  end
+  dj_panel(p)
+end
+
+func drop(p)
+  if party == nil or party.dj != p.id then return end
+  if not quiet_ready(p, "drop", 20) then
+    p.message("ドロップはまだ（20びょうに1回）", 1)
+    return
+  end
+  let n = 0
+  for q in players() do
+    if on_floor(q) then
+      q.launch(0, 11, 0)
+      q.dance_pts = q.dance_pts + 5
+      n = n + 1
+    end
+  end
+  shake(0.3, 0.4)
+  fx_ball(vec(0, 3, -20), 10, genre_info(party.genre).colors[1], 0.4)
+  announce("🔊 ドロップ！！", 1.5)
+  kit_give(p, 3 * n)
+  kit_quest_progress(p, "dj_drop", 1)
+end
+
+func fireworks(p)
+  if party == nil or party.dj != p.id then return end
+  if not quiet_ready(p, "fire", 10) then return end
+  let g = genre_info(party.genre)
+  for k in 1 to 6 do
+    after(k * 0.2, func()
+      fx_ball(vec(random(-10, 10), random(8, 14), random(-28, -12)), random(2, 4), random(g.colors), 0.5)
+    end)
+  end
+end
+
+-- MARK: ♪ リズム
+
+func show_note(p)
+  p.note_at = time()
+  p.note_on = true
+  let g = genre_info(party.genre)
+  p.ui_button("note", "♪", {at: "center", dx: random(-220, 220), dy: random(-120, 80), w: 86, h: 86, size: 40, bg: random(g.colors), radius: 43})
+  let id = p.note_at
+  kit_later(p, 0.9, func()
+    if p.note_on and p.note_at == id then
+      p.note_on = false
+      p.ui_remove("note")
+      p.combo = 0
+    end
+  end)
+end
+
+func tap_note(p)
+  if not p.note_on then return end
+  p.note_on = false
+  p.ui_remove("note")
+  let quick = time() - p.note_at < 0.45
+  p.combo = p.combo + 1
+  let pts = 1
+  if quick then pts = 2 end
+  if active_until(p.berry_until) then pts = pts * 1.5 end
+  pts = floor(pts * (1 + min(p.combo, 20) * 0.05) * 10) / 10
+  p.dance_pts = p.dance_pts + pts
+  p.score = floor(p.dance_pts)
+  if p.combo % 10 == 0 then
+    p.message("🔥 " + p.combo + " コンボ！", 1)
+    kit_give(p, 5)
+  end
+  kit_quest_progress(p, "notes", 1)
+  if p.combo >= 30 then kit_quest_progress(p, "combo30", 1) end
+end
+
+-- MARK: ジュースバー
+
+func bar_menu(p)
+  let h = 110 + len(JUICES) * 52
+  p.ui_panel("bar", {at: "center", w: 480, h: h, bg: "#78350FEE", radius: 20, layer: 30})
+  p.ui_text("bar_t", "🧃 ジュースバー", {parent: "bar", y: 24 / h, size: 19, bold: true})
+  let i = 0
+  for j in JUICES do
+    i = i + 1
+    p.ui_button("juice_" + j.id, j.name + " " + j.price + " — " + j.text, {parent: "bar", y: (24 + i * 52) / h, w: 440, h: 44, size: 12, bg: "#B45309"})
+  end
+  p.ui_button("bar_close", "閉じる", {parent: "bar", y: (h - 22) / h, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func drink(p, id)
+  for j in JUICES do
+    if j.id == id and kit_pay(p, j.price) then
+      if id == "berry" then p.berry_until = time() + 15
+      elif id == "lemon" then
+        p.jump = 1.8
+        kit_later(p, 15, func() p.jump = 1 end)
+      else
+        p.heal(50)
+      end
+      p.message(j.name + " ごくごく！", 1.2)
+      kit_quest_progress(p, "juice", 1)
+    end
+  end
+end
+
+-- MARK: 毎フレーム
+
+on tick(dt)
+  club_clock = club_clock + dt
+  beat_clock = beat_clock + dt
+  auto_clock = auto_clock + dt
+  if party == nil then
+    if auto_clock >= AUTO_PARTY_EVERY then
+      auto_clock = 0
+      start_party(nil, random(GENRES).id)
+    end
+    return
+  end
+  auto_clock = 0
+  let g = genre_info(party.genre)
+  if beat_clock >= g.beat then
+    beat_clock = 0
+    beat_n = beat_n + 1
+    let i = 0
+    for t in blocks("tile") do
+      i = i + 1
+      t.color = g.colors[(i + beat_n) % len(g.colors) + 1]
+    end
+  end
+  if club_clock < 1 then return end
+  club_clock = 0
+  if time() > party.until then
+    end_party()
+    return
+  end
+  let dancers = filter(players(), func(p) return ready(p) and on_floor(p) end)
+  let who = "オートDJ"
+  if party.dj != nil then
+    let d = player_by_id(party.dj)
+    if d != nil then who = d.name else party.dj = nil end
+  end
+  ui_text("party", "🪩 " + g.name + "（DJ " + who + "）  🕺 " + len(dancers) + "人  " + ceil(party.until - time()) + "s", {at: "top", dy: 26, size: 15, bold: true, color: "#F0ABFC"})
+  let tick_n = floor(party.until - time())
+  for p in dancers do
+    if not p.note_on and random() < 0.6 then show_note(p) end
+    if tick_n % 10 == 0 then
+      kit_give(p, 3)
+      kit_quest_progress(p, "dance", 1)
+    end
+  end
+  if party.dj != nil and tick_n % 10 == 0 then
+    let d = player_by_id(party.dj)
+    if d != nil and len(dancers) > 0 then
+      kit_give(d, 2 * len(dancers))
+      kit_quest_progress(d, "dj", 1)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "dj") and quiet_ready(p, "dj_pad", 3) then be_dj(p)
+  elif contains(b.tags, "bar") and quiet_ready(p, "bar_pad", 3) then bar_menu(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "genre_") then
+    if party != nil and party.dj != nil and party.dj != p.id and player_by_id(party.dj) != nil then return end
+    start_party(p, replace(id, "genre_", ""))
+    dj_panel(p)
+  elif id == "dj_close" then p.ui_remove("dj")
+  elif id == "dj_drop" then drop(p)
+  elif id == "dj_fire" then fireworks(p)
+  elif id == "note" then tap_note(p)
+  elif id == "bar_close" then p.ui_remove("bar")
+  elif starts_with(id, "juice_") then drink(p, replace(id, "juice_", ""))
+  elif id == "emote_spin" then
+    for k in 1 to 8 do kit_later(p, k * 0.1, func() p.yaw = p.yaw + 45 end) end
+  elif id == "emote_jump" then
+    if quiet_ready(p, "ejump", 1.5) then p.launch(0, 9, 0) end
+  end
+end

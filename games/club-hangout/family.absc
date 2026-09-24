@@ -1,0 +1,87 @@
+-- family.absc — 役割と家族
+-- 役割は6つ（親・ティーン・子ども・赤ちゃん・ペット・ねこ）。
+-- 親は近くの人を家族にさそえる。家族は親の空き地にいっしょに建てられる。/home で家族の空き地へ。
+
+func set_role(p, key)
+  let r = ROLES[key]
+  if r == nil then return end
+  p.role = key
+  p.size = r.size
+  p.speed = r.speed
+  p.ui_remove("roles")
+  kit_quest_progress(p, "role", 1)
+  hud(p)
+end
+
+func role_panel(p)
+  let h = 110 + ceil(len(ROLE_ORDER) / 3) * 62
+  p.ui_panel("roles", {at: "center", w: 480, h: h, bg: "#831843EE", radius: 22, layer: 30})
+  p.ui_text("roles_t", "🎭 役割", {parent: "roles", y: 24 / h, size: 20, bold: true})
+  let i = 0
+  for key in ROLE_ORDER do
+    i = i + 1
+    p.ui_button("role_" + key, ROLES[key].name, {parent: "roles", x: ((i - 1) % 3) * 0.32 + 0.18, y: (30 + ceil(i / 3) * 62) / h, w: 130, h: 52, size: 15, bg: "#DB2777"})
+  end
+  p.ui_button("roles_close", "閉じる", {parent: "roles", y: (h - 22) / h, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func invite(p)
+  if p.role != "parent" then
+    p.message("家族にさそえるのは「親」だけ", 1.5)
+    return
+  end
+  if p.lot == nil then
+    p.message("先に空き地を手に入れよう", 1.5)
+    return
+  end
+  let best = nil
+  for q in players() do
+    if q.id != p.id and ready(q) and distance(p, q) < 8 and q.family != p.id and q.lot == nil then
+      if best == nil or distance(p, q) < distance(p, best) then best = q end
+    end
+  end
+  if best == nil then
+    p.message("👪 近く（8m）に、空き地を持っていない人がいない", 1.5)
+    return
+  end
+  best.invite_from = p.id
+  best.ui_panel("invite", {at: "center", w: 420, h: 150, bg: "#831843EE", radius: 20, layer: 40})
+  best.ui_text("inv_t", "👪 " + p.name + " の家族にならない？", {parent: "invite", y: 0.3, size: 17, bold: true})
+  best.ui_button("inv_yes", "なる！", {parent: "invite", x: 0.3, y: 0.72, w: 140, h: 44, size: 16, bg: "#16A34A"})
+  best.ui_button("inv_no", "やめとく", {parent: "invite", x: 0.72, y: 0.72, w: 140, h: 44, size: 16, bg: "gray"})
+  p.message("👪 " + best.name + " をさそった", 1.5)
+end
+
+func accept(p)
+  p.ui_remove("invite")
+  let head = nil
+  if p.invite_from != nil then head = player_by_id(p.invite_from) end
+  p.invite_from = nil
+  if head == nil then return end
+  p.family = head.id
+  p.message("👪 " + head.name + " の家族になった！ いっしょに建てられる", 2.5)
+  head.message("👪 " + p.name + " が家族になった！", 2)
+  kit_quest_progress(p, "family", 1)
+  kit_quest_progress(head, "family", 1)
+  hud(p)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_roles" then role_panel(p)
+  elif id == "roles_close" then p.ui_remove("roles")
+  elif starts_with(id, "role_") then set_role(p, replace(id, "role_", ""))
+  elif id == "invite" then invite(p)
+  elif id == "inv_yes" then accept(p)
+  elif id == "inv_no" then
+    p.ui_remove("invite")
+    p.invite_from = nil
+  end
+end
+
+on chat(p, text)
+  if text == "/home" then
+    let n = my_lot(p)
+    if n == nil then p.message("まだ空き地がない", 1.5) else p.teleport(block("Lot " + n)) end
+  end
+end

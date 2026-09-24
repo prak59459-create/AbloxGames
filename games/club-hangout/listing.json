@@ -1,14 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 59,
+  "blockCount" : 66,
   "id" : "club-hangout",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/club-hangout\/data.absc",
+    "games\/club-hangout\/build.absc",
+    "games\/club-hangout\/club.absc",
+    "games\/club-hangout\/common.absc",
+    "games\/club-hangout\/family.absc",
     "games\/club-hangout\/main.absc"
   ],
-  "summary" : "家族をつくって、家を建てて、クラブのダンスパーティーへ。家具を置いて自分だけの部屋を作ろう。",
+  "summary" : "空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。",
   "tags" : [
     "rp",
     "social",
