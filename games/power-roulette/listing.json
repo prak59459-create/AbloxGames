@@ -1,11 +1,16 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 36,
+  "blockCount" : 39,
   "id" : "power-roulette",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/power-roulette\/data.absc",
+    "games\/power-roulette\/common.absc",
+    "games\/power-roulette\/powers.absc",
+    "games\/power-roulette\/round.absc",
+    "games\/power-roulette\/shop.absc",
     "games\/power-roulette\/main.absc"
   ],
   "summary" : "ラウンドごとにルーレットで能力が決まる！炎、巨大化、ワープ、分身…運と工夫で最後まで生きのこれ。",

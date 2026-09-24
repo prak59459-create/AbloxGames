@@ -1,0 +1,50 @@
+-- data.absc — Power Roulette の表
+-- 能力（21・5つのレア度）・ラウンドのイベント・ショップ
+
+let RARITIES = [
+  {id: "common", name: "コモン", color: "#D1D5DB", weight: 60},
+  {id: "rare", name: "レア", color: "#60A5FA", weight: 25},
+  {id: "epic", name: "エピック", color: "#C084FC", weight: 10},
+  {id: "legend", name: "レジェンド", color: "#FBBF24", weight: 4},
+  {id: "mythic", name: "ミシック", color: "#F43F5E", weight: 1}
+]
+
+-- MARK: 能力 {cd: 待ち時間}
+let POWERS = [
+  {id: "fire", rarity: "common", name: "🔥 ファイア", text: "前に炎の爆発", cd: 4},
+  {id: "warp", rarity: "common", name: "🌀 ワープ", text: "前に瞬間移動", cd: 3},
+  {id: "heal", rarity: "common", name: "💚 ヒール", text: "自分と近くの人を回復", cd: 8},
+  {id: "tiny", rarity: "common", name: "🐜 ミニ化", text: "小さく速く、当たりにくく", cd: 15},
+  {id: "brawn", rarity: "common", name: "💪 剛腕", text: "8びょう パンチ ×1.8", cd: 14},
+  {id: "hop", rarity: "common", name: "🐸 大ジャンプ", text: "高くとんで着地で衝撃", cd: 6},
+  {id: "ice", rarity: "rare", name: "❄️ アイス", text: "近くの相手をこおらせる", cd: 8},
+  {id: "thunder", rarity: "rare", name: "⚡ サンダー", text: "いちばん近い相手に落雷", cd: 5},
+  {id: "vampire", rarity: "rare", name: "🧛 ヴァンパイア", text: "近くの相手の体力をうばう", cd: 6},
+  {id: "shield", rarity: "rare", name: "🛡 シールド", text: "3びょう ダメージを受けない", cd: 10},
+  {id: "poison", rarity: "rare", name: "☠ 毒の沼", text: "足もとに毒の沼（じわじわダメージ）", cd: 10},
+  {id: "giant", rarity: "epic", name: "🗿 巨大化", text: "10びょう 大きく強くなる", cd: 20},
+  {id: "clone", rarity: "epic", name: "👥 分身", text: "分身2体が相手を追いかける", cd: 12},
+  {id: "gun", rarity: "epic", name: "🔫 ガンマン", text: "ライフルを持つ", cd: 999},
+  {id: "tornado", rarity: "epic", name: "🌪 竜巻", text: "まわりをまとめて空へ", cd: 9},
+  {id: "stop", rarity: "epic", name: "⏸ 時間停止", text: "ほかの全員が2びょう止まる", cd: 25},
+  {id: "meteor", rarity: "legend", name: "☄ メテオ", text: "相手3人にいん石", cd: 12},
+  {id: "hole", rarity: "legend", name: "🕳 ブラックホール", text: "引きこんでからはじける", cd: 14},
+  {id: "phoenix", rarity: "legend", name: "🐦‍🔥 不死鳥", text: "やられても1回だけその場で復活", cd: 999},
+  {id: "god", rarity: "mythic", name: "✨ 神の一撃", text: "まっすぐ極太の光", cd: 15},
+  {id: "omni", rarity: "mythic", name: "🌈 全能", text: "ランダムな能力を3つ同時に", cd: 15}
+]
+
+-- MARK: ラウンドのイベント（ラウンドごとに1つ）
+let EVENTS = [
+  {id: "none", name: "なし", weight: 4},
+  {id: "lowgrav", name: "🌙 低重力", weight: 2},
+  {id: "giants", name: "🗿 巨人の日", weight: 1},
+  {id: "nohealth", name: "💔 回復なし", weight: 1},
+  {id: "double", name: "🎰 ダブルパワー（2つ使える）", weight: 2},
+  {id: "lava", name: "🌋 外側が溶岩", weight: 1},
+  {id: "lucky", name: "🍀 ラッキーラウンド（レアが出やすい）", weight: 2}
+]
+
+let ROUND_SECS = 90
+let TICKET_PRICE = 60
+let LUCK_PRICE = 150

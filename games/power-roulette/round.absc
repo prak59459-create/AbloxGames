@@ -1,0 +1,203 @@
+-- round.absc — ルーレット・ラウンド・イベント・ジャックポット
+
+let live = false
+let ends_at = 0
+let kills = {}
+let event = EVENTS[1]
+let jackpot_used = {}
+let round_clock = 0
+let lava_clock = 0
+
+func base_size()
+  if event.id == "giants" then return 1.8 end
+  return 1
+end
+
+-- レア度をえらぶ（運がいいほどレアが出やすい）
+func roll_power(p)
+  let luck = 1
+  if event.id == "lucky" then luck = luck * 2 end
+  if active_until(p.luck_until) then luck = luck * 3 end
+  let weighted = map(RARITIES, func(r)
+    let w = r.weight
+    if r.id != "common" then w = w * luck end
+    return {id: r.id, weight: w}
+  end)
+  let rarity = kit_pick(weighted, 1).id
+  let list = filter(POWERS, func(w) return w.rarity == rarity end)
+  return random(list)
+end
+
+-- くるくる回る演出のあとで決まる
+func spin(p, slot)
+  let w = roll_power(p)
+  for k in 1 to 6 do
+    kit_later(p, k * 0.1, func()
+      let fake = random(POWERS)
+      p.ui_text("roulette", "🎰 " + fake.name, {at: "center", dy: -150, size: 24, bold: true, color: "#9CA3AF"})
+    end)
+  end
+  kit_later(p, 0.7, func()
+    let r = rarity_info(w.rarity)
+    p.ui_text("roulette", "🎰 " + w.name + "（" + r.name + "）", {at: "center", dy: -150, size: 26, bold: true, color: r.color})
+    kit_later(p, 1.5, func() p.ui_remove("roulette") end)
+    if w.rarity == "legend" or w.rarity == "mythic" then announce("🌟 " + p.name + " が " + r.name + "「" + w.name + "」を引いた！", 3) end
+    if slot == 2 then p.power2 = w.id else p.power = w.id end
+    discover(p, w.id)
+    power_buttons(p)
+    if w.id == "gun" then p.give("rifle") elif p.weapon == "rifle" and p.power != "gun" and p.power2 != "gun" then p.give("パンチ") end
+  end)
+end
+
+func power_buttons(p)
+  if p.power != nil then
+    let w = power_info(p.power)
+    p.ui_text("power", w.name + " — " + w.text, {at: "top", dy: 60, size: 16, bold: true, color: rarity_info(w.rarity).color})
+    p.ui_button("use", w.name, {at: "bottom_right", dx: -120, dy: -160, w: 150, h: 60, size: 16, bg: "#A21CAF", radius: 16})
+  end
+  if p.power2 != nil then
+    let w2 = power_info(p.power2)
+    p.ui_button("use2", w2.name, {at: "bottom_right", dx: -280, dy: -160, w: 150, h: 60, size: 16, bg: "#6D28D9", radius: 16})
+  else
+    p.ui_remove("use2")
+  end
+end
+
+func start_round()
+  live = true
+  kills = {}
+  jackpot_used = {}
+  event = kit_pick(EVENTS, 1)
+  ends_at = time() + ROUND_SECS
+  if event.id == "lowgrav" then world.gravity = -4 else world.gravity = -9.81 end
+  let title = "🎰 ルーレットスタート！"
+  if event.id != "none" then title = title + " イベント: " + event.name end
+  announce(title, 3)
+  for p in players() do
+    if ready(p) then
+      if not p.alive then p.respawn() end
+      p.size = base_size()
+      p.speed = 1
+      p.max_health = 100
+      p.phoenix = false
+      p.power2 = nil
+      p.give("パンチ")
+      spin(p, 1)
+      if event.id == "double" then spin(p, 2) end
+    end
+  end
+end
+
+func end_round()
+  live = false
+  let best = nil
+  for p in players() do
+    let k = kills[p.id] or 0
+    if ready(p) and (best == nil or k > (kills[best.id] or 0)) then best = p end
+  end
+  if best != nil and (kills[best.id] or 0) > 0 then
+    best.wins = (best.wins or 0) + 1
+    best.score = best.wins
+    best.tickets = best.tickets + 1
+    kit_give(best, 100)
+    kit_quest_progress(best, "win", 1)
+    announce("🏆 " + best.name + " の勝ち！（" + (kills[best.id] or 0) + " キル・🎲+1）", 4)
+    shop_buttons(best)
+  else
+    announce("🤝 だれもたおせなかった… 引き分け", 3)
+  end
+  world.gravity = -9.81
+  after(6, func() start_round() end)
+end
+
+func jackpot(p)
+  if not live or jackpot_used[p.id] then return end
+  jackpot_used[p.id] = true
+  let roll = random(1, 6)
+  if roll == 1 then
+    kit_give(p, 150)
+    p.message("🎰 ジャックポット！ 🪙+150", 2)
+  elif roll == 2 then
+    p.heal(100)
+    p.message("🎰 全回復！", 2)
+  elif roll == 3 then
+    p.luck_until = time() + 60
+    p.message("🎰 1分間 運 ×3！ 引き直してみよう", 2)
+  elif roll == 4 then
+    p.tickets = p.tickets + 1
+    shop_buttons(p)
+    p.message("🎰 🎲 引き直しチケット +1", 2)
+  elif roll == 5 then
+    let w = random(filter(POWERS, func(x) return x.rarity == "legend" end))
+    p.power = w.id
+    discover(p, w.id)
+    power_buttons(p)
+    announce("🎰 " + p.name + " がジャックポットで「" + w.name + "」！", 3)
+  else
+    p.launch(0, 25, 0)
+    p.message("🎰 はずれ！ ふっとべ〜", 2)
+  end
+  kit_quest_progress(p, "jackpot", 1)
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  lava_clock = lava_clock + dt
+  if lava_clock >= 0.5 then
+    lava_clock = 0
+    if live and event.id == "lava" then
+      for p in players() do
+        if p.alive and magnitude({x: p.x, y: 0, z: p.z}) > 26 then p.damage(6) end
+      end
+    end
+  end
+  if round_clock < 1 then return end
+  round_clock = 0
+  if live then
+    let left = ends_at - time()
+    ui_text("clock", "⏱ " + kit_clock(left), {at: "top", dy: 26, size: 22, bold: true})
+    if left <= 0 then end_round() end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "jackpot") then jackpot(p) end
+end
+
+on hit(victim, attacker, damage)
+  if victim.is_npc or attacker == nil then return damage end
+  if active_until(victim.shield_until) then return 0 end
+  let d = damage
+  if attacker.size != nil and attacker.size > 2 then d = d * 2 end
+  if active_until(attacker.brawn_until) then d = d * 1.8 end
+  return d
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  if victim.phoenix then
+    victim.phoenix = false
+    let at = victim.position
+    after(0.5, func()
+      if kit_here(victim) and not victim.alive then
+        victim.respawn()
+        victim.teleport(at)
+        announce("🐦‍🔥 " + victim.name + " がよみがえった！", 2)
+      end
+    end)
+  end
+  if killer != nil and killer.id != victim.id and not killer.is_npc then
+    kills[killer.id] = (kills[killer.id] or 0) + 1
+    killer.kos = (killer.kos or 0) + 1
+    kit_give(killer, 10)
+    kit_quest_progress(killer, "ko", 1)
+  end
+end
+
+on respawn(p)
+  if live and ready(p) and p.power != nil then
+    p.size = base_size()
+    spin(p, 1)
+  end
+end

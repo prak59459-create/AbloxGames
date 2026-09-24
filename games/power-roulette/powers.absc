@@ -1,0 +1,184 @@
+-- powers.absc — 能力を使う
+
+let pools = []       -- 毒の沼 {at, owner, until}
+let pool_clock = 0
+
+func cast(p, id)
+  let w = power_info(id)
+  if id == "fire" then
+    let at = kit_ahead(p, 7)
+    flash(at + {x: 0, y: 1, z: 0}, 5, "#F97316", 0.25)
+    area_hit(p, at, 4, 30, 5)
+  elif id == "warp" then
+    p.teleport(kit_ahead(p, 14) + {x: 0, y: 1, z: 0})
+  elif id == "heal" then
+    if event.id == "nohealth" then
+      p.message("💔 回復なしのラウンド！", 1)
+      return
+    end
+    for c in players() do
+      if distance(p, c) < 8 then c.heal(35) end
+    end
+  elif id == "tiny" then
+    p.size = 0.45
+    p.speed = 1.8
+    kit_later(p, 10, func()
+      p.size = base_size()
+      p.speed = 1
+    end)
+  elif id == "brawn" then
+    p.brawn_until = time() + 8
+    p.message("💪 8びょう パンチ ×1.8", 1)
+  elif id == "hop" then
+    p.launch(0, 20, 0)
+    kit_later(p, 1.4, func() area_hit(p, p.position, 6, 22, 8) end)
+  elif id == "ice" then
+    for c in foes(p) do
+      if distance(p, c) < 10 then
+        c.frozen = true
+        after(2.5, func()
+          if kit_here(c) then c.frozen = false end
+        end)
+      end
+    end
+    flash(p.position + {x: 0, y: 1, z: 0}, 16, "#A5F3FC", 0.3)
+  elif id == "thunder" then
+    let t = nearest_foe(p, 40)
+    if t != nil then
+      flash(t.position + {x: 0, y: 1, z: 0}, 2, "#FDE047", 0.2)
+      hit(p, t, 35)
+    end
+  elif id == "vampire" then
+    for c in foes(p) do
+      if distance(p, c) < 7 then
+        hit(p, c, 15)
+        if event.id != "nohealth" then p.heal(15) end
+      end
+    end
+  elif id == "shield" then
+    p.shield_until = time() + 3
+    p.message("🛡 3びょう無敵", 1)
+  elif id == "poison" then
+    let at = p.position
+    let pool = create_block({name: "Poison", shape: "cylinder", position: at + {x: 0, y: 0.05, z: 0}, size: {x: 6, y: 0.1, z: 6},
+                             color: "#65A30D", material: "neon", solid: false, opacity: 0.7})
+    append(pools, {at: at, owner: p, until: time() + 6, block: pool})
+  elif id == "giant" then
+    p.size = 2.5
+    p.max_health = 250
+    p.heal(150)
+    kit_later(p, 10, func()
+      p.size = base_size()
+      p.max_health = 100
+    end)
+  elif id == "clone" then
+    for k in 1 to 2 do
+      let c = create_npc({name: p.name + "の分身", position: p.position + {x: k * 2 - 3, y: 0.5, z: 0}, color: p.color, health: 40, speed: 1.2})
+      c.owner = p.id
+      after(10, func() kit_gone(c) end)
+    end
+  elif id == "gun" then
+    p.give("rifle")
+  elif id == "tornado" then
+    flash(p.position + {x: 0, y: 3, z: 0}, 10, "#E5E7EB", 0.5)
+    area_hit(p, p.position, 9, 12, 20)
+  elif id == "stop" then
+    for c in foes(p) do
+      if not c.is_npc then
+        c.frozen = true
+        after(2, func()
+          if kit_here(c) then c.frozen = false end
+        end)
+      end
+    end
+    announce("⏸ " + p.name + " が時間を止めた！", 2)
+  elif id == "meteor" then
+    let targets = slice(shuffle(foes(p)), 1, 3)
+    for t in targets do
+      let at = t.position
+      flash(at + {x: 0, y: 8, z: 0}, 2, "#F97316", 0.8)
+      kit_later(p, 0.8, func()
+        flash(at, 6, "#EA580C", 0.3)
+        area_hit(p, at, 4, 40, 8)
+      end)
+    end
+  elif id == "hole" then
+    let at = kit_ahead(p, 10)
+    flash(at + {x: 0, y: 1.5, z: 0}, 3, "#1E1B4B", 1.8)
+    for k in 1 to 4 do
+      kit_later(p, k * 0.4, func()
+        for c in foes(p) do
+          if distance(at, c) < 12 and distance(at, c) > 1 then
+            let pull = normalize(at - c.position) * 10
+            c.launch(pull.x, 2, pull.z)
+          end
+        end
+      end)
+    end
+    kit_later(p, 1.8, func() area_hit(p, at, 5, 45, 12) end)
+  elif id == "phoenix" then
+    p.phoenix = true
+    p.message("🐦‍🔥 1回だけよみがえる！", 1.5)
+  elif id == "god" then
+    announce("✨ " + p.name + " の神の一撃！", 2)
+    for k in 1 to 10 do
+      let at = kit_ahead(p, k * 4)
+      flash(at + {x: 0, y: 1, z: 0}, 3, "#FEF3C7", 0.4)
+      area_hit(p, at, 3.5, 60, 6)
+    end
+  elif id == "omni" then
+    let picks = slice(shuffle(filter(POWERS, func(x) return x.id != "omni" and x.id != "gun" and x.id != "phoenix" end)), 1, 3)
+    p.message("🌈 " + join(map(picks, func(x) return x.name end), "・"), 2)
+    for x in picks do cast(p, x.id) end
+  end
+end
+
+func use(p, slot)
+  if not live or not p.alive then return end
+  let id = p.power
+  if slot == 2 then id = p.power2 end
+  if id == nil then return end
+  let w = power_info(id)
+  if not kit_ready(p, "power" + slot, w.cd) then return end
+  p.mastery[id] = (p.mastery[id] or 0) + 1
+  kit_quest_progress(p, "use", 1)
+  cast(p, id)
+end
+
+-- 毒の沼と分身
+on tick(dt)
+  pool_clock = pool_clock + dt
+  if pool_clock < 0.25 then return end
+  let passed = pool_clock
+  pool_clock = 0
+  let keep = []
+  for pool in pools do
+    if time() < pool.until and kit_here(pool.owner) then
+      append(keep, pool)
+      for c in foes(pool.owner) do
+        if distance(pool.at, c) < 3 then hit(pool.owner, c, 20 * passed) end
+      end
+    else
+      kit_gone(pool.block)
+    end
+  end
+  pools = keep
+  for n in npcs() do
+    if n.owner != nil and n.alive then
+      let t = nil
+      for p in players() do
+        if p.id != n.owner and p.alive and (t == nil or distance(n, p) < distance(n, t)) then t = p end
+      end
+      if t != nil then
+        n.follow(t)
+        if distance(n, t) < 2 then t.damage(10 * passed) end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "use" then use(p, 1)
+  elif id == "use2" then use(p, 2)
+  end
+end

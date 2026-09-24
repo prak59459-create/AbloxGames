@@ -1,0 +1,91 @@
+-- shop.absc — 引き直しチケット・運の薬・能力の図鑑
+
+func discover(p, id)
+  if not contains(p.index, id) then
+    append(p.index, id)
+    kit_quest_progress(p, "collect", 1)
+    if len(p.index) == len(POWERS) then kit_badge(p, "all_powers", "能力コンプリート") end
+  end
+end
+
+func shop_buttons(p)
+  p.ui_button("reroll", "🎲 引き直す（" + p.tickets + "）", {at: "right", dy: -60, w: 170, h: 48, size: 15, bg: "#7C3AED"})
+end
+
+func reroll(p)
+  if not live then
+    p.message("ラウンド中に使える", 1)
+    return
+  end
+  if p.tickets <= 0 then
+    p.message("🎲 チケットがない（チケット売り場で買える）", 1.5)
+    return
+  end
+  p.tickets = p.tickets - 1
+  shop_buttons(p)
+  spin(p, 1)
+  kit_quest_progress(p, "reroll", 1)
+end
+
+func booth(p)
+  let h = 220
+  p.ui_panel("booth_box", {at: "center", w: 480, h: h, bg: "#3B0764F2", radius: 22, layer: 30})
+  p.ui_text("booth_t", "🎟 チケット売り場（🪙 " + kit_money(p) + "）", {parent: "booth_box", y: 28 / h, size: 19, bold: true, color: "#F0ABFC"})
+  p.ui_button("buy_ticket", "🎲 引き直しチケット  🪙" + TICKET_PRICE, {parent: "booth_box", y: 80 / h, w: 420, h: 42, size: 15, bg: "#7C3AED"})
+  p.ui_button("buy_luck", "🍀 運の薬（1分間 レアが3倍出やすい）  🪙" + LUCK_PRICE, {parent: "booth_box", y: 130 / h, w: 420, h: 42, size: 14, bg: "#15803D"})
+  p.ui_button("booth_close", "閉じる", {parent: "booth_box", y: (h - 24) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func index_menu(p)
+  let half = ceil(len(POWERS) / 2)
+  let h = 120 + half * 28
+  p.ui_panel("idx_box", {at: "center", w: 700, h: h, bg: "#083344F2", radius: 22, layer: 30})
+  p.ui_text("idx_t", "📖 能力の図鑑 " + len(p.index) + "/" + len(POWERS), {parent: "idx_box", y: 26 / h, size: 19, bold: true, color: "#A5F3FC"})
+  let i = 0
+  for w in POWERS do
+    i = i + 1
+    let col = 0.27
+    let row = i
+    if i > half then
+      col = 0.75
+      row = i - half
+    end
+    let r = rarity_info(w.rarity)
+    let label = "？？？（" + r.name + "）"
+    let color = "#64748B"
+    if contains(p.index, w.id) then
+      label = w.name + "  熟練 " + (p.mastery[w.id] or 0)
+      color = r.color
+    end
+    p.ui_text("idx" + i, label, {parent: "idx_box", x: col, y: (36 + row * 28) / h, size: 13, color: color})
+  end
+  p.ui_button("idx_close", "閉じる", {parent: "idx_box", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "ticket_booth") and quiet_ready(p, "booth", 4) then booth(p)
+  elif contains(b.tags, "index_board") and quiet_ready(p, "index", 4) then index_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "reroll" then reroll(p)
+  elif id == "booth" then booth(p)
+  elif id == "booth_close" then p.ui_remove("booth_box")
+  elif id == "buy_ticket" then
+    if kit_pay(p, TICKET_PRICE) then
+      p.tickets = p.tickets + 1
+      shop_buttons(p)
+      booth(p)
+    end
+  elif id == "buy_luck" then
+    if kit_pay(p, LUCK_PRICE) then
+      p.luck_until = time() + 60
+      p.message("🍀 1分間 レアが出やすい！", 2)
+      booth(p)
+    end
+  elif id == "index" then index_menu(p)
+  elif id == "idx_close" then p.ui_remove("idx_box")
+  end
+end

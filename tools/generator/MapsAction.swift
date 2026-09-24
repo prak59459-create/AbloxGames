@@ -283,6 +283,9 @@ func powerRoulette(_ m: MapBuilder) {
                color: colors[i % 6], material: .neon, solid: false, rotation: (0, -a, 0))
     }
     m.part("Wheel Center", at: (0, 0.3, 0), size: (8, 0.6, 8), color: "#FDE047", shape: .cylinder, material: .metal)
+    m.pad("Jackpot Pad", x: 0, z: 0, y: 0.6, size: 3, color: "#F43F5E", tags: ["jackpot"])
+    m.pad("Power Index", x: 0, z: -32, size: 3, color: "#22D3EE", tags: ["index_board"])
+    m.pad("Ticket Booth", x: 0, z: 32, size: 3, color: "#A855F7", tags: ["ticket_booth"])
     m.spawnRing(0, 0, radius: 24, count: 12, color: "#F0ABFC")
     var r = Seeded("roulette")
     for i in 0..<10 {

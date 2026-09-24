@@ -1,0 +1,79 @@
+-- common.absc — 小さな道具
+
+kit_melee("パンチ", 12, 2.5, 5)
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.index != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func power_info(id)
+  for w in POWERS do
+    if w.id == id then return w end
+  end
+  return POWERS[1]
+end
+
+func rarity_info(id)
+  for r in RARITIES do
+    if r.id == id then return r end
+  end
+  return RARITIES[1]
+end
+
+func foes(p)
+  let list = []
+  for c in kit_everyone() do
+    if c.alive and c.id != p.id and c.owner != p.id then append(list, c) end
+  end
+  return list
+end
+
+func nearest_foe(p, range)
+  let best = nil
+  for c in foes(p) do
+    if distance(p, c) < range and (best == nil or distance(p, c) < distance(p, best)) then best = c end
+  end
+  return best
+end
+
+-- 能力の熟練度（使うほど強い: 1回ごとに +1%、最大 +50%）
+func mastery_mult(p, id)
+  return 1 + min(0.5, (p.mastery[id] or 0) * 0.01)
+end
+
+func hit(p, c, amount)
+  if c == nil or not kit_here(c) or not c.alive then return end
+  if not c.is_npc and active_until(c.shield_until) then return end
+  c.damage(amount * mastery_mult(p, p.power), p)
+end
+
+func area_hit(p, center, radius, amount, lift)
+  for c in foes(p) do
+    if distance(center, c) <= radius then
+      hit(p, c, amount)
+      if lift > 0 and kit_here(c) and c.alive then c.launch(0, lift, 0) end
+    end
+  end
+end
+
+func flash(position, size, color, secs)
+  let b = create_block({name: "Flash", shape: "sphere", position: position, size: {x: size, y: size, z: size},
+                        color: color, material: "neon", solid: false, opacity: 0.7})
+  after(secs, func() kit_gone(b) end)
+end

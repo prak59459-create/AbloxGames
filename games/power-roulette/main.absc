@@ -1,211 +1,48 @@
 -- Power Roulette — ルーレットで能力が決まるバトル
+-- ラウンドのはじめにルーレット。能力は21種類・5つのレア度。ラウンドごとにイベントもある。
+-- 90びょうでいちばんたおした人の勝ち。まんなかのジャックポットは1ラウンド1回。
+--
+-- ファイル:
+--   data.absc    表（レア度・能力21・イベント・ショップ）
+--   common.absc  小さな道具・ダメージ
+--   powers.absc  能力を使う・毒の沼・分身
+--   round.absc   ルーレット・ラウンド・イベント・ジャックポット
+--   shop.absc    チケット・運の薬・図鑑
+--   main.absc    このファイル
 
 kit_setup("Power Roulette", "運命のルーレットで戦え", [
-  "ラウンドの始めにルーレットが回って、能力が1つ決まる",
-  "「能力」ボタンで使う（能力ごとに待ち時間がちがう）",
-  "90秒で一番たおした人か、最後に残った人の勝ち",
-  "🎲 リロールチケットで能力を引き直せる（勝つともらえる）",
-  "たおされても5秒で復活（ラウンド中）"
+  "🎰 ラウンドのはじめにルーレットで能力が1つ決まる（ダブルなら2つ）",
+  "⭐ レア度はコモン〜ミシック。使うほど熟練して強くなる",
+  "🎪 ラウンドごとにイベント: 低重力・巨人の日・回復なし・溶岩…",
+  "🎯 まんなかの赤いパッドはジャックポット（1ラウンド1回）",
+  "🎲 引き直しチケットで能力を変えられる。🍀 運の薬でレアが出やすく",
+  "🏆 90びょうでいちばんたおした人の勝ち"
 ])
-kit_melee("パンチ", 12, 2.5, 5)
-
-let powers = [
-  {id: "fire", name: "🔥 ファイア", text: "前に炎の爆発", cd: 4, weight: 12},
-  {id: "ice", name: "❄️ アイス", text: "近くの相手をこおらせる", cd: 8, weight: 10},
-  {id: "giant", name: "🗿 巨大化", text: "10秒間大きく強くなる", cd: 20, weight: 8},
-  {id: "tiny", name: "🐜 ミニ化", text: "小さく速く、当たりにくく", cd: 15, weight: 8},
-  {id: "warp", name: "🌀 ワープ", text: "前に瞬間移動", cd: 3, weight: 10},
-  {id: "heal", name: "💚 ヒール", text: "自分と近くの味方を回復", cd: 8, weight: 8},
-  {id: "thunder", name: "⚡ サンダー", text: "一番近い相手に落雷", cd: 5, weight: 10},
-  {id: "gun", name: "🔫 ガンマン", text: "ライフルを持つ", cd: 999, weight: 8},
-  {id: "clone", name: "👥 分身", text: "分身が相手を追いかける", cd: 12, weight: 6},
-  {id: "rocket", name: "🚀 ロケット", text: "空高く飛んで着地で衝撃", cd: 7, weight: 8},
-  {id: "vampire", name: "🧛 ヴァンパイア", text: "近くの相手の体力をうばう", cd: 6, weight: 6},
-  {id: "shield", name: "🛡 シールド", text: "3秒間ダメージを受けない", cd: 10, weight: 6}
-]
-let live = false
-let ends_at = 0
-let kills = {}
 
 kit_quest("win", "1ラウンド勝つ", 1, 150)
-kit_quest("all", "5種類の能力を使う", 5, 200)
-
-func find_power(id)
-  for w in powers do
-    if w.id == id then return w end
-  end
-  return powers[1]
-end
-
-func spin(p)
-  let w = kit_pick(powers, 1)
-  p.power = w.id
-  if p.used == nil then p.used = {} end
-  if p.used[w.id] == nil then
-    p.used[w.id] = true
-    kit_quest_progress(p, "all", 1)
-  end
-  p.ui_text("power", w.name + " — " + w.text, {at: "top", dy: 60, size: 17, bold: true, color: "#F0ABFC"})
-  p.ui_button("use", w.name, {at: "bottom_right", dx: -120, dy: -160, w: 150, h: 64, size: 17, bg: "#A21CAF", radius: 16})
-  if w.id == "gun" then p.give("rifle") else p.give("パンチ") end
-end
-
-func show_tickets(p)
-  p.ui_button("reroll", "🎲 引き直す（" + p.tickets + "）", {at: "right", dy: -60, w: 170, h: 50, size: 16, bg: "#7C3AED"})
-end
-
-func start_round()
-  live = true
-  kills = {}
-  ends_at = time() + 90
-  announce("🎰 ルーレットスタート！", 2)
-  for p in players() do
-    if not p.alive then p.respawn() end
-    p.size = 1
-    p.speed = 1
-    spin(p)
-  end
-end
-
-func end_round()
-  live = false
-  let best = nil
-  for p in players() do
-    let k = kills[p.id] or 0
-    if best == nil or k > (kills[best.id] or 0) then best = p end
-  end
-  if best != nil then
-    best.score = best.score + 1
-    best.tickets = best.tickets + 1
-    show_tickets(best)
-    kit_quest_progress(best, "win", 1)
-    announce("🏆 " + best.name + " の勝ち！（" + (kills[best.id] or 0) + " キル）", 4)
-  end
-  after(6, func() start_round() end)
-end
-
-func use(p)
-  if not live or not p.alive or p.power == nil then return end
-  let w = find_power(p.power)
-  if not kit_ready(p, "power", w.cd) then return end
-  let id = w.id
-  if id == "fire" then
-    kit_blast(p, kit_ahead(p, 7), 4, 30, 5)
-  elif id == "ice" then
-    for c in players() do
-      if c.id != p.id and c.alive and distance(p, c) < 10 then
-        c.frozen = true
-        after(2.5, func() if kit_here(c) then c.frozen = false end end)
-      end
-    end
-  elif id == "giant" then
-    p.size = 2.5
-    p.max_health = 250
-    p.heal(150)
-    kit_later(p, 10, func()
-      p.size = 1
-      p.max_health = 100
-    end)
-  elif id == "tiny" then
-    p.size = 0.45
-    p.speed = 1.8
-    kit_later(p, 10, func()
-      p.size = 1
-      p.speed = 1
-    end)
-  elif id == "warp" then
-    p.teleport(kit_ahead(p, 14) + {x: 0, y: 1, z: 0})
-  elif id == "heal" then
-    for c in players() do
-      if distance(p, c) < 8 then c.heal(35) end
-    end
-  elif id == "thunder" then
-    let t = nil
-    for c in players() do
-      if c.id != p.id and c.alive and distance(p, c) < 40 and (t == nil or distance(p, c) < distance(p, t)) then t = c end
-    end
-    if t != nil then
-      t.damage(35, p)
-      if kit_here(t) and t.alive then t.shake(0.4, 0.3) end
-    end
-  elif id == "clone" then
-    let c = create_npc({name: p.name + "の分身", position: p.position + {x: 2, y: 0.5, z: 0}, color: p.color, health: 40, speed: 1.2})
-    c.owner = p.id
-    after(10, func() if kit_here(c) then c.destroy() end end)
-  elif id == "rocket" then
-    p.launch(0, 28, 0)
-    kit_later(p, 1.8, func() kit_blast(p, p, 8, 35, 10) end)
-  elif id == "vampire" then
-    for c in players() do
-      if c.id != p.id and c.alive and distance(p, c) < 7 then
-        c.damage(15, p)
-        p.heal(15)
-      end
-    end
-  elif id == "shield" then
-    p.shield_until = time() + 3
-    p.message("🛡 3秒無敵", 1)
-  end
-end
+kit_quest("ko", "10人たおす", 10, 150)
+kit_quest("use", "能力を50回使う", 50, 150)
+kit_quest("collect", "10種類の能力を見つける", 10, 300)
+kit_quest("jackpot", "ジャックポットを回す", 1, 30)
+kit_quest("reroll", "引き直しを使う", 1, 20)
 
 on start()
   game.respawn_time = 5
   after(4, func() start_round() end)
-  every(1, func()
-    if live then
-      let left = ends_at - time()
-      ui_text("clock", "⏱ " + kit_clock(left), {at: "top", dy: 26, size: 22, bold: true})
-      if left <= 0 then end_round() end
-    end
-  end)
+  every(10, func() kit_leaderboard("🏆") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_camera_button(p)
+  kit_show_money(p)
   p.tickets = 1
-  show_tickets(p)
-  if live then spin(p) end
-end
-
-on tick(dt)
-  for n in npcs() do
-    if n.owner != nil then
-      let t = nil
-      for p in players() do
-        if p.id != n.owner and p.alive and (t == nil or distance(n, p) < distance(n, t)) then t = p end
-      end
-      if t != nil then
-        n.follow(t)
-        if distance(n, t) < 2 then t.damage(10 * dt) end
-      end
-    end
-  end
-end
-
-on button(p, id)
-  if id == "use" then use(p)
-  elif id == "reroll" and p.tickets > 0 and live then
-    p.tickets = p.tickets - 1
-    show_tickets(p)
-    spin(p)
-    p.message("🎲 引き直した！", 1.5)
-  end
-end
-
-on hit(victim, attacker, damage)
-  if victim.shield_until != nil and time() < victim.shield_until then return 0 end
-  if attacker.size != nil and attacker.size > 2 then return damage * 2 end
-  return damage
-end
-
-on death(victim, killer)
-  if victim.is_npc then return end
-  if killer != nil and killer.id != victim.id and not killer.is_npc then
-    kills[killer.id] = (kills[killer.id] or 0) + 1
-  end
-end
-
-on respawn(p)
-  if live and p.power != nil then spin(p) end
+  p.index = []
+  p.mastery = {}
+  p.give("パンチ")
+  shop_buttons(p)
+  p.ui_button("booth", "🎟 売り場", {at: "right", dy: 0, w: 130, h: 44, size: 15, bg: "#6D28D9"})
+  p.ui_button("index", "📖 図鑑", {at: "right", dy: 54, w: 130, h: 44, size: 15, bg: "#0E7490"})
+  if live then spin(p, 1) end
 end
