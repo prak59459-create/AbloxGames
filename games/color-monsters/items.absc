@@ -1,0 +1,127 @@
+-- items.absc — 夜ごとの任務の品物・運ぶ・届ける・オレンジのエサ
+
+let bowl_fed = {}          -- エサ皿の名前 → 最後にエサを入れた時刻
+let spot_count = 0
+
+func count_spots()
+  if spot_count > 0 then return spot_count end
+  let i = 1
+  while block("Part Spot " + i) != nil do i = i + 1 end
+  spot_count = i - 1
+  return spot_count
+end
+
+func clear_items()
+  for b in blocks("item") do gone(b) end
+end
+
+func spawn_item(n, at)
+  create_block({name: "Item", shape: random(n.shapes), position: at + {x: 0, y: 0.9, z: 0}, size: 0.9,
+                color: random(n.colors), material: "neon", solid: false, behavior: "trigger", tags: ["item"]})
+end
+
+-- 必要な数より少し多めに。散らばった場所から
+func spawn_items()
+  clear_items()
+  let n = night_info()
+  if n == nil then return end
+  let spots = shuffle(range(1, count_spots()))
+  let want = min(len(spots), n.count + 3)
+  for i in 1 to want do spawn_item(n, block("Part Spot " + spots[i]).position) end
+end
+
+-- つかまったときに落とした品物は、どこかにもどる
+func scatter_items(count)
+  let n = night_info()
+  if n == nil or count <= 0 then return end
+  for k in 1 to count do spawn_item(n, block("Part Spot " + random(1, count_spots())).position) end
+end
+
+func pickup(p, b)
+  if phase != "night" and phase != "launch" then return end
+  if p.carrying >= carry_max(p) then
+    if quiet_ready(p, "full", 2) then p.message("もう持てない。先に届けよう（🎒 大きなポケットで2個）", 1.5) end
+    return
+  end
+  gone(b)
+  p.carrying = p.carrying + 1
+  p.sound("collect")
+  p.message(night_info().icon + " " + night_info().item + " を拾った → " + night_info().where, 2)
+  hud(p)
+end
+
+func deliver(p, tag)
+  let n = night_info()
+  if n == nil or phase != "night" or tag != n.target then return end
+  if p.carrying <= 0 then
+    if quiet_ready(p, "deliver_hint", 3) then p.message(n.icon + " " + n.item + " を持ってきてね", 1.2) end
+    return
+  end
+  let amount = min(p.carrying, n.count - got)
+  got = got + amount
+  p.carrying = 0
+  kit_give(p, 6 * amount)
+  p.score = p.score + amount
+  kit_quest_progress(p, "items", amount)
+  p.sound("goal")
+  p.message(n.icon + " 届けた！ " + got + "/" + n.count, 1.5)
+  hud(p)
+  team_hud()
+  if got >= n.count then night_goal_done() end
+end
+
+-- MARK: エサ
+
+func take_food(p)
+  if p.food >= food_max(p) then
+    p.message("🍖 もう持っている。エサ皿（オレンジ）へ", 1.2)
+    return
+  end
+  p.food = food_max(p)
+  p.sound("collect")
+  p.message("🍖 エサを持った。オレンジのエサ皿に入れるとオレンジがおとなしくなる", 2.5)
+  hud(p)
+end
+
+func fill_bowl(p, b)
+  if p.food <= 0 then
+    if quiet_ready(p, "bowl_hint", 3) then
+      let left = HUNGER_SECS - (time() - (bowl_fed[b.name] or -999))
+      if left > 0 then p.message("🥣 まだエサが残っている（あと" + ceil(left) + "びょう）", 1.2) else p.message("🥣 空っぽ！ 食料庫（オレンジの木箱）でエサを", 1.5) end
+    end
+    return
+  end
+  p.food = p.food - 1
+  bowl_fed[b.name] = time()
+  kit_give(p, 4)
+  kit_quest_progress(p, "feed", 1)
+  p.message("🥣 エサを入れた！", 1.2)
+  p.sound("collect")
+  hud(p)
+end
+
+func empty_bowls()
+  let n = 0
+  for i in 1 to 3 do
+    let name = "Food Bowl " + i
+    if time() - (bowl_fed[name] or -999) > HUNGER_SECS then n = n + 1 end
+  end
+  return n
+end
+
+func refill_bowls()
+  for i in 1 to 3 do bowl_fed["Food Bowl " + i] = time() end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive or p.caged then return end
+  if contains(b.tags, "item") then pickup(p, b)
+  elif contains(b.tags, "chute") then deliver(p, "chute")
+  elif contains(b.tags, "fusebox") then deliver(p, "fusebox")
+  elif contains(b.tags, "generator") then deliver(p, "generator")
+  elif contains(b.tags, "rocket") then
+    if phase == "launch" then board_rocket(p) else deliver(p, "rocket") end
+  elif contains(b.tags, "food") then take_food(p)
+  elif contains(b.tags, "bowl") and quiet_ready(p, "bowl_pad", 1) then fill_bowl(p, b)
+  end
+end

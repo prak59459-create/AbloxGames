@@ -1,15 +1,22 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 90,
-  "cover" : "games\/color-monsters\/cover-864e35e4.png",
+  "blockCount" : 215,
+  "cover" : "games\/color-monsters\/cover-cf7b56b1.png",
   "id" : "color-monsters",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/color-monsters\/data.absc",
+    "games\/color-monsters\/cage.absc",
+    "games\/color-monsters\/common.absc",
+    "games\/color-monsters\/hiding.absc",
+    "games\/color-monsters\/items.absc",
+    "games\/color-monsters\/monsters.absc",
+    "games\/color-monsters\/nights.absc",
     "games\/color-monsters\/main.absc"
   ],
-  "summary" : "夜の遊園地倉庫で、カラフルなモンスターから隠れながら部品を集めよう。見つかりそうになったら箱をかぶれ！5夜を生きのびろ。",
+  "summary" : "夜のおもちゃ倉庫で5色のモンスターから隠れて、夜ごとの任務（ブロック・ヒューズ・電池・ガス・ロケットの部品）を集めよう。箱やロッカーに隠れ、つかまった仲間は檻から助けて、5夜目にロケットで脱出！",
   "tags" : [
     "horror",
     "hide",

@@ -1,0 +1,206 @@
+-- monsters.absc — 5色のモンスター
+-- 🔵 ブルー: 見回り。見えたら追う（棚のかげは見えない）
+-- 🟢 グリーン: 目が見えない。走る音・箱のこすれる音を聞く
+-- 🟠 オレンジ: 速い。エサ皿が空だとさらに速く、遠くまで見える
+-- 🟣 パープル: 通気口の下。上を歩くと飛び出す（箱をかぶってそっと通ればだいじょうぶ）
+-- 🩵 シアン: 見る・聞く。ときどき消えて、だれかのうしろにあらわれる
+
+let ai_clock = 0
+
+func spawn_monster(kind)
+  if monsters[kind] != nil and kit_here(monsters[kind]) then return end
+  let spec = MONSTERS[kind]
+  let spot = block("Monster Spot " + random(1, 5))
+  let n = create_npc({name: spec.name, position: spot.position + {x: 0, y: 1, z: 0}, color: spec.color, head_color: spec.head,
+                      leg_color: spec.color, size: spec.size, speed: spec.speed, hat: spec.hat, health: 999999})
+  n.kind = kind
+  n.mode = "patrol"
+  n.chase = nil
+  n.lost_at = 0
+  n.goal = nil
+  n.blink_at = time() + 25
+  monsters[kind] = n
+  if kind == "purple" then
+    n.visible = false
+    n.frozen = true
+    n.mode = "vent"
+  else
+    patrol(n)
+  end
+end
+
+func despawn_monsters()
+  for key in keys(monsters) do gone(monsters[key]) end
+  monsters = {}
+end
+
+-- 見回りの次の場所へ
+func patrol(n)
+  let i = random(1, 11)
+  let b = block("Patrol " + i)
+  if b == nil then return end
+  n.goal = b.position
+  n.move_to(b.position)
+end
+
+-- MARK: 見る・聞く
+
+func sees(n, p, range)
+  if range <= 0 or p.boxed then return false end
+  let r = range
+  if has_perk(p, "brave") then r = r * 0.8 end
+  let d = distance(n, p)
+  if d > r then return false end
+  -- 棚のむこうは見えない
+  let dir = {x: p.x - n.x, y: p.y + 1 - n.y - 1.6 * MONSTERS[n.kind].size, z: p.z - n.z}
+  let hit = raycast(n, dir, d + 1)
+  if hit == nil then return true end
+  if hit.player != nil and hit.player.id == p.id then return true end
+  return hit.distance > d - 1
+end
+
+func hears(n, p, range)
+  if range <= 0 then return false end
+  let r = range
+  if has_perk(p, "shoes") then r = r * 0.5 end
+  let moving = magnitude({x: p.velocity.x, y: 0, z: p.velocity.z})
+  let d = distance(n, p)
+  if p.boxed then return moving > 0.8 and d < r * 0.35 end
+  return moving > 3.2 and d < r
+end
+
+func notice(n, p)
+  let spec = MONSTERS[n.kind]
+  if n.kind == "orange" then
+    let hungry = empty_bowls()
+    return sees(n, p, spec.sight + hungry * 5)
+  end
+  return sees(n, p, spec.sight) or hears(n, p, spec.hear)
+end
+
+-- MARK: つかまる
+
+func catch(n, p)
+  if not findable(p) then return end
+  p.caged = true
+  p.cage_until = time() + CAGE_SECS
+  p.times_caught = p.times_caught + 1
+  scatter_items(p.carrying)
+  p.carrying = 0
+  p.food = 0
+  unbox(p)
+  p.shake(0.8, 0.6)
+  p.fade("#000000", 0.2)
+  kit_later(p, 0.7, func()
+    let spot = block("Cage Spot")
+    if spot != nil then p.teleport(spot.position + {x: random(-3, 3), y: 1, z: random(-3, 3)}) end
+    p.fade(nil, 0.8)
+  end)
+  n.chase = nil
+  if n.kind != "purple" then
+    n.mode = "patrol"
+    patrol(n)
+  end
+  announce("😱 " + p.name + " が" + MONSTERS[n.kind].name + "につかまった！ 檻の前の赤いレバーで助けよう", 3)
+  kit_quest_progress(p, "caught", 1)
+  hud(p)
+  check_wipe()
+end
+
+-- MARK: 通気口（パープル）
+
+func vent_step_on(p, b)
+  let n = monsters.purple
+  if n == nil or not kit_here(n) or not findable(p) then return end
+  if p.boxed and magnitude(p.velocity) < 3 then
+    if quiet_ready(p, "vent_quiet", 4) then p.message("🟣 …通気口の下で何かが息をひそめている", 1.5) end
+    return
+  end
+  if not quiet_ready(p, "vent_" + b.name, 3) then return end
+  n.visible = true
+  n.teleport(b.position + {x: 0, y: 0.5, z: 0})
+  p.message("🟣 通気口から何かが…！ 走れ！", 1)
+  p.shake(0.4, 0.5)
+  after(0.9, func()
+    if kit_here(n) and kit_here(p) and distance(n, p) < 3.5 then catch(n, p) end
+    after(2, func() if kit_here(n) then n.visible = false end end)
+  end)
+end
+
+-- MARK: 毎0.25びょう
+
+func monster_step(n)
+  let spec = MONSTERS[n.kind]
+  if n.kind == "purple" then return end
+  if n.kind == "orange" then
+    let speed = spec.speed + empty_bowls() * 0.25
+    if phase == "launch" then speed = speed + 0.3 end
+    if n.speed != speed then n.speed = speed end
+  end
+  -- シアン: ときどき消えて、だれかのうしろへ
+  if n.kind == "cyan" and time() > n.blink_at then
+    n.blink_at = time() + random(22, 32)
+    let who = filter(players(), func(p) return findable(p) end)
+    if len(who) > 0 then
+      let p = random(who)
+      n.teleport({x: p.x - p.look.x * 10, y: p.y + 1, z: p.z - p.look.z * 10})
+      p.message("🩵 …空気が冷たい。うしろ…？", 1.5)
+    end
+  end
+  -- いちばん近くの、気づいた相手を追う
+  let target = nil
+  let best = 999
+  for p in players() do
+    if findable(p) and notice(n, p) then
+      let d = distance(n, p)
+      if d < best then
+        best = d
+        target = p
+      end
+    end
+  end
+  -- 追いかけている相手は、少しのあいだ見失わない
+  if target == nil and n.chase != nil then
+    for p in players() do
+      if p.id == n.chase and findable(p) and time() - n.lost_at < 3 then target = p end
+    end
+  end
+  if target != nil then
+    if n.chase != target.id then
+      target.message("⚠️ " + spec.name + "に見つかった！ 逃げろ！", 1.5)
+      target.shake(0.3, 0.4)
+      kit_quest_progress(target, "spotted", 1)
+    end
+    if notice(n, target) then n.lost_at = time() end
+    n.mode = "chase"
+    n.chase = target.id
+    n.follow(target)
+    if distance(n, target) < CATCH_RANGE * (spec.size / 2) + 0.6 then catch(n, target) end
+    return
+  end
+  if n.mode == "chase" then
+    n.mode = "patrol"
+    n.chase = nil
+    patrol(n)
+    return
+  end
+  -- 見回り。着いたら次へ（スタート部屋には入らない）
+  if n.goal == nil or distance(n, n.goal) < 3 or n.z < SAFE_Z + 3 or random() < 0.01 then patrol(n) end
+end
+
+on tick(dt)
+  ai_clock = ai_clock + dt
+  if ai_clock < 0.25 then return end
+  ai_clock = 0
+  if phase != "night" and phase != "launch" then return end
+  for key in keys(monsters) do
+    let n = monsters[key]
+    if kit_here(n) then monster_step(n) end
+  end
+  for p in players() do heartbeat(p) end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "vent") and (phase == "night" or phase == "launch") then vent_step_on(p, b) end
+end

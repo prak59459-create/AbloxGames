@@ -1,0 +1,70 @@
+-- cage.absc — つかまった人の檻と、助けるレバー。全員つかまったら夜をやりなおす
+
+let cage_clock = 0
+
+func release(p, where)
+  if not p.caged then return end
+  p.caged = false
+  p.cage_until = nil
+  if where != nil then p.teleport(where + {x: random(-2, 2), y: 1, z: random(-2, 2)}) end
+  p.message("🔓 檻から出られた！", 1.5)
+  hud(p)
+end
+
+func pull_lever(p)
+  let freed = 0
+  let lever = block("Cage Lever")
+  for q in players() do
+    if ready(q) and q.caged then
+      release(q, lever.position)
+      freed = freed + 1
+    end
+  end
+  if freed == 0 then
+    if quiet_ready(p, "lever_hint", 3) then p.message("⛓ 檻にはだれもいない", 1) end
+    return
+  end
+  kit_give(p, 10 * freed)
+  p.score = p.score + 3 * freed
+  kit_quest_progress(p, "rescue", freed)
+  announce("🦸 " + p.name + " がレバーを引いて " + freed + " 人を助けた！", 2.5)
+end
+
+func check_wipe()
+  if phase != "night" and phase != "launch" then return end
+  let free = filter(players(), func(p) return ready(p) and not p.caged end)
+  if len(free) > 0 or len(players()) == 0 then return end
+  tries = tries - 1
+  if tries <= 0 then
+    phase = "lost"
+    despawn_monsters()
+    clear_items()
+    kit_finish("💀 全員つかまった… " + night + "夜目でおしまい", 8)
+    return
+  end
+  announce("💀 全員つかまった… もう一度 " + night + "夜目（のこり " + tries + "回）", 4)
+  retry_night()
+end
+
+on tick(dt)
+  cage_clock = cage_clock + dt
+  if cage_clock < 1 then return end
+  cage_clock = 0
+  let start = block("Delivery Chute")
+  for p in players() do
+    if ready(p) and p.caged then
+      if time() > p.cage_until then
+        release(p, start.position)
+      else
+        p.ui_text("cage", "⛓ 檻の中… 自力で出るまで " + ceil(p.cage_until - time()) + "s", {at: "center", dy: 80, size: 18, bold: true, color: "#FCA5A5"})
+      end
+    else
+      p.ui_remove("cage")
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or p.caged then return end
+  if contains(b.tags, "lever") and quiet_ready(p, "lever_pad", 2) then pull_lever(p) end
+end

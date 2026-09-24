@@ -4,7 +4,7 @@ import Foundation
 
 let horrorGames: [Game] = [
     Game(number: 46, id: "color-monsters", title: "Color Monsters",
-         summary: "夜の遊園地倉庫で、カラフルなモンスターから隠れながら部品を集めよう。見つかりそうになったら箱をかぶれ！5夜を生きのびろ。",
+         summary: "夜のおもちゃ倉庫で5色のモンスターから隠れて、夜ごとの任務（ブロック・ヒューズ・電池・ガス・ロケットの部品）を集めよう。箱やロッカーに隠れ、つかまった仲間は檻から助けて、5夜目にロケットで脱出！",
          tags: ["horror", "hide", "coop"], maxPlayers: 8, build: colorMonsters),
     Game(number: 47, id: "porkys-house", title: "Porky's House",
          summary: "カギやハンマーを探してドアを開け、家から脱出するなぞ解きホラー。見つかったら全力で逃げろ、ブタの怪物が追ってくる！",
@@ -47,27 +47,104 @@ let horrorGames: [Game] = [
 // MARK: 46 Color Monsters
 
 func colorMonsters(_ m: MapBuilder) {
-    m.night(ground: "#111827")
     m.sky("#050816", "#1E1B4B", light: 0.3, ground: "#111827", sunPitch: -20)
     m.ground(140, 140, color: "#1F2937", name: "Warehouse Floor")
     m.walls(0, 0, w: 140, d: 140, h: 12, color: "#374151", name: "Warehouse Wall")
-    m.spawnRing(0, -55, radius: 4, count: 8, color: "#FDE68A")
-    m.slab("Start Room", x: 0, y: 0, z: -60, w: 20, h: 0.1, d: 14, color: "#4B5563")
-    var r = Seeded("rainbow")
-    for i in 0..<30 {
-        m.slab("Shelf \(i + 1)", x: r.range(-60, 60), y: 0, z: r.range(-45, 60), w: r.range(4, 10), h: r.range(2, 5), d: 1.5,
-               color: r.pick(["#6B7280", "#4B5563", "#78350F"]))
+    m.slab("Warehouse Roof", x: 0, y: 12, z: 0, w: 141, h: 0.4, d: 141, color: "#111827")
+
+    // The start room: the monsters never come in. A wide doorway to the north.
+    m.slab("Start Room", x: 0, y: 0, z: -60, w: 30, h: 0.1, d: 20, color: "#4B5563")
+    m.slab("Start Wall", x: -9.5, y: 0, z: -50, w: 11, h: 5, d: 0.6, color: "#6B7280")
+    m.slab("Start Wall", x: 9.5, y: 0, z: -50, w: 11, h: 5, d: 0.6, color: "#6B7280")
+    m.slab("Start Wall", x: -15, y: 0, z: -60, w: 0.6, h: 5, d: 20, color: "#6B7280")
+    m.slab("Start Wall", x: 15, y: 0, z: -60, w: 0.6, h: 5, d: 20, color: "#6B7280")
+    m.part("Safe Sign", at: (0, 5.8, -50), size: (8, 1, 0.2), color: "#22C55E", material: .neon, solid: false)
+    m.spawnRing(0, -62, radius: 4, count: 8, color: "#FDE68A")
+    m.pad("Delivery Chute", x: 0, z: -54, size: 3.4, color: "#22C55E", tags: ["chute"])
+
+    // Storage aisles.
+    let shelfColors = ["#6B7280", "#4B5563", "#78350F"]
+    var k = 0
+    for gx in stride(from: Float(-45), through: 45, by: 18) {
+        for gz in stride(from: Float(-35), through: 35, by: 14) {
+            if abs(gx) < 10 && gz > 25 { continue }
+            k += 1
+            m.slab("Shelf \(k)", x: gx, y: 0, z: gz, w: 11, h: 3.6, d: 1.6, color: shelfColors[k % 3])
+            m.slab("Shelf Toys \(k)", x: gx, y: 3.6, z: gz, w: 9, h: 0.9, d: 1.2,
+                   color: ["#F472B6", "#FACC15", "#34D399", "#60A5FA", "#A78BFA"][k % 5], solid: false)
+        }
     }
-    for i in 0..<14 {
-        m.slab("Box \(i + 1)", x: r.range(-60, 60), y: 0, z: r.range(-45, 60), w: 1.4, h: 1.4, d: 1.4, color: "#A16207")
-    }
-    m.markers("Part Spot", points: (0..<20).map { _ in (r.range(-60, 60), r.range(-40, 60)) }, color: "#000000", visible: false, behavior: .none)
-    m.markers("Monster Spot", points: [(-40, 30), (40, 30), (0, 55), (-50, -20), (50, -20)], color: "#000000", visible: false, behavior: .none)
+
+    // Lockers along the west wall, and vents in the floor.
     for i in 0..<6 {
-        m.part("Vent \(i + 1)", at: (r.range(-55, 55), 0.05, r.range(-40, 55)), size: (2, 0.1, 2), color: "#111111", material: .metal,
+        let z = -36 + Float(i) * 15
+        m.slab("Locker \(i + 1) Box", x: -67.5, y: 0, z: z, w: 3, h: 3.4, d: 2.6, color: "#475569")
+        m.pad("Locker \(i + 1)", x: -64.5, z: z, size: 2.4, color: "#94A3B8", tags: ["locker"])
+    }
+    let vents: [(Float, Float)] = [(-27, -12), (27, -12), (-27, 30), (27, 30), (54, 5), (-54, 5)]
+    for (i, v) in vents.enumerated() {
+        m.part("Vent \(i + 1)", at: (v.0, 0.05, v.1), size: (2.4, 0.1, 2.4), color: "#0B0B0F", material: .metal,
                behavior: .trigger, tags: ["vent"])
     }
-    m.pad("Delivery Chute", x: 0, z: -52, size: 3, color: "#22C55E", tags: ["chute"])
+
+    // The pantry (food for Orange) and its bowls.
+    // Walls on three sides and half of the fourth: the doorway faces west.
+    m.slab("Pantry Wall", x: 56, y: 0, z: -26, w: 20.6, h: 4, d: 0.6, color: "#92400E")
+    m.slab("Pantry Wall", x: 56, y: 0, z: -42, w: 20.6, h: 4, d: 0.6, color: "#92400E")
+    m.slab("Pantry Wall", x: 66, y: 0, z: -34, w: 0.6, h: 4, d: 16, color: "#92400E")
+    m.slab("Pantry Wall", x: 46, y: 0, z: -39.5, w: 0.6, h: 4, d: 5, color: "#92400E")
+    m.slab("Pantry Wall", x: 46, y: 0, z: -28.5, w: 0.6, h: 4, d: 5, color: "#92400E")
+    m.pad("Food Crate", x: 56, z: -34, size: 3, color: "#F97316", tags: ["food"])
+    m.markers("Food Bowl", points: [(-36, 20), (38, 42), (0, 12)], color: "#FB923C", tags: ["bowl"], size: 2.6)
+
+    // The cage, where caught players wait for a friend to pull the lever.
+    m.slab("Cage Floor", x: -56, y: 0, z: 56, w: 20, h: 0.1, d: 20, color: "#450A0A")
+    for (x, z, w, d) in [(-56, 46, 20, 0.6), (-66, 56, 0.6, 20), (-46, 56, 0.6, 20), (-56, 66, 20, 0.6)] as [(Float, Float, Float, Float)] {
+        m.slab("Cage Bars", x: x, y: 0, z: z, w: w, h: 6, d: d, color: "#9CA3AF", material: .metal, opacity: 0.55)
+    }
+    m.pad("Cage Lever", x: -40, z: 46, size: 2.6, color: "#EF4444", tags: ["lever"])
+    m.part("Cage Spot", at: (-56, 0.5, 58), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+
+    // The machine room: fuse boxes and the generator.
+    m.slab("Machine Floor", x: 54, y: 0, z: 54, w: 28, h: 0.1, d: 28, color: "#1E3A8A")
+    m.pad("Generator", x: 54, z: 58, size: 4, color: "#38BDF8", tags: ["generator"])
+    m.part("Generator Body", at: (54, 1.6, 64), size: (6, 3.2, 3), color: "#334155", material: .metal)
+    for (i, z) in [44, 54, 64].enumerated() {
+        m.part("Fuse Box \(i + 1) Panel", at: (69.3, 2.5, Float(z)), size: (0.4, 2, 1.6), color: "#FACC15")
+        m.pad("Fuse Box \(i + 1)", x: 66.5, z: Float(z), size: 2.6, color: "#FDE047", tags: ["fusebox"])
+    }
+
+    // The rocket at the back: the way out on the last night.
+    m.part("Rocket Body", at: (0, 6, 62), size: (4, 10, 4), color: "#E5E7EB", shape: .cylinder, material: .metal)
+    m.part("Rocket Nose", at: (0, 12.5, 62), size: (4, 3, 4), color: "#EF4444", shape: .cone)
+    for (dx, dz) in [(-2.6, 0), (2.6, 0), (0, -2.6)] as [(Float, Float)] {
+        m.part("Rocket Fin", at: (dx, 1.6, 62 + dz), size: (dx == 0 ? 3 : 0.4, 3, dz == 0 ? 3 : 0.4), color: "#EF4444")
+    }
+    m.pad("Rocket", x: 0, z: 55, size: 5, color: "#F43F5E", tags: ["rocket"])
+
+    // A playground corner, for colour.
+    m.slab("Playground", x: -40, y: 0, z: -34, w: 22, h: 0.08, d: 16, color: "#DB2777")
+    m.stairs(-48, -30, steps: 4, rise: 0.6, run: 1.2, width: 2.4, color: "#FACC15", name: "Slide Step")
+    m.slab("Slide", x: -39, y: 1.2, z: -30, w: 6, h: 0.3, d: 2.4, color: "#38BDF8", rotation: (0, 0, -18))
+    for (i, c) in ["#EF4444", "#F59E0B", "#22C55E", "#3B82F6"].enumerated() {
+        m.part("Ball Pit Ball", at: (-34 + Float(i), 0.5, -38 + Float(i % 2)), size: (0.9, 0.9, 0.9), color: c, shape: .sphere, solid: false)
+    }
+
+    // Where things turn up, where the monsters start, and Blue's rounds.
+    var r = Seeded("rainbow")
+    var spots: [(Float, Float)] = []
+    for gx in stride(from: Float(-54), through: 54, by: 18) {
+        for gz in stride(from: Float(-28), through: 42, by: 14) { spots.append((gx + r.range(-3, 3), gz)) }
+    }
+    m.markers("Part Spot", points: spots, color: "#000000", visible: false, behavior: .none)
+    m.markers("Monster Spot", points: [(-40, 30), (40, 30), (0, 40), (-50, -10), (50, -10)], color: "#000000", visible: false, behavior: .none)
+    m.markers("Patrol", points: [(-54, -42), (-54, 42), (-18, 42), (18, 42), (54, 42), (54, -42), (18, -42), (-18, -42), (0, 0), (-36, 0), (36, 0)],
+              color: "#000000", visible: false, behavior: .none)
+    for i in 0..<9 {
+        let x = -48 + Float(i % 3) * 48
+        let z = -30 + Float(i / 3) * 34
+        m.part("Ceiling Light", at: (x, 11.5, z), size: (4, 0.3, 4), color: "#C4B5FD", material: .neon, solid: false)
+    }
 }
 
 // MARK: 47 Porky's House

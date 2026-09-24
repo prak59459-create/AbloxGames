@@ -1,0 +1,46 @@
+-- data.absc — Color Monsters の表
+-- 5つの夜（任務）・5色のモンスター・お店の道具・定数
+
+-- 夜ごとの任務: item を count 個集めて target（パッドのタグ）へ
+let NIGHTS = [
+  {item: "おもちゃのブロック", icon: "🧱", count: 7, target: "chute", where: "スタート部屋の緑のシューター",
+   shapes: ["box"], colors: ["#F472B6", "#FACC15", "#34D399", "#60A5FA"], monsters: ["blue"]},
+  {item: "ヒューズ", icon: "🔌", count: 6, target: "fusebox", where: "機械室（青い床）の黄色いヒューズ箱",
+   shapes: ["cylinder"], colors: ["#FDE047"], monsters: ["blue", "green"]},
+  {item: "電池", icon: "🔋", count: 8, target: "chute", where: "スタート部屋の緑のシューター",
+   shapes: ["cylinder"], colors: ["#22C55E", "#84CC16"], monsters: ["blue", "green", "orange"]},
+  {item: "ガスボンベ", icon: "🛢", count: 6, target: "generator", where: "機械室の発電機（水色）",
+   shapes: ["cylinder"], colors: ["#EF4444"], monsters: ["blue", "green", "orange", "purple"]},
+  {item: "ロケットの部品", icon: "🚀", count: 9, target: "rocket", where: "奥のロケット（ピンク）",
+   shapes: ["box", "sphere", "cone"], colors: ["#E5E7EB", "#F43F5E", "#38BDF8"], monsters: ["blue", "green", "orange", "purple", "cyan"]}
+]
+
+-- モンスター: sight は見える距離、hear は走る音が聞こえる距離
+let MONSTERS = {
+  blue: {name: "ブルー", color: "#2563EB", head: "#1D4ED8", speed: 0.85, size: 2.3, sight: 24, hear: 0, hat: "crown",
+         text: "見回りをしている。見つかると追いかけてくる"},
+  green: {name: "グリーン", color: "#16A34A", head: "#15803D", speed: 0.7, size: 2.5, sight: 0, hear: 16, hat: "antenna",
+          text: "目が見えない。走る音や箱のこすれる音に気づく"},
+  orange: {name: "オレンジ", color: "#EA580C", head: "#F97316", speed: 1.35, size: 1.9, sight: 12, hear: 0, hat: "none",
+           text: "とても速い。エサ皿が空だとさらに速くなる"},
+  purple: {name: "パープル", color: "#7E22CE", head: "#6B21A8", speed: 1, size: 2.1, sight: 0, hear: 0, hat: "none",
+           text: "通気口にひそんでいる。通気口の上は箱でそっと"},
+  cyan: {name: "シアン", color: "#06B6D4", head: "#0891B2", speed: 1.05, size: 2.2, sight: 18, hear: 10, hat: "halo",
+         text: "ときどき消えて、だれかのそばにあらわれる"}
+}
+let MONSTER_ORDER = ["blue", "green", "orange", "purple", "cyan"]
+
+-- お店（スター）で買う道具。この部屋にいるあいだずっと使える
+let PERKS = [
+  {id: "shoes", name: "👟 しずかなくつ", price: 40, text: "グリーンに聞こえにくい"},
+  {id: "pocket", name: "🎒 大きなポケット", price: 60, text: "2個まで運べる"},
+  {id: "bigbox", name: "📦 すべる箱", price: 50, text: "箱をかぶっても速く動ける"},
+  {id: "brave", name: "💓 つよい心臓", price: 70, text: "モンスターに見つかりにくい"},
+  {id: "snack", name: "🍪 おやつ袋", price: 45, text: "エサを2つ持てる"}
+]
+
+let TRIES = 3              -- 夜ごとのチームの残機（全員つかまると1つ減ってやりなおし）
+let CAGE_SECS = 35         -- 檻でこの時間がたつと自力で出られる
+let HUNGER_SECS = 50       -- エサ皿が空になるまで
+let CATCH_RANGE = 2.3
+let SAFE_Z = -50           -- これより南（スタート部屋）には来ない

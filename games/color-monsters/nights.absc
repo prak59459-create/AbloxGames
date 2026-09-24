@@ -1,0 +1,165 @@
+-- nights.absc — 5つの夜の流れ・夜明け・やりなおし・ロケットで脱出
+
+let LAUNCH_SECS = 25
+let launch_at = 0
+let aboard = []            -- ロケットに乗った人の id
+
+func sky_for(k)
+  let tops = ["#0B1026", "#0A0A23", "#140A2A", "#1A0612", "#050505"]
+  let bottoms = ["#1E1B4B", "#1B1545", "#2E1065", "#450A0A", "#1F0A0A"]
+  world.sky_top = tops[k]
+  world.sky_bottom = bottoms[k]
+  world.light = max(0.16, 0.34 - k * 0.035)
+end
+
+func start_night()
+  night = night + 1
+  if night > len(NIGHTS) then return end
+  let n = night_info()
+  phase = "night"
+  got = 0
+  tries = TRIES
+  sky_for(night)
+  spawn_items()
+  refill_bowls()
+  for kind in n.monsters do
+    if monsters[kind] == nil then
+      spawn_monster(kind)
+      announce("👾 新しいモンスター: " + MONSTERS[kind].name + " — " + MONSTERS[kind].text, 5)
+    end
+  end
+  for key in keys(monsters) do
+    let m = monsters[key]
+    if kit_here(m) and key != "purple" then
+      m.frozen = false
+      patrol(m)
+    end
+  end
+  after(0.2, func() announce("🌙 " + night + "夜目！ " + n.icon + " " + n.item + " を " + n.count + " 個 → " + n.where, 4) end)
+  for p in players() do
+    if ready(p) then
+      if p.caged then release(p, block("Delivery Chute").position) end
+      p.carrying = 0
+      hud(p)
+    end
+  end
+  team_hud()
+end
+
+-- 任務の数がそろった
+func night_goal_done()
+  if night >= len(NIGHTS) then
+    start_launch()
+    return
+  end
+  phase = "clear"
+  for key in keys(monsters) do
+    let m = monsters[key]
+    if kit_here(m) then
+      m.stop()
+      m.frozen = true
+    end
+  end
+  clear_items()
+  announce("🌅 " + night + "夜目クリア！ 次の夜まで15びょう（🛒 お店で道具を）", 5)
+  for p in players() do
+    if ready(p) then
+      if p.caged then release(p, block("Delivery Chute").position) end
+      kit_give(p, 15 + night * 10)
+      p.score = p.score + night * 5
+      kit_quest_progress(p, "night" + night, 1)
+      p.ui_remove("heart")
+    end
+  end
+  after(15, func() start_night() end)
+end
+
+-- 全員つかまった: その夜をもう一度（モンスターは元の場所へ、品物は出し直し）
+func retry_night()
+  got = 0
+  spawn_items()
+  refill_bowls()
+  let start = block("Delivery Chute")
+  for p in players() do
+    if ready(p) then
+      release(p, start.position)
+      p.carrying = 0
+      hud(p)
+    end
+  end
+  for key in keys(monsters) do
+    let m = monsters[key]
+    if kit_here(m) then
+      m.teleport(block("Monster Spot " + random(1, 5)).position + {x: 0, y: 1, z: 0})
+      m.chase = nil
+      if key != "purple" then patrol(m) end
+    end
+  end
+  team_hud()
+end
+
+-- MARK: 5夜目: ロケットで脱出
+
+func start_launch()
+  phase = "launch"
+  launch_at = time() + LAUNCH_SECS
+  aboard = []
+  clear_items()
+  -- 檻の人も最後のチャンス
+  for p in players() do
+    if ready(p) and p.caged then release(p, block("Cage Lever").position) end
+  end
+  announce("🚀 ロケットが完成！ " + LAUNCH_SECS + "びょう以内にロケット（ピンク）に乗りこめ！ モンスターが怒っている！", 5)
+  for key in keys(monsters) do
+    let m = monsters[key]
+    if kit_here(m) and key != "purple" then m.speed = m.speed + 0.25 end
+  end
+  after(LAUNCH_SECS, func() launch() end)
+end
+
+func board_rocket(p)
+  if contains(aboard, p.id) then return end
+  append(aboard, p.id)
+  p.visible = false
+  p.frozen = true
+  unbox(p)
+  p.message("🚀 乗りこんだ！ 発射を待とう", 2)
+  announce("🚀 " + p.name + " がロケットに乗った（" + len(aboard) + "人）", 2)
+  -- みんな乗ったらすぐ発射
+  let left = filter(players(), func(q) return ready(q) and not q.caged and not contains(aboard, q.id) end)
+  if len(left) == 0 then after(1.5, func() launch() end) end
+end
+
+func launch()
+  if phase != "launch" then return end
+  phase = "won"
+  despawn_monsters()
+  let saved = 0
+  for p in players() do
+    if ready(p) then
+      p.visible = true
+      p.frozen = false
+      if contains(aboard, p.id) then
+        saved = saved + 1
+        kit_give(p, 200)
+        p.score = p.score + 50
+        kit_quest_progress(p, "escape", 1)
+        kit_badge(p, "escape", "おもちゃ倉庫から脱出")
+        if p.times_caught == 0 then kit_badge(p, "untouched", "一度もつかまらずに脱出") end
+      end
+    end
+  end
+  let body = block("Rocket Body")
+  if body != nil then body.move_to(body.position + {x: 0, y: 60, z: 0}, 4) end
+  let nose = block("Rocket Nose")
+  if nose != nil then nose.move_to(nose.position + {x: 0, y: 60, z: 0}, 4) end
+  if saved > 0 then kit_finish("🚀 脱出成功！ " + saved + " 人がロケットで逃げきった！", 10) else kit_finish("💀 だれもロケットに乗れなかった…", 8) end
+end
+
+on tick(dt)
+  if phase == "launch" then
+    ui_text("launch", "🚀 発射まで " + max(0, ceil(launch_at - time())) + "s   乗った人 " + len(aboard), {at: "top", dy: 80, size: 20, bold: true, color: "#FCA5A5"})
+  else
+    ui_remove("launch")
+  end
+end

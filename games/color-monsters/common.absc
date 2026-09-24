@@ -1,0 +1,116 @@
+-- common.absc — 小さな道具・画面・ドキドキ表示
+
+let night = 0
+let got = 0                -- この夜に届けた数
+let tries = TRIES
+let phase = "wait"         -- wait / night / clear / won
+let monsters = {}          -- 色 → NPC
+
+func ready(p)
+  return p.perks != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func has_perk(p, id)
+  return contains(p.perks, id)
+end
+
+func carry_max(p)
+  if has_perk(p, "pocket") then return 2 end
+  return 1
+end
+
+func food_max(p)
+  if has_perk(p, "snack") then return 2 end
+  return 1
+end
+
+func in_safe_room(p)
+  return p.z < SAFE_Z
+end
+
+-- まだ動けて、見つかる可能性がある人
+func findable(p)
+  return ready(p) and p.alive and not p.caged and p.locker == nil and not in_safe_room(p)
+end
+
+func active_players()
+  return filter(players(), func(p) return ready(p) and p.alive and not p.caged end)
+end
+
+func night_info()
+  if night < 1 or night > len(NIGHTS) then return nil end
+  return NIGHTS[night]
+end
+
+-- MARK: 画面
+
+func team_hud()
+  let n = night_info()
+  if n == nil then
+    ui_remove("task")
+    return
+  end
+  let hearts = ""
+  for i in 1 to TRIES do
+    if i <= tries then hearts = hearts + "❤️" else hearts = hearts + "🖤" end
+  end
+  ui_text("task", "🌙 " + night + "夜目   " + n.icon + " " + n.item + " " + got + "/" + n.count + " → " + n.where + "   " + hearts,
+          {at: "top", dy: 26, size: 16, bold: true})
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let line = "手に: " + NIGHTS[max(1, min(night, len(NIGHTS)))].icon + "×" + p.carrying + "/" + carry_max(p)
+  if p.food > 0 then line = line + "   🍖×" + p.food end
+  if p.boxed then line = line + "   📦 箱の中" end
+  if p.locker != nil then line = line + "   🚪 ロッカーの中" end
+  if p.caged then line = line + "   ⛓ 檻の中（仲間がレバーを引くのを待とう）" end
+  p.ui_text("hand", line, {at: "top_left", dy: 34, size: 15, bold: true, color: "#E0E7FF"})
+end
+
+-- いちばん近いモンスターが近いほど、ドキドキが強くなる
+func heartbeat(p)
+  if not ready(p) or not p.alive then
+    p.ui_remove("heart")
+    return
+  end
+  let best = 999
+  for key in keys(monsters) do
+    let n = monsters[key]
+    if kit_here(n) and n.visible then
+      let d = distance(p, n)
+      if d < best then best = d end
+    end
+  end
+  if best > 30 or p.caged then
+    p.ui_remove("heart")
+    return
+  end
+  let text = "💓"
+  let color = "#FCA5A5"
+  if best < 18 then
+    text = "💓💓"
+    color = "#F87171"
+  end
+  if best < 9 then
+    text = "💓💓💓"
+    color = "#EF4444"
+  end
+  p.ui_text("heart", text, {at: "top", dy: 54, size: 22, color: color})
+end

@@ -1,0 +1,81 @@
+-- hiding.absc — 箱をかぶる・ロッカーに隠れる
+-- 📦 箱: 見るモンスターには見つからない。ゆっくり動く（📦 すべる箱なら速い）。グリーンには近くで動くと聞こえる
+-- 🚪 ロッカー: 灰色のパッドで入る。だれにも見つからないけど、20びょうで息が苦しくなって出てしまう
+
+let LOCKER_SECS = 20
+let hide_clock = 0
+
+func box_speed(p)
+  if has_perk(p, "bigbox") then return 0.75 end
+  return 0.35
+end
+
+func unbox(p)
+  if not p.boxed then return end
+  p.boxed = false
+  p.speed = 1
+  p.size = 1
+  p.color = p.look_body
+  p.head_color = p.look_head
+end
+
+func toggle_box(p)
+  if not p.alive or p.caged or p.locker != nil then return end
+  if p.boxed then
+    unbox(p)
+    p.message("📦 箱から出た", 0.8)
+  else
+    p.boxed = true
+    p.speed = box_speed(p)
+    p.size = 0.75
+    p.color = "#A16207"
+    p.head_color = "#CA8A04"
+    p.message("📦 箱の中… 見るモンスターには見つからない", 1.2)
+    kit_quest_progress(p, "hide", 1)
+  end
+  hud(p)
+end
+
+func enter_locker(p, b)
+  if p.locker != nil or p.boxed or p.caged or not p.alive then return end
+  p.locker = b.name
+  p.locker_until = time() + LOCKER_SECS
+  p.teleport(b.position + {x: 0, y: 1, z: 0})
+  p.visible = false
+  p.frozen = true
+  p.ui_button("leave_locker", "🚪 ロッカーから出る", {at: "bottom", dy: -110, w: 220, h: 54, size: 17, bg: "#475569"})
+  p.message("🚪 ロッカーに隠れた（" + LOCKER_SECS + "びょう）", 1.5)
+  kit_quest_progress(p, "locker", 1)
+  hud(p)
+end
+
+func leave_locker(p, why)
+  if p.locker == nil then return end
+  p.locker = nil
+  p.visible = true
+  p.frozen = false
+  p.ui_remove("leave_locker")
+  if why != nil then p.message(why, 1.2) end
+  hud(p)
+end
+
+on tick(dt)
+  hide_clock = hide_clock + dt
+  if hide_clock < 0.5 then return end
+  hide_clock = 0
+  for p in players() do
+    if ready(p) and p.locker != nil and time() > p.locker_until then leave_locker(p, "😮‍💨 息が苦しい…ロッカーから出た") end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "locker") and quiet_ready(p, "locker_pad", 3) then enter_locker(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "box" then toggle_box(p)
+  elif id == "leave_locker" then leave_locker(p, "🚪 そっと出た")
+  end
+end
