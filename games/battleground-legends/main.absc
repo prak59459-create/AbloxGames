@@ -1,163 +1,63 @@
 -- Battleground Legends — 技を組み合わせて戦うバトルグラウンド
+-- キャラ6人（4つの技＋覚醒で4つの強い技）・こぶしの4連コンボ・ガード・ダッシュ・受け身・
+-- 覚醒ゲージ・こわせる地形・練習場・ボスレイド・連続KO・オーラ・称号。
+--
+-- ファイル:
+--   data.absc     表（キャラと技・オーラ・称号・ボス）
+--   common.absc   人さがし・画面・光の効果
+--   combat.absc   ダメージ・コンボ・ガード・ダッシュ・受け身・覚醒
+--   heroes.absc   技・キャラえらび
+--   arena.absc    カカシ・ボスレイド・KO・オーラ屋
+--   main.absc     このファイル
 
 kit_setup("Battleground Legends", "コンボをつなげて最強をめざせ", [
-  "ふつうの攻撃は右下の撃つボタン（パンチ）",
-  "連打・アッパー・衝撃波・ダッシュ・ガードの5つの技",
-  "相手にダメージを与えると覚醒ゲージがたまる",
-  "ゲージMAXで「覚醒」！15秒間スピードと攻撃力2倍",
-  "衝撃波はがれきや柱もこわす",
-  "黄色い練習場のカカシで技を試せます"
+  "👊 撃つボタンでこぶし。4発目で相手をふっとばす",
+  "1〜4 のボタンでキャラの技。🧑 でキャラをえらぶ",
+  "🛡 ガードでダメージ7割カット。💨 ダッシュ（← →で横）",
+  "🌀 3回こうげきをうけると 受け身 でにげられる",
+  "⚡ ダメージを与えるとゲージがたまる → 覚醒！技がぜんぶ強くなる",
+  "🎯 黄色い床の練習場でカカシに技を試せる",
+  "🚨 5分ごとにボスレイド。みんなでたおそう"
 ])
+kit_currency = "KOポイント"
 
-kit_melee("こぶし", 8, 4, 5)
-let broken = {}
-
-func moves(p)
-  let y = -150
-  let list = [["combo", "連打", "#F97316"], ["upper", "アッパー", "#EF4444"], ["wave", "衝撃波", "#8B5CF6"],
-              ["dash", "ダッシュ", "#0EA5E9"], ["guard", "ガード", "#64748B"]]
-  let i = 0
-  for m in list do
-    i = i + 1
-    p.ui_button(m[1], m[2], {at: "bottom_right", dx: -120 - ((i - 1) % 3) * 104, dy: y - floor((i - 1) / 3) * 66, w: 96, h: 56, size: 16, bg: m[3], radius: 14})
-  end
-end
-
-func show_meter(p)
-  p.ui_bar("meter", p.meter, 100, {at: "bottom", dy: -24, w: 300, h: 14, color: p.meter >= 100 and "#FACC15" or "#F97316"})
-  if p.meter >= 100 and not p.awake then
-    p.ui_button("awaken", "⚡ 覚醒", {at: "bottom", dy: -56, w: 160, h: 50, size: 20, bg: "#CA8A04"})
-  else
-    p.ui_remove("awaken")
-  end
-end
-
--- 技のダメージ。ガードと覚醒を計算して、ゲージをためる
-func deal(p, c, amount, lift)
-  if not c.alive or c.id == p.id then return end
-  let dmg = amount
-  if p.awake then dmg = dmg * 2 end
-  if c.guard_until != nil and time() < c.guard_until then dmg = dmg * 0.3 end
-  c.damage(dmg, p)
-  if lift > 0 and kit_here(c) and c.alive then c.launch(0, lift, 0) end
-  if not p.awake then
-    p.meter = min(100, p.meter + dmg * 0.8)
-    show_meter(p)
-  end
-end
-
-func strike(p, center, radius, amount, lift)
-  let n = 0
-  for c in kit_everyone() do
-    if c.id != p.id and c.alive and distance(center, c) <= radius then
-      deal(p, c, amount, lift)
-      n = n + 1
-    end
-  end
-  return n
-end
-
-func smash_terrain(center, radius)
-  for b in blocks("breakable") do
-    if b.visible and distance(center, b) < radius + 3 then
-      b.visible = false
-      b.solid = false
-      broken[b.id] = true
-      after(20, func()
-        b.visible = true
-        b.solid = true
-        remove(broken, b.id)
-      end)
-    end
-  end
-end
-
-func spawn_dummy(i)
-  let spot = block("Dummy Spot " + i)
-  let d = create_npc({name: "カカシ", position: spot.position + {x: 0, y: 1, z: 0}, color: "#CA8A04", head_color: "#FDE68A",
-                      health: 400, speed: 0})
-  d.dummy = i
-  d.frozen = true
-end
-
-on start()
-  for i in 1 to 4 do spawn_dummy(i) end
-  every(8, func() kit_leaderboard("💥 KO") end)
-end
+kit_quest("ko", "相手をたおす", 1, 30)
+kit_quest("ko50", "50人たおす", 50, 800)
+kit_quest("streak", "5連続KO", 1, 300)
+kit_quest("awaken", "覚醒する", 1, 100)
+kit_quest("moves", "技を50回使う", 50, 200)
+kit_quest("hero", "新しいキャラを手に入れる", 1, 200)
+kit_quest("boss", "ボスレイドに参加してたおす", 1, 400)
 
 on join(p)
-  kit_welcome(p)
-  p.give("こぶし")
+  p.hero = "fist"
+  p.heroes = ["fist"]
+  p.auras = ["default"]
+  p.aura = "default"
   p.meter = 0
   p.awake = false
+  p.kos = 0
   p.streak = 0
-  moves(p)
-  show_meter(p)
+  let hero = hero_by_id("fist")
+  p.color = hero.color
+  p.head_color = hero.head
+  p.give("こぶし")
+  kit_welcome(p)
+  kit_give(p, 50)
+  p.ui_button("guard", "🛡", {at: "bottom_right", dx: -358, dy: -150, w: 70, h: 52, size: 22, bg: "#334155", radius: 14})
+  p.ui_button("dash", "💨", {at: "bottom_right", dx: -358, dy: -210, w: 70, h: 52, size: 22, bg: "#0369A1", radius: 14})
+  p.ui_button("dash_l", "←", {at: "bottom_right", dx: -436, dy: -150, w: 70, h: 52, size: 20, bg: "#0369A1", radius: 14})
+  p.ui_button("dash_r", "→", {at: "bottom_right", dx: -436, dy: -210, w: 70, h: 52, size: 20, bg: "#0369A1", radius: 14})
+  p.ui_button("open_heroes", "🧑 キャラ", {at: "right", dy: -120, w: 140, h: 50, size: 17, bg: "#1D4ED8"})
+  p.ui_button("open_aura", "✨ オーラ", {at: "right", dy: -60, w: 140, h: 50, size: 17, bg: "#6D28D9"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  move_buttons(p)
 end
 
-on button(p, id)
-  if not p.alive then return end
-  if id == "combo" and kit_ready(p, "combo", 5) then
-    for k in 0 to 2 do
-      kit_later(p, k * 0.25, func() strike(p, kit_ahead(p, 2.5), 3.2, 7, 0) end)
-    end
-  elif id == "upper" and kit_ready(p, "upper", 7) then
-    strike(p, kit_ahead(p, 2), 3.5, 12, 18)
-    p.sound("hit")
-  elif id == "wave" and kit_ready(p, "wave", 10) then
-    let n = strike(p, p, 9, 15, 8)
-    smash_terrain(p.position, 9)
-    p.shake(0.6, 0.6)
-    p.message("💥 衝撃波！ " + n + " 人に命中", 1)
-  elif id == "dash" and kit_ready(p, "dash", 3) then
-    p.launch(p.look * 28 + {x: 0, y: 3, z: 0})
-  elif id == "guard" and kit_ready(p, "guard", 8) then
-    p.guard_until = time() + 3
-    p.message("🛡 ガード（3秒）", 1)
-  elif id == "awaken" and p.meter >= 100 and not p.awake then
-    p.awake = true
-    p.meter = 0
-    p.speed = 1.5
-    p.size = 1.2
-    p.old_color = p.color
-    p.color = "#FACC15"
-    announce("⚡ " + p.name + " が覚醒した！", 2)
-    p.shake(0.5, 0.5)
-    show_meter(p)
-    kit_later(p, 15, func()
-      p.awake = false
-      p.speed = 1
-      p.size = 1
-      p.color = p.old_color
-      p.message("覚醒が終わった", 1.5)
-    end)
-  end
-end
-
-on hit(victim, attacker, damage)
-  let dmg = damage
-  if attacker.awake then dmg = dmg * 2 end
-  if victim.guard_until != nil and time() < victim.guard_until then dmg = dmg * 0.3 end
-  if not attacker.is_npc and not attacker.awake then
-    attacker.meter = min(100, attacker.meter + dmg * 0.8)
-    show_meter(attacker)
-  end
-  return dmg
-end
-
-on death(victim, killer)
-  if victim.dummy != nil then
-    let i = victim.dummy
-    after(3, func() spawn_dummy(i) end)
-    return
-  end
-  if victim.is_npc then return end
-  victim.streak = 0
-  if killer != nil and not killer.is_npc and killer.id != victim.id then
-    killer.score = killer.score + 1
-    killer.streak = killer.streak + 1
-    killer.message("💥 KO! " + victim.name, 1.5)
-    if killer.streak == 3 then announce("🔥 " + killer.name + " が3連続KO！", 2) end
-    if killer.streak == 5 then announce("👑 " + killer.name + " が5連続KO！止められない！", 3) end
-  end
+on respawn(p)
+  if p.is_npc then return end
+  p.give("こぶし")
+  p.meter = 0
+  p.hits_taken = 0
 end

@@ -6,6 +6,11 @@
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/battleground-legends\/data.absc",
+    "games\/battleground-legends\/arena.absc",
+    "games\/battleground-legends\/combat.absc",
+    "games\/battleground-legends\/common.absc",
+    "games\/battleground-legends\/heroes.absc",
     "games\/battleground-legends\/main.absc"
   ],
   "summary" : "パンチ、アッパー、衝撃波、そして必殺の覚醒！技を組み合わせてオープンフィールドで戦う爽快バトル。",

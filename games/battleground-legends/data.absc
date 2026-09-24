@@ -1,0 +1,96 @@
+-- data.absc — Battleground Legends の表（キャラクター・技・覚醒・オーラ・ボス）
+-- 技の kind: blast（まわり）/ front（目の前）/ beam（まっすぐ）/ dash（とっしん）/ pull（ひきよせ）
+--           behind（相手のうしろへ）/ rock（がれきを投げる）/ rain（ふりそそぐ）/ wall（かべ）/ freeze（こおらせる）
+-- lift: 上にふっとばす / push: 前にふっとばす / stun: 動けない秒
+
+let HEROES = [
+  {id: "fist", name: "🥊 拳の勇者", price: 0, color: "#FACC15", head: "#F5D0A9", text: "シンプルで強い。ふっとばし力No.1",
+   moves: [
+     {name: "連続パンチ", kind: "front", dmg: 5, hits: 4, gap: 0.15, r: 3.2, cd: 5},
+     {name: "正拳突き", kind: "front", dmg: 16, r: 3.5, push: 26, cd: 7},
+     {name: "ふみこみ", kind: "dash", dmg: 12, speed: 34, r: 4, cd: 6},
+     {name: "竜巻アッパー", kind: "front", dmg: 14, r: 3.5, lift: 22, cd: 9}],
+   awake: [
+     {name: "本気の連打", kind: "front", dmg: 8, hits: 8, gap: 0.1, r: 4, cd: 5},
+     {name: "本気パンチ", kind: "beam", dmg: 45, range: 40, push: 40, cd: 8},
+     {name: "流星ダッシュ", kind: "dash", dmg: 25, speed: 50, r: 5, cd: 5},
+     {name: "大地割り", kind: "blast", dmg: 30, r: 12, lift: 16, cd: 10}]},
+  {id: "thunder", name: "⚡ 雷の忍者", price: 800, color: "#1E3A8A", head: "#FDE047", text: "速さで勝負。うしろに回りこむ",
+   moves: [
+     {name: "雷刃", kind: "dash", dmg: 10, speed: 42, r: 3.5, cd: 4},
+     {name: "放電", kind: "blast", dmg: 10, r: 7, stun: 0.8, cd: 8},
+     {name: "瞬歩", kind: "behind", dmg: 12, range: 25, cd: 7},
+     {name: "雷落とし", kind: "rain", dmg: 9, count: 5, r: 6, range: 10, stun: 0.4, cd: 10}],
+   awake: [
+     {name: "雷神刃", kind: "dash", dmg: 22, speed: 60, r: 5, stun: 0.6, cd: 3},
+     {name: "大放電", kind: "blast", dmg: 24, r: 12, stun: 1.2, cd: 7},
+     {name: "瞬雷", kind: "behind", dmg: 28, range: 40, stun: 0.8, cd: 4},
+     {name: "雷の嵐", kind: "rain", dmg: 16, count: 9, r: 10, range: 12, stun: 0.5, cd: 9}]},
+  {id: "psychic", name: "🌀 念力少女", price: 1500, color: "#15803D", head: "#86EFAC", text: "がれきを投げ、相手を引きよせる",
+   moves: [
+     {name: "引きよせ", kind: "pull", dmg: 8, r: 16, cd: 6},
+     {name: "がれき投げ", kind: "rock", dmg: 18, range: 30, cd: 6},
+     {name: "うきあがれ", kind: "blast", dmg: 6, r: 8, lift: 26, cd: 8},
+     {name: "念波", kind: "beam", dmg: 14, range: 28, push: 22, cd: 7}],
+   awake: [
+     {name: "大引きよせ", kind: "pull", dmg: 18, r: 28, stun: 0.6, cd: 5},
+     {name: "がれきの雨", kind: "rain", dmg: 16, count: 8, r: 9, range: 12, cd: 8},
+     {name: "無重力", kind: "blast", dmg: 16, r: 14, lift: 34, cd: 7},
+     {name: "大地くずし", kind: "blast", dmg: 34, r: 16, lift: 10, cd: 11}]},
+  {id: "flame", name: "🔥 炎の武道家", price: 1500, color: "#B91C1C", head: "#F97316", text: "火で広くこうげき。やけどでじわじわ",
+   moves: [
+     {name: "火炎拳", kind: "front", dmg: 12, r: 3.5, burn: 3, cd: 5},
+     {name: "炎の竜巻", kind: "blast", dmg: 9, r: 7, burn: 3, lift: 10, cd: 8},
+     {name: "火柱", kind: "rain", dmg: 12, count: 3, r: 4, range: 8, burn: 2, cd: 8},
+     {name: "爆裂キック", kind: "dash", dmg: 14, speed: 36, r: 4.5, push: 20, cd: 7}],
+   awake: [
+     {name: "不死鳥の拳", kind: "front", dmg: 26, r: 5, burn: 5, push: 24, cd: 4},
+     {name: "大炎上", kind: "blast", dmg: 22, r: 13, burn: 5, cd: 8},
+     {name: "流星火", kind: "rain", dmg: 18, count: 7, r: 9, range: 12, burn: 3, cd: 8},
+     {name: "火の鳥", kind: "beam", dmg: 36, range: 40, burn: 4, cd: 9}]},
+  {id: "blade", name: "🗡 刀の達人", price: 2500, color: "#111827", head: "#D6D3D1", text: "一撃が重い。居合いでまっすぐ斬る",
+   moves: [
+     {name: "居合い", kind: "beam", dmg: 16, range: 14, cd: 5},
+     {name: "回転斬り", kind: "blast", dmg: 13, r: 5.5, cd: 6},
+     {name: "つき", kind: "dash", dmg: 15, speed: 40, r: 3.5, push: 16, cd: 6},
+     {name: "千本斬り", kind: "front", dmg: 4, hits: 8, gap: 0.12, r: 4, cd: 10}],
+   awake: [
+     {name: "神速居合い", kind: "beam", dmg: 34, range: 30, stun: 0.5, cd: 4},
+     {name: "大旋風", kind: "blast", dmg: 26, r: 10, lift: 12, cd: 7},
+     {name: "流れ星", kind: "dash", dmg: 30, speed: 55, r: 5, cd: 5},
+     {name: "原子斬り", kind: "front", dmg: 6, hits: 14, gap: 0.08, r: 7, cd: 10}]},
+  {id: "ice", name: "🧊 氷の格闘家", price: 2500, color: "#0369A1", head: "#BAE6FD", text: "こおらせて動きを止め、かべで守る",
+   moves: [
+     {name: "氷の拳", kind: "front", dmg: 11, r: 3.5, stun: 0.5, cd: 5},
+     {name: "氷のつらら", kind: "beam", dmg: 12, range: 26, stun: 0.6, cd: 6},
+     {name: "氷のかべ", kind: "wall", cd: 10},
+     {name: "凍結", kind: "freeze", dmg: 8, r: 8, stun: 2, cd: 11}],
+   awake: [
+     {name: "氷河の拳", kind: "front", dmg: 24, r: 5, stun: 1, push: 20, cd: 4},
+     {name: "氷のやりの雨", kind: "rain", dmg: 15, count: 8, r: 9, range: 12, stun: 0.4, cd: 8},
+     {name: "氷の城", kind: "wall", cd: 6},
+     {name: "絶対零度", kind: "freeze", dmg: 20, r: 16, stun: 3, cd: 10}]}
+]
+
+-- MARK: オーラ（覚醒中の色・ショップで買う見た目）
+let AURAS = [
+  {id: "default", name: "ふつう", color: nil, price: 0},
+  {id: "gold", name: "✨ 金", color: "#FACC15", price: 500},
+  {id: "red", name: "🔥 赤", color: "#EF4444", price: 500},
+  {id: "blue", name: "💧 青", color: "#3B82F6", price: 500},
+  {id: "void", name: "🌑 闇", color: "#111827", price: 1200},
+  {id: "rainbow", name: "🌈 にじ", color: "#EC4899", price: 3000}
+]
+
+-- MARK: 称号（KO数）
+let TITLES = [
+  {ko: 0, name: "ルーキー"}, {ko: 10, name: "けんか屋"}, {ko: 30, name: "ファイター"},
+  {ko: 80, name: "ヒーロー"}, {ko: 200, name: "伝説"}, {ko: 500, name: "最強"}
+]
+
+-- MARK: ボス（5分ごとのレイド）
+let BOSSES = [
+  {name: "👹 巨大怪人", color: "#7F1D1D", head: "#DC2626", size: 4, hp: 3000, dmg: 20},
+  {name: "🐙 深海の王", color: "#1E3A8A", head: "#7C3AED", size: 4.5, hp: 3800, dmg: 22},
+  {name: "🤖 メカ怪獣", color: "#6B7280", head: "#22D3EE", size: 4.2, hp: 4500, dmg: 25}
+]

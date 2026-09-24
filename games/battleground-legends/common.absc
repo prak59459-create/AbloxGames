@@ -1,0 +1,71 @@
+-- common.absc — Battleground Legends の道具
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then p.ui_remove(id) else p.ui_button(id, label, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.4, func() gone(b) end)
+end
+
+func fx_beam(from, dir, len, color, width)
+  let b = create_block({name: "FX", shape: "box", position: from + dir * (len / 2), size: {x: width or 0.8, y: width or 0.8, z: len},
+                        rotation: {x: 0, y: atan2(dir.x, dir.z), z: 0}, color: color, material: "neon", solid: false, opacity: 0.7})
+  after(0.35, func() gone(b) end)
+end
+
+func distance_to_line(pos, from, dir, len)
+  let v = pos - from
+  let t = clamp(v.x * dir.x + v.y * dir.y + v.z * dir.z, 0, len)
+  return distance(pos, from + dir * t)
+end
+
+func hero_by_id(id)
+  for h in HEROES do
+    if h.id == id then return h end
+  end
+  return HEROES[1]
+end
+
+func title_of(p)
+  let t = TITLES[1].name
+  for x in TITLES do
+    if p.kos >= x.ko then t = x.name end
+  end
+  return t
+end

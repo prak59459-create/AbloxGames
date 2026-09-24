@@ -1,0 +1,203 @@
+-- combat.absc — 戦いの基本
+-- こぶし（撃つボタン）の4連コンボ（4発目でふっとばす）・🛡ガード（ダメージ7割カット）・
+-- 💨ダッシュ（前・横）・🌀受け身（こうげきを3回うけたら使える回避）・⚡覚醒ゲージ
+
+kit_melee("こぶし", 7, 4, 5)
+
+-- こうげきしていい相手（自分・ダミー以外のNPCはボスだけ）
+func foe(a, c)
+  if c == nil or not kit_here(c) or not c.alive or c.id == a.id then return false end
+  if a.in_training and not c.is_npc then return false end
+  if c.is_npc and not (c.dummy or c.boss) then return false end
+  if not c.is_npc and c.in_training then return false end
+  return true
+end
+
+-- ダメージ: ガード・覚醒・コンボ・ゲージ
+func hurt(a, c, amount, fx)
+  if not foe(a, c) then return 0 end
+  let dmg = amount
+  if a.awake then dmg = dmg * 1.4 end
+  if not c.is_npc and c.guard_until != nil and time() < c.guard_until then
+    dmg = dmg * 0.3
+    c.message("🛡 ガード！", 0.4)
+  end
+  c.damage(dmg, a)
+  if not c.is_npc then
+    c.hits_taken = (c.hits_taken or 0) + 1
+    if c.hits_taken >= 3 then evade_ready(c) end
+  end
+  if c.dummy then dummy_hit(a, c, dmg) end
+  if c.boss then c.dmg_by[a.id] = (c.dmg_by[a.id] or 0) + dmg end
+  if not a.is_npc then
+    a.combo_count = (a.combo_count or 0) + 1
+    a.combo_until = time() + 1.5
+    if not a.awake then
+      a.meter = min(100, a.meter + dmg * 0.9)
+    end
+    a.dealt = (a.dealt or 0) + dmg
+  end
+  if fx != nil and kit_here(c) and c.alive then effects(a, c, fx) end
+  return dmg
+end
+
+-- ふっとばし・しびれ・やけど
+func effects(a, c, m)
+  if m.stun != nil then
+    c.frozen = true
+    c.stun_until = time() + m.stun
+    after(m.stun, func()
+      if kit_here(c) and time() >= (c.stun_until or 0) - 0.05 then c.frozen = false end
+    end)
+  end
+  if m.lift != nil or m.push != nil then
+    let d = normalize(c.position - a.position)
+    let push = m.push or 4
+    c.launch(d.x * push, m.lift or 6, d.z * push)
+  end
+  if m.burn != nil then
+    for k in 1 to m.burn do
+      after(k * 0.7, func()
+        if kit_here(c) and c.alive and kit_here(a) then c.damage(3, a) end
+      end)
+    end
+  end
+end
+
+-- MARK: ガード・ダッシュ・受け身・覚醒
+
+func guard(p)
+  if cooldown_left(p, "guard") > 0 then return end
+  start_cooldown(p, "guard", 4)
+  p.guard_until = time() + 1.6
+  fx_ball(p.position + {x: 0, y: 1, z: 0}, 2.6, "#93C5FD", 1.6)
+end
+
+func dash(p, side)
+  if cooldown_left(p, "dash") > 0 then return end
+  start_cooldown(p, "dash", 2.2)
+  let yaw = p.yaw + side * 90
+  let d = kit_dir(yaw)
+  p.launch(d.x * 30, 3, d.z * 30)
+end
+
+func evade_ready(p)
+  if p.can_evade then return end
+  p.can_evade = true
+  set_btn(p, "evade", "🌀 受け身", {at: "bottom", dy: -160, w: 140, h: 48, size: 16, bg: "#0EA5E9", radius: 14})
+end
+
+func evade(p)
+  if not p.can_evade then return end
+  p.can_evade = false
+  p.hits_taken = 0
+  set_btn(p, "evade", nil, nil)
+  p.frozen = false
+  p.stun_until = 0
+  let d = kit_dir(p.yaw + 180)
+  p.launch(d.x * 26, 8, d.z * 26)
+  p.guard_until = time() + 0.8
+  p.message("🌀 受け身！", 0.8)
+end
+
+func awaken(p)
+  if p.meter < 100 or p.awake then return end
+  p.awake = true
+  p.meter = 0
+  p.awake_until = time() + 22
+  p.speed = 1.35
+  let aura = aura_color(p)
+  p.color = aura
+  announce("⚡ " + p.name + " が覚醒した！", 2.5)
+  p.sound("goal")
+  kit_quest_progress(p, "awaken", 1)
+  move_buttons(p)
+end
+
+func end_awake(p)
+  p.awake = false
+  p.speed = 1
+  p.color = hero_by_id(p.hero).color
+  p.message("覚醒がおわった", 1.2)
+  move_buttons(p)
+end
+
+-- MARK: 画面
+
+func meter_ui(p)
+  let color = "#F97316"
+  if p.meter >= 100 then color = "#FACC15" end
+  p.ui_bar("meter", p.meter, 100, {at: "bottom", dy: -24, w: 300, h: 14, color: color})
+  if p.meter >= 100 and not p.awake then
+    set_btn(p, "awaken", "⚡ 覚醒", {at: "bottom", dy: -56, w: 160, h: 48, size: 20, bg: "#CA8A04", radius: 16})
+  else
+    set_btn(p, "awaken", nil, nil)
+  end
+  if p.awake then
+    set_line(p, "awake_t", "⚡ 覚醒中 " + ceil(p.awake_until - time()), {at: "bottom", dy: -44, size: 16, bold: true, color: "#FDE047"})
+  else
+    set_line(p, "awake_t", nil, nil)
+  end
+end
+
+func combo_ui(p)
+  if p.combo_count != nil and p.combo_count >= 2 and time() < (p.combo_until or 0) then
+    set_line(p, "combo", p.combo_count + " HIT!", {at: "center", dx: 180, dy: -60, size: 26, bold: true, color: "#FDE047"})
+  else
+    p.combo_count = 0
+    set_line(p, "combo", nil, nil)
+  end
+end
+
+let combat_clock = 0
+on tick(dt)
+  combat_clock = combat_clock + dt
+  if combat_clock < 0.25 then return end
+  combat_clock = 0
+  for p in players() do
+    if p.awake and time() > p.awake_until then end_awake(p) end
+    meter_ui(p)
+    combo_ui(p)
+    move_buttons(p)
+  end
+end
+
+on hit(victim, attacker, damage)
+  if attacker == nil then return damage end
+  if attacker.is_npc then return damage end
+  if not foe(attacker, victim) then return 0 end
+  -- こぶしの4連コンボ
+  attacker.m1 = (attacker.m1 or 0) + 1
+  if time() - (attacker.m1_at or 0) > 1.2 then attacker.m1 = 1 end
+  attacker.m1_at = time()
+  let dmg = damage
+  if attacker.awake then dmg = dmg * 1.4 end
+  if attacker.m1 >= 4 then
+    attacker.m1 = 0
+    dmg = dmg * 2
+    let d = normalize(victim.position - attacker.position)
+    victim.launch(d.x * 20, 8, d.z * 20)
+  end
+  if not victim.is_npc and victim.guard_until != nil and time() < victim.guard_until then dmg = dmg * 0.3 end
+  if not attacker.awake then attacker.meter = min(100, attacker.meter + dmg * 0.9) end
+  attacker.combo_count = (attacker.combo_count or 0) + 1
+  attacker.combo_until = time() + 1.5
+  if victim.dummy then dummy_hit(attacker, victim, dmg) end
+  if victim.boss then victim.dmg_by[attacker.id] = (victim.dmg_by[attacker.id] or 0) + dmg end
+  if not victim.is_npc then
+    victim.hits_taken = (victim.hits_taken or 0) + 1
+    if victim.hits_taken >= 3 then evade_ready(victim) end
+  end
+  return dmg
+end
+
+on button(p, id)
+  if not p.alive then return end
+  if id == "guard" then guard(p)
+  elif id == "dash" then dash(p, 0)
+  elif id == "dash_l" then dash(p, -1)
+  elif id == "dash_r" then dash(p, 1)
+  elif id == "evade" then evade(p)
+  elif id == "awaken" then awaken(p)
+  end
+end

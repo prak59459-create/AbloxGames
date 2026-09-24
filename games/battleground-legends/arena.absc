@@ -1,0 +1,208 @@
+-- arena.absc — たたかいの場
+-- たおすと 💥KOポイント。連続KOでボーナス。練習場（黄色い床）のカカシはダメージの数字を表示。
+-- 5分ごとに ボスレイド: みんなで巨大ボスをたおすと、ダメージに応じてごほうび。
+-- オーラ屋（覚醒中の色）。KO数で称号。
+
+let dummies = []
+let boss = nil
+let arena_clock = 0
+
+func aura_color(p)
+  for a in AURAS do
+    if a.id == (p.aura or "default") and a.color != nil then return a.color end
+  end
+  return "#FDE047"
+end
+
+-- MARK: カカシ
+
+func spawn_dummy(i)
+  let spot = block("Dummy Spot " + i)
+  if spot == nil then return end
+  let d = create_npc({name: "🎯 カカシ", position: spot.position + {x: 0, y: 1, z: 0}, color: "#CA8A04", head_color: "#FDE68A",
+                      health: 500, speed: 0})
+  d.dummy = i
+  d.last_hit = 0
+  append(dummies, d)
+end
+
+func dummy_hit(p, d, dmg)
+  d.last_hit = time()
+  p.ui_text("dmgnum", "💥 " + floor(dmg), {at: "center", dy: -60, size: 24, bold: true, color: "#FDE047"})
+  kit_later(p, 0.4, func() p.ui_remove("dmgnum") end)
+end
+
+-- MARK: ボスレイド
+
+func start_boss()
+  if boss != nil and kit_here(boss) then return end
+  let b = random(BOSSES)
+  let hp = b.hp + len(players()) * 800
+  boss = create_npc({name: b.name, position: {x: 0, y: 3, z: 0}, color: b.color, head_color: b.head, size: b.size, health: hp, speed: 0.75})
+  boss.boss = true
+  boss.dmg = b.dmg
+  boss.dmg_by = {}
+  boss.next_hit = 0
+  boss.next_slam = time() + 5
+  announce("🚨 ボスレイド！ " + b.name + " があらわれた！みんなでたおせ！", 4)
+  sound("goal")
+end
+
+func boss_ai()
+  let n = boss
+  if n == nil or not kit_here(n) or not n.alive then return end
+  let t = nil
+  for p in players() do
+    if p.alive and not p.in_training and (t == nil or distance(n, p) < distance(n, t)) then t = p end
+  end
+  if t == nil then return end
+  n.follow(t)
+  if distance(n, t) < 5 and time() > n.next_hit then
+    n.next_hit = time() + 1.3
+    t.damage(n.dmg, n)
+    let d = normalize(t.position - n.position)
+    t.launch(d.x * 18, 8, d.z * 18)
+  end
+  if time() > n.next_slam then
+    n.next_slam = time() + 6
+    let spot = n.position
+    let warn = create_block({name: "Warn", shape: "cylinder", position: {x: spot.x, y: 0.1, z: spot.z}, size: {x: 20, y: 0.05, z: 20},
+                             color: "#EF4444", material: "neon", solid: false, opacity: 0.35})
+    n.say("うおおおお！")
+    after(1.2, func()
+      gone(warn)
+      if kit_here(n) then
+        for p in players() do
+          if p.alive and distance(p, spot) < 10 then
+            p.damage(n.dmg * 1.5, n)
+            p.launch(0, 16, 0)
+          end
+        end
+      end
+    end)
+  end
+  -- ボスの体力バー
+  for p in players() do
+    if distance(p, n) < 60 then
+      p.ui_bar("bossbar", n.health, n.max_health, {at: "top", dy: 100, w: 380, h: 14, color: "#DC2626"})
+    else
+      p.ui_remove("bossbar")
+    end
+  end
+end
+
+func boss_died(n)
+  let total = 0
+  for id in keys(n.dmg_by) do total = total + n.dmg_by[id] end
+  for id in keys(n.dmg_by) do
+    let p = player_by_id(id)
+    if p != nil then
+      let share = n.dmg_by[id] / max(1, total)
+      let prize = floor(100 + 400 * share)
+      kit_give(p, prize)
+      p.message("🏆 ボス討伐！ 💥+" + prize + "（ダメージ " + floor(share * 100) + "%）", 3)
+      kit_quest_progress(p, "boss", 1)
+    end
+  end
+  for p in players() do p.ui_remove("bossbar") end
+  announce("🏆 ボスをたおした！", 3)
+  boss = nil
+end
+
+-- MARK: オーラ屋
+
+func aura_shop(p)
+  let h = 130 + len(AURAS) * 48
+  p.ui_panel("aura", {at: "center", w: 460, h: h, bg: "#1E1B4BF2", radius: 22, layer: 30})
+  p.ui_text("aura_t", "✨ オーラ（覚醒中の色）", {parent: "aura", y: 26 / h, size: 19, bold: true, color: "#E9D5FF"})
+  let i = 0
+  for a in AURAS do
+    i = i + 1
+    let label = a.name + "  💥" + a.price
+    if contains(p.auras, a.id) then label = a.name + "（持っている）" end
+    if p.aura == a.id then label = "✅ " + a.name end
+    p.ui_button("aura_" + a.id, label, {parent: "aura", y: (30 + i * 48) / h, w: 400, h: 40, size: 15, bg: a.color or "#475569"})
+  end
+  p.ui_button("aura_close", "閉じる", {parent: "aura", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_aura(p, id)
+  for a in AURAS do
+    if a.id == id then
+      if not contains(p.auras, id) then
+        if not kit_pay(p, a.price) then return end
+        append(p.auras, id)
+      end
+      p.aura = id
+      aura_shop(p)
+    end
+  end
+end
+
+-- MARK: KO
+
+on death(victim, killer)
+  if victim.is_npc then
+    if victim.dummy then
+      let i = victim.dummy
+      if contains(dummies, victim) then remove(dummies, index_of(dummies, victim)) end
+      after(2, func() spawn_dummy(i) end)
+    elif victim.boss then
+      boss_died(victim)
+    end
+    return
+  end
+  victim.streak = 0
+  victim.deaths = (victim.deaths or 0) + 1
+  if victim.awake then end_awake(victim) end
+  if killer != nil and not killer.is_npc and killer.id != victim.id then
+    killer.kos = killer.kos + 1
+    killer.streak = (killer.streak or 0) + 1
+    let prize = 20 + killer.streak * 5
+    kit_give(killer, prize)
+    killer.score = killer.kos
+    killer.message("💥 KO！ " + victim.name + "  +" + prize, 1.5)
+    kit_quest_progress(killer, "ko", 1)
+    kit_quest_progress(killer, "ko50", 1)
+    if killer.streak == 3 or killer.streak == 5 or killer.streak == 10 then
+      announce("🔥 " + killer.name + " が " + killer.streak + " 連続KO！", 2.5)
+      killer.heal(killer.max_health)
+      if killer.streak == 5 then kit_quest_progress(killer, "streak", 1) end
+    end
+    set_line(killer, "title", "🏅 " + title_of(killer) + "  KO " + killer.kos, {at: "top_left", dy: 34, size: 16, bold: true, color: "#FDE68A"})
+  end
+end
+
+on start()
+  game.respawn_time = 3
+  for i in 1 to 4 do spawn_dummy(i) end
+  every(300, func() start_boss() end)
+  after(120, func() start_boss() end)
+  every(8, func() kit_leaderboard("💥 KO") end)
+end
+
+on tick(dt)
+  arena_clock = arena_clock + dt
+  if arena_clock < 0.3 then return end
+  arena_clock = 0
+  boss_ai()
+  for d in dummies do
+    if kit_here(d) and time() - d.last_hit > 3 and d.health < d.max_health then d.heal(d.max_health) end
+  end
+  -- 練習場にいるかどうか
+  let floor_b = block("Training Floor")
+  for p in players() do
+    let inside = floor_b != nil and abs(p.x - floor_b.x) < 11 and abs(p.z - floor_b.z) < 11
+    if inside != (p.in_training or false) then
+      p.in_training = inside
+      if inside then p.message("🎯 練習場（ここではプレイヤーどうしは戦えない）", 2) end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "open_aura" then aura_shop(p)
+  elif id == "aura_close" then p.ui_remove("aura")
+  elif starts_with(id, "aura_") then buy_aura(p, replace(id, "aura_", ""))
+  end
+end

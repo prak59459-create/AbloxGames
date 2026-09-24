@@ -1,0 +1,201 @@
+-- heroes.absc — キャラクターと技
+-- キャラごとに4つの技（1〜4のボタン）。覚醒すると4つとも強い技にかわる。
+-- 🧑 ボタンでキャラをえらぶ（KOポイントで新しいキャラを買う）。
+
+func moveset(p)
+  let h = hero_by_id(p.hero)
+  if p.awake then return h.awake end
+  return h.moves
+end
+
+func move_buttons(p)
+  let list = moveset(p)
+  let i = 0
+  for m in list do
+    i = i + 1
+    let left = cooldown_left(p, "move" + i)
+    let label = i + " " + m.name
+    if left > 0 then label = i + " ⏳" + ceil(left) end
+    let bg = "#1F2937"
+    if p.awake then bg = "#A16207" end
+    set_btn(p, "move_" + i, label, {at: "bottom_right", dx: -110 - ((i - 1) % 2) * 124, dy: -150 - floor((i - 1) / 2) * 60, w: 118, h: 52,
+                                   size: 14, bg: bg, radius: 14})
+  end
+end
+
+func use_move(p, i)
+  if not p.alive or p.frozen then return end
+  let m = moveset(p)[i]
+  if m == nil or cooldown_left(p, "move" + i) > 0 then return end
+  start_cooldown(p, "move" + i, m.cd)
+  do_move(p, m)
+  p.moves_used = (p.moves_used or 0) + 1
+  kit_quest_progress(p, "moves", 1)
+  move_buttons(p)
+end
+
+func color_of(p)
+  if p.awake then return aura_color(p) end
+  return hero_by_id(p.hero).color
+end
+
+func targets_near(p, center, r)
+  return filter(kit_everyone(), func(c) return foe(p, c) and distance(center, c) <= r end)
+end
+
+func nearest_foe(p, r)
+  let best = nil
+  for c in targets_near(p, p.position, r) do
+    if best == nil or distance(p, c) < distance(p, best) then best = c end
+  end
+  return best
+end
+
+func do_move(p, m)
+  let dir = kit_dir(p.yaw)
+  let color = color_of(p)
+  let eye = p.position + {x: 0, y: 1.2, z: 0}
+  if m.kind == "front" then
+    let hits = m.hits or 1
+    for k in 1 to hits do
+      kit_later(p, (k - 1) * (m.gap or 0.1), func()
+        let center = p.position + kit_dir(p.yaw) * 2.5
+        fx_ball(center + {x: 0, y: 1, z: 0}, 1.8, color, 0.2)
+        for c in targets_near(p, center, m.r) do
+          if k == hits then hurt(p, c, m.dmg, m) else hurt(p, c, m.dmg, nil) end
+        end
+      end)
+    end
+  elif m.kind == "blast" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, color, 0.45)
+    p.shake(0.3, 0.3)
+    for c in targets_near(p, p.position, m.r) do hurt(p, c, m.dmg, m) end
+    smash(p.position, m.r)
+  elif m.kind == "beam" then
+    fx_beam(eye + dir, dir, m.range, color, 1)
+    for c in kit_everyone() do
+      if foe(p, c) and distance_to_line(c.position + {x: 0, y: 1, z: 0}, eye, dir, m.range) <= 2.5 then hurt(p, c, m.dmg, m) end
+    end
+  elif m.kind == "dash" then
+    p.launch(dir.x * m.speed, 4, dir.z * m.speed)
+    fx_beam(eye, dir, m.speed * 0.3, color, 1.2)
+    kit_later(p, 0.35, func()
+      fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, color, 0.3)
+      for c in targets_near(p, p.position, m.r) do hurt(p, c, m.dmg, m) end
+    end)
+  elif m.kind == "pull" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, color, 0.5)
+    for c in targets_near(p, p.position, m.r) do
+      let d = normalize(p.position - c.position)
+      c.launch(d.x * 18, 5, d.z * 18)
+      hurt(p, c, m.dmg, {stun: m.stun})
+    end
+  elif m.kind == "behind" then
+    let t = nearest_foe(p, m.range)
+    if t == nil then
+      p.message("近くに相手がいない", 0.8)
+      return
+    end
+    let back = kit_dir(t.yaw) * (0 - 2.5)
+    p.position = t.position + back + {x: 0, y: 0.3, z: 0}
+    p.look_at(t)
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 2.5, color, 0.3)
+    hurt(p, t, m.dmg, m)
+  elif m.kind == "rock" then
+    let t = nearest_foe(p, m.range)
+    let target = p.position + dir * 12
+    if t != nil then target = t.position end
+    let rock = create_block({name: "Thrown Rock", shape: "sphere", position: p.position + {x: 0, y: 4, z: 0}, size: 2.2, color: "#78716C",
+                             material: "matte", solid: false})
+    rock.move_to(target + {x: 0, y: 1, z: 0}, 0.5)
+    after(0.55, func()
+      gone(rock)
+      if kit_here(p) then
+        fx_ball(target + {x: 0, y: 1, z: 0}, 5, "#A8A29E", 0.3)
+        for c in targets_near(p, target, 3.5) do hurt(p, c, m.dmg, {lift: 10}) end
+      end
+    end)
+  elif m.kind == "rain" then
+    let center = p.position + dir * m.range
+    for k in 1 to m.count do
+      let spot = {x: center.x + random(0 - m.r, m.r), y: p.y, z: center.z + random(0 - m.r, m.r)}
+      let delay = 0.25 + k * 0.15
+      let warn = create_block({name: "Warn", shape: "cylinder", position: spot + {x: 0, y: 0.05, z: 0}, size: {x: 4, y: 0.05, z: 4},
+                               color: "#EF4444", material: "neon", solid: false, opacity: 0.4})
+      after(delay, func()
+        gone(warn)
+        if kit_here(p) then
+          fx_ball(spot + {x: 0, y: 1, z: 0}, 4.5, color, 0.3)
+          for c in targets_near(p, spot, 2.8) do hurt(p, c, m.dmg, m) end
+        end
+      end)
+    end
+  elif m.kind == "wall" then
+    let spot = p.position + dir * 3
+    let w = create_block({name: "Ice Wall", shape: "box", position: spot + {x: 0, y: 2, z: 0}, size: {x: 6, y: 4, z: 0.8},
+                          rotation: {x: 0, y: atan2(dir.x, dir.z) + 90, z: 0}, color: "#BAE6FD", material: "glass", opacity: 0.8})
+    after(6, func() gone(w) end)
+  elif m.kind == "freeze" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, "#E0F2FE", 0.6)
+    for c in targets_near(p, p.position, m.r) do hurt(p, c, m.dmg, m) end
+  end
+end
+
+-- がれきや柱をこわす（20秒でもとにもどる）
+func smash(center, r)
+  for b in blocks("breakable") do
+    if b.visible and distance(center, b) < r + 3 then
+      b.visible = false
+      b.solid = false
+      after(20, func()
+        b.visible = true
+        b.solid = true
+      end)
+    end
+  end
+end
+
+-- MARK: キャラえらび
+
+func hero_menu(p)
+  let h = 130 + len(HEROES) * 56
+  p.ui_panel("heroes", {at: "center", w: 560, h: h, bg: "#0B1120F2", radius: 22, layer: 30})
+  p.ui_text("heroes_t", "🧑 キャラクター（💥KOポイント " + kit_money(p) + "）", {parent: "heroes", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for hero in HEROES do
+    i = i + 1
+    let label = hero.name + "  💥" + hero.price + "  " + hero.text
+    let bg = "#334155"
+    if contains(p.heroes, hero.id) then label = hero.name + "（持っている）  " + hero.text end
+    if p.hero == hero.id then
+      label = "✅ " + hero.name + "（使用中）"
+      bg = "#1D4ED8"
+    end
+    p.ui_button("hero_" + hero.id, label, {parent: "heroes", y: (32 + i * 56) / h, w: 520, h: 46, size: 13, bg: bg})
+  end
+  p.ui_button("heroes_close", "閉じる", {parent: "heroes", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_hero(p, id)
+  let hero = hero_by_id(id)
+  if not contains(p.heroes, id) then
+    if not kit_pay(p, hero.price) then return end
+    append(p.heroes, id)
+    announce("🧑 " + p.name + " が " + hero.name + " を手に入れた！", 3)
+    kit_quest_progress(p, "hero", 1)
+  end
+  p.hero = id
+  p.color = hero.color
+  p.head_color = hero.head
+  if p.awake then end_awake(p) end
+  move_buttons(p)
+  hero_menu(p)
+end
+
+on button(p, id)
+  if starts_with(id, "move_") then use_move(p, num(replace(id, "move_", "")))
+  elif id == "open_heroes" then hero_menu(p)
+  elif id == "heroes_close" then p.ui_remove("heroes")
+  elif starts_with(id, "hero_") then pick_hero(p, replace(id, "hero_", ""))
+  end
+end
