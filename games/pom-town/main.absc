@@ -1,218 +1,93 @@
 -- Pom Town — 家を家具でかざって、ペットのポムとくらす街
+-- 家（家具24種・★・かべの色・いいね・パーティー・おうちコンテスト）、
+-- ポム（タマゴ3種・15種類・お世話で5段階に育つ・交換）、
+-- お仕事（釣り図鑑・配達・水やり・おこづかい）。
+--
+-- ファイル:
+--   data.absc     表（家具・ポム・タマゴ・年れい・お世話・魚）
+--   common.absc   小さな道具・画面の上
+--   homes.absc    家・家具・いいね・パーティー・コンテスト
+--   poms.absc     ポム（タマゴ・お世話・成長・交換）
+--   jobs.absc     釣り・配達・水やり・おこづかい
+--   menus.absc    おうち・ポム・タマゴ屋・交換の画面
+--   main.absc     このファイル
 
 kit_setup("Pom Town", "家をかざって、ポムとなかよく", [
-  "黄色い看板パッドにさわると、その家があなたの家に",
-  "家具屋（ピンク）で家具を買って「🪑 置く」で家の中に置く",
-  "ポム屋（紫）でポムを連れて帰れる。色や帽子も変えられる",
-  "池の桟橋で「🎣 釣る」とスターコインがもらえる",
-  "自分の家で「🎉 パーティー」を開くと、みんなに知らせが届く",
-  "チャットで /party と打つと、開催中のパーティーへワープ"
+  "🏠 黄色い看板にさわると、その家があなたの家に",
+  "🛒 家具屋で買って「🏠 おうち」から置く。インテリア点で★が増える",
+  "🥚 ポム屋（むらさき）でタマゴ。かえったポムのお世話をすると育つ",
+  "🍖🎾💤🛁 ポムのお願いは画面の上に出る。その場所へ連れて行こう",
+  "📦 郵便局で配達・🌷 小屋で水やり・🎣 池で釣り → スター",
+  "👍 よその家で「いいね」。5分ごとにおうちコンテスト！",
+  "🎉 パーティーを開いたら、みんなはチャットで /party"
 ])
 kit_currency = "スター"
 kit_shop_title = "家具屋"
 
-let furniture = [
-  {id: "chair", name: "いす", price: 20, size: {x: 1, y: 1, z: 1}, color: "#A16207", shape: "box"},
-  {id: "table", name: "テーブル", price: 40, size: {x: 2.4, y: 0.9, z: 1.6}, color: "#92400E", shape: "box"},
-  {id: "sofa", name: "ソファ", price: 80, size: {x: 3, y: 1, z: 1.2}, color: "#DB2777", shape: "box"},
-  {id: "bed", name: "ベッド", price: 90, size: {x: 2.2, y: 0.7, z: 3.2}, color: "#60A5FA", shape: "box"},
-  {id: "lamp", name: "ランプ", price: 30, size: {x: 0.7, y: 1.8, z: 0.7}, color: "#FDE68A", shape: "cylinder"},
-  {id: "plant", name: "かんようしょくぶつ", price: 25, size: {x: 1, y: 1.6, z: 1}, color: "#22C55E", shape: "cone"},
-  {id: "tv", name: "テレビ", price: 150, size: {x: 2, y: 1.2, z: 0.3}, color: "#111827", shape: "box"},
-  {id: "globe", name: "キラキラボール", price: 300, size: {x: 1.2, y: 1.2, z: 1.2}, color: "#E879F9", shape: "sphere"}
-]
-let pom_colors = ["#F9A8D4", "#93C5FD", "#FDE68A", "#86EFAC", "#C4B5FD", "#FFFFFF", "#FDBA74"]
-let owners = {}
-let poms = {}
-let party_home = nil
-let party_host = ""
-
-for f in furniture do
+for f in FURNITURE do
   kit_shop_add(f.id, f.name, f.price, func(p)
     append(p.bag, f.id)
-    show(p)
+    kit_quest_progress(p, "buy", 1)
+    hud(p)
+    if p.home_open then home_menu(p) end
   end)
 end
 
 kit_quest("home", "家を手に入れる", 1, 30)
-kit_quest("decor", "家具を5つ置く", 5, 80)
-kit_quest("fish", "10回釣る", 10, 60)
+kit_quest("buy", "家具を5つ買う", 5, 50)
+kit_quest("decor10", "家具を10個置く", 10, 120)
+kit_quest("decor300", "インテリア300点", 300, 400)
+kit_quest("paint", "かべの色をぬる", 1, 30)
+kit_quest("buy_egg", "タマゴを買う", 1, 30)
+kit_quest("hatch", "タマゴをかえす", 1, 60)
+kit_quest("poms3", "ポムを3匹にする", 3, 200)
+kit_quest("needs20", "ポムのお願いを20回かなえる", 20, 250)
+kit_quest("grow", "ポムを「大人」に育てる", 1, 300)
+kit_quest("legend", "ポムを「伝説」に育てる", 1, 800)
+kit_quest("trade", "ポムを交換する", 1, 100)
+kit_quest("fish10", "10回つる", 10, 80)
+kit_quest("dex", "魚図鑑を8種類そろえる", 8, 500)
+kit_quest("parcel10", "荷物を10回届ける", 10, 200)
+kit_quest("garden10", "花だんに10回水やり", 10, 150)
 kit_quest("party", "パーティーを開く", 1, 50)
-
-func find_furniture(id)
-  for f in furniture do
-    if f.id == id then return f end
-  end
-  return nil
-end
-
-func show(p)
-  p.ui_text("bag", "🧺 家具 " + len(p.bag) + " 個" + (p.home != nil and ("   🏠 Home " + p.home) or ""), {at: "top", dy: 30, size: 17, bold: true})
-end
-
-func spawn_pom(p)
-  let old = poms[p.id]
-  if old != nil and kit_here(old) then old.destroy() end
-  let n = create_npc({name: p.name + "のポム", position: p.position + {x: 1.2, y: 0.5, z: 1.2}, color: p.pom_color,
-                      head_color: p.pom_color, size: 0.4, health: 999999, speed: 1.4, hat: p.pom_hat, team: "poms"})
-  n.follow(p)
-  poms[p.id] = n
-end
-
-func pom_panel(p)
-  p.ui_panel("pom", {at: "center", w: 440, h: 260, bg: "#4C1D95EE", radius: 22, layer: 30})
-  p.ui_text("pom_t", "🐾 ポム屋", {parent: "pom", y: 0.1, size: 24, bold: true})
-  p.ui_button("pom_adopt", p.has_pom and "ポムを呼ぶ（無料）" or "ポムを連れて帰る（50）", {parent: "pom", y: 0.3, w: 300, h: 44, size: 16, bg: "#A855F7"})
-  let i = 0
-  for c in pom_colors do
-    i = i + 1
-    p.ui_button("pom_color_" + i, " ", {parent: "pom", x: 0.1 + (i - 1) * 0.133, y: 0.52, w: 44, h: 44, bg: c, radius: 22})
-  end
-  p.ui_button("pom_hat", "帽子をかえる（10）", {parent: "pom", y: 0.72, w: 240, h: 40, size: 15, bg: "#DB2777"})
-  p.ui_button("pom_close", "閉じる", {parent: "pom", y: 0.9, w: 120, h: 36, size: 14, bg: "gray"})
-end
-
-func place(p)
-  if p.home == nil then
-    p.message("まず家を手に入れよう（黄色い看板）", 2)
-    return
-  end
-  let home_floor = block("Home " + p.home + " Floor")
-  if distance(p, home_floor) > 7 then
-    p.message("自分の家の中で置こう", 1.5)
-    return
-  end
-  if len(p.bag) == 0 then
-    p.message("家具がない。家具屋で買おう", 1.5)
-    return
-  end
-  let f = find_furniture(remove(p.bag, 1))
-  let spot = kit_ahead(p, 2)
-  create_block({name: "Furniture " + p.home, shape: f.shape, position: {x: spot.x, y: home_floor.y + 0.1 + f.size.y / 2, z: spot.z},
-                size: f.size, color: f.color, rotation: {x: 0, y: p.yaw, z: 0}, tags: ["furniture", "home" + p.home]})
-  p.placed = p.placed + 1
-  kit_quest_progress(p, "decor", 1)
-  if p.placed >= 20 then kit_badge(p, "decorator", "インテリアの達人") end
-  show(p)
-end
+kit_quest("guest", "パーティーに参加する", 3, 60)
+kit_quest("give_like", "よその家に3回いいね", 3, 40)
+kit_quest("like5", "いいねを5つもらう", 5, 200)
+kit_quest("contest", "おうちコンテストで優勝", 1, 500)
 
 on start()
-  every(60, func()
-    -- パーティーの参加者にごほうび
-    if party_home != nil then
-      let home_floor = block("Home " + party_home + " Floor")
-      for p in players() do
-        if distance(p, home_floor) < 10 then kit_give(p, 10) end
-      end
-    end
-  end)
+  for n in npcs() do n.destroy() end
+  setup_beds()
+  every(10, func() kit_leaderboard("🏠") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.bag = []
-  p.placed = 0
-  p.pom_color = random(pom_colors)
-  p.pom_hat = "none"
-  kit_give(p, 100)
   kit_shop_button(p)
-  p.ui_button("place", "🪑 置く", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#EC4899"})
-  p.ui_button("undo", "↩ 片づけ", {at: "right", dy: 0, w: 150, h: 50, size: 16, bg: "#6B7280"})
-  p.ui_button("party", "🎉 パーティー", {at: "right", dy: 180, w: 150, h: 50, size: 16, bg: "#F59E0B"})
-  show(p)
+  kit_camera_button(p)
+  p.bag = ["chair", "table", "lamp"]
+  p.placed = []
+  p.decor = 0
+  p.likes = 0
+  p.poms = []
+  p.active = nil
+  p.fishdex = {}
+  p.job_xp = 0
+  kit_give(p, 150)
+  p.ui_button("open_home", "🏠 おうち", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#EC4899"})
+  p.ui_button("open_poms", "🐾 ポム", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#7C3AED"})
+  p.ui_button("like", "👍 いいね", {at: "right", dy: 0, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+  -- はじめてのポム（ふつうのタマゴを1つプレゼント）
+  p.egg = {id: "basic", left: 20}
+  p.message("🥚 ようこそ！ ふつうのタマゴをプレゼント。20びょうでかえるよ", 3)
+  hud(p)
 end
 
 on leave(p)
-  let n = poms[p.id]
-  if n != nil and kit_here(n) then n.destroy() end
-  remove(poms, p.id)
-  if p.home != nil then
-    remove(owners, p.home)
-    for b in blocks("home" + p.home) do b.destroy() end
-    if party_home == p.home then party_home = nil end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "claim") then
-    let n = split(b.name, " ")[2]
-    if owners[n] == nil and p.home == nil then
-      owners[n] = p.id
-      p.home = n
-      p.message("🏠 Home " + n + " があなたの家に！", 2.5)
-      kit_quest_progress(p, "home", 1)
-      show(p)
-    end
-  elif contains(b.tags, "furniture") and b.name == "Furniture Counter" then
-    kit_open_shop(p)
-  elif contains(b.tags, "pomshop") and kit_ready(p, "pomshop", 3) then
-    pom_panel(p)
-  elif contains(b.tags, "fish") then
-    if not p.fishing then p.ui_button("fish", "🎣 釣る", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 19, bg: "#0EA5E9", radius: 16}) end
-  end
-end
-
-on button(p, id)
-  if id == "place" then place(p)
-  elif id == "undo" then
-    if p.home != nil then
-      let mine = blocks("home" + p.home)
-      if len(mine) > 0 then
-        mine[len(mine)].destroy()
-        p.message("片づけた", 1)
-      end
-    end
-  elif id == "party" then
-    if p.home == nil then
-      p.message("家がないとパーティーは開けない", 1.5)
-    elif kit_ready(p, "party", 60) then
-      party_home = p.home
-      party_host = p.name
-      announce("🎉 " + p.name + " の家でパーティー！ チャットで /party と打つと行けるよ", 5)
-      kit_quest_progress(p, "party", 1)
-    end
-  elif id == "fish" then
-    if p.fishing then return end
-    p.fishing = true
-    p.ui_remove("fish")
-    p.message("🎣 …", 2)
-    kit_later(p, 2 + random() * 2, func()
-      p.fishing = false
-      let stars = random(1, 6)
-      if random() < 0.05 then stars = 50 end
-      kit_give(p, stars)
-      kit_quest_progress(p, "fish", 1)
-      p.message(stars >= 50 and "🌟 レア！金の魚！ +50" or ("🐟 つれた！ +" + stars), 2)
-      p.ui_button("fish", "🎣 釣る", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 19, bg: "#0EA5E9", radius: 16})
-    end)
-  elif id == "pom_adopt" then
-    if not p.has_pom then
-      if kit_pay(p, 50) then p.has_pom = true else return end
-    end
-    spawn_pom(p)
-    p.ui_remove("pom")
-  elif starts_with(id, "pom_color_") then
-    p.pom_color = pom_colors[num(replace(id, "pom_color_", ""))]
-    if p.has_pom then spawn_pom(p) end
-  elif id == "pom_hat" then
-    if kit_pay(p, 10) then
-      p.pom_hat = random(["cap", "crown", "antenna", "halo", "none"])
-      if p.has_pom then spawn_pom(p) end
-    end
-  elif id == "pom_close" then
-    p.ui_remove("pom")
-  end
-end
-
-on chat(p, text)
-  if text == "/party" then
-    if party_home == nil then
-      p.message("いまパーティーはない", 1.5)
-    else
-      p.teleport(block("Home " + party_home + " Floor"))
-      p.message("🎉 " + party_host + " のパーティーへようこそ！", 2)
-    end
-  end
+  despawn_pom(p)
+  let t = trade_of(p)
+  if t != nil then close_trade(t) end
+  if p.parcel != nil then gone(p.parcel.beam) end
+  free_home(p)
 end

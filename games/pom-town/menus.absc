@@ -1,0 +1,175 @@
+-- menus.absc — 画面: おうち（家具を置く）・ポム・タマゴ屋・交換
+
+-- MARK: おうち
+
+func home_menu(p)
+  p.home_open = true
+  -- かばんの家具を種類ごとにまとめる
+  let counts = {}
+  let order = []
+  for id in p.bag do
+    if counts[id] == nil then
+      counts[id] = 0
+      append(order, id)
+    end
+    counts[id] = counts[id] + 1
+  end
+  let rows = max(1, ceil(len(order) / 3))
+  let h = 250 + rows * 42
+  p.ui_panel("homem", {at: "center", w: 640, h: h, bg: "#831843F0", radius: 22, layer: 30})
+  let title = "🏠 おうち"
+  if p.home != nil then title = "🏠 Home " + p.home + "  " + home_stars_text(p) + "（インテリア " + p.decor + " 点・👍 " + p.likes + "）" end
+  p.ui_text("hm_t", title, {parent: "homem", y: 26 / h, size: 17, bold: true, color: "#FCE7F3"})
+  p.ui_text("hm_s", "置く家具をえらぶ（見ている方向の2m先に置く）", {parent: "homem", y: 54 / h, size: 12, color: "#FBCFE8"})
+  let i = 0
+  for id in order do
+    i = i + 1
+    let f = find_furniture(id)
+    let col = ((i - 1) % 3) * 0.32 + 0.18
+    let row = ceil(i / 3)
+    p.ui_button("pl_" + id, f.name + " ×" + counts[id], {parent: "homem", x: col, y: (54 + row * 42) / h, w: 190, h: 36, size: 12, bg: "#BE185D"})
+  end
+  if len(order) == 0 then p.ui_text("hm_e", "かばんは空っぽ。🛒 家具屋で買おう", {parent: "homem", y: 96 / h, size: 14}) end
+  let y1 = (h - 140) / h
+  let y2 = (h - 90) / h
+  p.ui_button("hm_rot", "↻ 回す", {parent: "homem", x: 0.14, y: y1, w: 130, h: 40, size: 14, bg: "#9D174D"})
+  p.ui_button("hm_nudge", "⇡ 前へずらす", {parent: "homem", x: 0.38, y: y1, w: 150, h: 40, size: 14, bg: "#9D174D"})
+  p.ui_button("hm_undo", "↩ 片づけ", {parent: "homem", x: 0.62, y: y1, w: 130, h: 40, size: 14, bg: "#6B7280"})
+  p.ui_button("hm_paint", "🎨 かべ 30", {parent: "homem", x: 0.86, y: y1, w: 130, h: 40, size: 14, bg: "#0E7490"})
+  p.ui_button("hm_party", "🎉 パーティー", {parent: "homem", x: 0.3, y: y2, w: 170, h: 40, size: 14, bg: "#F59E0B"})
+  p.ui_button("hm_go", "🏃 家へ帰る", {parent: "homem", x: 0.7, y: y2, w: 170, h: 40, size: 14, bg: "#16A34A"})
+  p.ui_button("hm_close", "閉じる", {parent: "homem", y: (h - 30) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+-- MARK: ポム
+
+func pom_menu(p)
+  let rows = max(1, ceil(len(p.poms) / 2))
+  let h = 220 + rows * 44
+  p.ui_panel("pomm", {at: "center", w: 600, h: h, bg: "#4C1D95F0", radius: 22, layer: 30})
+  p.ui_text("pm_t", "🐾 わたしのポム（" + len(p.poms) + "/" + MAX_POMS + "）", {parent: "pomm", y: 26 / h, size: 19, bold: true, color: "#EDE9FE"})
+  p.ui_text("pm_s", "えらぶと連れて歩く（もう一度で休ませる）", {parent: "pomm", y: 52 / h, size: 12, color: "#C4B5FD"})
+  let i = 0
+  for e in p.poms do
+    i = i + 1
+    let k = POMS[e.kind]
+    let label = pom_label(e)
+    if p.active == e.uid then label = "✅ " + label end
+    let col = 0.26
+    if i % 2 == 0 then col = 0.74 end
+    p.ui_button("pm_" + e.uid, label, {parent: "pomm", x: col, y: (54 + ceil(i / 2) * 44) / h, w: 270, h: 38, size: 13,
+                                       bg: RARITY_COLOR[k.rarity], color: "#111111"})
+  end
+  if len(p.poms) == 0 then p.ui_text("pm_e", "まだポムがいない。ポム屋（むらさき）でタマゴを買おう", {parent: "pomm", y: 98 / h, size: 13}) end
+  let y1 = (h - 88) / h
+  p.ui_button("pm_hat", "🎩 ぼうし 10", {parent: "pomm", x: 0.2, y: y1, w: 150, h: 38, size: 13, bg: "#DB2777"})
+  p.ui_button("pm_trade", "🤝 交換", {parent: "pomm", x: 0.5, y: y1, w: 150, h: 38, size: 14, bg: "#0369A1"})
+  p.ui_button("pm_release", "💔 手放す", {parent: "pomm", x: 0.8, y: y1, w: 150, h: 38, size: 13, bg: "#7F1D1D"})
+  p.ui_button("pm_close", "閉じる", {parent: "pomm", y: (h - 30) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func egg_shop(p)
+  let h = 280
+  p.ui_panel("eggs", {at: "center", w: 520, h: h, bg: "#312E81F0", radius: 22, layer: 30})
+  p.ui_text("eg_t", "🥚 ポム屋のタマゴ（" + kit_short(kit_money(p)) + " スター）", {parent: "eggs", y: 28 / h, size: 18, bold: true, color: "#E0E7FF"})
+  let i = 0
+  for egg in EGGS do
+    i = i + 1
+    p.ui_button("egg_" + egg.id, egg.name + "  " + egg.price + " スター", {parent: "eggs", y: (40 + i * 54) / h, w: 420, h: 46, size: 16,
+                                                                        bg: egg.color, color: "#111111"})
+  end
+  p.ui_button("eggs_close", "閉じる", {parent: "eggs", y: (h - 26) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+-- MARK: 交換
+
+func trade_panel(p)
+  let t = trade_of(p)
+  if t == nil then return end
+  let q = other_side(t, p)
+  if q == nil then return end
+  let mine = t.a_pick
+  let theirs = t.b_pick
+  let my_ok = t.a_ok
+  let their_ok = t.b_ok
+  if t.b == p.id then
+    mine = t.b_pick
+    theirs = t.a_pick
+    my_ok = t.b_ok
+    their_ok = t.a_ok
+  end
+  let rows = max(1, ceil(len(p.poms) / 2))
+  let h = 230 + rows * 42
+  p.ui_panel("trade", {at: "center", w: 600, h: h, bg: "#0C4A6EF0", radius: 22, layer: 35})
+  p.ui_text("tr_t", "🤝 " + q.name + " と交換", {parent: "trade", y: 26 / h, size: 19, bold: true, color: "#E0F2FE"})
+  let their_text = "相手: まだえらんでいない"
+  if theirs != nil then
+    let e = pom_by_uid(q, theirs)
+    if e != nil then their_text = "相手がえらんだ: " + pom_label(e) + "（" + POMS[e.kind].rarity + "）" end
+  end
+  if their_ok then their_text = their_text + " ✅" end
+  p.ui_text("tr_th", their_text, {parent: "trade", y: 56 / h, size: 14, color: "#FDE68A"})
+  let i = 0
+  for e in p.poms do
+    i = i + 1
+    let label = pom_label(e)
+    if mine == e.uid then label = "▶ " + label end
+    let col = 0.26
+    if i % 2 == 0 then col = 0.74 end
+    p.ui_button("tp_" + e.uid, label, {parent: "trade", x: col, y: (60 + ceil(i / 2) * 42) / h, w: 270, h: 36, size: 13,
+                                       bg: RARITY_COLOR[POMS[e.kind].rarity], color: "#111111"})
+  end
+  let ok_label = "OK"
+  if my_ok then ok_label = "OK ✅（相手待ち）" end
+  p.ui_button("tr_ok", ok_label, {parent: "trade", x: 0.3, y: (h - 34) / h, w: 200, h: 40, size: 15, bg: "#16A34A"})
+  p.ui_button("tr_cancel", "やめる", {parent: "trade", x: 0.72, y: (h - 34) / h, w: 140, h: 40, size: 15, bg: "#7F1D1D"})
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_home" then home_menu(p)
+  elif id == "hm_close" then
+    p.home_open = false
+    p.ui_remove("homem")
+  elif starts_with(id, "pl_") then
+    place_item(p, replace(id, "pl_", ""))
+    if p.home_open then home_menu(p) end
+  elif id == "hm_rot" then rotate_last(p)
+  elif id == "hm_nudge" then nudge_last(p)
+  elif id == "hm_undo" then
+    undo_last(p)
+    home_menu(p)
+  elif id == "hm_paint" then paint_home(p)
+  elif id == "hm_party" then start_party(p)
+  elif id == "hm_go" then
+    if p.home == nil then p.message("まだ家がない（黄色い看板）", 1.5) else p.teleport(home_floor(p.home)) end
+  elif id == "open_poms" then pom_menu(p)
+  elif id == "pm_close" then p.ui_remove("pomm")
+  elif id == "pm_hat" then
+    cycle_hat(p)
+    pom_menu(p)
+  elif id == "pm_release" then
+    release_active(p)
+    pom_menu(p)
+  elif id == "pm_trade" then
+    p.ui_remove("pomm")
+    start_trade(p)
+  elif starts_with(id, "pm_") then
+    equip_pom(p, replace(id, "pm_", ""))
+    pom_menu(p)
+  elif starts_with(id, "egg_") then
+    buy_egg(p, replace(id, "egg_", ""))
+    p.ui_remove("eggs")
+  elif id == "eggs_close" then p.ui_remove("eggs")
+  elif starts_with(id, "tp_") then trade_pick(p, replace(id, "tp_", ""))
+  elif id == "tr_ok" then trade_ok(p)
+  elif id == "tr_cancel" then
+    let t = trade_of(p)
+    if t != nil then
+      let q = other_side(t, p)
+      if q != nil then q.message("🤝 " + p.name + " が交換をやめた", 1.5) end
+      close_trade(t)
+    end
+  elif id == "like" then like_here(p)
+  end
+end

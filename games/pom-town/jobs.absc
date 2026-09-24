@@ -1,0 +1,231 @@
+-- jobs.absc — お仕事（スターをかせぐ）
+-- 🎣 釣り: 池の桟橋で「釣る」→ ウキがしずんだら「今だ！」。8種類の魚図鑑。
+-- 📦 配達: 郵便局で荷物を受け取り、光の柱の家の玄関へ。はやいとボーナス。
+-- 🌷 水やり: 花だんの小屋で仕事を始め、しおれた花だんのそばに立つ。
+-- 💰 おこづかい: 3分ごと。お仕事レベルが上がるとお給料アップ。
+
+let bed_state = {}      -- 花だんの番号 → "ok" / "dry"
+let bed_flowers = {}    -- 花だんの番号 → 花のブロック
+let job_clock = 0
+let dry_clock = 0
+
+func job_level(p)
+  return floor(sqrt((p.job_xp or 0) / 20)) + 1
+end
+
+func job_pay(p, base)
+  return floor(base * (1 + (job_level(p) - 1) * 0.1))
+end
+
+func job_done(p, xp)
+  let before = job_level(p)
+  p.job_xp = (p.job_xp or 0) + xp
+  if job_level(p) > before then
+    p.message("💼 お仕事レベル " + job_level(p) + "！ お給料 +" + (job_level(p) - 1) * 10 + "%", 2.5)
+    p.sound("checkpoint")
+  end
+end
+
+-- MARK: 釣り
+
+func fish_button(p)
+  if p.fishing != nil then return end
+  p.ui_button("fish", "🎣 釣る", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 19, bg: "#0EA5E9", radius: 16})
+end
+
+func cast_line(p)
+  if p.fishing != nil then return end
+  p.fishing = "wait"
+  p.ui_remove("fish")
+  p.message("🎣 ウキを見て… しずんだら「今だ！」", 2)
+  kit_later(p, 2 + random() * 3, func()
+    if p.fishing != "wait" then return end
+    p.fishing = "bite"
+    p.bite_at = time()
+    p.ui_button("fish_now", "❗ 今だ！", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 70, size: 22, bg: "#DC2626", radius: 16})
+    p.sound("tick")
+    kit_later(p, 1.3, func()
+      if p.fishing == "bite" then
+        p.fishing = nil
+        p.ui_remove("fish_now")
+        p.message("💨 にげられた…", 1.2)
+        fish_button(p)
+      end
+    end)
+  end)
+end
+
+func reel(p)
+  if p.fishing != "bite" then return end
+  p.fishing = nil
+  p.ui_remove("fish_now")
+  let f = kit_pick(FISH, 1)
+  -- すばやく引くとレアが出やすい
+  if time() - p.bite_at < 0.5 and random() < 0.3 then f = kit_pick(filter(FISH, func(x) return x.stars >= 16 end), 1) end
+  let pay = job_pay(p, f.stars)
+  kit_give(p, pay)
+  if p.fishdex[f.id] == nil then
+    p.fishdex[f.id] = 0
+    p.message("📖 図鑑に新しい魚！ " + f.name + "（" + len(keys(p.fishdex)) + "/" + len(FISH) + "）", 2.5)
+    kit_quest_progress(p, "dex", 1)
+  else
+    p.message(f.name + " がつれた！ +" + pay + " スター", 1.8)
+  end
+  p.fishdex[f.id] = p.fishdex[f.id] + 1
+  if f.stars >= 50 then announce("🎣 " + p.name + " が" + f.name + "をつりあげた！", 3) end
+  job_done(p, 3)
+  kit_quest_progress(p, "fish10", 1)
+  fish_button(p)
+end
+
+-- MARK: 配達
+
+func take_parcel(p)
+  if p.parcel != nil then
+    p.message("📦 Home " + p.parcel.home + " へ届けよう", 1.5)
+    return
+  end
+  let n = random(1, 12)
+  if p.home != nil and "" + n == p.home then n = n % 12 + 1 end
+  let door = block("Home " + n + " Door")
+  if door == nil then return end
+  let beam = create_block({name: "Parcel Beam", shape: "cylinder", position: door.position + {x: 0, y: 10, z: 0}, size: {x: 0.8, y: 20, z: 0.8},
+                           color: "#F59E0B", material: "neon", solid: false, opacity: 0.4})
+  p.parcel = {home: n, at: time(), door: door.position, beam: beam}
+  p.message("📦 荷物を受け取った！ オレンジの光の柱（Home " + n + "）の玄関へ", 3)
+end
+
+func parcel_step(p)
+  let pc = p.parcel
+  if distance(p, pc.door) < 3 then
+    let pay = job_pay(p, PARCEL_PAY)
+    let fast = time() - pc.at < PARCEL_FAST
+    if fast then pay = pay + 15 end
+    gone(pc.beam)
+    p.parcel = nil
+    kit_give(p, pay)
+    job_done(p, 5)
+    kit_quest_progress(p, "parcel10", 1)
+    if fast then p.message("📦 はやい！ お届け完了 +" + pay + " スター", 2) else p.message("📦 お届け完了 +" + pay + " スター", 2) end
+    p.sound("collect")
+    p.ui_remove("parcel")
+  else
+    p.ui_text("parcel", "📦 Home " + pc.home + " へ（" + floor(distance(p, pc.door)) + "m・" + max(0, ceil(PARCEL_FAST - (time() - pc.at))) + "s）",
+              {at: "top_left", dy: 74, size: 13, bold: true, color: "#FDBA74"})
+  end
+end
+
+-- MARK: 水やり
+
+func flower_colors(i)
+  return ["#F472B6", "#FACC15", "#A78BFA", "#FB7185"][(i % 4) + 1]
+end
+
+func setup_beds()
+  for i in 1 to 8 do
+    let bed = block("Flower Bed " + i)
+    if bed != nil then
+      let key = "" + i
+      bed_state[key] = "ok"
+      let list = []
+      for k in -1 to 1 do
+        append(list, create_block({name: "Flower", shape: "sphere", position: bed.position + {x: k * 0.9, y: 0.55, z: 0}, size: 0.6,
+                                   color: flower_colors(i), solid: false}))
+      end
+      bed_flowers[key] = list
+    end
+  end
+end
+
+func set_bed(key, state)
+  bed_state[key] = state
+  for f in bed_flowers[key] or [] do
+    if state == "dry" then
+      f.color = "#92400E"
+      f.size = 0.35
+    else
+      f.color = flower_colors(num(key))
+      f.size = 0.6
+    end
+  end
+end
+
+func garden_step(p)
+  for i in 1 to 8 do
+    let key = "" + i
+    if bed_state[key] == "dry" then
+      let bed = block("Flower Bed " + i)
+      if bed != nil and distance(p, bed.position) < 3.2 then
+        if p.water_bed == key then
+          p.water_t = p.water_t + 1
+          if p.water_t >= 2 then
+            set_bed(key, "ok")
+            let pay = job_pay(p, GARDEN_PAY)
+            kit_give(p, pay)
+            job_done(p, 3)
+            kit_quest_progress(p, "garden10", 1)
+            p.message("🌷 花がよみがえった！ +" + pay + " スター", 1.5)
+            fx_ball(bed.position + {x: 0, y: 1, z: 0}, 2, "#7DD3FC", 0.4)
+            p.water_bed = nil
+          end
+        else
+          p.water_bed = key
+          p.water_t = 0
+          p.message("💧 水やり中…", 1)
+        end
+        return
+      end
+    end
+  end
+  p.water_bed = nil
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  job_clock = job_clock + dt
+  if job_clock < 1 then return end
+  job_clock = 0
+  dry_clock = dry_clock + 1
+  if dry_clock >= 20 then
+    dry_clock = 0
+    let ok = filter(keys(bed_state), func(k) return bed_state[k] == "ok" end)
+    if len(ok) > 0 then set_bed(random(ok), "dry") end
+  end
+  let dock = block("Fishing Spot")
+  for p in players() do
+    if ready(p) then
+      if p.parcel != nil then parcel_step(p) end
+      if p.gardener then garden_step(p) end
+      if dock != nil and p.fishing == nil and distance(p, dock.position) > 5 then p.ui_remove("fish") end
+      p.play_t = (p.play_t or 0) + 1
+      if p.play_t % ALLOWANCE_EVERY == 0 then
+        kit_give(p, ALLOWANCE)
+        p.message("💰 おこづかい +" + ALLOWANCE + " スター", 1.5)
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "fish") then fish_button(p)
+  elif contains(b.tags, "parcel") and quiet_ready(p, "parcel_pad", 2) then take_parcel(p)
+  elif contains(b.tags, "garden") and quiet_ready(p, "garden_pad", 2) then
+    p.gardener = not p.gardener
+    if p.gardener then
+      p.message("🌷 水やりのお仕事スタート！ しおれた（茶色い）花だんのそばに立とう", 3)
+      p.ui_text("garden", "🌷 水やり中（小屋でやめる）", {at: "top_left", dy: 92, size: 13, bold: true, color: "#86EFAC"})
+    else
+      p.message("🌷 お仕事おわり", 1.2)
+      p.ui_remove("garden")
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "fish" then cast_line(p)
+  elif id == "fish_now" then reel(p)
+  end
+end

@@ -1,0 +1,286 @@
+-- homes.absc — 家
+-- 黄色い看板で家を手に入れる → 家具を置く（回す・片づけ）→ インテリア点で★1〜5。
+-- 外かべの色をぬれる。よその家で「👍 いいね」。パーティーを開くと来た人も自分もスター。
+-- 5分ごとに「おうちコンテスト」（インテリア点 + いいね×10 がいちばん高い家の勝ち）。
+
+let owners = {}
+let party = nil        -- {home, host, host_id, until}
+let contest_clock = 0
+let party_clock = 0
+
+func home_stars(p)
+  let s = 0
+  for need in HOME_STARS do
+    if p.decor >= need then s = s + 1 end
+  end
+  return s
+end
+
+func home_stars_text(p)
+  let s = ""
+  for k in 1 to 5 do
+    if k <= home_stars(p) then s = s + "★" else s = s + "☆" end
+  end
+  return s
+end
+
+func contest_score(p)
+  return p.decor + p.likes * 10
+end
+
+func claim_home(p, n)
+  if p.home != nil then
+    if p.home != n and quiet_ready(p, "claim_msg", 4) then p.message("あなたの家は Home " + p.home, 1.5) end
+    return
+  end
+  if owners[n] != nil then
+    let o = player_by_id(owners[n])
+    if o != nil and quiet_ready(p, "claim_msg", 4) then p.message("ここは " + o.name + " の家", 1.5) end
+    return
+  end
+  owners[n] = p.id
+  p.home = n
+  p.message("🏠 Home " + n + " があなたの家に！ 「🏠 おうち」で家具を置こう", 3)
+  p.sound("checkpoint")
+  kit_quest_progress(p, "home", 1)
+  hud(p)
+end
+
+func free_home(p)
+  if p.home == nil then return end
+  for b in blocks("f" + p.home) do gone(b) end
+  owners[p.home] = nil
+  if party != nil and party.home == p.home then end_party() end
+  p.home = nil
+  p.placed = []
+end
+
+-- MARK: 家具
+
+func place_item(p, id)
+  if p.home == nil then
+    p.message("まず家を手に入れよう（黄色い看板）", 2)
+    return
+  end
+  if not in_home(p, p.home) then
+    p.message("自分の家の中で置こう", 1.5)
+    return
+  end
+  if not contains(p.bag, id) then
+    p.message("その家具を持っていない", 1)
+    return
+  end
+  if len(p.placed) >= 40 then
+    p.message("家具は40個まで", 1.5)
+    return
+  end
+  remove(p.bag, index_of(p.bag, id))
+  let f = find_furniture(id)
+  let floor_b = home_floor(p.home)
+  let spot = p.position + p.look * 2
+  let y = floor_b.y + 0.1 + f.size.y / 2
+  if f.lift != nil then y = y + f.lift end
+  let yaw = round(p.yaw / 45) * 45
+  let b = create_block({name: "Furniture " + f.name, shape: f.shape, position: {x: spot.x, y: y, z: spot.z}, size: f.size,
+                        color: f.color, material: f.material or "plastic", rotation: {x: 0, y: yaw, z: 0}, tags: ["furn", "f" + p.home, "item_" + id]})
+  append(p.placed, {b: b, id: id, yaw: yaw})
+  p.decor = p.decor + f.score
+  p.score = contest_score(p)
+  p.sound("collect")
+  kit_quest_progress(p, "decor10", 1)
+  kit_quest_progress(p, "decor300", f.score)
+  if len(p.placed) >= 20 then kit_badge(p, "decorator", "インテリアの達人") end
+  if home_stars(p) == 5 then kit_badge(p, "star5", "★5のおうち") end
+  hud(p)
+end
+
+func rotate_last(p)
+  if len(p.placed) == 0 then
+    p.message("置いた家具がない", 1)
+    return
+  end
+  let e = p.placed[len(p.placed)]
+  if not still(e.b) then return end
+  e.yaw = (e.yaw + 45) % 360
+  e.b.rotation = {x: 0, y: e.yaw, z: 0}
+end
+
+func nudge_last(p)
+  if len(p.placed) == 0 then return end
+  let e = p.placed[len(p.placed)]
+  if not still(e.b) then return end
+  let d = {x: p.look.x, y: 0, z: p.look.z}
+  if abs(d.x) + abs(d.z) < 0.01 then return end
+  d = normalize(d) * 0.5
+  let floor_b = home_floor(p.home)
+  let np = e.b.position + d
+  -- 家の外には出さない
+  if abs(np.x - floor_b.x) < 5.6 and abs(np.z - floor_b.z) < 4.6 then e.b.position = np end
+end
+
+func undo_last(p)
+  if len(p.placed) == 0 then
+    p.message("置いた家具がない", 1)
+    return
+  end
+  let e = remove(p.placed, len(p.placed))
+  gone(e.b)
+  let f = find_furniture(e.id)
+  append(p.bag, e.id)
+  p.decor = max(0, p.decor - f.score)
+  p.score = contest_score(p)
+  p.message("↩ 片づけた（" + f.name + " はかばんへ）", 1.2)
+  hud(p)
+end
+
+func paint_home(p)
+  if p.home == nil then return end
+  if not kit_pay(p, 30) then return end
+  p.paint = (p.paint or 0) % len(WALL_PAINTS) + 1
+  let col = WALL_PAINTS[p.paint]
+  for b in blocks("h" + p.home) do
+    if ends_with(b.name, "Wall") then b.color = col end
+  end
+  p.message("🎨 外かべをぬった", 1)
+  kit_quest_progress(p, "paint", 1)
+end
+
+func has_placed(p, id)
+  for e in p.placed do
+    if e.id == id then return true end
+  end
+  return false
+end
+
+-- MARK: いいね
+
+func like_here(p)
+  let n = home_here(p)
+  if n == nil then
+    p.message("よその家の中で押そう", 1.2)
+    return
+  end
+  if n == p.home then
+    p.message("自分の家にはいいねできない", 1.2)
+    return
+  end
+  let oid = owners[n]
+  let o = nil
+  if oid != nil then o = player_by_id(oid) end
+  if o == nil then
+    p.message("だれも住んでいない家", 1.2)
+    return
+  end
+  if p.liked == nil then p.liked = {} end
+  let last = p.liked[o.id]
+  if last != nil and time() - last < 300 then
+    p.message("この家には少し前にいいねした", 1.2)
+    return
+  end
+  p.liked[o.id] = time()
+  o.likes = o.likes + 1
+  o.score = contest_score(o)
+  kit_give(o, 5)
+  kit_give(p, 2)
+  o.message("👍 " + p.name + " があなたの家にいいね！（" + o.likes + "）", 2)
+  p.message("👍 いいねした！", 1)
+  sparkle(p.position, "#F472B6")
+  kit_quest_progress(o, "like5", 1)
+  kit_quest_progress(p, "give_like", 1)
+  hud(o)
+end
+
+-- MARK: パーティー
+
+func start_party(p)
+  if p.home == nil then
+    p.message("家がないとパーティーは開けない", 1.5)
+    return
+  end
+  if party != nil then
+    p.message("いまは " + party.host + " のパーティー中", 1.5)
+    return
+  end
+  if not quiet_ready(p, "party", 120) then
+    p.message("パーティーは2分に1回まで", 1.2)
+    return
+  end
+  party = {home: p.home, host: p.name, host_id: p.id, until: time() + 180}
+  announce("🎉 " + p.name + " の家（Home " + p.home + "）でパーティー！ チャットで /party と打つと行けるよ", 5)
+  kit_quest_progress(p, "party", 1)
+end
+
+func end_party()
+  if party == nil then return end
+  announce("🎉 " + party.host + " のパーティーはおしまい。ありがとう！", 3)
+  party = nil
+  ui_remove("party")
+end
+
+-- MARK: コンテスト
+
+func run_contest()
+  let list = filter(players(), func(p) return ready(p) and p.home != nil and p.decor > 0 end)
+  if len(list) == 0 then return end
+  list = sort(list, func(a, b) return contest_score(a) > contest_score(b) end)
+  let w = list[1]
+  kit_give(w, 300)
+  kit_badge(w, "contest", "おうちコンテスト優勝")
+  kit_quest_progress(w, "contest", 1)
+  let msg = "🏆 おうちコンテスト優勝: " + w.name + "（" + contest_score(w) + "点）"
+  if len(list) >= 2 then
+    kit_give(list[2], 120)
+    msg = msg + "  2位 " + list[2].name
+  end
+  if len(list) >= 3 then
+    kit_give(list[3], 60)
+    msg = msg + "  3位 " + list[3].name
+  end
+  announce(msg, 5)
+end
+
+on tick(dt)
+  party_clock = party_clock + dt
+  contest_clock = contest_clock + dt
+  if contest_clock >= CONTEST_EVERY then
+    contest_clock = 0
+    run_contest()
+  end
+  if party_clock < 1 then return end
+  party_clock = 0
+  if party != nil then
+    if time() > party.until or player_by_id(party.host_id) == nil then
+      end_party()
+      return
+    end
+    let guests = filter(players(), func(p) return in_home(p, party.home) and p.id != party.host_id end)
+    ui_text("party", "🎉 " + party.host + " のパーティー（" + len(guests) + "人）  /party", {at: "top", dy: 26, size: 15, bold: true, color: "#FDE68A"})
+    if floor(party.until - time()) % 30 == 0 then
+      let host = player_by_id(party.host_id)
+      for g in guests do
+        kit_give(g, 8)
+        g.message("🎉 パーティー +8", 1)
+        kit_quest_progress(g, "guest", 1)
+      end
+      if host != nil and len(guests) > 0 then kit_give(host, 4 * len(guests)) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim_home(p, split(b.name, " ")[2])
+  elif contains(b.tags, "furniture") and quiet_ready(p, "shop_pad", 3) then kit_open_shop(p)
+  end
+end
+
+on chat(p, text)
+  if text == "/party" then
+    if party == nil then
+      p.message("いまパーティーはない", 1.5)
+    else
+      p.teleport(home_floor(party.home))
+      p.message("🎉 " + party.host + " のパーティーへようこそ！", 2)
+    end
+  end
+end

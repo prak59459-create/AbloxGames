@@ -1,0 +1,82 @@
+-- common.absc — 小さな道具・画面の上
+
+func ready(p)
+  return p.bag != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func find_furniture(id)
+  for f in FURNITURE do
+    if f.id == id then return f end
+  end
+  return nil
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+-- ハートやキラキラ（ポムのまわり）
+func sparkle(pos, color)
+  for k in 1 to 3 do
+    let b = fx_ball(pos + {x: random(-10, 10) / 10, y: 1 + k * 0.4, z: random(-10, 10) / 10}, 0.35, color, 0.6)
+  end
+end
+
+func home_floor(n)
+  return block("Home " + n + " Floor")
+end
+
+func in_home(p, n)
+  let f = home_floor(n)
+  return f != nil and abs(p.x - f.x) < 6.2 and abs(p.z - f.z) < 5.2 and p.y < f.y + 4
+end
+
+-- いま中にいる家の番号（なければ nil）
+func home_here(p)
+  for n in 1 to 12 do
+    if in_home(p, "" + n) then return "" + n end
+  end
+  return nil
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let line = "🧺 家具 " + len(p.bag)
+  if p.home != nil then line = line + "   🏠 Home " + p.home + " " + home_stars_text(p) end
+  line = line + "   👍 " + p.likes
+  p.ui_text("hud", line, {at: "top_left", dy: 34, size: 15, bold: true, color: "#FDF2F8"})
+  let pl = "🐾 ポム " + len(p.poms) + "/" + MAX_POMS
+  let pom = active_pom(p)
+  if pom != nil then pl = pl + "   " + POMS[pom.kind].name + "（" + AGES[pom.age].name + "）" end
+  if p.egg != nil then pl = pl + "   🥚 のこり " + max(0, ceil(p.egg.left)) + "s" end
+  p.ui_text("hud2", pl, {at: "top_left", dy: 54, size: 14, bold: true, color: "#DDD6FE"})
+end

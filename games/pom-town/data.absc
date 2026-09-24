@@ -1,0 +1,104 @@
+-- data.absc — Pom Town の表
+-- 家具24・ポム15種・タマゴ3・年れい・お世話・魚8・お仕事
+
+-- MARK: 家具（score: インテリア点）
+let FURNITURE = [
+  {id: "chair", name: "🪑 いす", cat: "家具", price: 20, score: 3, size: {x: 1, y: 1, z: 1}, color: "#A16207", shape: "box"},
+  {id: "table", name: "テーブル", cat: "家具", price: 40, score: 5, size: {x: 2.4, y: 0.9, z: 1.6}, color: "#92400E", shape: "box"},
+  {id: "sofa", name: "🛋 ソファ", cat: "家具", price: 80, score: 9, size: {x: 3, y: 1, z: 1.2}, color: "#DB2777", shape: "box"},
+  {id: "bed", name: "🛏 ベッド", cat: "家具", price: 90, score: 10, size: {x: 2.2, y: 0.7, z: 3.2}, color: "#60A5FA", shape: "box"},
+  {id: "shelf", name: "本だな", cat: "家具", price: 60, score: 7, size: {x: 2, y: 2.2, z: 0.6}, color: "#78350F", shape: "box"},
+  {id: "desk", name: "つくえ", cat: "家具", price: 55, score: 6, size: {x: 2, y: 1, z: 1}, color: "#B45309", shape: "box"},
+  {id: "wardrobe", name: "クローゼット", cat: "家具", price: 120, score: 12, size: {x: 1.8, y: 2.6, z: 0.8}, color: "#F5F5F4", shape: "box"},
+  {id: "tv", name: "📺 テレビ", cat: "家電", price: 150, score: 15, size: {x: 2, y: 1.2, z: 0.3}, color: "#111827", shape: "box"},
+  {id: "fridge", name: "れいぞうこ", cat: "家電", price: 130, score: 12, size: {x: 1.2, y: 2.2, z: 1}, color: "#E5E7EB", shape: "box"},
+  {id: "lamp", name: "💡 ランプ", cat: "家電", price: 30, score: 4, size: {x: 0.7, y: 1.8, z: 0.7}, color: "#FDE68A", shape: "cylinder", material: "neon"},
+  {id: "speaker", name: "🔊 スピーカー", cat: "家電", price: 110, score: 11, size: {x: 0.8, y: 1.4, z: 0.8}, color: "#1F2937", shape: "box"},
+  {id: "stove", name: "キッチン", cat: "家電", price: 160, score: 14, size: {x: 2.4, y: 1, z: 1}, color: "#9CA3AF", shape: "box"},
+  {id: "plant", name: "🪴 かんようしょくぶつ", cat: "かざり", price: 25, score: 4, size: {x: 1, y: 1.6, z: 1}, color: "#22C55E", shape: "cone"},
+  {id: "rug", name: "ラグ", cat: "かざり", price: 35, score: 5, size: {x: 3, y: 0.05, z: 2}, color: "#F9A8D4", shape: "box"},
+  {id: "painting", name: "🖼 絵", cat: "かざり", price: 70, score: 8, size: {x: 1.6, y: 1.2, z: 0.1}, color: "#38BDF8", shape: "box"},
+  {id: "globe", name: "🔮 キラキラボール", cat: "かざり", price: 300, score: 30, size: {x: 1.2, y: 1.2, z: 1.2}, color: "#E879F9", shape: "sphere", material: "neon"},
+  {id: "aquarium", name: "🐠 水そう", cat: "かざり", price: 240, score: 24, size: {x: 2, y: 1.2, z: 0.8}, color: "#7DD3FC", shape: "box", material: "glass"},
+  {id: "trophy", name: "🏆 トロフィー", cat: "かざり", price: 500, score: 45, size: {x: 0.6, y: 1, z: 0.6}, color: "#FACC15", shape: "cylinder", material: "metal"},
+  {id: "balloon", name: "🎈 ふうせん", cat: "かざり", price: 15, score: 2, size: {x: 0.8, y: 0.8, z: 0.8}, color: "#EF4444", shape: "sphere", lift: 1.8},
+  {id: "fence", name: "さく", cat: "庭", price: 20, score: 2, size: {x: 3, y: 1, z: 0.2}, color: "#FEF3C7", shape: "box"},
+  {id: "pot", name: "🌷 花だん", cat: "庭", price: 45, score: 6, size: {x: 1.2, y: 0.8, z: 1.2}, color: "#F472B6", shape: "cylinder"},
+  {id: "tree", name: "🌳 木", cat: "庭", price: 90, score: 9, size: {x: 1.6, y: 3, z: 1.6}, color: "#16A34A", shape: "cone"},
+  {id: "fountain", name: "⛲ ふんすい", cat: "庭", price: 400, score: 38, size: {x: 2.4, y: 1.2, z: 2.4}, color: "#BAE6FD", shape: "cylinder", material: "glass"},
+  {id: "pombed", name: "🐾 ポムベッド", cat: "家具", price: 100, score: 10, size: {x: 1.4, y: 0.4, z: 1.4}, color: "#C4B5FD", shape: "cylinder"}
+]
+let FURN_CATS = ["家具", "家電", "かざり", "庭"]
+let WALL_PAINTS = ["#FDE2E4", "#E0F2FE", "#FEF9C3", "#DCFCE7", "#EDE9FE", "#FFE4E6", "#F5F5F4", "#1F2937", "#FDBA74"]
+let HOME_STARS = [0, 40, 120, 250, 450]   -- インテリア点 → ★1〜5
+
+-- MARK: ポム
+let POMS = {
+  fuwa: {name: "ふわポム", rarity: "コモン", color: "#F9A8D4", head: "#FBCFE8"},
+  moko: {name: "もこポム", rarity: "コモン", color: "#FDE68A", head: "#FEF3C7"},
+  mame: {name: "まめポム", rarity: "コモン", color: "#86EFAC", head: "#BBF7D0"},
+  pyon: {name: "ぴょんポム", rarity: "アンコモン", color: "#FFFFFF", head: "#FECDD3"},
+  neko: {name: "ねこポム", rarity: "アンコモン", color: "#FDBA74", head: "#FFEDD5"},
+  inu: {name: "いぬポム", rarity: "アンコモン", color: "#A16207", head: "#FDE68A"},
+  kuma: {name: "くまポム", rarity: "レア", color: "#78350F", head: "#D6B98C"},
+  pen: {name: "ぺんポム", rarity: "レア", color: "#1F2937", head: "#F8FAFC"},
+  kitsune: {name: "きつねポム", rarity: "レア", color: "#EA580C", head: "#FFF7ED"},
+  hoshi: {name: "ほしポム", rarity: "ウルトラレア", color: "#FDE047", head: "#FEF9C3"},
+  kumo: {name: "くもポム", rarity: "ウルトラレア", color: "#E0F2FE", head: "#FFFFFF"},
+  dora: {name: "ドラポム", rarity: "レジェンド", color: "#16A34A", head: "#BBF7D0"},
+  uni: {name: "ユニポム", rarity: "レジェンド", color: "#F5D0FE", head: "#FFFFFF"},
+  fenix: {name: "ひのとりポム", rarity: "レジェンド", color: "#DC2626", head: "#FDE047"},
+  niji: {name: "にじポム", rarity: "レジェンド", color: "#A78BFA", head: "#FDE68A"}
+}
+let RARITY_COLOR = {コモン: "#E5E7EB", アンコモン: "#86EFAC", レア: "#60A5FA", ウルトラレア: "#C084FC", レジェンド: "#FBBF24"}
+
+let EGGS = [
+  {id: "basic", name: "🥚 ふつうのタマゴ", price: 100, color: "#FEF3C7", secs: 40, pool: [
+    {kind: "fuwa", weight: 30}, {kind: "moko", weight: 30}, {kind: "mame", weight: 25}, {kind: "pyon", weight: 8},
+    {kind: "neko", weight: 5}, {kind: "kuma", weight: 1.6}, {kind: "hoshi", weight: 0.35}, {kind: "dora", weight: 0.05}]},
+  {id: "shiny", name: "✨ キラキラタマゴ", price: 350, color: "#C4B5FD", secs: 60, pool: [
+    {kind: "pyon", weight: 25}, {kind: "neko", weight: 25}, {kind: "inu", weight: 25}, {kind: "kuma", weight: 10},
+    {kind: "pen", weight: 8}, {kind: "kitsune", weight: 5}, {kind: "hoshi", weight: 1.5}, {kind: "uni", weight: 0.5}]},
+  {id: "legend", name: "🌈 伝説のタマゴ", price: 1200, color: "#FDE047", secs: 90, pool: [
+    {kind: "kuma", weight: 30}, {kind: "pen", weight: 25}, {kind: "kitsune", weight: 20}, {kind: "hoshi", weight: 10},
+    {kind: "kumo", weight: 9}, {kind: "dora", weight: 2}, {kind: "uni", weight: 2}, {kind: "fenix", weight: 1.5}, {kind: "niji", weight: 0.5}]}
+]
+
+-- 年れい（お世話で育つ）
+let AGES = [
+  {name: "赤ちゃん", xp: 0, size: 0.35},
+  {name: "子ども", xp: 60, size: 0.45},
+  {name: "ティーン", xp: 160, size: 0.55},
+  {name: "大人", xp: 320, size: 0.65},
+  {name: "伝説", xp: 600, size: 0.8}
+]
+let MAX_POMS = 6
+
+-- お世話
+let NEEDS = {
+  food: {name: "🍖 おなかすいた", place: "ポム屋の前のごはん皿", xp: 20, stars: 12},
+  play: {name: "🎾 あそびたい", place: "ポム公園の黄色いパッド", xp: 24, stars: 14},
+  sleep: {name: "💤 ねむい", place: "ポム屋の前のベッドか、家のポムベッド", xp: 22, stars: 12},
+  bath: {name: "🛁 おふろに入りたい", place: "池のそばのおふろ", xp: 26, stars: 15}
+}
+let NEED_ORDER = ["food", "play", "sleep", "bath"]
+
+-- MARK: 魚
+let FISH = [
+  {id: "medaka", name: "🐟 めだか", weight: 30, stars: 3},
+  {id: "funa", name: "🐟 ふな", weight: 25, stars: 5},
+  {id: "koi", name: "🎏 こい", weight: 15, stars: 10},
+  {id: "nijimasu", name: "🌈 にじます", weight: 10, stars: 16},
+  {id: "namazu", name: "🐡 なまず", weight: 8, stars: 22},
+  {id: "boot", name: "👢 ながぐつ", weight: 8, stars: 1},
+  {id: "kingyo", name: "🐠 金魚の王さま", weight: 3, stars: 50},
+  {id: "gold", name: "🌟 金のさかな", weight: 1, stars: 120}
+]
+
+-- MARK: お仕事
+let PARCEL_PAY = 25
+let PARCEL_FAST = 40      -- この秒数以内に届けるとボーナス
+let GARDEN_PAY = 12
+let ALLOWANCE_EVERY = 180
+let ALLOWANCE = 25
+let CONTEST_EVERY = 300

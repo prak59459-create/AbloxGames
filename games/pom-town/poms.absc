@@ -1,0 +1,351 @@
+-- poms.absc — ポム（ペット）
+-- タマゴを買う → しばらくするとかえる（お世話をするとはやくなる）→ 15種類・レア度つき。
+-- 連れているポムはときどき「おなかすいた」「あそびたい」「ねむい」「おふろ」。かなえると育つ:
+-- 赤ちゃん → 子ども → ティーン → 大人 → 伝説（だんだん大きくなる）。6匹まで。友だちと交換もできる。
+
+let pom_npcs = {}      -- プレイヤーid → NPC
+let pom_uid = 0
+let trades = []
+let pom_clock = 0
+
+func active_pom(p)
+  if p.poms == nil or p.active == nil then return nil end
+  for e in p.poms do
+    if e.uid == p.active then return e end
+  end
+  return nil
+end
+
+func pom_by_uid(p, uid)
+  for e in p.poms do
+    if e.uid == uid then return e end
+  end
+  return nil
+end
+
+func pom_label(e)
+  let k = POMS[e.kind]
+  return k.name + "（" + AGES[e.age].name + "）"
+end
+
+func new_pom(kind)
+  pom_uid = pom_uid + 1
+  return {uid: "P" + pom_uid, kind: kind, age: 1, xp: 0, need: nil, next_need: time() + 20, hat: "none"}
+end
+
+-- MARK: 連れて歩く
+
+func despawn_pom(p)
+  let old = pom_npcs[p.id]
+  if old != nil then gone(old) end
+  pom_npcs[p.id] = nil
+end
+
+func spawn_pom(p)
+  despawn_pom(p)
+  let e = active_pom(p)
+  if e == nil then return end
+  let k = POMS[e.kind]
+  let n = create_npc({name: p.name + "の" + k.name, position: p.position + {x: 1.2, y: 0.5, z: 1.2}, color: k.color, head_color: k.head,
+                      size: AGES[e.age].size, health: 1000000, speed: 1.5, hat: e.hat, team: "poms"})
+  n.kind = "pom"
+  n.owner = p.id
+  n.follow(p)
+  pom_npcs[p.id] = n
+end
+
+func equip_pom(p, uid)
+  if p.active == uid then
+    p.active = nil
+    despawn_pom(p)
+    p.message("🐾 ポムをおうちで休ませた", 1.2)
+  else
+    p.active = uid
+    spawn_pom(p)
+    let e = active_pom(p)
+    if e != nil then
+      e.next_need = min(e.next_need, time() + 15)
+      p.message("🐾 " + pom_label(e) + " といっしょ！", 1.5)
+    end
+  end
+  need_line(p)
+  hud(p)
+end
+
+-- MARK: タマゴ
+
+func buy_egg(p, id)
+  if p.egg != nil then
+    p.message("いまのタマゴがかえるまで待とう", 1.5)
+    return
+  end
+  if len(p.poms) >= MAX_POMS then
+    p.message("ポムは " + MAX_POMS + " 匹まで（手放すか交換しよう）", 1.5)
+    return
+  end
+  for egg in EGGS do
+    if egg.id == id then
+      if kit_pay(p, egg.price) then
+        p.egg = {id: id, left: egg.secs}
+        p.message(egg.name + " を買った！ しばらくするとかえる（お世話をするとはやくなる）", 3)
+        p.sound("collect")
+        kit_quest_progress(p, "buy_egg", 1)
+        hud(p)
+      end
+    end
+  end
+end
+
+func hatch(p)
+  let egg = nil
+  for x in EGGS do
+    if x.id == p.egg.id then egg = x end
+  end
+  p.egg = nil
+  if egg == nil then return end
+  let pick = kit_pick(egg.pool, 1)
+  let e = new_pom(pick.kind)
+  append(p.poms, e)
+  let k = POMS[e.kind]
+  sparkle(p.position, k.color)
+  p.ui_text("hatch", "🐣 " + k.name + "（" + k.rarity + "）がうまれた！", {at: "center", dy: -160, size: 26, bold: true, color: RARITY_COLOR[k.rarity]})
+  kit_later(p, 3, func() p.ui_remove("hatch") end)
+  p.sound("goal")
+  kit_quest_progress(p, "hatch", 1)
+  kit_quest_progress(p, "poms3", 1)
+  if k.rarity == "レジェンド" or k.rarity == "ウルトラレア" then
+    announce("🌟 " + p.name + " のタマゴから" + k.rarity + "の「" + k.name + "」がうまれた！", 4)
+    kit_badge(p, "rare_" + e.kind, k.name)
+  end
+  if p.active == nil then equip_pom(p, e.uid) end
+  hud(p)
+end
+
+-- MARK: お世話
+
+func need_line(p)
+  let e = active_pom(p)
+  if e == nil or e.need == nil then
+    p.ui_remove("need")
+    return
+  end
+  let n = NEEDS[e.need]
+  p.ui_text("need", "🐾 " + POMS[e.kind].name + ": " + n.name + " → " + n.place, {at: "top", dy: 56, size: 15, bold: true, color: "#FBCFE8"})
+end
+
+func satisfy(p, need_id)
+  let e = active_pom(p)
+  if e == nil or e.need != need_id then return end
+  let n = NEEDS[need_id]
+  e.need = nil
+  e.next_need = time() + random(25, 40)
+  e.xp = e.xp + n.xp
+  kit_give(p, n.stars)
+  p.message("💖 " + POMS[e.kind].name + " がよろこんでいる！ +" + n.stars + " スター", 1.8)
+  let npc = pom_npcs[p.id]
+  if npc != nil and kit_here(npc) then sparkle(npc.position, "#F472B6") end
+  if p.egg != nil then p.egg.left = p.egg.left - 8 end
+  kit_quest_progress(p, "needs20", 1)
+  -- 年れい
+  let grew = false
+  while e.age < len(AGES) and e.xp >= AGES[e.age + 1].xp do
+    e.age = e.age + 1
+    grew = true
+  end
+  if grew then
+    p.message("🎉 " + POMS[e.kind].name + " が「" + AGES[e.age].name + "」になった！", 3)
+    p.sound("goal")
+    if e.age == 4 then kit_quest_progress(p, "grow", 1) end
+    if e.age == 5 then
+      kit_quest_progress(p, "legend", 1)
+      announce("🌟 " + p.name + " の" + POMS[e.kind].name + " が伝説のポムに育った！", 4)
+    end
+    spawn_pom(p)
+  end
+  need_line(p)
+  hud(p)
+end
+
+func pom_step(p)
+  -- タマゴ
+  if p.egg != nil then
+    p.egg.left = p.egg.left - 1
+    if p.egg.left <= 0 then hatch(p) end
+  end
+  let e = active_pom(p)
+  if e == nil then return end
+  -- NPCがはなれすぎたらよびもどす
+  let npc = pom_npcs[p.id]
+  if npc == nil or not kit_here(npc) then spawn_pom(p)
+  elif distance(npc, p) > 25 then npc.teleport(p.position + {x: 1, y: 0.5, z: 1})
+  else npc.follow(p)
+  end
+  if e.need == nil and time() > e.next_need then
+    e.need = random(NEED_ORDER)
+    need_line(p)
+    p.sound("tick")
+  end
+  -- 家のベッドやポムベッドのそばなら「ねむい」がかなう
+  if e.need == "sleep" and p.home != nil and in_home(p, p.home) then
+    for x in p.placed do
+      if (x.id == "pombed" or x.id == "bed") and still(x.b) and distance(p, x.b.position) < 2.6 then satisfy(p, "sleep") end
+    end
+  end
+end
+
+func release_active(p)
+  let e = active_pom(p)
+  if e == nil then
+    p.message("連れているポムがいない", 1)
+    return
+  end
+  let pay = {コモン: 20, アンコモン: 40, レア: 80, ウルトラレア: 200, レジェンド: 500}
+  let k = POMS[e.kind]
+  despawn_pom(p)
+  p.poms = filter(p.poms, func(x) return x.uid != e.uid end)
+  p.active = nil
+  kit_give(p, pay[k.rarity] * e.age)
+  p.message("💔 " + k.name + " は新しい家族のもとへ… +" + pay[k.rarity] * e.age + " スター", 2.5)
+  need_line(p)
+  hud(p)
+end
+
+func cycle_hat(p)
+  let e = active_pom(p)
+  if e == nil then return end
+  if not kit_pay(p, 10) then return end
+  let hats = ["none", "cap", "antenna", "halo", "crown"]
+  let i = index_of(hats, e.hat)
+  if i == nil then i = 0 end
+  e.hat = hats[i % len(hats) + 1]
+  spawn_pom(p)
+end
+
+-- MARK: 交換
+
+func trade_of(p)
+  for t in trades do
+    if t.a == p.id or t.b == p.id then return t end
+  end
+  return nil
+end
+
+func other_side(t, p)
+  if t.a == p.id then return player_by_id(t.b) end
+  return player_by_id(t.a)
+end
+
+func start_trade(p)
+  if trade_of(p) != nil then return end
+  let best = nil
+  for q in players() do
+    if q.id != p.id and ready(q) and distance(p, q) < 8 and trade_of(q) == nil then
+      if best == nil or distance(p, q) < distance(p, best) then best = q end
+    end
+  end
+  if best == nil then
+    p.message("🤝 交換したい人の近く（8m）で押そう", 1.5)
+    return
+  end
+  pom_uid = pom_uid + 1
+  let t = {tid: pom_uid, a: p.id, b: best.id, a_pick: nil, b_pick: nil, a_ok: false, b_ok: false}
+  append(trades, t)
+  trade_panel(p)
+  trade_panel(best)
+  best.message("🤝 " + p.name + " が交換をもうしこんだ", 2)
+end
+
+func trade_pick(p, uid)
+  let t = trade_of(p)
+  if t == nil or pom_by_uid(p, uid) == nil then return end
+  if t.a == p.id then t.a_pick = uid else t.b_pick = uid end
+  t.a_ok = false
+  t.b_ok = false
+  trade_panel(p)
+  let q = other_side(t, p)
+  if q != nil then trade_panel(q) end
+end
+
+func trade_ok(p)
+  let t = trade_of(p)
+  if t == nil then return end
+  if t.a_pick == nil or t.b_pick == nil then
+    p.message("おたがいにポムを1匹えらんでからOK", 1.5)
+    return
+  end
+  if t.a == p.id then t.a_ok = true else t.b_ok = true end
+  let q = other_side(t, p)
+  if t.a_ok and t.b_ok and q != nil then
+    let a = player_by_id(t.a)
+    let b = player_by_id(t.b)
+    let ea = pom_by_uid(a, t.a_pick)
+    let eb = pom_by_uid(b, t.b_pick)
+    if ea != nil and eb != nil then
+      a.poms = filter(a.poms, func(x) return x.uid != ea.uid end)
+      b.poms = filter(b.poms, func(x) return x.uid != eb.uid end)
+      append(a.poms, eb)
+      append(b.poms, ea)
+      for x in [a, b] do
+        if x.active == ea.uid or x.active == eb.uid then
+          x.active = nil
+          despawn_pom(x)
+        end
+        x.message("🤝 交換成立！", 2)
+        kit_quest_progress(x, "trade", 1)
+        need_line(x)
+        hud(x)
+      end
+    end
+    close_trade(t)
+    return
+  end
+  trade_panel(p)
+  if q != nil then trade_panel(q) end
+end
+
+func close_trade(t)
+  trades = filter(trades, func(x) return x.tid != t.tid end)
+  for id in [t.a, t.b] do
+    let x = player_by_id(id)
+    if x != nil then x.ui_remove("trade") end
+  end
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  pom_clock = pom_clock + dt
+  if pom_clock < 1 then return end
+  pom_clock = 0
+  for p in players() do
+    if ready(p) then
+      pom_step(p)
+      if p.egg != nil and floor(p.egg.left) % 5 == 0 then hud(p) end
+    end
+  end
+  for t in trades do
+    let a = player_by_id(t.a)
+    let b = player_by_id(t.b)
+    if a == nil or b == nil or distance(a, b) > 15 then
+      if a != nil then a.message("🤝 交換は中止", 1.2) end
+      if b != nil then b.message("🤝 交換は中止", 1.2) end
+      close_trade(t)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "need_food") then satisfy(p, "food")
+  elif contains(b.tags, "need_play") then
+    let e = active_pom(p)
+    if e != nil and e.need == "play" then
+      let npc = pom_npcs[p.id]
+      if npc != nil and kit_here(npc) then npc.launch(0, 8, 0) end
+      satisfy(p, "play")
+    end
+  elif contains(b.tags, "need_sleep") then satisfy(p, "sleep")
+  elif contains(b.tags, "need_bath") then satisfy(p, "bath")
+  elif contains(b.tags, "pomshop") and quiet_ready(p, "pomshop", 3) then egg_shop(p)
+  end
+end

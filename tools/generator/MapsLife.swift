@@ -4,7 +4,7 @@ import Foundation
 
 let lifeGames: [Game] = [
     Game(number: 33, id: "pom-town", title: "Pom Town",
-         summary: "自分の家を家具でかざって、ふわふわのペット「ポム」と街でくらそう。釣りでスターコインを集めて、パーティーを開こう。",
+         summary: "家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！",
          tags: ["rp", "house", "pets"], maxPlayers: 12, build: pomTown),
     Game(number: 34, id: "cherry-lane-rp", title: "Cherry Lane RP",
          summary: "おしゃれな街で学校生活や家族ごっこ。役割（生徒・先生・親・赤ちゃん）を選んで、授業のチャイムに合わせて過ごそう。",
@@ -54,7 +54,7 @@ func homesRow(_ m: MapBuilder, count: Int, x: Float, z: Float, spacing: Float, f
         let n = first + i
         let hx = x + Float(i) * spacing
         m.house("Home \(n)", x: hx, z: z, w: 12, d: 10, h: 3.8, wall: walls[n % walls.count], roof: "#9F1239", floor: "#D6B98C",
-                tags: ["home"], facing: facing)
+                tags: ["home", "h\(n)"], facing: facing)
         m.pad("Home \(n) Sign", x: hx + 5, z: z + facing * 8, size: 1.6, color: "#FDE047", tags: ["claim"])
     }
 }
@@ -66,6 +66,7 @@ func pomTown(_ m: MapBuilder) {
     m.ground(180, 180, color: "#A3E635")
     m.part("Plaza", at: (0, 0.03, 0), size: (24, 0.06, 24), color: "#FDE68A", shape: .cylinder, material: .matte)
     m.spawnRing(0, 0, radius: 6, count: 8, color: "#F9A8D4")
+    m.part("Plaza Fountain", at: (0, 0.5, 0), size: (3, 1, 3), color: "#7DD3FC", shape: .cylinder, material: .glass)
     m.road(from: (-90, 18), to: (90, 18), width: 6)
     homesRow(m, count: 6, x: -60, z: 36, spacing: 24, facing: -1)
     homesRow(m, count: 6, x: -60, z: -40, spacing: 24, facing: 1, first: 7)
@@ -73,6 +74,21 @@ func pomTown(_ m: MapBuilder) {
     m.pad("Furniture Counter", x: -30, z: 2, size: 2.4, color: "#EC4899", tags: ["furniture"])
     m.shop("Pom Shop", x: 30, z: 0, w: 12, d: 8, color: "#A78BFA", sign: "#FFFFFF", facing: -1)
     m.pad("Pom Counter", x: 30, z: 2, size: 2.4, color: "#8B5CF6", tags: ["pomshop"])
+    // Places that meet a pom's needs.
+    m.pad("Food Bowl", x: 24, z: -8, size: 2, color: "#F97316", tags: ["need_food"])
+    m.pad("Pom Bed", x: 36, z: -8, size: 2.4, color: "#818CF8", tags: ["need_sleep"])
+    m.slab("Pom Park", x: -30, y: 0, z: -20, w: 18, h: 0.1, d: 9, color: "#4ADE80")
+    m.pad("Play Spot", x: -30, z: -20, y: 0.1, size: 3, color: "#FACC15", tags: ["need_play"])
+    for p in [(-38, -23), (-22, -17)] { m.tree(Float(p.0), Float(p.1), height: 4, leaves: "#22C55E") }
+    m.part("Pom Bath", at: (58, 0.4, -2), size: (4, 0.8, 3), color: "#E0F2FE", shape: .cylinder, material: .glass)
+    m.pad("Bath Water", x: 58, z: -2, y: 0.8, size: 2.6, color: "#38BDF8", tags: ["need_bath"])
+    // The post office (deliveries) and the flower beds (gardening).
+    m.shop("Post Office", x: -62, z: 2, w: 10, d: 8, color: "#FB923C", sign: "#FFFFFF", facing: 1)
+    m.pad("Parcel Counter", x: -62, z: 0, size: 2.4, color: "#F59E0B", tags: ["parcel"])
+    m.pad("Garden Shed", x: 14, z: -14, size: 2.2, color: "#65A30D", tags: ["garden"])
+    for (i, p) in ring(8, radius: 16, phase: 0.2).enumerated() {
+        m.slab("Flower Bed \(i + 1)", x: p.0, y: 0, z: p.1, w: 3, h: 0.3, d: 1.6, color: "#78350F")
+    }
     // The fishing pond.
     m.part("Pond", at: (70, 0.02, -8), size: (22, 0.05, 16), color: "#38BDF8", shape: .cylinder, material: .glass, solid: false)
     m.slab("Pond Dock", x: 70, y: 0, z: 2, w: 3, h: 0.3, d: 6, color: "#A16207")
