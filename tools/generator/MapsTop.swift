@@ -944,31 +944,75 @@ func towerChaos(_ m: MapBuilder) {
 
 func crystalWars(_ m: MapBuilder) {
     m.sky("#60A5FA", "#E0F2FE", light: 0.8, showGround: false, fall: -25)
-    let teams: [(String, String, Float, Float)] = [("Red", "#EF4444", 0, -50), ("Blue", "#3B82F6", 50, 0),
-                                                  ("Green", "#22C55E", 0, 50), ("Yellow", "#EAB308", -50, 0)]
+    // Four team islands 56 m out, each with a crystal on its far side.
+    // Local axes: u points away from the middle, v across the island.
+    let teams: [(String, String, String, Float, Float)] = [("Red", "#EF4444", "#FCA5A5", 0, -1), ("Blue", "#3B82F6", "#93C5FD", 1, 0),
+                                                           ("Green", "#22C55E", "#86EFAC", 0, 1), ("Yellow", "#EAB308", "#FDE047", -1, 0)]
     for t in teams {
-        m.slab("\(t.0) Island", x: t.2, y: -2, z: t.3, w: 16, h: 2, d: 16, color: "#6B8E4E", tags: ["island"])
-        m.slab("\(t.0) Island Rock", x: t.2, y: -5, z: t.3, w: 12, h: 3, d: 12, color: "#57534E")
-        m.part("\(t.0) Crystal", at: (t.2 * 1.08, 1.2, t.3 * 1.08), size: (1.4, 2.4, 1.4), color: t.1, shape: .cone, material: .glass,
+        let ox = t.3, oz = t.4, px = -oz, pz = ox
+        func at(_ u: Float, _ v: Float) -> (Float, Float) { (ox * (56 + u) + px * v, oz * (56 + u) + pz * v) }
+        let c = at(0, 0)
+        m.slab("\(t.0) Island", x: c.0, y: -2, z: c.1, w: 22, h: 2, d: 22, color: "#6B8E4E", tags: ["island", t.0.lowercased()])
+        m.slab("\(t.0) Island Rock", x: c.0, y: -6, z: c.1, w: 16, h: 4, d: 16, color: "#57534E")
+        m.slab("\(t.0) Island Root", x: c.0, y: -9, z: c.1, w: 8, h: 3, d: 8, color: "#44403C")
+        // The crystal, on a pedestal, inside a ring of wool.
+        let cr = at(8, 0)
+        m.slab("\(t.0) Pedestal", x: cr.0, y: 0, z: cr.1, w: 2, h: 0.6, d: 2, color: "#E5E7EB", material: .metal)
+        m.part("\(t.0) Crystal", at: (cr.0, 1.9, cr.1), size: (1.4, 2.6, 1.4), color: t.1, shape: .cone, material: .glass,
                tags: ["crystal", t.0.lowercased()])
-        m.pad("\(t.0) Generator", x: t.2 * 0.9, z: t.3 * 0.9 + (t.3 == 0 ? 4 : 0), size: 2.5, color: "#D1D5DB", tags: ["generator", t.0.lowercased()])
-        m.pad("\(t.0) Shop", x: t.2 * 0.9 + (t.2 == 0 ? 4 : 0), z: t.3 * 0.9, size: 2.5, color: t.1, tags: ["shop"])
-        for k in 0..<2 {
-            m.spawn(t.2 + (t.2 == 0 ? Float(k * 3 - 1) : 0) * 1.5, t.3 + (t.3 == 0 ? Float(k * 3 - 1) : 0) * 1.5,
-                    name: "\(t.0) Spawn \(k + 1)", color: t.1)
+        for (du, dv) in [(-2, -2), (0, -2), (2, -2), (-2, 0), (2, 0), (-2, 2), (0, 2), (2, 2)] as [(Float, Float)] {
+            let w = at(8 + du, dv)
+            m.slab("\(t.0) Guard Wool", x: w.0, y: 0, z: w.1, w: 2, h: 1, d: 2, color: t.2, tags: ["placed", "wool"])
+        }
+        let g = at(1, 7)
+        m.pad("\(t.0) Generator", x: g.0, z: g.1, size: 3.2, color: "#D1D5DB", tags: ["generator", "team_gen", t.0.lowercased()])
+        m.slab("\(t.0) Generator Frame", x: at(1, 9.2).0, y: 0, z: at(1, 9.2).1, w: 1, h: 1.6, d: 1, color: "#9CA3AF", material: .metal)
+        let shop = at(-1, -7)
+        m.pad("\(t.0) Item Shop", x: shop.0, z: shop.1, size: 2.6, color: t.1, tags: ["item_shop", t.0.lowercased()])
+        let keeper = at(-1, -9.4)
+        m.pillar("\(t.0) Shopkeeper", x: keeper.0, z: keeper.1, height: 1.6, radius: 0.45, color: "#F59E0B")
+        m.part("\(t.0) Shopkeeper Head", at: (keeper.0, 1.95, keeper.1), size: (0.7, 0.7, 0.7), color: "#FDE68A", shape: .sphere)
+        let up = at(4, -7)
+        m.pad("\(t.0) Upgrade Shop", x: up.0, z: up.1, size: 2.6, color: "#A78BFA", tags: ["upgrade_shop", t.0.lowercased()])
+        let smith = at(4, -9.4)
+        m.pillar("\(t.0) Smith", x: smith.0, z: smith.1, height: 1.6, radius: 0.45, color: "#7C3AED")
+        m.part("\(t.0) Smith Head", at: (smith.0, 1.95, smith.1), size: (0.7, 0.7, 0.7), color: "#FDE68A", shape: .sphere)
+        for v: Float in [-2, 2] {
+            let s = at(-4, v)
+            m.spawn(s.0, s.1, name: "\(t.0) Spawn \(v < 0 ? 1 : 2)", color: t.1)
+        }
+        for v: Float in [-10, 10] {
+            let b = at(-10, v)
+            m.pillar("\(t.0) Banner Pole", x: b.0, z: b.1, height: 5, radius: 0.15, color: "#E5E7EB")
+            m.part("\(t.0) Banner", at: (b.0 + px * 0.9, 4.2, b.1 + pz * 0.9), size: (abs(px) * 1.6 + 0.1, 1.2, abs(pz) * 1.6 + 0.1),
+                   color: t.1, material: .neon, solid: false)
+        }
+        m.tree(at(6, 9).0, at(6, 9).1, height: 3.5, leaves: t.2)
+        // A short wool bridge toward the middle; the rest is built.
+        for k in 1...3 {
+            let b = at(-11 - Float(k) * 2 + 1, 0)
+            m.slab("\(t.0) Bridge", x: b.0, y: -1, z: b.1, w: 2, h: 1, d: 2, color: t.2, tags: ["placed", "wool"])
         }
     }
-    m.slab("Center Island", x: 0, y: -2, z: 0, w: 14, h: 2, d: 14, color: "#8B7355")
-    m.pad("Diamond Generator", x: 0, z: 0, size: 3, color: "#22D3EE", tags: ["generator", "diamond"])
-    // A short starter bridge from each island, the rest is built.
-    for t in teams {
-        let dx: Float = t.2 == 0 ? 0 : -t.2 / abs(t.2)
-        let dz: Float = t.3 == 0 ? 0 : -t.3 / abs(t.3)
-        for k in 1...4 {
-            m.slab("\(t.0) Bridge \(k)", x: t.2 + dx * (8 + Float(k) * 2), y: -1, z: t.3 + dz * (8 + Float(k) * 2), w: 2, h: 1, d: 2,
-                   color: "#D6D3D1", tags: ["placed"])
-        }
+    // Diamond islands on the diagonals.
+    for (i, d) in [(38, -38), (38, 38), (-38, 38), (-38, -38)].enumerated() {
+        let x = Float(d.0), z = Float(d.1)
+        m.slab("Diamond Island \(i + 1)", x: x, y: -2, z: z, w: 9, h: 2, d: 9, color: "#78716C")
+        m.slab("Diamond Island Rock \(i + 1)", x: x, y: -5, z: z, w: 6, h: 3, d: 6, color: "#57534E")
+        m.pad("Diamond Generator \(i + 1)", x: x, z: z, size: 3, color: "#22D3EE", tags: ["generator", "diamond_gen"])
+        m.part("Diamond Crystal \(i + 1)", at: (x, 3.2, z), size: (0.8, 0.8, 0.8), color: "#67E8F9", shape: .sphere, material: .neon, solid: false)
     }
+    // The middle: two emerald generators and some cover.
+    m.slab("Center Island", x: 0, y: -2, z: 0, w: 20, h: 2, d: 20, color: "#8B7355")
+    m.slab("Center Rock", x: 0, y: -7, z: 0, w: 14, h: 5, d: 14, color: "#57534E")
+    m.slab("Center Stage", x: 0, y: 0, z: 0, w: 8, h: 1, d: 8, color: "#A8A29E")
+    for (i, x) in [-2, 2].enumerated() {
+        m.pad("Emerald Generator \(i + 1)", x: Float(x), z: 0, y: 1, size: 2.6, color: "#10B981", tags: ["generator", "emerald_gen"])
+    }
+    for p in [(-7, -7), (7, -7), (7, 7), (-7, 7)] {
+        m.pillar("Center Pillar", x: Float(p.0), z: Float(p.1), height: 3, radius: 0.7, color: "#D6D3D1")
+    }
+    m.part("Center Beacon", at: (0, 6, 0), size: (1, 1, 1), color: "#34D399", shape: .sphere, material: .neon, solid: false)
 }
 
 // MARK: 17 Slime Roll

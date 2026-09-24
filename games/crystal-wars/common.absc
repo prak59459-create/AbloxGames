@@ -1,0 +1,113 @@
+-- common.absc — どのファイルからも使う小さな道具
+
+-- まだ消えていないブロック・NPC？
+func still(b)
+  return b != nil and b.destroy != nil
+end
+
+func item_info(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return nil
+end
+
+func kind_info(id)
+  for k in BLOCK_KINDS do
+    if k.id == id then return k end
+  end
+  return BLOCK_KINDS[1]
+end
+
+-- MARK: お金
+
+func money_reset(p)
+  p.money = {iron: 0, gold: 0, dia: 0, emerald: 0}
+end
+
+func price_text(cost, cur)
+  return MONEY_ICON[cur] + cost
+end
+
+func pay(p, cost, cur)
+  let have = p.money[cur] or 0
+  if have < cost then
+    p.message(MONEY_NAME[cur] + "が足りない（あと " + (cost - have) + "）", 1.5)
+    p.sound("error")
+    return false
+  end
+  p.money[cur] = have - cost
+  hud(p)
+  return true
+end
+
+func earn(p, cur, n)
+  if n <= 0 then return end
+  p.money[cur] = (p.money[cur] or 0) + n
+  p.stat_res = (p.stat_res or 0) + n
+  kit_quest_progress(p, "res", n)
+  hud(p)
+end
+
+func money_line(p)
+  let parts = []
+  for cur in CURS do append(parts, MONEY_ICON[cur] + (p.money[cur] or 0)) end
+  return join(parts, "  ")
+end
+
+-- MARK: 画面の左上
+
+func title_of(p)
+  for t in TITLES do
+    if t.id == p.title and t.name != "" then return "【" + t.name + "】" end
+  end
+  return ""
+end
+
+func hud(p)
+  if p.money == nil or p.team == nil then return end
+  p.ui_text("hud_money", money_line(p), {at: "top_left", dy: 34, size: 20, bold: true})
+  let gear = "⚔ " + SWORDS[p.sword].name + "   🛡 " + ARMORS[p.armor].name + "   ⛏ " + PICKS[p.pick].name
+  p.ui_text("hud_team", TEAM_JP[p.team] + "チーム  " + gear, {at: "top_left", dy: 64, size: 14, color: TEAM_COLOR[p.team]})
+  block_button(p)
+end
+
+-- MARK: 時間で切れる効果（薬・わな）
+
+func active_until(value)
+  return value != nil and value > time()
+end
+
+func apply_move(p)
+  let s = 1
+  let j = 1
+  if active_until(p.speed_until) then s = s * 1.4 end
+  if active_until(p.leap_until) then j = j * 1.5 end
+  if active_until(p.rally_until) then
+    s = s * 1.25
+    j = j * 1.2
+  end
+  if active_until(p.slow_until) then s = s * 0.55 end
+  -- 変わったときだけ送る
+  let now = s + ":" + j
+  if p.move_state != now then
+    p.move_state = now
+    p.speed = s
+    p.jump = j
+  end
+  let hide = active_until(p.invis_until)
+  if hide != (p.hidden or false) then
+    p.hidden = hide
+    p.visible = not hide
+    if hide then p.message("👻 透明になった！（こうげきすると見つかりやすい）", 1.5) end
+  end
+end
+
+-- 待ち時間（メッセージを出さない版）。使えるなら true
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end

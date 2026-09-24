@@ -1,0 +1,156 @@
+-- combat.absc — こうげき・やられたとき・復活・奈落
+-- よろいとチーム強化でダメージがへる。たおした相手のお金は全部もらえる。
+-- クリスタルがなくなったチームの人をたおすと「ファイナルキル」。
+
+kit_melee("木の剣", 14, 2.5, 5)
+kit_melee("石の剣", 20, 2.5, 5)
+kit_melee("鉄の剣", 28, 2.5, 5.5)
+kit_melee("ダイヤの剣", 38, 2.6, 6)
+kit_melee("ノックバック棒", 2, 2, 5.5)
+weapon("弓", {model: "rifle", damage: 16, rate: 1, range: 70, ammo: 6, reload: 2, spread: 0.6})
+weapon("パワー弓", {model: "rifle", damage: 26, rate: 1, range: 80, ammo: 6, reload: 2, spread: 0.4})
+
+let void_clock = 0
+
+func armor_cut(p)
+  return min(0.8, ARMORS[p.armor].cut + team_up(p.team, "prot") * 0.08)
+end
+
+on hit(victim, attacker, damage)
+  let d = damage
+  if attacker != nil and not attacker.is_npc then
+    if contains(SWORD_NAMES, attacker.weapon) and team_up(attacker.team, "sharp") > 0 then d = d * 1.25 end
+    if attacker.weapon == "ノックバック棒" then
+      let away = normalize(victim.position - attacker.position)
+      victim.launch(away.x * 18, 8, away.z * 18)
+    end
+    -- 透明の人はこうげきすると少し見える
+    if active_until(attacker.invis_until) then attacker.invis_until = attacker.invis_until - 4 end
+  end
+  if not victim.is_npc then
+    d = d * (1 - armor_cut(victim))
+    if attacker != nil and not attacker.is_npc then
+      victim.last_hitter = attacker
+      victim.last_hit_at = time()
+    end
+  end
+  return d
+end
+
+-- 死んだら: お金・ブロック・どうぐ・弓・棒はなくなる。よろいはそのまま、ツルハシは1つ下がる。
+func lose_items(p)
+  money_reset(p)
+  p.blocks = {}
+  p.items = {}
+  p.sword = 1
+  p.bow = 1
+  p.has_kb = false
+  if p.pick > 2 then p.pick = p.pick - 1 end
+  p.block_kind = "wool"
+end
+
+func equip_default(p)
+  p.give(SWORDS[p.sword].name)
+  p.heal(999)
+  weapon_buttons(p)
+  item_bar(p)
+  hud(p)
+end
+
+func credited_killer(victim, killer)
+  let k = killer
+  if k == nil or k.id == victim.id or k.is_npc then
+    k = nil
+    let last = victim.last_hitter
+    if last != nil and kit_here(last) and last.id != victim.id and time() - (victim.last_hit_at or 0) < 10 then k = last end
+  end
+  return k
+end
+
+func kill_feed(k, victim, final, fell)
+  let tag = ""
+  if final then tag = "  【ファイナル】" end
+  if fell then
+    chat("🕳 " + title_of(k) + k.name + " が " + victim.name + " を奈落へ落とした" + tag)
+  else
+    chat("⚔ " + title_of(k) + k.name + " が " + victim.name + " をたおした" + tag)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  if over or victim.team == nil then return end
+  let final = not crystal_alive(victim.team)
+  let k = credited_killer(victim, killer)
+  victim.stat_deaths = (victim.stat_deaths or 0) + 1
+  if k != nil and not k.is_npc then
+    -- お金を全部もらう
+    let got = []
+    for cur in CURS do
+      let n = victim.money[cur] or 0
+      if n > 0 then
+        k.money[cur] = (k.money[cur] or 0) + n
+        append(got, MONEY_ICON[cur] + n)
+      end
+    end
+    if len(got) > 0 then k.message("💰 " + join(got, " ") + " をうばった！", 1.5) end
+    if final then
+      k.stat_finals = (k.stat_finals or 0) + 1
+      k.life_finals = (k.life_finals or 0) + 1
+      kit_xp(k, 25)
+      kit_give(k, 5)
+      kit_quest_progress(k, "final", 1)
+    else
+      k.stat_kills = (k.stat_kills or 0) + 1
+      k.life_kills = (k.life_kills or 0) + 1
+      kit_xp(k, 10)
+      kit_give(k, 2)
+    end
+    kit_quest_progress(k, "kill", 1)
+    update_score(k)
+    hud(k)
+    kill_feed(k, victim, final, victim.y < VOID_Y + 2)
+  elif final then
+    chat("💀 " + victim.name + " がたおれた【ファイナル】")
+  end
+  lose_items(victim)
+  victim.last_hitter = nil
+  close_shop(victim)
+  victim.ui_remove("up_box")
+  if final then
+    victim.out = true
+    victim.message("💀 クリスタルがないので復活できない… 見守ろう", 3)
+    victim.ui_text("respawn_t", "👀 観戦中", {at: "center", dy: -80, size: 24, bold: true, color: "#FCA5A5"})
+  else
+    victim.respawning = true
+    for s in 0 to RESPAWN_SECS - 1 do
+      kit_later(victim, s, func()
+        victim.ui_text("respawn_t", "復活まで " + (RESPAWN_SECS - s) + " …", {at: "center", dy: -80, size: 28, bold: true})
+      end)
+    end
+    kit_later(victim, RESPAWN_SECS, func() revive(victim) end)
+  end
+  check_winner()
+end
+
+func revive(p)
+  p.respawning = false
+  p.ui_remove("respawn_t")
+  if over then return end
+  p.respawn()
+  home(p)
+  equip_default(p)
+end
+
+-- 奈落に落ちたらアウト（10びょう以内にたたいた人がいれば、その人のキル）
+on tick(dt)
+  void_clock = void_clock + dt
+  if void_clock < 0.25 then return end
+  void_clock = 0
+  for p in players() do
+    if p.alive and p.y < VOID_Y then
+      let k = credited_killer(p, nil)
+      if k != nil then p.damage(p.health + 1000, k) else p.kill() end
+    end
+  end
+end

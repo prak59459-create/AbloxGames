@@ -1,0 +1,125 @@
+-- stats.absc — 成績・試合のまとめ・レベル・称号
+-- この試合の成績（stat_…）と、ずっとの成績（life_…）。スターで称号を買える。
+
+func round_score(p)
+  return (p.stat_kills or 0) + (p.stat_finals or 0) * 3 + (p.stat_crystals or 0) * 5
+end
+
+func update_score(p)
+  p.score = round_score(p) + (p.life_wins or 0) * 5
+end
+
+func reset_round_stats(p)
+  p.stat_kills = 0
+  p.stat_finals = 0
+  p.stat_deaths = 0
+  p.stat_crystals = 0
+  p.stat_blocks = 0
+  p.stat_broken = 0
+  p.stat_res = 0
+  p.stat_bought = 0
+  p.stat_items = 0
+end
+
+func show_summary(headline)
+  let ranked = sort(copy(players()), func(a, b) return round_score(a) > round_score(b) end)
+  let lines = []
+  let medals = ["🥇", "🥈", "🥉", "4.", "5."]
+  let i = 0
+  for p in slice(ranked, 1, 5) do
+    i = i + 1
+    append(lines, medals[i] + " " + title_of(p) + p.name + "（" + TEAM_JP[p.team] + "）  ⚔" + (p.stat_kills or 0) +
+                  "  ☠" + (p.stat_finals or 0) + "  💥" + (p.stat_crystals or 0) + "  🧱" + (p.stat_blocks or 0))
+  end
+  let h = 110 + len(lines) * 32
+  for p in players() do
+    p.ui_panel("sum_box", {at: "center", w: 600, h: h, bg: "#000000D0", radius: 22, layer: 40})
+    p.ui_text("sum_t", headline, {parent: "sum_box", y: 30 / h, size: 24, bold: true, color: "#FDE68A"})
+    let k = 0
+    for line in lines do
+      k = k + 1
+      p.ui_text("sum_" + k, line, {parent: "sum_box", y: (44 + k * 32) / h, size: 15})
+    end
+    p.ui_text("sum_me", "あなた: ⚔" + (p.stat_kills or 0) + " ☠" + (p.stat_finals or 0) + " 💥" + (p.stat_crystals or 0) +
+                        "  ⭐レベル " + (p.level or 1), {parent: "sum_box", y: (h - 24) / h, size: 14, color: "#A5F3FC"})
+    kit_later(p, 9, func() p.ui_remove("sum_box") end)
+  end
+end
+
+func stats(p)
+  let lines = [
+    "【この試合】 ⚔キル " + (p.stat_kills or 0) + "  ☠ファイナル " + (p.stat_finals or 0) + "  💀やられた " + (p.stat_deaths or 0),
+    "💥クリスタル " + (p.stat_crystals or 0) + "  🧱置いた " + (p.stat_blocks or 0) + "  🔨こわした " + (p.stat_broken or 0),
+    "💰集めた資源 " + (p.stat_res or 0) + "  🛒買った " + (p.stat_bought or 0) + "  🧪使った " + (p.stat_items or 0),
+    "【ずっと】 🏆勝ち " + (p.life_wins or 0) + " / " + (p.games or 0) + " 試合",
+    "⚔キル " + (p.life_kills or 0) + "  ☠ファイナル " + (p.life_finals or 0) + "  💥クリスタル " + (p.life_crystals or 0),
+    "⭐レベル " + (p.level or 1) + "  🎖称号 " + title_of(p)
+  ]
+  let h = 120 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 600, h: h, bg: "#111827F2", radius: 22, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 15})
+  end
+  p.ui_button("titles", "🎖 称号", {parent: "stats_box", x: 0.3, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "#B45309"})
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", x: 0.7, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+-- MARK: 称号
+
+func titles_menu(p)
+  p.ui_remove("stats_box")
+  let h = 130 + len(TITLES) * 46
+  p.ui_panel("title_box", {at: "center", w: 460, h: h, bg: "#1C1917F2", radius: 22, layer: 36})
+  p.ui_text("title_t", "🎖 称号（⭐ " + kit_money(p) + " スター）", {parent: "title_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for t in TITLES do
+    i = i + 1
+    let name = t.name
+    if name == "" then name = "（称号なし）" end
+    let label = name + "  ⭐" + t.price
+    let bg = "#92400E"
+    if contains(p.titles, t.id) then
+      label = name + " をつける"
+      bg = "#0F766E"
+    end
+    if p.title == t.id then
+      label = "✅ " + name
+      bg = "#374151"
+    end
+    p.ui_button("title_" + t.id, label, {parent: "title_box", y: (30 + i * 46) / h, w: 420, h: 38, size: 15, bg: bg})
+  end
+  p.ui_button("title_close", "閉じる", {parent: "title_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_title(p, id)
+  if not contains(p.titles, id) then
+    let price = nil
+    for t in TITLES do
+      if t.id == id then price = t.price end
+    end
+    if price == nil or not kit_pay(p, price) then return end
+    append(p.titles, id)
+    p.sound("goal")
+    kit_quest_progress(p, "title", 1)
+  end
+  p.title = id
+  titles_menu(p)
+  hud(p)
+end
+
+kit_on_level = func(p)
+  if p.level % 5 == 0 then announce("⭐ " + p.name + " がレベル " + p.level + " になった！", 3) end
+  kit_give(p, 10)
+end
+
+on button(p, id)
+  if id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  elif id == "titles" then titles_menu(p)
+  elif id == "title_close" then p.ui_remove("title_box")
+  elif starts_with(id, "title_") then pick_title(p, replace(id, "title_", ""))
+  end
+end

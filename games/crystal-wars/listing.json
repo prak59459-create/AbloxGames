@@ -1,11 +1,22 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 46,
+  "blockCount" : 154,
   "id" : "crystal-wars",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/crystal-wars\/data.absc",
+    "games\/crystal-wars\/build.absc",
+    "games\/crystal-wars\/combat.absc",
+    "games\/crystal-wars\/common.absc",
+    "games\/crystal-wars\/gens.absc",
+    "games\/crystal-wars\/items.absc",
+    "games\/crystal-wars\/shop.absc",
+    "games\/crystal-wars\/stats.absc",
+    "games\/crystal-wars\/teams.absc",
+    "games\/crystal-wars\/timeline.absc",
+    "games\/crystal-wars\/upgrades.absc",
     "games\/crystal-wars\/main.absc"
   ],
   "summary" : "浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。",

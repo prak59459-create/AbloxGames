@@ -1,0 +1,170 @@
+-- upgrades.absc — チーム強化とわな（むらさきのパッド・ダイヤで買う）
+-- 強化はチーム全員にきく。わなは3つまでならべておけて、敵が島に入ると1つずつ発動する。
+
+let ups = {}          -- チーム → {sharp: 0, prot: 0, ...}
+let traps = {}        -- チーム → わなのid のならび
+let trap_ready_at = {}
+let base_clock = 0
+
+func setup_upgrades()
+  ups = {}
+  traps = {}
+  trap_ready_at = {}
+  for t in TEAMS do
+    ups[t] = {sharp: 0, prot: 0, haste: 0, forge: 0, heal: 0, shield: 0}
+    traps[t] = []
+    trap_ready_at[t] = 0
+  end
+end
+
+func team_up(t, id)
+  if t == nil or ups[t] == nil then return 0 end
+  return ups[t][id] or 0
+end
+
+func upgrade_info(id)
+  for u in UPGRADES do
+    if u.id == id then return u end
+  end
+  return nil
+end
+
+func trap_info(id)
+  for tr in TRAPS do
+    if tr.id == id then return tr end
+  end
+  return nil
+end
+
+func trap_cost(t)
+  let n = len(traps[t])
+  if n >= len(TRAP_COSTS) then return nil end
+  return TRAP_COSTS[n + 1]
+end
+
+func upgrade_menu(p)
+  let t = p.team
+  if t == nil or ups[t] == nil then return end
+  let rows = len(UPGRADES) + len(TRAPS)
+  let h = 190 + rows * 44
+  p.ui_panel("up_box", {at: "center", w: 620, h: h, bg: "#1E1B4BF2", radius: 22, layer: 30})
+  p.ui_text("up_t", "💎 チーム強化（💎 " + p.money.dia + "）", {parent: "up_box", y: 26 / h, size: 19, bold: true, color: "#C4B5FD"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = team_up(t, u.id)
+    let label = "✅ " + u.name + " MAX"
+    let bg = "#374151"
+    if lv < len(u.costs) then
+      let level = ""
+      if len(u.costs) > 1 then level = " " + ROMAN[lv + 1] end
+      label = u.name + level + "  💎" + u.costs[lv + 1] + "  " + u.text
+      bg = "#6D28D9"
+    end
+    p.ui_button("up_" + u.id, label, {parent: "up_box", y: (30 + i * 44) / h, w: 580, h: 38, size: 13, bg: bg})
+  end
+  let names = map(traps[t], func(id) return trap_info(id).name end)
+  let queue = "なし"
+  if len(names) > 0 then queue = join(names, " → ") end
+  p.ui_text("up_traps", "🪤 わな（" + len(traps[t]) + "/3）: " + queue, {parent: "up_box", y: (48 + (i + 1) * 44) / h, size: 14, color: "#FDE68A"})
+  let cost = trap_cost(t)
+  for tr in TRAPS do
+    i = i + 1
+    let label = tr.name + "  " + tr.text
+    let bg = "#374151"
+    if cost != nil then
+      label = tr.name + "  💎" + cost + "  " + tr.text
+      bg = "#0F766E"
+    end
+    p.ui_button("trap_" + tr.id, label, {parent: "up_box", y: (60 + (i + 1) * 44) / h, w: 580, h: 38, size: 13, bg: bg})
+  end
+  p.ui_button("up_close", "閉じる", {parent: "up_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func tell_team(t, text)
+  for m in team_members(t) do m.message(text, 2) end
+end
+
+func buy_upgrade(p, id)
+  let t = p.team
+  let u = upgrade_info(id)
+  if u == nil or ups[t] == nil then return end
+  let lv = team_up(t, id)
+  if lv >= len(u.costs) then return end
+  if not pay(p, u.costs[lv + 1], "dia") then return end
+  ups[t][id] = lv + 1
+  tell_team(t, "⬆ " + p.name + " が「" + u.name + "」を強化！")
+  p.sound("goal")
+  if id == "shield" then
+    crystal_max[t] = crystal_max[t] + 12
+    if crystal_alive(t) then crystal_hp[t] = crystal_hp[t] + 12 end
+    show_crystals()
+  end
+  kit_quest_progress(p, "upgrade", 1)
+  upgrade_menu(p)
+end
+
+func buy_trap(p, id)
+  let t = p.team
+  let cost = trap_cost(t)
+  if cost == nil then
+    p.message("わなはもう3つある", 1.2)
+    return
+  end
+  if not pay(p, cost, "dia") then return end
+  append(traps[t], id)
+  tell_team(t, "🪤 " + p.name + " が「" + trap_info(id).name + "」をしかけた")
+  kit_quest_progress(p, "upgrade", 1)
+  upgrade_menu(p)
+end
+
+-- MARK: わなが発動
+
+func spring_trap(t, intruder)
+  if len(traps[t]) == 0 or time() < trap_ready_at[t] then return end
+  let id = traps[t][1]
+  traps[t] = slice(traps[t], 2, len(traps[t]))
+  trap_ready_at[t] = time() + 12
+  let tr = trap_info(id)
+  intruder.message("⚠ わなにかかった！ " + tr.name, 2)
+  intruder.sound("error")
+  if id == "slow" then
+    intruder.slow_until = time() + 8
+  elif id == "counter" then
+    for m in team_members(t) do m.rally_until = time() + 15 end
+  elif id == "alarm" then
+    intruder.invis_until = 0
+  elif id == "fatigue" then
+    intruder.fatigue_until = time() + 10
+  end
+  apply_move(intruder)
+  for m in team_members(t) do
+    m.message("🚨 " + intruder.name + " が島に入った！（" + tr.name + "）", 2.5)
+    m.sound("error")
+    apply_move(m)
+  end
+end
+
+-- 0.5びょうごと: 島に入った敵・回復の泉・薬の効き目
+on tick(dt)
+  base_clock = base_clock + dt
+  if base_clock < 0.5 then return end
+  base_clock = 0
+  if over then return end
+  for p in players() do
+    if p.alive and p.team != nil then
+      for t in active do
+        if t != p.team and on_island(p, t) then spring_trap(t, p) end
+      end
+      if team_up(p.team, "heal") > 0 and on_island(p, p.team) and p.health < p.max_health then p.heal(1.5) end
+      apply_move(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "up_close" then p.ui_remove("up_box")
+  elif starts_with(id, "up_") then buy_upgrade(p, replace(id, "up_", ""))
+  elif starts_with(id, "trap_") then buy_trap(p, replace(id, "trap_", ""))
+  end
+end

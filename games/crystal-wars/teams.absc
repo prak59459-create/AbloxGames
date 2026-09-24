@@ -1,0 +1,182 @@
+-- teams.absc — チーム分け・クリスタル・全滅・勝ち負け
+
+let active = []          -- この試合で使うチーム
+let crystal_hp = {}
+let crystal_max = {}
+let eliminated = {}
+let over = false
+let crystal_warned = {}  -- チーム → 最後に「こうげきされている！」を出した時間
+
+func island_center(t)
+  let d = TEAM_DIR[t]
+  return {x: d.x * ISLAND_DIST, y: 0, z: d.z * ISLAND_DIST}
+end
+
+func on_island(p, t)
+  let c = island_center(t)
+  return abs(p.x - c.x) < ISLAND_HALF + 1 and abs(p.z - c.z) < ISLAND_HALF + 1 and p.y > -3 and p.y < 14
+end
+
+func crystal_block(t)
+  return block(TEAM_NAME[t] + " Crystal")
+end
+
+func crystal_alive(t)
+  return crystal_hp[t] != nil and crystal_hp[t] > 0
+end
+
+func team_members(t)
+  return filter(players(), func(p) return p.team == t end)
+end
+
+func team_alive(t)
+  if not contains(active, t) then return false end
+  for p in team_members(t) do
+    if p.alive or p.respawning or crystal_alive(t) then return true end
+  end
+  return false
+end
+
+func home(p)
+  if p.team == nil or TEAM_NAME[p.team] == nil then return end
+  p.teleport(block(TEAM_NAME[p.team] + " Spawn " + random(1, 2)))
+end
+
+-- MARK: チーム分け
+
+func setup_teams()
+  let n = clamp(len(players()), 2, 4)
+  active = slice(TEAMS, 1, n)
+  crystal_hp = {}
+  crystal_max = {}
+  eliminated = {}
+  crystal_warned = {}
+  over = false
+  for t in TEAMS do
+    if contains(active, t) then
+      crystal_hp[t] = CRYSTAL_HP
+      crystal_max[t] = CRYSTAL_HP
+    else
+      crystal_hp[t] = 0
+      kit_gone(crystal_block(t))
+    end
+  end
+  let i = 0
+  for p in shuffle(copy(players())) do
+    p.team = active[i % n + 1]
+    i = i + 1
+  end
+  show_crystals()
+end
+
+-- 途中から入った人: クリスタルが残っているチームのうち人数の少ないところへ
+func pick_team(p)
+  if len(active) == 0 then active = ["red", "blue"] end
+  let best = nil
+  for t in active do
+    if crystal_alive(t) then
+      if best == nil or len(team_members(t)) < len(team_members(best)) then best = t end
+    end
+  end
+  if best == nil then best = kit_balance(p, active) end
+  p.team = best
+  return best
+end
+
+-- MARK: クリスタル
+
+func show_crystals()
+  let parts = []
+  for t in active do
+    let label = TEAM_JP[t]
+    if crystal_alive(t) then
+      label = label + " 💎" + crystal_hp[t]
+    elif team_alive(t) then
+      label = label + " ❌" + len(filter(team_members(t), func(m) return m.alive end)) + "人"
+    else
+      label = label + " ☠"
+    end
+    append(parts, label)
+  end
+  ui_text("crystals", join(parts, "    "), {at: "top", dy: 26, size: 20, bold: true})
+end
+
+func hit_crystal(p, t, amount)
+  if over or t == nil or t == p.team or not crystal_alive(t) then return end
+  if not contains(active, t) then return end
+  crystal_hp[t] = max(0, crystal_hp[t] - amount)
+  p.sound("hit")
+  show_crystals()
+  if crystal_warned[t] == nil or time() - crystal_warned[t] > 6 then
+    crystal_warned[t] = time()
+    for m in team_members(t) do
+      m.message("⚠ クリスタルがこうげきされている！（のこり " + crystal_hp[t] + "）", 2)
+      m.sound("error")
+    end
+  end
+  if crystal_hp[t] <= 0 then break_crystal(t, p) end
+end
+
+func break_crystal(t, p)
+  kit_gone(crystal_block(t))
+  crystal_hp[t] = 0
+  let who = ""
+  if p != nil then who = "（" + title_of(p) + p.name + "）" end
+  announce("💥 " + TEAM_JP[t] + "チームのクリスタルがこわされた！" + who, 4)
+  shake(0.4, 0.6)
+  for m in team_members(t) do
+    m.message("😱 クリスタルがなくなった！ もうたおされたら復活できない", 3)
+  end
+  if p != nil then
+    p.stat_crystals = (p.stat_crystals or 0) + 1
+    p.life_crystals = (p.life_crystals or 0) + 1
+    kit_xp(p, 50)
+    kit_give(p, 15)
+    kit_quest_progress(p, "crystal", 1)
+    update_score(p)
+  end
+  show_crystals()
+  check_winner()
+end
+
+-- MARK: 勝ち負け
+
+func check_winner()
+  if over then return end
+  show_crystals()
+  -- ひとりで練習しているときは勝ち負けなし
+  if len(players()) < 2 then return end
+  for t in active do
+    if not team_alive(t) and eliminated[t] == nil then
+      eliminated[t] = true
+      announce("☠ " + TEAM_JP[t] + "チームが全滅！", 3)
+    end
+  end
+  let left = filter(active, func(t) return team_alive(t) end)
+  if len(left) == 1 then
+    win(left[1], "🏆 " + TEAM_JP[left[1]] + "チームの勝利！")
+  elif len(left) == 0 then
+    over = true
+    show_summary("引き分け！")
+    kit_finish("🤝 引き分け！", 10)
+  end
+end
+
+func win(t, message)
+  if over then return end
+  over = true
+  for p in players() do
+    p.games = (p.games or 0) + 1
+    if p.team == t then
+      p.life_wins = (p.life_wins or 0) + 1
+      p.score = p.score + 5
+      kit_xp(p, 100)
+      kit_give(p, 30)
+      kit_quest_progress(p, "win", 1)
+    else
+      kit_give(p, 5)
+    end
+  end
+  show_summary(message)
+  kit_finish(message, 10)
+end

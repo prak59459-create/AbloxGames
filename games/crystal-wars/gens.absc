@@ -1,0 +1,98 @@
+-- gens.absc — ジェネレーター
+-- チームの島: 鉄と金（鍛冶炉Ⅲからエメラルドも）。ななめの島: ダイヤ。真ん中: エメラルド。
+-- ためておける上限があるので、こまめに拾いに行こう。パッドに乗ると全部拾える。
+
+let gens = []
+let dia_tier = 1
+let emerald_tier = 1
+let gen_clock = 0
+
+func empty_stock()
+  return {iron: 0, gold: 0, dia: 0, emerald: 0}
+end
+
+func setup_gens()
+  gens = []
+  dia_tier = 1
+  emerald_tier = 1
+  for t in active do
+    append(gens, {block: block(TEAM_NAME[t] + " Generator"), kind: "team", team: t, stock: empty_stock()})
+  end
+  for i in 1 to 4 do
+    append(gens, {block: block("Diamond Generator " + i), kind: "dia", team: "", stock: empty_stock()})
+  end
+  for i in 1 to 2 do
+    append(gens, {block: block("Emerald Generator " + i), kind: "emerald", team: "", stock: empty_stock()})
+  end
+end
+
+func fill(g, cur, amount, cap)
+  g.stock[cur] = min(cap, g.stock[cur] + amount)
+end
+
+func run_gens(dt)
+  for g in gens do
+    if g.kind == "team" then
+      let forge = team_up(g.team, "forge")
+      let mult = FORGE_MULT[forge + 1]
+      fill(g, "iron", dt / IRON_EVERY * mult, IRON_CAP)
+      fill(g, "gold", dt / GOLD_EVERY * mult, GOLD_CAP)
+      if forge >= 3 then fill(g, "emerald", dt / FORGE_EMERALD_EVERY, 2) end
+    elif g.kind == "dia" then
+      fill(g, "dia", dt / DIA_EVERY[dia_tier], DIA_CAP)
+    else
+      fill(g, "emerald", dt / EMERALD_EVERY[emerald_tier], EMERALD_CAP)
+    end
+  end
+end
+
+func collect(p, g)
+  let got = []
+  for cur in CURS do
+    let n = floor(g.stock[cur])
+    if n > 0 then
+      g.stock[cur] = g.stock[cur] - n
+      earn(p, cur, n)
+      append(got, MONEY_ICON[cur] + "+" + n)
+    end
+  end
+  if len(got) > 0 then
+    p.message(join(got, "  "), 0.8)
+    p.sound("collect")
+  end
+end
+
+func gen_of(b)
+  for g in gens do
+    if g.block != nil and g.block.id == b.id then return g end
+  end
+  return nil
+end
+
+-- となりのジェネレーターの中身（のぞき見）
+func gen_status(g)
+  let parts = []
+  for cur in CURS do
+    let n = floor(g.stock[cur])
+    if n > 0 then append(parts, MONEY_ICON[cur] + n) end
+  end
+  if len(parts) == 0 then return "からっぽ" end
+  return join(parts, " ")
+end
+
+on tick(dt)
+  gen_clock = gen_clock + dt
+  if gen_clock < 0.5 then return end
+  let passed = gen_clock
+  gen_clock = 0
+  if over then return end
+  run_gens(passed)
+  -- パッドの上にいる人は自動で拾う
+  for p in players() do
+    if p.alive and p.money != nil then
+      for g in gens do
+        if still(g.block) and distance(p, g.block) < 2.4 then collect(p, g) end
+      end
+    end
+  end
+end

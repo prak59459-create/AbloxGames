@@ -1,0 +1,158 @@
+-- shop.absc — お店（チームの島の色つきパッド）
+-- タブ: ブロック・剣・よろい・ツルハシ・弓・どうぐ。値段は鉄・金・エメラルド。
+
+func owned(p, it)
+  if it.kind == "sword" then return p.sword >= it.tier end
+  if it.kind == "armor" then return p.armor >= it.tier end
+  if it.kind == "bow" then return p.bow >= it.tier end
+  if it.kind == "kb" then return p.has_kb end
+  return false
+end
+
+func shop_menu(p, tab)
+  p.shop_tab = tab
+  let list = filter(ITEMS, func(it) return it.tab == tab end)
+  let rows = len(list)
+  if tab == "tools" then rows = 1 end
+  let h = 176 + rows * 46
+  p.ui_panel("shop_box", {at: "center", w: 600, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🛒 お店   " + money_line(p), {parent: "shop_box", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for tb in SHOP_TABS do
+    i = i + 1
+    let bg = "#334155"
+    if tb.id == tab then bg = "#2563EB" end
+    p.ui_button("tab_" + tb.id, tb.name, {parent: "shop_box", x: (i - 0.5) / len(SHOP_TABS), y: 66 / h, w: 94, h: 36, size: 12, bg: bg})
+  end
+  -- 前に開いていた品物のボタンを消す
+  for it in ITEMS do
+    if it.tab != tab then p.ui_remove("buy_" + it.id) end
+  end
+  if tab != "tools" then p.ui_remove("buy_pick") end
+  if tab == "tools" then
+    let label = "✅ " + PICKS[p.pick].name + "（いちばん強い）"
+    let bg = "#374151"
+    if p.pick < len(PICKS) then
+      let next = PICKS[p.pick + 1]
+      label = next.name + "  " + price_text(next.cost, next.cur) + "  こわす力 " + next.power + "（死ぬと1つ下がる）"
+      bg = "#B45309"
+    end
+    p.ui_button("buy_pick", label, {parent: "shop_box", y: 116 / h, w: 560, h: 40, size: 13, bg: bg})
+  else
+    let k = 0
+    for it in list do
+      k = k + 1
+      let label = it.name + "  " + price_text(it.cost, it.cur) + "  " + it.text
+      let bg = "#1D4ED8"
+      if owned(p, it) then
+        label = "✅ " + it.name + "（持っている）"
+        bg = "#374151"
+      end
+      if it.kind == "util" and (p.items[it.id] or 0) > 0 then label = label + "  [" + p.items[it.id] + "]" end
+      p.ui_button("buy_" + it.id, label, {parent: "shop_box", y: (70 + k * 46) / h, w: 560, h: 40, size: 13, bg: bg})
+    end
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop_box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func close_shop(p)
+  p.ui_remove("shop_box")
+  p.shop_tab = nil
+end
+
+func grant(p, it)
+  if it.kind == "block" then
+    p.blocks[it.id] = (p.blocks[it.id] or 0) + it.count
+    if blocks_left(p) <= 0 then p.block_kind = it.id end
+  elif it.kind == "sword" then
+    p.sword = it.tier
+    if p.weapon == nil or contains(SWORD_NAMES, p.weapon) then p.give(SWORDS[p.sword].name) end
+    weapon_buttons(p)
+  elif it.kind == "armor" then
+    p.armor = it.tier
+    p.leg_color = ARMORS[p.armor].color
+  elif it.kind == "kb" then
+    p.has_kb = true
+    weapon_buttons(p)
+  elif it.kind == "bow" then
+    p.bow = it.tier
+    p.give(BOWS[p.bow])
+    weapon_buttons(p)
+  else
+    p.items[it.id] = (p.items[it.id] or 0) + 1
+    item_bar(p)
+  end
+end
+
+func buy_pick(p)
+  if p.pick >= len(PICKS) then return end
+  let next = PICKS[p.pick + 1]
+  if not pay(p, next.cost, next.cur) then return end
+  p.pick = p.pick + 1
+  p.sound("collect")
+  p.message("⛏ " + next.name + " を手に入れた！", 1.5)
+  kit_quest_progress(p, "shop", 1)
+  hud(p)
+  shop_menu(p, "tools")
+end
+
+func buy(p, id)
+  let it = item_info(id)
+  if it == nil then return end
+  if owned(p, it) then
+    p.message("もう持っている", 1)
+    return
+  end
+  if not pay(p, it.cost, it.cur) then return end
+  grant(p, it)
+  p.sound("collect")
+  p.stat_bought = (p.stat_bought or 0) + 1
+  kit_quest_progress(p, "shop", 1)
+  hud(p)
+  shop_menu(p, p.shop_tab or it.tab)
+end
+
+-- MARK: 武器の持ちかえ
+
+func weapon_buttons(p)
+  p.ui_button("eq_sword", "⚔ 剣", {at: "left", dy: -70, w: 110, h: 46, size: 15, bg: "#1F2937"})
+  if p.bow > 1 then
+    p.ui_button("eq_bow", "🏹 " + BOWS[p.bow], {at: "left", dy: -18, w: 110, h: 46, size: 14, bg: "#1F2937"})
+  else
+    p.ui_remove("eq_bow")
+  end
+  if p.has_kb then
+    p.ui_button("eq_kb", "🪄 棒", {at: "left", dy: 34, w: 110, h: 46, size: 15, bg: "#1F2937"})
+  else
+    p.ui_remove("eq_kb")
+  end
+end
+
+func equip(p, id)
+  if not p.alive then return end
+  if id == "eq_sword" then p.give(SWORDS[p.sword].name)
+  elif id == "eq_bow" and p.bow > 1 then p.give(BOWS[p.bow])
+  elif id == "eq_kb" and p.has_kb then p.give("ノックバック棒")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "item_shop") then
+    if p.shop_tab == nil and quiet_ready(p, "shop_pad", 6) then shop_menu(p, "blocks") end
+  elif contains(b.tags, "upgrade_shop") then
+    if quiet_ready(p, "up_pad", 6) then upgrade_menu(p) end
+  elif contains(b.tags, "generator") then
+    let g = gen_of(b)
+    if g != nil then collect(p, g) end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "tab_") then shop_menu(p, replace(id, "tab_", ""))
+  elif id == "buy_pick" then buy_pick(p)
+  elif starts_with(id, "buy_") then buy(p, replace(id, "buy_", ""))
+  elif id == "shop_close" then close_shop(p)
+  elif starts_with(id, "eq_") then equip(p, id)
+  end
+end

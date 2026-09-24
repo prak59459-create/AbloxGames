@@ -1,0 +1,144 @@
+-- data.absc — Crystal Wars の表
+-- チーム・お金・ブロック・お店の品物・チーム強化・わな・試合の流れ
+
+-- MARK: チーム
+let TEAMS = ["red", "blue", "green", "yellow"]
+let TEAM_NAME = {red: "Red", blue: "Blue", green: "Green", yellow: "Yellow"}
+let TEAM_JP = {red: "赤", blue: "青", green: "緑", yellow: "黄"}
+let TEAM_COLOR = {red: "#EF4444", blue: "#3B82F6", green: "#22C55E", yellow: "#EAB308"}
+let TEAM_LIGHT = {red: "#FCA5A5", blue: "#93C5FD", green: "#86EFAC", yellow: "#FDE047"}
+let TEAM_DIR = {red: {x: 0, z: -1}, blue: {x: 1, z: 0}, green: {x: 0, z: 1}, yellow: {x: -1, z: 0}}
+let ISLAND_DIST = 56      -- 真ん中からチームの島まで
+let ISLAND_HALF = 11      -- 島の半分の広さ
+let CRYSTAL_HP = 24       -- クリスタルの体力（タップ1回で1）
+let RESPAWN_SECS = 5
+let VOID_Y = -14          -- ここより下に落ちたらアウト
+
+-- MARK: お金（4しゅるい）
+let CURS = ["iron", "gold", "dia", "emerald"]
+let MONEY_ICON = {iron: "⬜", gold: "🟨", dia: "💎", emerald: "🟩"}
+let MONEY_NAME = {iron: "鉄", gold: "金", dia: "ダイヤ", emerald: "エメラルド"}
+
+-- ジェネレーター（びょう数ごとに1こ・ためておける上限）
+let IRON_EVERY = 1.2
+let GOLD_EVERY = 7
+let IRON_CAP = 48
+let GOLD_CAP = 16
+let FORGE_MULT = [1, 1.5, 2, 2, 3]      -- 鍛冶炉のレベル 0〜4
+let FORGE_EMERALD_EVERY = 60            -- 鍛冶炉Ⅲから、チームのジェネレーターにもエメラルド
+let DIA_EVERY = [30, 22, 15]            -- ダイヤ生成 Ⅰ Ⅱ Ⅲ
+let EMERALD_EVERY = [60, 45, 30]
+let DIA_CAP = 4
+let EMERALD_CAP = 3
+
+-- MARK: ブロック（hp: こわすのに必要な力 / blast: ばくはつでこわれる）
+let BLOCK_KINDS = [
+  {id: "wool", name: "羊毛", hp: 1, color: "team", material: "matte", blast: true},
+  {id: "clay", name: "粘土", hp: 3, color: "team_dark", material: "plastic", blast: true},
+  {id: "glass", name: "強化ガラス", hp: 2, color: "#E0F2FE", material: "glass", blast: false, opacity: 0.55},
+  {id: "wood", name: "木の板", hp: 5, color: "#A16207", material: "plastic", blast: true},
+  {id: "stone", name: "石レンガ", hp: 8, color: "#FEF3C7", material: "matte", blast: true},
+  {id: "obsidian", name: "黒曜石", hp: 25, color: "#1E1B4B", material: "metal", blast: false}
+]
+let TEAM_DARK = {red: "#B91C1C", blue: "#1D4ED8", green: "#15803D", yellow: "#A16207"}
+
+-- MARK: 剣・よろい・ツルハシ・弓
+let SWORDS = [
+  {name: "木の剣", damage: 14},
+  {name: "石の剣", damage: 20},
+  {name: "鉄の剣", damage: 28},
+  {name: "ダイヤの剣", damage: 38}
+]
+let SWORD_NAMES = ["木の剣", "石の剣", "鉄の剣", "ダイヤの剣"]
+let ARMORS = [
+  {name: "なし", cut: 0, color: ""},
+  {name: "チェーン", cut: 0.2, color: "#9CA3AF"},
+  {name: "鉄", cut: 0.35, color: "#E5E7EB"},
+  {name: "ダイヤ", cut: 0.5, color: "#22D3EE"}
+]
+let PICKS = [
+  {name: "なし", power: 1},
+  {name: "木のツルハシ", power: 2, cost: 10, cur: "iron"},
+  {name: "鉄のツルハシ", power: 3, cost: 10, cur: "iron"},
+  {name: "金のツルハシ", power: 4, cost: 3, cur: "gold"},
+  {name: "ダイヤのツルハシ", power: 6, cost: 6, cur: "gold"}
+]
+let BOWS = ["", "弓", "パワー弓"]
+
+-- MARK: お店
+let SHOP_TABS = [
+  {id: "blocks", name: "🧱 ブロック"},
+  {id: "melee", name: "⚔ 剣"},
+  {id: "armor", name: "🛡 よろい"},
+  {id: "tools", name: "⛏ ツルハシ"},
+  {id: "ranged", name: "🏹 弓"},
+  {id: "util", name: "🧪 どうぐ"}
+]
+-- kind: block / sword / armor / kb / bow / util
+let ITEMS = [
+  {id: "wool", tab: "blocks", kind: "block", count: 16, name: "羊毛 ×16", cost: 4, cur: "iron", text: "1回でこわれる。橋に"},
+  {id: "clay", tab: "blocks", kind: "block", count: 16, name: "粘土 ×16", cost: 12, cur: "iron", text: "3回たたかないとこわれない"},
+  {id: "glass", tab: "blocks", kind: "block", count: 4, name: "強化ガラス ×4", cost: 12, cur: "iron", text: "ばくはつでこわれない"},
+  {id: "wood", tab: "blocks", kind: "block", count: 16, name: "木の板 ×16", cost: 4, cur: "gold", text: "5回。安くてかたい"},
+  {id: "stone", tab: "blocks", kind: "block", count: 12, name: "石レンガ ×12", cost: 24, cur: "iron", text: "8回。守りにぴったり"},
+  {id: "obsidian", tab: "blocks", kind: "block", count: 4, name: "黒曜石 ×4", cost: 4, cur: "emerald", text: "25回。ばくはつでもこわれない"},
+  {id: "sword2", tab: "melee", kind: "sword", tier: 2, name: "石の剣", cost: 10, cur: "iron", text: "ダメージ 20"},
+  {id: "sword3", tab: "melee", kind: "sword", tier: 3, name: "鉄の剣", cost: 7, cur: "gold", text: "ダメージ 28"},
+  {id: "sword4", tab: "melee", kind: "sword", tier: 4, name: "ダイヤの剣", cost: 4, cur: "emerald", text: "ダメージ 38"},
+  {id: "kb", tab: "melee", kind: "kb", name: "ノックバック棒", cost: 5, cur: "gold", text: "当てた相手を遠くへふっとばす"},
+  {id: "armor2", tab: "armor", kind: "armor", tier: 2, name: "チェーンのよろい", cost: 24, cur: "iron", text: "ダメージ -20%（ずっと使える）"},
+  {id: "armor3", tab: "armor", kind: "armor", tier: 3, name: "鉄のよろい", cost: 12, cur: "gold", text: "ダメージ -35%（ずっと使える）"},
+  {id: "armor4", tab: "armor", kind: "armor", tier: 4, name: "ダイヤのよろい", cost: 6, cur: "emerald", text: "ダメージ -50%（ずっと使える）"},
+  {id: "bow1", tab: "ranged", kind: "bow", tier: 2, name: "弓", cost: 12, cur: "gold", text: "遠くからうてる（ダメージ 16）"},
+  {id: "bow2", tab: "ranged", kind: "bow", tier: 3, name: "パワー弓", cost: 24, cur: "gold", text: "ダメージ 26"},
+  {id: "apple", tab: "util", kind: "util", name: "🍎 金のリンゴ", cost: 3, cur: "gold", text: "体力を60回復"},
+  {id: "fireball", tab: "util", kind: "util", name: "🔥 火の玉", cost: 40, cur: "iron", text: "前に飛ばして爆発。羊毛をこわす"},
+  {id: "tnt", tab: "util", kind: "util", name: "🧨 TNT", cost: 4, cur: "gold", text: "置いて3びょうで大爆発"},
+  {id: "pearl", tab: "util", kind: "util", name: "🟣 ワープパール", cost: 4, cur: "emerald", text: "見ている場所へワープ"},
+  {id: "egg", tab: "util", kind: "util", name: "🥚 橋のたまご", cost: 1, cur: "emerald", text: "前にまっすぐ橋ができる"},
+  {id: "fort", tab: "util", kind: "util", name: "🏰 ポップアップ砦", cost: 24, cur: "iron", text: "まわりに羊毛のかべ"},
+  {id: "rescue", tab: "util", kind: "util", name: "🟢 救助の足場", cost: 2, cur: "gold", text: "足もとにはねる足場（10びょう）"},
+  {id: "speed", tab: "util", kind: "util", name: "💨 スピードの薬", cost: 1, cur: "emerald", text: "30びょう速くなる"},
+  {id: "leap", tab: "util", kind: "util", name: "🐸 ジャンプの薬", cost: 1, cur: "emerald", text: "30びょう高くとべる"},
+  {id: "invis", tab: "util", kind: "util", name: "👻 透明の薬", cost: 2, cur: "emerald", text: "20びょう見えなくなる"},
+  {id: "golem", tab: "util", kind: "util", name: "🗿 守りのゴーレム", cost: 120, cur: "iron", text: "自分の島を90びょう守る"}
+]
+
+-- MARK: チーム強化（ダイヤで買う・チーム全員にきく）
+let UPGRADES = [
+  {id: "sharp", name: "🗡 するどい剣", costs: [4], text: "剣のダメージ +25%"},
+  {id: "prot", name: "🛡 よろい強化", costs: [2, 4, 8, 16], text: "受けるダメージ -8%（レベルごと）"},
+  {id: "haste", name: "⛏ 採掘ラッシュ", costs: [2, 4], text: "ブロックをこわす力 +1"},
+  {id: "forge", name: "🔥 鍛冶炉", costs: [2, 4, 6, 8], text: "ジェネレーターが速くなる（Ⅲでエメラルドも）"},
+  {id: "heal", name: "💗 回復の泉", costs: [1], text: "自分の島にいると回復"},
+  {id: "shield", name: "💠 クリスタルの守り", costs: [3], text: "クリスタルの体力 +12"}
+]
+let TRAPS = [
+  {id: "slow", name: "🕸 わなだ！", text: "入ってきた敵を8びょうおそくする"},
+  {id: "counter", name: "⚡ 反撃のわな", text: "味方が15びょう速く・高くとべる"},
+  {id: "alarm", name: "🚨 警報のわな", text: "透明の敵をあばいて知らせる"},
+  {id: "fatigue", name: "🥱 つかれのわな", text: "敵のこわす力を10びょう半分に"}
+]
+let TRAP_COSTS = [1, 2, 4]
+let ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ"]
+
+-- MARK: 試合の流れ（はじまってからのびょう数）
+let TIMELINE = [
+  {at: 240, id: "dia2", name: "💎 ダイヤ生成Ⅱ"},
+  {at: 480, id: "emerald2", name: "🟩 エメラルド生成Ⅱ"},
+  {at: 720, id: "dia3", name: "💎 ダイヤ生成Ⅲ"},
+  {at: 960, id: "emerald3", name: "🟩 エメラルド生成Ⅲ"},
+  {at: 1200, id: "shatter", name: "💥 クリスタル全滅"},
+  {at: 1500, id: "finish", name: "⏰ 試合終了"}
+]
+
+-- MARK: 称号（スターで買う・キルのお知らせに出る）
+let TITLES = [
+  {id: "none", name: "", price: 0},
+  {id: "builder", name: "🧱 橋職人", price: 40},
+  {id: "hunter", name: "🏹 狩人", price: 80},
+  {id: "guard", name: "🛡 守護者", price: 120},
+  {id: "breaker", name: "💥 クリスタル砕き", price: 200},
+  {id: "dragon", name: "🐉 ドラゴン", price: 400},
+  {id: "legend", name: "👑 伝説", price: 800}
+]

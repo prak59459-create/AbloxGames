@@ -1,0 +1,73 @@
+-- timeline.absc — 試合の流れ
+-- 4分ごとにダイヤ・エメラルドが速く出るようになり、20分でクリスタルが全部くだける。25分で試合終了。
+
+let started_at = 0
+let tl_index = 1
+let tl_clock = 0
+
+func setup_timeline()
+  started_at = time()
+  tl_index = 1
+end
+
+func run_event(ev)
+  if ev.id == "dia2" then dia_tier = 2
+  elif ev.id == "dia3" then dia_tier = 3
+  elif ev.id == "emerald2" then emerald_tier = 2
+  elif ev.id == "emerald3" then emerald_tier = 3
+  end
+  if ev.id == "shatter" then
+    announce("💥 すべてのクリスタルがくだけた！ ここからは復活なし！", 5)
+    for t in active do
+      if crystal_alive(t) then
+        crystal_hp[t] = 0
+        kit_gone(crystal_block(t))
+      end
+    end
+    show_crystals()
+    check_winner()
+  elif ev.id == "finish" then
+    finish_by_time()
+  else
+    announce(ev.name + "！", 3)
+  end
+end
+
+-- 時間切れ: 生きている人が多いチーム → ファイナルキルが多いチーム
+func finish_by_time()
+  if over then return end
+  let best = nil
+  let best_score = -1
+  for t in active do
+    let alive_count = len(filter(team_members(t), func(m) return m.alive end))
+    let finals = 0
+    for m in team_members(t) do finals = finals + (m.stat_finals or 0) end
+    let s = alive_count * 100 + finals
+    if s > best_score then
+      best_score = s
+      best = t
+    end
+  end
+  if best == nil then
+    over = true
+    kit_finish("⏰ 時間切れ！", 8)
+  else
+    win(best, "⏰ 時間切れ！ " + TEAM_JP[best] + "チームの勝ち")
+  end
+end
+
+on tick(dt)
+  tl_clock = tl_clock + dt
+  if tl_clock < 1 then return end
+  tl_clock = 0
+  if over then return end
+  let el = time() - started_at
+  if tl_index <= len(TIMELINE) then
+    let ev = TIMELINE[tl_index]
+    ui_text("next_event", ev.name + " まで " + kit_clock(ev.at - el), {at: "top", dy: 58, size: 15, color: "#E0F2FE"})
+    if el >= ev.at then
+      tl_index = tl_index + 1
+      run_event(ev)
+    end
+  end
+end

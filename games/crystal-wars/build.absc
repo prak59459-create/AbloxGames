@@ -1,0 +1,188 @@
+-- build.absc — ブロックを置く・こわす
+-- 置いたブロックは2×1×2の大きさで、ます目にそろう。
+-- 🧱足場 = 足もとの1つ前（橋）、🧱かべ = 目の前（守り）、⬆積む = とび上がって足もとに置く。
+-- こわすときはタップ（剣で当ててもこわせる）。ツルハシが強いほど早くこわせる。
+
+let block_hp = {}     -- ブロックのid → のこりの体力
+
+func key_of(b)
+  return "" + b.id
+end
+
+func kind_of_block(b)
+  for k in BLOCK_KINDS do
+    if contains(b.tags, k.id) then return k end
+  end
+  return BLOCK_KINDS[1]
+end
+
+func kind_color(kind, team)
+  if kind.color == "team" then return TEAM_LIGHT[team] end
+  if kind.color == "team_dark" then return TEAM_DARK[team] end
+  return kind.color
+end
+
+func snap(v)
+  return round(v / 2) * 2
+end
+
+func can_place(pos)
+  if abs(pos.x) > 92 or abs(pos.z) > 92 or pos.y > 26 or pos.y < -18 then return false end
+  for t in TEAMS do
+    let c = crystal_block(t)
+    if still(c) and abs(pos.x - c.x) < 1.6 and abs(pos.z - c.z) < 1.6 and pos.y < 4 then return false end
+  end
+  for g in gens do
+    if still(g.block) and abs(pos.x - g.block.x) < 1.8 and abs(pos.z - g.block.z) < 1.8 and abs(pos.y - g.block.y) < 2 then return false end
+  end
+  return true
+end
+
+-- お金を使わずにブロックを作る（たまご・砦・最初の守りでも使う）
+func make_block(kind_id, team, pos)
+  if not can_place(pos) then return nil end
+  let kind = kind_info(kind_id)
+  let opts = {name: "Placed " + kind.name, position: pos, size: {x: 2, y: 1, z: 2}, color: kind_color(kind, team),
+              material: kind.material, tags: ["placed", kind.id]}
+  if kind.opacity != nil then opts.opacity = kind.opacity end
+  let b = create_block(opts)
+  block_hp[key_of(b)] = kind.hp
+  return b
+end
+
+func blocks_left(p)
+  return p.blocks[p.block_kind] or 0
+end
+
+-- 持っているブロックのうち次のしゅるいへ
+func next_kind(p)
+  let start = 1
+  let i = 0
+  for k in BLOCK_KINDS do
+    i = i + 1
+    if k.id == p.block_kind then start = i end
+  end
+  for n in 1 to len(BLOCK_KINDS) do
+    let k = BLOCK_KINDS[(start + n - 1) % len(BLOCK_KINDS) + 1]
+    if (p.blocks[k.id] or 0) > 0 then
+      p.block_kind = k.id
+      hud(p)
+      return
+    end
+  end
+end
+
+func block_button(p)
+  let kind = kind_info(p.block_kind)
+  p.ui_button("block_next", "🔄 " + kind.name + " ×" + blocks_left(p), {at: "right", dy: 30, w: 150, h: 46, size: 14, bg: "#475569"})
+end
+
+func place(p, pos)
+  if not p.alive or over then return nil end
+  if blocks_left(p) <= 0 then
+    next_kind(p)
+    if blocks_left(p) <= 0 then
+      p.message("ブロックがない！ お店で買おう", 1.2)
+      return nil
+    end
+  end
+  let b = make_block(p.block_kind, p.team, pos)
+  if b == nil then
+    p.message("ここには置けない", 0.8)
+    return nil
+  end
+  p.blocks[p.block_kind] = blocks_left(p) - 1
+  if blocks_left(p) <= 0 then next_kind(p) end
+  p.stat_blocks = (p.stat_blocks or 0) + 1
+  kit_quest_progress(p, "build", 1)
+  hud(p)
+  return b
+end
+
+func feet_y(p)
+  return floor(p.y + 0.05)
+end
+
+func place_below(p)
+  let a = kit_ahead(p, 1.8)
+  place(p, {x: snap(a.x), y: feet_y(p) - 0.5, z: snap(a.z)})
+end
+
+func place_wall(p)
+  let a = kit_ahead(p, 2.4)
+  place(p, {x: snap(a.x), y: feet_y(p) + 0.5, z: snap(a.z)})
+end
+
+func place_up(p)
+  if not p.alive then return end
+  if p.tower_at != nil and time() - p.tower_at < 0.6 then return end
+  p.tower_at = time()
+  let pos = {x: p.x, y: feet_y(p) + 0.5, z: p.z}
+  p.launch(0, 9, 0)
+  kit_later(p, 0.3, func() place(p, pos) end)
+end
+
+-- MARK: こわす
+
+func break_power(p)
+  let power = PICKS[p.pick].power + team_up(p.team, "haste")
+  if active_until(p.fatigue_until) then power = max(1, floor(power / 2)) end
+  return power
+end
+
+func crystal_team(b)
+  for t in TEAMS do
+    if contains(b.tags, t) then return t end
+  end
+  return nil
+end
+
+func strike(p, b, power)
+  if contains(b.tags, "crystal") then
+    let crystal_power = 1
+    if PICKS[p.pick].power >= 4 then crystal_power = 2 end
+    hit_crystal(p, crystal_team(b), crystal_power)
+    return
+  end
+  if not contains(b.tags, "placed") then return end
+  let k = key_of(b)
+  let hp = block_hp[k]
+  if hp == nil then hp = kind_of_block(b).hp end
+  hp = hp - power
+  if hp <= 0 then
+    if block_hp[k] != nil then remove(block_hp, k) end
+    kit_gone(b)
+    p.stat_broken = (p.stat_broken or 0) + 1
+    kit_quest_progress(p, "break", 1)
+  else
+    block_hp[k] = hp
+    p.message("🧱 あと " + hp, 0.5)
+  end
+end
+
+func can_strike(p, b)
+  if not p.alive or over then return false end
+  if distance(p, b) > 6.5 then return false end
+  if p.last_strike != nil and time() - p.last_strike < 0.22 then return false end
+  p.last_strike = time()
+  return true
+end
+
+on tap(p, b)
+  if p.is_npc then return end
+  if can_strike(p, b) then strike(p, b, break_power(p)) end
+end
+
+on hit_block(p, b)
+  if p.is_npc then return end
+  -- 剣で当てても少しこわせる（弓ではこわせない）
+  if contains(SWORD_NAMES, p.weapon) and can_strike(p, b) then strike(p, b, 1) end
+end
+
+on button(p, id)
+  if id == "place_below" then place_below(p)
+  elif id == "place_wall" then place_wall(p)
+  elif id == "place_up" then place_up(p)
+  elif id == "block_next" then next_kind(p)
+  end
+end

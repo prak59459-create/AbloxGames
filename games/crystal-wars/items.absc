@@ -1,0 +1,226 @@
+-- items.absc — どうぐ（お店の🧪タブで買って、画面下のボタンで使う）
+-- 金のリンゴ・火の玉・TNT・ワープパール・橋のたまご・ポップアップ砦・救助の足場・薬3つ・守りのゴーレム
+
+let golems = []
+let golem_clock = 0
+
+func item_bar(p)
+  let owned_items = filter(ITEMS, func(it) return it.kind == "util" and (p.items[it.id] or 0) > 0 end)
+  for it in ITEMS do
+    if it.kind == "util" and (p.items[it.id] or 0) <= 0 then p.ui_remove("use_" + it.id) end
+  end
+  let n = min(6, len(owned_items))
+  let i = 0
+  for it in slice(owned_items, 1, n) do
+    i = i + 1
+    p.ui_button("use_" + it.id, it.name + " ×" + p.items[it.id],
+                {at: "bottom", dx: (i - (n + 1) / 2) * 124, dy: -96, w: 118, h: 44, size: 12, bg: "#7C2D12", radius: 12})
+  end
+end
+
+-- MARK: ばくはつ
+
+func explode(owner, center, radius, damage, lift)
+  if kit_here(owner) then
+    kit_blast(owner, center, radius, damage, lift)
+    -- 自分もふっとぶ（火の玉ジャンプ）
+    if owner.alive and distance(center, owner) < radius then
+      let away = owner.position - center
+      owner.launch(clamp(away.x * 3, -12, 12), lift, clamp(away.z * 3, -12, 12))
+    end
+  end
+  for b in blocks("placed") do
+    if distance(center, b) <= radius and kind_of_block(b).blast then
+      let k = key_of(b)
+      if block_hp[k] != nil then remove(block_hp, k) end
+      kit_gone(b)
+    end
+  end
+  shake(0.25, 0.4)
+end
+
+func throw_fireball(p)
+  if not quiet_ready(p, "fireball", 0.8) then return false end
+  let hit = raycast(p, p.look, 40)
+  let target = kit_ahead(p, 40)
+  if hit != nil then target = hit.point end
+  let start = p.position + {x: 0, y: 1.4, z: 0} + p.look * 1.5
+  let ball = create_block({name: "Fireball", shape: "sphere", position: start, size: {x: 0.9, y: 0.9, z: 0.9},
+                           color: "#F97316", material: "neon", solid: false})
+  let secs = max(0.15, distance(start, target) / 30)
+  ball.move_to(target, secs)
+  after(secs, func()
+    kit_gone(ball)
+    explode(p, target, 3.2, 18, 8)
+  end)
+  return true
+end
+
+func place_tnt(p)
+  let a = kit_ahead(p, 2)
+  let pos = {x: snap(a.x), y: feet_y(p) + 0.5, z: snap(a.z)}
+  let tnt = create_block({name: "TNT", position: pos, size: {x: 1.4, y: 1.4, z: 1.4}, color: "#DC2626", material: "plastic", tags: ["tnt"]})
+  for k in 1 to 5 do
+    after(k * 0.5, func()
+      if still(tnt) then
+        if k % 2 == 1 then tnt.color = "#FFFFFF" else tnt.color = "#DC2626" end
+      end
+    end)
+  end
+  after(3, func()
+    if still(tnt) then
+      kit_gone(tnt)
+      explode(p, pos, 4.5, 40, 11)
+    end
+  end)
+end
+
+func pearl(p)
+  let hit = raycast(p, p.look, 45)
+  if hit == nil then
+    p.message("とどかない…（ブロックか地面をねらおう）", 1.2)
+    return false
+  end
+  let target = hit.point + {x: 0, y: 1.2, z: 0}
+  let orb = create_block({name: "Pearl", shape: "sphere", position: p.position + {x: 0, y: 1.4, z: 0}, size: {x: 0.5, y: 0.5, z: 0.5},
+                          color: "#A855F7", material: "neon", solid: false})
+  orb.move_to(target, 0.5)
+  kit_later(p, 0.5, func()
+    kit_gone(orb)
+    if p.alive then
+      p.teleport(target)
+      p.damage(5)
+      p.sound("teleport")
+    end
+  end)
+  after(0.6, func() kit_gone(orb) end)
+  return true
+end
+
+func bridge_egg(p)
+  let dir = kit_dir(p.yaw)
+  let from = p.position
+  let y = feet_y(p) - 0.5
+  let team = p.team
+  for k in 1 to 14 do
+    after(k * 0.12, func()
+      make_block("wool", team, {x: snap(from.x + dir.x * k * 2), y: y, z: snap(from.z + dir.z * k * 2)})
+    end)
+  end
+end
+
+func popup_fort(p)
+  let cx = snap(p.x)
+  let cz = snap(p.z)
+  let y0 = feet_y(p) + 0.5
+  let team = p.team
+  let ring = [[-2, -2], [0, -2], [2, -2], [-2, 0], [2, 0], [-2, 2], [0, 2], [2, 2]]
+  for layer in 0 to 2 do
+    after(layer * 0.2, func()
+      for r in ring do make_block("wool", team, {x: cx + r[1], y: y0 + layer, z: cz + r[2]}) end
+    end)
+  end
+end
+
+func rescue(p)
+  let pad = create_block({name: "Rescue Platform", position: p.position + {x: 0, y: -1.2, z: 0}, size: {x: 6, y: 0.4, z: 6},
+                          color: "#A3E635", material: "neon", behavior: "bounce", opacity: 0.8})
+  after(10, func() kit_gone(pad) end)
+end
+
+-- MARK: 守りのゴーレム
+
+func spawn_golem(p)
+  let mine = filter(golems, func(g) return still(g) and g.gteam == p.team end)
+  if len(mine) >= 2 then
+    p.message("ゴーレムは1チーム2体まで", 1.5)
+    return false
+  end
+  let c = island_center(p.team)
+  let g = create_npc({name: "🗿 " + TEAM_JP[p.team] + "のゴーレム", position: c + {x: 0, y: 1, z: 0}, color: "#A8A29E",
+                      head_color: TEAM_COLOR[p.team], size: 1.6, health: 260, speed: 0.9, team: p.team})
+  g.gteam = p.team
+  g.expire = time() + 90
+  append(golems, g)
+  tell_team(p.team, "🗿 " + p.name + " がゴーレムを呼んだ！ 90びょう島を守る")
+  return true
+end
+
+func clear_golems()
+  for g in golems do kit_gone(g) end
+  golems = []
+end
+
+func run_golems(dt)
+  let keep = []
+  for g in golems do
+    if still(g) and g.alive and time() < g.expire and not over then
+      append(keep, g)
+      let home_at = island_center(g.gteam)
+      let target = nil
+      let best = 18
+      for p in players() do
+        if p.alive and p.team != g.gteam and not active_until(p.invis_until) then
+          let d = distance(p, home_at)
+          if d < best then
+            best = d
+            target = p
+          end
+        end
+      end
+      if target != nil then
+        g.follow(target)
+        if distance(g, target) < 2.4 then target.damage(12 * dt, g) end
+      elif distance(g, home_at) > 4 then
+        g.move_to(home_at + {x: 0, y: 1, z: 0})
+      else
+        g.stop()
+      end
+    else
+      kit_gone(g)
+    end
+  end
+  golems = keep
+end
+
+on tick(dt)
+  golem_clock = golem_clock + dt
+  if golem_clock < 0.25 then return end
+  let passed = golem_clock
+  golem_clock = 0
+  if len(golems) > 0 then run_golems(passed) end
+end
+
+-- MARK: 使う
+
+func use_item(p, id)
+  if not p.alive or over then return end
+  let n = p.items[id] or 0
+  if n <= 0 then return end
+  let used = true
+  if id == "apple" then
+    p.heal(60)
+    p.sound("collect")
+  elif id == "fireball" then used = throw_fireball(p)
+  elif id == "tnt" then place_tnt(p)
+  elif id == "pearl" then used = pearl(p)
+  elif id == "egg" then bridge_egg(p)
+  elif id == "fort" then popup_fort(p)
+  elif id == "rescue" then rescue(p)
+  elif id == "speed" then p.speed_until = time() + 30
+  elif id == "leap" then p.leap_until = time() + 30
+  elif id == "invis" then p.invis_until = time() + 20
+  elif id == "golem" then used = spawn_golem(p)
+  end
+  if used then
+    p.items[id] = n - 1
+    p.stat_items = (p.stat_items or 0) + 1
+    kit_quest_progress(p, "item", 1)
+    apply_move(p)
+    item_bar(p)
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "use_") then use_item(p, replace(id, "use_", "")) end
+end
