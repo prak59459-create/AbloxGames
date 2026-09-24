@@ -1,0 +1,49 @@
+-- common.absc — どのファイルからも使う小さな道具
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func hero_info(id)
+  for h in HEROES do
+    if h.id == id then return h end
+  end
+  return nil
+end
+
+func enemy_info(id)
+  for e in ENEMIES do
+    if e.id == id then return e end
+  end
+  return ENEMIES[1]
+end
+
+func mode_info(id)
+  for m in MODES do
+    if m.id == id then return m end
+  end
+  return MODES[2]
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func find_by_id(pid)
+  for p in players() do
+    if p.id == pid then return p end
+  end
+  return nil
+end
+
+func ready(p)
+  return p.owned != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end

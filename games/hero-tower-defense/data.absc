@@ -1,0 +1,79 @@
+-- data.absc — Hero Tower Defense の表
+-- ヒーロー・敵・ボス・難易度・レベルアップ
+
+-- MARK: ヒーロー
+-- range: とどく距離 / damage: 1回のダメージ / rate: 1びょうに何回 / air: 空の敵に当たる
+-- aoe: まとめて当たる半径 / chain: いなずまがとぶ数 / slow・stun・burn: とくしゅ効果
+-- sees: 透明の敵が見える / gems: 解放に必要なジェム（0 は最初から）
+let HEROES = [
+  {id: "sword", name: "⚔ 剣士", cost: 150, color: "#F87171", range: 7, damage: 20, rate: 1.2, air: false, gems: 0,
+   text: "近くの敵2体をまとめて切る", cleave: 2},
+  {id: "bow", name: "🏹 弓兵", cost: 200, color: "#4ADE80", range: 22, damage: 14, rate: 1.5, air: true, gems: 0,
+   text: "遠くまでとどく。空の敵にも当たる"},
+  {id: "magic", name: "🔮 魔法使い", cost: 350, color: "#A78BFA", range: 14, damage: 12, rate: 0.8, air: true, gems: 0,
+   text: "当たったまわりにもダメージ", aoe: 4},
+  {id: "merchant", name: "💰 商人", cost: 400, color: "#FBBF24", range: 0, damage: 0, rate: 0, air: false, gems: 0,
+   text: "ウェーブごとにお金をかせぐ", income: [60, 120, 220, 380, 600]},
+  {id: "ice", name: "❄ 氷の魔女", cost: 300, color: "#67E8F9", range: 12, damage: 5, rate: 1, air: true, gems: 50,
+   text: "敵をおそくする", slow: 0.5},
+  {id: "fire", name: "🔥 ほのお使い", cost: 400, color: "#F97316", range: 11, damage: 6, rate: 1, air: false, gems: 100,
+   text: "まわりを燃やしてじわじわダメージ", aoe: 3, burn: 8},
+  {id: "guard", name: "🛡 守護騎士", cost: 500, color: "#94A3B8", range: 6, damage: 10, rate: 0.5, air: false, gems: 150,
+   text: "まわりの敵を一瞬止める", aoe: 5, stun: 0.8},
+  {id: "thunder", name: "⚡ 雷神", cost: 700, color: "#FDE047", range: 16, damage: 25, rate: 0.7, air: true, gems: 250,
+   text: "いなずまが次々ととぶ", chain: 3},
+  {id: "sniper", name: "🎯 スナイパー", cost: 600, color: "#1F2937", range: 60, damage: 80, rate: 0.35, air: true, gems: 300,
+   text: "とても遠く・強い。透明も見える", sees: true},
+  {id: "cannon", name: "🚀 大砲", cost: 800, color: "#57534E", range: 18, damage: 45, rate: 0.4, air: false, gems: 400,
+   text: "大ばくはつ。よろいも通す", aoe: 5, pierce: true},
+  {id: "commander", name: "📯 司令官", cost: 900, color: "#2563EB", range: 14, damage: 0, rate: 0, air: false, gems: 600,
+   text: "まわりのヒーローを強くして透明も見せる", buff: 0.2},
+  {id: "angel", name: "👼 天使", cost: 1200, color: "#FEF3C7", range: 14, damage: 18, rate: 1, air: true, gems: 900,
+   text: "透明も見える。ウェーブごとに城を回復", sees: true, heal: 1}
+]
+let MAX_LEVEL = 5
+let UPGRADE_MULT = [0, 0.7, 1.2, 2, 3.2]     -- レベル n→n+1 の値段 = もとの値段 × これ
+let SELL_BACK = 0.6                          -- 売るとつかったお金の6わりがもどる
+let HEROES_PER_PLAYER = 8
+let HEROES_TOTAL = 34
+let LOADOUT_SIZE = 5
+
+-- MARK: 敵（hp はウェーブの体力 × これ / from: 何ウェーブ目から / weight: 出やすさ）
+let ENEMIES = [
+  {id: "goblin", name: "ゴブリン", hp: 1, speed: 0.55, color: "#7F1D1D", size: 1, hit: 1, reward: 1, from: 1, weight: 10},
+  {id: "bat", name: "🦇 コウモリ", hp: 0.6, speed: 1.1, color: "#EA580C", size: 0.7, hit: 1, reward: 1, from: 3, weight: 5, flying: true},
+  {id: "orc", name: "🛡 よろいオーク", hp: 4, speed: 0.35, color: "#3F3F46", size: 1.5, hit: 3, reward: 3, from: 6, weight: 4, armor: 0.3},
+  {id: "ghost", name: "👻 ゆうれい", hp: 1.2, speed: 0.6, color: "#E0E7FF", size: 1, hit: 2, reward: 2, from: 8, weight: 3, hidden: true},
+  {id: "slime", name: "🟢 分裂スライム", hp: 2, speed: 0.45, color: "#22C55E", size: 1.3, hit: 2, reward: 2, from: 10, weight: 3, split: true},
+  {id: "shaman", name: "💚 回復シャーマン", hp: 1.5, speed: 0.45, color: "#15803D", size: 1.1, hit: 2, reward: 3, from: 12, weight: 2, healer: true},
+  {id: "knight", name: "⚫ 黒騎士", hp: 8, speed: 0.4, color: "#111827", size: 1.6, hit: 5, reward: 6, from: 15, weight: 2, armor: 0.5},
+  {id: "wyvern", name: "🐉 ワイバーン", hp: 5, speed: 0.8, color: "#0F766E", size: 1.6, hit: 4, reward: 5, from: 18, weight: 2, flying: true},
+  {id: "phantom", name: "🌫 ファントム", hp: 4, speed: 0.7, color: "#C7D2FE", size: 1.3, hit: 4, reward: 5, from: 22, weight: 2, hidden: true, flying: true}
+]
+
+-- MARK: ボス（5ウェーブごと）
+let BOSSES = [
+  {wave: 5, name: "👑 ゴブリンキング", hp: 22, speed: 0.35, color: "#991B1B", size: 2.6, hit: 8, reward: 60},
+  {wave: 10, name: "👑 オーガ", hp: 30, speed: 0.3, color: "#65A30D", size: 3, hit: 10, reward: 100, armor: 0.2},
+  {wave: 15, name: "👑 ネクロマンサー", hp: 32, speed: 0.3, color: "#4C1D95", size: 2.6, hit: 12, reward: 150, summons: "ghost"},
+  {wave: 20, name: "👑 ドラゴン", hp: 40, speed: 0.4, color: "#B91C1C", size: 3.4, hit: 15, reward: 220, flying: true},
+  {wave: 25, name: "👑 闇の騎士団長", hp: 45, speed: 0.3, color: "#0F172A", size: 3, hit: 18, reward: 300, armor: 0.5, summons: "knight"},
+  {wave: 30, name: "👑 魔王", hp: 70, speed: 0.28, color: "#581C87", size: 3.8, hit: 50, reward: 500, armor: 0.3, summons: "phantom"},
+  {wave: 35, name: "👑 魔王・真の姿", hp: 90, speed: 0.3, color: "#000000", size: 4.2, hit: 60, reward: 700, armor: 0.4, summons: "wyvern"},
+  {wave: 40, name: "👑 世界をのみこむもの", hp: 120, speed: 0.26, color: "#312E81", size: 4.8, hit: 100, reward: 1000, armor: 0.5, summons: "knight"}
+]
+
+-- MARK: 難易度（投票で決める）
+let MODES = [
+  {id: "easy", name: "🟢 かんたん", waves: 20, hp: 0.7, money: 800, castle: 150, gems: 1},
+  {id: "normal", name: "🔵 ふつう", waves: 30, hp: 1, money: 600, castle: 100, gems: 2},
+  {id: "hard", name: "🔴 むずかしい", waves: 40, hp: 1.5, money: 600, castle: 80, gems: 4},
+  {id: "endless", name: "🟣 エンドレス", waves: 0, hp: 1.1, money: 600, castle: 100, gems: 2}
+]
+let VOTE_SECS = 20
+let TARGETS = [
+  {id: "first", name: "先頭"},
+  {id: "last", name: "最後"},
+  {id: "strong", name: "強い"},
+  {id: "close", name: "近い"}
+]

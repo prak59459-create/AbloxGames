@@ -1,0 +1,232 @@
+-- heroes.absc — ヒーローを置く・強化・売る・ねらい方
+-- 下のボタンでヒーローをえらんで、道ばたの灰色の台にさわると置ける。
+-- 自分のヒーローの台にもう一度さわると、強化・売る・ねらい方の画面。
+
+let heroes = {}       -- 台の名前 → ヒーローNPC
+weapon("光線", {model: "rifle", damage: 0, rate: 30, range: 200, ammo: 1000, reload: 0, spread: 0})
+let RANGED = ["bow", "magic", "ice", "thunder", "sniper", "angel", "fire", "cannon"]
+
+func hero_list()
+  let list = []
+  for key in keys(heroes) do
+    let n = heroes[key]
+    if still(n) then append(list, n) end
+  end
+  return list
+end
+
+func heroes_of(p)
+  return filter(hero_list(), func(n) return n.owner == p.id end)
+end
+
+func clear_heroes()
+  for n in hero_list() do kit_gone(n) end
+  heroes = {}
+end
+
+-- MARK: レベルで強くなる
+
+func hero_damage(n)
+  let h = hero_info(n.hero)
+  return h.damage * (1 + 0.5 * (n.level - 1)) * (1 + (n.buff or 0))
+end
+
+func hero_range(n)
+  let h = hero_info(n.hero)
+  return h.range * (1 + 0.08 * (n.level - 1)) * (1 + (n.range_buff or 0))
+end
+
+func hero_rate(n)
+  let h = hero_info(n.hero)
+  return h.rate * (1 + 0.1 * (n.level - 1))
+end
+
+func upgrade_cost(n)
+  if n.level >= MAX_LEVEL then return nil end
+  return floor(hero_info(n.hero).cost * UPGRADE_MULT[n.level + 1])
+end
+
+func sell_price(n)
+  return floor(n.spent * SELL_BACK)
+end
+
+func hero_label(n)
+  return hero_info(n.hero).name + " Lv" + n.level
+end
+
+-- MARK: 下のボタン（持っていくヒーロー）
+
+func hotbar(p)
+  for h in HEROES do p.ui_remove("pick_" + h.id) end
+  let n = len(p.loadout)
+  p.ui_panel("hotbar", {at: "bottom", dy: -96, w: n * 128 + 20, h: 70, bg: "#00000099", radius: 16})
+  let i = 0
+  for id in p.loadout do
+    i = i + 1
+    let h = hero_info(id)
+    let label = h.name + " " + h.cost
+    let color = "#111111"
+    if p.selected == id then label = "▶ " + label end
+    p.ui_button("pick_" + id, label, {parent: "hotbar", x: (i - 0.5) / n, w: 122, h: 50, size: 13, bg: h.color, color: color})
+  end
+end
+
+-- MARK: 置く
+
+func place(p, spot)
+  if phase != "play" then
+    p.message("難易度が決まってから置けるよ", 1.5)
+    return
+  end
+  let id = p.selected
+  if id == nil or not contains(p.loadout, id) then
+    p.message("下のボタンでヒーローをえらんでね", 1.5)
+    return
+  end
+  if len(heroes_of(p)) >= HEROES_PER_PLAYER then
+    p.message("ひとり " + HEROES_PER_PLAYER + " 体まで", 1.5)
+    return
+  end
+  if len(hero_list()) >= HEROES_TOTAL then
+    p.message("もうヒーローを置けない（みんなで " + HEROES_TOTAL + " 体まで）", 1.5)
+    return
+  end
+  let h = hero_info(id)
+  if not kit_pay(p, h.cost) then return end
+  let n = create_npc({name: h.name + " Lv1", position: spot.position + {x: 0, y: 0.5, z: 0}, color: h.color,
+                      head_color: "#FDE68A", health: 1000000000, speed: 0, team: "heroes"})
+  n.frozen = true
+  n.hero = id
+  n.level = 1
+  n.owner = p.id
+  n.spot = spot.name
+  n.spent = h.cost
+  n.target_mode = "first"
+  n.next_attack = time() + 0.5
+  n.buff = 0
+  n.range_buff = 0
+  if contains(RANGED, id) then n.give("光線") end
+  heroes[spot.name] = n
+  p.message(h.name + " を置いた！ もう一度さわると強化", 1.5)
+  p.sound("collect")
+  p.placed = (p.placed or 0) + 1
+  kit_quest_progress(p, "place", 1)
+end
+
+-- MARK: ヒーローの画面
+
+func hero_panel(p, n)
+  p.panel_spot = n.spot
+  let h = hero_info(n.hero)
+  let height = 300
+  p.ui_panel("hero_box", {at: "right", dx: -180, w: 330, h: height, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("hero_t", hero_label(n), {parent: "hero_box", y: 28 / height, size: 20, bold: true, color: h.color})
+  let stats = "⚔ " + floor(hero_damage(n)) + "  📏 " + fixed(hero_range(n), 1) + "  ⏱ " + fixed(hero_rate(n), 2) + "/びょう"
+  if h.id == "merchant" then stats = "💰 ウェーブごとに " + h.income[n.level] end
+  if h.id == "commander" then stats = "📯 まわり " + fixed(hero_range(n), 1) + "m のヒーロー +" + floor((h.buff + 0.05 * (n.level - 1)) * 100) + "%" end
+  p.ui_text("hero_s", stats, {parent: "hero_box", y: 64 / height, size: 14})
+  p.ui_text("hero_x", h.text, {parent: "hero_box", y: 92 / height, size: 12, color: "#CBD5E1"})
+  let cost = upgrade_cost(n)
+  let up_label = "✅ 最大レベル"
+  let up_bg = "#374151"
+  if cost != nil then
+    up_label = "⬆ Lv" + (n.level + 1) + " に強化  💰" + cost
+    up_bg = "#16A34A"
+  end
+  p.ui_button("h_up", up_label, {parent: "hero_box", y: 134 / height, w: 290, h: 42, size: 15, bg: up_bg})
+  let mode_name = "先頭"
+  for t in TARGETS do
+    if t.id == n.target_mode then mode_name = t.name end
+  end
+  p.ui_button("h_target", "🎯 ねらい: " + mode_name, {parent: "hero_box", y: 184 / height, w: 290, h: 38, size: 14, bg: "#2563EB"})
+  p.ui_button("h_sell", "💰 売る（+" + sell_price(n) + "）", {parent: "hero_box", y: 230 / height, w: 290, h: 38, size: 14, bg: "#B45309"})
+  p.ui_button("h_close", "閉じる", {parent: "hero_box", y: (height - 24) / height, w: 120, h: 30, size: 13, bg: "gray"})
+end
+
+func panel_hero(p)
+  if p.panel_spot == nil then return nil end
+  let n = heroes[p.panel_spot]
+  if not still(n) or n.owner != p.id then return nil end
+  return n
+end
+
+func close_panel(p)
+  p.ui_remove("hero_box")
+  p.panel_spot = nil
+end
+
+func upgrade(p, n)
+  let cost = upgrade_cost(n)
+  if cost == nil then
+    p.message("最大レベル！", 1)
+    return
+  end
+  if not kit_pay(p, cost) then return end
+  n.level = n.level + 1
+  n.spent = n.spent + cost
+  n.name = hero_label(n)
+  n.size = 1 + (n.level - 1) * 0.12
+  p.sound("goal")
+  kit_quest_progress(p, "upgrade", 1)
+  if n.level == MAX_LEVEL then
+    kit_quest_progress(p, "max", 1)
+    announce("⭐ " + p.name + " の " + hero_info(n.hero).name + " が最大レベルに！", 2)
+  end
+  hero_panel(p, n)
+end
+
+func sell_hero(p, n)
+  let got = sell_price(n)
+  kit_give(p, got)
+  remove(heroes, n.spot)
+  kit_gone(n)
+  p.message("💰 " + got + " で売った", 1.2)
+  close_panel(p)
+end
+
+func cycle_target(p, n)
+  let i = 1
+  let k = 0
+  for t in TARGETS do
+    k = k + 1
+    if t.id == n.target_mode then i = k end
+  end
+  n.target_mode = TARGETS[i % len(TARGETS) + 1].id
+  hero_panel(p, n)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if not contains(b.tags, "spot") then return end
+  if not quiet_ready(p, "spot", 1) then return end
+  let n = heroes[b.name]
+  if not still(n) then
+    place(p, b)
+  elif n.owner == p.id then
+    hero_panel(p, n)
+  else
+    let owner = find_by_id(n.owner)
+    let who = "だれか"
+    if owner != nil then who = owner.name end
+    p.message(who + " の " + hero_label(n), 1.2)
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "pick_") then
+    p.selected = replace(id, "pick_", "")
+    hotbar(p)
+    p.message(hero_info(p.selected).name + " をえらんだ。台にさわって置こう", 1.5)
+    return
+  end
+  if id == "h_close" then
+    close_panel(p)
+    return
+  end
+  let n = panel_hero(p)
+  if n == nil then return end
+  if id == "h_up" then upgrade(p, n)
+  elif id == "h_sell" then sell_hero(p, n)
+  elif id == "h_target" then cycle_target(p, n)
+  end
+end

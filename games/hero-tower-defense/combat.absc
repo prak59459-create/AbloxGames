@@ -1,0 +1,184 @@
+-- combat.absc — ヒーローのこうげき
+-- ねらい方（先頭・最後・強い・近い）で1体えらび、ヒーローごとの技で当てる。
+-- 空の敵は剣士・ほのお・守護騎士・大砲では当たらない。透明の敵は、見えるヒーロー
+-- （スナイパー・天使・Lv4 以上・司令官のそば）だけがねらえる。
+
+let attack_clock = 0
+let buff_clock = 0
+
+-- ダメージを当てる（raw = よろいを無視）
+func hurt(n, amount, hero, raw)
+  if not still(n) or not n.alive or amount <= 0 then return end
+  let d = amount
+  if not raw then d = d * (1 - n.armor) end
+  if still(hero) then
+    let owner = find_by_id(hero.owner)
+    if owner != nil then owner.dmg = (owner.dmg or 0) + min(d, n.health) end
+    n.damage(d, hero)
+  else
+    n.damage(d)
+  end
+end
+
+func sees_hidden(hero)
+  let h = hero_info(hero.hero)
+  return h.sees or hero.level >= 4 or hero.sees_buff
+end
+
+func can_hit(hero, e, range)
+  if not still(e) or not e.alive then return false end
+  let h = hero_info(hero.hero)
+  if e.flying and not h.air then return false end
+  if e.hidden and not sees_hidden(hero) then return false end
+  return distance(hero, e) <= range
+end
+
+func pick_target(hero)
+  let range = hero_range(hero)
+  let best = nil
+  let best_score = 0
+  for e in enemies do
+    if can_hit(hero, e, range) then
+      let score = 0
+      if hero.target_mode == "first" then score = progress(e)
+      elif hero.target_mode == "last" then score = 0 - progress(e)
+      elif hero.target_mode == "strong" then score = e.health
+      else score = 0 - distance(hero, e)
+      end
+      if best == nil or score > best_score then
+        best = e
+        best_score = score
+      end
+    end
+  end
+  return best
+end
+
+-- 近くの敵（空・透明のルールつき）
+func near(hero, center, radius)
+  let list = []
+  for e in enemies do
+    if still(e) and e.alive and distance(center, e) <= radius then
+      let h = hero_info(hero.hero)
+      if (not e.flying or h.air) and (not e.hidden or sees_hidden(hero)) then append(list, e) end
+    end
+  end
+  return list
+end
+
+func attack(hero)
+  let h = hero_info(hero.hero)
+  if h.damage <= 0 then return end
+  let target = pick_target(hero)
+  if target == nil then return end
+  let dmg = hero_damage(hero)
+  let lv = hero.level
+  hero.look_at(target)
+  if contains(RANGED, h.id) then hero.shoot(target) end
+  let raw = h.pierce or false
+  if h.id == "sword" then
+    -- 近くの敵を数体まとめて
+    let count = h.cleave + floor(lv / 3)
+    let hit = 0
+    for e in near(hero, target.position, 3.5) do
+      if hit < count then
+        hurt(e, dmg, hero, raw)
+        hit = hit + 1
+      end
+    end
+  elif h.id == "ice" then
+    hurt(target, dmg, hero, raw)
+    if still(target) and target.alive then
+      let factor = max(0.2, h.slow - 0.06 * (lv - 1))
+      if target.boss then factor = (1 + factor) / 2 end
+      target.slow_until = time() + 2 + lv * 0.3
+      target.slow_factor = factor
+    end
+  elif h.id == "fire" then
+    for e in near(hero, target.position, h.aoe + lv * 0.3) do
+      hurt(e, dmg, hero, raw)
+      if still(e) and e.alive then
+        e.burn_until = time() + 3
+        e.burn_dps = h.burn * (1 + 0.5 * (lv - 1)) * (1 + (hero.buff or 0))
+        e.burn_hero = hero
+      end
+    end
+  elif h.id == "guard" then
+    -- 自分のまわりをたたきつけて一瞬止める
+    for e in near(hero, hero.position, h.aoe + lv * 0.3) do
+      hurt(e, dmg, hero, raw)
+      if still(e) and e.alive then
+        let secs = h.stun + lv * 0.15
+        if e.boss then secs = secs / 3 end
+        e.stun_until = time() + secs
+      end
+    end
+  elif h.id == "thunder" then
+    let chain = h.chain + floor(lv / 2)
+    let done = []
+    let current = target
+    for k in 1 to chain do
+      if current == nil then break end
+      hurt(current, dmg * pow(0.85, k - 1), hero, raw)
+      append(done, current.id)
+      let from = current.position
+      let next = nil
+      let best = 9
+      for e in near(hero, from, 9) do
+        if not contains(done, e.id) and distance(from, e) < best then
+          best = distance(from, e)
+          next = e
+        end
+      end
+      current = next
+    end
+  elif h.aoe != nil then
+    -- 魔法使い・大砲・天使: まとめて
+    let center = target.position
+    for e in near(hero, center, h.aoe + lv * 0.3) do hurt(e, dmg, hero, raw) end
+  else
+    hurt(target, dmg, hero, raw)
+  end
+end
+
+-- 2びょうごと: 司令官のまわりのヒーローを強くする
+func update_buffs()
+  let list = hero_list()
+  for n in list do
+    n.buff = 0
+    n.range_buff = 0
+    n.sees_buff = false
+  end
+  for c in list do
+    if c.hero == "commander" then
+      let h = hero_info("commander")
+      let strength = h.buff + 0.05 * (c.level - 1)
+      for n in list do
+        if n.id != c.id and distance(c, n) <= hero_range(c) then
+          n.buff = max(n.buff, strength)
+          n.range_buff = max(n.range_buff, 0.1)
+          n.sees_buff = true
+        end
+      end
+    end
+  end
+end
+
+on tick(dt)
+  attack_clock = attack_clock + dt
+  buff_clock = buff_clock + dt
+  if buff_clock >= 2 then
+    buff_clock = 0
+    update_buffs()
+  end
+  if attack_clock < 0.2 then return end
+  attack_clock = 0
+  if phase != "play" then return end
+  for n in hero_list() do
+    let h = hero_info(n.hero)
+    if h.rate > 0 and time() >= n.next_attack then
+      n.next_attack = time() + 1 / hero_rate(n)
+      attack(n)
+    end
+  end
+end

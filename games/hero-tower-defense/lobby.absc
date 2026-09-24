@@ -1,0 +1,72 @@
+-- lobby.absc — ヒーローの館（ジェムで解放・持っていく5体をえらぶ）
+-- ジェムは試合のおわりにもらえる（守ったウェーブの数 × 難易度）。
+
+func hall_menu(p)
+  let h = 150 + len(HEROES) * 42
+  p.ui_panel("hall_box", {at: "center", w: 620, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("hall_t", "🏛 ヒーローの館   💎 " + p.gems + "   持っていく " + len(p.loadout) + "/" + LOADOUT_SIZE,
+            {parent: "hall_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for hero in HEROES do
+    i = i + 1
+    let label = ""
+    let bg = "#374151"
+    if not contains(p.owned, hero.id) then
+      label = "🔒 " + hero.name + "  💎" + hero.gems + "  " + hero.text
+      bg = "#78350F"
+    elif contains(p.loadout, hero.id) then
+      label = "✅ " + hero.name + "（持っていく）  💰" + hero.cost + "  " + hero.text
+      bg = "#15803D"
+    else
+      label = hero.name + "  💰" + hero.cost + "  " + hero.text
+      bg = "#1D4ED8"
+    end
+    p.ui_button("hall_" + hero.id, label, {parent: "hall_box", y: (30 + i * 42) / h, w: 580, h: 36, size: 13, bg: bg})
+  end
+  p.ui_text("hall_help", "🔒 をタップで解放、解放ずみをタップで「持っていく」の切りかえ", {parent: "hall_box", y: (h - 58) / h, size: 12, color: "#D6D3D1"})
+  p.ui_button("hall_close", "閉じる", {parent: "hall_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func hall_pick(p, id)
+  let hero = hero_info(id)
+  if hero == nil then return end
+  if not contains(p.owned, id) then
+    if p.gems < hero.gems then
+      p.message("💎 ジェムが足りない（あと " + (hero.gems - p.gems) + "）", 1.5)
+      p.sound("error")
+      return
+    end
+    p.gems = p.gems - hero.gems
+    append(p.owned, id)
+    announce("🏛 " + p.name + " が " + hero.name + " を解放！", 3)
+    p.sound("goal")
+    kit_quest_progress(p, "unlock", 1)
+    if len(p.loadout) < LOADOUT_SIZE then append(p.loadout, id) end
+  elif contains(p.loadout, id) then
+    if len(p.loadout) <= 1 then
+      p.message("1体は持っていこう", 1.2)
+      return
+    end
+    p.loadout = filter(p.loadout, func(x) return x != id end)
+    if p.selected == id then p.selected = p.loadout[1] end
+  elif len(p.loadout) < LOADOUT_SIZE then
+    append(p.loadout, id)
+  else
+    p.message("持っていけるのは " + LOADOUT_SIZE + " 体まで。先にどれかをはずしてね", 1.5)
+    return
+  end
+  hotbar(p)
+  hall_menu(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "hero_hall") and quiet_ready(p, "hall_pad", 5) then hall_menu(p) end
+end
+
+on button(p, id)
+  if id == "hall" then hall_menu(p)
+  elif id == "hall_close" then p.ui_remove("hall_box")
+  elif starts_with(id, "hall_") then hall_pick(p, replace(id, "hall_", ""))
+  end
+end

@@ -1,0 +1,284 @@
+-- waves.absc — 難易度の投票・ウェーブ・勝ち負け
+-- はじめに20びょう投票（かんたん・ふつう・むずかしい・エンドレス）。
+-- ウェーブをたおしきると休けい8びょう（みんなでスキップもできる）。5ウェーブごとにボス。
+
+let phase = "vote"
+let mode = MODES[2]
+let wave = 0
+let castle = 100
+let castle_max = 100
+let spawning = 0
+let over = false
+let vote_ends = 0
+let votes = {}
+let next_wave_at = 0
+let skips = []
+let wave_clock = 0
+let round_id = 0      -- 前のラウンドのタイマーが新しいラウンドに入りこまないように
+
+func show_game()
+  let goal = "∞"
+  if mode.waves > 0 then goal = "" + mode.waves end
+  if phase == "vote" then
+    ui_text("wave", "🗳 難易度を決めよう（のこり " + max(0, ceil(vote_ends - time())) + " びょう）", {at: "top", dy: 26, size: 20, bold: true})
+  else
+    ui_text("wave", mode.name + "   🌊 " + wave + " / " + goal + "   🏰 " + max(0, castle) + " / " + castle_max,
+            {at: "top", dy: 26, size: 20, bold: true})
+  end
+end
+
+-- MARK: 投票
+
+func vote_buttons(p)
+  let i = 0
+  for m in MODES do
+    i = i + 1
+    let count = 0
+    for pid in keys(votes) do
+      if votes[pid] == m.id then count = count + 1 end
+    end
+    let label = m.name + "  " + count + "票"
+    if votes[p.id] == m.id then label = "✅ " + label end
+    p.ui_button("vote_" + m.id, label, {at: "center", dx: (i - 2.5) * 170, dy: 120, w: 160, h: 54, size: 15, bg: "#1E293B"})
+  end
+  p.ui_text("vote_help", "かんたん 20・ふつう 30・むずかしい 40 ウェーブ。エンドレスは城が落ちるまで", {at: "center", dy: 170, size: 14})
+end
+
+func clear_vote_buttons(p)
+  for m in MODES do p.ui_remove("vote_" + m.id) end
+  p.ui_remove("vote_help")
+end
+
+func start_vote()
+  round_id = round_id + 1
+  phase = "vote"
+  spawning = 0
+  next_wave_at = 0
+  skips = []
+  over = false
+  wave = 0
+  votes = {}
+  vote_ends = time() + VOTE_SECS
+  for p in players() do
+    if ready(p) then vote_buttons(p) end
+  end
+  show_game()
+end
+
+func vote(p, id)
+  if phase != "vote" then return end
+  votes[p.id] = id
+  for q in players() do
+    if ready(q) then vote_buttons(q) end
+  end
+  -- 全員そろったらすぐ決定
+  if len(keys(votes)) >= len(players()) then vote_ends = min(vote_ends, time() + 2) end
+end
+
+func end_vote()
+  let best = "normal"
+  let best_count = 0
+  for m in MODES do
+    let count = 0
+    for pid in keys(votes) do
+      if votes[pid] == m.id then count = count + 1 end
+    end
+    if count > best_count then
+      best = m.id
+      best_count = count
+    end
+  end
+  mode = mode_info(best)
+  castle = mode.castle
+  castle_max = mode.castle
+  phase = "play"
+  wave = 0
+  next_wave_at = time() + 12
+  for p in players() do
+    if ready(p) then
+      clear_vote_buttons(p)
+      p.coins = mode.money
+      kit_show_money(p)
+      hotbar(p)
+    end
+  end
+  announce("🗳 " + mode.name + " に決定！ ヒーローを置いて守りをかためよう（12びょう後にスタート）", 4)
+  show_game()
+end
+
+-- MARK: ウェーブ
+
+func wave_kinds()
+  let list = []
+  for e in ENEMIES do
+    if e.from <= wave then append(list, {id: e.id, weight: e.weight}) end
+  end
+  return list
+end
+
+func boss_for(w)
+  for b in BOSSES do
+    if b.wave == w then return b end
+  end
+  -- エンドレスで40をこえたら、ボスがくりかえし出てくる
+  if w > 40 and w % 5 == 0 then return BOSSES[(w / 5 - 1) % len(BOSSES) + 1] end
+  return nil
+end
+
+func next_wave()
+  if over then return end
+  wave = wave + 1
+  skips = []
+  for p in players() do p.ui_remove("skip") end
+  if mode.waves > 0 and wave > mode.waves then
+    wave = mode.waves
+    win()
+    return
+  end
+  show_game()
+  let count = floor(6 + wave * 1.6 + max(0, len(players()) - 1) * 2)
+  let gap = max(0.45, 1 - wave * 0.015)
+  spawning = count
+  let kinds = wave_kinds()
+  let rid = round_id
+  announce("🌊 ウェーブ " + wave + "（" + count + " 体）", 2)
+  for i in 1 to count do
+    after(i * gap, func()
+      if rid != round_id then return end
+      spawning = spawning - 1
+      if over then return end
+      spawn_enemy(kit_pick(kinds, 1).id)
+    end)
+  end
+  let b = boss_for(wave)
+  if b != nil then
+    spawning = spawning + 1
+    after(count * gap + 2, func()
+      if rid != round_id then return end
+      spawning = spawning - 1
+      if not over then spawn_boss(b) end
+    end)
+  end
+end
+
+func wave_cleared()
+  let bonus = 40 + wave * 12
+  for p in players() do
+    if ready(p) then
+      kit_give(p, bonus)
+      kit_quest_progress(p, "waves", 1)
+      p.best_wave = max(p.best_wave or 0, wave)
+    end
+  end
+  -- 商人と天使
+  for n in hero_list() do
+    let h = hero_info(n.hero)
+    if h.income != nil then
+      let owner = find_by_id(n.owner)
+      if owner != nil then
+        let got = h.income[n.level]
+        kit_give(owner, got)
+        owner.farmed = (owner.farmed or 0) + got
+        kit_quest_progress(owner, "farm", got)
+      end
+    end
+    if h.heal != nil then castle = min(castle_max, castle + h.heal * n.level) end
+  end
+  announce("✅ ウェーブ " + wave + " クリア！ 💰+" + bonus, 2)
+  if mode.waves > 0 and wave >= mode.waves then
+    win()
+    return
+  end
+  next_wave_at = time() + 8
+  for p in players() do
+    if ready(p) then p.ui_button("skip", "⏩ すぐ次へ", {at: "top_right", dy: 120, w: 150, h: 48, size: 15, bg: "#0F766E"}) end
+  end
+  show_game()
+end
+
+func vote_skip(p)
+  if next_wave_at == 0 or contains(skips, p.id) then return end
+  append(skips, p.id)
+  let need = max(1, ceil(len(players()) / 2))
+  announce("⏩ スキップ " + len(skips) + " / " + need, 1.5)
+  if len(skips) >= need then
+    for q in players() do kit_give(q, 15 + wave * 2) end
+    next_wave_at = time()
+  end
+end
+
+-- MARK: 勝ち負け
+
+func gems_for(won)
+  let g = wave * mode.gems
+  if won then g = g + 20 * mode.gems end
+  return g
+end
+
+func finish(won, message)
+  if over then return end
+  over = true
+  phase = "over"
+  for p in players() do
+    if ready(p) then
+      let g = gems_for(won)
+      p.gems = p.gems + g
+      p.games = (p.games or 0) + 1
+      if won then
+        p.wins = (p.wins or 0) + 1
+        p.score = p.score + 10
+        kit_quest_progress(p, "win", 1)
+        if mode.id == "hard" then kit_quest_progress(p, "win_hard", 1) end
+      end
+      if mode.id == "endless" and wave > (p.endless_best or 0) then p.endless_best = wave end
+      p.message("💎 ジェム +" + g + "（合計 " + p.gems + "）", 4)
+    end
+  end
+  show_summary(message)
+  kit_finish(message, 10)
+end
+
+func win()
+  finish(true, "🏆 " + mode.name + " クリア！ " + wave + " ウェーブ守りきった！")
+end
+
+func lose()
+  finish(false, "💀 城が落ちた… ウェーブ " + wave + " まで守った")
+end
+
+on tick(dt)
+  wave_clock = wave_clock + dt
+  if wave_clock < 1 then return end
+  wave_clock = 0
+  if phase == "vote" then
+    if time() >= vote_ends then end_vote() end
+    show_game()
+  elif phase == "play" then
+    if next_wave_at > 0 and time() >= next_wave_at then
+      next_wave_at = 0
+      next_wave()
+    elif next_wave_at == 0 and wave > 0 and spawning <= 0 and enemy_count() == 0 and not over then
+      wave_cleared()
+    end
+    if next_wave_at > 0 and phase == "play" then
+      ui_text("next", "次のウェーブまで " + max(0, ceil(next_wave_at - time())) + " びょう", {at: "top", dy: 56, size: 15, color: "#FDE68A"})
+    else
+      ui_remove("next")
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "vote") and phase == "vote" then
+    for m in MODES do
+      if contains(b.tags, m.id) and quiet_ready(p, "vote_pad", 1) then vote(p, m.id) end
+    end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "vote_") then vote(p, replace(id, "vote_", ""))
+  elif id == "skip" then vote_skip(p)
+  end
+end

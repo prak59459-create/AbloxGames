@@ -1,0 +1,192 @@
+-- enemies.absc — 敵の出現・道の進み方・とくしゅな敵
+-- 道は Waypoint 1 → 10。城（Waypoint 10）に着くと城の体力がへる。
+-- よろい（ダメージをへらす）・空（剣や大砲では当たらない）・透明（見えるヒーローだけ）・
+-- 分裂・回復・ボスのしょうかん。
+
+let enemies = []
+let path_len = 10
+let move_clock = 0
+let special_clock = 0
+
+func enemy_count()
+  return len(enemies)
+end
+
+func wave_hp()
+  let players_mult = 1 + 0.35 * max(0, len(players()) - 1)
+  return (40 + wave * 18 + wave * wave * 1.5) * mode.hp * players_mult
+end
+
+func make_enemy(info, hp, position, wp)
+  if enemy_count() >= 60 then return nil end
+  let label = info.name
+  let n = create_npc({name: label, position: position, color: info.color, head_color: "#111111",
+                      health: hp, speed: info.speed, size: info.size, team: "enemy"})
+  n.kind = info.id
+  n.wp = wp
+  n.base_speed = info.speed
+  n.hit = info.hit
+  n.reward = info.reward
+  n.armor = info.armor or 0
+  n.flying = info.flying or false
+  n.hidden = info.hidden or false
+  n.split = info.split or false
+  n.healer = info.healer or false
+  n.summons = info.summons
+  n.boss = false
+  n.max_hp = hp
+  n.speed_now = info.speed
+  n.move_to(block("Waypoint " + wp))
+  append(enemies, n)
+  return n
+end
+
+func spawn_enemy(id)
+  let start = block("Waypoint 1")
+  let info = enemy_info(id)
+  make_enemy(info, wave_hp() * info.hp, start.position + {x: random(-2, 2), y: 1, z: random(-2, 2)}, 2)
+end
+
+func spawn_boss(b)
+  let start = block("Waypoint 1")
+  let n = make_enemy(b, wave_hp() * b.hp, start.position + {x: 0, y: 1, z: 0}, 2)
+  if n == nil then return end
+  n.boss = true
+  n.kind = "boss"
+  n.summon_at = time() + 8
+  announce("⚠ " + b.name + " があらわれた！", 4)
+  shake(0.5, 0.8)
+  boss_bar(n)
+end
+
+func boss_bar(n)
+  for p in players() do
+    p.ui_bar("boss_hp", {at: "top", dy: 92, w: 360, h: 18, value: max(0, n.health), max: n.max_hp, color: "#DC2626", bg: "#00000099"})
+    p.ui_text("boss_name", n.name, {at: "top", dy: 112, size: 14, bold: true, color: "#FCA5A5"})
+  end
+end
+
+func clear_boss_bar()
+  for p in players() do
+    p.ui_remove("boss_hp")
+    p.ui_remove("boss_name")
+  end
+end
+
+func forget_enemy(n)
+  enemies = filter(enemies, func(e) return e.id != n.id end)
+end
+
+func clear_enemies()
+  for n in enemies do kit_gone(n) end
+  enemies = []
+  clear_boss_bar()
+end
+
+-- 城に近いほど大きい（先頭の敵をねらうのに使う）
+func progress(n)
+  let wp = block("Waypoint " + n.wp)
+  return n.wp * 1000 - distance(n, wp)
+end
+
+func reach_castle(n)
+  castle = castle - n.hit
+  forget_enemy(n)
+  if n.boss then clear_boss_bar() end
+  kit_gone(n)
+  show_game()
+  shake(0.3, 0.4)
+  sound("hurt")
+  if castle <= 0 then lose() end
+end
+
+-- 0.25びょうごと: 道を進む・おそい/止まる/燃える
+func move_enemies(dt)
+  for n in enemies do
+    if still(n) and n.alive then
+      let wp = block("Waypoint " + n.wp)
+      if distance(n, wp) < 2 then
+        if n.wp >= path_len then
+          reach_castle(n)
+          continue
+        end
+        n.wp = n.wp + 1
+        n.move_to(block("Waypoint " + n.wp))
+      end
+      -- 速さ（止まる > おそい > ふつう）
+      let want = n.base_speed
+      if active_until(n.slow_until) then want = n.base_speed * n.slow_factor end
+      if active_until(n.stun_until) then want = 0 end
+      if want != n.speed_now then
+        n.speed_now = want
+        n.speed = want
+        if want > 0 then n.move_to(block("Waypoint " + n.wp)) end
+      end
+      if active_until(n.burn_until) then hurt(n, n.burn_dps * dt, n.burn_hero, true) end
+    end
+  end
+end
+
+-- 2びょうごと: 回復シャーマン・ボスのしょうかん
+func specials()
+  for n in enemies do
+    if still(n) and n.alive then
+      if n.healer then
+        for e in enemies do
+          if still(e) and e.alive and e.id != n.id and distance(n, e) < 8 then e.heal(e.max_hp * 0.05) end
+        end
+      end
+      if n.boss then
+        boss_bar(n)
+        if n.summons != nil and time() >= n.summon_at then
+          n.summon_at = time() + 10
+          let info = enemy_info(n.summons)
+          for k in 1 to 3 do
+            make_enemy(info, wave_hp() * info.hp, n.position + {x: random(-2, 2), y: 1, z: random(-2, 2)}, n.wp)
+          end
+          announce(n.name + " が手下をよんだ！", 2)
+        end
+      end
+    end
+  end
+end
+
+on tick(dt)
+  move_clock = move_clock + dt
+  special_clock = special_clock + dt
+  if move_clock >= 0.25 then
+    let passed = move_clock
+    move_clock = 0
+    move_enemies(passed)
+  end
+  if special_clock >= 2 then
+    special_clock = 0
+    specials()
+  end
+end
+
+on death(victim, killer)
+  if not victim.is_npc or victim.team != "enemy" then return end
+  forget_enemy(victim)
+  if victim.boss then
+    clear_boss_bar()
+    announce("🎉 " + victim.name + " をたおした！", 3)
+    for p in players() do kit_quest_progress(p, "boss", 1) end
+  end
+  -- ごほうびはみんなで山分け（たおした人は少し多め）
+  let each = floor((victim.reward * (4 + wave * 0.6)) / max(1, len(players()))) + 2
+  for p in players() do kit_give(p, each) end
+  let owner = nil
+  if killer != nil and killer.owner != nil then owner = find_by_id(killer.owner) end
+  if owner != nil then
+    owner.kills = (owner.kills or 0) + 1
+    kit_give(owner, 2)
+    kit_quest_progress(owner, "kill", 1)
+  end
+  if victim.split then
+    let info = enemy_info("goblin")
+    for k in 1 to 2 do
+      make_enemy(info, wave_hp() * 0.5, victim.position + {x: random(-1, 1), y: 1, z: random(-1, 1)}, victim.wp)
+    end
+  end
+end

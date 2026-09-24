@@ -1,0 +1,48 @@
+-- stats.absc — 試合のまとめと成績
+
+func show_summary(headline)
+  let ranked = sort(filter(players(), func(p) return ready(p) end), func(a, b) return (a.dmg or 0) > (b.dmg or 0) end)
+  let lines = []
+  let medals = ["🥇", "🥈", "🥉", "4.", "5."]
+  let i = 0
+  for p in slice(ranked, 1, 5) do
+    i = i + 1
+    append(lines, medals[i] + " " + p.name + "   ⚔ " + kit_short(floor(p.dmg or 0)) + " ダメージ   💀 " + (p.kills or 0) + " 体")
+  end
+  let h = 110 + len(lines) * 32
+  for p in players() do
+    p.ui_panel("sum_box", {at: "center", w: 560, h: h, bg: "#000000D0", radius: 22, layer: 40})
+    p.ui_text("sum_t", headline, {parent: "sum_box", y: 30 / h, size: 21, bold: true, color: "#FDE68A"})
+    let k = 0
+    for line in lines do
+      k = k + 1
+      p.ui_text("sum_" + k, line, {parent: "sum_box", y: (44 + k * 32) / h, size: 15})
+    end
+    kit_later(p, 9, func() p.ui_remove("sum_box") end)
+  end
+end
+
+func stats(p)
+  let lines = [
+    "【この試合】 ⚔ " + kit_short(floor(p.dmg or 0)) + " ダメージ   💀 " + (p.kills or 0) + " 体   🧱 置いた " + (p.placed or 0),
+    "💰 商人でかせいだ " + kit_short(p.farmed or 0),
+    "【ずっと】 🏆 クリア " + (p.wins or 0) + " / " + (p.games or 0) + " 試合",
+    "🌊 いちばん先のウェーブ " + (p.best_wave or 0) + "   🟣 エンドレス最高 " + (p.endless_best or 0),
+    "💎 ジェム " + p.gems + "   🏛 解放したヒーロー " + len(p.owned) + " / " + len(HEROES)
+  ]
+  let h = 110 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 560, h: h, bg: "#111827F2", radius: 22, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 15})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  end
+end

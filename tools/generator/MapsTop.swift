@@ -1080,7 +1080,7 @@ func slimeRoll(_ m: MapBuilder) {
 
 func heroTD(_ m: MapBuilder) {
     m.day(ground: "#4D7C0F")
-    m.ground(120, 120, color: "#65A30D")
+    m.ground(160, 160, color: "#65A30D")
     // The path: a zig-zag of waypoints from the portal to the castle.
     let points: [(Float, Float)] = [(-50, -45), (-50, -10), (-20, -10), (-20, -40), (20, -40), (20, 0), (-30, 0), (-30, 35), (40, 35), (40, 50)]
     for i in 0..<(points.count - 1) {
@@ -1091,16 +1091,32 @@ func heroTD(_ m: MapBuilder) {
     }
     m.markers("Waypoint", points: points, color: "#000000", visible: false, behavior: .none)
     m.part("Portal", at: (-50, 3, -50), size: (6, 6, 1), color: "#7C3AED", material: .neon, solid: false)
+    m.part("Portal Frame", at: (-50, 3, -50.8), size: (7.4, 7.4, 0.6), color: "#1E1B4B", material: .metal)
     m.slab("Castle", x: 40, y: 0, z: 56, w: 14, h: 6, d: 6, color: "#CBD5E1")
+    m.slab("Castle Gate", x: 40, y: 0, z: 52.8, w: 4, h: 4, d: 0.4, color: "#78350F")
     for x in [34, 46] { m.pillar("Castle Tower", x: Float(x), z: 56, height: 9, radius: 1.6, color: "#94A3B8") }
+    m.part("Castle Flag", at: (40, 8, 56), size: (2.4, 1.4, 0.1), color: "#2563EB", material: .neon, solid: false)
     // Places to stand a hero, alongside the path.
     let spots: [(Float, Float)] = [(-43, -30), (-57, -20), (-35, -18), (-12, -25), (-27, -47), (0, -47), (13, -20), (27, -20),
-                                   (5, 7), (-15, 7), (-37, 17), (-23, 28), (0, 28), (20, 42), (33, 28), (47, 42)]
+                                   (5, 7), (-15, 7), (-37, 17), (-23, 28), (0, 28), (20, 42), (33, 28), (47, 42),
+                                   (-57, -35), (-43, -3), (-27, -30), (0, -33), (27, -5), (-10, -7), (-37, 42), (10, 42),
+                                   (-23, 17), (27, 28), (-13, -47), (13, -47)]
     for (i, p) in spots.enumerated() {
         m.part("Tower Spot \(i + 1)", at: (p.0, 0.15, p.1), size: (3.2, 0.3, 3.2), color: "#A3A3A3", shape: .cylinder,
                material: .metal, behavior: .trigger, tags: ["spot"])
     }
     m.spawnRing(20, 55, radius: 3, count: 6, color: "#60A5FA")
+    // The lobby beside the castle: vote for a difficulty, unlock heroes.
+    let votes: [(String, String, String)] = [("Easy", "#22C55E", "easy"), ("Normal", "#3B82F6", "normal"),
+                                             ("Hard", "#EF4444", "hard"), ("Endless", "#A855F7", "endless")]
+    for (i, v) in votes.enumerated() {
+        m.pad("Vote \(v.0)", x: 6 + Float(i) * 4.5, z: 64, size: 3, color: v.1, tags: ["vote", v.2])
+    }
+    m.pad("Hero Hall", x: 30, z: 64, size: 3.4, color: "#F59E0B", tags: ["hero_hall"])
+    m.slab("Hero Hall Stand", x: 30, y: 0, z: 67.5, w: 5, h: 2.4, d: 1.2, color: "#92400E")
+    m.part("Hero Hall Sign", at: (30, 3, 67.5), size: (4.6, 1, 0.2), color: "#FDE68A", material: .neon, solid: false)
+    for p in ring(14, radius: 72) { m.tree(p.0, p.1, height: 4.5) }
+    for p in [(-60, 20), (55, -30), (60, 10), (-5, 60)] { m.rock(Float(p.0), Float(p.1), size: 2.4) }
 }
 
 // MARK: 19 Domain Clash
