@@ -1,0 +1,65 @@
+-- data.absc — Gun Swap Arena の表
+-- 武器のならび（4セット）・アリーナ・連続キルのごほうび・スキン
+
+-- MARK: 武器（ぜんぶここで作る）
+let WEAPONS = [
+  {name: "ライフル", model: "rifle", damage: 45, rate: 2, range: 140, ammo: 6, reload: 1.8, spread: 0.2},
+  {name: "ブラスター", model: "blaster", damage: 22, rate: 5, range: 60, ammo: 20, reload: 1.4, spread: 1.5},
+  {name: "ショットガン", model: "shotgun", damage: 70, rate: 1.2, range: 16, ammo: 4, reload: 2, spread: 5},
+  {name: "マシンピストル", model: "pistol", damage: 14, rate: 10, range: 40, ammo: 30, reload: 1.5, spread: 3},
+  {name: "スナイパー", model: "rifle", damage: 120, rate: 0.7, range: 300, ammo: 3, reload: 2.5, spread: 0},
+  {name: "レーザー", model: "blaster", damage: 30, rate: 4, range: 90, ammo: 15, reload: 1.6, spread: 0.3},
+  {name: "ダブルバレル", model: "shotgun", damage: 110, rate: 0.8, range: 12, ammo: 2, reload: 2, spread: 6},
+  {name: "リボルバー", model: "pistol", damage: 55, rate: 1.6, range: 60, ammo: 6, reload: 2.2, spread: 0.5},
+  {name: "ミニガン", model: "blaster", damage: 10, rate: 16, range: 50, ammo: 100, reload: 4, spread: 4},
+  {name: "マグナム", model: "pistol", damage: 80, rate: 1, range: 80, ammo: 5, reload: 2, spread: 0.3},
+  {name: "ビームライフル", model: "rifle", damage: 60, rate: 1.5, range: 200, ammo: 8, reload: 2, spread: 0},
+  {name: "ソードオフ", model: "shotgun", damage: 90, rate: 1, range: 10, ammo: 2, reload: 1.6, spread: 7},
+  {name: "オートショットガン", model: "shotgun", damage: 45, rate: 3, range: 14, ammo: 8, reload: 2.4, spread: 5},
+  {name: "スラッグ", model: "shotgun", damage: 85, rate: 1, range: 40, ammo: 5, reload: 2, spread: 1},
+  {name: "マークスマン", model: "rifle", damage: 70, rate: 1.2, range: 180, ammo: 8, reload: 2, spread: 0.1},
+  {name: "対物ライフル", model: "rifle", damage: 160, rate: 0.5, range: 400, ammo: 2, reload: 3, spread: 0},
+  {name: "ボルトアクション", model: "rifle", damage: 100, rate: 0.9, range: 260, ammo: 5, reload: 2.4, spread: 0},
+  {name: "黄金ナイフ", model: "pistol", damage: 200, rate: 2, range: 5, ammo: 1000, reload: 0, spread: 3}
+]
+
+-- MARK: 武器のならび（最後はかならず黄金ナイフ）
+let SETS = [
+  {id: "classic", name: "🔫 クラシック", order: ["ライフル", "ブラスター", "ショットガン", "マシンピストル", "スナイパー", "レーザー",
+                                              "ダブルバレル", "リボルバー", "ミニガン", "マグナム", "ビームライフル", "黄金ナイフ"]},
+  {id: "shotguns", name: "💥 ショットガン祭り", order: ["ショットガン", "ソードオフ", "オートショットガン", "スラッグ", "ダブルバレル",
+                                                      "ミニガン", "オートショットガン", "ソードオフ", "黄金ナイフ"]},
+  {id: "snipers", name: "🎯 スナイパー", order: ["マークスマン", "スナイパー", "ボルトアクション", "ビームライフル", "対物ライフル",
+                                            "リボルバー", "マグナム", "スナイパー", "黄金ナイフ"]},
+  {id: "random", name: "🎲 ランダム", order: []}
+]
+
+-- MARK: アリーナ（ブロックの名前の頭）
+let ARENAS = [
+  {id: "street", name: "🏙 ストリート", prefix: "Street", spots: 10, sky: "#F59E0B"},
+  {id: "warehouse", name: "🏭 倉庫", prefix: "Warehouse", spots: 10, sky: "#334155"},
+  {id: "rooftops", name: "🌆 屋上", prefix: "Rooftops", spots: 9, sky: "#38BDF8"}
+]
+
+let MATCH_SECS = 360
+let VOTE_SECS = 12
+let PROTECT_SECS = 2
+let MED_HEAL = 50
+let MED_RESPAWN = 20
+
+-- MARK: 連続キルのごほうび
+let STREAKS = [
+  {kills: 3, name: "⚡ スピードアップ", text: "20びょう 速く走れる"},
+  {kills: 5, name: "💚 オーバーヒール", text: "体力 150"},
+  {kills: 7, name: "🎯 ヘッドハンター", text: "30びょう ダメージ ×1.25"}
+]
+
+-- MARK: スキン（🎟 クレジットで買う）
+let SKINS = [
+  {id: "own", name: "👤 いつもの", price: 0},
+  {id: "desert", name: "🏜 デザート", price: 30, body: "#D6B97A", head: "#FDE68A", legs: "#78350F"},
+  {id: "urban", name: "🏙 アーバン", price: 30, body: "#6B7280", head: "#D1D5DB", legs: "#1F2937"},
+  {id: "jungle", name: "🌴 ジャングル", price: 50, body: "#166534", head: "#86EFAC", legs: "#14532D"},
+  {id: "neon", name: "💜 ネオン", price: 120, body: "#A855F7", head: "#22D3EE", legs: "#4C1D95"},
+  {id: "gold", name: "🏆 ゴールド", price: 300, body: "#F59E0B", head: "#FEF3C7", legs: "#B45309"}
+]

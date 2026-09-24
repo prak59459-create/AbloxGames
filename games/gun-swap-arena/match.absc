@@ -1,0 +1,154 @@
+-- match.absc — 投票（アリーナと武器のならび）→ 試合（6分）→ 結果
+
+let phase = "vote"
+let arena = ARENAS[1]
+let set = SETS[1]
+let ladder = []
+let map_votes = {}
+let set_votes = {}
+let vote_ends = 0
+let match_ends = 0
+let match_clock = 0
+let round_id = 0
+
+func count_votes(votes, id)
+  let n = 0
+  for pid in keys(votes) do
+    if votes[pid] == id then n = n + 1 end
+  end
+  return n
+end
+
+func vote_ui(p)
+  let lines = []
+  for a in ARENAS do append(lines, a.name + " " + count_votes(map_votes, a.id)) end
+  let set_lines = []
+  for s in SETS do append(set_lines, s.name + " " + count_votes(set_votes, s.id)) end
+  p.ui_text("vote_t", "🗳 パッドにのって投票（のこり " + max(0, ceil(vote_ends - time())) + "）", {at: "top", dy: 26, size: 18, bold: true})
+  p.ui_text("vote_maps", "アリーナ: " + join(lines, "  "), {at: "top", dy: 52, size: 14})
+  p.ui_text("vote_sets", "武器: " + join(set_lines, "  "), {at: "top", dy: 74, size: 14})
+end
+
+func clear_vote_ui(p)
+  p.ui_remove("vote_t")
+  p.ui_remove("vote_maps")
+  p.ui_remove("vote_sets")
+end
+
+func start_vote()
+  round_id = round_id + 1
+  phase = "vote"
+  map_votes = {}
+  set_votes = {}
+  vote_ends = time() + VOTE_SECS
+  for p in players() do
+    if ready(p) then
+      vote_ui(p)
+      p.teleport(block("Spawn " + random(1, 8)))
+      p.take()
+    end
+  end
+end
+
+func winner_of(list, votes)
+  let best = list[1]
+  let best_count = 0
+  for item in shuffle(copy(list)) do
+    let n = count_votes(votes, item.id)
+    if n > best_count then
+      best = item
+      best_count = n
+    end
+  end
+  return best
+end
+
+func build_ladder(s)
+  if s.id != "random" then return copy(s.order) end
+  let pool = filter(WEAPONS, func(w) return w.name != "黄金ナイフ" end)
+  let picked = map(slice(shuffle(copy(pool)), 1, 10), func(w) return w.name end)
+  append(picked, "黄金ナイフ")
+  return picked
+end
+
+func start_match()
+  arena = winner_of(ARENAS, map_votes)
+  set = winner_of(SETS, set_votes)
+  ladder = build_ladder(set)
+  phase = "match"
+  match_ends = time() + MATCH_SECS
+  world.sky_top = arena.sky
+  reset_meds()
+  for p in players() do
+    if ready(p) then
+      clear_vote_ui(p)
+      p.tier = 1
+      p.streak = 0
+      p.match_kills = 0
+      p.match_deaths = 0
+      p.in_match = true
+      if not p.alive then p.respawn() end
+      spawn_in_arena(p)
+      arm(p)
+    end
+  end
+  announce("🔫 " + arena.name + " × " + set.name + "（" + len(ladder) + " 段階）スタート！", 4)
+end
+
+func end_match(winner, message)
+  if phase != "match" then return end
+  phase = "over"
+  let ranked = sort(filter(players(), func(p) return ready(p) and p.in_match end), func(a, b)
+    if a.tier != b.tier then return a.tier > b.tier end
+    return (a.match_kills or 0) > (b.match_kills or 0)
+  end)
+  if winner == nil and len(ranked) > 0 then winner = ranked[1] end
+  for p in players() do
+    if ready(p) and p.in_match then
+      p.games = (p.games or 0) + 1
+      let earned = 5 + (p.match_kills or 0) * 2
+      if winner != nil and p.id == winner.id then
+        p.wins = (p.wins or 0) + 1
+        earned = earned + 25
+        kit_quest_progress(p, "win", 1)
+      end
+      p.credits = p.credits + earned
+      p.xp = (p.xp or 0) + earned * 3
+      p.message("🎟 +" + earned + " クレジット", 3)
+      p.in_match = false
+      hud(p)
+    end
+  end
+  show_results(ranked, message)
+  kit_finish(message, 8)
+end
+
+on tick(dt)
+  match_clock = match_clock + dt
+  if match_clock < 1 then return end
+  match_clock = 0
+  if phase == "vote" then
+    for p in players() do
+      if ready(p) then vote_ui(p) end
+    end
+    if time() >= vote_ends then start_match() end
+  elif phase == "match" then
+    let left = max(0, match_ends - time())
+    ui_text("clock", "⏱ " + kit_clock(left), {at: "top", dy: 52, size: 18, bold: true})
+    leader_line()
+    if left <= 0 then end_match(nil, "⏰ 時間切れ！ いちばん進んだ人の勝ち") end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or phase != "vote" then return end
+  if contains(b.tags, "vote_map") then
+    for a in ARENAS do
+      if contains(b.tags, a.id) and quiet_ready(p, "vote_map", 1) then map_votes[p.id] = a.id end
+    end
+  elif contains(b.tags, "vote_set") then
+    for s in SETS do
+      if contains(b.tags, s.id) and quiet_ready(p, "vote_set", 1) then set_votes[p.id] = s.id end
+    end
+  end
+end

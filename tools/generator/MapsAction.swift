@@ -117,10 +117,25 @@ func deflectBall(_ m: MapBuilder) {
 
 func gunSwap(_ m: MapBuilder) {
     m.sky("#F59E0B", "#FDE68A", light: 0.75, ground: "#78716C")
-    m.ground(100, 100, color: "#A8A29E", name: "Street")
+    m.ground(460, 200, color: "#A8A29E", name: "Street")
+
+    // The lobby, north of the street: vote pads, the locker and the spawns.
+    m.slab("Lobby", x: 0, y: 0, z: 90, w: 40, h: 0.4, d: 24, color: "#44403C")
+    m.walls(0, 90, w: 40, d: 24, h: 3, y: 0.4, color: "#292524", name: "Lobby Wall")
+    m.spawnRing(0, 92, y: 0.4, radius: 4, count: 8, color: "#F97316")
+    let maps: [(String, Float, String)] = [("Street", -10, "#F59E0B"), ("Warehouse", 0, "#64748B"), ("Rooftops", 10, "#38BDF8")]
+    for v in maps {
+        m.pad("Vote \(v.0)", x: v.1, z: 82, y: 0.4, size: 3, color: v.2, tags: ["vote_map", v.0.lowercased()])
+    }
+    let sets: [(String, Float, String)] = [("Classic", -12, "#DC2626"), ("Shotguns", -4, "#A16207"), ("Snipers", 4, "#1D4ED8"), ("Random", 12, "#A855F7")]
+    for v in sets {
+        m.pad("Vote \(v.0)", x: v.1, z: 98, y: 0.4, size: 2.6, color: v.2, tags: ["vote_set", v.0.lowercased()])
+    }
+    m.pad("Locker", x: 16, z: 90, y: 0.4, size: 3, color: "#10B981", tags: ["locker"])
+
+    // Arena 1: the street — buildings with stairs to their roofs.
     m.walls(0, 0, w: 100, d: 100, h: 8, color: "#57534E", name: "Boundary")
     var r = Seeded("swap")
-    // Buildings with roofs you can climb to.
     for i in 0..<8 {
         let x = r.range(-38, 38), z = r.range(-38, 38)
         let h = r.range(3, 7)
@@ -130,7 +145,52 @@ func gunSwap(_ m: MapBuilder) {
     for i in 0..<16 {
         m.crate(r.range(-45, 45), r.range(-45, 45), size: r.range(1.2, 2), name: "Cover \(i + 1)")
     }
-    m.spawnRing(0, 0, radius: 40, count: 10, color: "#F97316")
+    m.markers("Street Spot", points: ring(10, radius: 40), color: "#000000", visible: false, behavior: .none)
+    m.markers("Street Med", points: [(0, 0), (30, -30), (-30, 30)], y: 0.4, color: "#22C55E", tags: ["medkit"], size: 1)
+
+    // Arena 2: the warehouse — shelves, crates and a catwalk.
+    let wx: Float = 150
+    m.slab("Warehouse Floor", x: wx, y: 0, z: 0, w: 70, h: 0.2, d: 70, color: "#4B5563")
+    m.walls(wx, 0, w: 70, d: 70, h: 9, y: 0.2, color: "#1F2937", name: "Warehouse Wall")
+    for row in 0..<4 {
+        for col in 0..<3 {
+            m.slab("Shelf \(row)-\(col)", x: wx - 20 + Float(col) * 20, y: 0.2, z: -24 + Float(row) * 16, w: 10, h: 3, d: 1.6,
+                   color: "#92400E")
+        }
+    }
+    m.slab("Catwalk", x: wx, y: 4.5, z: 0, w: 60, h: 0.4, d: 3, color: "#9CA3AF")
+    m.stairs(wx - 34, -3, y: 0.2, steps: 8, rise: 0.55, run: 0.8, width: 2.4, color: "#6B7280", name: "Catwalk Step")
+    var w = Seeded("warehouse")
+    for i in 0..<14 { m.crate(wx + w.range(-30, 30), w.range(-30, 30), y: 0.2, size: w.range(1.2, 2.2), name: "Crate \(i + 1)") }
+    m.markers("Warehouse Spot", points: ring(10, radius: 28, cx: wx), y: 0.2, color: "#000000", visible: false, behavior: .none)
+    m.markers("Warehouse Med", points: [(wx, 0), (wx + 25, 25), (wx - 25, -25)], y: 0.4, color: "#22C55E", tags: ["medkit"], size: 1)
+
+    // Arena 3: rooftops — flat roofs at different heights joined by planks.
+    let rx: Float = -150
+    let roofs: [(Float, Float, Float)] = [(-20, -20, 6), (0, -20, 8), (20, -20, 6), (-20, 0, 7), (0, 0, 10), (20, 0, 7),
+                                           (-20, 20, 6), (0, 20, 8), (20, 20, 6)]
+    for (i, roof) in roofs.enumerated() {
+        m.slab("Roof \(i + 1)", x: rx + roof.0, y: 0, z: roof.1, w: 14, h: roof.2, d: 14, color: i % 2 == 0 ? "#7C2D12" : "#44403C")
+    }
+    for i in 0..<3 {
+        let z = Float(i - 1) * 20
+        m.slab("Plank \(i + 1)a", x: rx - 10, y: 6.5, z: z, w: 8, h: 0.3, d: 2, color: "#D6D3D1")
+        m.slab("Plank \(i + 1)b", x: rx + 10, y: 6.5, z: z, w: 8, h: 0.3, d: 2, color: "#D6D3D1")
+    }
+    for i in 0..<3 {
+        let x = Float(i - 1) * 20
+        m.slab("Bridge \(i + 1)a", x: rx + x, y: 6.5, z: -10, w: 2, h: 0.3, d: 8, color: "#D6D3D1")
+        m.slab("Bridge \(i + 1)b", x: rx + x, y: 6.5, z: 10, w: 2, h: 0.3, d: 8, color: "#D6D3D1")
+    }
+    for (i, roof) in roofs.enumerated() where i % 2 == 1 {
+        m.part("Roof Pad \(i + 1)", at: (rx + roof.0 + 6, 0.1, roof.1 + 6), size: (2, 0.2, 2), color: "#22C55E", material: .neon, behavior: .bounce)
+    }
+    // Spawn spots on top of each roof (a marker on the street would put you inside the building).
+    for (i, roof) in roofs.enumerated() {
+        m.part("Rooftops Spot \(i + 1)", at: (rx + roof.0 - 3, roof.2 + 0.1, roof.1 - 3), size: (1.2, 0.2, 1.2), color: "#000000",
+               shape: .cylinder, material: .neon, solid: false, visible: false)
+    }
+    m.markers("Rooftops Med", points: [(rx, 0), (rx - 20, -20), (rx + 20, 20)], y: 0.4, color: "#22C55E", tags: ["medkit"], size: 1)
 }
 
 // MARK: 24 Warrior Brawl

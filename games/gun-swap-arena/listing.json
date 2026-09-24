@@ -1,11 +1,17 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 98,
+  "blockCount" : 212,
   "id" : "gun-swap-arena",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/gun-swap-arena\/data.absc",
+    "games\/gun-swap-arena\/arena.absc",
+    "games\/gun-swap-arena\/common.absc",
+    "games\/gun-swap-arena\/ladder.absc",
+    "games\/gun-swap-arena\/locker.absc",
+    "games\/gun-swap-arena\/match.absc",
     "games\/gun-swap-arena\/main.absc"
   ],
   "summary" : "たおすたびに武器が変わるスピードFPS。12の武器を順番にクリアして、最後の黄金ナイフで決めた人の勝ち。",

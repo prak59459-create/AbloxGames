@@ -1,0 +1,35 @@
+-- arena.absc — スポーン・スポーン直後の無敵・回復キット
+
+let used_meds = {}
+
+func spawn_in_arena(p)
+  p.teleport(block(arena.prefix + " Spot " + random(1, arena.spots)))
+  p.protect_until = time() + PROTECT_SECS
+end
+
+func reset_meds()
+  used_meds = {}
+  for b in blocks("medkit") do b.visible = true end
+end
+
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  if phase == "match" and p.in_match then
+    spawn_in_arena(p)
+    arm(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or phase != "match" then return end
+  if contains(b.tags, "medkit") and b.visible and p.health < p.max_health then
+    b.visible = false
+    p.heal(MED_HEAL)
+    p.sound("collect")
+    p.message("💚 +" + MED_HEAL, 1)
+    let rid = round_id
+    after(MED_RESPAWN, func()
+      if rid == round_id and still(b) then b.visible = true end
+    end)
+  end
+end

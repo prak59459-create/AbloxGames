@@ -1,0 +1,48 @@
+-- common.absc — 小さな道具
+
+for w in WEAPONS do
+  weapon(w.name, {model: w.model, damage: w.damage, rate: w.rate, range: w.range, ammo: w.ammo, reload: w.reload, spread: w.spread})
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.skins != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func set_info(id)
+  for s in SETS do
+    if s.id == id then return s end
+  end
+  return SETS[1]
+end
+
+func arena_info(id)
+  for a in ARENAS do
+    if a.id == id then return a end
+  end
+  return ARENAS[1]
+end
+
+func level_of(p)
+  return 1 + floor(sqrt((p.xp or 0) / 50))
+end
+
+func hud(p)
+  if not ready(p) then return end
+  p.ui_text("hud", "⭐ Lv" + level_of(p) + "   🎟 " + p.credits + "   🏆 " + (p.wins or 0), {at: "top_left", dy: 64, size: 14, color: "#FEF3C7"})
+end

@@ -1,0 +1,123 @@
+-- locker.absc — ロッカー（スキン）・成績・結果
+
+func own_colors(p)
+  if p.own_body == nil then
+    p.own_body = p.color
+    p.own_head = p.head_color
+    p.own_legs = p.leg_color
+  end
+end
+
+func wear(p, id)
+  own_colors(p)
+  p.skin = id
+  for sk in SKINS do
+    if sk.id == id then
+      if sk.body == nil then
+        p.color = p.own_body
+        p.head_color = p.own_head
+        p.leg_color = p.own_legs
+      else
+        p.color = sk.body
+        p.head_color = sk.head
+        p.leg_color = sk.legs
+      end
+    end
+  end
+end
+
+func locker(p)
+  let h = 140 + len(SKINS) * 46
+  p.ui_panel("lock_box", {at: "center", w: 440, h: h, bg: "#052E16F2", radius: 22, layer: 30})
+  p.ui_text("lock_t", "🎽 ロッカー（🎟 " + p.credits + "）", {parent: "lock_box", y: 26 / h, size: 19, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for sk in SKINS do
+    i = i + 1
+    let label = sk.name + "  🎟" + sk.price
+    let bg = "#166534"
+    if contains(p.skins, sk.id) then
+      label = sk.name + " を着る"
+      bg = "#0F766E"
+    end
+    if p.skin == sk.id then
+      label = "✅ " + sk.name
+      bg = "#374151"
+    end
+    p.ui_button("skin_" + sk.id, label, {parent: "lock_box", y: (30 + i * 46) / h, w: 400, h: 38, size: 15, bg: bg})
+  end
+  p.ui_button("lock_close", "閉じる", {parent: "lock_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_skin(p, id)
+  if not contains(p.skins, id) then
+    let price = nil
+    for sk in SKINS do
+      if sk.id == id then price = sk.price end
+    end
+    if price == nil then return end
+    if p.credits < price then
+      p.message("🎟 クレジットが足りない", 1.2)
+      p.sound("error")
+      return
+    end
+    p.credits = p.credits - price
+    append(p.skins, id)
+    p.sound("goal")
+  end
+  wear(p, id)
+  hud(p)
+  locker(p)
+end
+
+func stats(p)
+  let kd = fixed((p.kills or 0) / max(1, p.deaths or 0), 2)
+  let lines = [
+    "⭐ レベル " + level_of(p) + "   🎟 " + p.credits,
+    "🏆 勝ち " + (p.wins or 0) + " / " + (p.games or 0) + " 試合   🔪✨ 黄金ナイフ " + (p.golden or 0),
+    "🔫 キル " + (p.kills or 0) + "   💀 デス " + (p.deaths or 0) + "   K/D " + kd,
+    "🔥 最高連続キル " + (p.best_streak or 0)
+  ]
+  let h = 110 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 520, h: h, bg: "#111827F2", radius: 22, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 15})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func show_results(ranked, headline)
+  let lines = []
+  let i = 0
+  for p in slice(ranked, 1, 5) do
+    i = i + 1
+    append(lines, i + ". " + p.name + "   🔫 " + p.tier + "/" + len(ladder) + "   " + (p.match_kills or 0) + "キル / " + (p.match_deaths or 0) + "デス")
+  end
+  let h = 100 + len(lines) * 30
+  for p in players() do
+    p.ui_panel("res_box", {at: "center", w: 540, h: h, bg: "#000000D0", radius: 22, layer: 40})
+    p.ui_text("res_t", headline, {parent: "res_box", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+    let k = 0
+    for line in lines do
+      k = k + 1
+      p.ui_text("res_" + k, line, {parent: "res_box", y: (40 + k * 30) / h, size: 15})
+    end
+    kit_later(p, 7.5, func() p.ui_remove("res_box") end)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "locker") and quiet_ready(p, "locker", 5) then locker(p) end
+end
+
+on button(p, id)
+  if id == "locker" then locker(p)
+  elif id == "lock_close" then p.ui_remove("lock_box")
+  elif starts_with(id, "skin_") then pick_skin(p, replace(id, "skin_", ""))
+  elif id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  end
+end

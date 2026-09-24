@@ -1,110 +1,82 @@
 -- Gun Swap Arena — たおすたびに武器が変わるFPS
+-- ロビーで投票（アリーナ3つ × 武器のならび4つ）→ 6分の試合。
+-- 1キルごとに次の武器へ。最後の黄金ナイフでキルした人の勝ち。ナイフでやられると1段階ダウン。
+--
+-- ファイル:
+--   data.absc     表（武器18・ならび4・アリーナ3・連続キル・スキン）
+--   common.absc   武器を作る・小さな道具
+--   match.absc    投票・試合・時間切れ
+--   ladder.absc   武器のならび・キル・ナイフ・連続キルのごほうび
+--   arena.absc    スポーン・無敵・回復キット
+--   locker.absc   スキン・成績・結果
+--   main.absc     このファイル
 
-kit_setup("Gun Swap Arena", "12の武器をクリアして、黄金ナイフで決めろ", [
-  "1キルごとに次の武器へ（全部で12段階）",
-  "最後の黄金ナイフでキルした人の勝ち",
-  "ナイフでたおされると、1段階もどされる！",
-  "たおされても2秒で復活",
-  "🔪ボタン: 目の前の相手を一撃。やられた相手は1段階ダウン",
-  "屋根の上は有利。階段を探そう"
+kit_setup("Gun Swap Arena", "武器をクリアして、黄金ナイフで決めろ", [
+  "🗳 ロビーのパッドで投票: アリーナ（ストリート・倉庫・屋上）と武器のならび",
+  "🔫 1キルごとに次の武器へ。最後の黄金ナイフでキルした人の勝ち",
+  "🔪 ナイフでたおされると1段階もどされる！",
+  "🛡 スポーン直後の2びょうは無敵。💚 緑のキットで回復",
+  "🔥 3・5・7連続キルでごほうび（スピード・体力・ダメージ）",
+  "⏱ 6分で時間切れ。いちばん進んだ人の勝ち。🎟 クレジットでスキン"
 ])
 
-let ladder = [
-  {name: "ライフル", model: "rifle", damage: 45, rate: 2, range: 140, ammo: 6, reload: 1.8, spread: 0.2},
-  {name: "ブラスター", model: "blaster", damage: 22, rate: 5, range: 60, ammo: 20, reload: 1.4, spread: 1.5},
-  {name: "ショットガン", model: "shotgun", damage: 70, rate: 1.2, range: 16, ammo: 4, reload: 2, spread: 5},
-  {name: "マシンピストル", model: "pistol", damage: 14, rate: 10, range: 40, ammo: 30, reload: 1.5, spread: 3},
-  {name: "スナイパー", model: "rifle", damage: 120, rate: 0.7, range: 300, ammo: 3, reload: 2.5, spread: 0},
-  {name: "レーザー", model: "blaster", damage: 30, rate: 4, range: 90, ammo: 15, reload: 1.6, spread: 0.3},
-  {name: "ダブルバレル", model: "shotgun", damage: 110, rate: 0.8, range: 12, ammo: 2, reload: 2, spread: 6},
-  {name: "リボルバー", model: "pistol", damage: 55, rate: 1.6, range: 60, ammo: 6, reload: 2.2, spread: 0.5},
-  {name: "ミニガン", model: "blaster", damage: 10, rate: 16, range: 50, ammo: 100, reload: 4, spread: 4},
-  {name: "マグナム", model: "pistol", damage: 80, rate: 1, range: 80, ammo: 5, reload: 2, spread: 0.3},
-  {name: "ビームライフル", model: "rifle", damage: 60, rate: 1.5, range: 200, ammo: 8, reload: 2, spread: 0},
-  {name: "黄金ナイフ", model: "pistol", damage: 200, rate: 2, range: 5, ammo: 1000, reload: 0, spread: 3}
-]
-for w in ladder do
-  weapon(w.name, {model: w.model, damage: w.damage, rate: w.rate, range: w.range, ammo: w.ammo, reload: w.reload, spread: w.spread})
-end
-let over = false
-
 kit_quest("k5", "5キル", 5, 50)
+kit_quest("k50", "50キル", 50, 500)
 kit_quest("knife", "黄金ナイフまで行く", 1, 100)
+kit_quest("knifer", "ナイフで1段階下げる", 1, 80)
+kit_quest("streak", "連続キルのごほうび", 1, 120)
 kit_quest("win", "1回優勝", 1, 300)
-
-func arm(p)
-  let w = ladder[p.tier]
-  p.give(w.name)
-  p.ui_text("tier", "🔫 " + p.tier + "/" + len(ladder) + "  " + w.name, {at: "top_left", dy: 34, size: 20, bold: true, color: p.tier == len(ladder) and "gold" or "#FFFFFF"})
-  p.score = p.tier - 1
-  if p.tier == len(ladder) then
-    kit_quest_progress(p, "knife", 1)
-    announce("⚠️ " + p.name + " が黄金ナイフに到達！", 3)
-  end
-end
-
-func leader_line()
-  let best = kit_top(1)
-  if len(best) > 0 then
-    ui_text("lead", "👑 トップ: " + best[1].name + "（" + (best[1].score + 1) + "/" + len(ladder) + "）", {at: "top", dy: 26, size: 18})
-  end
-end
 
 on start()
   game.respawn_time = 2
-  every(3, func() leader_line() end)
+  start_vote()
+  every(8, func() kit_leaderboard("🔫") end)
 end
 
 on join(p)
   kit_welcome(p)
+  p.credits = 0
+  p.skins = ["own"]
+  p.skin = "own"
+  own_colors(p)
+  p.tier = 1
+  p.streak = 0
+  p.in_match = false
   kit_quest_button(p)
   kit_camera_button(p)
   p.camera = "first"
-  p.tier = 1
-  p.streak = 0
   p.ui_button("knife", "🔪", {at: "bottom_right", dx: -120, dy: -160, w: 80, h: 70, size: 26, bg: "#57534E", radius: 35})
-  arm(p)
+  p.ui_button("locker", "🎽", {at: "top_right", dy: 120, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
+  p.ui_button("stats", "📊", {at: "top_right", dy: 180, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
+  hud(p)
+  if phase == "match" then
+    -- 途中から: いちばん下の人と同じ段階から
+    let low = len(ladder)
+    for q in players() do
+      if q.id != p.id and ready(q) and q.in_match then low = min(low, q.tier) end
+    end
+    p.tier = max(1, min(low, len(ladder) - 1))
+    p.in_match = true
+    p.match_kills = 0
+    p.match_deaths = 0
+    spawn_in_arena(p)
+    arm(p)
+  else
+    vote_ui(p)
+  end
 end
 
-on button(p, id)
-  if id == "knife" and p.alive and kit_ready(p, "knife", 1.5) then
-    for q in players() do
-      if q.id != p.id and q.alive and distance(p, q) < 3.2 and dot(normalize(q.position - p.position), p.look) > 0.4 then
-        q.knifed = true
-        q.kill(p)
-        return
-      end
+-- クエストのごほうび（kit のコイン）はクレジットとして受けとる
+let coin_clock = 0
+on tick(dt)
+  coin_clock = coin_clock + dt
+  if coin_clock < 1 then return end
+  coin_clock = 0
+  for p in players() do
+    if ready(p) and (p.coins or 0) > 0 then
+      p.credits = p.credits + floor(p.coins / 10)
+      p.coins = 0
+      hud(p)
     end
   end
-end
-
-on death(victim, killer)
-  if over then return end
-  victim.streak = 0
-  if killer == nil or killer.id == victim.id then return end
-  kit_quest_progress(killer, "k5", 1)
-  killer.streak = killer.streak + 1
-  if killer.streak == 5 then kit_badge(killer, "streak5", "5連続キル") end
-  if killer.weapon == "黄金ナイフ" then
-    over = true
-    killer.score = len(ladder)
-    kit_quest_progress(killer, "win", 1)
-    kit_badge(killer, "winner", "ゴールデンナイフ")
-    kit_finish("🏆 " + killer.name + " の勝ち！黄金ナイフで決めた！", 8)
-    return
-  end
-  -- ナイフでやられたら1段階ダウン（屈辱）
-  if victim.knifed then
-    victim.knifed = false
-    victim.tier = max(1, victim.tier - 1)
-    victim.message("🔪 ナイフでやられて1段階ダウン…", 2)
-  end
-  killer.tier = min(len(ladder), killer.tier + 1)
-  arm(killer)
-  killer.message("⬆️ " + ladder[killer.tier].name, 1.5)
-end
-
-on respawn(p)
-  p.teleport(block("Spawn " + random(1, 10)))
-  arm(p)
 end
