@@ -1,0 +1,279 @@
+-- robbery.absc — 強盗（ぬすむ → アジトへ運ぶ）
+-- ⛽ ガソリンスタンド・🔫 銃砲店: 金庫のパッドのそばにいつづける
+-- 💎 宝石店: 5つの宝石のパッドを1つ2びょうずつ
+-- 🏦 銀行: 光る数字を覚えて同じ順に押す（まちがえると手配⭐+1）→ 開いた金庫にいつづける
+-- 🚚 現金輸送車: ときどき大通りを走る。そばに6びょういるとごっそり
+-- お金はバッグに入る（上限あり）。アジトの緑のパッドで山分け。つかまると没収。
+
+let safe_cd = {}        -- 金庫のid → 次に使える時間
+let jewel_cd = {}       -- 宝石の名前 → 次に使える時間
+let truck = nil         -- {b, from, to, start, robbed: {id: true}}
+let truck_clock = 0
+let rob_clock = 0
+
+func safe_by_pad(name)
+  for k in keys(SAFES) do
+    if SAFES[k].pad == name then return k end
+  end
+  return nil
+end
+
+func add_loot(p, amount, why)
+  let room = bag_cap(p) - p.loot
+  if room <= 0 then
+    p.message("💰 バッグがいっぱい！ アジトへ運ぼう", 1.5)
+    return false
+  end
+  let got = min(room, amount)
+  p.loot = p.loot + got
+  p.message(why + " +" + got + "（バッグ " + p.loot + "/" + bag_cap(p) + "）", 1.8)
+  p.sound("collect")
+  if got < amount then p.message("💰 バッグがいっぱいで入りきらなかった…", 1.5) end
+  hud(p)
+  return true
+end
+
+func add_stars(p, n)
+  p.wanted = min(5, p.wanted + n)
+  p.wanted_at = time()
+  hud(p)
+end
+
+func alert(text)
+  for c in cops() do
+    c.message("📻 " + text, 2.5)
+    c.sound("tick")
+  end
+end
+
+-- MARK: 金庫
+
+func start_safe(p, key)
+  let s = SAFES[key]
+  if active_until(safe_cd[key]) then
+    if quiet_ready(p, "safe_msg", 3) then p.message(s.name + "の金庫は空っぽ…（あと " + ceil(safe_cd[key] - time()) + "s）", 1.5) end
+    return
+  end
+  if key == "bank" then
+    if p.bank_open then
+      p.rob = {kind: "safe", key: key, t: 0, need: 8}
+      p.message("🏦 金庫が開いている！ 8びょういつづけろ", 2)
+    else
+      start_keypad(p)
+    end
+    return
+  end
+  p.rob = {kind: "safe", key: key, t: 0, need: s.secs}
+  p.message("💰 " + s.name + "の金庫をこじあけ中… " + s.secs + "びょう", 1.5)
+  alert(s.name + "で強盗！")
+end
+
+func finish_safe(p, key)
+  let s = SAFES[key]
+  safe_cd[key] = time() + s.cool
+  add_loot(p, s.value, "💰 " + s.name)
+  add_stars(p, s.stars)
+  kit_quest_progress(p, "rob_any", 1)
+  if key == "bank" then
+    p.bank_open = false
+    announce("🏦 " + p.name + " が銀行の金庫をやぶった！ 警察は急げ！", 3)
+    kit_quest_progress(p, "bank", 1)
+  end
+  if key == "gun" and random() < 0.35 then
+    let next = min(len(CRIME_GUNS), p.gun_tier + 1)
+    if next > p.gun_tier then
+      p.gun_tier = next
+      p.give(CRIME_GUNS[next].id)
+      p.message("🔫 ついでに「" + CRIME_GUNS[next].name + "」を手に入れた！", 2)
+    end
+  end
+end
+
+-- MARK: 銀行の暗証番号（光った数字を覚えて押す）
+
+func start_keypad(p)
+  if not quiet_ready(p, "keypad", 3) then return end
+  let code = []
+  for k in 1 to 4 do append(code, random(1, 6)) end
+  p.code = code
+  p.code_i = 0
+  p.code_ready = false
+  alert("🏦 銀行の警報が鳴った！")
+  announce("🚨 銀行強盗だ！", 2)
+  p.ui_panel("keypad", {at: "center", w: 420, h: 240, bg: "#1C1917F2", radius: 18, layer: 30})
+  p.ui_text("kp_t", "🔢 光る数字を覚えろ…", {parent: "keypad", y: 0.14, size: 18, bold: true, color: "#FDE68A"})
+  for k in 1 to 4 do
+    let d = code[k]
+    kit_later(p, k * 0.6, func() p.ui_text("kp_show", "" + d, {parent: "keypad", y: 0.4, size: 44, bold: true, color: "#22D3EE"}) end)
+  end
+  kit_later(p, 3, func()
+    p.ui_remove("kp_show")
+    p.code_ready = true
+    p.ui_text("kp_t", "🔢 同じ順に押せ（0/4）", {parent: "keypad", y: 0.14, size: 18, bold: true, color: "#FDE68A"})
+    for k in 1 to 6 do
+      p.ui_button("kp_" + k, "" + k, {parent: "keypad", x: ((k - 1) % 3) * 0.3 + 0.2, y: 0.5 + floor((k - 1) / 3) * 0.28, w: 90, h: 54, size: 24, bg: "#374151"})
+    end
+  end)
+end
+
+func press_key(p, d)
+  if p.code == nil or not p.code_ready then return end
+  p.code_i = p.code_i + 1
+  if p.code[p.code_i] != d then
+    p.ui_remove("keypad")
+    p.code = nil
+    add_stars(p, 1)
+    p.message("❌ まちがい！ 手配⭐+1（もう一度さわると再挑戦）", 2)
+    p.sound("error")
+    return
+  end
+  if p.code_i >= len(p.code) then
+    p.ui_remove("keypad")
+    p.code = nil
+    p.bank_open = true
+    p.rob = {kind: "safe", key: "bank", t: 0, need: 8}
+    p.message("🔓 金庫が開いた！ 8びょう そこにいろ", 2)
+    kit_quest_progress(p, "keypad", 1)
+    return
+  end
+  p.ui_text("kp_t", "🔢 同じ順に押せ（" + p.code_i + "/4）", {parent: "keypad", y: 0.14, size: 18, bold: true, color: "#FDE68A"})
+end
+
+-- MARK: 現金輸送車
+
+func truck_pos()
+  let t = min(1, (time() - truck.start) / TRUCK_DRIVE)
+  return truck.from + (truck.dest - truck.from) * t
+end
+
+func spawn_truck()
+  let a = block("Truck Route 1")
+  let b = block("Truck Route 2")
+  if a == nil or b == nil then return end
+  let from = a.position + {x: 0, y: 1.3, z: 0}
+  let dest = b.position + {x: 0, y: 1.3, z: 0}
+  let body = create_block({name: "Armored Truck", shape: "box", position: from, size: {x: 6, y: 2.6, z: 2.6}, color: "#64748B",
+                           material: "metal", solid: false})
+  body.move_to(dest, TRUCK_DRIVE)
+  truck = {b: body, from: from, dest: dest, start: time(), robbed: {}}
+  announce("🚚 現金輸送車が大通りを走っている！", 3)
+end
+
+-- MARK: 毎0.5びょう
+
+func rob_step(p)
+  let r = p.rob
+  let near = false
+  if r.kind == "safe" then
+    let pad = block(SAFES[r.key].pad)
+    near = pad != nil and distance(p, pad.position) < 3.5
+  elif r.kind == "jewel" then
+    let pad = block(r.key)
+    near = pad != nil and distance(p, pad.position) < 2.5
+  elif r.kind == "truck" then
+    near = truck != nil and distance(p, truck_pos()) < 5
+  end
+  if not near or not p.alive or p.frozen then
+    p.rob = nil
+    p.ui_remove("rob")
+    return
+  end
+  r.t = r.t + 0.5
+  p.ui_bar("rob", {at: "center", dy: 90, w: 240, h: 14, value: r.t, max: r.need, color: "#FACC15", bg: "#00000099"})
+  if r.t < r.need then return end
+  p.rob = nil
+  p.ui_remove("rob")
+  if r.kind == "safe" then finish_safe(p, r.key)
+  elif r.kind == "jewel" then
+    jewel_cd[r.key] = time() + JEWEL_COOL
+    let pad = block(r.key)
+    if pad != nil then pad.color = "#57534E" end
+    add_loot(p, JEWEL_VALUE, "💎 宝石")
+    add_stars(p, 1)
+    kit_quest_progress(p, "jewels", 1)
+  elif r.kind == "truck" then
+    truck.robbed[p.id] = true
+    add_loot(p, TRUCK_VALUE, "🚚 現金輸送車")
+    add_stars(p, 2)
+    kit_quest_progress(p, "truck", 1)
+  end
+end
+
+on tick(dt)
+  rob_clock = rob_clock + dt
+  truck_clock = truck_clock + dt
+  if truck == nil and truck_clock >= TRUCK_EVERY then
+    truck_clock = 0
+    spawn_truck()
+  end
+  if rob_clock < 0.5 then return end
+  rob_clock = 0
+  if truck != nil and time() - truck.start > TRUCK_DRIVE + 1 then
+    gone(truck.b)
+    truck = nil
+    ui_remove("truck")
+  end
+  for k in keys(jewel_cd) do
+    if not active_until(jewel_cd[k]) then
+      let pad = block(k)
+      if pad != nil then pad.color = "#F0ABFC" end
+      remove(jewel_cd, k)
+    end
+  end
+  for p in crooks() do
+    if p.rob != nil then rob_step(p)
+    elif truck != nil and truck.robbed[p.id] == nil and not active_until(p.jailed_until) and distance(p, truck_pos()) < 5 then
+      p.rob = {kind: "truck", key: "truck", t: 0, need: TRUCK_SECS}
+      p.message("🚚 輸送車に取りついた！ はなれるな！", 1.5)
+      alert("🚚 現金輸送車がおそわれている！")
+    end
+    -- 手配度は時間でへる
+    if p.wanted > 0 and p.rob == nil and time() - (p.wanted_at or 0) > 45 then
+      p.wanted = p.wanted - 1
+      p.wanted_at = time()
+      hud(p)
+    end
+  end
+  if truck != nil then
+    let tp = truck_pos()
+    ui_text("truck", "🚚 現金輸送車 x=" + floor(tp.x) + "（大通り）", {at: "top", dy: 26, size: 14, bold: true, color: "#CBD5E1"})
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or p.team != "criminal" or active_until(p.jailed_until) or p.rob != nil then return end
+  if contains(b.tags, "safe") then
+    let key = safe_by_pad(b.name)
+    if key != nil then start_safe(p, key) end
+  elif contains(b.tags, "jewel") then
+    if active_until(jewel_cd[b.name]) then
+      if quiet_ready(p, "jewel_msg", 3) then p.message("💎 ここの宝石はもうない", 1) end
+      return
+    end
+    p.rob = {kind: "jewel", key: b.name, t: 0, need: JEWEL_SECS}
+    if quiet_ready(p, "jewel_alert", 20) then alert("💎 宝石店で強盗！") end
+  elif contains(b.tags, "stash") then
+    if p.loot > 0 then
+      let got = p.loot
+      kit_give(p, got)
+      let before = rank_index(p)
+      p.loot_total = p.loot_total + got
+      p.score = p.score + got
+      p.loot = 0
+      p.wanted = max(0, p.wanted - 1)
+      p.message("🏴 " + got + " を山分けした！", 2.5)
+      p.sound("goal")
+      kit_quest_progress(p, "stash", 1)
+      if rank_index(p) > before then
+        announce("🦹 " + p.name + " が「" + rank_name(p) + "」に！", 3)
+        kit_quest_progress(p, "rank", 1)
+      end
+      hud(p)
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "kp_") then press_key(p, num(replace(id, "kp_", ""))) end
+end

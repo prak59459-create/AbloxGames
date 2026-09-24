@@ -1,0 +1,65 @@
+-- data.absc — Ridgeport Cops & Robbers の表
+-- 強盗先・バッグ・階級・武器・車
+
+-- 金庫（その場にいつづける秒数・お金・手配度・次に使えるまで）
+let SAFES = {
+  gas: {pad: "Gas Station Safe", name: "⛽ ガソリンスタンド", secs: 5, value: 150, stars: 1, cool: 40},
+  gun: {pad: "Gun Shop Safe", name: "🔫 銃砲店", secs: 7, value: 220, stars: 2, cool: 60},
+  bank: {pad: "Bank Safe", name: "🏦 銀行の金庫", secs: 0, value: 900, stars: 3, cool: 120}
+}
+let JEWEL_VALUE = 90       -- 宝石1つ
+let JEWEL_SECS = 2
+let JEWEL_COOL = 90
+let TRUCK_VALUE = 700
+let TRUCK_SECS = 6
+let TRUCK_EVERY = 150
+let TRUCK_DRIVE = 70       -- 端から端まで何びょう
+let BANK_DIGITS = 3        -- 銀行の暗証番号のけた数
+
+-- ダッフルバッグ（持てるお金の上限）
+let BAGS = [
+  {name: "小さなバッグ", cap: 1000, price: 0},
+  {name: "ダッフルバッグ", cap: 2500, price: 600},
+  {name: "大型バッグ", cap: 5000, price: 2000}
+]
+
+-- 階級
+let POLICE_RANKS = [
+  {need: 0, name: "巡査"}, {need: 3, name: "巡査部長"}, {need: 8, name: "警部補"},
+  {need: 16, name: "警部"}, {need: 30, name: "警視"}, {need: 50, name: "警視総監"}
+]
+let CRIME_RANKS = [
+  {need: 0, name: "チンピラ"}, {need: 1000, name: "こそ泥"}, {need: 4000, name: "強盗"},
+  {need: 10000, name: "大強盗"}, {need: 25000, name: "怪盗"}, {need: 60000, name: "伝説の大泥棒"}
+]
+
+-- 武器（rank: 何番目の階級から買えるか）
+let POLICE_GUNS = [
+  {id: "taser", name: "⚡ テーザー", price: 0, rank: 1},
+  {id: "cop_pistol", name: "🔫 ピストル", price: 250, rank: 2},
+  {id: "cop_shotgun", name: "💥 ショットガン", price: 700, rank: 3},
+  {id: "cop_rifle", name: "🎯 ライフル", price: 1500, rank: 4}
+]
+let CRIME_GUNS = [
+  {id: "crook_pistol", name: "🔫 ピストル", price: 0, rank: 1},
+  {id: "crook_smg", name: "🔫 サブマシンガン", price: 400, rank: 2},
+  {id: "crook_shotgun", name: "💥 ショットガン", price: 900, rank: 3},
+  {id: "crook_rifle", name: "🎯 ライフル", price: 1800, rank: 4}
+]
+
+-- 車
+let POLICE_CARS = [
+  {id: "patrol", name: "🚓 パトカー", price: 0, speed: 2.2},
+  {id: "interceptor", name: "🏎 追跡車", price: 800, speed: 2.7},
+  {id: "chopper", name: "🚁 ヘリ（高くとべる）", price: 2500, speed: 2.4, jump: 3, gravity: 0.4}
+]
+let CRIME_CARS = [
+  {id: "sedan", name: "🚗 セダン", price: 0, speed: 2.1},
+  {id: "muscle", name: "🏎 マッスルカー", price: 900, speed: 2.7},
+  {id: "dirtbike", name: "🏍 オフロードバイク", price: 1500, speed: 2.5, jump: 2}
+]
+
+let TASER_STUN = 2.5
+let JAIL_SECS = 40
+let BREAKOUT_TAPS = 25
+let BAIL_PRICE = 300

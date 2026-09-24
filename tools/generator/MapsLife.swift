@@ -19,7 +19,7 @@ let lifeGames: [Game] = [
          summary: "空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。",
          tags: ["rp", "social", "build"], maxPlayers: 16, build: clubHangout),
     Game(number: 38, id: "ridgeport-cops", title: "Ridgeport Cops & Robbers",
-         summary: "警察と強盗に分かれる街アクション。強盗は店や銀行をねらい、警察はタックルで逮捕。刑務所からの脱獄もできる！",
+         summary: "警察と強盗の街アクション。ガソスタ・宝石店・銀行の暗証番号・銃砲店・現金輸送車をねらう強盗と、テーザーと手錠で追う警察。階級・武器・車・脱獄・保釈も！",
          tags: ["cops", "robbers", "teams"], maxPlayers: 16, build: ridgeport),
     Game(number: 39, id: "dinner-rush-tycoon", title: "Dinner Rush Tycoon",
          summary: "自分のレストランを経営。テーブルやコンロを買いそろえて、お客さんに料理を運ぼう。店を大きくして人気店に！",
@@ -301,23 +301,35 @@ func ridgeport(_ m: MapBuilder) {
     m.road(from: (-100, 0), to: (100, 0), width: 10)
     m.road(from: (0, -100), to: (0, 100), width: 10)
     m.road(from: (-100, 50), to: (100, 50), width: 8, name: "Hill Road")
-    // Police station and jail.
+    // Police station, its garage and the jail.
     m.shop("Police HQ", x: -40, z: -30, w: 18, d: 12, color: "#1E3A8A", sign: "#93C5FD")
     m.spawnRing(-40, -30, radius: 3, count: 6, name: "Police Spawn", color: "#60A5FA")
+    m.pad("Police Garage", x: -28, z: -18, size: 3, color: "#2563EB", tags: ["garage", "police"])
+    m.pad("Police Armory", x: -46, z: -32, size: 2, color: "#93C5FD", tags: ["armory"])
     m.slab("Jail Floor", x: -70, y: 0, z: -30, w: 14, h: 0.3, d: 14, color: "#44403C")
     m.walls(-70, -30, w: 14, d: 14, h: 5, y: 0.3, color: "#A1A1AA", name: "Jail Bars", opacity: 0.6)
     m.part("Jail Cell", at: (-70, 1, -30), size: (1, 0.1, 1), color: "#000000", visible: false)
     m.pad("Jail Exit", x: -60, z: -30, size: 2, color: "#FDE047", tags: ["exit"])
-    // Criminal hideout.
+    // Criminal hideout, its garage and the black market.
     m.shop("Hideout", x: 60, z: 70, w: 14, d: 10, color: "#3F3F46", sign: "#F87171")
     m.spawnRing(60, 70, radius: 3, count: 6, name: "Criminal Spawn", color: "#F87171")
+    m.pad("Hideout Stash", x: 60, z: 68, size: 2.4, color: "#22C55E", tags: ["stash"])
+    m.pad("Criminal Garage", x: 76, z: 80, size: 3, color: "#DC2626", tags: ["garage", "criminal"])
+    m.pad("Black Market", x: 54, z: 72, size: 2, color: "#FCA5A5", tags: ["armory"])
     // Places to rob.
-    let targets: [(String, Float, Float, String, Int)] = [("Gas Station", 40, -30, "#F97316", 150), ("Jewelry Store", -40, 30, "#EC4899", 300),
-                                                         ("Bank", 40, 30, "#EAB308", 800), ("Gun Shop", -80, 70, "#57534E", 200)]
+    let targets: [(String, Float, Float, String)] = [("Gas Station", 40, -30, "#F97316"), ("Jewelry Store", -40, 30, "#EC4899"),
+                                                    ("Bank", 40, 30, "#EAB308"), ("Gun Shop", -80, 70, "#57534E")]
     for t in targets {
         m.shop(t.0, x: t.1, z: t.2, w: 14, d: 10, color: t.3, sign: "#FFFFFF")
-        m.pad("\(t.0) Safe", x: t.1, z: t.2 - 2, size: 2.4, color: "#FACC15", tags: ["safe"])
     }
+    m.pad("Gas Station Safe", x: 40, z: -32, size: 2.4, color: "#FACC15", tags: ["safe"])
+    m.pad("Bank Safe", x: 40, z: 28, size: 2.4, color: "#FACC15", tags: ["safe"])
+    m.pad("Gun Shop Safe", x: -80, z: 68, size: 2.4, color: "#FACC15", tags: ["safe"])
+    for (i, p) in [(-44, 28), (-40, 27), (-36, 28), (-43, 31), (-37, 31)].enumerated() {
+        m.pad("Jewel \(i + 1)", x: Float(p.0), z: Float(p.1), size: 1.4, color: "#F0ABFC", tags: ["jewel"])
+    }
+    // The armoured truck drives the main road now and then.
+    m.markers("Truck Route", points: [(-92, -3), (92, -3)], color: "#000000", visible: false, behavior: .none)
     m.pad("Team Police", x: -8, z: 8, size: 3, color: "#3B82F6", tags: ["team"])
     m.pad("Team Criminal", x: 8, z: 8, size: 3, color: "#EF4444", tags: ["team"])
     m.spawnRing(0, 14, radius: 3, count: 6, color: "#E5E7EB")

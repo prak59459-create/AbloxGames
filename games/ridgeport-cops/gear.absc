@@ -1,0 +1,169 @@
+-- gear.absc — 武器・車・バッグ
+-- 武器庫（警察署）/ ブラックマーケット（アジト）: 階級が上がるほど強い武器が買える。
+-- 車庫: チームの車（のる/おりるボタン）。ブラックマーケットではバッグも大きくできる。
+
+weapon("taser", {model: "pistol", damage: 1, rate: 1.4, range: 28, ammo: 6, reload: 2, spread: 0.6})
+weapon("cop_pistol", {model: "pistol", damage: 18, rate: 3, range: 45, ammo: 12, reload: 1.3, spread: 1})
+weapon("cop_shotgun", {model: "shotgun", damage: 40, rate: 1, range: 16, ammo: 5, reload: 2.2, spread: 5})
+weapon("cop_rifle", {model: "rifle", damage: 32, rate: 1.6, range: 110, ammo: 6, reload: 2, spread: 0.2})
+weapon("crook_pistol", {model: "pistol", damage: 16, rate: 3, range: 40, ammo: 10, reload: 1.4, spread: 1.4})
+weapon("crook_smg", {model: "blaster", damage: 11, rate: 7, range: 35, ammo: 24, reload: 1.8, spread: 3})
+weapon("crook_shotgun", {model: "shotgun", damage: 40, rate: 1, range: 16, ammo: 5, reload: 2.2, spread: 5})
+weapon("crook_rifle", {model: "rifle", damage: 30, rate: 1.6, range: 100, ammo: 6, reload: 2, spread: 0.3})
+
+func guns_for(p)
+  if p.team == "police" then return POLICE_GUNS end
+  return CRIME_GUNS
+end
+
+func cars_for(p)
+  if p.team == "police" then return POLICE_CARS end
+  return CRIME_CARS
+end
+
+-- 持っている武器をぜんぶわたす
+func give_loadout(p)
+  if p.team == nil then return end
+  let list = guns_for(p)
+  let owned = p.guns_police
+  if p.team == "criminal" then owned = p.guns_crime end
+  for g in list do
+    if contains(owned, g.id) then p.give(g.id) end
+  end
+  if p.team == "criminal" and p.gun_tier > 1 then p.give(CRIME_GUNS[p.gun_tier].id) end
+end
+
+func armory(p)
+  if p.team == nil then return end
+  let list = guns_for(p)
+  let owned = p.guns_police
+  if p.team == "criminal" then owned = p.guns_crime end
+  let h = 190 + len(list) * 48
+  let title = "🔫 武器庫"
+  if p.team == "criminal" then title = "🕶 ブラックマーケット" end
+  p.ui_panel("armory", {at: "center", w: 480, h: h, bg: "#111827F2", radius: 20, layer: 30})
+  p.ui_text("ar_t", title + "（" + rank_name(p) + "）", {parent: "armory", y: 24 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for g in list do
+    i = i + 1
+    let label = g.name
+    if contains(owned, g.id) then label = label + " ✅" elif rank_index(p) < g.rank then label = "🔒 " + label + "（" + g.rank + "番目の階級から）" else label = label + " " + g.price end
+    p.ui_button("gun_" + g.id, label, {parent: "armory", y: (24 + i * 48) / h, w: 420, h: 40, size: 14, bg: "#374151"})
+  end
+  if p.team == "criminal" then
+    let nb = p.bag + 1
+    if nb <= len(BAGS) then
+      p.ui_button("bag_up", "🎒 " + BAGS[nb].name + "（" + BAGS[nb].cap + " まで）" + BAGS[nb].price, {parent: "armory", y: (24 + (i + 1) * 48) / h, w: 420, h: 40, size: 14, bg: "#15803D"})
+    end
+  end
+  p.ui_button("ar_close", "閉じる", {parent: "armory", y: (h - 22) / h, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func buy_gun(p, id)
+  let list = guns_for(p)
+  let owned = p.guns_police
+  if p.team == "criminal" then owned = p.guns_crime end
+  for g in list do
+    if g.id == id then
+      if contains(owned, id) then
+        p.give(id)
+      elif rank_index(p) < g.rank then
+        p.message("🔒 まだ買えない（階級を上げよう）", 1.5)
+      elif kit_pay(p, g.price) then
+        append(owned, id)
+        p.give(id)
+        p.message(g.name + " を手に入れた！", 1.5)
+        kit_quest_progress(p, "gun", 1)
+      end
+    end
+  end
+  armory(p)
+end
+
+func garage(p)
+  if p.team == nil then return end
+  let list = cars_for(p)
+  let h = 110 + len(list) * 48
+  p.ui_panel("garage", {at: "center", w: 440, h: h, bg: "#0C4A6EF0", radius: 20, layer: 30})
+  p.ui_text("gr_t", "🚗 車庫", {parent: "garage", y: 24 / h, size: 18, bold: true})
+  let i = 0
+  for c in list do
+    i = i + 1
+    let label = c.name
+    if contains(p.cars, c.id) then
+      if p.car == c.id then label = "✅ " + label end
+    else
+      label = label + " " + c.price
+    end
+    p.ui_button("car_" + c.id, label, {parent: "garage", y: (24 + i * 48) / h, w: 380, h: 40, size: 15, bg: "#0369A1"})
+  end
+  p.ui_button("gr_close", "閉じる", {parent: "garage", y: (h - 22) / h, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func car_info(p, id)
+  for c in cars_for(p) do
+    if c.id == id then return c end
+  end
+  return nil
+end
+
+func pick_car(p, id)
+  let c = car_info(p, id)
+  if c == nil then return end
+  if not contains(p.cars, id) then
+    if not kit_pay(p, c.price) then return end
+    append(p.cars, id)
+    kit_quest_progress(p, "car", 1)
+  end
+  p.car = id
+  p.driving = true
+  apply_car(p)
+  garage(p)
+end
+
+func apply_car(p)
+  if active_until(p.jailed_until) or p.frozen then return end
+  if p.driving and p.car != nil and car_info(p, p.car) != nil then
+    let c = car_info(p, p.car)
+    p.speed = c.speed
+    p.jump = c.jump or 1
+    p.gravity = c.gravity or 1
+  else
+    p.speed = 1
+    p.jump = 1
+    p.gravity = 1
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or p.team == nil then return end
+  if contains(b.tags, "armory") and quiet_ready(p, "armory_pad", 3) then
+    if (b.name == "Police Armory" and p.team == "police") or (b.name == "Black Market" and p.team == "criminal") then armory(p) end
+  elif contains(b.tags, "garage") and quiet_ready(p, "garage_pad", 3) then
+    if contains(b.tags, p.team) then garage(p) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "gun_") then buy_gun(p, replace(id, "gun_", ""))
+  elif id == "ar_close" then p.ui_remove("armory")
+  elif id == "bag_up" then
+    let nb = p.bag + 1
+    if nb <= len(BAGS) and kit_pay(p, BAGS[nb].price) then
+      p.bag = nb
+      p.message("🎒 " + BAGS[nb].name + "！", 1.5)
+      hud(p)
+    end
+    armory(p)
+  elif id == "gr_close" then p.ui_remove("garage")
+  elif starts_with(id, "car_") then pick_car(p, replace(id, "car_", ""))
+  elif id == "drive" then
+    if p.car == nil then
+      p.message("🚗 まずは車庫で車をえらぼう", 1.5)
+    else
+      p.driving = not p.driving
+      apply_car(p)
+    end
+  end
+end

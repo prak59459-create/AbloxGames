@@ -1,0 +1,196 @@
+-- police.absc — 警察と刑務所
+-- ⚡ テーザーで撃つと強盗はしびれて動けない。そのすきに近くで「🔗 逮捕」。たおしても逮捕。
+-- 📻 無線で強盗の場所と手配⭐がわかる（⭐3以上は位置も）。逮捕すると懸賞金（⭐とバッグの中身で増える）。
+-- 刑務所: 40びょう。「🔓 脱獄」を連打すると外の黄色いパッドへ → 逃げ切れば脱獄成功。保釈金で出ることもできる。
+
+let radio_clock = 0
+
+func bounty_of(v)
+  return 50 + v.wanted * 60 + floor(v.loot / 2)
+end
+
+func arrest(cop, v)
+  if v.team != "criminal" or active_until(v.jailed_until) then return end
+  let b = bounty_of(v)
+  let bonus = 1
+  -- 警察が少ないときは懸賞金アップ
+  if len(cops()) * 2 < len(crooks()) then bonus = 1.5 end
+  b = floor(b * bonus)
+  let before = rank_index(cop)
+  cop.arrests = cop.arrests + 1
+  cop.score = cop.score + b
+  kit_give(cop, b)
+  cop.message("🚔 " + v.name + " を逮捕！ +" + b, 2)
+  kit_quest_progress(cop, "arrest", 1)
+  kit_quest_progress(cop, "arrest10", 1)
+  if v.wanted >= 4 then kit_quest_progress(cop, "most_wanted", 1) end
+  if rank_index(cop) > before then
+    announce("👮 " + cop.name + " が「" + rank_name(cop) + "」に昇進！", 3)
+    kit_quest_progress(cop, "rank", 1)
+  end
+  announce("🚔 " + cop.name + " が " + v.name + " を逮捕！", 2)
+  hud(cop)
+  send_to_jail(v)
+end
+
+func cuff(cop)
+  if cop.team != "police" then return end
+  let best = nil
+  for v in crooks() do
+    if v.alive and not active_until(v.jailed_until) and distance(cop, v) < 3.4 then
+      if v.frozen or v.health < v.max_health * 0.35 or v.wanted >= 1 then
+        if best == nil or distance(cop, v) < distance(cop, best) then best = v end
+      end
+    end
+  end
+  if best == nil then
+    cop.message("🔗 近くに逮捕できる強盗がいない（しびれさせるか、手配⭐のある強盗の近くで）", 1.8)
+    return
+  end
+  if not best.frozen and best.wanted < 1 then return end
+  arrest(cop, best)
+end
+
+func send_to_jail(v)
+  v.jailed_until = time() + JAIL_SECS
+  v.loot = 0
+  v.wanted = 0
+  v.rob = nil
+  v.taps = 0
+  v.frozen = false
+  v.ui_remove("rob")
+  v.ui_remove("keypad")
+  v.driving = false
+  v.speed = 1
+  let cell = block("Jail Cell")
+  if cell != nil then v.teleport(cell) end
+  v.ui_button("breakout", "🔓 脱獄（" + BREAKOUT_TAPS + "回）", {at: "bottom", dy: -110, w: 220, h: 60, size: 18, bg: "#B45309"})
+  v.ui_button("bail", "💰 保釈 " + BAIL_PRICE, {at: "bottom", dy: -176, w: 180, h: 46, size: 16, bg: "#15803D"})
+  v.message("🚔 刑務所… " + JAIL_SECS + "びょう（脱獄・保釈もできる）", 3)
+  kit_quest_progress(v, "jailed", 1)
+  hud(v)
+end
+
+func release(v, how)
+  v.jailed_until = nil
+  v.escaping = false
+  v.ui_remove("breakout")
+  v.ui_remove("bail")
+  v.ui_remove("jail")
+  if how != "escape" then
+    let s = block("Criminal Spawn " + random(1, 6))
+    if s != nil then v.teleport(s) end
+  end
+  if how == "bail" then v.message("💰 保釈された", 1.5) elif how == "time" then v.message("🚪 釈放された", 1.5) end
+  hud(v)
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  radio_clock = radio_clock + dt
+  if radio_clock < 1 then return end
+  radio_clock = 0
+  let wanted = filter(crooks(), func(v) return v.wanted > 0 and not active_until(v.jailed_until) end)
+  for c in cops() do
+    if len(wanted) > 0 then
+      let parts = map(wanted, func(v)
+        let s = v.name + "⭐" + v.wanted
+        if v.wanted >= 3 then s = s + "（" + floor(distance(c, v)) + "m）" end
+        return s
+      end)
+      c.ui_text("radio", "📻 手配中: " + join(slice(parts, 1, 5), "  "), {at: "top", dy: 50, size: 13, bold: true, color: "#93C5FD"})
+    else
+      c.ui_remove("radio")
+    end
+  end
+  for v in crooks() do
+    if v.jailed_until != nil then
+      if time() >= v.jailed_until and not v.escaping then release(v, "time")
+      elif not v.escaping then v.ui_text("jail", "🚔 のこり " + ceil(v.jailed_until - time()) + "s", {at: "top", dy: 80, size: 16, bold: true, color: "#FCA5A5"})
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "exit") and p.escaping then
+    release(p, "escape")
+    p.wanted = 2
+    p.wanted_at = time()
+    announce("🔓 " + p.name + " が脱獄した！", 3)
+    kit_quest_progress(p, "escape", 1)
+    hud(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "cuff" then cuff(p)
+  elif id == "breakout" and active_until(p.jailed_until) and not p.escaping then
+    p.taps = (p.taps or 0) + 1
+    if p.taps >= BREAKOUT_TAPS then
+      p.escaping = true
+      p.ui_remove("breakout")
+      p.ui_remove("jail")
+      p.message("🔓 カギが開いた！ 黄色いパッドから逃げろ！", 2.5)
+      let ex = block("Jail Exit")
+      if ex != nil then p.teleport(ex.position + {x: -3, y: 0, z: 0}) end
+      alert("🔓 " + p.name + " が脱獄しようとしている！")
+    else
+      p.ui_button("breakout", "🔓 脱獄（" + (BREAKOUT_TAPS - p.taps) + "回）", {at: "bottom", dy: -110, w: 220, h: 60, size: 18, bg: "#B45309"})
+    end
+  elif id == "bail" and active_until(p.jailed_until) then
+    if kit_pay(p, BAIL_PRICE) then release(p, "bail") end
+  end
+end
+
+on hit(victim, attacker, damage)
+  if kit_same_team(victim, attacker) then return 0 end
+  if active_until(victim.jailed_until) then return 0 end
+  if victim.team == nil or attacker.team == nil then return 0 end
+  -- テーザー: しびれさせる（ダメージは少し）
+  if attacker.team == "police" and attacker.weapon == "taser" and victim.team == "criminal" then
+    victim.frozen = true
+    victim.rob = nil
+    victim.message("⚡ しびれた！", 1)
+    let v = victim
+    after(TASER_STUN, func() if kit_here(v) then v.frozen = false end end)
+    return 3
+  end
+  return damage
+end
+
+on death(victim, killer)
+  if killer != nil and killer.team == "police" and victim.team == "criminal" then
+    victim.arrest_by = killer.id
+  end
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  if p.arrest_by != nil then
+    let cop = player_by_id(p.arrest_by)
+    p.arrest_by = nil
+    if cop != nil then
+      arrest(cop, p)
+      return
+    end
+  end
+  if active_until(p.jailed_until) then
+    let cell = block("Jail Cell")
+    if cell != nil then p.teleport(cell) end
+    return
+  end
+  if p.team == "police" then
+    let s = block("Police Spawn " + random(1, 6))
+    if s != nil then p.teleport(s) end
+  elif p.team == "criminal" then
+    p.loot = 0
+    let s = block("Criminal Spawn " + random(1, 6))
+    if s != nil then p.teleport(s) end
+  end
+  give_loadout(p)
+  hud(p)
+end
