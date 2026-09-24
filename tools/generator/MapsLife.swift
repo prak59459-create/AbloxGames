@@ -22,7 +22,7 @@ let lifeGames: [Game] = [
          summary: "警察と強盗の街アクション。ガソスタ・宝石店・銀行の暗証番号・銃砲店・現金輸送車をねらう強盗と、テーザーと手錠で追う警察。階級・武器・車・脱獄・保釈も！",
          tags: ["cops", "robbers", "teams"], maxPlayers: 16, build: ridgeport),
     Game(number: 39, id: "dinner-rush-tycoon", title: "Dinner Rush Tycoon",
-         summary: "自分のレストランを経営。テーブルやコンロを買いそろえて、お客さんに料理を運ぼう。店を大きくして人気店に！",
+         summary: "レストランを経営。19の設備で6品のメニューを増やし、シェフとウェイターをやとって自動化。評判と料理評論家、2号店（リバース）で永久ボーナス！",
          tags: ["tycoon", "cooking", "business"], maxPlayers: 8, build: dinnerRush),
     Game(number: 40, id: "coaster-park-tycoon", title: "Coaster Park Tycoon",
          summary: "遊園地を作ろう。メリーゴーランド、観覧車、ジェットコースター。お客さんを楽しませてお金をかせぎ、自分でも乗ってみよう。",
@@ -363,16 +363,24 @@ func dinnerRush(_ m: MapBuilder) {
     m.day(ground: "#A3A3A3")
     m.ground(200, 200, color: "#D6D3D1", name: "Food Street")
     m.spawnRing(0, 0, radius: 5, count: 8, color: "#FB923C")
+    // Bought in order; the script names them. Kitchen along the back, the
+    // pass in the middle, tables at the front.
     let items: [(String, Float, Float, V, String, BlockShape)] = [
         ("Stove", -10, -10, (3, 1.2, 2), "#78716C", .box), ("Table 1", -4, 2, (2.4, 1, 2.4), "#92400E", .cylinder),
-        ("Table 2", 4, 2, (2.4, 1, 2.4), "#92400E", .cylinder), ("Table 3", -4, 9, (2.4, 1, 2.4), "#92400E", .cylinder),
-        ("Table 4", 4, 9, (2.4, 1, 2.4), "#92400E", .cylinder), ("Second Stove", 0, -10, (3, 1.2, 2), "#57534E", .box),
-        ("Fountain", 10, 9, (2, 2, 2), "#38BDF8", .sphere), ("Neon Sign", 0, 13, (8, 1.4, 0.3), "#F472B6", .box),
-        ("Table 5", -10, 5, (2.4, 1, 2.4), "#B45309", .cylinder), ("Table 6", 10, 2, (2.4, 1, 2.4), "#B45309", .cylinder)
+        ("Table 2", 4, 2, (2.4, 1, 2.4), "#92400E", .cylinder), ("Pass Counter", 0, -5, (6, 1, 1), "#E5E7EB", .box),
+        ("Table 3", -4, 9, (2.4, 1, 2.4), "#92400E", .cylinder), ("Noodle Pot", -5, -10, (2, 1.4, 2), "#F59E0B", .cylinder),
+        ("Table 4", 4, 9, (2.4, 1, 2.4), "#92400E", .cylinder), ("Grill", 4, -10, (3, 1.1, 2), "#44403C", .box),
+        ("Drink Machine", 12, -5, (1.4, 2, 1.4), "#38BDF8", .box), ("Table 5", -10, 5, (2.4, 1, 2.4), "#B45309", .cylinder),
+        ("Dessert Bar", 9, -10, (3, 1.2, 2), "#F9A8D4", .box), ("Table 6", 10, 2, (2.4, 1, 2.4), "#B45309", .cylinder),
+        ("Second Stove", 0, -10, (3, 1.2, 2), "#57534E", .box), ("Fountain", 10, 9, (2, 2, 2), "#38BDF8", .sphere),
+        ("Table 7", -10, 11, (2.4, 1, 2.4), "#7C2D12", .cylinder), ("Sushi Bar", -12, -4, (1.6, 1.2, 4), "#FEF3C7", .box),
+        ("Table 8", -10, -1, (2.4, 1, 2.4), "#7C2D12", .cylinder), ("Neon Sign", 0, 13, (8, 1.4, 0.3), "#F472B6", .box),
+        ("Piano", 11, 13, (2.5, 1.2, 1.5), "#111827", .box)
     ]
     for (i, p) in [(-50, -40), (50, -40), (-50, 40), (50, 40)].enumerated() {
         tycoonPlot(m, n: i + 1, x: Float(p.0), z: Float(p.1), color: ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"][i], items: items)
         m.part("Plot \(i + 1) Door", at: (Float(p.0), 0.5, Float(p.1) + 14), size: (1, 0.1, 1), color: "#000000", visible: false)
+        m.pad("Plot \(i + 1) Staff", x: Float(p.0) - 13, z: Float(p.1) + 13, y: 0.2, size: 1.6, color: "#A855F7", tags: ["staff"])
     }
 }
 

@@ -1,0 +1,78 @@
+-- common.absc — 小さな道具・画面
+
+func ready(p)
+  return p.sales != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func dish_info(id)
+  for d in DISHES do
+    if d.id == id then return d end
+  end
+  return nil
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func stars_text(r)
+  let s = ""
+  for k in 1 to 5 do
+    if k <= floor(r + 0.5) then s = s + "★" else s = s + "☆" end
+  end
+  return s
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let pl = plot_of(p)
+  if pl == nil then
+    p.ui_text("shop", "色のパッドで区画を手に入れよう", {at: "top", dy: 30, size: 16})
+    p.ui_remove("orders")
+    return
+  end
+  let line = "🍽 レストラン " + p.plot + "   " + stars_text(pl.rating) + "   売上 " + kit_short(p.sales) + "   設備 " + len(keys(pl.bought)) + "/" + len(ITEMS)
+  if p.rebirths > 0 then line = line + "   🏪 " + (p.rebirths + 1) + "号店（×" + (1 + p.rebirths * REBIRTH_BONUS) + "）" end
+  p.ui_text("shop", line, {at: "top", dy: 30, size: 15, bold: true})
+  let parts = []
+  for o in pl.orders do
+    let s = "T" + o.table + dish_info(o.dish).name
+    if o.cooked then s = s + "✅" elif o.cooking then s = s + "🔥" end
+    if o.critic then s = "🧐" + s end
+    append(parts, s)
+  end
+  let text = "🧾 注文: なし"
+  if len(parts) > 0 then text = "🧾 " + join(slice(parts, 1, 6), "  ") end
+  if len(pl.pass) > 0 then text = text + "   🍽 台 " + len(pl.pass) end
+  p.ui_text("orders", text, {at: "top", dy: 52, size: 13, color: "#FDE68A"})
+  let hand = ""
+  if p.dish != nil then hand = "✋ " + dish_info(p.dish.dish).name + "（テーブル" + p.dish.table + "へ）"
+  elif p.cooking then hand = "🔥 料理中…"
+  end
+  p.ui_text("hand", hand, {at: "bottom", dy: -24, size: 16, bold: true})
+end

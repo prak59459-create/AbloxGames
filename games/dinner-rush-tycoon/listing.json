@@ -1,14 +1,18 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 101,
+  "blockCount" : 177,
   "id" : "dinner-rush-tycoon",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/dinner-rush-tycoon\/data.absc",
+    "games\/dinner-rush-tycoon\/common.absc",
+    "games\/dinner-rush-tycoon\/service.absc",
+    "games\/dinner-rush-tycoon\/shop.absc",
     "games\/dinner-rush-tycoon\/main.absc"
   ],
-  "summary" : "自分のレストランを経営。テーブルやコンロを買いそろえて、お客さんに料理を運ぼう。店を大きくして人気店に！",
+  "summary" : "レストランを経営。19の設備で6品のメニューを増やし、シェフとウェイターをやとって自動化。評判と料理評論家、2号店（リバース）で永久ボーナス！",
   "tags" : [
     "tycoon",
     "cooking",

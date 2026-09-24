@@ -1,0 +1,267 @@
+-- service.absc — お客さん・注文・料理・配ぜん・スタッフ・料理評論家
+-- お客さんはあいているテーブルにすわり、メニューから注文する（待てる時間は60びょう＋かざり）。
+-- 料理の設備の緑パッド → その料理を作る（時間がかかる）→ テーブルの緑パッドへ運ぶ。
+-- 受け渡し台に置くと、ウェイターが運んでくれる。シェフは自動で作って台へ置く。
+-- ときどき料理評論家（🧐）。早く出すと評判がぐっと上がる。
+
+let service_clock = 0
+let order_uid = 0
+
+func table_item(pl, table)
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    if it.kind == "table" and it.table == table then return i end
+  end
+  return nil
+end
+
+func station_item(pl, station)
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    if it.kind == station and has(pl, i) then return i end
+  end
+  return nil
+end
+
+func patience(pl)
+  let t = PATIENCE
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    if it.kind == "decor" and has(pl, i) then t = t + (it.patience or 0) end
+  end
+  return t
+end
+
+func seat_customer(plot, pl, critic)
+  let free = []
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    if it.kind == "table" and has(pl, i) and len(filter(pl.orders, func(o) return o.table == it.table end)) == 0 then append(free, it.table) end
+  end
+  if len(free) == 0 then return end
+  let m = menu(pl)
+  if len(m) == 0 then return end
+  let table = random(free)
+  let d = random(m)
+  let door = block("Plot " + plot + " Door")
+  let item = item_block(plot, table_item(pl, table))
+  let name = "お客さん"
+  let color = random(["#F97316", "#3B82F6", "#22C55E", "#EC4899", "#A855F7"])
+  if critic then
+    name = "🧐 料理評論家"
+    color = "#111827"
+  end
+  let n = create_npc({name: name, position: door.position + {x: 0, y: 1, z: 0}, color: color, head_color: "#F5D0A9", health: 100000,
+                      speed: 0.9, team: "guests"})
+  n.kind = "guest"
+  n.move_to(item.position + {x: 1.6, y: 0, z: 0})
+  n.say(d.name + " おねがいします！")
+  order_uid = order_uid + 1
+  let wait = patience(pl)
+  if critic then wait = 40 end
+  append(pl.orders, {uid: order_uid, table: table, dish: d.id, since: time(), until: time() + wait, npc: n, cooking: false, cooked: false,
+                     critic: critic})
+  if critic then
+    let o = player_by_id(pl.owner)
+    if o != nil then o.message("🧐 料理評論家が来た！ はやく出せば評判アップ", 3) end
+  end
+end
+
+func first_order(pl, station)
+  for o in pl.orders do
+    if not o.cooking and not o.cooked and dish_info(o.dish).station == station then return o end
+  end
+  return nil
+end
+
+func order_by_uid(pl, uid)
+  for o in pl.orders do
+    if o.uid == uid then return o end
+  end
+  return nil
+end
+
+-- MARK: 作る
+
+func cook(p, k)
+  let pl = plot_of(p)
+  if pl == nil or p.dish != nil or p.cooking then return end
+  let station = ITEMS[k].kind
+  let o = first_order(pl, station)
+  if o == nil then
+    p.message("この設備で作る注文がない", 1)
+    return
+  end
+  o.cooking = true
+  p.cooking = true
+  let d = dish_info(o.dish)
+  let secs = d.secs
+  if station == "stove" and count_kind(pl, "stove") >= 2 then secs = secs * 0.6 end
+  hud(p)
+  kit_later(p, secs, func()
+    p.cooking = false
+    let still_there = order_by_uid(pl, o.uid)
+    if still_there == nil then
+      p.message("お客さんは帰ってしまった…", 1.2)
+      hud(p)
+      return
+    end
+    o.cooked = true
+    p.dish = {uid: o.uid, dish: o.dish, table: o.table}
+    p.sound("collect")
+    hud(p)
+  end)
+end
+
+func pass_dish(p)
+  let pl = plot_of(p)
+  if pl == nil then return end
+  if p.dish != nil then
+    append(pl.pass, p.dish)
+    p.dish = nil
+    p.message("🍽 受け渡し台に置いた", 1)
+  elif len(pl.pass) > 0 then
+    p.dish = remove(pl.pass, 1)
+    p.message("✋ " + dish_info(p.dish.dish).name + " を持った（テーブル" + p.dish.table + "）", 1.2)
+  end
+  hud(p)
+end
+
+-- MARK: 出す
+
+func serve_order(owner, pl, o, by)
+  let d = dish_info(o.dish)
+  let wait = time() - o.since
+  let tip = max(0, floor((30 - wait) / 2))
+  let mult = 1 + owner.rebirths * REBIRTH_BONUS
+  let earned = floor((d.price * (0.8 + pl.rating * 0.1) + tip) * mult)
+  kit_give(owner, earned)
+  owner.sales = owner.sales + earned
+  owner.score = owner.sales
+  if o.critic then
+    if wait < 25 then
+      pl.rating = min(5, pl.rating + 0.6)
+      announce("🧐 評論家「" + owner.name + " の店、すばらしい！」 評判アップ", 3)
+      kit_quest_progress(owner, "critic", 1)
+      kit_give(owner, floor(200 * mult))
+    else
+      pl.rating = max(1, pl.rating - 0.2)
+      owner.message("🧐 評論家「まあまあ…」", 2)
+    end
+  else
+    if wait < 25 then pl.rating = min(5, pl.rating + 0.08) end
+  end
+  if kit_here(o.npc) then
+    o.npc.say("おいしい！")
+    let n = o.npc
+    after(3, func() gone(n) end)
+  end
+  pl.orders = filter(pl.orders, func(x) return x.uid != o.uid end)
+  kit_quest_progress(owner, "serve", 1)
+  kit_quest_progress(owner, "sales", earned)
+  if by != nil then by.message("🍽 +" + earned + "（チップ " + tip + "）", 1.5) end
+  hud(owner)
+end
+
+func serve(p, k)
+  let pl = plot_of(p)
+  if pl == nil or p.dish == nil then return end
+  let table = ITEMS[k].table
+  if p.dish.table != table then
+    p.message("これはテーブル" + p.dish.table + " の料理", 1.2)
+    return
+  end
+  let o = order_by_uid(pl, p.dish.uid)
+  p.dish = nil
+  if o == nil then
+    p.message("お客さんは帰ってしまった…", 1.2)
+    hud(p)
+    return
+  end
+  serve_order(p, pl, o, p)
+end
+
+-- MARK: スタッフの動き
+
+func staff_step(owner, pl)
+  let now = time()
+  let chef = pl.chef
+  if chef != nil and kit_here(chef) and now >= chef.busy_until then
+    for o in pl.orders do
+      if not o.cooking and not o.cooked and chef.busy_until <= now then
+        let d = dish_info(o.dish)
+        let k = station_item(pl, d.station)
+        if k != nil then
+          o.cooking = true
+          let secs = d.secs * (1.4 - pl.chef_lv * 0.25)
+          chef.busy_until = now + secs
+          chef.move_to(item_block(owner.plot, k).position + {x: 0, y: 0, z: 2})
+          let oo = o
+          after(secs, func()
+            if order_by_uid(pl, oo.uid) != nil then
+              oo.cooked = true
+              append(pl.pass, {uid: oo.uid, dish: oo.dish, table: oo.table})
+            end
+          end)
+        end
+      end
+    end
+  end
+  let waiter = pl.waiter
+  if waiter != nil and kit_here(waiter) and now >= waiter.busy_until and len(pl.pass) > 0 then
+    let dish = remove(pl.pass, 1)
+    let o = order_by_uid(pl, dish.uid)
+    if o != nil then
+      let secs = 3 - pl.waiter_lv * 0.6
+      waiter.busy_until = now + secs
+      let t = item_block(owner.plot, table_item(pl, o.table))
+      if t != nil then waiter.move_to(t.position + {x: -1.6, y: 0, z: 0}) end
+      after(secs, func()
+        if order_by_uid(pl, o.uid) != nil then serve_order(owner, pl, o, nil) end
+      end)
+    end
+  end
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  service_clock = service_clock + dt
+  if service_clock < 1 then return end
+  service_clock = 0
+  for plot in keys(plots) do
+    let pl = plots[plot]
+    let owner = player_by_id(pl.owner)
+    if owner != nil then
+      let tables = count_kind(pl, "table")
+      let chance = (0.05 + tables * 0.025) * (0.6 + pl.rating * 0.15)
+      if random() < chance then seat_customer(plot, pl, false) end
+      if time() > pl.next_critic and tables >= 2 then
+        pl.next_critic = time() + CRITIC_EVERY
+        seat_customer(plot, pl, true)
+      end
+      -- 待ちすぎ
+      for o in copy(pl.orders) do
+        if time() > o.until then
+          if kit_here(o.npc) then
+            o.npc.say("おそい！ もう帰る！")
+            let n = o.npc
+            after(2, func() gone(n) end)
+          end
+          pl.orders = filter(pl.orders, func(x) return x.uid != o.uid end)
+          pl.rating = max(1, pl.rating - 0.25)
+          if o.critic then
+            pl.rating = max(1, pl.rating - 0.5)
+            announce("🧐 評論家は怒って帰った… " + owner.name + " の店の評判ダウン", 3)
+          end
+        end
+      end
+      staff_step(owner, pl)
+      hud(owner)
+    end
+  end
+end

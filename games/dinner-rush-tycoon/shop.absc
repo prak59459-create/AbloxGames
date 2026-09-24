@@ -1,0 +1,182 @@
+-- shop.absc — 区画・設備・スタッフ・2号店
+-- 色のパッドで区画を手に入れる。緑のパッドで設備を順番に買う（料理の設備を買うとメニューがふえる）。
+-- むらさきのパッドでスタッフ: シェフ（自動で作る）・ウェイター（自動で運ぶ）。速さも上げられる。
+-- 設備をぜんぶ買って売上がたまると「2号店」: 設備はリセット、でも売上がずっと増える。
+
+let plots = {}      -- 区画の番号 → {owner, bought, rating, orders, pass, chef, waiter, chef_lv, waiter_lv}
+
+func plot_of(p)
+  if p.plot == nil then return nil end
+  return plots[p.plot]
+end
+
+func has(pl, k)
+  return pl.bought["" + k] == true
+end
+
+func has_kind(pl, kind)
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    if it.kind == kind and has(pl, i) then return true end
+  end
+  return false
+end
+
+func count_kind(pl, kind)
+  let n = 0
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    if it.kind == kind and has(pl, i) then n = n + 1 end
+  end
+  return n
+end
+
+func menu(pl)
+  return filter(DISHES, func(d) return has_kind(pl, d.station) end)
+end
+
+func item_block(plot, k)
+  return block("Plot " + plot + " Item " + k)
+end
+
+func show_item(plot, k, shown)
+  let b = item_block(plot, k)
+  if b == nil then return end
+  b.visible = shown
+  b.solid = shown
+end
+
+func claim(p, plot)
+  if p.plot != nil or plots[plot] != nil then return end
+  plots[plot] = {owner: p.id, bought: {}, rating: 3, orders: [], pass: [], chef: nil, waiter: nil, chef_lv: 0, waiter_lv: 0,
+                 next_critic: time() + CRITIC_EVERY}
+  p.plot = plot
+  p.message("🍽 区画 " + plot + " があなたのレストランに！ まずはコンロ（無料）", 3)
+  buy(p, 1)
+end
+
+func buy(p, k)
+  let pl = plot_of(p)
+  if pl == nil or has(pl, k) then return end
+  if k > 1 and not has(pl, k - 1) then
+    p.message("先に「" + ITEMS[k - 1].name + "」を買おう", 1.5)
+    return
+  end
+  let it = ITEMS[k]
+  if not kit_pay(p, it.price) then return end
+  pl.bought["" + k] = true
+  show_item(p.plot, k, true)
+  p.message("✨ " + it.name + " を置いた！", 2)
+  p.sound("collect")
+  kit_quest_progress(p, "items", 1)
+  if it.kind != "table" and it.kind != "decor" and it.kind != "pass" then
+    for d in DISHES do
+      if d.station == it.kind and count_kind(pl, it.kind) == 1 then p.message("📜 新メニュー「" + d.name + "」！", 2.5) end
+    end
+  end
+  if count_kind(pl, "table") >= 4 then kit_quest_progress(p, "tables", 1) end
+  if len(keys(pl.bought)) == len(ITEMS) then
+    kit_quest_progress(p, "full", 1)
+    p.message("🏆 設備コンプリート！ 売上 " + REBIRTH_SALES + " で2号店を出せる（むらさきのパッド）", 3)
+  end
+  hud(p)
+end
+
+func release_plot(p)
+  let pl = plot_of(p)
+  if pl == nil then return end
+  for k in 1 to len(ITEMS) do show_item(p.plot, k, false) end
+  for o in pl.orders do gone(o.npc) end
+  gone(pl.chef)
+  gone(pl.waiter)
+  remove(plots, p.plot)
+  p.plot = nil
+end
+
+-- MARK: スタッフ
+
+func staff_menu(p)
+  let pl = plot_of(p)
+  if pl == nil then return end
+  let h = 300
+  p.ui_panel("staff", {at: "center", w: 520, h: h, bg: "#3B0764F0", radius: 20, layer: 30})
+  p.ui_text("st_t", "👥 スタッフと2号店", {parent: "staff", y: 24 / h, size: 18, bold: true, color: "#E9D5FF"})
+  let i = 0
+  for key in ["chef", "waiter"] do
+    i = i + 1
+    let s = STAFF[key]
+    let lv = pl.chef_lv
+    let npc = pl.chef
+    if key == "waiter" then
+      lv = pl.waiter_lv
+      npc = pl.waiter
+    end
+    let label = ""
+    if npc == nil then label = s.name + " をやとう（" + s.hire + "）— " + s.text
+    elif lv >= len(s.ups) then label = s.name + " 速さMAX"
+    else label = s.name + " の速さ Lv." + (lv + 1) + "（" + s.ups[lv + 1] + "）"
+    end
+    p.ui_button("staff_" + key, label, {parent: "staff", y: (30 + i * 58) / h, w: 470, h: 48, size: 13, bg: "#7C3AED"})
+  end
+  let rb = "🏪 2号店を出す（設備ぜんぶ＋売上 " + REBIRTH_SALES + "）"
+  p.ui_button("rebirth", rb, {parent: "staff", y: 210 / h, w: 470, h: 44, size: 13, bg: "#B45309"})
+  p.ui_button("staff_close", "閉じる", {parent: "staff", y: (h - 22) / h, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func hire(p, key)
+  let pl = plot_of(p)
+  if pl == nil then return end
+  let s = STAFF[key]
+  let npc = pl.chef
+  let lv = pl.chef_lv
+  if key == "waiter" then
+    npc = pl.waiter
+    lv = pl.waiter_lv
+  end
+  if npc == nil then
+    if not kit_pay(p, s.hire) then return end
+    let at = item_block(p.plot, 1).position
+    let n = create_npc({name: s.name, position: at + {x: 2, y: 1, z: 2}, color: "#FFFFFF", head_color: "#F5D0A9", health: 100000,
+                        speed: 1, team: "staff", hat: "cap"})
+    n.kind = key
+    n.busy_until = 0
+    if key == "chef" then pl.chef = n else pl.waiter = n end
+    p.message(s.name + " をやとった！", 2)
+    kit_quest_progress(p, "staff", 1)
+  elif lv < len(s.ups) then
+    if not kit_pay(p, s.ups[lv + 1]) then return end
+    if key == "chef" then pl.chef_lv = lv + 1 else pl.waiter_lv = lv + 1 end
+    p.message(s.name + " の速さ Lv." + (lv + 1), 1.5)
+  end
+end
+
+func rebirth(p)
+  let pl = plot_of(p)
+  if pl == nil then return end
+  if len(keys(pl.bought)) < len(ITEMS) or p.sales < REBIRTH_SALES * (p.rebirths + 1) then
+    p.message("🏪 設備をぜんぶ買って、売上 " + REBIRTH_SALES * (p.rebirths + 1) + " で2号店", 2)
+    return
+  end
+  p.rebirths = p.rebirths + 1
+  let plot = p.plot
+  for k in 2 to len(ITEMS) do
+    remove(pl.bought, "" + k)
+    show_item(plot, k, false)
+  end
+  for o in pl.orders do gone(o.npc) end
+  pl.orders = []
+  pl.pass = []
+  gone(pl.chef)
+  gone(pl.waiter)
+  pl.chef = nil
+  pl.waiter = nil
+  pl.chef_lv = 0
+  pl.waiter_lv = 0
+  kit_give(p, 200)
+  announce("🏪 " + p.name + " が " + (p.rebirths + 1) + "号店をオープン！ 売上 ×" + (1 + p.rebirths * REBIRTH_BONUS), 4)
+  kit_quest_progress(p, "rebirth", 1)
+  p.ui_remove("staff")
+  hud(p)
+end

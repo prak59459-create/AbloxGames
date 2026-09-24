@@ -1,0 +1,47 @@
+-- data.absc — Dinner Rush Tycoon の表
+-- 設備19（マップの順番どおり）・料理6・スタッフ・2号店
+
+-- kind: stove / table / pass / noodle / grill / drink / dessert / sushi / decor
+let ITEMS = [
+  {name: "🍳 コンロ", kind: "stove", price: 0},
+  {name: "🪑 テーブル1", kind: "table", table: 1, price: 60},
+  {name: "🪑 テーブル2", kind: "table", table: 2, price: 120},
+  {name: "🍽 受け渡し台", kind: "pass", price: 200},
+  {name: "🪑 テーブル3", kind: "table", table: 3, price: 260},
+  {name: "🍜 めんゆで機", kind: "noodle", price: 350},
+  {name: "🪑 テーブル4", kind: "table", table: 4, price: 450},
+  {name: "🥩 グリル", kind: "grill", price: 600},
+  {name: "🥤 ドリンクサーバー", kind: "drink", price: 800},
+  {name: "🪑 テーブル5", kind: "table", table: 5, price: 1000},
+  {name: "🍨 デザートバー", kind: "dessert", price: 1300},
+  {name: "🪑 テーブル6", kind: "table", table: 6, price: 1600},
+  {name: "🍳 2台目のコンロ", kind: "stove", price: 2000},
+  {name: "⛲ 噴水", kind: "decor", price: 2600, patience: 10},
+  {name: "🪑 テーブル7", kind: "table", table: 7, price: 3200},
+  {name: "🍣 すしカウンター", kind: "sushi", price: 4000},
+  {name: "🪑 テーブル8", kind: "table", table: 8, price: 5000},
+  {name: "✨ ネオン看板", kind: "decor", price: 6500, patience: 10},
+  {name: "🎹 ピアノ", kind: "decor", price: 8000, patience: 15}
+]
+
+let DISHES = [
+  {id: "omurice", name: "🍳 オムライス", station: "stove", price: 30, secs: 4},
+  {id: "ramen", name: "🍜 ラーメン", station: "noodle", price: 45, secs: 5},
+  {id: "steak", name: "🥩 ステーキ", station: "grill", price: 80, secs: 6},
+  {id: "juice", name: "🥤 ジュース", station: "drink", price: 20, secs: 2},
+  {id: "parfait", name: "🍨 パフェ", station: "dessert", price: 45, secs: 3},
+  {id: "sushi", name: "🍣 おすし", station: "sushi", price: 110, secs: 6}
+]
+
+let PATIENCE = 60
+let CRITIC_EVERY = 200
+
+-- スタッフ（hire: やとうお金 / 速さのレベルごとの値段）
+let STAFF = {
+  chef: {name: "👨‍🍳 シェフ", hire: 500, ups: [800, 2000, 5000], text: "注文を自動で作って受け渡し台へ"},
+  waiter: {name: "🧑‍💼 ウェイター", hire: 400, ups: [700, 1800, 4500], text: "受け渡し台の料理をテーブルへ運ぶ"}
+}
+
+-- 2号店（リバース）: 設備をぜんぶ買って売上がこれをこえると出せる
+let REBIRTH_SALES = 20000
+let REBIRTH_BONUS = 0.25
