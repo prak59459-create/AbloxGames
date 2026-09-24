@@ -3,12 +3,19 @@
   "games" : [
     {
       "author" : "Ablox Games",
-      "blockCount" : 415,
+      "blockCount" : 510,
       "id" : "maple-bay-life",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/maple-bay-life\/data.absc",
+        "games\/maple-bay-life\/common.absc",
+        "games\/maple-bay-life\/homes.absc",
+        "games\/maple-bay-life\/jobs.absc",
+        "games\/maple-bay-life\/phone.absc",
+        "games\/maple-bay-life\/town.absc",
+        "games\/maple-bay-life\/vehicles.absc",
         "games\/maple-bay-life\/main.absc"
       ],
       "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",
@@ -24,12 +31,20 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 100,
+      "blockCount" : 291,
       "id" : "fruit-seas",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/fruit-seas\/data.absc",
+        "games\/fruit-seas\/combat.absc",
+        "games\/fruit-seas\/common.absc",
+        "games\/fruit-seas\/enemies.absc",
+        "games\/fruit-seas\/fruits.absc",
+        "games\/fruit-seas\/gear.absc",
+        "games\/fruit-seas\/islands.absc",
+        "games\/fruit-seas\/pvp.absc",
         "games\/fruit-seas\/main.absc"
       ],
       "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",
@@ -45,12 +60,18 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 99,
+      "blockCount" : 308,
       "id" : "pet-home-paradise",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/pet-home-paradise\/data.absc",
+        "games\/pet-home-paradise\/common.absc",
+        "games\/pet-home-paradise\/pets.absc",
+        "games\/pet-home-paradise\/shop.absc",
+        "games\/pet-home-paradise\/town.absc",
+        "games\/pet-home-paradise\/trade.absc",
         "games\/pet-home-paradise\/main.absc"
       ],
       "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
@@ -66,12 +87,20 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 121,
+      "blockCount" : 191,
       "id" : "meme-heist",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/meme-heist\/data.absc",
+        "games\/meme-heist\/bases.absc",
+        "games\/meme-heist\/common.absc",
+        "games\/meme-heist\/events.absc",
+        "games\/meme-heist\/gear.absc",
+        "games\/meme-heist\/memes.absc",
+        "games\/meme-heist\/rebirth.absc",
+        "games\/meme-heist\/steal.absc",
         "games\/meme-heist\/main.absc"
       ],
       "summary" : "ランウェイを歩くヘンなミームキャラを買って自分の基地へ。キャラはお金を生み出す。ほかの人の基地からこっそり盗み出せ！",
@@ -87,12 +116,18 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 68,
+      "blockCount" : 140,
       "id" : "reel-legends",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/reel-legends\/data.absc",
+        "games\/reel-legends\/bag.absc",
+        "games\/reel-legends\/common.absc",
+        "games\/reel-legends\/fishing.absc",
+        "games\/reel-legends\/shops.absc",
+        "games\/reel-legends\/world.absc",
         "games\/reel-legends\/main.absc"
       ],
       "summary" : "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",
@@ -114,6 +149,9 @@
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/clash-duels\/data.absc",
+        "games\/clash-duels\/common.absc",
+        "games\/clash-duels\/loadout.absc",
         "games\/clash-duels\/main.absc"
       ],
       "summary" : "1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。",

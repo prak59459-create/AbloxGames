@@ -120,7 +120,7 @@ on start()
         let ball = create_block({name: "Dodgeball", shape: "sphere", position: arena.position + {x: random(-14, 14), y: 18, z: random(-14, 14)},
                                 size: 1.4, color: "#EF4444", material: "neon", solid: false, behavior: "trigger", tags: ["ball"]})
         ball.move(0, -18, 0, 1.2)
-        after(1.4, func() ball.destroy() end)
+        after(1.4, func() kit_gone(ball) end)
       end
     end
   end)

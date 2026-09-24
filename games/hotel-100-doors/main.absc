@@ -94,19 +94,19 @@ func rush(n)
       end
     end
     after(2, func()
-      thing.destroy()
+      kit_gone(thing)
       busy = false
     end)
   end)
 end
 
 func spawn_eyes(n)
-  if eyes != nil then eyes.destroy() end
+  kit_gone(eyes)
   eyes = create_block({name: "Eyes", shape: "sphere", position: {x: random(-3, 3), y: 2, z: room_z(n) + random(-4, 4)},
                        size: 1.2, color: "#A855F7", material: "neon", solid: false})
   announce("👁 なにかに見られている…", 2)
   after(40, func()
-    if eyes != nil then eyes.destroy() end
+    kit_gone(eyes)
     eyes = nil
   end)
 end

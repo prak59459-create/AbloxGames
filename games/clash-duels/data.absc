@@ -1,0 +1,57 @@
+-- data.absc — Clash Duels の表（武器・投げ物・見た目・連続キル）
+
+-- MARK: 武器（slot: primary 主武器 / secondary 副武器 / melee 近接）
+-- price: 🔑カギの値段（0 ははじめから持っている）/ level: 買えるレベル
+let WEAPONS = [
+  {id: "ar", name: "アサルトライフル", slot: "primary", model: "rifle", damage: 22, rate: 8, range: 150, ammo: 30, reload: 2, spread: 2, price: 0, level: 0},
+  {id: "burst", name: "バーストライフル", slot: "primary", model: "rifle", damage: 30, rate: 5, range: 160, ammo: 24, reload: 2.2, spread: 1, price: 150, level: 2},
+  {id: "shotgun", name: "ショットガン", slot: "primary", model: "shotgun", damage: 16, rate: 1.2, range: 32, ammo: 6, reload: 2.4, spread: 7, price: 200, level: 3},
+  {id: "smg", name: "サブマシンガン", slot: "primary", model: "pistol", damage: 14, rate: 12, range: 80, ammo: 32, reload: 1.6, spread: 4, price: 250, level: 4},
+  {id: "sniper", name: "スナイパー", slot: "primary", model: "rifle", damage: 95, rate: 0.8, range: 400, ammo: 5, reload: 2.6, spread: 0, price: 300, level: 5},
+  {id: "blaster", name: "レーザーブラスター", slot: "primary", model: "blaster", damage: 32, rate: 3, range: 120, ammo: 20, reload: 2, spread: 1, price: 350, level: 7},
+  {id: "minigun", name: "ミニガン", slot: "primary", model: "blaster", damage: 9, rate: 18, range: 90, ammo: 150, reload: 4, spread: 6, price: 600, level: 10},
+  {id: "pistol", name: "ハンドガン", slot: "secondary", model: "pistol", damage: 20, rate: 4, range: 100, ammo: 12, reload: 1.2, spread: 2, price: 0, level: 0},
+  {id: "revolver", name: "リボルバー", slot: "secondary", model: "pistol", damage: 48, rate: 1.6, range: 120, ammo: 6, reload: 2, spread: 1, price: 180, level: 3},
+  {id: "flare", name: "フレアガン", slot: "secondary", model: "pistol", damage: 35, rate: 1, range: 70, ammo: 1, reload: 1.4, spread: 0, price: 220, level: 6},
+  {id: "knife", name: "ナイフ", slot: "melee", melee: true, damage: 35, rate: 2, range: 4.5, price: 0, level: 0},
+  {id: "katana", name: "カタナ", slot: "melee", melee: true, damage: 55, rate: 1.4, range: 6, price: 250, level: 4},
+  {id: "scythe", name: "大鎌", slot: "melee", melee: true, damage: 75, rate: 1, range: 7, price: 500, level: 8}
+]
+let SLOTS = ["primary", "secondary", "melee"]
+let SLOT_NAMES = {primary: "🔫 主武器", secondary: "🔫 副武器", melee: "🔪 近接"}
+
+-- MARK: 投げ物（1回の出撃で使える回数）
+let UTILITIES = [
+  {id: "grenade", name: "💣 グレネード", charges: 2, price: 0, level: 0, text: "少しして爆発（範囲ダメージ）"},
+  {id: "flash", name: "⚡ フラッシュ", charges: 2, price: 100, level: 2, text: "まわりの敵の画面をまっ白に"},
+  {id: "smoke", name: "🌫 スモーク", charges: 2, price: 100, level: 2, text: "けむりのかべで身をかくす"},
+  {id: "molotov", name: "🔥 火炎びん", charges: 1, price: 200, level: 5, text: "しばらく燃える炎（入るとダメージ）"},
+  {id: "medkit", name: "💊 救急キット", charges: 1, price: 250, level: 6, text: "体力を60回復"},
+  {id: "jumppad", name: "🦘 ジャンプ台", charges: 2, price: 150, level: 4, text: "大ジャンプできる台を置く"}
+]
+
+-- MARK: 見た目（🔑で買う体の色）
+let WRAPS = [
+  {id: "default", name: "ふつう", color: nil, price: 0},
+  {id: "gold", name: "🥇 ゴールド", color: "#FACC15", price: 400},
+  {id: "neon", name: "💚 ネオン", color: "#22C55E", price: 250},
+  {id: "void", name: "🖤 ボイド", color: "#111827", price: 300},
+  {id: "sakura", name: "🌸 さくら", color: "#F9A8D4", price: 250},
+  {id: "ice", name: "🧊 アイス", color: "#7DD3FC", price: 250},
+  {id: "lava", name: "🌋 ようがん", color: "#EA580C", price: 350},
+  {id: "royal", name: "👑 ロイヤル", color: "#7C3AED", price: 600}
+]
+
+-- MARK: 連続キル
+let STREAKS = [
+  {kills: 3, text: "🔥 3連続キル！"},
+  {kills: 5, text: "🔥🔥 5連続！止められない！"},
+  {kills: 8, text: "⚡ 8連続！無双状態！"},
+  {kills: 12, text: "👑 12連続！伝説！"}
+]
+
+-- MARK: ルール
+let TEAM_ROUNDS = 5       -- チーム戦: 先に5ラウンド
+let DUEL_ROUNDS = 5       -- タイマン: 先に5ラウンド
+let FFA_GOAL = 15         -- バトルロイヤル: 先に15キル
+let ROUND_TIME = 90       -- 1ラウンドの長さ

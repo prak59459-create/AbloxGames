@@ -1,0 +1,136 @@
+-- common.absc — Reel Legends の道具（人さがし・画面・つり場・魚・レベル）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then p.ui_remove(id) else p.ui_button(id, label, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+-- MARK: つり場と魚
+
+func zone_by_id(id)
+  for z in ZONES do
+    if z.id == id then return z end
+  end
+  return ZONES[1]
+end
+
+func fish_by_name(name)
+  for f in FISH do
+    if f.name == name then return f end
+  end
+  return nil
+end
+
+func fish_of_zone(zone)
+  return filter(FISH, func(f) return f.zone == zone end)
+end
+
+func mutation_by_id(id)
+  for m in MUTATIONS do
+    if m.id == id then return m end
+  end
+  return MUTATIONS[1]
+end
+
+-- 1匹の値段（重さと変異で上がる）
+func catch_value(c)
+  let f = fish_by_name(c.name)
+  let heavy = 1 + (c.kg - f.kg[1]) / max(0.01, f.kg[2] - f.kg[1]) * 0.6
+  return floor(f.price * heavy * mutation_by_id(c.mut).mult)
+end
+
+func catch_label(c)
+  let m = mutation_by_id(c.mut)
+  let name = c.name
+  if m.name != "" then name = m.name + " " + name end
+  return name + "（" + fixed(c.kg, 2) + "kg）"
+end
+
+-- MARK: レベル
+
+func need_xp(level)
+  return 80 + level * 60
+end
+
+func gain_xp(p, amount)
+  p.xp = p.xp + floor(amount)
+  let up = false
+  while p.xp >= need_xp(p.level) do
+    p.xp = p.xp - need_xp(p.level)
+    p.level = p.level + 1
+    up = true
+  end
+  if up then
+    p.message("⬆️ つりレベル " + p.level + "！", 2.5)
+    p.sound("goal")
+    kit_quest_progress(p, "lv10", 1)
+    kit_quest_progress(p, "lv30", 1)
+    -- 新しく行けるようになったつり場
+    for z in ZONES do
+      if z.level == p.level then p.message("🗺 " + z.name + " のつり券が買えるようになった！", 3) end
+    end
+  end
+  hud(p)
+end
+
+func current_rod(p)
+  for r in RODS do
+    if r.id == p.rod then return r end
+  end
+  return RODS[1]
+end
+
+func current_bait(p)
+  if p.bait == nil or (p.baits[p.bait] or 0) <= 0 then return nil end
+  for b in BAITS do
+    if b.id == p.bait then return b end
+  end
+  return nil
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "lv", "🎣 Lv." + p.level, {at: "top_left", dy: 34, size: 18, bold: true, color: "#A7F3D0"})
+  p.ui_bar("xp", p.xp, need_xp(p.level), {at: "top_left", dy: 58, dx: 4, w: 170, h: 8, color: "#34D399"})
+  let bait = "えさなし"
+  let b = current_bait(p)
+  if b != nil then bait = b.name + " ×" + p.baits[b.id] end
+  set_line(p, "gear", current_rod(p).name + "  /  " + bait, {at: "top_left", dy: 72, size: 14, color: "#BAE6FD"})
+  set_line(p, "bagline", "🐟 バッグ " + len(p.bag) + "/" + p.bag_size + "   📖 " + len(keys(p.caught)) + "/" + len(FISH), {at: "top_left", dy: 92, size: 14, color: "#FDE68A"})
+  p.score = len(keys(p.caught))
+end

@@ -419,59 +419,129 @@ func memeHeist(_ m: MapBuilder) {
 
 func reelLegends(_ m: MapBuilder) {
     m.ocean()
-    m.ground(220, 220, color: "#C8B68A", name: "Lakebed", y: -2)
+    m.ground(240, 240, color: "#C8B68A", name: "Lakebed", y: -2)
     // Land in the middle, water around it.
     m.part("Harbor Town", at: (0, -0.5, 0), size: (50, 1, 40), color: "#9CCB6B", material: .matte, tags: ["ground"])
-    m.part("Sea", at: (0, -0.3, 0), size: (220, 0.1, 220), color: "#1E7AD1", material: .glass, solid: false, opacity: 0.75)
+    m.part("Sea", at: (0, -0.3, 0), size: (240, 0.1, 240), color: "#1E7AD1", material: .glass, solid: false, opacity: 0.75)
     m.spawnRing(0, 0, radius: 5, count: 6)
-    m.shop("Bait Shop", x: -14, z: -10, w: 10, d: 8, color: "#0EA5E9", sign: "#FDE68A")
-    m.pad("Merchant", x: -14, z: -8, size: 2.4, color: "#FACC15", tags: ["merchant"])
+    m.shop("Fish Market", x: -14, z: -10, w: 10, d: 8, color: "#0EA5E9", sign: "#FDE68A")
+    m.pad("Merchant", x: -14, z: -12, size: 2.4, color: "#FACC15", tags: ["merchant"])
     m.shop("Rod Shop", x: 14, z: -10, w: 10, d: 8, color: "#1E40AF", sign: "#FFFFFF")
+    m.pad("Rod Counter", x: 14, z: -12, size: 2.4, color: "#60A5FA", tags: ["rodshop"])
+    m.shop("Bait Shop", x: 14, z: 10, w: 10, d: 8, color: "#15803D", sign: "#BBF7D0", facing: -1)
+    m.pad("Bait Counter", x: 14, z: 12, size: 2.4, color: "#4ADE80", tags: ["baitshop"])
+    m.pad("Angler", x: -14, z: 10, size: 2.4, color: "#F97316", tags: ["angler"])
+    m.part("Angler Hut", at: (-14, 1.5, 14), size: (6, 3, 3), color: "#92400E")
+    m.part("Bestiary Board", at: (0, 1.8, -17), size: (6, 3, 0.3), color: "#FEF3C7", material: .matte, behavior: .trigger, tags: ["bestiary"])
     for p in ring(6, radius: 16, phase: 0.5) { m.tree(p.0, p.1, height: 4) }
 
-    // Four fishing grounds, each with a dock and two spots.
+    // Eight fishing grounds around town, each with a pier, a dock and two spots.
     let zones: [(String, Float, Float, String)] = [
-        ("Pond", 0, 40, "#86EFAC"), ("Ocean", 55, 0, "#38BDF8"), ("Deep Trench", 0, -60, "#1E3A8A"), ("Volcano Lake", -60, 0, "#F97316")
+        ("Pond", 0, 48, "#86EFAC"), ("River", 45, 45, "#7DD3FC"), ("Ocean", 64, 0, "#38BDF8"), ("Coral Reef", 45, -45, "#F472B6"),
+        ("Deep Trench", 0, -66, "#1E3A8A"), ("Frozen Lake", -45, -45, "#E0F2FE"), ("Volcano Lake", -64, 0, "#F97316"),
+        ("Sunken Ruins", -45, 45, "#A78BFA")
     ]
     for z in zones {
-        let dx = z.1 == 0 ? Float(0) : (z.1 > 0 ? -1 : 1)
-        let dz = z.2 == 0 ? Float(0) : (z.2 > 0 ? -1 : 1)
-        // A pier from town out to the zone.
-        let length: Float = max(abs(z.1), abs(z.2)) - 14
-        let midX = z.1 + dx * length / 2, midZ = z.2 + dz * length / 2
-        m.slab("\(z.0) Pier", x: midX, y: -0.2, z: midZ, w: dx == 0 ? 4 : length, h: 0.4, d: dz == 0 ? 4 : length, color: "#8B5A2B")
-        m.slab("\(z.0) Dock", x: z.1, y: -0.2, z: z.2, w: 12, h: 0.4, d: 12, color: "#A16207")
-        m.pad("Fishing Spot \(z.0) A", x: z.1 - 3, z: z.2, y: 0.2, size: 2, color: z.3, tags: ["spot", z.0])
-        m.pad("Fishing Spot \(z.0) B", x: z.1 + 3, z: z.2, y: 0.2, size: 2, color: z.3, tags: ["spot", z.0])
+        // A pier from the edge of town out to the dock.
+        let len = (z.1 * z.1 + z.2 * z.2).squareRoot()
+        let ux = z.1 / len, uz = z.2 / len
+        let edge: Float = 18
+        let pierLength = len - edge - 5
+        let mx = ux * (edge + pierLength / 2), mz = uz * (edge + pierLength / 2)
+        let yaw = atan2(ux, uz) * 180 / .pi
+        m.part("\(z.0) Pier", at: (mx, -0.2, mz), size: (4, 0.4, pierLength + 2), color: "#8B5A2B", rotation: (0, yaw, 0))
+        m.slab("\(z.0) Dock", x: z.1, y: -0.4, z: z.2, w: 12, h: 0.4, d: 12, color: "#A16207")
+        m.pad("Fishing Spot \(z.0) A", x: z.1 - 3, z: z.2, y: 0, size: 2, color: z.3, tags: ["spot", z.0])
+        m.pad("Fishing Spot \(z.0) B", x: z.1 + 3, z: z.2, y: 0, size: 2, color: z.3, tags: ["spot", z.0])
+        m.pillar("\(z.0) Sign", x: z.1, z: z.2 - 5, y: 0, height: 3, radius: 0.3, color: z.3, material: .neon)
+        m.part("\(z.0) Water", at: (z.1 + ux * 12, -0.22, z.2 + uz * 12), size: (18, 0.06, 18), color: z.3, shape: .cylinder,
+               material: .glass, solid: false, opacity: 0.45)
     }
-    m.part("Volcano", at: (-80, 6, 0), size: (22, 16, 22), color: "#57301B", shape: .cone, material: .matte)
-    m.part("Lava Glow", at: (-80, 14.2, 0), size: (4, 0.4, 4), color: "#FF5A1F", shape: .cylinder, material: .neon, solid: false)
+    // What makes each ground look like itself.
+    for i in 0..<5 { m.part("Reed", at: (40 + Float(i) * 2, 0.6, 52), size: (0.3, 2.4, 0.3), color: "#65A30D", shape: .cylinder, solid: false) }
+    for p in ring(6, radius: 7, cx: 54, cz: -54) {
+        m.part("Coral", at: (p.0, 0.2, p.1), size: (1.6, 1.8, 1.6), color: ["#F472B6", "#FB923C", "#A78BFA"][Int(p.0) % 3 == 0 ? 0 : 1],
+               shape: .sphere, solid: false)
+    }
+    m.part("Ice Sheet", at: (-54, -0.15, -54), size: (16, 0.2, 16), color: "#F0F9FF", material: .glass, solid: false, opacity: 0.8)
+    m.part("Volcano", at: (-88, 6, 0), size: (22, 16, 22), color: "#57301B", shape: .cone, material: .matte)
+    m.part("Lava Glow", at: (-88, 14.2, 0), size: (4, 0.4, 4), color: "#FF5A1F", shape: .cylinder, material: .neon, solid: false)
+    for p in ring(5, radius: 8, cx: -56, cz: 56) {
+        m.part("Ruin Pillar", at: (p.0, 1.2, p.1), size: (1, 3.2, 1), color: "#C4B5FD", shape: .cylinder, material: .matte)
+    }
+    // Where a treasure map leads.
+    m.markers("Treasure Spot", points: [(20, 18), (-22, -16), (8, -18), (-6, 16)], y: 0, color: "#FACC15", visible: false, behavior: .none)
 }
 
 // MARK: 6 Clash Duels
 
 func clashDuels(_ m: MapBuilder) {
-    m.sky("#1F2937", "#94A3B8", light: 0.7, ground: "#374151")
-    m.ground(90, 60, color: "#475569", name: "Arena Floor")
-    m.walls(0, 0, w: 90, d: 60, h: 6, color: "#1E293B", name: "Arena Wall")
-    // Two bases.
-    m.slab("Red Base", x: -38, y: 0, z: 0, w: 10, h: 0.3, d: 20, color: "#B91C1C")
-    m.slab("Blue Base", x: 38, y: 0, z: 0, w: 10, h: 0.3, d: 20, color: "#1D4ED8")
-    for (i, z) in [-6, -2, 2, 6].enumerated() {
-        m.spawn(-40, Float(z), y: 0.3, name: "Red Spawn \(i + 1)", color: "#F87171")
-        m.spawn(40, Float(z), y: 0.3, name: "Blue Spawn \(i + 1)", color: "#60A5FA")
+    m.sky("#1F2937", "#94A3B8", light: 0.75, ground: "#374151")
+    m.ground(360, 260, color: "#1F2937", name: "Void")
+
+    // The lobby: queues, shop, loadout, training. Everyone starts here.
+    m.slab("Lobby Floor", x: -140, y: 0, z: 0, w: 50, h: 0.4, d: 50, color: "#334155")
+    m.spawnRing(-140, 0, y: 0.4, radius: 6, count: 8, color: "#22D3EE")
+    let pads: [(String, Float, Float, String, String)] = [
+        ("Duel Queue", -154, -14, "#F43F5E", "queue_duel"), ("Team Queue", -140, -14, "#F59E0B", "queue_team"),
+        ("FFA Portal", -126, -14, "#A855F7", "ffa"), ("Training Portal", -154, 14, "#22C55E", "training"),
+        ("Weapon Shop", -140, 14, "#FACC15", "shop"), ("Loadout Rack", -126, 14, "#38BDF8", "loadout")
+    ]
+    for pd in pads {
+        m.pad(pd.0, x: pd.1, z: pd.2, y: 0.4, size: 4, color: pd.3, tags: [pd.4])
+        m.part("\(pd.0) Sign", at: (pd.1, 3.6, pd.2 + (pd.2 < 0 ? -2.6 : 2.6)), size: (6, 1.2, 0.3), color: pd.3, material: .neon, solid: false)
     }
-    // Cover.
+    m.walls(-140, 0, w: 50, d: 50, h: 2, y: 0.4, color: "#475569", name: "Lobby Wall")
+
+    // Training range next to the lobby.
+    m.slab("Range Floor", x: -140, y: 0, z: 58, w: 44, h: 0.4, d: 28, color: "#14532D")
+    m.markers("Range Start", points: [(-140, 50)], y: 0.4, color: "#22C55E", behavior: .none)
+    m.markers("Dummy Spot", points: [(-156, 68), (-148, 70), (-140, 68), (-132, 70), (-124, 68)], y: 0.4, color: "#F97316", behavior: .none)
+    m.pad("Range Exit", x: -140, z: 46, y: 0.4, size: 3, color: "#94A3B8", tags: ["lobby"])
+
+    // Team arena: Crossroads.
+    m.slab("Arena Floor", x: 0, y: 0, z: 0, w: 90, h: 0.4, d: 60, color: "#475569")
+    m.walls(0, 0, w: 90, d: 60, h: 6, y: 0.4, color: "#1E293B", name: "Arena Wall")
+    m.slab("Red Base", x: -38, y: 0.4, z: 0, w: 10, h: 0.3, d: 20, color: "#B91C1C")
+    m.slab("Blue Base", x: 38, y: 0.4, z: 0, w: 10, h: 0.3, d: 20, color: "#1D4ED8")
+    m.markers("Red Spawn", points: [(-40, -8), (-40, -4), (-40, 0), (-40, 4), (-40, 8)], y: 0.7, color: "#F87171", behavior: .none)
+    m.markers("Blue Spawn", points: [(40, -8), (40, -4), (40, 0), (40, 4), (40, 8)], y: 0.7, color: "#60A5FA", behavior: .none)
     var r = Seeded("clash")
     for i in 0..<14 {
         let x = r.range(-26, 26), z = r.range(-24, 24)
         let tall = r.unit() > 0.5
-        m.slab("Cover \(i + 1)", x: x, y: 0, z: z, w: r.range(2, 5), h: tall ? 3.2 : 1.3, d: r.range(1.5, 4),
+        m.slab("Cover \(i + 1)", x: x, y: 0.4, z: z, w: r.range(2, 5), h: tall ? 3.2 : 1.3, d: r.range(1.5, 4),
                color: tall ? "#64748B" : "#94A3B8")
     }
-    m.slab("Tower", x: 0, y: 0, z: 0, w: 6, h: 4, d: 6, color: "#334155")
-    m.stairs(-7, 0, steps: 4, rise: 1, run: 1, width: 3, color: "#475569", name: "Tower Step")
-    m.slab("Lobby", x: 0, y: 12, z: 0, w: 1, h: 0.2, d: 1, color: "#000000", solid: false)
+    m.slab("Tower", x: 0, y: 0.4, z: 0, w: 6, h: 4, d: 6, color: "#334155")
+    m.stairs(-7, 0, y: 0.4, steps: 4, rise: 1, run: 1, width: 3, color: "#475569", name: "Tower Step")
+
+    // Duel arena: Docks.
+    m.slab("Docks Floor", x: 0, y: 0, z: 110, w: 60, h: 0.4, d: 36, color: "#78716C")
+    m.walls(0, 110, w: 60, d: 36, h: 5, y: 0.4, color: "#44403C", name: "Docks Wall")
+    m.markers("Duel Spawn", points: [(-26, 110), (26, 110)], y: 0.7, color: "#F43F5E", behavior: .none)
+    let containers: [(Float, Float, String)] = [(-14, 100, "#DC2626"), (-6, 118, "#2563EB"), (6, 102, "#16A34A"), (14, 120, "#F59E0B"),
+                                                (0, 110, "#7C3AED"), (-18, 122, "#0EA5E9"), (18, 98, "#DB2777")]
+    for (i, c) in containers.enumerated() {
+        m.slab("Container \(i + 1)", x: c.0, y: 0.4, z: c.1, w: 6, h: 2.6, d: 2.6, color: c.2, material: .metal)
+    }
+    for i in 0..<6 { m.crate(-22 + Float(i) * 9, 110 + (i % 2 == 0 ? -8 : 8), y: 0.4) }
+
+    // Free-for-all arena: Temple.
+    m.slab("Temple Floor", x: 130, y: 0, z: 0, w: 70, h: 0.4, d: 70, color: "#A8A29E")
+    m.walls(130, 0, w: 70, d: 70, h: 6, y: 0.4, color: "#78716C", name: "Temple Wall")
+    m.slab("Temple Platform", x: 130, y: 0.4, z: 0, w: 14, h: 2.5, d: 14, color: "#D6D3D1")
+    m.stairs(121, -1.5, y: 0.4, steps: 3, rise: 0.8, run: 1, width: 3, color: "#A8A29E", name: "Temple Step")
+    for p in ring(8, radius: 22, cx: 130, cz: 0) {
+        m.pillar("Temple Pillar", x: p.0, z: p.1, y: 0.4, height: 5, radius: 1, color: "#E7E5E4")
+    }
+    let ffa = ring(8, radius: 30, cx: 130, cz: 0, phase: 0.2).map { ($0.0, $0.1) }
+    m.markers("FFA Spawn", points: ffa, y: 0.7, color: "#A855F7", behavior: .none)
+
+    // A way back to the lobby from every arena.
+    m.pad("Arena Exit", x: 0, z: -26, y: 0.4, size: 3, color: "#94A3B8", tags: ["lobby"])
+    m.pad("Docks Exit", x: 0, z: 125, y: 0.4, size: 3, color: "#94A3B8", tags: ["lobby"])
+    m.pad("Temple Exit", x: 130, z: -32, y: 0.4, size: 3, color: "#94A3B8", tags: ["lobby"])
 }
 
 // MARK: 7 Sprout Garden

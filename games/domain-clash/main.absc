@@ -188,7 +188,7 @@ func expand(p)
   announce("🌀 " + p.name + " の領域展開！ " + s.name, 3)
   shake(0.5, 1)
   after(10, func()
-    dome.destroy()
+    kit_gone(dome)
     domains = filter(domains, func(x) return x.until > time() end)
     if len(domains) == 0 then
       world.sky_top = "#1E1B4B"

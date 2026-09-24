@@ -1,0 +1,243 @@
+-- team.absc — ⚔️ チーム戦（Crossroads）
+-- オレンジのパッドで待つ → 2人以上そろうと8秒後に試合開始。赤と青に分かれる。
+-- 相手を全員たおすか、時間切れで多く生き残っていたほうがラウンド勝利。先に5ラウンド。
+-- 試合中にパッドに来た人は、次のラウンドから人数の少ないチームに入る。
+
+let team_queue = []
+let team_match = nil   -- {live, round, red, blue, until, members, countdown}
+let team_clock = 0
+let team_start_at = 0
+
+func team_members()
+  if team_match == nil then return [] end
+  let list = []
+  for id in team_match.members do
+    let p = player_by_id(id)
+    if p != nil then append(list, p) end
+  end
+  return list
+end
+
+func team_alive(team)
+  let n = 0
+  for p in team_members() do
+    if p.team == team and p.alive and not p.waiting then n = n + 1 end
+  end
+  return n
+end
+
+func team_size(team)
+  return len(filter(team_members(), func(p) return p.team == team end))
+end
+
+func team_queue_join(p)
+  if contains(team_queue, p.id) then return end
+  if team_match != nil then
+    if not contains(team_match.members, p.id) then
+      append(team_match.members, p.id)
+      team_add(p)
+      p.message("⚔️ 試合に参加！次のラウンドから戦えます", 2.5)
+    end
+    return
+  end
+  append(team_queue, p.id)
+  p.message("⚔️ チーム戦を待っています（" + len(team_queue) + "人）", 2)
+  kit_quest_progress(p, "queue", 1)
+  if len(team_queue) >= 2 and team_start_at == 0 then
+    team_start_at = time() + 8
+    for id in team_queue do
+      let q = player_by_id(id)
+      if q != nil then q.message("⚔️ 8秒後にチーム戦スタート！", 2) end
+    end
+  end
+end
+
+func team_unqueue(p)
+  if contains(team_queue, p.id) then remove(team_queue, index_of(team_queue, p.id)) end
+  if len(team_queue) < 2 then team_start_at = 0 end
+end
+
+-- 人数の少ないチームへ
+func team_add(p)
+  enter_mode(p, "team")
+  if team_size("red") <= team_size("blue") then p.team = "red" else p.team = "blue" end
+  apply_look(p)
+  -- 次のラウンドまで見えないまま待つ
+  p.waiting = true
+  p.visible = false
+  p.frozen = true
+  disarm(p)
+  team_place(p)
+  set_line(p, "wait", "次のラウンドを待っています…", {at: "center", dy: -80, size: 18, color: "#FDE68A"})
+end
+
+func team_start()
+  team_start_at = 0
+  let ids = copy(team_queue)
+  team_queue = []
+  team_match = {live: false, round: 0, red: 0, blue: 0, until: 0, members: []}
+  for id in ids do
+    let p = player_by_id(id)
+    if p != nil and p.mode == "lobby" then
+      append(team_match.members, id)
+      enter_mode(p, "team")
+      if team_size("red") <= team_size("blue") then p.team = "red" else p.team = "blue" end
+      apply_look(p)
+    end
+  end
+  if len(team_members()) < 2 then
+    for p in team_members() do go_lobby(p, "人数が足りなかった…") end
+    team_match = nil
+    return
+  end
+  announce("⚔️ チーム戦スタート！先に " + TEAM_ROUNDS + " ラウンド取ったチームの勝ち", 3)
+  team_round()
+end
+
+func team_place(p)
+  let prefix = "Red Spawn "
+  if p.team == "blue" then prefix = "Blue Spawn " end
+  let k = 0
+  for q in team_members() do
+    if q.team == p.team then k = k + 1 end
+    if q.id == p.id then break end
+  end
+  p.teleport(block(prefix + ((k - 1) % 5 + 1)))
+end
+
+func team_round()
+  let m = team_match
+  if m == nil then return end
+  m.round = m.round + 1
+  m.live = false
+  for p in team_members() do
+    if not p.alive then p.respawn() end
+    p.heal(p.max_health)
+    p.waiting = false
+    p.visible = true
+    set_line(p, "wait", nil, nil)
+    team_place(p)
+    arm(p)
+    p.frozen = true
+  end
+  team_score_ui()
+  for p in team_members() do p.message("ラウンド " + m.round + "！ 4秒後にスタート", 2) end
+  after(4, func()
+    if team_match != m then return end
+    for p in team_members() do p.frozen = false end
+    m.live = true
+    m.until = time() + ROUND_TIME
+    for p in team_members() do
+      p.message("GO!", 1)
+      p.sound("goal")
+    end
+  end)
+end
+
+func team_score_ui()
+  let m = team_match
+  for p in team_members() do
+    set_line(p, "tscore", "🔴 " + m.red + "  -  " + m.blue + " 🔵   ラウンド " + m.round, {at: "top", dy: 30, size: 24, bold: true})
+  end
+end
+
+func team_round_won(winner)
+  let m = team_match
+  if m == nil or not m.live then return end
+  m.live = false
+  if winner == "red" then m.red = m.red + 1 end
+  if winner == "blue" then m.blue = m.blue + 1 end
+  team_score_ui()
+  for p in team_members() do
+    if winner == nil then
+      p.message("引き分け！", 2)
+    elif p.team == winner then
+      gain(p, 20, 4, "ラウンド勝利！")
+    else
+      p.message("ラウンドを取られた…", 2)
+    end
+  end
+  if m.red >= TEAM_ROUNDS or m.blue >= TEAM_ROUNDS then
+    let win = "red"
+    if m.blue > m.red then win = "blue" end
+    team_end(win)
+  else
+    after(3, func()
+      if team_match == m then team_round() end
+    end)
+  end
+end
+
+func team_end(winner)
+  let m = team_match
+  let name = "🔴 赤チーム"
+  if winner == "blue" then name = "🔵 青チーム" end
+  for p in team_members() do
+    if p.team == winner then
+      p.wins = p.wins + 1
+      gain(p, 100, 40, "🏆 " + name + " の勝利！")
+      kit_quest_progress(p, "teamwin", 1)
+    else
+      gain(p, 40, 10, "おつかれさま")
+    end
+    set_line(p, "tscore", nil, nil)
+  end
+  announce("🏆 チーム戦は " + name + " の勝ち！（" + m.red + " - " + m.blue + "）", 4)
+  let members = team_members()
+  team_match = nil
+  after(4, func()
+    for p in members do
+      if kit_here(p) and p.mode == "team" then go_lobby(p, nil) end
+    end
+  end)
+end
+
+func team_death(victim, killer)
+  let m = team_match
+  if m == nil then return end
+  victim.message("次のラウンドまで待ってね", 2)
+  if not m.live then return end
+  if team_alive("red") == 0 then team_round_won("blue")
+  elif team_alive("blue") == 0 then team_round_won("red")
+  end
+end
+
+func team_leave(p)
+  let m = team_match
+  if m == nil then return end
+  if contains(m.members, p.id) then remove(m.members, index_of(m.members, p.id)) end
+  set_line(p, "tscore", nil, nil)
+  set_line(p, "wait", nil, nil)
+  p.team = "lobby"
+  after(0.1, func()
+    if team_match != m then return end
+    if team_size("red") == 0 and team_size("blue") > 0 then team_end("blue")
+    elif team_size("blue") == 0 and team_size("red") > 0 then team_end("red")
+    elif team_size("red") == 0 and team_size("blue") == 0 then team_match = nil
+    elif m.live and (team_alive("red") == 0 or team_alive("blue") == 0) then
+      if team_alive("red") == 0 then team_round_won("blue") else team_round_won("red") end
+    end
+  end)
+end
+
+on tick(dt)
+  team_clock = team_clock + dt
+  if team_clock < 0.5 then return end
+  team_clock = 0
+  if team_start_at > 0 and time() >= team_start_at then team_start() end
+  let m = team_match
+  if m != nil and m.live then
+    let left = m.until - time()
+    for p in team_members() do set_line(p, "ttime", "⏱ " + kit_clock(left), {at: "top", dy: 62, size: 16, color: "#E2E8F0"}) end
+    if left <= 0 then
+      -- 時間切れ: 生き残りが多いほう
+      let r = team_alive("red")
+      let b = team_alive("blue")
+      if r > b then team_round_won("red")
+      elif b > r then team_round_won("blue")
+      else team_round_won(nil) end
+    end
+  else
+    for p in team_members() do set_line(p, "ttime", nil, nil) end
+  end
+end

@@ -1,0 +1,99 @@
+-- common.absc — Clash Duels の道具（人さがし・画面・レベルとカギ・キルログ）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then p.ui_remove(id) else p.ui_button(id, label, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+func in_mode(mode)
+  return filter(players(), func(p) return p.mode == mode end)
+end
+
+-- MARK: レベルと🔑カギ
+
+func need_xp(level)
+  return 100 + level * 25
+end
+
+func gain(p, xp, keys_n, why)
+  if not kit_here(p) or p.is_npc then return end
+  if keys_n > 0 then kit_give(p, keys_n) end
+  p.xp = p.xp + xp
+  let up = false
+  while p.xp >= need_xp(p.level) do
+    p.xp = p.xp - need_xp(p.level)
+    p.level = p.level + 1
+    kit_give(p, 20)
+    up = true
+  end
+  if why != nil then p.message(why + "  +" + xp + "XP  🔑+" + keys_n, 1.5) end
+  if up then
+    p.message("⬆️ レベル " + p.level + "！ 🔑+20（新しい武器が買えるかも）", 3)
+    p.sound("goal")
+    kit_quest_progress(p, "lv5", 1)
+    kit_quest_progress(p, "lv15", 1)
+  end
+  hud(p)
+end
+
+-- MARK: キルログ（右上）
+
+let feed = []
+
+func feed_add(text)
+  insert(feed, 1, text)
+  while len(feed) > 5 do remove(feed) end
+  ui_text("feed", join(feed, "\n"), {at: "top_right", dy: 120, dx: -10, size: 13, color: "#F1F5F9", bg: "#00000066", radius: 8})
+end
+
+-- MARK: 画面
+
+func mode_name(mode)
+  if mode == "team" then return "⚔️ チーム戦" end
+  if mode == "duel" then return "🤺 タイマン" end
+  if mode == "ffa" then return "💥 乱戦" end
+  if mode == "training" then return "🎯 練習場" end
+  return "🏠 ロビー"
+end
+
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "lv", "Lv." + p.level + "  " + mode_name(p.mode), {at: "top_left", dy: 34, size: 17, bold: true, color: "#A7F3D0"})
+  p.ui_bar("xpbar", p.xp, need_xp(p.level), {at: "top_left", dy: 58, dx: 4, w: 160, h: 8, color: "#34D399"})
+  let kd = fixed(p.kills / max(1, p.deaths), 2)
+  set_line(p, "kd", "💀 " + p.kills + " / " + p.deaths + "（K/D " + kd + "）  🏆 " + p.wins, {at: "top_left", dy: 72, size: 13, color: "#CBD5E1"})
+  p.score = p.level
+end

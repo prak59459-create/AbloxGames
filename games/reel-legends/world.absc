@@ -1,0 +1,202 @@
+-- world.absc — 海のようす
+-- 昼と夜（夜だけの魚がいる）・天気（雨の日だけの魚）・大物イベント・魚が高く売れる日
+-- つり人のたのみごと（オレンジのパッド）・宝の地図（町のどこかをほる）
+
+let is_night = false
+let weather_now = "sunny"
+let event_price = 1
+let world_clock = 0
+let treasure_beams = {}  -- プレイヤーid → 光の柱
+
+-- MARK: 空
+
+func apply_sky()
+  let w = WEATHER[1]
+  for x in WEATHER do
+    if x.id == weather_now then w = x end
+  end
+  if is_night then
+    world.sky_top = "#0B1330"
+    world.sky_bottom = "#1E3A5F"
+    world.light = 0.35
+  else
+    world.sky_top = w.top
+    world.sky_bottom = w.bottom
+    world.light = w.light
+  end
+  let line = w.name
+  if is_night then line = "🌙 夜  " + w.name end
+  ui_text("sky", line, {at: "top", dy: 36, size: 15, bold: true, color: "#FFFFFF", bg: "#00000066", radius: 10})
+end
+
+-- MARK: 大物イベント
+
+func start_hunt()
+  let h = random(HUNTS)
+  hunt = {zone: h.zone, boost: h.boost, until: time() + 90, name: h.name}
+  let z = zone_by_id(h.zone)
+  announce(h.name + "！ " + z.name + " で " + RARITY[h.boost].name + " がかかりやすい（90秒）", 4)
+  sound("checkpoint")
+end
+
+-- MARK: つり人のたのみごと
+
+func new_angler_quest(p)
+  let kinds = ["count", "rare", "fish"]
+  let kind = random(kinds)
+  let open = filter(ZONES, func(z) return z.level <= p.level end)
+  let z = random(open)
+  if kind == "count" then
+    p.aq = {kind: kind, zone: z.id, need: random(3, 6), have: 0, text: z.name + " で魚を"}
+  elif kind == "rare" then
+    p.aq = {kind: kind, zone: nil, need: 1, have: 0, text: "レア以上の魚を"}
+  else
+    let list = filter(fish_of_zone(z.id), func(f) return index_of(RARITY_ORDER, f.rarity) <= 3 end)
+    let f = random(list)
+    p.aq = {kind: kind, fish: f.name, need: 1, have: 0, text: "「" + f.name + "」（" + z.name + "）を"}
+  end
+  p.aq.reward = 150 + p.level * 60
+  angler_line(p)
+end
+
+func angler_line(p)
+  if p.aq == nil then
+    set_line(p, "aq", nil, nil)
+    return
+  end
+  set_line(p, "aq", "🧑‍🌾 たのみごと: " + p.aq.text + " " + p.aq.have + "/" + p.aq.need + " 匹  💰" + kit_short(p.aq.reward),
+           {at: "top", dy: 62, size: 15, color: "#FDBA74"})
+end
+
+func angler_progress(p, c)
+  let q = p.aq
+  if q == nil then return end
+  let f = fish_by_name(c.name)
+  let ok = false
+  if q.kind == "count" and c.zone == q.zone then ok = true end
+  if q.kind == "rare" and index_of(RARITY_ORDER, f.rarity) >= 3 then ok = true end
+  if q.kind == "fish" and c.name == q.fish then ok = true end
+  if not ok then return end
+  q.have = q.have + 1
+  if q.have >= q.need then
+    kit_give(p, q.reward)
+    gain_xp(p, 40 + p.level * 5)
+    p.baits["worm"] = (p.baits["worm"] or 0) + 3
+    p.message("🧑‍🌾 たのみごと達成！ 💰" + kit_short(q.reward) + " ＋ ミミズ3こ", 3)
+    p.sound("goal")
+    kit_quest_progress(p, "angler", 1)
+    p.aq = nil
+    kit_later(p, 3, func() new_angler_quest(p) end)
+  end
+  angler_line(p)
+end
+
+func angler_menu(p)
+  if p.aq == nil then new_angler_quest(p) end
+  p.ui_panel("angler", {at: "center", w: 480, h: 220, bg: "#431407F2", radius: 22, layer: 30})
+  p.ui_text("angler_t", "🧑‍🌾 つり人のたのみごと", {parent: "angler", y: 0.14, size: 21, bold: true, color: "#FDBA74"})
+  p.ui_text("angler_s", p.aq.text + " " + p.aq.need + " 匹つってきて！", {parent: "angler", y: 0.38, size: 16})
+  p.ui_text("angler_r", "ごほうび 💰" + kit_short(p.aq.reward) + " ＋ ミミズ3こ", {parent: "angler", y: 0.55, size: 15, color: "#FDE68A"})
+  p.ui_button("angler_new", "べつのにする（💰50）", {parent: "angler", x: 0.3, y: 0.82, w: 190, h: 40, size: 14, bg: "#9A3412"})
+  p.ui_button("angler_close", "わかった", {parent: "angler", x: 0.75, y: 0.82, w: 150, h: 40, size: 15, bg: "green"})
+end
+
+-- MARK: 宝の地図
+
+func found_map(p)
+  let n = random(1, 4)
+  p.treasure = "Treasure Spot " + n
+  let spot = block(p.treasure)
+  p.message("🗺 宝の地図をつり上げた！町のどこかに宝がうまっている（光の柱）", 3.5)
+  p.sound("goal")
+  if spot != nil then
+    let beam = create_block({name: "Treasure Beam", shape: "cylinder", position: spot.position + {x: 0, y: 8, z: 0},
+                             size: {x: 0.8, y: 16, z: 0.8}, color: "#FACC15", material: "neon", solid: false, opacity: 0.5})
+    treasure_beams[p.id] = beam
+  end
+end
+
+func dig(p)
+  let spot = block(p.treasure)
+  if spot == nil or distance(p, spot) > 3 then return end
+  p.treasure = nil
+  gone(treasure_beams[p.id])
+  remove(treasure_beams, p.id)
+  let coins = floor(300 + p.level * 150 + random() * 1000)
+  kit_give(p, coins)
+  let prize = "💰" + kit_short(coins)
+  if random() < 0.35 then
+    p.baits["golden"] = (p.baits["golden"] or 0) + 3
+    prize = prize + " ＋ 金のえさ3こ"
+  end
+  announce("💎 " + p.name + " が宝箱をほり当てた！（" + prize + "）", 3.5)
+  kit_quest_progress(p, "treasure", 1)
+end
+
+-- MARK: スタートとティック
+
+on start()
+  apply_sky()
+  every(120, func()
+    is_night = not is_night
+    apply_sky()
+    if is_night then announce("🌙 夜になった。夜だけの魚がいるよ", 2.5) else announce("☀️ 朝になった", 2) end
+  end)
+  every(150, func()
+    let w = kit_pick(WEATHER, 1)
+    weather_now = w.id
+    apply_sky()
+    if w.id == "rain" then chat("🌧 雨の日は かかるのが早く、雨の日だけの魚もいる") end
+    if w.id == "fog" then chat("🌫 きりの日は レアがかかりやすい") end
+  end)
+  every(200, func() start_hunt() end)
+  every(260, func()
+    event_price = 1.5
+    announce("📈 魚が高く売れる日！（60秒 1.5倍）", 3)
+    after(60, func() event_price = 1 end)
+  end)
+  every(10, func() kit_leaderboard("📖 図鑑") end)
+end
+
+on tick(dt)
+  world_clock = world_clock + dt
+  if world_clock < 0.5 then return end
+  world_clock = 0
+  if hunt != nil and time() > hunt.until then
+    announce(hunt.name + " はおしまい", 2)
+    hunt = nil
+  end
+  for p in players() do
+    let spot = nil
+    if p.treasure != nil then spot = block(p.treasure) end
+    if spot != nil and distance(p, spot) < 3 then
+      set_btn(p, "dig", "⛏ ほる", {at: "bottom", dy: -110, w: 160, h: 56, size: 18, bg: "#A16207", radius: 16})
+    else
+      set_btn(p, "dig", nil, nil)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "dig" then dig(p)
+  elif id == "angler_close" then p.ui_remove("angler")
+  elif id == "angler_new" then
+    if kit_pay(p, 50) then
+      new_angler_quest(p)
+      angler_menu(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "angler") and cooldown_left(p, "angler") <= 0 then
+    start_cooldown(p, "angler", 3)
+    angler_menu(p)
+  end
+end
+
+on leave(p)
+  gone(treasure_beams[p.id])
+  remove(treasure_beams, p.id)
+end

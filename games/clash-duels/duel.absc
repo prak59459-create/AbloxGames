@@ -1,0 +1,238 @@
+-- duel.absc — 🤺 タイマン（Docks）
+-- 赤いパッドで待つ → 2人そろうとタイマン開始。先に5ラウンド取ったほうの勝ち。
+-- 1人で10秒待つと「🤖 BOTと対戦」ボタン。BOTはよけながらうってくる。
+
+let duel_queue = []
+let duel = nil        -- {a, b, sa, sb, round, live, bot}
+let duel_clock = 0
+
+func duel_players()
+  if duel == nil then return [] end
+  let list = []
+  for id in [duel.a, duel.b] do
+    let p = player_by_id(id)
+    if p != nil then append(list, p) end
+  end
+  return list
+end
+
+func duel_queue_join(p)
+  if contains(duel_queue, p.id) or (duel != nil and (duel.a == p.id or duel.b == p.id)) then return end
+  append(duel_queue, p.id)
+  p.queued_at = time()
+  p.message("🤺 タイマンの相手を待っています…（" + len(duel_queue) + "人）", 2)
+  kit_quest_progress(p, "queue", 1)
+  duel_try_start()
+end
+
+func duel_unqueue(p)
+  if contains(duel_queue, p.id) then remove(duel_queue, index_of(duel_queue, p.id)) end
+  set_btn(p, "duel_bot", nil, nil)
+end
+
+func duel_try_start()
+  if duel != nil or len(duel_queue) < 2 then return end
+  let a = player_by_id(remove(duel_queue, 1))
+  let b = player_by_id(remove(duel_queue, 1))
+  if a == nil or b == nil then
+    if a != nil then insert(duel_queue, 1, a.id) end
+    if b != nil then insert(duel_queue, 1, b.id) end
+    return
+  end
+  duel_begin(a, b)
+end
+
+func duel_begin(a, b)
+  duel = {a: a.id, b: nil, sa: 0, sb: 0, round: 0, live: false, bot: nil, bot_name: nil}
+  set_btn(a, "duel_bot", nil, nil)
+  enter_mode(a, "duel")
+  a.team = "duelA"
+  apply_look(a)
+  if b == nil then
+    duel.b = "bot"
+    announce("🤺 " + a.name + " が 🤖 BOT とタイマン！", 3)
+  else
+    duel.b = b.id
+    set_btn(b, "duel_bot", nil, nil)
+    enter_mode(b, "duel")
+    b.team = "duelB"
+    apply_look(b)
+    announce("🤺 タイマン: " + a.name + " vs " + b.name + "！", 3)
+  end
+  duel_round()
+end
+
+func duel_round()
+  let d = duel
+  if d == nil then return end
+  d.round = d.round + 1
+  d.live = false
+  let spots = [block("Duel Spawn 1"), block("Duel Spawn 2")]
+  let i = 0
+  for p in duel_players() do
+    i = i + 1
+    if not p.alive then p.respawn() end
+    p.heal(p.max_health)
+    if p.id == d.a then p.teleport(spots[1]) else p.teleport(spots[2]) end
+    arm(p)
+    p.frozen = true
+  end
+  if d.b == "bot" then spawn_bot(spots[2]) end
+  duel_score_ui()
+  after(3, func()
+    if duel != d then return end
+    for p in duel_players() do
+      p.frozen = false
+      p.message("GO!", 1)
+      p.sound("goal")
+    end
+    d.live = true
+  end)
+end
+
+func duel_name(id)
+  if id == "bot" then return "🤖 BOT" end
+  let p = player_by_id(id)
+  if p == nil then return "？" end
+  return p.name
+end
+
+func duel_score_ui()
+  let d = duel
+  for p in duel_players() do
+    set_line(p, "dscore", duel_name(d.a) + "  " + d.sa + " - " + d.sb + "  " + duel_name(d.b), {at: "top", dy: 30, size: 22, bold: true})
+  end
+end
+
+-- MARK: BOT
+
+func spawn_bot(spot)
+  let d = duel
+  if d.bot != nil and kit_here(d.bot) then d.bot.destroy() end
+  let n = create_npc({name: "🤖 BOT", position: spot.position + {x: 0, y: 1, z: 0}, color: "#64748B", head_color: "#F43F5E",
+                      health: 100, speed: 1.1, team: "duelB"})
+  n.bot = true
+  n.mode = "duel"
+  n.next_shot = time() + 3.5
+  n.next_move = 0
+  n.give("アサルトライフル")
+  d.bot = n
+end
+
+func bot_tick()
+  let d = duel
+  if d == nil or d.bot == nil or not kit_here(d.bot) or not d.live then return end
+  let n = d.bot
+  let target = player_by_id(d.a)
+  if target == nil or not target.alive then return end
+  n.look_at(target)
+  if time() > n.next_move then
+    n.next_move = time() + 0.8 + random() * 0.8
+    -- 相手のまわりを横に動く
+    let side = kit_dir(n.yaw + 90) * random(-6, 6)
+    let want = target.position + normalize(n.position - target.position) * 14 + side
+    n.move_to(want)
+  end
+  if time() > n.next_shot and distance(n, target) < 70 then
+    n.next_shot = time() + 0.5 + random() * 0.7
+    n.shoot(target)
+  end
+end
+
+func duel_bot_died(n)
+  let d = duel
+  if d == nil or d.bot != n or not d.live then return end
+  d.bot = nil
+  duel_round_won("a")
+end
+
+-- MARK: ラウンドと試合
+
+func duel_round_won(side)
+  let d = duel
+  if d == nil or not d.live then return end
+  d.live = false
+  if side == "a" then d.sa = d.sa + 1 else d.sb = d.sb + 1 end
+  duel_score_ui()
+  for p in duel_players() do
+    if (side == "a" and p.id == d.a) or (side == "b" and p.id == d.b) then gain(p, 20, 4, "ラウンド勝利！") end
+  end
+  if d.sa >= DUEL_ROUNDS or d.sb >= DUEL_ROUNDS then
+    duel_end(side)
+  else
+    after(2.5, func()
+      if duel == d then duel_round() end
+    end)
+  end
+end
+
+func duel_end(side)
+  let d = duel
+  let winner_id = d.a
+  if side == "b" then winner_id = d.b end
+  announce("🏆 タイマンは " + duel_name(winner_id) + " の勝ち！（" + d.sa + " - " + d.sb + "）", 4)
+  for p in duel_players() do
+    if p.id == winner_id then
+      p.wins = p.wins + 1
+      let keys_n = 40
+      if d.b == "bot" then keys_n = 15 end
+      gain(p, 100, keys_n, "🏆 タイマン勝利！")
+      kit_quest_progress(p, "duelwin", 1)
+    else
+      gain(p, 40, 8, "おつかれさま")
+    end
+  end
+  if d.bot != nil and kit_here(d.bot) then d.bot.destroy() end
+  let who = duel_players()
+  duel = nil
+  after(3.5, func()
+    for p in who do
+      if kit_here(p) and p.mode == "duel" then go_lobby(p, nil) end
+    end
+    duel_try_start()
+  end)
+end
+
+func duel_death(victim, killer)
+  let d = duel
+  if d == nil then return end
+  if victim.id == d.a then duel_round_won("b") else duel_round_won("a") end
+end
+
+func duel_leave(p)
+  let d = duel
+  if d == nil then return end
+  set_line(p, "dscore", nil, nil)
+  p.team = "lobby"
+  if p.id == d.a or p.id == d.b then
+    d.live = true
+    if p.id == d.a then
+      d.sb = DUEL_ROUNDS
+      duel_round_won("b")
+    else
+      d.sa = DUEL_ROUNDS
+      duel_round_won("a")
+    end
+  end
+end
+
+on tick(dt)
+  duel_clock = duel_clock + dt
+  if duel_clock < 0.3 then return end
+  duel_clock = 0
+  bot_tick()
+  -- ひとりで待っている人に BOT ボタン
+  for id in duel_queue do
+    let p = player_by_id(id)
+    if p != nil and time() - (p.queued_at or time()) > 10 and duel == nil then
+      set_btn(p, "duel_bot", "🤖 BOTと対戦", {at: "bottom", dy: -110, w: 200, h: 54, size: 18, bg: "#475569", radius: 16})
+    end
+  end
+end
+
+on button(p, id)
+  if id == "duel_bot" and contains(duel_queue, p.id) and duel == nil then
+    duel_unqueue(p)
+    duel_begin(p, nil)
+  end
+end

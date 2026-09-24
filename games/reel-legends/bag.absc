@@ -1,0 +1,199 @@
+-- bag.absc — バッグ・魚市場・図鑑
+-- つった魚はバッグへ（大きさはバッグを強化すると増える）。魚市場（黄色）で売る。
+-- ⭐お気に入りは「全部売る」で売られない。📖図鑑はつり場ごとに全部そろうとボーナス。
+
+let BAG_PER_PAGE = 8
+
+func add_catch(p, c)
+  let f = fish_by_name(c.name)
+  let r = RARITY[f.rarity]
+  append(p.bag, c)
+  p.total = (p.total or 0) + 1
+  let first = p.caught[c.name] == nil
+  if first then p.caught[c.name] = {count: 0, best: 0} end
+  let rec = p.caught[c.name]
+  rec.count = rec.count + 1
+  let record = c.kg > rec.best
+  if record then rec.best = c.kg end
+  let mut = mutation_by_id(c.mut)
+  gain_xp(p, r.xp * mut.mult)
+  kit_quest_progress(p, "catch", 1)
+  kit_quest_progress(p, "catch100", 1)
+  if index_of(RARITY_ORDER, f.rarity) >= 4 then kit_quest_progress(p, "epic", 1) end
+  if index_of(RARITY_ORDER, f.rarity) >= 6 then kit_quest_progress(p, "mythic", 1) end
+  if c.mut != "none" then kit_quest_progress(p, "mutant", 1) end
+  angler_progress(p, c)
+  let line = "🐟 " + catch_label(c) + " をつった！ 💰" + kit_short(catch_value(c))
+  if first then line = "📖 新しい魚！ " + line end
+  p.message(line, 2.5)
+  p.sound("collect")
+  if index_of(RARITY_ORDER, f.rarity) >= 5 or c.mut == "glow" then
+    announce("🌟 " + p.name + " が " + r.name + " の「" + catch_label(c) + "」をつり上げた！", 4)
+  end
+  if first then check_zone_done(p, c.zone) end
+  hud(p)
+end
+
+-- その場所の魚を全部つったら ボーナス
+func check_zone_done(p, zone)
+  if contains(p.zones_done, zone) then return end
+  for f in fish_of_zone(zone) do
+    if p.caught[f.name] == nil then return end
+  end
+  append(p.zones_done, zone)
+  let z = zone_by_id(zone)
+  let bonus = 500 + z.ticket * 2
+  kit_give(p, bonus)
+  announce("📖 " + p.name + " が " + z.name + " の図鑑をコンプリート！（💰" + kit_short(bonus) + "）", 4)
+  kit_quest_progress(p, "complete", 1)
+end
+
+-- MARK: バッグ（🐟）
+
+func bag_menu(p)
+  let pages = max(1, ceil(len(p.bag) / BAG_PER_PAGE))
+  let page = clamp(p.bag_page or 1, 1, pages)
+  p.bag_page = page
+  let first = (page - 1) * BAG_PER_PAGE + 1
+  let shown = slice(p.bag, first, first + BAG_PER_PAGE - 1)
+  let h = 170 + max(1, len(shown)) * 46
+  p.ui_remove("bag")
+  p.ui_panel("bag", {at: "center", w: 560, h: h, bg: "#0C2340F2", radius: 22, layer: 30})
+  p.ui_text("bag_t", "🐟 バッグ " + len(p.bag) + "/" + p.bag_size + "   合計 💰" + kit_short(bag_value(p, false)) + "   " + page + "/" + pages,
+            {parent: "bag", y: 24 / h, size: 18, bold: true, color: "#BAE6FD"})
+  p.ui_text("bag_s", "⭐ を押すとお気に入り（全部売るで売らない）", {parent: "bag", y: 50 / h, size: 13, color: "#93C5FD"})
+  if len(shown) == 0 then
+    p.ui_text("bag_none", "まだ魚がいません", {parent: "bag", y: 90 / h, size: 15})
+  end
+  let i = 0
+  for c in shown do
+    i = i + 1
+    let f = fish_by_name(c.name)
+    let star = "☆"
+    if c.fav then star = "⭐" end
+    p.ui_text("bag_" + i, catch_label(c) + "  💰" + kit_short(catch_value(c)), {parent: "bag", x: 0.42, y: (44 + i * 46) / h, size: 14, color: RARITY[f.rarity].color})
+    p.ui_button("fav_" + (first + i - 1), star, {parent: "bag", x: 0.86, y: (44 + i * 46) / h, w: 50, h: 38, size: 18, bg: "#1E3A5F"})
+  end
+  if pages > 1 then
+    p.ui_button("bag_next", "次へ ▶", {parent: "bag", x: 0.72, y: (h - 30) / h, w: 130, h: 38, size: 15, bg: "#1D4ED8"})
+    p.ui_button("bag_close", "閉じる", {parent: "bag", x: 0.3, y: (h - 30) / h, w: 130, h: 38, size: 15, bg: "gray"})
+  else
+    p.ui_button("bag_close", "閉じる", {parent: "bag", y: (h - 30) / h, w: 130, h: 38, size: 15, bg: "gray"})
+  end
+end
+
+func bag_value(p, only_sellable)
+  let total = 0
+  for c in p.bag do
+    if not (only_sellable and c.fav) then total = total + catch_value(c) end
+  end
+  return total
+end
+
+-- MARK: 魚市場（黄色のパッド）
+
+func market(p)
+  let h = 240
+  p.ui_panel("market", {at: "center", w: 460, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("market_t", "🐟 魚市場", {parent: "market", y: 0.13, size: 22, bold: true, color: "#FDE68A"})
+  let sellable = filter(p.bag, func(c) return not c.fav end)
+  let bonus = ""
+  if event_price > 1 then bonus = "（いまは " + event_price + "倍！）" end
+  p.ui_text("market_s", "売れる魚 " + len(sellable) + " 匹  💰" + kit_short(bag_value(p, true) * event_price) + bonus, {parent: "market", y: 0.33, size: 16})
+  p.ui_button("sell_all", "全部売る（⭐以外）", {parent: "market", y: 0.56, w: 300, h: 46, size: 17, bg: "#CA8A04"})
+  p.ui_button("market_close", "閉じる", {parent: "market", y: 0.85, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func sell_all(p)
+  let keep = []
+  let total = 0
+  let n = 0
+  for c in p.bag do
+    if c.fav then
+      append(keep, c)
+    else
+      total = total + catch_value(c)
+      n = n + 1
+    end
+  end
+  if n == 0 then
+    p.message("売れる魚がありません", 1.5)
+    return
+  end
+  total = floor(total * event_price)
+  p.bag = keep
+  kit_give(p, total)
+  p.earned = (p.earned or 0) + total
+  p.message("💰 " + n + " 匹を " + kit_short(total) + " で売った！", 2.5)
+  p.sound("collect")
+  kit_quest_progress(p, "sell", total)
+  p.ui_remove("market")
+  hud(p)
+end
+
+-- MARK: 📖 図鑑
+
+func bestiary(p)
+  let z = ZONES[clamp(p.book_zone or 1, 1, len(ZONES))]
+  let list = fish_of_zone(z.id)
+  let h = 170 + len(list) * 34
+  p.ui_remove("book")
+  p.ui_panel("book", {at: "center", w: 540, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  let done = len(filter(list, func(f) return p.caught[f.name] != nil end))
+  p.ui_text("book_t", "📖 " + z.name + "（" + done + "/" + len(list) + "）", {parent: "book", y: 24 / h, size: 20, bold: true, color: z.color})
+  let i = 0
+  for f in list do
+    i = i + 1
+    let r = RARITY[f.rarity]
+    let when = ""
+    if f.when == "night" then when = " 🌙" end
+    if f.when == "day" then when = " ☀️" end
+    if f.when == "rain" then when = " 🌧" end
+    let rec = p.caught[f.name]
+    let text = "❔ ？？？（" + r.name + "）" + when
+    let color = "#64748B"
+    if rec != nil then
+      text = "✅ " + f.name + "（" + r.name + "）" + when + "  ×" + rec.count + "  最大 " + fixed(rec.best, 1) + "kg"
+      color = r.color
+    end
+    p.ui_text("book_" + i, text, {parent: "book", y: (40 + i * 34) / h, size: 14, color: color})
+  end
+  p.ui_button("book_next", "次のつり場 ▶", {parent: "book", x: 0.72, y: (h - 30) / h, w: 170, h: 38, size: 15, bg: "#1D4ED8"})
+  p.ui_button("book_close", "閉じる", {parent: "book", x: 0.3, y: (h - 30) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "open_bag" then
+    p.bag_page = 1
+    bag_menu(p)
+  elif id == "bag_close" then p.ui_remove("bag")
+  elif id == "bag_next" then
+    p.bag_page = (p.bag_page or 1) + 1
+    if p.bag_page > ceil(len(p.bag) / BAG_PER_PAGE) then p.bag_page = 1 end
+    bag_menu(p)
+  elif starts_with(id, "fav_") then
+    let c = p.bag[num(replace(id, "fav_", ""))]
+    if c != nil then
+      c.fav = not c.fav
+      bag_menu(p)
+    end
+  elif id == "sell_all" then sell_all(p)
+  elif id == "market_close" then p.ui_remove("market")
+  elif id == "open_book" then bestiary(p)
+  elif id == "book_close" then p.ui_remove("book")
+  elif id == "book_next" then
+    p.book_zone = (p.book_zone or 1) % len(ZONES) + 1
+    bestiary(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "merchant") and cooldown_left(p, "market") <= 0 then
+    start_cooldown(p, "market", 3)
+    market(p)
+  elif contains(b.tags, "bestiary") and cooldown_left(p, "book") <= 0 then
+    start_cooldown(p, "book", 3)
+    bestiary(p)
+  end
+end

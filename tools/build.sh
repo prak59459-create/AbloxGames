@@ -19,6 +19,10 @@ fi
 
 OUT="${TMPDIR:-/tmp}/ablox-catalogue-generator"
 mkdir -p "$OUT"
-swiftc -O -module-name CatalogueGenerator -o "$OUT/generate" \
-  "$CORE"/*.swift tools/generator/*.swift
-"$OUT/generate" "$@"
+# Compile a snapshot, so editing the sources while it builds cannot break it.
+SNAPSHOT="$(mktemp -d)"
+BINARY="$OUT/generate-$$"
+trap 'rm -rf "$SNAPSHOT" "$BINARY"' EXIT
+cp "$CORE"/*.swift tools/generator/*.swift "$SNAPSHOT"/
+swiftc -O -module-name CatalogueGenerator -o "$BINARY" "$SNAPSHOT"/*.swift
+"$BINARY" "$@"

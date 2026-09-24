@@ -1,0 +1,134 @@
+-- data.absc — Reel Legends の表（つり場・魚・ロッド・えさ・変異・天気）
+
+-- MARK: つり場（level: つり券が買えるレベル / ticket: つり券の値段）
+let ZONES = [
+  {id: "Pond", name: "池", level: 0, ticket: 0, color: "#86EFAC"},
+  {id: "River", name: "川", level: 3, ticket: 150, color: "#7DD3FC"},
+  {id: "Ocean", name: "海", level: 6, ticket: 400, color: "#38BDF8"},
+  {id: "Coral Reef", name: "サンゴ礁", level: 10, ticket: 900, color: "#F472B6"},
+  {id: "Deep Trench", name: "深海", level: 15, ticket: 2000, color: "#1E3A8A"},
+  {id: "Frozen Lake", name: "氷の湖", level: 20, ticket: 4000, color: "#E0F2FE"},
+  {id: "Volcano Lake", name: "火山湖", level: 28, ticket: 8000, color: "#F97316"},
+  {id: "Sunken Ruins", name: "しずんだ遺跡", level: 35, ticket: 15000, color: "#A78BFA"}
+]
+
+-- MARK: めずらしさ（xp: つると経験値 / speed: 魚が逃げる速さ）
+let RARITY = {
+  common: {name: "コモン", color: "#9CA3AF", weight: 50, xp: 8, speed: 1},
+  uncommon: {name: "アンコモン", color: "#22C55E", weight: 28, xp: 14, speed: 1.2},
+  rare: {name: "レア", color: "#3B82F6", weight: 13, xp: 30, speed: 1.45},
+  epic: {name: "エピック", color: "#A855F7", weight: 6, xp: 60, speed: 1.7},
+  legendary: {name: "レジェンド", color: "#F59E0B", weight: 2.2, xp: 150, speed: 2},
+  mythic: {name: "ミシック", color: "#EF4444", weight: 0.6, xp: 400, speed: 2.4},
+  exotic: {name: "エキゾチック", color: "#EC4899", weight: 0.15, xp: 1000, speed: 2.8}
+}
+let RARITY_ORDER = ["common", "uncommon", "rare", "epic", "legendary", "mythic", "exotic"]
+
+-- MARK: 魚（zone・めずらしさ・値段・重さkg・いつ出るか）
+-- when: any / day / night / rain
+let FISH = [
+  {name: "フナ", zone: "Pond", rarity: "common", price: 6, kg: [0.2, 1], when: "any"},
+  {name: "コイ", zone: "Pond", rarity: "common", price: 9, kg: [1, 5], when: "any"},
+  {name: "ザリガニ", zone: "Pond", rarity: "uncommon", price: 14, kg: [0.1, 0.4], when: "any"},
+  {name: "ナマズ", zone: "Pond", rarity: "uncommon", price: 22, kg: [2, 12], when: "night"},
+  {name: "金色のコイ", zone: "Pond", rarity: "rare", price: 70, kg: [1, 6], when: "day"},
+  {name: "カエルの王さま", zone: "Pond", rarity: "epic", price: 220, kg: [0.5, 2], when: "rain"},
+  {name: "月夜のメダカ", zone: "Pond", rarity: "legendary", price: 800, kg: [0.05, 0.1], when: "night"},
+  {name: "池の主", zone: "Pond", rarity: "mythic", price: 3500, kg: [20, 60], when: "any"},
+  {name: "アユ", zone: "River", rarity: "common", price: 12, kg: [0.1, 0.4], when: "any"},
+  {name: "ヤマメ", zone: "River", rarity: "common", price: 15, kg: [0.2, 0.6], when: "any"},
+  {name: "ニジマス", zone: "River", rarity: "uncommon", price: 30, kg: [0.5, 3], when: "day"},
+  {name: "サクラマス", zone: "River", rarity: "rare", price: 90, kg: [1, 5], when: "any"},
+  {name: "オオサンショウウオ", zone: "River", rarity: "epic", price: 300, kg: [5, 25], when: "rain"},
+  {name: "イトウ", zone: "River", rarity: "legendary", price: 1100, kg: [10, 40], when: "any"},
+  {name: "川の精霊ギョ", zone: "River", rarity: "mythic", price: 4500, kg: [1, 3], when: "night"},
+  {name: "アジ", zone: "Ocean", rarity: "common", price: 18, kg: [0.2, 0.6], when: "any"},
+  {name: "サバ", zone: "Ocean", rarity: "common", price: 20, kg: [0.3, 1], when: "any"},
+  {name: "タイ", zone: "Ocean", rarity: "uncommon", price: 45, kg: [0.5, 4], when: "day"},
+  {name: "ブリ", zone: "Ocean", rarity: "rare", price: 130, kg: [3, 12], when: "any"},
+  {name: "マグロ", zone: "Ocean", rarity: "epic", price: 420, kg: [30, 200], when: "any"},
+  {name: "虹色のカジキ", zone: "Ocean", rarity: "legendary", price: 1600, kg: [50, 300], when: "day"},
+  {name: "嵐のサメ", zone: "Ocean", rarity: "mythic", price: 6000, kg: [100, 600], when: "rain"},
+  {name: "クマノミ", zone: "Coral Reef", rarity: "common", price: 30, kg: [0.1, 0.3], when: "any"},
+  {name: "チョウチョウウオ", zone: "Coral Reef", rarity: "common", price: 34, kg: [0.1, 0.4], when: "any"},
+  {name: "ハリセンボン", zone: "Coral Reef", rarity: "uncommon", price: 70, kg: [0.3, 2], when: "any"},
+  {name: "ナポレオンフィッシュ", zone: "Coral Reef", rarity: "rare", price: 220, kg: [5, 60], when: "day"},
+  {name: "ウミガメ", zone: "Coral Reef", rarity: "epic", price: 650, kg: [30, 150], when: "any"},
+  {name: "サンゴの女王", zone: "Coral Reef", rarity: "legendary", price: 2500, kg: [1, 5], when: "any"},
+  {name: "マーメイドの鱗魚", zone: "Coral Reef", rarity: "exotic", price: 30000, kg: [2, 8], when: "night"},
+  {name: "チョウチンアンコウ", zone: "Deep Trench", rarity: "common", price: 60, kg: [1, 10], when: "any"},
+  {name: "ラブカ", zone: "Deep Trench", rarity: "uncommon", price: 120, kg: [5, 20], when: "any"},
+  {name: "リュウグウノツカイ", zone: "Deep Trench", rarity: "rare", price: 380, kg: [20, 150], when: "any"},
+  {name: "ダイオウイカ", zone: "Deep Trench", rarity: "epic", price: 1100, kg: [100, 500], when: "night"},
+  {name: "深海の主", zone: "Deep Trench", rarity: "legendary", price: 4200, kg: [300, 1000], when: "any"},
+  {name: "光る深淵クジラ", zone: "Deep Trench", rarity: "mythic", price: 14000, kg: [1000, 5000], when: "night"},
+  {name: "ワカサギ", zone: "Frozen Lake", rarity: "common", price: 80, kg: [0.02, 0.1], when: "any"},
+  {name: "氷のマス", zone: "Frozen Lake", rarity: "uncommon", price: 160, kg: [1, 5], when: "any"},
+  {name: "シロクマの友", zone: "Frozen Lake", rarity: "rare", price: 480, kg: [5, 20], when: "day"},
+  {name: "オーロラサーモン", zone: "Frozen Lake", rarity: "epic", price: 1500, kg: [3, 15], when: "night"},
+  {name: "氷河のドラゴン魚", zone: "Frozen Lake", rarity: "legendary", price: 5500, kg: [50, 300], when: "any"},
+  {name: "雪の結晶エイ", zone: "Frozen Lake", rarity: "exotic", price: 45000, kg: [10, 40], when: "any"},
+  {name: "マグマウナギ", zone: "Volcano Lake", rarity: "common", price: 140, kg: [1, 6], when: "any"},
+  {name: "ほのおのコイ", zone: "Volcano Lake", rarity: "uncommon", price: 280, kg: [2, 10], when: "any"},
+  {name: "黒曜石フグ", zone: "Volcano Lake", rarity: "rare", price: 800, kg: [1, 4], when: "any"},
+  {name: "溶岩ドラゴンフィッシュ", zone: "Volcano Lake", rarity: "epic", price: 2600, kg: [20, 120], when: "night"},
+  {name: "伝説のフェニックス魚", zone: "Volcano Lake", rarity: "legendary", price: 9000, kg: [5, 20], when: "day"},
+  {name: "火山の心臓", zone: "Volcano Lake", rarity: "mythic", price: 30000, kg: [100, 400], when: "any"},
+  {name: "石の魚", zone: "Sunken Ruins", rarity: "common", price: 240, kg: [2, 10], when: "any"},
+  {name: "古代のシーラカンス", zone: "Sunken Ruins", rarity: "uncommon", price: 480, kg: [20, 90], when: "any"},
+  {name: "黄金のカメ", zone: "Sunken Ruins", rarity: "rare", price: 1400, kg: [30, 120], when: "any"},
+  {name: "遺跡の守り神", zone: "Sunken Ruins", rarity: "epic", price: 4500, kg: [80, 300], when: "night"},
+  {name: "海の王冠", zone: "Sunken Ruins", rarity: "legendary", price: 15000, kg: [1, 3], when: "any"},
+  {name: "時をこえた魚", zone: "Sunken Ruins", rarity: "exotic", price: 90000, kg: [5, 50], when: "rain"}
+]
+
+-- MARK: 変異（つったときに たまにつく）
+let MUTATIONS = [
+  {id: "none", name: "", mult: 1, weight: 90},
+  {id: "shiny", name: "✨キラキラ", mult: 2, weight: 5},
+  {id: "albino", name: "⚪アルビノ", mult: 2.5, weight: 2.5},
+  {id: "giant", name: "🐋巨大", mult: 3, weight: 1.8},
+  {id: "glow", name: "💡発光", mult: 4, weight: 0.7}
+]
+
+-- MARK: ロッド（luck: 運 / control: 緑のバーの大きさ / resilience: ゲージのたまる速さ / lure: かかるまでの速さ）
+let RODS = [
+  {id: "wood", name: "木のロッド", price: 0, level: 0, luck: 1, control: 22, resilience: 1, lure: 1},
+  {id: "flimsy", name: "竹のロッド", price: 300, level: 2, luck: 1.1, control: 24, resilience: 1.05, lure: 1.1},
+  {id: "carbon", name: "カーボンロッド", price: 1200, level: 5, luck: 1.25, control: 26, resilience: 1.15, lure: 1.2},
+  {id: "fast", name: "スピードロッド", price: 3000, level: 8, luck: 1.2, control: 25, resilience: 1.1, lure: 1.8},
+  {id: "steady", name: "しっかりロッド", price: 6000, level: 12, luck: 1.35, control: 34, resilience: 1.25, lure: 1.3},
+  {id: "golden", name: "黄金のロッド", price: 15000, level: 18, luck: 1.8, control: 28, resilience: 1.3, lure: 1.4},
+  {id: "frost", name: "氷のロッド", price: 30000, level: 24, luck: 1.9, control: 32, resilience: 1.45, lure: 1.5},
+  {id: "magma", name: "マグマロッド", price: 60000, level: 30, luck: 2.2, control: 30, resilience: 1.6, lure: 1.6},
+  {id: "ruin", name: "遺跡のロッド", price: 120000, level: 38, luck: 2.6, control: 34, resilience: 1.7, lure: 1.8},
+  {id: "legend", name: "伝説のロッド", price: 300000, level: 45, luck: 3.3, control: 38, resilience: 2, lure: 2.2}
+]
+
+-- MARK: えさ（1回つるごとに1つ使う）
+let BAITS = [
+  {id: "worm", name: "🪱 ミミズ", price: 5, luck: 1.15, lure: 1, text: "運が少し上がる"},
+  {id: "shrimp", name: "🦐 エビ", price: 15, luck: 1.1, lure: 1.6, text: "早くかかる"},
+  {id: "squid", name: "🦑 イカ", price: 40, luck: 1.5, lure: 1, text: "レアがかかりやすい"},
+  {id: "glowworm", name: "🐛 ホタル虫", price: 60, luck: 1.4, lure: 1.2, text: "夜は運が大きく上がる"},
+  {id: "golden", name: "🌟 金のえさ", price: 300, luck: 2.4, lure: 1.2, text: "とてもレアがかかりやすい"},
+  {id: "magnet", name: "🧲 宝の磁石", price: 150, luck: 1, lure: 1, text: "宝の地図がつれやすい"}
+]
+
+-- MARK: 天気（15分でひとめぐりはしない。ランダム）
+let WEATHER = [
+  {id: "sunny", name: "☀️ 晴れ", weight: 5, top: "#5AB2FF", bottom: "#CDEBFF", light: 1},
+  {id: "cloudy", name: "☁️ くもり", weight: 3, top: "#94A3B8", bottom: "#E2E8F0", light: 0.8},
+  {id: "rain", name: "🌧 雨", weight: 2, top: "#475569", bottom: "#94A3B8", light: 0.6},
+  {id: "fog", name: "🌫 きり", weight: 1.5, top: "#CBD5E1", bottom: "#F1F5F9", light: 0.7}
+]
+
+-- MARK: 大物イベント（その場所で大物がかかりやすくなる）
+let HUNTS = [
+  {zone: "Ocean", name: "🦈 サメの群れ", boost: "mythic"},
+  {zone: "Deep Trench", name: "🐙 深海の目ざめ", boost: "legendary"},
+  {zone: "Coral Reef", name: "🧜 人魚の歌", boost: "exotic"},
+  {zone: "Frozen Lake", name: "❄️ オーロラの夜", boost: "exotic"},
+  {zone: "Volcano Lake", name: "🌋 噴火", boost: "mythic"},
+  {zone: "Pond", name: "🐸 カエルの合唱", boost: "legendary"}
+]

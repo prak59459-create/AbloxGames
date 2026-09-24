@@ -1,0 +1,219 @@
+-- shops.absc — ロッド屋・えさ屋・カニかご
+-- ロッド屋（青）: 10本のロッド。えさ屋（緑）: 6種類のえさ・バッグの強化・カニかご。
+-- カニかご: つり場で「🦀 かごを置く」→ 90秒後にそこへもどると カニがとれている。
+
+let BAG_SIZES = [20, 40, 80, 150]
+let BAG_PRICES = [0, 800, 5000, 30000]
+let CAGE_PRICE = 250
+let cages = []   -- {owner, zone, spot, block, ready}
+
+-- MARK: ロッド屋
+
+func rod_shop(p)
+  let h = 130 + len(RODS) * 44
+  p.ui_panel("rshop", {at: "center", w: 580, h: h, bg: "#0B1E4AF2", radius: 22, layer: 30})
+  p.ui_text("rshop_t", "🎣 ロッド屋（運・バー・ゲージ・かかりやすさ）", {parent: "rshop", y: 24 / h, size: 18, bold: true, color: "#93C5FD"})
+  let i = 0
+  for r in RODS do
+    i = i + 1
+    let stats = "運×" + r.luck + " バー" + r.control + " 速さ×" + r.resilience
+    let label = r.name + "  💰" + kit_short(r.price) + "  " + stats
+    let bg = "#1D4ED8"
+    if p.rod == r.id then
+      label = "✅ " + r.name + "（使用中）  " + stats
+      bg = "#15803D"
+    elif contains(p.rods, r.id) then
+      label = r.name + "（持っている・押すと持つ）"
+      bg = "#0F766E"
+    elif p.level < r.level then
+      label = "🔒 " + r.name + "（Lv." + r.level + " から）"
+      bg = "#374151"
+    end
+    p.ui_button("rod_" + r.id, label, {parent: "rshop", y: (30 + i * 44) / h, w: 540, h: 38, size: 13, bg: bg})
+  end
+  p.ui_button("rshop_close", "閉じる", {parent: "rshop", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func pick_rod(p, id)
+  let rod = nil
+  for r in RODS do
+    if r.id == id then rod = r end
+  end
+  if rod == nil then return end
+  if not contains(p.rods, id) then
+    if p.level < rod.level then
+      p.message("🔒 つりレベル " + rod.level + " から", 1.5)
+      return
+    end
+    if not kit_pay(p, rod.price) then return end
+    append(p.rods, id)
+    p.message("🎣 " + rod.name + " を買った！", 2)
+    p.sound("collect")
+    kit_quest_progress(p, "rod", 1)
+  end
+  p.rod = id
+  rod_shop(p)
+  hud(p)
+end
+
+-- MARK: えさ屋
+
+func bait_shop(p)
+  let rows = len(BAITS) + 2
+  let h = 140 + rows * 46
+  p.ui_panel("bshop", {at: "center", w: 580, h: h, bg: "#052E16F2", radius: 22, layer: 30})
+  p.ui_text("bshop_t", "🪱 えさ屋（押すと5こ買う・つるとき自動で使う）", {parent: "bshop", y: 24 / h, size: 17, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for b in BAITS do
+    i = i + 1
+    let mark = ""
+    if p.bait == b.id then mark = "✅ " end
+    p.ui_button("bait_" + b.id, mark + b.name + " ×" + (p.baits[b.id] or 0) + "   5こ 💰" + kit_short(b.price * 5) + "  " + b.text,
+                {parent: "bshop", y: (30 + i * 46) / h, w: 540, h: 40, size: 13, bg: "#15803D"})
+  end
+  let lvl = index_of(BAG_SIZES, p.bag_size) or 1
+  if lvl < len(BAG_SIZES) then
+    p.ui_button("bag_up", "🎒 バッグを " + BAG_SIZES[lvl + 1] + " 匹に  💰" + kit_short(BAG_PRICES[lvl + 1]),
+                {parent: "bshop", y: (30 + (len(BAITS) + 1) * 46) / h, w: 540, h: 40, size: 14, bg: "#A16207"})
+  end
+  p.ui_button("cage_buy", "🦀 カニかご ×" + (p.cage_items or 0) + "   1こ 💰" + CAGE_PRICE + "（つり場に置くとカニがとれる）",
+              {parent: "bshop", y: (30 + (len(BAITS) + 2) * 46) / h, w: 540, h: 40, size: 13, bg: "#B91C1C"})
+  p.ui_button("bshop_close", "閉じる", {parent: "bshop", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func buy_bait(p, id)
+  let bait = nil
+  for b in BAITS do
+    if b.id == id then bait = b end
+  end
+  if bait == nil then return end
+  if (p.baits[id] or 0) > 0 and p.bait != id then
+    -- 持っているえさは、押すと「使うえさ」にえらぶだけ
+    p.bait = id
+    p.message(bait.name + " を使います", 1.2)
+    bait_shop(p)
+    hud(p)
+    return
+  end
+  if not kit_pay(p, bait.price * 5) then return end
+  p.baits[id] = (p.baits[id] or 0) + 5
+  p.bait = id
+  p.sound("collect")
+  kit_quest_progress(p, "bait", 1)
+  bait_shop(p)
+  hud(p)
+end
+
+func bag_upgrade(p)
+  let lvl = index_of(BAG_SIZES, p.bag_size) or 1
+  if lvl >= len(BAG_SIZES) then return end
+  if not kit_pay(p, BAG_PRICES[lvl + 1]) then return end
+  p.bag_size = BAG_SIZES[lvl + 1]
+  p.message("🎒 バッグが " + p.bag_size + " 匹入るようになった！", 2)
+  p.sound("goal")
+  bait_shop(p)
+  hud(p)
+end
+
+-- MARK: カニかご
+
+func cage_button(p)
+  if p.spot == nil then
+    set_btn(p, "cage", nil, nil)
+    return
+  end
+  let mine = nil
+  for c in cages do
+    if c.owner == p.id and c.spot == p.spot_block then mine = c end
+  end
+  if mine != nil then
+    if time() >= mine.ready then
+      set_btn(p, "cage", "🦀 かごを上げる", {at: "bottom_right", dx: -260, dy: -150, w: 140, h: 60, size: 15, bg: "#DC2626", radius: 16})
+    else
+      set_btn(p, "cage", "🦀 あと" + ceil(mine.ready - time()) + "秒", {at: "bottom_right", dx: -260, dy: -150, w: 140, h: 60, size: 15, bg: "#57534E", radius: 16})
+    end
+  elif (p.cage_items or 0) > 0 then
+    set_btn(p, "cage", "🦀 かごを置く", {at: "bottom_right", dx: -260, dy: -150, w: 140, h: 60, size: 15, bg: "#B91C1C", radius: 16})
+  else
+    set_btn(p, "cage", nil, nil)
+  end
+end
+
+func cage_action(p)
+  if p.spot == nil then return end
+  for c in copy(cages) do
+    if c.owner == p.id and c.spot == p.spot_block then
+      if time() < c.ready then
+        p.message("🦀 まだです（あと " + ceil(c.ready - time()) + " 秒）", 1.2)
+        return
+      end
+      gone(c.block)
+      remove(cages, index_of(cages, c))
+      let z = zone_by_id(c.zone)
+      let crabs = random(3, 8)
+      let value = crabs * (10 + z.ticket / 20)
+      kit_give(p, floor(value))
+      p.message("🦀 カニが " + crabs + " 匹！ 💰" + kit_short(value), 2)
+      p.sound("collect")
+      kit_quest_progress(p, "cage", 1)
+      cage_button(p)
+      return
+    end
+  end
+  if (p.cage_items or 0) <= 0 then return end
+  let mine = filter(cages, func(c) return c.owner == p.id end)
+  if len(mine) >= 2 then
+    p.message("かごは2こまで", 1.2)
+    return
+  end
+  p.cage_items = p.cage_items - 1
+  let spot = block(p.spot_block)
+  let b = create_block({name: "Crab Cage", shape: "box", position: spot.position + {x: 0, y: -0.6, z: 1.8}, size: {x: 1, y: 0.8, z: 1},
+                        color: "#B45309", material: "metal", solid: false})
+  append(cages, {owner: p.id, zone: p.spot, spot: p.spot_block, block: b, ready: time() + 90})
+  p.message("🦀 かごを置いた。90秒後にここで上げよう", 2)
+  cage_button(p)
+end
+
+on tick(dt)
+  -- かごのボタンの残り時間
+  if floor(time() * 10) % 10 != 0 then return end
+  for p in players() do
+    if p.spot != nil then cage_button(p) end
+  end
+end
+
+on button(p, id)
+  if id == "rshop_close" then p.ui_remove("rshop")
+  elif starts_with(id, "rod_") then pick_rod(p, replace(id, "rod_", ""))
+  elif id == "bshop_close" then p.ui_remove("bshop")
+  elif starts_with(id, "bait_") then buy_bait(p, replace(id, "bait_", ""))
+  elif id == "bag_up" then bag_upgrade(p)
+  elif id == "cage_buy" then
+    if kit_pay(p, CAGE_PRICE) then
+      p.cage_items = (p.cage_items or 0) + 1
+      bait_shop(p)
+    end
+  elif id == "cage" then cage_action(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "rodshop") and cooldown_left(p, "rshop") <= 0 then
+    start_cooldown(p, "rshop", 3)
+    rod_shop(p)
+  elif contains(b.tags, "baitshop") and cooldown_left(p, "bshop") <= 0 then
+    start_cooldown(p, "bshop", 3)
+    bait_shop(p)
+  end
+end
+
+on leave(p)
+  for c in copy(cages) do
+    if c.owner == p.id then
+      gone(c.block)
+      remove(cages, index_of(cages, c))
+    end
+  end
+end

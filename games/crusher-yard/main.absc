@@ -76,7 +76,7 @@ func crush(p, machine)
       b.color = "#F97316"
     end
     after(1.5, func()
-      b.destroy()
+      kit_gone(b)
       busy[machine] = false
       if kit_here(p) then
         let earned = floor(car.value * machines[machine] * p.mult)

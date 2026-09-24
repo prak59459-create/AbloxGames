@@ -1,0 +1,76 @@
+-- lobby.absc — ロビーとモードの出入り
+-- ロビーでは戦えない。パッドにのってモードへ: 🤺タイマン待ち / ⚔️チーム戦待ち / 💥乱戦 / 🎯練習場。
+-- どのモードからでも「🏠 ロビー」ボタンか出口パッドでもどれる（試合中にもどると負け）。
+
+func lobby_spawn()
+  return block("Spawn " + random(1, 8))
+end
+
+-- いまのモードから出る（試合なら抜けたあつかい）
+func leave_mode(p)
+  let m = p.mode
+  if m == "team" then team_leave(p) end
+  if m == "duel" then duel_leave(p) end
+  if m == "ffa" then ffa_leave(p) end
+  if m == "training" then training_leave(p) end
+  team_unqueue(p)
+  duel_unqueue(p)
+  p.waiting = false
+  p.visible = true
+  for id in ["tscore", "ttime", "wait", "dscore", "fscore"] do set_line(p, id, nil, nil) end
+end
+
+func go_lobby(p, why)
+  if not kit_here(p) then return end
+  leave_mode(p)
+  p.mode = "lobby"
+  p.team = "lobby"
+  p.streak = 0
+  p.frozen = false
+  if not p.alive then p.respawn() end
+  disarm(p)
+  p.heal(p.max_health)
+  let spot = lobby_spawn()
+  if spot != nil then p.teleport(spot) end
+  apply_look(p)
+  p.camera = "third"
+  if why != nil then p.message(why, 2.5) end
+  set_btn(p, "to_lobby", nil, nil)
+  hud(p)
+end
+
+-- モードに入る（まだ位置と武器はそれぞれのモードで決める）
+func enter_mode(p, mode)
+  p.mode = mode
+  p.streak = 0
+  p.camera = "first"
+  set_btn(p, "to_lobby", "🏠 ロビー", {at: "top_right", dy: 120, dx: -70, w: 110, h: 40, size: 14, bg: "#475569", radius: 12})
+  hud(p)
+end
+
+on button(p, id)
+  if id == "to_lobby" then
+    if p.mode == "team" or p.mode == "duel" then
+      go_lobby(p, "試合をぬけてロビーにもどった")
+    else
+      go_lobby(p, nil)
+    end
+  elif id == "open_load" then
+    loadout_menu(p)
+  elif id == "open_shop" then
+    shop(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "lobby") and p.mode != "lobby" and p.mode != "team" and p.mode != "duel" then
+    go_lobby(p, nil)
+  elif p.mode == "lobby" then
+    if contains(b.tags, "queue_duel") then duel_queue_join(p)
+    elif contains(b.tags, "queue_team") then team_queue_join(p)
+    elif contains(b.tags, "ffa") then ffa_join(p)
+    elif contains(b.tags, "training") then training_join(p)
+    end
+  end
+end

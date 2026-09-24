@@ -106,7 +106,7 @@ enum Harness {
                         game.updateTransform(PlayerTransformPayload(peerID: peer, position: spot, yawDegrees: rng.range(0, 360)))
                         report.touches += 1
                         _ = game.handle(.touched(peer: peer, blockID: block.id))
-                        if rich { stayUntil[peer] = time + 6 }
+                        if rich { stayUntil[peer] = time + 9 }
                     }
                 case 6:
                     let blocks = game.world.blocks

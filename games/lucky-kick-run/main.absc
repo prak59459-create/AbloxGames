@@ -64,7 +64,7 @@ func tsunami()
                          color: "#1D4ED8", material: "glass", opacity: 0.85, solid: false, behavior: "trigger", tags: ["wave"]})
     wave.move_to(block("Wave End"), 16)
     after(16.5, func()
-      if wave != nil then wave.destroy() end
+      kit_gone(wave)
       wave = nil
       wave_coming = false
       announce("津波が去った… 浜辺にもどろう", 2)

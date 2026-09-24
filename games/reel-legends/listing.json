@@ -1,11 +1,17 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 68,
+  "blockCount" : 140,
   "id" : "reel-legends",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/reel-legends\/data.absc",
+    "games\/reel-legends\/bag.absc",
+    "games\/reel-legends\/common.absc",
+    "games\/reel-legends\/fishing.absc",
+    "games\/reel-legends\/shops.absc",
+    "games\/reel-legends\/world.absc",
     "games\/reel-legends\/main.absc"
   ],
   "summary" : "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",

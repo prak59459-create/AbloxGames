@@ -1,0 +1,72 @@
+-- combat.absc — 当たり判定・たおした/たおされた・連続キル
+-- ちがうモードの人・同じチームの人・ロビーの人にはダメージが入らない。
+
+on hit(victim, attacker, damage)
+  if attacker == nil then return damage end
+  if attacker.is_npc then
+    -- BOT は同じモードのプレイヤーだけをうつ
+    if victim.is_npc or victim.mode != attacker.mode then return 0 end
+    return damage
+  end
+  if victim.is_npc then
+    if victim.mode != attacker.mode then return 0 end
+    if victim.dummy then dummy_hit(attacker, victim, damage) end
+    return damage
+  end
+  if not enemies(attacker, victim) then return 0 end
+  -- 当たった印
+  attacker.ui_text("hitmark", "✖", {at: "center", size: 26, bold: true, color: "#F87171"})
+  kit_later(attacker, 0.15, func() attacker.ui_remove("hitmark") end)
+  return damage
+end
+
+on death(victim, killer)
+  if victim.is_npc then
+    if victim.bot and killer != nil and not killer.is_npc then
+      gain(killer, 15, 3, "🤖 BOTをたおした")
+      feed_add(killer.name + " 🔫 BOT")
+    end
+    if victim.bot then duel_bot_died(victim) end
+    if victim.dummy then dummy_died(victim) end
+    return
+  end
+  victim.deaths = victim.deaths + 1
+  victim.streak = 0
+  if killer != nil and not killer.is_npc and killer.id != victim.id then
+    killer.kills = killer.kills + 1
+    killer.streak = (killer.streak or 0) + 1
+    let w = killer.weapon or "?"
+    feed_add(killer.name + " 🔫 " + victim.name + "（" + w + "）")
+    gain(killer, 25, 5, "💥 " + victim.name + " をたおした")
+    kit_quest_progress(killer, "kill", 1)
+    kit_quest_progress(killer, "kill50", 1)
+    for s in STREAKS do
+      if killer.streak == s.kills then
+        announce(killer.name + "：" + s.text, 2.5)
+        killer.heal(killer.max_health)
+        gain(killer, 10 * s.kills, s.kills, nil)
+        if s.kills >= 5 then kit_quest_progress(killer, "streak5", 1) end
+      end
+    end
+  elif killer != nil and killer.is_npc then
+    feed_add("BOT 🔫 " + victim.name)
+  end
+  let m = victim.mode
+  if m == "team" then team_death(victim, killer)
+  elif m == "duel" then duel_death(victim, killer)
+  elif m == "ffa" then ffa_death(victim, killer)
+  elif m == "training" then
+    kit_later(victim, 2, func()
+      victim.respawn()
+      training_place(victim)
+    end)
+  else
+    kit_later(victim, 2, func() go_lobby(victim, nil) end)
+  end
+  hud(victim)
+end
+
+on respawn(p)
+  if p.is_npc then return end
+  hud(p)
+end

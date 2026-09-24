@@ -108,7 +108,7 @@ func use_item(p)
     let spot = p.position - p.look * 4
     let oil = create_block({name: "Oil", shape: "cylinder", position: spot + {x: 0, y: 0.05, z: 0}, size: {x: 3, y: 0.05, z: 3},
                             color: "#111111", tags: ["oil"], behavior: "trigger", solid: false})
-    after(25, func() oil.destroy() end)
+    after(25, func() kit_gone(oil) end)
   elif id == "shield" then
     p.shield = true
     p.message("🛡 シールド（1回）", 1)

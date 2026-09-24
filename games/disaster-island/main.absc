@@ -108,7 +108,7 @@ on start()
                                  material: "neon", solid: false, behavior: "trigger", tags: ["meteor"]})
         let land = {x: random(-55, 55), y: 0, z: random(-55, 55)}
         rock.move_to(land, 2)
-        after(2.6, func() rock.destroy() end)
+        after(2.6, func() kit_gone(rock) end)
       end
     end
   end)

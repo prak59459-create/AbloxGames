@@ -1,0 +1,162 @@
+-- ffa.absc — 💥 乱戦（Temple）と 🎯 練習場
+-- 乱戦: 紫のパッドでいつでも参加。全員が敵。たおされても3秒で復活。先に15キルで優勝。
+-- 練習場: 緑のパッド。動かない的と動く的がある。当てるとダメージの数字が出る。
+
+let ffa_clock = 0
+let dummies = []
+
+-- MARK: 乱戦
+
+func ffa_spawn_point(p)
+  -- ほかの人からいちばん遠い場所
+  let best = nil
+  let best_d = -1
+  for i in 1 to 8 do
+    let b = block("FFA Spawn " + i)
+    if b != nil then
+      let near = 999
+      for o in in_mode("ffa") do
+        if o.id != p.id and o.alive then near = min(near, distance(o, b)) end
+      end
+      if near > best_d then
+        best = b
+        best_d = near
+      end
+    end
+  end
+  return best
+end
+
+func ffa_join(p)
+  enter_mode(p, "ffa")
+  p.team = nil
+  p.ffa_kills = 0
+  apply_look(p)
+  ffa_place(p)
+  p.message("💥 乱戦に参加！全員が敵。先に " + FFA_GOAL + " キルで優勝", 2.5)
+  ffa_board()
+end
+
+func ffa_place(p)
+  let spot = ffa_spawn_point(p)
+  if spot != nil then p.teleport(spot) end
+  p.heal(p.max_health)
+  arm(p)
+end
+
+func ffa_death(victim, killer)
+  if killer != nil and not killer.is_npc and killer.mode == "ffa" and killer.id != victim.id then
+    killer.ffa_kills = (killer.ffa_kills or 0) + 1
+    if killer.ffa_kills >= FFA_GOAL then ffa_win(killer) end
+  end
+  ffa_board()
+  kit_later(victim, 3, func()
+    if victim.mode == "ffa" then
+      victim.respawn()
+      ffa_place(victim)
+    end
+  end)
+end
+
+func ffa_win(p)
+  announce("🏆 乱戦の優勝は " + p.name + "！（" + FFA_GOAL + " キル）", 4)
+  p.wins = p.wins + 1
+  gain(p, 150, 50, "🏆 乱戦優勝！")
+  kit_quest_progress(p, "ffawin", 1)
+  for o in in_mode("ffa") do
+    if o.id != p.id then gain(o, 30, 5, "乱戦おつかれさま") end
+    o.ffa_kills = 0
+  end
+end
+
+func ffa_board()
+  let list = sort(in_mode("ffa"), func(a, b) return (a.ffa_kills or 0) > (b.ffa_kills or 0) end)
+  let line = "💥 乱戦"
+  let i = 0
+  for p in slice(list, 1, 3) do
+    i = i + 1
+    line = line + "  " + i + ". " + p.name + " " + (p.ffa_kills or 0)
+  end
+  for p in in_mode("ffa") do
+    set_line(p, "fscore", line + "   （あなた " + (p.ffa_kills or 0) + "/" + FFA_GOAL + "）", {at: "top", dy: 30, size: 16, bold: true, color: "#E9D5FF"})
+  end
+end
+
+func ffa_leave(p)
+  p.ffa_kills = 0
+  set_line(p, "fscore", nil, nil)
+  after(0.1, func() ffa_board() end)
+end
+
+-- MARK: 練習場
+
+func training_join(p)
+  enter_mode(p, "training")
+  p.team = "trainee"
+  apply_look(p)
+  training_place(p)
+  p.message("🎯 練習場！的を撃ってみよう。灰色のパッドでロビーへ", 2.5)
+  kit_quest_progress(p, "training", 1)
+end
+
+func training_place(p)
+  let b = block("Range Start 1")
+  if b != nil then p.teleport(b) end
+  p.heal(p.max_health)
+  arm(p)
+end
+
+func training_leave(p)
+  p.team = "lobby"
+end
+
+func spawn_dummy(i)
+  let spot = block("Dummy Spot " + i)
+  if spot == nil then return end
+  let n = create_npc({name: "🎯 的 " + i, position: spot.position + {x: 0, y: 1, z: 0}, color: "#F97316", head_color: "#FED7AA",
+                      health: 300, speed: 0.6, team: "dummy"})
+  n.dummy = true
+  n.mode = "training"
+  n.spot = i
+  n.last_hit = 0
+  -- 3番の的は左右に動く
+  n.walker = i == 3
+  append(dummies, n)
+end
+
+func dummy_hit(attacker, n, damage)
+  n.last_hit = time()
+  attacker.ui_text("dmg", "💥 " + floor(damage), {at: "center", dy: -50, size: 22, bold: true, color: "#FDE047"})
+  kit_later(attacker, 0.5, func() attacker.ui_remove("dmg") end)
+  attacker.hits = (attacker.hits or 0) + 1
+end
+
+func dummy_died(n)
+  if contains(dummies, n) then remove(dummies, index_of(dummies, n)) end
+  let i = n.spot
+  after(2, func() spawn_dummy(i) end)
+end
+
+on start()
+  for i in 1 to 5 do spawn_dummy(i) end
+end
+
+on tick(dt)
+  ffa_clock = ffa_clock + dt
+  if ffa_clock < 1 then return end
+  ffa_clock = 0
+  for n in copy(dummies) do
+    if kit_here(n) then
+      -- しばらく当てられていない的は回復
+      if time() - n.last_hit > 3 and n.health < n.max_health then n.heal(n.max_health) end
+      if n.walker then
+        let spot = block("Dummy Spot " + n.spot)
+        let side = 6
+        if floor(time() / 3) % 2 == 0 then side = -6 end
+        n.move_to(spot.position + {x: side, y: 0, z: 0})
+      end
+    else
+      remove(dummies, index_of(dummies, n))
+    end
+  end
+end

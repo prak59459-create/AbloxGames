@@ -33,6 +33,11 @@ func kit_later(p, seconds, f)
   end)
 end
 
+-- ブロックやNPCを消す。もう消えていても（ラウンドのやり直しなどで）大丈夫
+func kit_gone(x)
+  if x != nil and x.destroy != nil then x.destroy() end
+end
+
 -- 1234567 → 1.2M
 func kit_short(n)
   if n == nil then return "0" end

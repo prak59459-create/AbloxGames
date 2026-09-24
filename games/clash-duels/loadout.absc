@@ -1,0 +1,333 @@
+-- loadout.absc — 武器・装備・投げ物
+-- 主武器・副武器・近接・投げ物を1つずつえらぶ（ロビーの水色パッド）。
+-- 武器屋（黄色）で🔑カギを使って新しい武器・投げ物・見た目を買う。
+-- 戦っている間は画面右下の 1 2 3 で持ちかえ、💣で投げ物。
+
+for w in WEAPONS do
+  if w.melee then
+    kit_melee(w.name, w.damage, w.rate, w.range)
+  else
+    weapon(w.name, {model: w.model, damage: w.damage, rate: w.rate, range: w.range, ammo: w.ammo, reload: w.reload, spread: w.spread})
+  end
+end
+
+let fires = []    -- 火炎びんの炎 {block, owner, until, mode}
+let pads = []     -- ジャンプ台 {block, until}
+
+func weapon_by_id(id)
+  for w in WEAPONS do
+    if w.id == id then return w end
+  end
+  return WEAPONS[1]
+end
+
+func utility_by_id(id)
+  for u in UTILITIES do
+    if u.id == id then return u end
+  end
+  return UTILITIES[1]
+end
+
+func wrap_by_id(id)
+  for w in WRAPS do
+    if w.id == id then return w end
+  end
+  return WRAPS[1]
+end
+
+-- MARK: 持つ
+
+-- 出撃するとき: 主武器を持ち、投げ物を満タンに
+func arm(p)
+  p.slot = "primary"
+  p.give(weapon_by_id(p.load.primary).name)
+  p.charges = utility_by_id(p.load.utility).charges
+  slot_buttons(p)
+end
+
+func disarm(p)
+  p.take()
+  p.charges = 0
+  for s in SLOTS do set_btn(p, "slot_" + s, nil, nil) end
+  set_btn(p, "use_util", nil, nil)
+end
+
+func switch_slot(p, s)
+  if p.mode == "lobby" or not p.alive then return end
+  p.slot = s
+  p.give(weapon_by_id(p.load[s]).name)
+  slot_buttons(p)
+end
+
+func slot_buttons(p)
+  let i = 0
+  for s in SLOTS do
+    i = i + 1
+    let w = weapon_by_id(p.load[s])
+    let label = i + " " + w.name
+    let bg = "#334155"
+    if p.slot == s then bg = "#2563EB" end
+    set_btn(p, "slot_" + s, label, {at: "bottom_right", dx: -110 - (3 - i) * 118, dy: -210, w: 112, h: 44, size: 13, bg: bg, radius: 12})
+  end
+  let u = utility_by_id(p.load.utility)
+  set_btn(p, "use_util", u.name + " ×" + p.charges, {at: "bottom_right", dx: -110, dy: -260, w: 150, h: 44, size: 14, bg: "#9A3412", radius: 12})
+end
+
+-- MARK: 投げ物
+
+func throw_point(p, dist)
+  let d = kit_dir(p.yaw)
+  return p.position + {x: d.x * dist, y: 0, z: d.z * dist}
+end
+
+func use_utility(p)
+  if p.mode == "lobby" or not p.alive or (p.charges or 0) <= 0 then return end
+  if cooldown_left(p, "util") > 0 then return end
+  start_cooldown(p, "util", 1)
+  p.charges = p.charges - 1
+  let id = p.load.utility
+  if id == "grenade" then
+    let spot = throw_point(p, 12)
+    let b = create_block({name: "Grenade", shape: "sphere", position: p.position + {x: 0, y: 1.5, z: 0}, size: 0.5, color: "#3F6212", material: "metal", solid: false})
+    b.move_to(spot + {x: 0, y: 0.5, z: 0}, 0.8)
+    after(1.4, func()
+      gone(b)
+      let fx = create_block({name: "Boom", shape: "sphere", position: spot + {x: 0, y: 1, z: 0}, size: 9, color: "#F97316", material: "neon", solid: false, opacity: 0.6})
+      after(0.35, func() gone(fx) end)
+      if kit_here(p) then blast(p, spot, 6, 75) end
+    end)
+  elif id == "flash" then
+    let spot = throw_point(p, 10)
+    after(1, func()
+      if not kit_here(p) then return end
+      for c in players() do
+        if c.id != p.id and c.mode == p.mode and c.alive and distance(c, spot) < 12 and enemies(p, c) then
+          c.fade("#FFFFFF", 0.1)
+          c.message("⚡ まぶしい！", 1)
+          kit_later(c, 2, func() c.fade(nil, 0.8) end)
+        end
+      end
+    end)
+  elif id == "smoke" then
+    let spot = throw_point(p, 8)
+    let b = create_block({name: "Smoke", shape: "sphere", position: spot + {x: 0, y: 2, z: 0}, size: 9, color: "#9CA3AF", material: "matte", solid: false, opacity: 0.85})
+    after(7, func() gone(b) end)
+  elif id == "molotov" then
+    let spot = throw_point(p, 9)
+    let b = create_block({name: "Fire Pool", shape: "cylinder", position: spot + {x: 0, y: 0.5, z: 0}, size: {x: 7, y: 0.2, z: 7}, color: "#F97316",
+                          material: "neon", solid: false, opacity: 0.7})
+    append(fires, {block: b, owner: p.id, until: time() + 6, mode: p.mode, center: spot})
+  elif id == "medkit" then
+    p.heal(60)
+    p.message("💊 +60", 1)
+  elif id == "jumppad" then
+    let spot = throw_point(p, 3)
+    let b = create_block({name: "Jump Pad", shape: "cylinder", position: spot + {x: 0, y: 0.5, z: 0}, size: {x: 2.4, y: 0.25, z: 2.4}, color: "#22D3EE",
+                          material: "neon", behavior: "trigger", tags: ["jumppad"], solid: false})
+    append(pads, {block: b, until: time() + 20})
+  end
+  kit_quest_progress(p, "util", 1)
+  slot_buttons(p)
+end
+
+-- こうげきしていい相手か（同じモード・ちがうチーム）
+func enemies(a, b)
+  if a.mode != b.mode or a.mode == "lobby" or b.waiting then return false end
+  if a.team != nil and a.team == b.team then return false end
+  return true
+end
+
+func blast(p, center, radius, damage)
+  for c in kit_everyone() do
+    if c.alive and c.id != p.id and distance(center, c) <= radius and (c.is_npc and c.mode == p.mode or not c.is_npc and enemies(p, c)) then
+      c.damage(damage * (1 - distance(center, c) / (radius * 1.6)), p)
+    end
+  end
+end
+
+-- MARK: ロビー: 装備をえらぶ
+
+func loadout_menu(p)
+  let h = 420
+  p.ui_panel("load", {at: "center", w: 620, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("load_t", "🎒 装備（持っているものだけ）", {parent: "load", y: 0.06, size: 20, bold: true, color: "#7DD3FC"})
+  let rows = [
+    {key: "primary", list: filter(WEAPONS, func(w) return w.slot == "primary" end)},
+    {key: "secondary", list: filter(WEAPONS, func(w) return w.slot == "secondary" end)},
+    {key: "melee", list: filter(WEAPONS, func(w) return w.slot == "melee" end)}
+  ]
+  let r = 0
+  for row in rows do
+    r = r + 1
+    p.ui_text("load_r" + r, SLOT_NAMES[row.key], {parent: "load", x: 0.1, y: 0.1 + r * 0.19, size: 14, color: "#CBD5E1"})
+    let owned = filter(row.list, func(w) return contains(p.owned, w.id) end)
+    let i = 0
+    for w in owned do
+      i = i + 1
+      let bg = "#334155"
+      if p.load[row.key] == w.id then bg = "#2563EB" end
+      p.ui_button("equip_" + w.id, w.name, {parent: "load", x: 0.22 + (i - 1) * 0.112, y: 0.1 + r * 0.19, w: 66, h: 44, size: 10, bg: bg})
+    end
+  end
+  p.ui_text("load_r4", "💣 投げ物", {parent: "load", x: 0.1, y: 0.86 - 0.08, size: 14, color: "#CBD5E1"})
+  let i = 0
+  for u in UTILITIES do
+    if contains(p.owned, u.id) then
+      i = i + 1
+      let bg = "#334155"
+      if p.load.utility == u.id then bg = "#9A3412" end
+      p.ui_button("equip_" + u.id, u.name, {parent: "load", x: 0.22 + (i - 1) * 0.112, y: 0.78, w: 66, h: 44, size: 10, bg: bg})
+    end
+  end
+  p.ui_button("load_close", "OK", {parent: "load", y: 0.94, w: 130, h: 34, size: 15, bg: "green"})
+end
+
+func equip(p, id)
+  for w in WEAPONS do
+    if w.id == id and contains(p.owned, id) then p.load[w.slot] = id end
+  end
+  for u in UTILITIES do
+    if u.id == id and contains(p.owned, id) then p.load.utility = id end
+  end
+  p.sound("collect")
+  loadout_menu(p)
+end
+
+-- MARK: 武器屋
+
+func shop(p)
+  let items = []
+  for w in WEAPONS do
+    if w.price > 0 then append(items, {id: w.id, name: w.name, price: w.price, level: w.level}) end
+  end
+  for u in UTILITIES do
+    if u.price > 0 then append(items, {id: u.id, name: u.name, price: u.price, level: u.level}) end
+  end
+  for w in WRAPS do
+    if w.price > 0 then append(items, {id: "wrap_" + w.id, name: "見た目 " + w.name, price: w.price, level: 0}) end
+  end
+  let per = 9
+  let pages = ceil(len(items) / per)
+  let page = p.shop_page or 1
+  if page > pages or page < 1 then page = 1 end
+  p.shop_page = page
+  let shown = slice(items, (page - 1) * per + 1, page * per)
+  let h = 150 + len(shown) * 44
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 540, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🔑 武器屋（" + page + "/" + pages + "）  持っているカギ " + kit_money(p), {parent: "shop", y: 24 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for it in shown do
+    i = i + 1
+    let label = it.name + "  🔑" + it.price
+    let bg = "#A16207"
+    if contains(p.owned, it.id) then
+      label = "✅ " + it.name
+      bg = "#374151"
+      if starts_with(it.id, "wrap_") then label = label + "（押すと着る）" end
+    elif p.level < it.level then
+      label = "🔒 " + it.name + "（Lv." + it.level + "）"
+      bg = "#374151"
+    end
+    p.ui_button("buy_" + it.id, label, {parent: "shop", y: (30 + i * 44) / h, w: 460, h: 38, size: 14, bg: bg})
+  end
+  p.ui_button("shop_next", "次へ ▶", {parent: "shop", x: 0.72, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "#57534E"})
+  p.ui_button("shop_close", "閉じる", {parent: "shop", x: 0.3, y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy(p, id)
+  if starts_with(id, "wrap_") then
+    let w = wrap_by_id(replace(id, "wrap_", ""))
+    if not contains(p.owned, id) then
+      if not kit_pay(p, w.price) then return end
+      append(p.owned, id)
+      kit_quest_progress(p, "wrap", 1)
+    end
+    p.wrap = w.id
+    apply_look(p)
+    shop(p)
+    return
+  end
+  let item = nil
+  for w in WEAPONS do
+    if w.id == id then item = w end
+  end
+  for u in UTILITIES do
+    if u.id == id then item = u end
+  end
+  if item == nil or contains(p.owned, id) then return end
+  if p.level < item.level then
+    p.message("🔒 レベル " + item.level + " から", 1.5)
+    return
+  end
+  if not kit_pay(p, item.price) then return end
+  append(p.owned, id)
+  p.message("🔑 " + item.name + " を手に入れた！（🎒装備でえらぼう）", 2.5)
+  p.sound("goal")
+  kit_quest_progress(p, "unlock", 1)
+  shop(p)
+end
+
+-- 体の色: チーム戦ではチームの色、ほかは買った見た目
+func apply_look(p)
+  if p.mode == "team" then
+    if p.team == "red" then p.color = "#EF4444" else p.color = "#3B82F6" end
+    return
+  end
+  let w = wrap_by_id(p.wrap or "default")
+  if w.color != nil then p.color = w.color else p.color = p.base_color end
+end
+
+-- MARK: 毎ティック（火炎びん・ジャンプ台）
+
+let util_clock = 0
+on tick(dt)
+  util_clock = util_clock + dt
+  if util_clock < 0.5 then return end
+  util_clock = 0
+  for f in copy(fires) do
+    if time() > f.until then
+      gone(f.block)
+      remove(fires, index_of(fires, f))
+    else
+      let owner = player_by_id(f.owner)
+      for c in kit_everyone() do
+        if owner != nil and c.alive and c.id != owner.id and distance(c, f.center) < 3.6 then
+          if (c.is_npc and c.mode == f.mode) or (not c.is_npc and enemies(owner, c)) then c.damage(8, owner) end
+        end
+      end
+    end
+  end
+  for pd in copy(pads) do
+    if time() > pd.until then
+      gone(pd.block)
+      remove(pads, index_of(pads, pd))
+    end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "slot_") then switch_slot(p, replace(id, "slot_", ""))
+  elif id == "use_util" then use_utility(p)
+  elif id == "load_close" then p.ui_remove("load")
+  elif starts_with(id, "equip_") then equip(p, replace(id, "equip_", ""))
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif id == "shop_next" then
+    p.shop_page = (p.shop_page or 1) + 1
+    shop(p)
+  elif starts_with(id, "buy_") then buy(p, replace(id, "buy_", ""))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "jumppad") then
+    p.launch(0, 26, 0)
+  elif contains(b.tags, "loadout") and cooldown_left(p, "loadpad") <= 0 then
+    start_cooldown(p, "loadpad", 3)
+    loadout_menu(p)
+  elif contains(b.tags, "shop") and cooldown_left(p, "shoppad") <= 0 then
+    start_cooldown(p, "shoppad", 3)
+    shop(p)
+  end
+end

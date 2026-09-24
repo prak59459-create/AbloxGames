@@ -81,7 +81,7 @@ on button(p, id)
     let b = create_block({name: "Bomb", shape: "sphere", position: spot + {x: 0, y: 1, z: 0}, size: 0.8, color: "#111111", material: "metal", solid: false})
     after(0.7, func() b.color = "#EF4444" end)
     after(1.5, func()
-      b.destroy()
+      kit_gone(b)
       let before = {}
       for c in players() do before[c.id] = c.alive end
       kit_blast(p, spot, 6, 55, 10)
