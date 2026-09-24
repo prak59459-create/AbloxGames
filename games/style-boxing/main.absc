@@ -1,0 +1,153 @@
+-- Style Boxing — スタイルを選んで殴り合う
+
+kit_setup("Style Boxing", "スタイルと必殺技で勝ち上がれ", [
+  "最初にスタイルを選ぶ: ⚡スピード 💪パワー 🛡タンク 🔄カウンター",
+  "ジャブ・フック・アッパー・ガード。当てると必殺ゲージがたまる",
+  "ゲージMAXで必殺技！スタイルごとに効果がちがう",
+  "どのリングでも、だれとでも戦える（バトルロイヤル）",
+  "KOで1ポイント。たおされても3秒で復活"
+])
+
+let styles = {
+  speed: {name: "⚡ スピード", color: "#FACC15", dmg: 0.8, move: 1.4, hp: 90, special: "連打ラッシュ"},
+  power: {name: "💪 パワー", color: "#EF4444", dmg: 1.5, move: 0.9, hp: 110, special: "ギガトンパンチ"},
+  tank: {name: "🛡 タンク", color: "#64748B", dmg: 1, move: 0.85, hp: 180, special: "アイアンボディ"},
+  counter: {name: "🔄 カウンター", color: "#22D3EE", dmg: 1.1, move: 1.1, hp: 100, special: "完全カウンター"}
+}
+let order = ["speed", "power", "tank", "counter"]
+
+kit_quest("ko5", "5回KO", 5, 150)
+kit_quest("special", "必殺技を3回使う", 3, 100)
+kit_quest("counter", "カウンターを5回決める", 5, 120)
+
+func choose_panel(p)
+  p.ui_panel("styles", {at: "center", w: 500, h: 170, bg: "#000000CC", radius: 22, layer: 30})
+  p.ui_text("styles_t", "スタイルを選ぼう", {parent: "styles", y: 0.2, size: 22, bold: true})
+  let i = 0
+  for key in order do
+    i = i + 1
+    let s = styles[key]
+    p.ui_button("style_" + key, s.name, {parent: "styles", x: (i - 0.5) / 4, y: 0.65, w: 112, h: 56, size: 15, bg: s.color, color: "#111111"})
+  end
+end
+
+func set_style(p, key)
+  let s = styles[key]
+  p.style = key
+  p.color = s.color
+  p.speed = s.move
+  p.max_health = s.hp
+  p.heal(999)
+  p.ui_remove("styles")
+  let moves = [["jab", "ジャブ", "#F59E0B"], ["hook", "フック", "#EF4444"], ["upper", "アッパー", "#8B5CF6"], ["guard", "ガード", "#475569"]]
+  let i = 0
+  for m in moves do
+    i = i + 1
+    p.ui_button(m[1], m[2], {at: "bottom_right", dx: -120 - ((i - 1) % 2) * 110, dy: -160 - floor((i - 1) / 2) * 66, w: 100, h: 56, size: 16, bg: m[3], radius: 14})
+  end
+  show(p)
+end
+
+func show(p)
+  p.ui_bar("meter", p.meter, 100, {at: "bottom", dy: -24, w: 280, h: 14, color: "#F97316"})
+  if p.meter >= 100 then
+    p.ui_button("special", "💥 " + styles[p.style].special, {at: "bottom", dy: -60, w: 220, h: 50, size: 16, bg: "#B91C1C"})
+  else
+    p.ui_remove("special")
+  end
+end
+
+func facing_target(p, reach)
+  let best = nil
+  for q in players() do
+    if q.id != p.id and q.alive and distance(p, q) < reach and dot(normalize(q.position - p.position), p.look) > 0.35 then
+      if best == nil or distance(p, q) < distance(p, best) then best = q end
+    end
+  end
+  return best
+end
+
+func punch(p, power, reach, lift, wait)
+  if p.style == nil or not p.alive or not kit_ready(p, "punch", wait) then return end
+  let t = facing_target(p, reach)
+  if t == nil then return end
+  let dmg = power * styles[p.style].dmg
+  if t.guard_until != nil and time() < t.guard_until then
+    if t.style == "counter" then
+      p.damage(dmg * 1.5, t)
+      t.message("🔄 カウンター！", 1)
+      kit_quest_progress(t, "counter", 1)
+      return
+    end
+    dmg = dmg * 0.25
+  end
+  if t.iron_until != nil and time() < t.iron_until then dmg = dmg * 0.1 end
+  t.damage(dmg, p)
+  p.sound("hit")
+  if lift > 0 and kit_here(t) and t.alive then t.launch(p.look * 5 + {x: 0, y: lift, z: 0}) end
+  p.meter = min(100, p.meter + dmg * 1.2)
+  show(p)
+end
+
+func special(p)
+  if p.meter < 100 or not p.alive then return end
+  p.meter = 0
+  show(p)
+  kit_quest_progress(p, "special", 1)
+  announce("💥 " + p.name + " の " + styles[p.style].special + "！", 2)
+  if p.style == "speed" then
+    for k in 1 to 8 do kit_later(p, k * 0.15, func() punch_free(p, 6) end) end
+  elif p.style == "power" then
+    let t = facing_target(p, 4)
+    if t != nil then
+      t.damage(60, p)
+      if kit_here(t) and t.alive then t.launch(p.look * 25 + {x: 0, y: 12, z: 0}) end
+    end
+    p.shake(0.5, 0.4)
+  elif p.style == "tank" then
+    p.iron_until = time() + 6
+    p.message("🛡 6秒間ほとんど効かない！", 2)
+  else
+    p.guard_until = time() + 4
+    p.message("🔄 4秒間すべてカウンター！", 2)
+  end
+end
+
+func punch_free(p, dmg)
+  let t = facing_target(p, 3.5)
+  if t != nil then t.damage(dmg, p) end
+end
+
+on start()
+  game.respawn_time = 3
+  every(8, func() kit_leaderboard("🥊 KO") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.meter = 0
+  choose_panel(p)
+end
+
+on button(p, id)
+  if starts_with(id, "style_") then set_style(p, replace(id, "style_", ""))
+  elif id == "jab" then punch(p, 7, 3.4, 0, 0.35)
+  elif id == "hook" then punch(p, 13, 3.2, 0, 0.7)
+  elif id == "upper" then punch(p, 16, 3, 9, 1.1)
+  elif id == "guard" and p.alive and kit_ready(p, "guard", 1.5) then p.guard_until = time() + 1.2
+  elif id == "special" then special(p)
+  end
+end
+
+on death(victim, killer)
+  if killer != nil and killer.id != victim.id then
+    killer.score = killer.score + 1
+    kit_quest_progress(killer, "ko5", 1)
+    killer.message("🥊 KO! " + victim.name, 1.5)
+  end
+end
+
+on respawn(p)
+  if p.style != nil then set_style(p, p.style) end
+end

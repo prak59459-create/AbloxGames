@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 57,
+  "id" : "warrior-brawl",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/warrior-brawl\/main.absc"
+  ],
+  "summary" : "やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。",
+  "tags" : [
+    "melee",
+    "pvp",
+    "skill"
+  ],
+  "title" : "Warrior Brawl",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/warrior-brawl\/world.ablox"
+}

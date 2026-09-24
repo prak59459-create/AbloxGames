@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 45,
+  "id" : "ring-boxing-league",
+  "maxPlayers" : 10,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/ring-boxing-league\/main.absc"
+  ],
+  "summary" : "リングで1対1のボクシング。ジャブ、ストレート、アッパー、ガード。スタミナを考えて打ち合い、ランキングを上げよう。",
+  "tags" : [
+    "boxing",
+    "1v1",
+    "sports"
+  ],
+  "title" : "Ring Boxing League",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/ring-boxing-league\/world.ablox"
+}

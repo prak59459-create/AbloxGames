@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 98,
+  "id" : "gun-swap-arena",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/gun-swap-arena\/main.absc"
+  ],
+  "summary" : "たおすたびに武器が変わるスピードFPS。12の武器を順番にクリアして、最後の黄金ナイフで決めた人の勝ち。",
+  "tags" : [
+    "fps",
+    "pvp",
+    "fast"
+  ],
+  "title" : "Gun Swap Arena",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/gun-swap-arena\/world.ablox"
+}

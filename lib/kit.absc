@@ -148,6 +148,14 @@ on button(p, id)
     kit_open_shop(p)
   elif id == "kit_shop_close" then
     p.ui_remove("kit_shop")
+  elif id == "kit_quests" then
+    p.kit_quests_open = true
+    kit_open_quests(p)
+  elif id == "kit_quests_close" then
+    p.kit_quests_open = false
+    p.ui_remove("kit_qbox")
+  elif id == "kit_cam" then
+    if p.camera == "first" then p.camera = "third" else p.camera = "first" end
   elif starts_with(id, "kit_buy_") then
     let key = replace(id, "kit_buy_", "")
     for item in kit_shop_items do
@@ -314,4 +322,123 @@ end
 -- 見ている方向に dist だけ前の位置
 func kit_ahead(p, dist)
   return p.position + p.look * dist
+end
+
+-- MARK: レベル
+
+-- ゲームが func(p) を入れると、レベルアップのたびに呼ばれる
+let kit_on_level = nil
+let kit_level_base = 50
+
+func kit_level_need(level)
+  return floor(kit_level_base * pow(level, 1.5))
+end
+
+func kit_show_level(p)
+  p.ui_text("kit_lv", "Lv." + p.level, {at: "top_left", dy: 34, size: 18, bold: true, color: "#A7F3D0"})
+  p.ui_bar("kit_xp", p.xp, kit_level_need(p.level), {at: "top_left", dy: 58, dx: 2, w: 150, h: 8, color: "#34D399"})
+end
+
+func kit_xp(p, amount)
+  if p.level == nil then p.level = 1 end
+  if p.xp == nil then p.xp = 0 end
+  p.xp = p.xp + amount
+  let up = false
+  while p.xp >= kit_level_need(p.level) do
+    p.xp = p.xp - kit_level_need(p.level)
+    p.level = p.level + 1
+    up = true
+  end
+  if up then
+    p.message("⬆️ レベル " + p.level + "！", 2)
+    p.sound("goal")
+    if kit_on_level != nil then kit_on_level(p) end
+  end
+  kit_show_level(p)
+end
+
+-- MARK: クエスト
+
+let kit_quest_list = []
+
+-- クエストを登録: id, 内容, 目標の数, ほうび
+func kit_quest(id, text, goal, reward)
+  append(kit_quest_list, {id: id, text: text, goal: goal, reward: reward})
+end
+
+func kit_quest_find(id)
+  for q in kit_quest_list do
+    if q.id == id then return q end
+  end
+  return nil
+end
+
+func kit_quest_progress(p, id, amount)
+  let q = kit_quest_find(id)
+  if q == nil then return end
+  if p.quests == nil then p.quests = {} end
+  let now = p.quests[id] or 0
+  if now >= q.goal then return end
+  now = min(q.goal, now + amount)
+  p.quests[id] = now
+  if now >= q.goal then
+    kit_give(p, q.reward)
+    p.quests_done = (p.quests_done or 0) + 1
+    p.message("📜 クエスト達成！「" + q.text + "」 +" + kit_short(q.reward), 3)
+    p.sound("goal")
+  end
+  if p.kit_quests_open then kit_open_quests(p) end
+end
+
+func kit_open_quests(p)
+  let n = len(kit_quest_list)
+  let h = 110 + n * 34
+  if p.quests == nil then p.quests = {} end
+  p.ui_panel("kit_qbox", {at: "center", w: 540, h: h, bg: "#111827F0", radius: 20, layer: 45})
+  p.ui_text("kit_q_title", "📜 クエスト（" + (p.quests_done or 0) + " / " + n + " 達成）", {parent: "kit_qbox", y: 28 / h, size: 21, bold: true, color: "gold"})
+  let i = 0
+  for q in kit_quest_list do
+    i = i + 1
+    let now = p.quests[q.id] or 0
+    let mark = "⬜ "
+    let color = "#E5E7EB"
+    if now >= q.goal then
+      mark = "✅ "
+      color = "#86EFAC"
+    end
+    p.ui_text("kit_q" + i, mark + q.text + "  " + kit_short(now) + "/" + kit_short(q.goal) + "  💰" + kit_short(q.reward),
+              {parent: "kit_qbox", y: (40 + i * 34) / h, size: 15, color: color})
+  end
+  p.ui_button("kit_quests_close", "閉じる", {parent: "kit_qbox", y: (h - 28) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func kit_quest_button(p)
+  p.ui_button("kit_quests", "📜 クエスト", {at: "right", dy: 120, w: 150, h: 50, size: 17, bg: "#B45309"})
+end
+
+-- MARK: 実績
+
+func kit_badge(p, id, name)
+  if p.badges == nil then p.badges = [] end
+  if contains(p.badges, id) then return end
+  append(p.badges, id)
+  announce("🏅 " + p.name + " が実績「" + name + "」を解除！", 3)
+end
+
+-- MARK: 視点とエモート
+
+func kit_camera_button(p)
+  p.ui_button("kit_cam", "👁", {at: "top_right", dy: 60, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
+end
+
+on chat(p, text)
+  if text == "/dance" or text == "/おどる" then
+    for k in 1 to 12 do
+      kit_later(p, k * 0.2, func() p.yaw = p.yaw + 30 end)
+    end
+  elif text == "/jump" or text == "/ジャンプ" then
+    if kit_ready(p, "emote_jump", 3) then p.launch(0, 11, 0) end
+  elif text == "/wave" or text == "/やあ" then
+    chat("👋 " + p.name + " が手をふっている")
+  end
 end

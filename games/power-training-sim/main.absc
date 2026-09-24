@@ -1,0 +1,230 @@
+-- Power Training Sim — 4つの能力を修行できたえる育成バトル
+-- 力(ちから)・気・速さ・耐久。修行場に立つと倍率アップ。強くなったらボスとPvP。
+
+kit_setup("Power Training Sim", "修行してランクを上げ、最強をめざせ", [
+  "下の4つのボタンで修行: 💪力 🔮気 👟速さ 🛡耐久",
+  "修行場（色つきの広場）に立つと修行の効果が何倍にも",
+  "奥の修行場は、その能力が足りないと入れない",
+  "力はパンチ、気は技、速さは走る速さ、耐久は体力になる",
+  "闘技場の修行ロボをたおすとコイン。たまにボスも来る",
+  "🛒で重り（修行×2）や仲間（チャンピオン）を手に入れよう"
+])
+kit_melee("拳", 5, 3, 5)
+
+let stat_names = {strength: "💪 力", chakra: "🔮 気", speed: "👟 速さ", durability: "🛡 耐久"}
+let stat_order = ["strength", "chakra", "speed", "durability"]
+-- 修行場: 倍率と、入るのに必要な能力
+let zones = {
+  "Boulder Field": {stat: "strength", mult: 5, need: 100},
+  "Mountain Top": {stat: "strength", mult: 30, need: 5000},
+  "Waterfall": {stat: "chakra", mult: 5, need: 100},
+  "Sky Temple": {stat: "chakra", mult: 30, need: 5000},
+  "Speed Track": {stat: "speed", mult: 5, need: 100},
+  "Lightning Road": {stat: "speed", mult: 30, need: 5000},
+  "Fire Pit": {stat: "durability", mult: 5, need: 100},
+  "Volcano Core": {stat: "durability", mult: 30, need: 5000}
+}
+let ranks = [["E", 0], ["D", 500], ["C", 5000], ["B", 50000], ["A", 500000], ["S", 5000000], ["SS", 50000000], ["神", 1000000000]]
+let champions = [
+  {name: "見習い剣士", bonus: 1.1, weight: 50},
+  {name: "山の仙人", bonus: 1.3, weight: 30},
+  {name: "雷の忍", bonus: 1.7, weight: 14},
+  {name: "炎の武神", bonus: 2.5, weight: 5},
+  {name: "天空の覇王", bonus: 5, weight: 1}
+]
+let boss = nil
+
+kit_shop_add("weights", "重り（修行 ×2）", 300, func(p)
+  p.train_mult = p.train_mult * 2
+  p.message("🏋 修行効率 ×" + p.train_mult, 2)
+end)
+kit_shop_add("champion", "チャンピオンガチャ", 500, func(p)
+  let c = kit_pick(champions, 1)
+  if p.champion == nil or c.bonus > p.champion.bonus then
+    p.champion = c
+    p.message("🥋 仲間: " + c.name + "（全能力 ×" + c.bonus + "）", 3)
+  else
+    p.message("🥋 " + c.name + "… 今の仲間のほうが強い", 2)
+  end
+  if c.bonus >= 2.5 then announce("🌟 " + p.name + " が「" + c.name + "」を仲間にした！", 3) end
+end)
+kit_shop_add("auto", "自動修行（選んだ能力を1秒ごと）", 2000, func(p) p.auto = true end)
+
+kit_quest("t1", "どれか1つを100回修行", 100, 100)
+kit_quest("zone", "奥の修行場に入る", 1, 500)
+kit_quest("robot", "修行ロボを10体たおす", 10, 300)
+kit_quest("rankb", "ランクBになる", 1, 2000)
+kit_quest("boss", "ボスをたおす", 1, 3000)
+
+func total(p)
+  let t = 0
+  for s in stat_order do t = t + p.stats[s] end
+  return t
+end
+
+func rank_of(p)
+  let r = ranks[1][1]
+  let t = total(p)
+  for row in ranks do
+    if t >= row[2] then r = row[1] end
+  end
+  return r
+end
+
+func apply_stats(p)
+  p.speed = min(4, 1 + log(1 + p.stats.speed) / 6)
+  let hp = 100 + floor(sqrt(p.stats.durability) * 4)
+  if hp != p.max_health then p.max_health = min(100000, hp) end
+end
+
+func show(p)
+  let r = rank_of(p)
+  p.ui_text("rank", "ランク " + r + "   合計 " + kit_short(total(p)), {at: "top", dy: 26, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in stat_order do
+    i = i + 1
+    let val = p.stats[s]
+    p.ui_text("stat_" + s, stat_names[s] + " " + kit_short(val), {at: "top_left", dy: 30 + i * 24, size: 16})
+  end
+  p.score = floor(total(p))
+  if r == "B" or r == "A" or r == "S" or r == "SS" or r == "神" then kit_quest_progress(p, "rankb", 1) end
+end
+
+func train(p, stat)
+  let gain = p.train_mult
+  if p.champion != nil then gain = gain * p.champion.bonus end
+  if p.zone != nil and zones[p.zone].stat == stat then gain = gain * zones[p.zone].mult end
+  if stat == "durability" and p.zone != nil and zones[p.zone].stat == "durability" then
+    p.damage(zones[p.zone].mult * 0.3)
+  end
+  p.stats[stat] = p.stats[stat] + gain
+  p.trains = p.trains + 1
+  kit_quest_progress(p, "t1", 1)
+  apply_stats(p)
+  show(p)
+end
+
+func spawn_robot(i)
+  let spot = block("Enemy Spot " + i)
+  let n = create_npc({name: "修行ロボ", position: spot.position + {x: 0, y: 1, z: 0}, color: "#64748B",
+                      head_color: "#38BDF8", health: 300, speed: 0.5, team: "robots"})
+  n.spot = i
+end
+
+func spawn_boss()
+  let spot = block("Enemy Spot 1")
+  boss = create_npc({name: "修行の鬼", position: spot.position + {x: 0, y: 2, z: 0}, color: "#7F1D1D",
+                     head_color: "#FCA5A5", size: 3, health: 50000, speed: 0.6, team: "robots"})
+  announce("👹 闘技場に「修行の鬼」があらわれた！", 4)
+end
+
+on start()
+  for i in 1 to 6 do spawn_robot(i) end
+  every(1, func()
+    for p in players() do
+      if p.auto and p.last_stat != nil then train(p, p.last_stat) end
+      -- 修行場から出たか
+      if p.zone != nil then
+        let b = block(p.zone)
+        if b == nil or distance(p, b) > 10 then
+          p.zone = nil
+          p.ui_remove("zone")
+        end
+      end
+    end
+  end)
+  every(240, func()
+    if boss == nil or not kit_here(boss) then spawn_boss() end
+  end)
+  every(10, func() kit_leaderboard("💪 合計") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.stats = {strength: 1, chakra: 1, speed: 1, durability: 1}
+  p.train_mult = 1
+  p.trains = 0
+  p.give("拳")
+  kit_give(p, 50)
+  kit_shop_button(p)
+  kit_quest_button(p)
+  let i = 0
+  for s in stat_order do
+    i = i + 1
+    p.ui_button("train_" + s, stat_names[s], {at: "bottom", dx: (i - 2.5) * 118, dy: -96, w: 110, h: 54, size: 16, bg: "#1E293B", radius: 14})
+  end
+  p.ui_button("blast", "🔮 気功波", {at: "bottom_right", dx: -120, dy: -160, w: 110, h: 60, size: 16, bg: "#7C3AED", radius: 14})
+  show(p)
+end
+
+on tick(dt)
+  for n in npcs() do
+    if n.name == "修行の鬼" then
+      kit_chase(n, 40, 60, dt)
+    else
+      kit_chase(n, 14, 8, dt)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  let z = zones[b.name]
+  if z == nil or p.zone == b.name then return end
+  if p.stats[z.stat] < z.need then
+    p.message("🔒 " + stat_names[z.stat] + " が " + kit_short(z.need) + " 必要", 1.5)
+    p.launch(0, 8, 0)
+    return
+  end
+  p.zone = b.name
+  p.ui_text("zone", "🔥 修行場: " + stat_names[z.stat] + " ×" + z.mult, {at: "center", dy: -150, size: 18, bold: true, color: "#FDBA74"})
+  if z.need >= 5000 then kit_quest_progress(p, "zone", 1) end
+end
+
+on button(p, id)
+  if starts_with(id, "train_") then
+    let stat = replace(id, "train_", "")
+    p.last_stat = stat
+    if kit_ready(p, "train", 0.25) then train(p, stat) end
+  elif id == "blast" and p.alive then
+    if kit_ready(p, "blast", 4) then
+      let power = 10 + sqrt(p.stats.chakra) * 3
+      kit_blast(p, kit_ahead(p, 6), 5, power, 5)
+      p.shake(0.2, 0.3)
+    end
+  end
+end
+
+on hit(victim, attacker, damage)
+  if attacker.is_npc then return damage end
+  -- パンチは力で強くなる、受けるダメージは耐久で減る
+  let dmg = damage + sqrt(attacker.stats.strength) * 2
+  if not victim.is_npc then dmg = dmg / (1 + sqrt(victim.stats.durability) / 50) end
+  return dmg
+end
+
+on death(victim, killer)
+  if victim.is_npc then
+    if victim.spot != nil then
+      let i = victim.spot
+      after(5, func() spawn_robot(i) end)
+    end
+    if killer != nil and not killer.is_npc then
+      if victim.name == "修行の鬼" then
+        boss = nil
+        announce("🏆 " + killer.name + " たちが修行の鬼をたおした！", 4)
+        for p in players() do
+          kit_give(p, 2000)
+          kit_quest_progress(p, "boss", 1)
+        end
+        kit_badge(killer, "boss", "鬼退治")
+      else
+        kit_give(killer, 25)
+        kit_quest_progress(killer, "robot", 1)
+      end
+    end
+  elif killer != nil and not killer.is_npc and killer.id != victim.id then
+    kit_give(killer, 50)
+    killer.message("💥 " + victim.name + " に勝った！", 1.5)
+  end
+end

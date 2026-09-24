@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 179,
+  "id" : "armed-racers",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/armed-racers\/main.absc"
+  ],
+  "summary" : "武装したレースカーでコースを3周。アイテム箱からミサイル、オイル、ブーストを手に入れて、ライバルをじゃましろ！",
+  "tags" : [
+    "racing",
+    "items",
+    "pvp"
+  ],
+  "title" : "Armed Racers",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/armed-racers\/world.ablox"
+}

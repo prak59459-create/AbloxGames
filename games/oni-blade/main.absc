@@ -1,0 +1,260 @@
+-- Oni Blade — 夜にあらわれる鬼を斬る剣士のRPG
+
+kit_setup("Oni Blade", "呼吸の型をきわめ、鬼の王を討て", [
+  "昼は訓練場のカカシで修行、夜は森から鬼が来る",
+  "鬼をたおすと経験値。レベル3で「呼吸」を選べる",
+  "呼吸ごとに型（技）が3つ。レベル3・6・10で増える",
+  "刀鍛冶（オレンジのパッド）で刀をきたえる",
+  "たおした鬼の数で階級が上がる。目指せ「柱」！",
+  "4回目の夜ごとに、神社に鬼の王があらわれる"
+])
+
+let blades = [
+  {name: "日輪刀", damage: 20},
+  {name: "鋼の日輪刀", damage: 32},
+  {name: "黒の日輪刀", damage: 48},
+  {name: "赫刀", damage: 75}
+]
+for i in 1 to len(blades) do kit_melee(blades[i].name, blades[i].damage, 2.4, 6) end
+let breaths = {
+  water: {name: "🌊 水の呼吸", color: "#38BDF8", forms: ["一ノ型 水面斬り", "二ノ型 水車", "三ノ型 流流舞い"]},
+  flame: {name: "🔥 炎の呼吸", color: "#F97316", forms: ["一ノ型 不知火", "二ノ型 昇り炎天", "三ノ型 炎虎"]},
+  thunder: {name: "⚡ 雷の呼吸", color: "#FACC15", forms: ["一ノ型 霹靂", "二ノ型 稲魂", "三ノ型 遠雷"]},
+  wind: {name: "🌪 風の呼吸", color: "#86EFAC", forms: ["一ノ型 塵旋風", "二ノ型 爪々", "三ノ型 木枯らし"]}
+}
+let breath_order = ["water", "flame", "thunder", "wind"]
+let ranks = [["癸", 0], ["壬", 5], ["辛", 12], ["庚", 25], ["己", 45], ["戊", 70], ["丁", 100], ["丙", 140], ["乙", 190], ["甲", 250], ["柱", 350]]
+let night = false
+let nights = 0
+let phase_left = 45
+let oni_king = nil
+
+kit_currency = "両"
+kit_quest("oni10", "鬼を10体たおす", 10, 200)
+kit_quest("breath", "呼吸を身につける", 1, 100)
+kit_quest("forge", "刀を1回きたえる", 1, 80)
+kit_quest("king", "鬼の王を討つ", 1, 1000)
+
+kit_on_level = func(p)
+  p.max_health = 100 + p.level * 12
+  if p.level == 3 and p.breath == nil then breath_panel(p) end
+  forms(p)
+end
+
+func rank_of(p)
+  let r = ranks[1][1]
+  for row in ranks do
+    if p.kills >= row[2] then r = row[1] end
+  end
+  return r
+end
+
+func hud(p)
+  p.ui_text("rank", "階級「" + rank_of(p) + "」  鬼 " + p.kills + " 体   " + blades[p.blade].name, {at: "top", dy: 60, size: 16, bold: true})
+end
+
+func breath_panel(p)
+  p.ui_panel("breath", {at: "center", w: 500, h: 170, bg: "#000000D0", radius: 22, layer: 30})
+  p.ui_text("breath_t", "呼吸を選べ", {parent: "breath", y: 0.2, size: 24, bold: true, color: "#FDE68A"})
+  let i = 0
+  for key in breath_order do
+    i = i + 1
+    p.ui_button("breath_" + key, breaths[key].name, {parent: "breath", x: (i - 0.5) / 4, y: 0.65, w: 115, h: 56, size: 15, bg: breaths[key].color, color: "#111111"})
+  end
+end
+
+func forms(p)
+  if p.breath == nil then return end
+  let b = breaths[p.breath]
+  let unlocked = 1
+  if p.level >= 6 then unlocked = 2 end
+  if p.level >= 10 then unlocked = 3 end
+  for i in 1 to 3 do
+    if i <= unlocked then
+      p.ui_button("form" + i, b.forms[i], {at: "bottom_right", dx: -120 - (i - 1) * 124, dy: -160, w: 118, h: 56, size: 13, bg: b.color, color: "#111111", radius: 14})
+    end
+  end
+end
+
+func strike(p, i)
+  if p.breath == nil or not p.alive then return end
+  if not kit_ready(p, "form" + i, 2 + i * 2) then return end
+  let pw = blades[p.blade].damage * (1 + p.level * 0.08)
+  let br = p.breath
+  if br == "water" then
+    if i == 1 then kit_blast(p, kit_ahead(p, 3), 3.5, pw * 1.4, 0)
+    elif i == 2 then kit_blast(p, p, 5, pw * 1.2, 6)
+    else
+      kit_blast(p, p, 6, pw * 1.6, 0)
+      p.heal(25)
+    end
+  elif br == "flame" then
+    if i == 1 then
+      p.launch(p.look * 18 + {x: 0, y: 2, z: 0})
+      kit_later(p, 0.4, func() kit_blast(p, p, 3.5, pw * 1.8, 0) end)
+    elif i == 2 then kit_blast(p, kit_ahead(p, 2.5), 3.5, pw * 1.6, 14)
+    else kit_blast(p, kit_ahead(p, 6), 6, pw * 2.6, 6)
+    end
+  elif br == "thunder" then
+    if i == 1 then
+      p.launch(p.look * 34 + {x: 0, y: 1, z: 0})
+      kit_later(p, 0.5, func() kit_blast(p, p, 3, pw * 2, 0) end)
+    elif i == 2 then kit_blast(p, p, 4, pw * 1.3, 0)
+    else
+      for k in 1 to 4 do kit_later(p, k * 0.3, func() kit_blast(p, kit_ahead(p, 4), 3, pw, 0) end) end
+    end
+  else
+    if i == 1 then kit_blast(p, p, 7, pw * 1.2, 10)
+    elif i == 2 then kit_blast(p, kit_ahead(p, 4), 4, pw * 1.8, 0)
+    else
+      p.speed = 1.8
+      kit_blast(p, p, 8, pw * 1.5, 16)
+      kit_later(p, 5, func() p.speed = 1 end)
+    end
+  end
+end
+
+func spawn_dummies()
+  for i in 1 to 3 do
+    let spot = block("Dummy " + i)
+    let d = create_npc({name: "カカシ", position: spot.position + {x: 0, y: 1, z: 0}, color: "#A16207", head_color: "#FDE68A",
+                        health: 200, speed: 0, team: "dummy"})
+    d.frozen = true
+    d.dummy = true
+  end
+end
+
+func start_night()
+  night = true
+  nights = nights + 1
+  phase_left = 60
+  world.sky_top = "#0B0F2A"
+  world.sky_bottom = "#2E1A47"
+  world.light = 0.2
+  for n in npcs() do
+    if n.dummy then n.destroy() end
+  end
+  announce("🌙 夜がきた… 鬼が出るぞ", 3)
+  let count = min(30, 3 + nights * 2)
+  for i in 1 to count do
+    let spot = block("Oni Spawn " + random(1, 8))
+    let strong = random() < 0.2
+    create_npc({name: strong and "上級の鬼" or "鬼", position: spot.position + {x: random(-5, 5), y: 1, z: random(-5, 5)},
+                color: strong and "#581C87" or "#7F1D1D", head_color: "#FCA5A5", size: strong and 1.4 or 1,
+                health: (strong and 300 or 90) + nights * 20, speed: strong and 0.8 or 0.65, team: "oni"})
+  end
+  if nights % 4 == 0 then
+    oni_king = create_npc({name: "鬼の王", position: block("Oni Shrine").position + {x: 0, y: 2, z: 0}, color: "#111111",
+                           head_color: "#DC2626", size: 3.2, health: 8000 + nights * 500, speed: 0.6, team: "oni"})
+    announce("👹 神社に「鬼の王」があらわれた！", 4)
+  end
+end
+
+func start_day()
+  night = false
+  phase_left = 45
+  for n in npcs() do
+    if n.team == "oni" and (oni_king == nil or n.id != oni_king.id) then n.destroy() end
+  end
+  world.sky_top = "#FF8A5B"
+  world.sky_bottom = "#FFD29D"
+  world.light = 0.6
+  spawn_dummies()
+  announce("☀️ 夜が明けた。鬼は逃げていった", 3)
+end
+
+on start()
+  game.respawn_time = 6
+  spawn_dummies()
+  every(1, func()
+    phase_left = phase_left - 1
+    if phase_left <= 0 then
+      if night then start_day() else start_night() end
+    end
+    ui_text("clock", (night and "🌙 夜 " or "☀️ 昼 ") + kit_clock(phase_left) + "   " + nights + " 夜目", {at: "top", dy: 26, size: 20, bold: true})
+  end)
+  every(10, func() kit_leaderboard("👹") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.level = 1
+  p.xp = 0
+  p.kills = 0
+  p.blade = 1
+  p.give(blades[1].name)
+  kit_give(p, 0)
+  kit_show_level(p)
+  hud(p)
+end
+
+on tick(dt)
+  for n in npcs() do
+    if n.team == "oni" then
+      if n.name == "鬼の王" then kit_chase(n, 60, 45, dt) else kit_chase(n, 35, 14, dt) end
+    end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "breath_") then
+    p.breath = replace(id, "breath_", "")
+    p.ui_remove("breath")
+    p.leg_color = breaths[p.breath].color
+    p.message(breaths[p.breath].name + " を身につけた！", 3)
+    kit_quest_progress(p, "breath", 1)
+    forms(p)
+  elif id == "form1" then strike(p, 1)
+  elif id == "form2" then strike(p, 2)
+  elif id == "form3" then strike(p, 3)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "forge") and kit_ready(p, "forge", 3) then
+    if p.blade >= len(blades) then
+      p.message("これ以上の刀はない", 1.5)
+      return
+    end
+    let price = p.blade * 300
+    if kit_pay(p, price) then
+      p.blade = p.blade + 1
+      p.give(blades[p.blade].name)
+      p.message("⚒ " + blades[p.blade].name + " を手に入れた！", 3)
+      kit_quest_progress(p, "forge", 1)
+      hud(p)
+    else
+      p.message("次の刀は " + price + " 両", 1.5)
+    end
+  end
+end
+
+on death(victim, killer)
+  if not victim.is_npc or killer == nil or killer.is_npc then return end
+  if victim.dummy then
+    kit_xp(killer, 5)
+    after(3, func() if not night then spawn_dummies() end end)
+    return
+  end
+  if victim.team == "oni" then
+    killer.kills = killer.kills + 1
+    killer.score = killer.kills
+    kit_quest_progress(killer, "oni10", 1)
+    if victim.name == "鬼の王" then
+      oni_king = nil
+      announce("⚔️ " + killer.name + " たちが鬼の王を討った！", 5)
+      for p in players() do
+        kit_xp(p, 500)
+        kit_give(p, 800)
+        kit_quest_progress(p, "king", 1)
+      end
+      kit_badge(killer, "king", "鬼の王を討ちし者")
+    else
+      kit_xp(killer, victim.name == "上級の鬼" and 60 or 25)
+      kit_give(killer, victim.name == "上級の鬼" and 60 or 20)
+    end
+    hud(killer)
+  end
+end

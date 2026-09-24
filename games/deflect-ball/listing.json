@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 33,
+  "id" : "deflect-ball",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/deflect-ball\/main.absc"
+  ],
+  "summary" : "ねらった相手を追いかける光のボール。ギリギリで「はじく」を押して打ち返せ！最後まで残った人の勝ち。",
+  "tags" : [
+    "pvp",
+    "reflex",
+    "party"
+  ],
+  "title" : "Deflect Ball",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/deflect-ball\/world.ablox"
+}

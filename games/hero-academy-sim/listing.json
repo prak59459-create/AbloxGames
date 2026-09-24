@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 164,
+  "id" : "hero-academy-sim",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/hero-academy-sim\/main.absc"
+  ],
+  "summary" : "ヒーローかヴィランか。ガチャで個性（能力）を引いて、事件を解決したり起こしたり。レベルを上げて最強をめざせ。",
+  "tags" : [
+    "heroes",
+    "rpg",
+    "powers"
+  ],
+  "title" : "Hero Academy Sim",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/hero-academy-sim\/world.ablox"
+}

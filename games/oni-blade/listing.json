@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 186,
+  "id" : "oni-blade",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/oni-blade\/main.absc"
+  ],
+  "summary" : "夜になると鬼があらわれる。呼吸の型をきわめ、刀をきたえて鬼を斬れ。階級を上げて、鬼の王を討伐しよう。",
+  "tags" : [
+    "swords",
+    "rpg",
+    "night"
+  ],
+  "title" : "Oni Blade",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/oni-blade\/world.ablox"
+}

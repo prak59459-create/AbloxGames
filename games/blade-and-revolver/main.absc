@@ -1,0 +1,87 @@
+-- Blade & Revolver — ナイフとリボルバーのデスマッチ
+
+kit_setup("Blade & Revolver", "先に20キルした人の勝ち", [
+  "🔪ナイフ（近くで一撃）と 🔫リボルバー（6発）を切りかえ",
+  "「投げる」でナイフを投げられる（3秒に1回）",
+  "復活してから2秒は無敵",
+  "連続キルで名前が光る！",
+  "20キルで勝利"
+])
+kit_melee("ナイフ", 100, 1.4, 5)
+weapon("リボルバー", {model: "pistol", damage: 55, rate: 1.4, range: 90, ammo: 6, reload: 2, spread: 0.4})
+let goal = 20
+let over = false
+
+kit_quest("k10", "10キル", 10, 100)
+kit_quest("throw", "投げナイフで3キル", 3, 150)
+kit_quest("streak", "3連続キル", 1, 80)
+
+func hud(p)
+  p.ui_text("k", "💀 " + p.score + " / " + goal + "   🔥 " + p.streak, {at: "top_left", dy: 34, size: 20, bold: true})
+end
+
+on start()
+  game.respawn_time = 2
+  every(5, func() kit_leaderboard("💀") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.streak = 0
+  p.give("ナイフ")
+  p.ui_button("knife", "🔪", {at: "bottom_right", dx: -120, dy: -160, w: 70, h: 60, size: 24, bg: "#57534E", radius: 14})
+  p.ui_button("gun", "🔫", {at: "bottom_right", dx: -200, dy: -160, w: 70, h: 60, size: 24, bg: "#57534E", radius: 14})
+  p.ui_button("throw", "投げる", {at: "bottom_right", dx: -160, dy: -226, w: 110, h: 54, size: 16, bg: "#B91C1C", radius: 14})
+  hud(p)
+end
+
+on button(p, id)
+  if not p.alive then return end
+  if id == "knife" then p.give("ナイフ")
+  elif id == "gun" then p.give("リボルバー")
+  elif id == "throw" and kit_ready(p, "throw", 3) then
+    let hit = raycast(p, p.look, 40)
+    p.sound("shoot")
+    if hit != nil and hit.player != nil and hit.player.alive then
+      if hit.player.protect_until != nil and time() < hit.player.protect_until then return end
+      hit.player.thrown = true
+      hit.player.kill(p)
+    end
+  end
+end
+
+on hit(victim, attacker, damage)
+  if victim.protect_until != nil and time() < victim.protect_until then return 0 end
+  return damage
+end
+
+on death(victim, killer)
+  if over then return end
+  victim.streak = 0
+  hud(victim)
+  if killer == nil or killer.id == victim.id then return end
+  killer.score = killer.score + 1
+  killer.streak = killer.streak + 1
+  kit_quest_progress(killer, "k10", 1)
+  if victim.thrown then
+    victim.thrown = false
+    kit_quest_progress(killer, "throw", 1)
+    killer.message("🎯 投げナイフ！", 1)
+  end
+  if killer.streak == 3 then kit_quest_progress(killer, "streak", 1) end
+  if killer.streak >= 3 then killer.head_color = "#FACC15" end
+  if killer.streak == 5 then announce("🔥 " + killer.name + " が5連続！", 2) end
+  hud(killer)
+  if killer.score >= goal then
+    over = true
+    kit_finish("🏆 " + killer.name + " の勝ち！", 8)
+  end
+end
+
+on respawn(p)
+  p.protect_until = time() + 2
+  p.head_color = "#FDE68A"
+  p.teleport(block("Spawn " + random(1, 12)))
+end

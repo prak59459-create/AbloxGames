@@ -1,0 +1,191 @@
+-- Armed Racers — アイテムありのレース（3周）
+
+kit_setup("Armed Racers", "アイテムでじゃまして、1位でゴール！", [
+  "スタートの合図で走り出す（車なのでとても速い）",
+  "コースの光る輪（チェックポイント）を順番に通る",
+  "紫の箱にさわるとアイテム: ブースト・ミサイル・オイル・シールド",
+  "「アイテム」ボタンで使う。ミサイルはすぐ前の人をねらう",
+  "3周でゴール。1位がゴールして60秒でレース終了"
+])
+
+let laps = 3
+let cps = 8
+let racing = false
+let finish_order = []
+let first_done_at = 0
+let items = [
+  {id: "boost", name: "🚀 ブースト", weight: 35},
+  {id: "missile", name: "🎯 ミサイル", weight: 25},
+  {id: "oil", name: "🛢 オイル", weight: 25},
+  {id: "shield", name: "🛡 シールド", weight: 15}
+]
+
+kit_quest("race", "レースを完走する", 1, 80)
+kit_quest("first", "1位になる", 1, 250)
+kit_quest("missile", "ミサイルを3回当てる", 3, 120)
+
+func progress(p)
+  -- 参加したばかりでまだ値がない人は 0
+  return (p.lap or 0) * cps + (p.cp or 0)
+end
+
+func place_of(p)
+  let n = 1
+  for q in players() do
+    if q.id != p.id and progress(q) > progress(p) then n = n + 1 end
+  end
+  return n
+end
+
+func show(p)
+  p.ui_text("race", "🏁 " + min(laps, p.lap + 1) + "/" + laps + " 周   " + place_of(p) + " 位", {at: "top", dy: 26, size: 22, bold: true})
+  if p.item != nil then
+    p.ui_button("item", p.item_name, {at: "bottom_right", dx: -120, dy: -160, w: 140, h: 64, size: 17, bg: "#7C3AED", radius: 16})
+  else
+    p.ui_remove("item")
+  end
+end
+
+func start_race()
+  finish_order = []
+  racing = false
+  let i = 0
+  for p in players() do
+    i = i + 1
+    p.lap = 0
+    p.cp = 0
+    p.done = false
+    p.item = nil
+    p.frozen = true
+    p.speed = 2.4
+    p.teleport(block("Grid " + ((i - 1) % 8 + 1)))
+    show(p)
+  end
+  for k in 1 to 3 do after(k, func() announce(str(4 - k), 0.8) end) end
+  after(4, func()
+    racing = true
+    for p in players() do p.frozen = false end
+    announce("GO! 🏎", 1)
+    sound("goal")
+  end)
+end
+
+func slow(p, seconds, why)
+  if p.shield then
+    p.shield = false
+    p.message("🛡 シールドが守った！", 1.5)
+    return false
+  end
+  p.speed = 0.5
+  p.message(why, 1.5)
+  kit_later(p, seconds, func() p.speed = 2.4 end)
+  return true
+end
+
+func use_item(p)
+  if p.item == nil or not racing then return end
+  let id = p.item
+  p.item = nil
+  if id == "boost" then
+    p.speed = 4
+    kit_later(p, 2.5, func() p.speed = 2.4 end)
+  elif id == "missile" then
+    let target = nil
+    for q in players() do
+      if q.id != p.id and not q.done and progress(q) >= progress(p) then
+        if target == nil or progress(q) < progress(target) then target = q end
+      end
+    end
+    if target != nil then
+      if slow(target, 1.5, "🎯 " + p.name + " のミサイルが命中！") then
+        target.launch(0, 8, 0)
+        kit_quest_progress(p, "missile", 1)
+      end
+    else
+      p.message("前にだれもいない！", 1)
+    end
+  elif id == "oil" then
+    let spot = p.position - p.look * 4
+    let oil = create_block({name: "Oil", shape: "cylinder", position: spot + {x: 0, y: 0.05, z: 0}, size: {x: 3, y: 0.05, z: 3},
+                            color: "#111111", tags: ["oil"], behavior: "trigger", solid: false})
+    after(25, func() oil.destroy() end)
+  elif id == "shield" then
+    p.shield = true
+    p.message("🛡 シールド（1回）", 1)
+  end
+  show(p)
+end
+
+on start()
+  after(3, func() start_race() end)
+  every(1, func()
+    for p in players() do show(p) end
+    if racing and len(finish_order) > 0 and time() - first_done_at > 60 then
+      racing = false
+      kit_finish("🏁 レース終了！ 1位 " + finish_order[1].name, 6)
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.lap = 0
+  p.cp = 0
+  p.speed = 2.4
+  p.camera_distance = 9
+  show(p)
+end
+
+on touch(p, b)
+  if p.is_npc or p.done then return end
+  if contains(b.tags, "cp") then
+    let n = num(split(b.name, " ")[2])
+    let expected = p.cp + 1
+    if n == expected and racing then
+      p.cp = n
+      if p.cp >= cps then
+        p.cp = 0
+        p.lap = p.lap + 1
+        if p.lap >= laps then
+          p.done = true
+          append(finish_order, p)
+          if len(finish_order) == 1 then
+            first_done_at = time()
+            kit_quest_progress(p, "first", 1)
+            kit_badge(p, "winner", "レースチャンピオン")
+          end
+          p.score = p.score + max(1, 10 - len(finish_order) * 2)
+          kit_quest_progress(p, "race", 1)
+          announce("🏁 " + p.name + " が " + len(finish_order) + " 位でゴール！", 3)
+          p.speed = 1
+          if len(finish_order) >= len(players()) then
+            racing = false
+            kit_finish("🏁 全員ゴール！", 6)
+          end
+        else
+          p.message("🔁 " + (p.lap + 1) + " 周目！", 1.5)
+          p.sound("checkpoint")
+        end
+      end
+    end
+  elif contains(b.tags, "itembox") and b.visible then
+    if p.item == nil then
+      let it = kit_pick(items, 1)
+      -- 後ろの人ほど良いアイテムが出やすい
+      if place_of(p) > 2 and random() < 0.3 then it = items[2] end
+      p.item = it.id
+      p.item_name = it.name
+      b.visible = false
+      after(5, func() b.visible = true end)
+      p.sound("collect")
+      show(p)
+    end
+  elif contains(b.tags, "oil") then
+    if kit_ready(p, "oil", 2) then slow(p, 1.5, "🛢 オイルですべった！") end
+  end
+end
+
+on button(p, id)
+  if id == "item" then use_item(p) end
+end

@@ -420,6 +420,246 @@
       "title" : "Tsunami Dash",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/tsunami-dash\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 75,
+      "id" : "power-training-sim",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/power-training-sim\/main.absc"
+      ],
+      "summary" : "力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。",
+      "tags" : [
+        "training",
+        "rpg",
+        "pvp"
+      ],
+      "title" : "Power Training Sim",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/power-training-sim\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 33,
+      "id" : "deflect-ball",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/deflect-ball\/main.absc"
+      ],
+      "summary" : "ねらった相手を追いかける光のボール。ギリギリで「はじく」を押して打ち返せ！最後まで残った人の勝ち。",
+      "tags" : [
+        "pvp",
+        "reflex",
+        "party"
+      ],
+      "title" : "Deflect Ball",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/deflect-ball\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 98,
+      "id" : "gun-swap-arena",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/gun-swap-arena\/main.absc"
+      ],
+      "summary" : "たおすたびに武器が変わるスピードFPS。12の武器を順番にクリアして、最後の黄金ナイフで決めた人の勝ち。",
+      "tags" : [
+        "fps",
+        "pvp",
+        "fast"
+      ],
+      "title" : "Gun Swap Arena",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/gun-swap-arena\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 57,
+      "id" : "warrior-brawl",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/warrior-brawl\/main.absc"
+      ],
+      "summary" : "やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。",
+      "tags" : [
+        "melee",
+        "pvp",
+        "skill"
+      ],
+      "title" : "Warrior Brawl",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/warrior-brawl\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 45,
+      "id" : "ring-boxing-league",
+      "maxPlayers" : 10,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/ring-boxing-league\/main.absc"
+      ],
+      "summary" : "リングで1対1のボクシング。ジャブ、ストレート、アッパー、ガード。スタミナを考えて打ち合い、ランキングを上げよう。",
+      "tags" : [
+        "boxing",
+        "1v1",
+        "sports"
+      ],
+      "title" : "Ring Boxing League",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/ring-boxing-league\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 36,
+      "id" : "power-roulette",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/power-roulette\/main.absc"
+      ],
+      "summary" : "ラウンドごとにルーレットで能力が決まる！炎、巨大化、ワープ、分身…運と工夫で最後まで生きのこれ。",
+      "tags" : [
+        "rng",
+        "pvp",
+        "party"
+      ],
+      "title" : "Power Roulette",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/power-roulette\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 179,
+      "id" : "armed-racers",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/armed-racers\/main.absc"
+      ],
+      "summary" : "武装したレースカーでコースを3周。アイテム箱からミサイル、オイル、ブーストを手に入れて、ライバルをじゃましろ！",
+      "tags" : [
+        "racing",
+        "items",
+        "pvp"
+      ],
+      "title" : "Armed Racers",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/armed-racers\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 42,
+      "id" : "blade-and-revolver",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/blade-and-revolver\/main.absc"
+      ],
+      "summary" : "ナイフとリボルバーだけのデスマッチ。ナイフは投げることもできる。先に20キルした人の勝ち。",
+      "tags" : [
+        "pvp",
+        "deathmatch",
+        "skill"
+      ],
+      "title" : "Blade & Revolver",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/blade-and-revolver\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 48,
+      "id" : "last-squad",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/last-squad\/main.absc"
+      ],
+      "summary" : "人間チームとゾンビの大群のサバイバル。やられた人間はゾンビになる！3分間生きのびて、ヘリで脱出せよ。",
+      "tags" : [
+        "zombies",
+        "teams",
+        "survival"
+      ],
+      "title" : "Last Squad vs Horde",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/last-squad\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 47,
+      "id" : "style-boxing",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/style-boxing\/main.absc"
+      ],
+      "summary" : "スピード、パワー、タンク、カウンター。自分のスタイルを選んで、必殺技ゲージをためて殴り合うボクシングバトル。",
+      "tags" : [
+        "boxing",
+        "pvp",
+        "styles"
+      ],
+      "title" : "Style Boxing",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/style-boxing\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 164,
+      "id" : "hero-academy-sim",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/hero-academy-sim\/main.absc"
+      ],
+      "summary" : "ヒーローかヴィランか。ガチャで個性（能力）を引いて、事件を解決したり起こしたり。レベルを上げて最強をめざせ。",
+      "tags" : [
+        "heroes",
+        "rpg",
+        "powers"
+      ],
+      "title" : "Hero Academy Sim",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/hero-academy-sim\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 186,
+      "id" : "oni-blade",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/oni-blade\/main.absc"
+      ],
+      "summary" : "夜になると鬼があらわれる。呼吸の型をきわめ、刀をきたえて鬼を斬れ。階級を上げて、鬼の王を討伐しよう。",
+      "tags" : [
+        "swords",
+        "rpg",
+        "night"
+      ],
+      "title" : "Oni Blade",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/oni-blade\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 48,
+  "id" : "last-squad",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/last-squad\/main.absc"
+  ],
+  "summary" : "人間チームとゾンビの大群のサバイバル。やられた人間はゾンビになる！3分間生きのびて、ヘリで脱出せよ。",
+  "tags" : [
+    "zombies",
+    "teams",
+    "survival"
+  ],
+  "title" : "Last Squad vs Horde",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/last-squad\/world.ablox"
+}

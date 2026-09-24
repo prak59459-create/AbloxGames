@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 36,
+  "id" : "power-roulette",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/power-roulette\/main.absc"
+  ],
+  "summary" : "ラウンドごとにルーレットで能力が決まる！炎、巨大化、ワープ、分身…運と工夫で最後まで生きのこれ。",
+  "tags" : [
+    "rng",
+    "pvp",
+    "party"
+  ],
+  "title" : "Power Roulette",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/power-roulette\/world.ablox"
+}

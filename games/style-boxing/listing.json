@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 47,
+  "id" : "style-boxing",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/style-boxing\/main.absc"
+  ],
+  "summary" : "スピード、パワー、タンク、カウンター。自分のスタイルを選んで、必殺技ゲージをためて殴り合うボクシングバトル。",
+  "tags" : [
+    "boxing",
+    "pvp",
+    "styles"
+  ],
+  "title" : "Style Boxing",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/style-boxing\/world.ablox"
+}
