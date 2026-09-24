@@ -1,0 +1,178 @@
+-- enemies.absc — 修行ロボ（闘技場）・山賊（遠くの修行場のそば）・ボス・宝箱
+-- 闘技場の中だけは、プレイヤーどうしでも戦える。
+
+let boss = nil
+let boss_next = 0
+let chest = nil
+let chest_next = 0
+let enemy_clock = 0
+let ARENA = {x: -60, y: 0, z: -60}
+
+func in_arena(c)
+  return abs(c.x - ARENA.x) < 18 and abs(c.z - ARENA.z) < 18
+end
+
+-- 耐久と鉄壁でへらしてからダメージ
+func hurt_player(p, amount, source)
+  let d = amount / (1 + sqrt(p.stats.durability) / 50)
+  if active_until(p.iron_until) then d = d * 0.3 end
+  p.damage(d, source)
+end
+
+func spawn_robot(i)
+  let spot = block("Enemy Spot " + i)
+  if spot == nil then return end
+  let n = create_npc({name: ROBOT.name, position: spot.position + {x: 0, y: 1, z: 0}, color: "#64748B",
+                      head_color: "#38BDF8", health: ROBOT.hp, speed: 0.5, team: "robots"})
+  n.kind = "robot"
+  n.spot = i
+end
+
+func spawn_bandit(i)
+  let spot = block("Bandit Spot " + i)
+  if spot == nil then return end
+  let n = create_npc({name: BANDIT.name, position: spot.position + {x: 0, y: 1, z: 0}, color: "#78350F",
+                      head_color: "#FDE68A", health: BANDIT.hp, speed: 0.7, size: 1.3, team: "robots"})
+  n.kind = "bandit"
+  n.spot = i
+end
+
+func spawn_boss()
+  let b = BOSSES[1]
+  -- 5回に1回は天空の龍
+  if random(1, 5) == 1 then b = BOSSES[2] end
+  let spot = block("Enemy Spot 1")
+  let hp = b.hp * (1 + 0.3 * max(0, len(players()) - 1))
+  boss = create_npc({name: b.name, position: spot.position + {x: 0, y: 2, z: 0}, color: b.color,
+                     head_color: "#FCA5A5", size: b.size, health: hp, speed: 0.6, team: "robots"})
+  boss.kind = "boss"
+  boss.info = b
+  boss.max_hp = hp
+  announce("⚠ 闘技場に " + b.name + " があらわれた！（体力 " + kit_short(hp) + "）", 4)
+end
+
+func spawn_chest()
+  let spot = block("Chest Spot " + random(1, 6))
+  if spot == nil then return end
+  chest = create_block({name: "Bonus Chest", position: spot.position + {x: 0, y: 0.6, z: 0}, size: {x: 1.6, y: 1.2, z: 1.2},
+                        color: "#F59E0B", material: "metal", behavior: "trigger", tags: ["chest"]})
+  announce("🎁 どこかに修行の宝箱が出た！", 3)
+end
+
+func setup_enemies()
+  for n in npcs() do kit_gone(n) end
+  for i in 1 to 6 do spawn_robot(i) end
+  for i in 1 to 6 do spawn_bandit(i) end
+  boss = nil
+  boss_next = time() + BOSS_EVERY
+  chest_next = time() + 60
+end
+
+func chase(n, sight, dps, dt)
+  let target = kit_nearest_player(n)
+  if target != nil and distance(n, target) <= sight then
+    n.follow(target)
+    if distance(n, target) < 2.4 + (n.size or 1) * 0.5 then hurt_player(target, dps * dt, n) end
+  else
+    n.stop()
+  end
+end
+
+on tick(dt)
+  enemy_clock = enemy_clock + dt
+  if enemy_clock < 0.25 then return end
+  let passed = enemy_clock
+  enemy_clock = 0
+  for n in npcs() do
+    if n.alive then
+      if n.kind == "boss" then chase(n, 40, n.info.dps, passed)
+      elif n.kind == "bandit" then chase(n, 16, BANDIT.dps, passed)
+      elif n.kind == "robot" then chase(n, 14, ROBOT.dps, passed)
+      end
+    end
+  end
+  if boss != nil and still(boss) and boss.alive then
+    for p in players() do
+      if in_arena(p) then
+        p.ui_bar("boss_hp", {at: "top", dy: 60, w: 340, h: 14, value: boss.health, max: boss.max_hp, color: "#DC2626", bg: "#00000099"})
+      else
+        p.ui_remove("boss_hp")
+      end
+    end
+  end
+  if time() >= boss_next then
+    boss_next = time() + BOSS_EVERY
+    if boss == nil or not still(boss) then spawn_boss() end
+  end
+  if time() >= chest_next then
+    chest_next = time() + 150
+    if chest == nil or not still(chest) then spawn_chest() end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "chest") then
+    kit_gone(b)
+    chest = nil
+    -- いちばん高い能力の2わりぶんを全部の能力に
+    let best = 0
+    for s in STATS do best = max(best, p.stats[s.id]) end
+    let bonus = max(50, floor(best * 0.2))
+    for s in STATS do p.stats[s.id] = p.stats[s.id] + bonus end
+    let coins = earn(p, 500 + p.rebirths * 500)
+    announce("🎁 " + p.name + " が宝箱を開けた！（全能力 +" + kit_short(bonus) + "・🪙" + kit_short(coins) + "）", 3)
+    kit_quest_progress(p, "chest", 1)
+    apply_stats(p)
+    show(p)
+  end
+end
+
+-- パンチ: 力で強く、耐久でへる。闘技場の外ではプレイヤーどうしは当たらない
+on hit(victim, attacker, damage)
+  if attacker == nil or attacker.is_npc or not ready(attacker) then return damage end
+  if not victim.is_npc then
+    if not in_arena(victim) or not in_arena(attacker) then return 0 end
+    let d = (damage + sqrt(attacker.stats.strength) * 2) / (1 + sqrt(victim.stats.durability) / 50)
+    if active_until(victim.iron_until) then d = d * 0.3 end
+    return d
+  end
+  return damage + sqrt(attacker.stats.strength) * 2
+end
+
+on death(victim, killer)
+  if victim.is_npc then
+    let k = victim.kind
+    if k == "robot" then
+      let i = victim.spot
+      after(5, func() spawn_robot(i) end)
+    elif k == "bandit" then
+      let i = victim.spot
+      after(15, func() spawn_bandit(i) end)
+    end
+    if killer == nil or killer.is_npc then return end
+    if k == "boss" then
+      boss = nil
+      let info = victim.info
+      announce("🏆 " + killer.name + " たちが " + info.name + " をたおした！", 4)
+      for p in players() do
+        if ready(p) and distance(p, victim) < 40 then
+          earn(p, info.coins)
+          kit_quest_progress(p, "boss", 1)
+        end
+      end
+      kit_badge(killer, "boss", "鬼退治")
+    elif k == "bandit" then
+      earn(killer, BANDIT.coins)
+      kit_quest_progress(killer, "bandit", 1)
+    elif k == "robot" then
+      earn(killer, ROBOT.coins)
+      kit_quest_progress(killer, "robot", 1)
+    end
+  elif killer != nil and not killer.is_npc and killer.id != victim.id then
+    earn(killer, 50)
+    killer.pvp_wins = (killer.pvp_wins or 0) + 1
+    killer.message("💥 " + victim.name + " に勝った！", 1.5)
+    kit_quest_progress(killer, "pvp", 1)
+  end
+end

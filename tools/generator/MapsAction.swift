@@ -45,28 +45,50 @@ let actionGames: [Game] = [
 
 func powerTraining(_ m: MapBuilder) {
     m.day(ground: "#6B8E4E")
-    m.ground(200, 200, color: "#7CA05A")
+    m.ground(340, 340, color: "#7CA05A")
     m.part("Dojo Floor", at: (0, 0.1, 0), size: (24, 0.2, 24), color: "#C8A26B", material: .matte)
-    m.walls(0, 0, w: 24, d: 24, h: 1, color: "#7C2D12", name: "Dojo Rail")
+    for p in [(-11.5, -11.5), (11.5, -11.5), (-11.5, 11.5), (11.5, 11.5)] as [(Float, Float)] {
+        m.pillar("Dojo Post", x: p.0, z: p.1, height: 3, radius: 0.4, color: "#7C2D12")
+    }
     m.spawnRing(0, 0, y: 0.2, radius: 5, count: 8, color: "#F59E0B")
-    // Training grounds, harder further out.
-    let grounds: [(String, String, Float, Float, String)] = [
-        ("Boulder Field", "#78716C", 45, 0, "strength"), ("Mountain Top", "#57534E", 85, 30, "strength"),
-        ("Waterfall", "#38BDF8", -45, 0, "chakra"), ("Sky Temple", "#E0E7FF", -85, 30, "chakra"),
-        ("Speed Track", "#F97316", 0, 45, "speed"), ("Lightning Road", "#FACC15", 0, 85, "speed"),
-        ("Fire Pit", "#DC2626", 0, -45, "durability"), ("Volcano Core", "#7F1D1D", 30, -85, "durability")
+    m.pad("Champion Shrine", x: 8, z: 8, y: 0.2, size: 3, color: "#FBBF24", tags: ["champion_shrine"])
+    m.pad("Rebirth Altar", x: -8, z: 8, y: 0.2, size: 3, color: "#A855F7", tags: ["rebirth_altar"])
+    m.pad("Ability Scroll", x: 8, z: -8, y: 0.2, size: 3, color: "#38BDF8", tags: ["ability_board"])
+    // Training grounds: three tiers per stat, harder further out. All at
+    // walking height — a locked one bounces you off instead.
+    let grounds: [(String, String, Float, Float)] = [
+        ("Boulder Field", "#78716C", 45, 0), ("Mountain Top", "#57534E", 85, 30), ("Titan Quarry", "#44403C", 135, 60),
+        ("Waterfall", "#38BDF8", -45, 0), ("Sky Temple", "#E0E7FF", -85, 30), ("Spirit Realm", "#C4B5FD", -135, 60),
+        ("Speed Track", "#F97316", 0, 45), ("Lightning Road", "#FACC15", 0, 85), ("Time Rift", "#22D3EE", -40, 135),
+        ("Fire Pit", "#DC2626", 0, -45), ("Volcano Core", "#7F1D1D", 30, -85), ("Meteor Crater", "#1C1917", 80, -135)
     ]
     for (i, g) in grounds.enumerated() {
-        m.slab("\(g.0) Base", x: g.2, y: 0, z: g.3, w: 18, h: 0.5 + Float(i % 2) * 3, d: 18, color: "#A8A29E")
-        m.pad(g.0, x: g.2, z: g.3, y: 0.5 + Float(i % 2) * 3, size: 12, color: g.1, tags: ["zone", g.4, i % 2 == 0 ? "tier1" : "tier2"])
+        let tier = i % 3
+        m.slab("\(g.0) Base", x: g.2, y: 0, z: g.3, w: 18 + Float(tier) * 4, h: 0.4, d: 18 + Float(tier) * 4, color: "#A8A29E")
+        m.pad(g.0, x: g.2, z: g.3, y: 0.4, size: 12 + Float(tier) * 3, color: g.1, tags: ["zone"])
+        for p in ring(4 + tier * 2, radius: 10 + Float(tier) * 2, cx: g.2, cz: g.3, phase: 0.3) {
+            m.pillar("\(g.0) Marker", x: p.0, z: p.1, y: 0.4, height: 2 + Float(tier) * 1.5, radius: 0.35, color: g.1,
+                     material: tier == 2 ? .neon : .plastic)
+        }
     }
-    for p in ring(5, radius: 6, cx: 45, cz: 0) { m.rock(p.0, p.1, y: 0.5, size: 2.5) }
+    for p in ring(5, radius: 6, cx: 45, cz: 0) { m.rock(p.0, p.1, y: 0.4, size: 2.5) }
     m.part("Falls", at: (-45, 8, -9), size: (10, 16, 1), color: "#7DD3FC", material: .glass, solid: false, opacity: 0.6)
+    m.part("Spirit Orb", at: (-135, 8, 60), size: (4, 4, 4), color: "#A78BFA", shape: .sphere, material: .neon, solid: false)
+    m.part("Rift Ring", at: (-40, 6, 135), size: (10, 10, 0.6), color: "#22D3EE", shape: .cylinder, material: .neon, solid: false,
+           rotation: (90, 0, 0))
+    m.part("Crater Rock", at: (80, 3, -135), size: (8, 6, 8), color: "#292524", shape: .sphere)
     // An arena for fights and the boss.
     m.slab("Arena", x: -60, y: 0, z: -60, w: 36, h: 0.4, d: 36, color: "#44403C")
-    m.walls(-60, -60, w: 36, d: 36, h: 2, y: 0.4, color: "#292524", name: "Arena Wall")
+    for side: Float in [-1, 1] {
+        m.slab("Arena Wall", x: -60, y: 0.4, z: -60 + side * 18, w: 36, h: 2, d: 1, color: "#292524")
+        m.slab("Arena Wall", x: -60 + side * 18, y: 0.4, z: -60 - 10, w: 1, h: 2, d: 16, color: "#292524")
+    }
     m.markers("Enemy Spot", points: ring(6, radius: 10, cx: -60, cz: -60), y: 0.4, color: "#000000", visible: false, behavior: .none)
-    for p in ring(14, radius: 95, phase: 0.1) { m.tree(p.0, p.1, height: 6, leaves: "#3F6212") }
+    m.markers("Bandit Spot", points: [(110, 20), (-110, 20), (-20, 110), (55, -110), (120, 90), (-120, 90)], color: "#000000",
+              visible: false, behavior: .none)
+    m.markers("Chest Spot", points: [(30, 30), (-30, 30), (30, -30), (-30, -30), (100, 100), (-100, 100)], color: "#000000",
+              visible: false, behavior: .none)
+    for p in ring(18, radius: 150, phase: 0.1) { m.tree(p.0, p.1, height: 6, leaves: "#3F6212") }
 }
 
 // MARK: 22 Deflect Ball

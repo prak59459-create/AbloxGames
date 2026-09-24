@@ -1,0 +1,75 @@
+-- data.absc — Power Training Sim の表
+-- 能力・修行場・ランク・技・仲間・転生ショップ・敵
+
+let STATS = [
+  {id: "strength", name: "💪 力", color: "#EF4444"},
+  {id: "chakra", name: "🔮 気", color: "#8B5CF6"},
+  {id: "speed", name: "👟 速さ", color: "#F97316"},
+  {id: "durability", name: "🛡 耐久", color: "#64748B"}
+]
+
+-- MARK: 修行場（ブロックの名前・能力・倍率・入るのに必要な値）
+let ZONES = [
+  {name: "Boulder Field", stat: "strength", mult: 5, need: 100, label: "岩場"},
+  {name: "Mountain Top", stat: "strength", mult: 30, need: 5000, label: "山頂"},
+  {name: "Titan Quarry", stat: "strength", mult: 150, need: 250000, label: "巨人の石切り場"},
+  {name: "Waterfall", stat: "chakra", mult: 5, need: 100, label: "滝"},
+  {name: "Sky Temple", stat: "chakra", mult: 30, need: 5000, label: "天空寺"},
+  {name: "Spirit Realm", stat: "chakra", mult: 150, need: 250000, label: "霊界"},
+  {name: "Speed Track", stat: "speed", mult: 5, need: 100, label: "走路"},
+  {name: "Lightning Road", stat: "speed", mult: 30, need: 5000, label: "稲妻の道"},
+  {name: "Time Rift", stat: "speed", mult: 150, need: 250000, label: "時のさけめ"},
+  {name: "Fire Pit", stat: "durability", mult: 5, need: 100, label: "火の穴"},
+  {name: "Volcano Core", stat: "durability", mult: 30, need: 5000, label: "火山の中心"},
+  {name: "Meteor Crater", stat: "durability", mult: 150, need: 250000, label: "隕石の穴"}
+]
+
+let RANKS = [["E", 0], ["D", 500], ["C", 5000], ["B", 50000], ["A", 500000], ["S", 5000000], ["SS", 50000000], ["SSS", 500000000], ["神", 5000000000]]
+
+-- MARK: 技（能力が足りると使える）
+let ABILITIES = [
+  {id: "quake", name: "🌋 地砕き", stat: "strength", need: 1000, cd: 6, text: "まわりを打ち上げる"},
+  {id: "meteor", name: "☄ 流星拳", stat: "strength", need: 100000, cd: 10, text: "前方に強烈な連打"},
+  {id: "blast", name: "🔮 気功波", stat: "chakra", need: 0, cd: 4, text: "前に気のばくはつ"},
+  {id: "barrage", name: "💫 気弾連射", stat: "chakra", need: 10000, cd: 8, text: "気の弾を5発"},
+  {id: "cannon", name: "🌟 超気功砲", stat: "chakra", need: 1000000, cd: 20, text: "まっすぐ極太ビーム"},
+  {id: "dash", name: "💨 ダッシュ", stat: "speed", need: 1000, cd: 3, text: "前へ一瞬で移動"},
+  {id: "afterimage", name: "👻 残像", stat: "speed", need: 50000, cd: 12, text: "2びょう 見えなくなる"},
+  {id: "iron", name: "🛡 鉄壁", stat: "durability", need: 5000, cd: 15, text: "5びょう ダメージ7割カット"},
+  {id: "regen", name: "💚 再生", stat: "durability", need: 200000, cd: 20, text: "体力を大きく回復"}
+]
+
+-- MARK: 仲間（ガチャ・stat: その能力だけ強くなる / all は全部）
+let CHAMPIONS = [
+  {name: "見習い剣士", stat: "strength", bonus: 1.2, weight: 30},
+  {name: "滝の修行僧", stat: "chakra", bonus: 1.2, weight: 30},
+  {name: "韋駄天の少年", stat: "speed", bonus: 1.2, weight: 30},
+  {name: "岩の門番", stat: "durability", bonus: 1.2, weight: 30},
+  {name: "山の仙人", stat: "all", bonus: 1.3, weight: 16},
+  {name: "雷の忍", stat: "speed", bonus: 2, weight: 8},
+  {name: "炎の武神", stat: "strength", bonus: 2.2, weight: 6},
+  {name: "月の巫女", stat: "chakra", bonus: 2.2, weight: 6},
+  {name: "鋼の巨人", stat: "durability", bonus: 2.2, weight: 6},
+  {name: "天空の覇王", stat: "all", bonus: 3, weight: 1.5},
+  {name: "時をこえた武神", stat: "all", bonus: 6, weight: 0.3}
+]
+let CHAMPION_PRICE = 500
+
+-- MARK: 転生（リセットのかわりに永久に強く）
+let REBIRTH_BASE = 1000000    -- 合計がこれ × 3^転生回数 をこえると転生できる
+let REBIRTH_SHOP = [
+  {id: "slot", name: "🥋 仲間の枠 +1", costs: [1, 3], text: "仲間を2人・3人つれていける"},
+  {id: "auto", name: "⚙ 自動修行の速さ", costs: [1, 2, 4], text: "自動修行が速くなる"},
+  {id: "focus", name: "🔥 集中の強さ", costs: [2, 4], text: "集中ボーナス ×3・×4"},
+  {id: "coins", name: "🪙 コイン2倍", costs: [3], text: "敵やチェストのコイン2倍"},
+  {id: "start", name: "🌱 はじめから修行場", costs: [2], text: "転生しても全能力100から"}
+]
+
+-- MARK: 敵
+let ROBOT = {name: "修行ロボ", hp: 300, dps: 8, coins: 25}
+let BANDIT = {name: "山賊", hp: 5000, dps: 30, coins: 300}
+let BOSSES = [
+  {name: "👹 修行の鬼", hp: 60000, dps: 60, coins: 3000, size: 3, color: "#7F1D1D"},
+  {name: "🐉 天空の龍", hp: 2000000, dps: 400, coins: 50000, size: 4, color: "#0F766E"}
+]
+let BOSS_EVERY = 240

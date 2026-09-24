@@ -1,0 +1,137 @@
+-- train.absc — 修行
+-- 下の4つのボタンで修行。修行場に立つと、その能力が何倍にも。
+-- すばやく10回つづけると「集中」— 5びょう 修行 ×2（転生ショップで×3・×4）。
+-- 自動修行を買うと、最後にえらんだ能力を自動で。
+
+let train_clock = 0
+
+func rebirth_mult(p)
+  return 1 + p.rebirths * 0.5
+end
+
+func focus_mult(p)
+  if not active_until(p.focus_until) then return 1 end
+  return 2 + rshop_level(p, "focus")
+end
+
+func gain_for(p, stat)
+  let gain = p.train_mult * rebirth_mult(p) * champion_mult(p, stat) * focus_mult(p)
+  let z = zone_info(p.zone or "")
+  if z != nil and z.stat == stat then gain = gain * z.mult end
+  return gain
+end
+
+func train(p, stat)
+  if not p.alive then return end
+  let gain = gain_for(p, stat)
+  let z = zone_info(p.zone or "")
+  -- 耐久の修行場は痛い（でもそれが修行）
+  if stat == "durability" and z != nil and z.stat == "durability" then p.damage(min(p.health - 1, z.mult * 0.25)) end
+  p.stats[stat] = p.stats[stat] + gain
+  p.trains = p.trains + 1
+  kit_quest_progress(p, "t100", 1)
+  kit_quest_progress(p, "t1000", 1)
+  -- 集中: 2びょう以内に10回
+  if p.combo_at != nil and time() - p.combo_at < 2 then p.combo = p.combo + 1 else p.combo = 1 end
+  p.combo_at = time()
+  if p.combo >= 10 and not active_until(p.focus_until) then
+    p.focus_until = time() + 5
+    p.combo = 0
+    p.message("🔥 集中！ 5びょう 修行 ×" + focus_mult(p), 1.5)
+  end
+  apply_stats(p)
+  check_rank(p)
+  show(p)
+end
+
+func check_rank(p)
+  let r = rank_of(p)
+  if r != p.last_rank then
+    if p.last_rank != nil then
+      announce("⬆ " + p.name + " がランク " + r + " に！", 3)
+      p.sound("goal")
+    end
+    p.last_rank = r
+    if r == "B" then kit_quest_progress(p, "rankb", 1) end
+    if r == "S" then kit_quest_progress(p, "ranks", 1) end
+    unlock_abilities(p)
+  end
+end
+
+-- MARK: 修行場に入る・出る
+
+func enter_zone(p, b)
+  let z = zone_info(b.name)
+  if z == nil or p.zone == b.name then return end
+  if p.stats[z.stat] < z.need then
+    if quiet_ready(p, "zone_denied", 1.5) then
+      p.message("🔒 " + z.label + ": " + stat_info(z.stat).name + " が " + kit_short(z.need) + " 必要", 1.5)
+    end
+    let away = normalize(p.position - b.position)
+    p.launch(away.x * 14, 7, away.z * 14)
+    return
+  end
+  p.zone = b.name
+  p.ui_text("zone", "🔥 " + z.label + ": " + stat_info(z.stat).name + " ×" + z.mult, {at: "center", dy: -150, size: 18, bold: true, color: "#FDBA74"})
+  if z.need >= 5000 then kit_quest_progress(p, "zone2", 1) end
+  if z.need >= 250000 then kit_quest_progress(p, "zone3", 1) end
+end
+
+func leave_zone_check(p)
+  if p.zone == nil then return end
+  let b = block(p.zone)
+  if b == nil or distance(p, b) > 12 then
+    p.zone = nil
+    p.ui_remove("zone")
+  end
+end
+
+-- MARK: 自動修行
+
+func auto_every(p)
+  -- 1びょう → 0.7 → 0.5 → 0.35
+  return [1, 0.7, 0.5, 0.35][rshop_level(p, "auto") + 1]
+end
+
+on tick(dt)
+  train_clock = train_clock + dt
+  if train_clock < 0.1 then return end
+  let passed = train_clock
+  train_clock = 0
+  for p in players() do
+    if ready(p) then
+      if p.auto and p.last_stat != nil then
+        p.auto_time = (p.auto_time or 0) + passed
+        if p.auto_time >= auto_every(p) then
+          p.auto_time = 0
+          train(p, p.last_stat)
+        end
+      end
+      leave_zone_check(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "zone") then enter_zone(p, b) end
+end
+
+on button(p, id)
+  if starts_with(id, "train_") then
+    let stat = replace(id, "train_", "")
+    p.last_stat = stat
+    if quiet_ready(p, "train", 0.2) then train(p, stat) end
+    train_buttons(p)
+  end
+end
+
+func train_buttons(p)
+  let i = 0
+  for s in STATS do
+    i = i + 1
+    let bg = "#1E293B"
+    if p.last_stat == s.id then bg = s.color end
+    p.ui_button("train_" + s.id, s.name, {at: "bottom", dx: (i - 2.5) * 118, dy: -96, w: 110, h: 54, size: 16, bg: bg, radius: 14})
+  end
+end

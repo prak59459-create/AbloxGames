@@ -1,0 +1,97 @@
+-- common.absc — どのファイルからも使う計算
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.stats != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func stat_info(id)
+  for s in STATS do
+    if s.id == id then return s end
+  end
+  return STATS[1]
+end
+
+func zone_info(name)
+  for z in ZONES do
+    if z.name == name then return z end
+  end
+  return nil
+end
+
+func total(p)
+  let t = 0
+  for s in STATS do t = t + p.stats[s.id] end
+  return t
+end
+
+func rank_of(p)
+  let r = RANKS[1][1]
+  let t = total(p)
+  for row in RANKS do
+    if t >= row[2] then r = row[1] end
+  end
+  return r
+end
+
+func rshop_level(p, id)
+  return p.rshop[id] or 0
+end
+
+-- 仲間の倍率（その能力に）
+func champion_mult(p, stat)
+  let m = 1
+  for c in p.champions do
+    if c.stat == stat or c.stat == "all" then m = m * c.bonus end
+  end
+  return m
+end
+
+func coin_mult(p)
+  if rshop_level(p, "coins") > 0 then return 2 end
+  return 1
+end
+
+func earn(p, amount)
+  let n = floor(amount * coin_mult(p))
+  kit_give(p, n)
+  return n
+end
+
+-- 能力を体に反映（速さ・体力）
+func apply_stats(p)
+  let s = min(4, 1 + log(1 + p.stats.speed) / 6)
+  if active_until(p.focus_until) then s = s * 1.05 end
+  if p.speed != s then p.speed = s end
+  let hp = min(1000000, 100 + floor(sqrt(p.stats.durability) * 4))
+  if hp != p.max_health then p.max_health = hp end
+end
+
+func show(p)
+  if not ready(p) then return end
+  let r = rank_of(p)
+  let reb = ""
+  if p.rebirths > 0 then reb = "   🔱 転生 " + p.rebirths + "（×" + fixed(rebirth_mult(p), 1) + "）" end
+  p.ui_text("rank", "ランク " + r + "   合計 " + kit_short(total(p)) + reb, {at: "top", dy: 26, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in STATS do
+    i = i + 1
+    p.ui_text("stat_" + s.id, s.name + " " + kit_short(p.stats[s.id]), {at: "top_left", dy: 34 + i * 24, size: 16, color: s.color})
+  end
+  p.score = floor(total(p))
+end

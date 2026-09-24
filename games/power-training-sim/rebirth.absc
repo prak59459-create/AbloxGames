@@ -1,0 +1,107 @@
+-- rebirth.absc — 転生
+-- 合計が 100万 × 3^転生回数 をこえると転生できる。能力はもどるけれど、
+-- 修行が永久に ×1.5 ずつ強くなり、🔱トークンで転生ショップの強化が買える。
+
+func rebirth_need(p)
+  return REBIRTH_BASE * pow(3, p.rebirths)
+end
+
+func rebirth_menu(p)
+  let h = 230 + len(REBIRTH_SHOP) * 46
+  p.ui_panel("reb_box", {at: "center", w: 580, h: h, bg: "#2E1065F2", radius: 22, layer: 30})
+  p.ui_text("reb_t", "🔱 転生（" + p.rebirths + "回・トークン " + p.tokens + "）", {parent: "reb_box", y: 26 / h, size: 19, bold: true, color: "#E9D5FF"})
+  let need = rebirth_need(p)
+  let can = total(p) >= need
+  let label = "合計 " + kit_short(total(p)) + " / " + kit_short(need) + " で転生できる"
+  let bg = "#374151"
+  if can then
+    label = "🔱 転生する！（修行 ×" + fixed(rebirth_mult(p) + 0.5, 1) + "・トークン +1）"
+    bg = "#7C3AED"
+  end
+  p.ui_button("reb_do", label, {parent: "reb_box", y: 74 / h, w: 540, h: 44, size: 15, bg: bg})
+  let i = 0
+  for item in REBIRTH_SHOP do
+    i = i + 1
+    let lv = rshop_level(p, item.id)
+    let text = "✅ " + item.name + " MAX"
+    let color = "#374151"
+    if lv < len(item.costs) then
+      text = item.name + "  🔱" + item.costs[lv + 1] + "  " + item.text
+      color = "#6D28D9"
+    end
+    p.ui_button("rs_" + item.id, text, {parent: "reb_box", y: (100 + i * 46) / h, w: 540, h: 40, size: 13, bg: color})
+  end
+  p.ui_button("reb_close", "閉じる", {parent: "reb_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func do_rebirth(p)
+  if total(p) < rebirth_need(p) then
+    p.message("まだ転生できない", 1.2)
+    return
+  end
+  p.rebirths = p.rebirths + 1
+  p.tokens = p.tokens + 1
+  let start = 1
+  if rshop_level(p, "start") > 0 then start = 100 end
+  for s in STATS do p.stats[s.id] = start end
+  p.last_rank = nil
+  p.zone = nil
+  p.ui_remove("zone")
+  announce("🔱 " + p.name + " が転生した！（" + p.rebirths + "回目・修行 ×" + fixed(rebirth_mult(p), 1) + "）", 4)
+  p.sound("goal")
+  kit_quest_progress(p, "rebirth", 1)
+  apply_stats(p)
+  check_rank(p)
+  show(p)
+  rebirth_menu(p)
+end
+
+func buy_rshop(p, id)
+  for item in REBIRTH_SHOP do
+    if item.id == id then
+      let lv = rshop_level(p, id)
+      if lv >= len(item.costs) then return end
+      let cost = item.costs[lv + 1]
+      if p.tokens < cost then
+        p.message("🔱 トークンが足りない", 1.2)
+        p.sound("error")
+        return
+      end
+      p.tokens = p.tokens - cost
+      p.rshop[id] = lv + 1
+      p.sound("goal")
+      rebirth_menu(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "rebirth_altar") and quiet_ready(p, "reb_pad", 5) then rebirth_menu(p)
+  elif contains(b.tags, "ability_board") and quiet_ready(p, "ab_pad", 5) then ability_list(p)
+  end
+end
+
+func ability_list(p)
+  let h = 120 + len(ABILITIES) * 32
+  p.ui_panel("ab_box", {at: "center", w: 560, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("ab_t", "📜 技の巻物", {parent: "ab_box", y: 26 / h, size: 19, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for a in ABILITIES do
+    i = i + 1
+    let mark = "🔒"
+    if contains(p.abilities, a.id) then mark = "✅" end
+    p.ui_text("ab_line" + i, mark + " " + a.name + "  " + stat_info(a.stat).name + " " + kit_short(a.need) + "  " + a.text,
+              {parent: "ab_box", y: (36 + i * 32) / h, size: 13})
+  end
+  p.ui_button("ab_close", "閉じる", {parent: "ab_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "rebirth" then rebirth_menu(p)
+  elif id == "reb_close" then p.ui_remove("reb_box")
+  elif id == "reb_do" then do_rebirth(p)
+  elif starts_with(id, "rs_") then buy_rshop(p, replace(id, "rs_", ""))
+  elif id == "ab_close" then p.ui_remove("ab_box")
+  end
+end

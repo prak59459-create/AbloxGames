@@ -1,11 +1,18 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 75,
+  "blockCount" : 181,
   "id" : "power-training-sim",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/power-training-sim\/data.absc",
+    "games\/power-training-sim\/abilities.absc",
+    "games\/power-training-sim\/champions.absc",
+    "games\/power-training-sim\/common.absc",
+    "games\/power-training-sim\/enemies.absc",
+    "games\/power-training-sim\/rebirth.absc",
+    "games\/power-training-sim\/train.absc",
     "games\/power-training-sim\/main.absc"
   ],
   "summary" : "力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。",

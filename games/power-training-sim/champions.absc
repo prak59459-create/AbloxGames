@@ -1,0 +1,72 @@
+-- champions.absc — 仲間ガチャ（道場の金色のパッド）
+-- 仲間はその能力（または全部）の修行を何倍にもしてくれる。枠は転生ショップで3つまで。
+
+func champion_slots(p)
+  return 1 + rshop_level(p, "slot")
+end
+
+func champion_label(c)
+  let what = "全能力"
+  if c.stat != "all" then what = stat_info(c.stat).name end
+  return c.name + "（" + what + " ×" + c.bonus + "）"
+end
+
+func champion_menu(p)
+  let h = 200 + champion_slots(p) * 40
+  p.ui_panel("champ_box", {at: "center", w: 520, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("champ_t", "🥋 仲間（" + len(p.champions) + "/" + champion_slots(p) + "）  🪙 " + kit_short(kit_money(p)),
+            {parent: "champ_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  for k in 1 to champion_slots(p) do
+    let label = "（あき）"
+    if k <= len(p.champions) then label = champion_label(p.champions[k]) end
+    p.ui_text("champ_" + k, k + ". " + label, {parent: "champ_box", y: (40 + k * 40) / h, size: 15})
+  end
+  p.ui_button("champ_roll", "🎲 ガチャ  🪙" + CHAMPION_PRICE, {parent: "champ_box", x: 0.3, y: (h - 70) / h, w: 200, h: 42, size: 16, bg: "#B45309"})
+  p.ui_button("champ_roll10", "🎲×10  🪙" + CHAMPION_PRICE * 10, {parent: "champ_box", x: 0.72, y: (h - 70) / h, w: 180, h: 42, size: 15, bg: "#92400E"})
+  p.ui_button("champ_close", "閉じる", {parent: "champ_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+-- 弱い仲間から入れかえる
+func add_champion(p, c)
+  if len(p.champions) < champion_slots(p) then
+    append(p.champions, c)
+    return true
+  end
+  let weakest = 1
+  for k in 1 to len(p.champions) do
+    if p.champions[k].bonus < p.champions[weakest].bonus then weakest = k end
+  end
+  if c.bonus > p.champions[weakest].bonus then
+    p.champions[weakest] = c
+    return true
+  end
+  return false
+end
+
+func roll_champion(p, times)
+  if not kit_pay(p, CHAMPION_PRICE * times) then return end
+  let best = nil
+  for k in 1 to times do
+    let c = kit_pick(CHAMPIONS, 1)
+    let kept = add_champion(p, c)
+    if best == nil or c.bonus > best.bonus then best = c end
+    if c.bonus >= 3 then announce("🌟 " + p.name + " が「" + c.name + "」を仲間にした！", 4) end
+    kit_quest_progress(p, "gacha", 1)
+  end
+  p.message("🥋 " + champion_label(best), 2.5)
+  p.sound("collect")
+  champion_menu(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "champion_shrine") and quiet_ready(p, "champ_pad", 5) then champion_menu(p) end
+end
+
+on button(p, id)
+  if id == "champions" then champion_menu(p)
+  elif id == "champ_close" then p.ui_remove("champ_box")
+  elif id == "champ_roll" then roll_champion(p, 1)
+  elif id == "champ_roll10" then roll_champion(p, 10)
+  end
+end
