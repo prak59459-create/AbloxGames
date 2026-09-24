@@ -25,7 +25,7 @@ let lifeGames: [Game] = [
          summary: "レストランを経営。19の設備で6品のメニューを増やし、シェフとウェイターをやとって自動化。評判と料理評論家、2号店（リバース）で永久ボーナス！",
          tags: ["tycoon", "cooking", "business"], maxPlayers: 8, build: dinnerRush),
     Game(number: 40, id: "coaster-park-tycoon", title: "Coaster Park Tycoon",
-         summary: "遊園地を作ろう。メリーゴーランド、観覧車、ジェットコースター。お客さんを楽しませてお金をかせぎ、自分でも乗ってみよう。",
+         summary: "遊園地を作ろう。14のアトラクションと屋台、お客さんの楽しさ・空腹・のど・トイレ、入場料、故障の修理とゴミそうじ、スタッフ、ベストパーク賞。自分でも乗れる！",
          tags: ["tycoon", "theme-park", "build"], maxPlayers: 8, build: coasterPark),
     Game(number: 41, id: "life-ville", title: "Life Ville",
          summary: "おなか・元気・楽しさ・清潔の4つのゲージを気にしながらくらすライフシム。仕事で給料をもらって家を大きくしよう。",
@@ -390,15 +390,20 @@ func coasterPark(_ m: MapBuilder) {
     m.day(ground: "#4ADE80")
     m.ground(220, 220, color: "#86EFAC", name: "Park Land")
     m.spawnRing(0, 0, radius: 5, count: 8, color: "#FDE047")
+    // Bought in order; the script names them. The path runs down the middle.
     let items: [(String, Float, Float, V, String, BlockShape)] = [
         ("Path", 0, 0, (4, 0.05, 26), "#D6D3D1", .box), ("Carousel", -8, -6, (6, 3, 6), "#F472B6", .cylinder),
-        ("Snack Stand", 8, -8, (3, 2.5, 3), "#FBBF24", .box), ("Ferris Wheel", -8, 7, (1, 10, 10), "#60A5FA", .cylinder),
-        ("Bumper Cars", 8, 5, (7, 0.6, 7), "#A78BFA", .box), ("Drop Tower", 11, -1, (2, 16, 2), "#EF4444", .cylinder),
-        ("Roller Coaster", -11, 0, (3, 8, 24), "#F97316", .box), ("Fountain", 0, 11, (3, 2, 3), "#38BDF8", .sphere)
+        ("Snack Stand", 8, -8, (3, 2.5, 3), "#FBBF24", .box), ("Restroom", 12, -12, (2.5, 2.5, 2.5), "#E0F2FE", .box),
+        ("Ferris Wheel", -8, 7, (1, 10, 10), "#60A5FA", .cylinder), ("Bumper Cars", 8, 5, (7, 0.6, 7), "#A78BFA", .box),
+        ("Drink Stand", -12, -12, (2.5, 2.5, 2.5), "#22D3EE", .box), ("Pirate Ship", -7, -13, (5, 4, 2.5), "#92400E", .box),
+        ("Drop Tower", 11, -1, (2, 16, 2), "#EF4444", .cylinder), ("Haunted House", 6, -12, (4, 4, 4), "#4C1D95", .box),
+        ("Roller Coaster", -13.5, 3, (2, 7, 18), "#F97316", .box), ("Log Flume", 12, 12, (4, 1.5, 5), "#0EA5E9", .box),
+        ("Fountain", 0, 11, (3, 2, 3), "#38BDF8", .sphere), ("Fireworks Tower", -4, 12, (1.2, 6, 1.2), "#F43F5E", .cylinder)
     ]
     for (i, p) in [(-55, -55), (55, -55), (-55, 55), (55, 55)].enumerated() {
         tycoonPlot(m, n: i + 1, x: Float(p.0), z: Float(p.1), color: ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"][i], items: items)
         m.part("Plot \(i + 1) Gate", at: (Float(p.0), 0.5, Float(p.1) + 14), size: (1, 0.1, 1), color: "#000000", visible: false)
+        m.pad("Plot \(i + 1) Office", x: Float(p.0) - 13, z: Float(p.1) + 13, y: 0.2, size: 1.6, color: "#A855F7", tags: ["office"])
     }
 }
 

@@ -1,0 +1,89 @@
+-- common.absc — 小さな道具・パーク・画面
+
+let parks = {}     -- 区画 → {owner, bought, rating, fee_i, broken, trash, staff, guests_total, happy_sum, served}
+
+func ready(p)
+  return p.guests != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func park_of(p)
+  if p.plot == nil then return nil end
+  return parks[p.plot]
+end
+
+func has(pk, k)
+  return pk.bought["" + k] == true
+end
+
+func item_block(plot, k)
+  return block("Plot " + plot + " Item " + k)
+end
+
+func buy_pad(plot, k)
+  return block("Plot " + plot + " Buy " + k)
+end
+
+func owned_items(pk, kind)
+  let list = []
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    if it.kind == kind and has(pk, i) then append(list, i) end
+  end
+  return list
+end
+
+func ride_count(pk)
+  return len(owned_items(pk, "ride"))
+end
+
+func stars_text(r)
+  let s = ""
+  for k in 1 to 5 do
+    if k <= floor(r + 0.5) then s = s + "★" else s = s + "☆" end
+  end
+  return s
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let pk = park_of(p)
+  if pk == nil then
+    p.ui_text("park", "色のパッドで区画を手に入れて遊園地に", {at: "top", dy: 30, size: 16})
+    return
+  end
+  let here = len(filter(npcs(), func(n) return n.park == p.plot end))
+  let line = "🎡 パーク " + p.plot + "   " + stars_text(pk.rating) + "   入場料 " + ENTRY_FEES[pk.fee_i] + "   来園 " + here + "人（累計 " + pk.guests_total + "）"
+  p.ui_text("park", line, {at: "top", dy: 30, size: 15, bold: true})
+  let status = "🎢 乗り物 " + ride_count(pk) + "   🔧 故障 " + len(keys(pk.broken)) + "   🗑 ゴミ " + len(pk.trash)
+  p.ui_text("park2", status, {at: "top", dy: 52, size: 13, color: "#FDE68A"})
+end

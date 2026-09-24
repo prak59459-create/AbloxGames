@@ -1,0 +1,34 @@
+-- data.absc — Coaster Park Tycoon の表
+-- アトラクションと屋台14（マップの順番どおり）・スタッフ・入場料
+
+-- kind: path / ride / food / drink / toilet / decor / show
+-- fare: お客さんがはらう / fun: 楽しさがどれだけ上がるか / breaks: こわれることがある
+let ITEMS = [
+  {name: "🛤 園路", kind: "path", price: 0},
+  {name: "🎠 メリーゴーランド", kind: "ride", price: 80, fare: 5, fun: 20, breaks: true},
+  {name: "🍿 ポップコーン屋台", kind: "food", price: 150, fare: 6},
+  {name: "🚻 トイレ", kind: "toilet", price: 200, fare: 0},
+  {name: "🎡 観覧車", kind: "ride", price: 400, fare: 10, fun: 28, breaks: true},
+  {name: "🚗 ゴーカート", kind: "ride", price: 700, fare: 12, fun: 32, breaks: true},
+  {name: "🥤 ドリンクスタンド", kind: "drink", price: 900, fare: 5},
+  {name: "🏴‍☠️ 海賊船", kind: "ride", price: 1200, fare: 15, fun: 38, breaks: true},
+  {name: "🗼 フリーフォール", kind: "ride", price: 1800, fare: 18, fun: 45, breaks: true},
+  {name: "👻 おばけやしき", kind: "ride", price: 2500, fare: 16, fun: 42, breaks: true},
+  {name: "🎢 ジェットコースター", kind: "ride", price: 4000, fare: 30, fun: 60, breaks: true},
+  {name: "🛶 ログフルーム", kind: "ride", price: 5500, fare: 25, fun: 55, breaks: true},
+  {name: "⛲ 噴水", kind: "decor", price: 7000, fare: 0},
+  {name: "🎆 花火タワー", kind: "show", price: 9000, fare: 0}
+]
+
+let ENTRY_FEES = [0, 5, 10, 20, 35, 50]
+
+let STAFF = {
+  mechanic: {name: "🔧 整備士", price: 600, text: "こわれた乗り物を直す"},
+  janitor: {name: "🧹 清掃員", price: 400, text: "ゴミをひろう"},
+  mascot: {name: "🐻 マスコット", price: 900, text: "まわりのお客さんがごきげんに"}
+}
+
+let GUEST_CAP_PER_RIDE = 2
+let GUEST_CAP = 16
+let AWARD_EVERY = 300
+let FIREWORKS_COOL = 60

@@ -1,0 +1,79 @@
+-- rides.absc — 自分で乗る
+-- 買ったアトラクションの緑パッドにさわると乗れる（ほかの人の遊園地でも）。こわれているときは乗れない。
+
+func ride(p, plot, k)
+  let pk = parks[plot]
+  if pk == nil then return end
+  if pk.broken["" + k] != nil then
+    if p.plot == plot then p.message("🔧 こわれている。そばに3びょういると直せる", 1.5) else p.message("🔧 こわれている…", 1) end
+    return
+  end
+  if not quiet_ready(p, "ride", 5) then return end
+  let it = ITEMS[k]
+  let item = item_block(plot, k)
+  let base = item.position
+  if it.kind != "ride" then
+    if it.kind == "food" then
+      p.heal(20)
+      p.message("🍿 おいしい", 1)
+    elif it.kind == "drink" then
+      p.message("🥤 ごくごく", 1)
+    else
+      p.message("✨ " + it.name, 1)
+    end
+    return
+  end
+  kit_quest_progress(p, "rider", 1)
+  if k == 2 then
+    for i in 1 to 16 do kit_later(p, i * 0.2, func() p.yaw = p.yaw + 22.5 end) end
+    p.message("🎠 くるくる〜", 2)
+  elif k == 5 then
+    p.teleport(base + {x: 0, y: 6, z: 0})
+    p.frozen = true
+    kit_later(p, 4, func()
+      p.frozen = false
+      p.teleport(base + {x: 3, y: 0, z: 0})
+    end)
+    p.message("🎡 いい景色！", 3)
+  elif k == 6 then
+    p.speed = 3
+    kit_later(p, 8, func() p.speed = 1 end)
+    p.message("🏎 ゴーカート！ 8びょう", 2)
+  elif k == 8 then
+    for i in 1 to 6 do
+      kit_later(p, i * 0.5, func()
+        let s = 1
+        if i % 2 == 0 then s = -1 end
+        p.launch(s * 10, 8, 0)
+      end)
+    end
+    p.message("🏴‍☠️ ゆれる〜！", 2)
+  elif k == 9 then
+    p.teleport(base + {x: 0, y: 9, z: 0})
+    kit_later(p, 1.5, func() p.launch(0, -30, 0) end)
+    p.message("😱 フリーフォール！", 2)
+  elif k == 10 then
+    p.teleport(base + {x: 0, y: 1, z: 0})
+    p.fade("#000000", 0.4)
+    kit_later(p, 1, func() p.message("👻 ばあっ！！", 1.2) end)
+    kit_later(p, 3, func()
+      p.fade(nil, 0.8)
+      p.teleport(base + {x: 3.5, y: 0, z: 0})
+    end)
+  elif k == 11 then
+    kit_quest_progress(p, "coaster", 1)
+    let path = [{x: 0, y: 7, z: -8}, {x: 0, y: 9, z: -2}, {x: 0, y: 3, z: 4}, {x: 0, y: 10, z: 8}, {x: 2, y: 1, z: 10}]
+    let i = 0
+    for pt in path do
+      i = i + 1
+      kit_later(p, i * 0.7, func() p.teleport(base + pt) end)
+    end
+    p.shake(0.3, 3.5)
+    p.message("🎢 キャーーー！", 3)
+  elif k == 12 then
+    p.teleport(base + {x: 0, y: 4, z: -2})
+    kit_later(p, 1, func() p.launch(0, 6, 14) end)
+    kit_later(p, 1.8, func() fx_ball(p.position, 3, "#7DD3FC", 0.4) end)
+    p.message("🛶 ザッバーン！", 2)
+  end
+end

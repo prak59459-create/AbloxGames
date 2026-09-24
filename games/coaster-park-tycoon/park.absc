@@ -1,0 +1,290 @@
+-- park.absc — 区画・買う・故障と修理・ゴミ・スタッフ・事務所・賞・花火
+
+let break_clock = 0
+let staff_clock = 0
+let award_clock = 0
+
+func claim(p, plot)
+  if p.plot != nil or parks[plot] != nil then return end
+  parks[plot] = {owner: p.id, bought: {}, rating: 3, fee_i: 2, broken: {}, trash: [], staff: {}, guests_total: 0, fireworks_at: 0}
+  p.plot = plot
+  p.message("🎡 区画 " + plot + " があなたの遊園地に！", 2.5)
+  buy(p, 1)
+  hud(p)
+end
+
+func buy(p, k)
+  let pk = park_of(p)
+  if pk == nil or has(pk, k) then return end
+  if k > 1 and not has(pk, k - 1) then
+    p.message("先に「" + ITEMS[k - 1].name + "」", 1.5)
+    return
+  end
+  if not kit_pay(p, ITEMS[k].price) then return end
+  pk.bought["" + k] = true
+  let b = item_block(p.plot, k)
+  if b != nil then
+    b.visible = true
+    b.solid = true
+  end
+  p.message("🎉 " + ITEMS[k].name + " オープン！", 2)
+  p.sound("goal")
+  kit_quest_progress(p, "build", 1)
+  if ride_count(pk) >= 4 then kit_quest_progress(p, "rides", 1) end
+  if ITEMS[k].kind == "decor" then pk.rating = min(5, pk.rating + 0.3) end
+  hud(p)
+end
+
+func release_park(p)
+  let pk = park_of(p)
+  if pk == nil then return end
+  for k in 1 to len(ITEMS) do
+    let b = item_block(p.plot, k)
+    if b != nil then
+      b.visible = false
+      b.solid = false
+    end
+  end
+  for t in pk.trash do gone(t) end
+  for key in keys(pk.staff) do gone(pk.staff[key]) end
+  for n in npcs() do
+    if n.park == p.plot then gone(n) end
+  end
+  remove(parks, p.plot)
+  p.plot = nil
+end
+
+-- MARK: 故障と修理
+
+func break_one(plot, pk)
+  let rides = filter(owned_items(pk, "ride"), func(k) return pk.broken["" + k] == nil end)
+  if len(rides) == 0 then return end
+  let k = random(rides)
+  pk.broken["" + k] = time()
+  let b = item_block(plot, k)
+  if b != nil then b.color = "#44403C" end
+  let owner = player_by_id(pk.owner)
+  if owner != nil then owner.message("🔧 " + ITEMS[k].name + " がこわれた！ 緑のパッドのそばで直そう", 2.5) end
+end
+
+func repair(plot, pk, k, by)
+  remove(pk.broken, "" + k)
+  let b = item_block(plot, k)
+  if b != nil then b.color = map_color(k) end
+  fx_ball(b.position + {x: 0, y: 2, z: 0}, 2, "#22C55E", 0.4)
+  if by != nil then
+    by.message("🔧 " + ITEMS[k].name + " を直した！", 1.5)
+    kit_quest_progress(by, "repair", 1)
+  end
+end
+
+-- 直したら元の色にもどす（マップの色と同じ）
+func map_color(k)
+  let colors = ["#D6D3D1", "#F472B6", "#FBBF24", "#E0F2FE", "#60A5FA", "#A78BFA", "#22D3EE", "#92400E", "#EF4444", "#4C1D95", "#F97316",
+                "#0EA5E9", "#38BDF8", "#F43F5E"]
+  return colors[k]
+end
+
+-- MARK: スタッフ
+
+func hire(p, key)
+  let pk = park_of(p)
+  if pk == nil then return end
+  if pk.staff[key] != nil and kit_here(pk.staff[key]) then
+    p.message("もういる", 1)
+    return
+  end
+  let s = STAFF[key]
+  if not kit_pay(p, s.price) then return end
+  let gate = block("Plot " + p.plot + " Gate")
+  let color = "#1D4ED8"
+  if key == "janitor" then color = "#16A34A" end
+  if key == "mascot" then color = "#A16207" end
+  let n = create_npc({name: s.name, position: gate.position + {x: 2, y: 1, z: -2}, color: color, head_color: "#F5D0A9",
+                      health: 100000, speed: 1, team: "staff", hat: "cap"})
+  n.kind = "staff"
+  n.role = key
+  n.park = p.plot
+  n.busy_until = 0
+  pk.staff[key] = n
+  p.message(s.name + " をやとった！", 2)
+  kit_quest_progress(p, "staff", 1)
+end
+
+func staff_step(plot, pk)
+  let mech = pk.staff.mechanic
+  if mech != nil and kit_here(mech) and time() > mech.busy_until then
+    let ks = keys(pk.broken)
+    if len(ks) > 0 then
+      let k = num(ks[1])
+      let pad = buy_pad(plot, k)
+      if pad != nil then
+        mech.move_to(pad.position)
+        if distance(mech, pad.position) < 3 then
+          mech.busy_until = time() + 4
+          after(4, func() if pk.broken["" + k] != nil then repair(plot, pk, k, nil) end end)
+        end
+      end
+    end
+  end
+  let jan = pk.staff.janitor
+  if jan != nil and kit_here(jan) and len(pk.trash) > 0 then
+    let t = pk.trash[1]
+    if still(t) then
+      jan.move_to(t.position)
+      if distance(jan, t.position) < 2.5 then
+        gone(t)
+        remove(pk.trash, 1)
+      end
+    else
+      remove(pk.trash, 1)
+    end
+  end
+  let mas = pk.staff.mascot
+  if mas != nil and kit_here(mas) and random() < 0.2 then
+    let floor_b = block("Plot " + plot + " Floor")
+    if floor_b != nil then mas.move_to(floor_b.position + {x: random(-10, 10), y: 0, z: random(-10, 10)}) end
+  end
+end
+
+-- MARK: 事務所
+
+func office(p)
+  let pk = park_of(p)
+  if pk == nil then return end
+  let h = 330
+  p.ui_panel("office", {at: "center", w: 540, h: h, bg: "#3B0764F0", radius: 20, layer: 30})
+  p.ui_text("of_t", "🏢 パークの事務所（" + stars_text(pk.rating) + "）", {parent: "office", y: 22 / h, size: 18, bold: true, color: "#E9D5FF"})
+  p.ui_text("of_fee", "🎟 入場料 " + ENTRY_FEES[pk.fee_i] + "（高いと来にくいけど、評判が高ければ平気）", {parent: "office", y: 56 / h, size: 13})
+  p.ui_button("fee_down", "−", {parent: "office", x: 0.3, y: 88 / h, w: 70, h: 36, size: 20, bg: "#6D28D9"})
+  p.ui_button("fee_up", "＋", {parent: "office", x: 0.7, y: 88 / h, w: 70, h: 36, size: 20, bg: "#6D28D9"})
+  let i = 0
+  for key in ["mechanic", "janitor", "mascot"] do
+    i = i + 1
+    let s = STAFF[key]
+    let label = s.name + " " + s.price + " — " + s.text
+    if pk.staff[key] != nil and kit_here(pk.staff[key]) then label = s.name + " ✅ はたらいている" end
+    p.ui_button("hire_" + key, label, {parent: "office", y: (100 + i * 46) / h, w: 480, h: 40, size: 13, bg: "#7C3AED"})
+  end
+  if has(pk, len(ITEMS)) then
+    p.ui_button("fireworks", "🎆 花火を上げる（お客さんが大よろこび）", {parent: "office", y: 270 / h, w: 480, h: 36, size: 13, bg: "#E11D48"})
+  end
+  p.ui_button("of_close", "閉じる", {parent: "office", y: (h - 18) / h, w: 110, h: 26, size: 12, bg: "gray"})
+end
+
+func fireworks(p)
+  let pk = park_of(p)
+  if pk == nil or not has(pk, len(ITEMS)) then return end
+  if time() < pk.fireworks_at then
+    p.message("🎆 準備中（" + ceil(pk.fireworks_at - time()) + "s）", 1)
+    return
+  end
+  pk.fireworks_at = time() + FIREWORKS_COOL
+  let tower = item_block(p.plot, len(ITEMS))
+  for k in 1 to 10 do
+    after(k * 0.25, func()
+      fx_ball(tower.position + {x: random(-12, 12), y: random(12, 22), z: random(-12, 12)}, random(2, 5),
+              random(["#F43F5E", "#FDE047", "#22D3EE", "#A3E635", "#F472B6"]), 0.6)
+    end)
+  end
+  for n in npcs() do
+    if n.park == p.plot and n.kind == "guest" then
+      n.happy = min(100, n.happy + 20)
+      n.say("わあ、花火！")
+    end
+  end
+  kit_quest_progress(p, "fireworks", 1)
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  break_clock = break_clock + dt
+  staff_clock = staff_clock + dt
+  award_clock = award_clock + dt
+  if break_clock >= 25 then
+    break_clock = 0
+    for plot in keys(parks) do
+      if random() < 0.5 then break_one(plot, parks[plot]) end
+    end
+  end
+  if award_clock >= AWARD_EVERY then
+    award_clock = 0
+    let best = nil
+    let best_s = 0
+    for plot in keys(parks) do
+      let pk = parks[plot]
+      let s = pk.rating * pk.guests_total
+      if s > best_s then
+        best = pk
+        best_s = s
+      end
+    end
+    if best != nil then
+      let o = player_by_id(best.owner)
+      if o != nil then
+        kit_give(o, 500)
+        announce("🏆 ベストパーク賞: " + o.name + " の遊園地！（" + stars_text(best.rating) + "）", 4)
+        kit_badge(o, "best_park", "ベストパーク賞")
+        kit_quest_progress(o, "award", 1)
+      end
+    end
+  end
+  if staff_clock < 1 then return end
+  staff_clock = 0
+  for plot in keys(parks) do
+    let pk = parks[plot]
+    staff_step(plot, pk)
+    -- 持ち主が故障した乗り物のそばにいると修理が進む
+    let o = player_by_id(pk.owner)
+    if o != nil then
+      for key in keys(pk.broken) do
+        let k = num(key)
+        let pad = buy_pad(plot, k)
+        if pad != nil and distance(o, pad.position) < 3.5 then
+          o.fix_t = (o.fix_t or 0) + 1
+          o.ui_bar("fix", {at: "center", dy: 90, w: 200, h: 12, value: o.fix_t, max: 3, color: "#22C55E", bg: "#00000099"})
+          if o.fix_t >= 3 then
+            o.fix_t = 0
+            o.ui_remove("fix")
+            repair(plot, pk, k, o)
+          end
+        end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "trash") then
+    for plot in keys(parks) do
+      let pk = parks[plot]
+      pk.trash = filter(pk.trash, func(t) return still(t) and t.id != b.id end)
+    end
+    gone(b)
+    kit_give(p, 1)
+    kit_quest_progress(p, "clean", 1)
+  elif contains(b.tags, "office") then
+    let plot = split(b.name, " ")[2]
+    if p.plot == plot and quiet_ready(p, "office_pad", 3) then office(p) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  let pk = park_of(p)
+  if pk == nil then return end
+  if id == "fee_down" then
+    pk.fee_i = max(1, pk.fee_i - 1)
+    office(p)
+  elif id == "fee_up" then
+    pk.fee_i = min(len(ENTRY_FEES), pk.fee_i + 1)
+    office(p)
+  elif starts_with(id, "hire_") then
+    hire(p, replace(id, "hire_", ""))
+    office(p)
+  elif id == "fireworks" then fireworks(p)
+  elif id == "of_close" then p.ui_remove("office")
+  end
+end

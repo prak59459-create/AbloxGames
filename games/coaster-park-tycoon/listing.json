@@ -1,14 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 85,
+  "blockCount" : 137,
   "id" : "coaster-park-tycoon",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/coaster-park-tycoon\/data.absc",
+    "games\/coaster-park-tycoon\/common.absc",
+    "games\/coaster-park-tycoon\/guests.absc",
+    "games\/coaster-park-tycoon\/park.absc",
+    "games\/coaster-park-tycoon\/rides.absc",
     "games\/coaster-park-tycoon\/main.absc"
   ],
-  "summary" : "遊園地を作ろう。メリーゴーランド、観覧車、ジェットコースター。お客さんを楽しませてお金をかせぎ、自分でも乗ってみよう。",
+  "summary" : "遊園地を作ろう。14のアトラクションと屋台、お客さんの楽しさ・空腹・のど・トイレ、入場料、故障の修理とゴミそうじ、スタッフ、ベストパーク賞。自分でも乗れる！",
   "tags" : [
     "tycoon",
     "theme-park",
