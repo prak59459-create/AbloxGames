@@ -34,7 +34,7 @@ let lifeGames: [Game] = [
          summary: "警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。",
          tags: ["rp", "emergency", "teams"], maxPlayers: 16, build: metroResponse),
     Game(number: 43, id: "academy-days", title: "Academy Days",
-         summary: "チャイムが鳴ったら教室へ！算数クイズ、美術、体育の競走、音楽のリズム。成績を上げて学園のスターになろう。",
+         summary: "4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！",
          tags: ["school", "rp", "minigames"], maxPlayers: 16, build: academyDays),
     Game(number: 44, id: "willow-hospital", title: "Willow Hospital RP",
          summary: "病院で医者・看護師・患者になりきる。受付、診察、薬、治療。患者さんを元気にして病院の評判を上げよう。",
@@ -504,19 +504,39 @@ func academyDays(_ m: MapBuilder) {
     m.ground(160, 160, color: "#84CC16", name: "Campus")
     m.slab("Hallway", x: 0, y: 0, z: 0, w: 70, h: 0.2, d: 10, color: "#E5E7EB")
     m.spawnRing(0, 0, y: 0.2, radius: 3, count: 8, color: "#FDE68A")
+    // Six classrooms, each with a doorway facing the hallway.
     let rooms: [(String, String, Float, Float)] = [("Math Room", "#60A5FA", -24, -15), ("Art Room", "#F472B6", 0, -15),
                                                    ("Music Room", "#A78BFA", 24, -15), ("Cafeteria", "#FBBF24", -24, 15),
-                                                   ("Library", "#34D399", 24, 15)]
+                                                   ("Potion Lab", "#22D3EE", 0, 15), ("Library", "#34D399", 24, 15)]
     for r in rooms {
+        let front: Float = r.3 < 0 ? r.3 + 9 : r.3 - 9
+        let back: Float = r.3 < 0 ? r.3 - 9 : r.3 + 9
         m.slab("\(r.0) Floor", x: r.2, y: 0, z: r.3, w: 20, h: 0.2, d: 18, color: "#F3F4F6")
-        m.walls(r.2, r.3, w: 20, d: 18, h: 4, y: 0.2, color: r.1, thickness: 0.4, name: "\(r.0) Wall", opacity: 0.85)
+        m.slab("\(r.0) Wall", x: r.2, y: 0.2, z: back, w: 20.4, h: 4, d: 0.4, color: r.1, opacity: 0.85)
+        m.slab("\(r.0) Wall", x: r.2 - 10, y: 0.2, z: r.3, w: 0.4, h: 4, d: 18, color: r.1, opacity: 0.85)
+        m.slab("\(r.0) Wall", x: r.2 + 10, y: 0.2, z: r.3, w: 0.4, h: 4, d: 18, color: r.1, opacity: 0.85)
+        m.slab("\(r.0) Wall", x: r.2 - 5.75, y: 0.2, z: front, w: 8.5, h: 4, d: 0.4, color: r.1, opacity: 0.85)
+        m.slab("\(r.0) Wall", x: r.2 + 5.75, y: 0.2, z: front, w: 8.5, h: 4, d: 0.4, color: r.1, opacity: 0.85)
+        m.slab("\(r.0) Wall", x: r.2, y: 2.9, z: front, w: 3, h: 1.3, d: 0.4, color: r.1, opacity: 0.85)
         m.pad(r.0, x: r.2, z: r.3, y: 0.2, size: 10, color: r.1, tags: ["room"], shape: .box)
-        m.slab("\(r.0) Door", x: r.2, y: 0.2, z: r.3 + (r.3 < 0 ? 9 : -9), w: 3, h: 3, d: 0.6, color: "#F3F4F6", solid: false, opacity: 0.2)
     }
-    // Gym: a running track outside.
+    m.markers("Book Spot", points: [(17, 20), (20, 21), (24, 21), (28, 21), (31, 20), (24, 18)], y: 0.2, color: "#A16207",
+              tags: ["book"], size: 0.9)
+    // The four dorm crests at the ends of the hallway.
+    let dorms: [(String, String, Float, Float)] = [("Dorm Blaze", "#EF4444", -32, -3), ("Dorm Tide", "#3B82F6", -32, 3),
+                                                   ("Dorm Forest", "#22C55E", 32, -3), ("Dorm Volt", "#FACC15", 32, 3)]
+    for d in dorms {
+        m.pad(d.0, x: d.2, z: d.3, y: 0.2, size: 2.4, color: d.1, tags: ["dorm"])
+        m.part("\(d.0) Banner", at: (d.2 + (d.2 < 0 ? -2.5 : 2.5), 2.5, d.3), size: (0.2, 3, 2), color: d.1, material: .neon, solid: false)
+    }
+    m.pad("Ballot Box", x: 0, z: -4, y: 0.2, size: 1.6, color: "#F8FAFC", tags: ["ballot"])
+    // Gym: a running track outside, with hurdles.
     m.slab("Gym Track", x: 0, y: 0, z: 55, w: 60, h: 0.1, d: 20, color: "#DC2626")
     m.pad("Gym", x: -26, z: 55, y: 0.1, size: 4, color: "#FFFFFF", tags: ["room"])
     m.pad("Track Finish", x: 26, z: 55, y: 0.1, size: 4, color: "#22C55E", tags: ["finish"])
+    for x in [Float(-14), -2, 10] {
+        m.slab("Hurdle", x: x, y: 0.1, z: 55, w: 0.3, h: 0.7, d: 18, color: "#FFFFFF")
+    }
     for p in ring(10, radius: 72) { m.tree(p.0, p.1, height: 5, leaves: "#65A30D") }
 }
 

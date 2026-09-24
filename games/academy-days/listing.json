@@ -1,14 +1,18 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 68,
+  "blockCount" : 99,
   "id" : "academy-days",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/academy-days\/data.absc",
+    "games\/academy-days\/campus.absc",
+    "games\/academy-days\/classes.absc",
+    "games\/academy-days\/common.absc",
     "games\/academy-days\/main.absc"
   ],
-  "summary" : "チャイムが鳴ったら教室へ！算数クイズ、美術、体育の競走、音楽のリズム。成績を上げて学園のスターになろう。",
+  "summary" : "4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！",
   "tags" : [
     "school",
     "rp",

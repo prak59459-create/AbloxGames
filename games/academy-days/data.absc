@@ -1,0 +1,46 @@
+-- data.absc — Academy Days の表
+-- 寮4・時間割・ランク・ポーション・色・音
+
+let DORMS = {
+  blaze: {pad: "Dorm Blaze", name: "🔥 ブレイズ寮", color: "#EF4444"},
+  tide: {pad: "Dorm Tide", name: "🌊 タイド寮", color: "#3B82F6"},
+  forest: {pad: "Dorm Forest", name: "🌿 フォレスト寮", color: "#22C55E"},
+  volt: {pad: "Dorm Volt", name: "⚡ ボルト寮", color: "#FACC15"}
+}
+let DORM_ORDER = ["blaze", "tide", "forest", "volt"]
+
+let SCHEDULE = [
+  {room: "Math Room", id: "math", name: "📐 算数"},
+  {room: "Art Room", id: "art", name: "🎨 美術"},
+  {room: "Gym", id: "gym", name: "🏃 体育"},
+  {room: "Music Room", id: "music", name: "🎵 音楽"},
+  {room: "Cafeteria", id: "lunch", name: "🍱 お昼休み"},
+  {room: "Potion Lab", id: "potion", name: "🧪 ポーション学"},
+  {room: "Library", id: "library", name: "📚 図書館"},
+  {room: nil, id: "club", name: "🏫 放課後（部活）"}
+]
+let MOVE_SECS = 15
+let CLASS_SECS = 35
+let PERIOD_SECS = 55
+
+let RANKS = [
+  {need: 0, name: "新入生"}, {need: 12, name: "がんばり屋"}, {need: 30, name: "優等生"},
+  {need: 60, name: "学年トップ"}, {need: 100, name: "エリート"}, {need: 160, name: "学園のスター"}
+]
+
+let ART_COLORS = [["赤", "#EF4444"], ["青", "#3B82F6"], ["黄", "#FACC15"], ["緑", "#22C55E"], ["紫", "#A855F7"], ["オレンジ", "#F97316"]]
+let NOTES = [["ド", "#EF4444"], ["レ", "#F97316"], ["ミ", "#FACC15"], ["ファ", "#22C55E"], ["ソ", "#3B82F6"]]
+
+-- ポーション: 2つの材料をまぜて目当ての色に
+let INGREDIENTS = [["🔴 赤いしずく", "赤"], ["🔵 青いしずく", "青"], ["🟡 黄色いしずく", "黄"], ["⚪ 白いしずく", "白"]]
+let POTIONS = [
+  {name: "🟣 紫のポーション", mix: ["赤", "青"]},
+  {name: "🟢 緑のポーション", mix: ["青", "黄"]},
+  {name: "🟠 オレンジのポーション", mix: ["赤", "黄"]},
+  {name: "🩷 ピンクのポーション", mix: ["赤", "白"]},
+  {name: "🩵 水色のポーション", mix: ["青", "白"]},
+  {name: "🍋 レモン色のポーション", mix: ["黄", "白"]}
+]
+
+let TERM_PERIODS = 8          -- 1学期のコマ数（寮杯と選挙）
+let HOMEWORK_CHANCE = 0.5

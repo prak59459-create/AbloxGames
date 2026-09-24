@@ -1,0 +1,177 @@
+-- campus.absc — 寮・宿題・体育のゴール・部活・寮杯・生徒会選挙
+
+let election = nil       -- {candidates: [id], votes: {id: 票}, voted: {id: true}, until}
+
+-- MARK: 寮
+
+func join_dorm(p, key)
+  if p.dorm == key then return end
+  if p.dorm != nil then
+    p.message("寮は1学期に1回しか変えられない", 1.5)
+    if p.dorm_changed then return end
+    p.dorm_changed = true
+  end
+  p.dorm = key
+  let d = DORMS[key]
+  p.leg_color = d.color
+  p.message(d.name + " の一員になった！ 授業で寮ポイントをかせごう", 2.5)
+  kit_quest_progress(p, "dorm", 1)
+  show(p)
+end
+
+-- MARK: 宿題
+
+func give_homework(p)
+  if p.homework != nil or random() > HOMEWORK_CHANCE then return end
+  let kinds = [
+    {id: "library", text: "図書館で本を読む（床に乗る）"},
+    {id: "art", text: "美術室でスケッチ（床に乗る）"},
+    {id: "potion", text: "ポーション学の復習（床に乗る）"}
+  ]
+  p.homework = random(kinds)
+  show(p)
+end
+
+func check_homework(p, id)
+  if p.homework != nil and p.homework.id == id then
+    p.homework = nil
+    grade(p, 2, "📝 宿題を出した")
+    kit_quest_progress(p, "homework", 1)
+  end
+  give_homework(p)
+end
+
+-- MARK: 寮杯と選挙
+
+func end_term()
+  let best = nil
+  for d in DORM_ORDER do
+    if best == nil or dorm_pts[d] > dorm_pts[best] then best = d end
+  end
+  if best != nil and dorm_pts[best] > 0 then
+    announce("🏆 寮杯は " + DORMS[best].name + "（" + dorm_pts[best] + " 点）！", 5)
+    for p in players() do
+      if ready(p) and p.dorm == best then
+        kit_give(p, 150)
+        kit_badge(p, "cup_" + best, DORMS[best].name + "の寮杯")
+        kit_quest_progress(p, "cup", 1)
+      end
+    end
+  end
+  for d in DORM_ORDER do dorm_pts[d] = 0 end
+  for p in players() do p.dorm_changed = false end
+end
+
+func open_election()
+  let list = sort(filter(players(), func(p) return ready(p) and p.gpa > 0 end), func(a, b) return a.gpa > b.gpa end)
+  if len(list) < 2 then return end
+  let cands = map(slice(list, 1, 3), func(p) return p.id end)
+  election = {candidates: cands, votes: {}, voted: {}, until: time() + 40}
+  announce("🗳 生徒会選挙！ 投票箱（ろうかの白いパッド）で投票しよう（40びょう）", 4)
+  after(40, func() close_election() end)
+end
+
+func ballot(p)
+  if election == nil then
+    p.message("🗳 いまは選挙はない", 1)
+    return
+  end
+  if election.voted[p.id] then
+    p.message("🗳 もう投票した", 1)
+    return
+  end
+  let h = 120 + len(election.candidates) * 52
+  p.ui_panel("ballot", {at: "center", w: 400, h: h, bg: "#1E293BF0", radius: 20, layer: 30})
+  p.ui_text("ballot_t", "🗳 生徒会長にふさわしいのは？", {parent: "ballot", y: 24 / h, size: 17, bold: true})
+  let i = 0
+  for id in election.candidates do
+    i = i + 1
+    let c = player_by_id(id)
+    if c != nil then
+      p.ui_button("vote_" + i, c.name + "（" + rank(c).name + "）", {parent: "ballot", y: (24 + i * 52) / h, w: 320, h: 44, size: 15, bg: "#4338CA"})
+    end
+  end
+end
+
+func vote(p, i)
+  p.ui_remove("ballot")
+  if election == nil or election.voted[p.id] then return end
+  let id = election.candidates[i]
+  if id == nil then return end
+  election.voted[p.id] = true
+  election.votes[id] = (election.votes[id] or 0) + 1
+  p.message("🗳 投票した！", 1)
+  kit_quest_progress(p, "vote", 1)
+end
+
+func close_election()
+  if election == nil then return end
+  let best = nil
+  let best_v = -1
+  for id in election.candidates do
+    let v = election.votes[id] or 0
+    if v > best_v then
+      best = id
+      best_v = v
+    end
+  end
+  election = nil
+  let w = nil
+  if best != nil then w = player_by_id(best) end
+  if w == nil then return end
+  let old = nil
+  if president != nil then old = player_by_id(president) end
+  if old != nil and old.hat == "crown" then old.hat = old.own_hat or "none" end
+  president = w.id
+  w.hat = "crown"
+  kit_give(w, 200)
+  announce("👑 新しい生徒会長は " + w.name + "！（" + best_v + " 票）", 5)
+  kit_badge(w, "president", "生徒会長")
+  kit_quest_progress(w, "president", 1)
+  show(w)
+end
+
+-- MARK: さわった
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "dorm") then
+    for key in DORM_ORDER do
+      if DORMS[key].pad == b.name and quiet_ready(p, "dorm_pad", 2) then join_dorm(p, key) end
+    end
+  elif contains(b.tags, "ballot") and quiet_ready(p, "ballot_pad", 2) then ballot(p)
+  elif contains(b.tags, "finish") then
+    let c = current()
+    if class_on and c != nil and c.id == "gym" and not p.raced then
+      p.raced = true
+      race_rank = race_rank + 1
+      let pts = max(1, 6 - race_rank * 2)
+      grade(p, pts, "🏁 " + race_rank + " 位！")
+      if race_rank == 1 then kit_quest_progress(p, "race", 1) end
+    end
+  elif contains(b.tags, "room") then
+    let c = current()
+    -- 放課後の部活: その教室のミニゲームを1回
+    if class_on and c != nil and c.id == "club" and not p.club_done then
+      for s in SCHEDULE do
+        if s.room == b.name and s.id != "lunch" then
+          p.club_done = true
+          p.message("🏫 " + s.name + " の部活！", 1.5)
+          kit_quest_progress(p, "club", 1)
+          start_minigame(p, s.id, 0.5)
+          check_homework(p, s.id)
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "ans_") then answer_math(p, num(replace(id, "ans_", "")))
+  elif starts_with(id, "color_") then answer_art(p, replace(id, "color_", ""))
+  elif starts_with(id, "note_") then answer_note(p, replace(id, "note_", ""))
+  elif starts_with(id, "drop_") then add_drop(p, replace(id, "drop_", ""))
+  elif starts_with(id, "vote_") then vote(p, num(replace(id, "vote_", "")))
+  end
+end

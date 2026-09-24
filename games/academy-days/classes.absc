@@ -1,0 +1,268 @@
+-- classes.absc — 時間割と授業のミニゲーム
+-- チャイム → 15びょうで教室へ → 授業35びょう（教室の色つきの床の上にいると出席）。
+-- 📐 算数: 計算クイズ5問 / 🎨 美術: お題の色3回 / 🎵 音楽: 音の順番をおぼえる / 🏃 体育: ハードル走
+-- 🧪 ポーション学: 2つのしずくをまぜて目当ての色 / 📚 図書館: 本を3冊さがす / 🍱 お昼: 休けい
+-- 🏫 放課後: 好きな教室の床に乗ると部活（その教室のミニゲームを1回）
+
+let period_i = 0
+let period_left = 8
+let class_on = false
+let class_clock = 0
+let race_rank = 0
+
+func current()
+  if period_i < 1 then return nil end
+  return SCHEDULE[(period_i - 1) % len(SCHEDULE) + 1]
+end
+
+func in_room(p, room)
+  let b = block(room)
+  if b == nil then return false end
+  if room == "Gym" then return distance(p, b.position) < 5 end
+  return abs(p.x - b.x) < 9.5 and abs(p.z - b.z) < 8.5
+end
+
+func clear_lesson_ui(p)
+  for id in ["quiz", "art", "music", "potion"] do p.ui_remove(id) end
+end
+
+func next_period()
+  period_i = period_i + 1
+  period_left = PERIOD_SECS
+  class_on = false
+  let c = current()
+  for p in players() do
+    if ready(p) then
+      clear_lesson_ui(p)
+      p.club_done = false
+    end
+  end
+  announce("🔔 キーンコーン！ 次は「" + c.name + "」", 3)
+  if (period_i - 1) % TERM_PERIODS == 0 and period_i > 1 then end_term() end
+  if period_i % TERM_PERIODS == 2 and period_i > TERM_PERIODS then open_election() end
+end
+
+func start_class()
+  class_on = true
+  let c = current()
+  race_rank = 0
+  if c.id == "club" then
+    announce("🏫 放課後！ 好きな教室の床に乗ると部活ができる", 3)
+    return
+  end
+  let n = 0
+  for p in players() do
+    if ready(p) and in_room(p, c.room) then
+      n = n + 1
+      kit_quest_progress(p, "attend", 1)
+      grade(p, 1, "✅ 出席")
+      start_minigame(p, c.id, 1)
+      check_homework(p, c.id)
+    end
+  end
+  if c.id == "gym" then announce("🏃 体育: 校庭のスタート（白）からハードルをこえてゴール（緑）へ！", 3) end
+end
+
+-- 1回ぶんのミニゲーム（mult: 部活は少なめ）
+func start_minigame(p, id, mult)
+  p.mini_mult = mult
+  if id == "math" then
+    p.math_left = 5
+    math_question(p)
+  elif id == "art" then
+    p.art_left = 3
+    art_round(p)
+  elif id == "music" then
+    music_round(p)
+  elif id == "potion" then
+    p.potion_left = 3
+    potion_round(p)
+  elif id == "library" then
+    p.books = 0
+    p.book_spots = []
+    p.message("📚 光る本（茶色）を3冊さがそう", 2)
+  elif id == "lunch" then
+    p.heal(100)
+    kit_give(p, 10)
+    p.message("🍱 いただきます！ +10", 1.5)
+  elif id == "gym" then
+    p.raced = false
+    p.message("🏃 白いスタートからゴールへ！", 1.5)
+  end
+end
+
+func end_class()
+  class_on = false
+  for p in players() do
+    if ready(p) then clear_lesson_ui(p) end
+  end
+end
+
+-- MARK: 算数
+
+func math_question(p)
+  let a = random(2, 12)
+  let b = random(2, 12)
+  let op = random(["+", "×", "-"])
+  let right = a + b
+  if op == "×" then right = a * b end
+  if op == "-" then right = a - b end
+  p.answer = right
+  let choices = shuffle([right, right + random(1, 5), right - random(1, 5), right + 10])
+  p.ui_panel("quiz", {at: "center", w: 420, h: 170, bg: "#1E3A8AEE", radius: 20, layer: 30})
+  p.ui_text("quiz_q", a + " " + op + " " + b + " = ?（のこり " + p.math_left + "）", {parent: "quiz", y: 0.25, size: 26, bold: true})
+  let i = 0
+  for c in choices do
+    i = i + 1
+    p.ui_button("ans_" + i, "" + c, {parent: "quiz", x: (i - 0.5) / 4, y: 0.72, w: 90, h: 50, size: 20, bg: "#3B82F6"})
+  end
+  p.choices = choices
+end
+
+func answer_math(p, i)
+  if p.choices == nil or p.math_left == nil or p.math_left <= 0 then return end
+  if p.choices[i] == p.answer then
+    grade(p, max(1, floor(1 * p.mini_mult)), "⭕ 正解")
+    kit_quest_progress(p, "math", 1)
+  else
+    p.message("❌ 答えは " + p.answer, 1.2)
+  end
+  p.math_left = p.math_left - 1
+  if p.math_left > 0 then math_question(p) else p.ui_remove("quiz") end
+end
+
+-- MARK: 美術
+
+func art_round(p)
+  let target = random(ART_COLORS)
+  p.art_target = target[1]
+  p.ui_panel("art", {at: "center", w: 460, h: 170, bg: "#831843EE", radius: 20, layer: 30})
+  p.ui_text("art_q", "🎨 お題の色は「" + target[1] + "」！（のこり " + p.art_left + "）", {parent: "art", y: 0.25, size: 20, bold: true})
+  let i = 0
+  for c in shuffle(copy(ART_COLORS)) do
+    i = i + 1
+    p.ui_button("color_" + c[1], " ", {parent: "art", x: (i - 0.5) / 6, y: 0.7, w: 56, h: 56, bg: c[2], radius: 28})
+  end
+end
+
+func answer_art(p, name)
+  if p.art_left == nil or p.art_left <= 0 then return end
+  if name == p.art_target then grade(p, max(1, floor(2 * p.mini_mult)), "🎨 ぴったり！") else p.message("ちょっとちがうかも", 1) end
+  p.art_left = p.art_left - 1
+  if p.art_left > 0 then art_round(p) else p.ui_remove("art") end
+end
+
+-- MARK: 音楽
+
+func music_round(p)
+  let tune = []
+  let length = 4 + min(2, floor(p.gpa / 60))
+  for k in 1 to length do append(tune, random(NOTES)[1]) end
+  p.tune = tune
+  p.heard = []
+  p.message("🎵 " + join(tune, " → ") + " をおぼえて！", 3)
+  kit_later(p, 3.2, func()
+    p.ui_panel("music", {at: "center", w: 480, h: 130, bg: "#4C1D95EE", radius: 20, layer: 30})
+    let i = 0
+    for n in NOTES do
+      i = i + 1
+      p.ui_button("note_" + n[1], n[1], {parent: "music", x: (i - 0.5) / len(NOTES), y: 0.5, w: 80, h: 60, size: 20, bg: n[2]})
+    end
+  end)
+end
+
+func answer_note(p, name)
+  if p.tune == nil then return end
+  append(p.heard, name)
+  let k = len(p.heard)
+  if p.heard[k] != p.tune[k] then
+    p.ui_remove("music")
+    p.message("🎵 まちがえた…（" + join(p.tune, " → ") + "）", 2)
+    p.tune = nil
+  elif k >= len(p.tune) then
+    p.ui_remove("music")
+    p.tune = nil
+    grade(p, max(1, floor(3 * p.mini_mult)), "🎵 完ぺき！")
+    kit_quest_progress(p, "music", 1)
+  end
+end
+
+-- MARK: ポーション学
+
+func potion_round(p)
+  let target = random(POTIONS)
+  p.potion = target
+  p.mixed = []
+  p.ui_panel("potion", {at: "center", w: 500, h: 180, bg: "#164E63EE", radius: 20, layer: 30})
+  p.ui_text("potion_q", "🧪 " + target.name + " を作ろう（しずくを2つ）", {parent: "potion", y: 0.22, size: 18, bold: true})
+  let i = 0
+  for g in INGREDIENTS do
+    i = i + 1
+    p.ui_button("drop_" + g[2], g[1], {parent: "potion", x: (i - 0.5) / 4, y: 0.7, w: 110, h: 54, size: 13, bg: "#0E7490"})
+  end
+end
+
+func add_drop(p, color)
+  if p.potion == nil then return end
+  append(p.mixed, color)
+  if len(p.mixed) < 2 then
+    p.message("🧪 " + color + " を入れた", 0.6)
+    return
+  end
+  let ok = contains(p.potion.mix, p.mixed[1]) and contains(p.potion.mix, p.mixed[2]) and p.mixed[1] != p.mixed[2]
+  if ok then
+    grade(p, max(1, floor(2 * p.mini_mult)), "🧪 " + p.potion.name + " 完成！")
+    kit_quest_progress(p, "potion", 1)
+  else
+    p.message("💥 ボン！ 失敗（" + join(p.potion.mix, "+") + "）", 1.5)
+  end
+  p.potion_left = p.potion_left - 1
+  if p.potion_left > 0 then potion_round(p) else
+    p.ui_remove("potion")
+    p.potion = nil
+  end
+end
+
+-- MARK: 図書館
+
+func book_step(p)
+  if not ready(p) or p.books == nil or p.books >= 3 then return end
+  for i in 1 to 6 do
+    let b = block("Book Spot " + i)
+    if b != nil and distance(p, b.position) < 2 and not contains(p.book_spots, i) and p.books < 3 then
+      append(p.book_spots, i)
+      p.books = p.books + 1
+      p.sound("collect")
+      if p.books >= 3 then
+        grade(p, max(1, floor(3 * p.mini_mult)), "📚 3冊よんだ！")
+        kit_quest_progress(p, "library", 1)
+      else
+        p.message("📖 " + p.books + "/3", 0.8)
+      end
+    end
+  end
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  class_clock = class_clock + dt
+  if class_clock < 1 then return end
+  class_clock = 0
+  period_left = period_left - 1
+  if period_left <= 0 then next_period() end
+  let c = current()
+  if c == nil then return end
+  let into = PERIOD_SECS - period_left
+  if into == MOVE_SECS and not class_on then start_class() end
+  if class_on and into >= MOVE_SECS + CLASS_SECS then end_class() end
+  -- 図書館: 本の近くに行くと拾える
+  if class_on and (c.id == "library" or c.id == "club") then
+    for p in players() do book_step(p) end
+  end
+  let status = "🏃 移動中 " + max(0, MOVE_SECS - into) + "s"
+  if class_on then status = "✏️ 授業中" end
+  if c.id == "club" then status = "🏫 部活タイム" end
+  ui_text("lesson", c.name + "   " + status + "   のこり " + period_left + "s", {at: "top", dy: 26, size: 16, bold: true})
+  ui_text("dorms", dorm_line(), {at: "top", dy: 50, size: 13, color: "#FDE68A"})
+end

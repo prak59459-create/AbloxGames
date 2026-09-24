@@ -1,0 +1,62 @@
+-- common.absc — 小さな道具・成績・寮ポイント・画面
+
+let dorm_pts = {blaze: 0, tide: 0, forest: 0, volt: 0}
+let president = nil
+
+func ready(p)
+  return p.gpa != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func rank(p)
+  let r = RANKS[1]
+  for x in RANKS do
+    if p.gpa >= x.need then r = x end
+  end
+  return r
+end
+
+-- 成績と寮ポイント
+func grade(p, points, why)
+  let before = rank(p)
+  p.gpa = p.gpa + points
+  p.score = p.gpa
+  if p.dorm != nil then dorm_pts[p.dorm] = dorm_pts[p.dorm] + points end
+  if why != nil then p.message(why + " 成績 +" + points, 1.2) end
+  let now = rank(p)
+  if now.name != before.name then
+    announce("🎓 " + p.name + " が「" + now.name + "」に！", 3)
+    kit_quest_progress(p, "rank", 1)
+    kit_give(p, 50)
+  end
+  show(p)
+end
+
+func show(p)
+  if not ready(p) then return end
+  let line = "🎓 " + rank(p).name + "   成績 " + p.gpa
+  if p.dorm != nil then line = DORMS[p.dorm].name + "   " + line end
+  if president == p.id then line = "👑 生徒会長   " + line end
+  p.ui_text("gpa", line, {at: "top_left", dy: 34, size: 15, bold: true})
+  if p.homework != nil then p.ui_text("hw", "📝 宿題: " + p.homework.text, {at: "top_left", dy: 56, size: 13, color: "#FDE68A"}) else p.ui_remove("hw") end
+end
+
+func dorm_line()
+  let parts = []
+  for d in DORM_ORDER do append(parts, DORMS[d].name + " " + dorm_pts[d]) end
+  return join(parts, "  ")
+end

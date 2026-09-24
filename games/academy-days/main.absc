@@ -1,185 +1,64 @@
--- Academy Days — チャイムで教室を回る学園ゲーム
+-- Academy Days — 寮対抗の学園ゲーム
+-- 4つの寮、6教科のミニゲーム、宿題、放課後の部活、寮杯、生徒会選挙、ランク、制服。
+--
+-- ファイル:
+--   data.absc      表（寮・時間割・ランク・色・音・ポーション）
+--   common.absc    成績・寮ポイント・画面
+--   classes.absc   時間割と授業のミニゲーム
+--   campus.absc    寮・宿題・体育・部活・寮杯・選挙
+--   main.absc      このファイル
 
-kit_setup("Academy Days", "授業に出て、学園のスターに", [
-  "チャイムが鳴ったら、次の授業の教室へ（色つきの床）",
-  "📐 算数: 計算クイズ  🎨 美術: お題の色をえらぶ",
-  "🎵 音楽: 出た音の順番をおぼえて押す",
-  "🏃 体育: 校庭のスタートから赤いトラックを走ってゴールへ",
-  "🍱 お昼: 食堂で休けい",
-  "正解や上位で成績ポイント。成績でランクが上がる"
+kit_setup("Academy Days", "寮のために、学園のスターに", [
+  "🏠 ろうかの両はしの旗で寮をえらぶ（🔥ブレイズ・🌊タイド・🌿フォレスト・⚡ボルト）",
+  "🔔 チャイムのあと15びょうで教室の色つきの床へ。授業のミニゲームで成績と寮ポイント",
+  "📐算数・🎨美術・🎵音楽・🏃体育（ハードル走）・🧪ポーション学・📚図書館",
+  "📝 宿題が出たら、その教室の床へ。🏫 放課後は好きな教室で部活",
+  "🏆 1学期（8コマ）ごとに寮杯。🗳 そのあと生徒会選挙（投票箱）"
 ])
 
-let schedule = [
-  {room: "Math Room", name: "📐 算数"}, {room: "Art Room", name: "🎨 美術"},
-  {room: "Gym", name: "🏃 体育"}, {room: "Music Room", name: "🎵 音楽"},
-  {room: "Cafeteria", name: "🍱 お昼休み"}, {room: "Library", name: "📚 自習"}
-]
-let period = 0
-let lesson = nil
-let answers = {}
-let art_colors = [["赤", "#EF4444"], ["青", "#3B82F6"], ["黄", "#FACC15"], ["緑", "#22C55E"], ["紫", "#A855F7"], ["オレンジ", "#F97316"]]
-let notes = [["ド", "#EF4444"], ["レ", "#F97316"], ["ミ", "#FACC15"], ["ファ", "#22C55E"]]
-let race_open = false
-let race_finish = 0
-let ranks = [["新入生", 0], ["がんばり屋", 10], ["優等生", 25], ["学年トップ", 50], ["生徒会長", 90], ["学園のスター", 140]]
+kit_shop_title = "購買部"
+kit_shop_add("u_blazer", "ブレザー", 60, func(p) p.color = "#1E3A8A" end)
+kit_shop_add("u_sailor", "セーラー服", 60, func(p) p.color = "#F8FAFC" end)
+kit_shop_add("u_sweater", "カーディガン", 80, func(p) p.color = "#FDE68A" end)
+kit_shop_add("h_cap", "学生帽", 50, func(p)
+  p.own_hat = "cap"
+  if p.hat != "crown" then p.hat = "cap" end
+end)
+kit_shop_add("h_halo", "天使の輪（優等生）", 300, func(p)
+  p.own_hat = "halo"
+  if p.hat != "crown" then p.hat = "halo" end
+end)
 
-kit_quest("attend", "5回授業に出る", 5, 80)
-kit_quest("math", "算数で5問正解", 5, 80)
+kit_quest("dorm", "寮に入る", 1, 30)
+kit_quest("attend", "10回授業に出る", 10, 150)
+kit_quest("math", "算数で10問正解", 10, 120)
+kit_quest("music", "音楽で完ぺき", 1, 80)
+kit_quest("potion", "ポーションを5つ作る", 5, 150)
+kit_quest("library", "図書館で本を3冊", 1, 80)
 kit_quest("race", "体育で1位", 1, 120)
-
-func rank(p)
-  let r = ranks[1][1]
-  for row in ranks do
-    if p.gpa >= row[2] then r = row[1] end
-  end
-  return r
-end
-
-func show(p)
-  p.ui_text("gpa", "🎓 " + rank(p) + "   成績 " + p.gpa, {at: "top_left", dy: 34, size: 17, bold: true})
-  p.score = p.gpa
-end
-
-func grade(p, points, why)
-  p.gpa = p.gpa + points
-  p.message(why + " 成績 +" + points, 1.5)
-  show(p)
-end
-
-func in_room(p, room)
-  return p.room == room and p.room_at != nil and time() - p.room_at < 20
-end
-
-func clear_lesson_ui(p)
-  for id in ["quiz", "art", "music"] do p.ui_remove(id) end
-end
-
-func math_question(p)
-  let a = random(2, 12)
-  let b = random(2, 12)
-  let op = random(["+", "×", "-"])
-  let right = a + b
-  if op == "×" then right = a * b end
-  if op == "-" then right = a - b end
-  p.answer = right
-  let choices = shuffle([right, right + random(1, 5), right - random(1, 5), right + 10])
-  p.ui_panel("quiz", {at: "center", w: 420, h: 170, bg: "#1E3A8AEE", radius: 20, layer: 30})
-  p.ui_text("quiz_q", a + " " + op + " " + b + " = ?", {parent: "quiz", y: 0.25, size: 30, bold: true})
-  let i = 0
-  for c in choices do
-    i = i + 1
-    p.ui_button("ans_" + c, str(c), {parent: "quiz", x: (i - 0.5) / 4, y: 0.72, w: 90, h: 50, size: 20, bg: "#3B82F6"})
-  end
-end
-
-func start_lesson()
-  period = period + 1
-  lesson = schedule[(period - 1) % len(schedule) + 1]
-  announce("🔔 キーンコーン！ 次は「" + lesson.name + "」", 3)
-  ui_text("lesson", "📖 " + lesson.name + "（教室へ！）", {at: "top", dy: 26, size: 20, bold: true})
-  after(15, func()
-    let room = lesson.room
-    for p in players() do
-      clear_lesson_ui(p)
-      if in_room(p, room) then
-        kit_quest_progress(p, "attend", 1)
-        grade(p, 1, "✅ 出席")
-        if room == "Math Room" then
-          p.math_left = 5
-          math_question(p)
-        elif room == "Art Room" then
-          let target = random(art_colors)
-          p.art_target = target[1]
-          p.ui_panel("art", {at: "center", w: 460, h: 170, bg: "#831843EE", radius: 20, layer: 30})
-          p.ui_text("art_q", "お題の色は「" + target[1] + "」！", {parent: "art", y: 0.25, size: 24, bold: true})
-          let i = 0
-          for c in shuffle(copy(art_colors)) do
-            i = i + 1
-            p.ui_button("color_" + c[1], " ", {parent: "art", x: (i - 0.5) / 6, y: 0.7, w: 56, h: 56, bg: c[2], radius: 28})
-          end
-        elif room == "Music Room" then
-          let tune = []
-          for k in 1 to 4 do append(tune, random(notes)[1]) end
-          p.tune = tune
-          p.heard = []
-          p.message("🎵 " + join(tune, " → ") + " をおぼえて！", 3)
-          kit_later(p, 3.2, func()
-            p.ui_panel("music", {at: "center", w: 420, h: 130, bg: "#4C1D95EE", radius: 20, layer: 30})
-            let i = 0
-            for n in notes do
-              i = i + 1
-              p.ui_button("note_" + n[1], n[1], {parent: "music", x: (i - 0.5) / 4, y: 0.5, w: 80, h: 60, size: 20, bg: n[2]})
-            end
-          end)
-        elif room == "Cafeteria" then
-          p.heal(100)
-          kit_give(p, 5)
-        elif room == "Library" then
-          grade(p, 1, "📚 自習")
-        end
-      end
-    end
-    if room == "Gym" then
-      race_open = true
-      race_finish = 0
-      announce("🏃 体育: 校庭のゴールまで競走！", 3)
-      after(30, func() race_open = false end)
-    end
-    ui_text("lesson", "✏️ " + lesson.name + " の時間", {at: "top", dy: 26, size: 20, bold: true})
-  end)
-end
+kit_quest("homework", "宿題を3回出す", 3, 120)
+kit_quest("club", "部活に3回出る", 3, 100)
+kit_quest("cup", "寮杯をとる", 1, 400)
+kit_quest("vote", "選挙で投票する", 1, 30)
+kit_quest("president", "生徒会長になる", 1, 800)
+kit_quest("rank", "ランクを上げる", 2, 200)
 
 on start()
-  after(5, func() start_lesson() end)
-  every(60, func() start_lesson() end)
   every(10, func() kit_leaderboard("🎓") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 50)
   p.gpa = 0
+  p.club_done = false
   show(p)
+  p.message("🏠 まずはろうかの両はしの旗で寮をえらぼう", 3)
 end
 
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "room") then
-    p.room = b.name
-    p.room_at = time()
-  elif contains(b.tags, "finish") and race_open and not p.raced then
-    p.raced = true
-    race_finish = race_finish + 1
-    let pts = max(1, 6 - race_finish * 2)
-    grade(p, pts, "🏁 " + race_finish + " 位！")
-    if race_finish == 1 then kit_quest_progress(p, "race", 1) end
-    kit_later(p, 40, func() p.raced = false end)
-  end
-end
-
-on button(p, id)
-  if starts_with(id, "ans_") then
-    let v = num(replace(id, "ans_", ""))
-    if v == p.answer then
-      grade(p, 1, "⭕ 正解")
-      kit_quest_progress(p, "math", 1)
-    else
-      p.message("❌ ざんねん（答え " + p.answer + "）", 1.5)
-    end
-    p.math_left = p.math_left - 1
-    if p.math_left > 0 then math_question(p) else p.ui_remove("quiz") end
-  elif starts_with(id, "color_") then
-    p.ui_remove("art")
-    if replace(id, "color_", "") == p.art_target then grade(p, 2, "🎨 ぴったり！") else p.message("ちょっとちがうかも", 1.5) end
-  elif starts_with(id, "note_") then
-    append(p.heard, replace(id, "note_", ""))
-    let k = len(p.heard)
-    if p.heard[k] != p.tune[k] then
-      p.ui_remove("music")
-      p.message("🎵 まちがえた…（" + join(p.tune, " → ") + "）", 2)
-    elif k >= len(p.tune) then
-      p.ui_remove("music")
-      grade(p, 3, "🎵 完ぺき！")
-    end
-  end
+on leave(p)
+  if president == p.id then president = nil end
 end
