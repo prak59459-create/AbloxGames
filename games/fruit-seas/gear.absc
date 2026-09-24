@@ -1,0 +1,241 @@
+-- gear.absc — 武器と拳法
+-- 剣（⚔️ボタンで剣の技）・銃・拳法（👊ボタン）・道場の能力（ソル・闘気・見聞）
+-- はじまりの島の店: 剣屋（オレンジ）・銃屋（灰色）・道場（青）
+
+-- 剣はピストルの形で射程が短い「近接武器」、銃はそのまま
+for s in SWORDS do kit_melee(s.name, s.damage, s.rate, s.reach) end
+for g in GUNS do
+  weapon(g.name, {model: g.model, damage: g.damage, rate: g.rate, range: g.range, ammo: g.ammo, reload: g.reload})
+end
+
+-- 剣ごとの技
+let SWORD_SKILLS = {
+  katana: {kind: "dash", power: 2.5, speed: 30, r: 4.5, cd: 6, effect: nil},
+  cutlass: {kind: "blast", power: 2.6, r: 6, cd: 6, effect: "launch"},
+  twin: {kind: "rain", power: 1.6, r: 3, range: 4, count: 5, cd: 7, effect: nil},
+  icekatana: {kind: "dash", power: 3, speed: 34, r: 5, cd: 7, effect: "freeze"},
+  black: {kind: "beam", power: 3.4, range: 20, cd: 7, effect: "launch"},
+  skyblade: {kind: "rain", power: 2.6, r: 8, range: 12, count: 7, cd: 9, effect: "stun"}
+}
+
+func sword_by_id(id)
+  for s in SWORDS do
+    if s.id == id then return s end
+  end
+  return SWORDS[1]
+end
+
+func gun_by_id(id)
+  for g in GUNS do
+    if g.id == id then return g end
+  end
+  return nil
+end
+
+func style_by_id(id)
+  for s in STYLES do
+    if s.id == id then return s end
+  end
+  return STYLES[1]
+end
+
+func current_sword(p) return sword_by_id(p.sword or "katana") end
+func current_gun(p) return gun_by_id(p.gun) end
+func current_style(p) return style_by_id(p.style or "basic") end
+
+func is_gun(name)
+  for g in GUNS do
+    if g.name == name then return true end
+  end
+  return false
+end
+
+-- MARK: 持つ
+
+func hold_sword(p)
+  p.holding = "sword"
+  p.give(current_sword(p).name)
+end
+
+func hold_gun(p)
+  let g = current_gun(p)
+  if g == nil then
+    p.message("銃を持っていません（銃屋で買えます）", 1.5)
+    return
+  end
+  p.holding = "gun"
+  p.give(g.name)
+end
+
+func hold_again(p)
+  if p.holding == "gun" and current_gun(p) != nil then hold_gun(p) else hold_sword(p) end
+end
+
+-- 剣をもらう（買う・ボスが落とす）
+func grant_sword(p, id)
+  if not contains(p.swords, id) then append(p.swords, id) end
+  p.sword = id
+  hold_sword(p)
+  kit_quest_progress(p, "sword", 1)
+end
+
+-- MARK: 技
+
+func sword_skill(p)
+  if not p.alive then return end
+  if cooldown_left(p, "sword_skill") > 0 then return end
+  let s = current_sword(p)
+  let m = SWORD_SKILLS[s.id]
+  start_cooldown(p, "sword_skill", m.cd)
+  if p.holding != "sword" then hold_sword(p) end
+  do_move(p, m, "sword", s.damage * 1.2 + p.level * 1.5, "#BFDBFE")
+  move_buttons(p)
+end
+
+func style_skill(p)
+  if not p.alive then return end
+  if cooldown_left(p, "style_skill") > 0 then return end
+  let s = current_style(p)
+  start_cooldown(p, "style_skill", s.cd)
+  do_move(p, s, "melee", melee_base(p), "#FDBA74")
+  move_buttons(p)
+end
+
+-- MARK: 店
+
+func shop_rows(p, id, title, rows, color)
+  let h = 140 + len(rows) * 56
+  p.ui_panel(id, {at: "center", w: 520, h: h, bg: "#0B1120F2", radius: 22, layer: 30})
+  p.ui_text(id + "_t", title, {parent: id, y: 28 / h, size: 21, bold: true, color: color})
+  let i = 0
+  for r in rows do
+    i = i + 1
+    p.ui_button(r.id, r.label, {parent: id, y: (36 + i * 56) / h, w: 460, h: 46, size: 15, bg: r.bg})
+  end
+  p.ui_button(id + "_close", "閉じる", {parent: id, y: (h - 30) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func item_row(p, prefix, item, owned, equipped)
+  let label = item.name + "   Lv." + item.level + "  💰" + kit_short(item.price)
+  let bg = "#1D4ED8"
+  if p.level < item.level then
+    label = "🔒 " + item.name + "（Lv." + item.level + " から）"
+    bg = "#374151"
+  elif equipped then
+    label = "✅ " + item.name + "（使用中）"
+    bg = "#15803D"
+  elif owned then
+    label = item.name + "（持っている・押すと使う）"
+    bg = "#0F766E"
+  end
+  return {id: prefix + item.id, label: label, bg: bg}
+end
+
+func sword_shop(p)
+  let rows = []
+  for s in SWORDS do
+    append(rows, item_row(p, "buysword_", s, contains(p.swords, s.id), p.sword == s.id))
+  end
+  shop_rows(p, "sshop", "⚔️ 剣屋", rows, "#FDE68A")
+end
+
+func gun_shop(p)
+  let rows = []
+  for g in GUNS do
+    append(rows, item_row(p, "buygun_", g, contains(p.guns, g.id), p.gun == g.id))
+  end
+  shop_rows(p, "gshop", "🔫 銃屋（🎒で剣と持ちかえ）", rows, "#D1D5DB")
+end
+
+func dojo(p)
+  let rows = []
+  for s in STYLES do
+    append(rows, item_row(p, "buystyle_", s, contains(p.styles, s.id), p.style == s.id))
+  end
+  for a in ABILITIES do
+    let r = item_row(p, "buyab_", a, contains(p.abilities, a.id), false)
+    if contains(p.abilities, a.id) then
+      r.label = "✅ " + a.name + "（覚えた）"
+      r.bg = "#15803D"
+    end
+    append(rows, r)
+  end
+  shop_rows(p, "dojo", "🥋 道場（拳法と能力）", rows, "#93C5FD")
+end
+
+-- 買う（持っていれば使う）。kind: sword / gun / style / ability
+func buy_item(p, kind, id)
+  let list = SWORDS
+  let owned = p.swords
+  if kind == "gun" then
+    list = GUNS
+    owned = p.guns
+  elif kind == "style" then
+    list = STYLES
+    owned = p.styles
+  elif kind == "ability" then
+    list = ABILITIES
+    owned = p.abilities
+  end
+  let item = nil
+  for x in list do
+    if x.id == id then item = x end
+  end
+  if item == nil then return end
+  if p.level < item.level then
+    p.message("🔒 レベル " + item.level + " になったら買えます", 1.5)
+    return
+  end
+  if not contains(owned, id) then
+    if kind == "ability" and contains(p.abilities, id) then return end
+    if not kit_pay(p, item.price) then return end
+    append(owned, id)
+    p.sound("collect")
+    p.message("🛒 " + item.name + " を手に入れた！", 2)
+    if kind == "sword" then kit_quest_progress(p, "sword", 1) end
+    if kind == "style" then kit_quest_progress(p, "style", 1) end
+  end
+  if kind == "sword" then
+    p.sword = id
+    hold_sword(p)
+    sword_shop(p)
+  elif kind == "gun" then
+    p.gun = id
+    hold_gun(p)
+    gun_shop(p)
+  elif kind == "style" then
+    p.style = id
+    dojo(p)
+  else
+    menu_refresh(p)
+    dojo(p)
+  end
+  move_buttons(p)
+end
+
+on button(p, id)
+  if id == "act_sword" then sword_skill(p)
+  elif id == "act_style" then style_skill(p)
+  elif id == "bag_sword" then
+    hold_sword(p)
+    p.ui_remove("bag")
+  elif id == "bag_gun" then
+    hold_gun(p)
+    p.ui_remove("bag")
+  elif id == "sshop_close" then p.ui_remove("sshop")
+  elif id == "gshop_close" then p.ui_remove("gshop")
+  elif id == "dojo_close" then p.ui_remove("dojo")
+  elif starts_with(id, "buysword_") then buy_item(p, "sword", replace(id, "buysword_", ""))
+  elif starts_with(id, "buygun_") then buy_item(p, "gun", replace(id, "buygun_", ""))
+  elif starts_with(id, "buystyle_") then buy_item(p, "style", replace(id, "buystyle_", ""))
+  elif starts_with(id, "buyab_") then buy_item(p, "ability", replace(id, "buyab_", ""))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shop_sword") then sword_shop(p)
+  elif contains(b.tags, "shop_gun") then gun_shop(p)
+  elif contains(b.tags, "shop_style") then dojo(p)
+  end
+end

@@ -1,0 +1,326 @@
+-- fruits.absc — 果実
+-- 島に落ちる果実・かばん（3こまで）・食べる・果実屋（4分ごとに品物が変わる）
+-- 果実のくじ（井戸）・熟練度でZ→X→Cの技が使える・覚醒・技ボタン
+
+let fruit_stock = []
+let fruit_stock_until = 0
+let spawned_fruit = []   -- {block, key, until}
+
+func fruit_weights()
+  let list = []
+  for key in FRUIT_ORDER do
+    append(list, {key: key, weight: RARITY[FRUITS[key].rarity].weight})
+  end
+  return list
+end
+
+func random_fruit()
+  return weighted(fruit_weights()).key
+end
+
+func fruit_label(key)
+  let f = FRUITS[key]
+  return f.name + "（" + RARITY[f.rarity].name + "）"
+end
+
+func fruit_price(key)
+  return RARITY[FRUITS[key].rarity].price
+end
+
+-- MARK: 食べる
+
+func eat(p, key)
+  if FRUITS[key] == nil then return end
+  let before = p.fruit
+  p.fruit = key
+  if p.eaten == nil then p.eaten = [] end
+  if not contains(p.eaten, key) then append(p.eaten, key) end
+  let f = FRUITS[key]
+  p.message("🍎 " + fruit_label(key) + " を食べた！ Zボタンで「" + f.moves[1].name + "」", 3)
+  p.sound("collect")
+  fx_ball(p.position + {x: 0, y: 1, z: 0}, 3, f.color, 0.6)
+  kit_quest_progress(p, "eat", 1)
+  if len(p.eaten) >= 5 then kit_quest_progress(p, "eat5", 5) end
+  if f.rarity == "mythic" or f.rarity == "legendary" then
+    announce("✨ " + p.name + " が " + fruit_label(key) + " を食べた！", 3)
+  end
+  if before != nil and before != key then p.message("（前の果実の熟練度は残っています）", 2) end
+  menu_refresh(p)
+  hud(p)
+end
+
+-- かばんに入れる。いっぱいなら false
+func bag_add(p, key)
+  if len(p.bag) >= 3 then
+    p.message("🎒 かばんがいっぱい（3こまで）。🎒で食べるか捨てよう", 2)
+    return false
+  end
+  append(p.bag, key)
+  return true
+end
+
+-- MARK: 島に落ちる果実
+
+func spawn_fruit()
+  if len(spawned_fruit) >= 3 then return end
+  let spot = block("Fruit Spot " + random(1, 12))
+  if spot == nil then return end
+  let key = random_fruit()
+  let b = create_block({name: "Fruit " + key, shape: "sphere", position: spot.position + {x: 0, y: 1.2, z: 0}, size: 1.2,
+                        color: FRUITS[key].color, material: "neon", tags: ["fruit"], behavior: "trigger"})
+  append(spawned_fruit, {block: b, key: key, until: time() + 150})
+  let isl = island_at(spot.position)
+  let where = "どこかの島"
+  if isl != nil then where = isl.jp end
+  chat("🍎 " + where + " に果実が落ちているらしい…")
+end
+
+func fruit_tick()
+  for s in copy(spawned_fruit) do
+    if time() > s.until then
+      gone(s.block)
+      remove(spawned_fruit, index_of(spawned_fruit, s))
+    end
+  end
+end
+
+func pick_fruit(p, b)
+  for s in copy(spawned_fruit) do
+    if s.block == b then
+      if bag_add(p, s.key) then
+        gone(b)
+        remove(spawned_fruit, index_of(spawned_fruit, s))
+        announce("🍎 " + p.name + " が " + fruit_label(s.key) + " を見つけた！", 2.5)
+        p.message("🎒 かばんに入れた。🎒ボタンから食べられます", 2.5)
+        p.sound("collect")
+        kit_quest_progress(p, "find", 1)
+      end
+    end
+  end
+end
+
+-- MARK: 果実屋
+
+func refresh_stock()
+  fruit_stock = []
+  while len(fruit_stock) < 4 do
+    let key = random_fruit()
+    if not contains(fruit_stock, key) then append(fruit_stock, key) end
+  end
+  fruit_stock_until = time() + 240
+end
+
+func fruit_shop(p)
+  if time() > fruit_stock_until then refresh_stock() end
+  let h = 150 + len(fruit_stock) * 58
+  p.ui_panel("fshop", {at: "center", w: 500, h: h, bg: "#2A0A1FF2", radius: 22, layer: 30})
+  p.ui_text("fshop_t", "🍎 果実屋（入れかえまで " + kit_clock(fruit_stock_until - time()) + "）", {parent: "fshop", y: 28 / h, size: 19, bold: true, color: "#F9A8D4"})
+  p.ui_text("fshop_s", "買った果実はかばんに入ります", {parent: "fshop", y: 56 / h, size: 13, color: "#FBCFE8"})
+  let i = 0
+  for key in fruit_stock do
+    i = i + 1
+    let f = FRUITS[key]
+    p.ui_button("fbuy_" + key, fruit_label(key) + "  💰" + kit_short(fruit_price(key)),
+                {parent: "fshop", y: (50 + i * 58) / h, w: 420, h: 48, size: 16, bg: RARITY[f.rarity].color})
+  end
+  p.ui_button("fshop_close", "閉じる", {parent: "fshop", y: (h - 30) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func fruit_buy(p, key)
+  if not contains(fruit_stock, key) then return end
+  if len(p.bag) >= 3 then
+    p.message("🎒 かばんがいっぱいです", 1.5)
+    return
+  end
+  if not kit_pay(p, fruit_price(key)) then return end
+  bag_add(p, key)
+  p.message("🍎 " + fruit_label(key) + " を買った！", 2)
+  p.sound("collect")
+  p.ui_remove("fshop")
+end
+
+-- MARK: 果実のくじ（井戸）
+
+let GACHA_PRICE = 1500
+
+func gacha(p)
+  if len(p.bag) >= 3 then
+    p.message("🎒 かばんがいっぱいです", 1.5)
+    return
+  end
+  let free = cooldown_left(p, "free_gacha") <= 0
+  if not free and not kit_pay(p, GACHA_PRICE) then return end
+  if free then start_cooldown(p, "free_gacha", 600) end
+  let key = random_fruit()
+  bag_add(p, key)
+  p.sound("goal")
+  let how = "💰" + GACHA_PRICE
+  if free then how = "無料（10分に1回）" end
+  p.message("🎰 " + fruit_label(key) + " が出た！（" + how + "）", 3)
+  if FRUITS[key].rarity == "mythic" then announce("🎰 " + p.name + " がくじで " + fruit_label(key) + " を当てた！", 3) end
+end
+
+-- MARK: かばん（🎒）
+
+func bag_menu(p)
+  let rows = max(1, len(p.bag))
+  let h = 260 + rows * 54
+  p.ui_panel("bag", {at: "center", w: 500, h: h, bg: "#111827F2", radius: 22, layer: 30})
+  p.ui_text("bag_t", "🎒 持ち物", {parent: "bag", y: 26 / h, size: 21, bold: true, color: "gold"})
+  -- 武器
+  let sword = current_sword(p)
+  p.ui_button("bag_sword", "⚔️ " + sword.name + "（" + sword.damage + "）", {parent: "bag", x: 0.28, y: 70 / h, w: 210, h: 44, size: 15, bg: "#1D4ED8"})
+  let gun_label = "🔫 銃なし"
+  let g = current_gun(p)
+  if g != nil then gun_label = "🔫 " + g.name end
+  p.ui_button("bag_gun", gun_label, {parent: "bag", x: 0.72, y: 70 / h, w: 210, h: 44, size: 15, bg: "#374151"})
+  p.ui_text("bag_w", "押すとその武器を持ちます   拳法: " + current_style(p).name, {parent: "bag", y: 102 / h, size: 13, color: "#94A3B8"})
+  -- 果実
+  p.ui_text("bag_f", "果実（食べると今の果実と入れかわる）", {parent: "bag", y: 134 / h, size: 15, color: "#F9A8D4"})
+  if len(p.bag) == 0 then
+    p.ui_text("bag_none", "かばんは空っぽ", {parent: "bag", y: 170 / h, size: 15, color: "#94A3B8"})
+  end
+  let i = 0
+  for key in p.bag do
+    i = i + 1
+    let y = (116 + i * 54) / h
+    p.ui_button("bag_eat_" + i, "🍽 " + fruit_label(key), {parent: "bag", x: 0.36, y: y, w: 290, h: 44, size: 15, bg: FRUITS[key].color})
+    p.ui_button("bag_drop_" + i, "捨てる", {parent: "bag", x: 0.84, y: y, w: 110, h: 44, size: 14, bg: "#7F1D1D"})
+  end
+  if p.fruit != nil and mastery_of(p, p.fruit) >= AWAKEN_MASTERY and not contains(p.awakened, p.fruit) then
+    p.ui_button("bag_awaken", "✨ " + FRUITS[p.fruit].name + " を覚醒（💰" + kit_short(AWAKEN_PRICE) + "）",
+                {parent: "bag", y: (h - 76) / h, w: 380, h: 40, size: 15, bg: "#9333EA"})
+  end
+  p.ui_button("bag_close", "閉じる", {parent: "bag", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func awaken(p)
+  if p.fruit == nil or mastery_of(p, p.fruit) < AWAKEN_MASTERY or contains(p.awakened, p.fruit) then return end
+  if not kit_pay(p, AWAKEN_PRICE) then return end
+  append(p.awakened, p.fruit)
+  announce("✨ " + p.name + " の " + FRUITS[p.fruit].name + " が覚醒した！（技が1.3倍）", 4)
+  p.sound("goal")
+  kit_quest_progress(p, "awaken", 1)
+  bag_menu(p)
+end
+
+-- MARK: 技ボタン（Z X C と ⚔️ 👊 💨 🛡）
+
+func move_ready_label(p, key, label)
+  let left = cooldown_left(p, key)
+  if left > 0 then return label + " ⏳" + ceil(left) end
+  return label
+end
+
+func move_buttons(p)
+  if not p.alive then return end
+  if p.fruit != nil then
+    let f = FRUITS[p.fruit]
+    let i = 0
+    for m in f.moves do
+      i = i + 1
+      let k = MOVE_KEYS[i]
+      let label = k + " " + m.name
+      let bg = f.color
+      if mastery_of(p, p.fruit) < m.mastery then
+        label = k + " 🔒熟練" + m.mastery
+        bg = "#374151"
+      else
+        label = move_ready_label(p, "move" + i, label)
+      end
+      set_btn(p, "move_" + i, label, {at: "bottom_right", dx: -110 - (3 - i) * 128, dy: -150, w: 122, h: 54, size: 14, bg: bg, radius: 18})
+    end
+  else
+    for i in 1 to 3 do set_btn(p, "move_" + i, nil, nil) end
+  end
+  let sword = current_sword(p)
+  set_btn(p, "act_sword", move_ready_label(p, "sword_skill", "⚔️ " + sword.skill), {at: "bottom_right", dx: -366, dy: -214, w: 122, h: 50, size: 13, bg: "#1D4ED8", radius: 18})
+  let style = current_style(p)
+  set_btn(p, "act_style", move_ready_label(p, "style_skill", "👊 " + style.name), {at: "bottom_right", dx: -238, dy: -214, w: 122, h: 50, size: 13, bg: "#B45309", radius: 18})
+  if contains(p.abilities, "dash") then
+    set_btn(p, "act_dash", "💨 ソル", {at: "bottom_right", dx: -110, dy: -214, w: 122, h: 50, size: 14, bg: "#0891B2", radius: 18})
+  end
+  if contains(p.abilities, "aura") then
+    set_btn(p, "act_aura", move_ready_label(p, "aura", "🛡 闘気"), {at: "bottom_right", dx: -110, dy: -272, w: 122, h: 50, size: 14, bg: "#1F2937", radius: 18})
+  end
+end
+
+func use_fruit_move(p, i)
+  if p.fruit == nil or not p.alive then return end
+  let f = FRUITS[p.fruit]
+  let m = f.moves[i]
+  if m == nil then return end
+  if mastery_of(p, p.fruit) < m.mastery then
+    p.message("🔒 熟練度 " + m.mastery + " で使えます（いまは " + floor(mastery_of(p, p.fruit)) + "）", 1.5)
+    return
+  end
+  if cooldown_left(p, "move" + i) > 0 then return end
+  start_cooldown(p, "move" + i, m.cd)
+  let hits = do_move(p, m, "fruit", fruit_base(p), f.color)
+  p.moves_used = (p.moves_used or 0) + 1
+  if i == 3 then kit_quest_progress(p, "cmove", 1) end
+  move_buttons(p)
+end
+
+on start()
+  refresh_stock()
+  every(70, func() spawn_fruit() end)
+  every(5, func() fruit_tick() end)
+  after(8, func() spawn_fruit() end)
+end
+
+on button(p, id)
+  if id == "move_1" then use_fruit_move(p, 1)
+  elif id == "move_2" then use_fruit_move(p, 2)
+  elif id == "move_3" then use_fruit_move(p, 3)
+  elif id == "open_bag" then bag_menu(p)
+  elif id == "bag_close" then p.ui_remove("bag")
+  elif id == "bag_awaken" then awaken(p)
+  elif starts_with(id, "bag_eat_") then
+    let i = num(replace(id, "bag_eat_", ""))
+    let key = p.bag[i]
+    if key != nil then
+      remove(p.bag, i)
+      eat(p, key)
+      bag_menu(p)
+    end
+  elif starts_with(id, "bag_drop_") then
+    let i = num(replace(id, "bag_drop_", ""))
+    if p.bag[i] != nil then
+      let key = remove(p.bag, i)
+      p.message(FRUITS[key].name + " を海に捨てた", 1.5)
+      bag_menu(p)
+    end
+  elif id == "gacha_pull" then
+    p.ui_remove("gacha")
+    gacha(p)
+  elif id == "gacha_close" then p.ui_remove("gacha")
+  elif id == "fshop_close" then p.ui_remove("fshop")
+  elif starts_with(id, "fbuy_") then fruit_buy(p, replace(id, "fbuy_", ""))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "fruit") then
+    pick_fruit(p, b)
+  elif contains(b.tags, "shop_fruit") then
+    fruit_shop(p)
+  elif contains(b.tags, "gacha") then
+    if cooldown_left(p, "gacha_touch") <= 0 then
+      start_cooldown(p, "gacha_touch", 3)
+      gacha_menu(p)
+    end
+  end
+end
+
+func gacha_menu(p)
+  let free = cooldown_left(p, "free_gacha") <= 0
+  p.ui_panel("gacha", {at: "center", w: 420, h: 200, bg: "#3B2F05F2", radius: 22, layer: 30})
+  p.ui_text("gacha_t", "🎰 果実のくじ", {parent: "gacha", y: 0.17, size: 22, bold: true, color: "#FDE047"})
+  let line = "1回 💰" + GACHA_PRICE
+  if free then line = "いまは無料で1回ひける！" end
+  p.ui_text("gacha_s", line + "（ミシックが出るかも）", {parent: "gacha", y: 0.38, size: 15})
+  p.ui_button("gacha_pull", "ひく", {parent: "gacha", x: 0.3, y: 0.75, w: 150, h: 46, size: 17, bg: "#CA8A04"})
+  p.ui_button("gacha_close", "やめる", {parent: "gacha", x: 0.72, y: 0.75, w: 130, h: 46, size: 16, bg: "gray"})
+end

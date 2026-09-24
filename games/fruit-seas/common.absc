@@ -1,0 +1,173 @@
+-- common.absc — Fruit Seas の道具（人さがし・島・画面の表示・見た目の効果）
+
+-- MARK: 人と島
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func island_by_id(id)
+  for isl in ISLANDS do
+    if isl.id == id then return isl end
+  end
+  return ISLANDS[1]
+end
+
+-- その位置がどの島の上か（海なら nil）
+func island_at(pos)
+  for isl in ISLANDS do
+    let dx = pos.x - isl.x
+    let dz = pos.z - isl.z
+    if dx * dx + dz * dz <= (isl.r + 3) * (isl.r + 3) and abs(pos.y - isl.y) < 12 then return isl end
+  end
+  return nil
+end
+
+-- 島の上のランダムな場所
+func island_point(isl, spread)
+  let a = random() * 360
+  let d = random() * isl.r * (spread or 0.75)
+  return {x: isl.x + cos(a) * d, y: isl.y + 1, z: isl.z + sin(a) * d}
+end
+
+func in_safe_zone(c)
+  let dx = c.x
+  let dz = c.z
+  return dx * dx + dz * dz < 20 * 20 and c.y < 10
+end
+
+-- MARK: 経験値と称号
+
+func need_xp(level)
+  return 30 + level * 25
+end
+
+func title_of(p)
+  let t = TITLES[1].name
+  for x in TITLES do
+    if p.level >= x.level then t = x.name end
+  end
+  return t
+end
+
+-- MARK: 画面（同じものは送りなおさない）
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then
+    p.ui_remove(id)
+  else
+    p.ui_text(id, text, options)
+  end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then
+    p.ui_remove(id)
+  else
+    p.ui_button(id, label, options)
+  end
+end
+
+func set_bar(p, id, value, maximum, options)
+  if p.bars == nil then p.bars = {} end
+  let key = floor(value) + "/" + floor(maximum)
+  if p.bars[id] == key then return end
+  p.bars[id] = key
+  p.ui_bar(id, value, maximum, options)
+end
+
+-- 左上の表示: レベル・経験値・体力・果実・賞金
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "lv", "Lv." + p.level + "  " + title_of(p), {at: "top_left", dy: 34, size: 18, bold: true, color: "#A7F3D0"})
+  set_bar(p, "xp", p.xp, need_xp(p.level), {at: "top_left", dy: 58, dx: 4, w: 190, h: 8, color: "#34D399"})
+  set_bar(p, "hp", max(0, p.health), p.max_health, {at: "top_left", dy: 72, dx: 4, w: 190, h: 12, color: "#EF4444"})
+  set_line(p, "hp_t", "❤️ " + floor(max(0, p.health)) + " / " + floor(p.max_health), {at: "top_left", dy: 88, size: 13, color: "#FECACA"})
+  if p.fruit != nil then
+    let f = FRUITS[p.fruit]
+    let aw = ""
+    if contains(p.awakened, p.fruit) then aw = "（覚醒）" end
+    set_line(p, "fruit", "🍎 " + f.name + aw + "  熟練 " + floor(mastery_of(p, p.fruit)), {at: "top_left", dy: 108, size: 15, color: f.color})
+  else
+    set_line(p, "fruit", "🍎 果実なし（島で光る実をさがそう）", {at: "top_left", dy: 108, size: 14, color: "#CBD5E1"})
+  end
+  let side = "🏴‍☠️ 賞金 " + kit_short(p.bounty)
+  if p.team == "marine" then side = "⚓ 名声 " + kit_short(p.honor) end
+  if p.pvp then side = side + "   ⚔️PvP" end
+  set_line(p, "bounty", side, {at: "top_left", dy: 128, size: 14, color: "#FDE68A"})
+  p.score = p.level
+end
+
+-- 上の真ん中: いまの島のクエスト
+func task_line(p, text)
+  if text == nil then
+    set_line(p, "task", nil, nil)
+  else
+    set_line(p, "task", text, {at: "top", dy: 64, size: 16, bold: true, color: "#FDE68A"})
+  end
+end
+
+-- MARK: 見た目の効果（しばらくして消える光）
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.6})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+-- 地面に「ここに攻撃が来る」の赤い輪
+func fx_warning(pos, radius, seconds)
+  let b = create_block({name: "Warning", shape: "cylinder", position: {x: pos.x, y: pos.y + 0.05, z: pos.z},
+                        size: {x: radius * 2, y: 0.08, z: radius * 2}, color: "#EF4444", material: "neon", solid: false, opacity: 0.45})
+  after(seconds, func() gone(b) end)
+  return b
+end
+
+-- まっすぐな光（from から dir の向きに len）
+func fx_beam(from, dir, len, color, width)
+  let mid = from + dir * (len / 2)
+  let yaw = atan2(dir.x, dir.z)
+  let b = create_block({name: "FX", shape: "box", position: mid, size: {x: width or 0.7, y: width or 0.7, z: len},
+                        rotation: {x: 0, y: yaw, z: 0}, color: color, material: "neon", solid: false, opacity: 0.7})
+  after(0.35, func() gone(b) end)
+end
+
+-- 点から線分までのきょり（ビームの当たり判定）
+func distance_to_line(pos, from, dir, len)
+  let v = pos - from
+  let t = clamp(v.x * dir.x + v.y * dir.y + v.z * dir.z, 0, len)
+  let closest = from + dir * t
+  return distance(pos, closest)
+end
+
+-- MARK: 小さな道具
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+func weighted(list)
+  return kit_pick(list, 1)
+end

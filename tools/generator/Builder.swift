@@ -204,11 +204,11 @@ final class MapBuilder {
     }
 
     /// A flat-roofed shop front with a counter.
-    func shop(_ name: String, x: Float, z: Float, w: Float = 10, d: Float = 8, color: String, sign: String = "#FFFFFF",
+    func shop(_ name: String, x: Float, z: Float, y: Float = 0, w: Float = 10, d: Float = 8, color: String, sign: String = "#FFFFFF",
               facing: Float = 1) {
-        house(name, x: x, z: z, w: w, d: d, h: 4, wall: color, roof: "#2B2B33", floor: "#DDD6CC", tags: ["shop"], facing: facing)
-        slab("\(name) Counter", x: x, y: 0, z: z - facing * 1, w: w * 0.6, h: 1.1, d: 0.8, color: "#8A5A36")
-        part("\(name) Sign", at: (x, 4.6, z + facing * (d / 2 + 0.3)), size: (w * 0.7, 0.9, 0.2), color: sign, material: .neon, solid: false)
+        house(name, x: x, z: z, w: w, d: d, h: 4, y: y, wall: color, roof: "#2B2B33", floor: "#DDD6CC", tags: ["shop"], facing: facing)
+        slab("\(name) Counter", x: x, y: y, z: z - facing * 1, w: w * 0.6, h: 1.1, d: 0.8, color: "#8A5A36")
+        part("\(name) Sign", at: (x, y + 4.6, z + facing * (d / 2 + 0.3)), size: (w * 0.7, 0.9, 0.2), color: sign, material: .neon, solid: false)
     }
 
     /// Stairs going up along +x from (x, y, z).

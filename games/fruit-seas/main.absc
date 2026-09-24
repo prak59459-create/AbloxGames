@@ -1,217 +1,114 @@
 -- Fruit Seas Adventure — 果実の力で海を冒険するアクションRPG
--- 山賊をたおしてレベルアップ、果実で技を覚え、剣を買い、ボスに挑む。
+-- 8つの島・14種類の敵・7体のボス・12種類の果実（技は3つずつ）・剣6本・銃4丁・拳法4つ。
+--
+-- ファイル:
+--   data.absc     表（島・敵・ボス・果実と技・剣・銃・拳法・称号・宝箱）
+--   common.absc   人さがし・島・画面の表示・光の効果
+--   combat.absc   ステータス・ダメージ・技の形・やけど/こおり/しびれ・ソル・闘気・レベル
+--   enemies.absc  敵のうごき・ボスの技・ごほうび
+--   fruits.absc   果実（拾う・買う・くじ・食べる・覚醒）と技ボタン
+--   gear.absc     剣・銃・拳法・道場・店
+--   islands.absc  船・島のクエスト・拠点・宝箱・海王類・地図
+--   pvp.absc      海賊と海軍・PvP・賞金
+--   main.absc     このファイル（はじめの準備とクエスト）
 
-kit_setup("Fruit Seas", "果実の力で島から島へ冒険しよう", [
-  "島に落ちている光る果実にさわると食べて技を覚えます",
-  "「技」ボタンで果実の技。果実ごとに効果がちがう",
-  "ジャングル島の山賊をたおすと経験値とコイン",
-  "レベルが上がると体力と攻撃力アップ",
-  "水色のパッドで次の島へ船で移動",
-  "3分ごとに砂漠の島に巨人ボスが出現！"
+kit_setup("Fruit Seas", "果実の力で島から島へ。最強の海賊（または海軍）になろう", [
+  "📜 黄色い人（クエスト）に話しかけて敵をたおすとレベルアップ",
+  "⬆️ レベルが上がったら 📊 でステータス（体術・防御・剣術・果実）を割りふる",
+  "🍎 光る果実を拾う・果実屋・くじの井戸。🎒で食べると Z の技",
+  "🍎 技を使うと熟練度が上がり、X・C の技も使えるようになる",
+  "⚔️ 剣の技・👊 拳法の技・💨 ソル・🛡 闘気（道場で覚える）",
+  "⛵ 港の水色パッドで島へ。強い島ほど敵もボスも強い",
+  "👑 ボスはみんなでたおすと全員ごほうび。🐉 海王類にも注意",
+  "⚔️ PvP を ON にすると、ちがう陣営の人と戦える（賞金・名声）"
 ])
+kit_currency = "ベリー"
 
-kit_melee("カタナ", 18, 2.5, 6)
-kit_melee("カトラス", 32, 2.2, 6.5)
-kit_melee("黒刀", 60, 2.4, 7.5)
+-- MARK: クエスト（📜ボタン: 目標）
 
-let fruits = {
-  flame: {name: "炎の実", color: "#F97316", text: "まわりを燃やす（範囲攻撃）", cd: 6},
-  thunder: {name: "雷の実", color: "#FACC15", text: "雷のスピードで突進", cd: 5},
-  ice: {name: "氷の実", color: "#7DD3FC", text: "近くの敵をこおらせる", cd: 10},
-  spring: {name: "バネの実", color: "#EC4899", text: "大ジャンプして着地で衝撃", cd: 7},
-  smoke: {name: "煙の実", color: "#A8A29E", text: "煙になって速く走る・見えなくなる", cd: 12}
-}
-let fruit_keys = ["flame", "thunder", "ice", "spring", "smoke"]
-let boss = nil
-let boss_damage = {}
+kit_quest("lv10", "レベル10になる", 9, 500)
+kit_quest("lv50", "レベル50になる", 49, 5000)
+kit_quest("lv120", "レベル120になる", 119, 30000)
+kit_quest("eat", "果実を食べる", 1, 200)
+kit_quest("eat5", "5種類の果実を食べる", 5, 5000)
+kit_quest("cmove", "Cの技を使う", 1, 1500)
+kit_quest("find", "落ちている果実を拾う", 1, 300)
+kit_quest("kill50", "敵を50体たおす", 50, 1500)
+kit_quest("iquest", "島のクエストを10回", 10, 3000)
+kit_quest("boss", "ボスをたおす", 1, 800)
+kit_quest("beast", "海王類をたおす", 1, 5000)
+kit_quest("visit", "島を全部おとずれる", 8, 4000)
+kit_quest("chest", "宝箱を20こ開ける", 20, 2000)
+kit_quest("sword", "新しい剣を手に入れる", 1, 300)
+kit_quest("style", "拳法を覚える", 1, 500)
+kit_quest("awaken", "果実を覚醒させる", 1, 20000)
+kit_quest("pvp", "PvPで勝つ", 1, 1000)
 
-kit_shop_add("cutlass", "カトラス（攻撃 32）", 300, func(p) p.give("カトラス") end)
-kit_shop_add("black", "黒刀（攻撃 60）", 1200, func(p) p.give("黒刀") end)
-kit_shop_add("potion", "回復薬（全回復）", 60, func(p) p.heal(99999) end)
-kit_shop_add("reroll", "ランダムな果実", 500, func(p) eat(p, random(fruit_keys)) end)
+-- MARK: 右のボタン
 
-func need_xp(level)
-  return level * 60
-end
-
-func show_stats(p)
-  p.ui_text("lv", "Lv." + p.level, {at: "top_left", dy: 34, size: 20, bold: true, color: "#A7F3D0"})
-  p.ui_bar("xp", p.xp, need_xp(p.level), {at: "top_left", dy: 60, dx: 4, w: 180, h: 10, color: "#34D399"})
-  if p.fruit != nil then
-    let f = fruits[p.fruit]
-    p.ui_text("fruit", "🍎 " + f.name, {at: "top", dy: 30, size: 17, color: f.color})
-    p.ui_button("skill", "技", {at: "bottom_right", dx: -120, dy: -150, w: 84, h: 84, size: 26, bg: f.color, radius: 42})
+func menu_refresh(p)
+  if not kit_here(p) then return end
+  let stats = "📊 ステータス"
+  if p.points > 0 then stats = "📊 ステ ❗" + p.points end
+  set_btn(p, "open_stats", stats, {at: "right", dy: -180, w: 160, h: 50, size: 16, bg: "#4F46E5"})
+  set_btn(p, "open_bag", "🎒 持ち物", {at: "right", dy: -120, w: 160, h: 50, size: 17, bg: "#0F766E"})
+  set_btn(p, "open_map", "🗺 地図", {at: "right", dy: -60, w: 160, h: 50, size: 17, bg: "#0369A1"})
+  let pvp = "⚔️ PvP: OFF"
+  let bg = "#475569"
+  if p.pvp then
+    pvp = "⚔️ PvP: ON"
+    bg = "#DC2626"
   end
+  set_btn(p, "pvp_toggle", pvp, {at: "right", dy: 0, w: 160, h: 50, size: 16, bg: bg})
 end
 
-func gain(p, xp, coins)
-  p.xp = p.xp + xp
-  kit_give(p, coins)
-  while p.xp >= need_xp(p.level) do
-    p.xp = p.xp - need_xp(p.level)
-    p.level = p.level + 1
-    p.max_health = 100 + p.level * 20
-    p.heal(99999)
-    p.message("⬆️ レベル " + p.level + "！", 2)
-    p.sound("goal")
-  end
-  p.score = p.level
-  show_stats(p)
-end
+-- MARK: 入ってきた人
 
-func eat(p, key)
-  p.fruit = key
-  let f = fruits[key]
-  p.message("🍎 " + f.name + " を食べた！ " + f.text, 3)
-  p.sound("collect")
-  show_stats(p)
-end
+on join(p)
+  p.level = 1
+  p.xp = 0
+  p.points = 0
+  p.stats = {melee: 0, defense: 0, sword: 0, fruit: 0}
+  p.mastery = {}
+  p.awakened = []
+  p.bag = []
+  p.swords = ["katana"]
+  p.sword = "katana"
+  p.guns = []
+  p.styles = ["basic"]
+  p.style = "basic"
+  p.abilities = []
+  p.visited = []
+  p.bounty = 0
+  p.honor = 0
+  p.pvp = false
+  p.base = "start"
+  p.fruit = nil
 
-func use_skill(p)
-  if p.fruit == nil or not p.alive then return end
-  let f = fruits[p.fruit]
-  if not kit_ready(p, "skill", f.cd) then return end
-  let power = 30 + p.level * 6
-  if p.fruit == "flame" then
-    let n = kit_blast(p, p, 8, power * 1.4, 6)
-    p.shake(0.4, 0.5)
-    p.message("🔥 " + n + " 体に命中", 1)
-  elif p.fruit == "thunder" then
-    p.launch(p.look * 38 + {x: 0, y: 4, z: 0})
-    kit_later(p, 0.5, func() kit_blast(p, p, 5, power, 3) end)
-  elif p.fruit == "ice" then
-    for c in kit_everyone() do
-      if c.id != p.id and not kit_same_team(c, p) and distance(p, c) < 12 then
-        c.frozen = true
-        c.damage(power * 0.5, p)
-        after(3, func() if kit_here(c) then c.frozen = false end end)
-      end
-    end
-  elif p.fruit == "spring" then
-    p.launch(0, 26, 0)
-    kit_later(p, 1.6, func()
-      kit_blast(p, p, 9, power * 1.6, 10)
-      p.shake(0.6, 0.5)
-    end)
-  elif p.fruit == "smoke" then
-    p.speed = 2.4
-    p.visible = false
-    kit_later(p, 4, func() p.visible = true end)
-    kit_later(p, 8, func() p.speed = 1 end)
-  end
-end
-
-func spawn_bandit()
-  let camp = block("Bandit Camp")
-  let a = random() * 360
-  let n = create_npc({name: "山賊", position: camp.position + {x: cos(a) * 8, y: 1, z: sin(a) * 8},
-                      color: "#7C2D12", head_color: "#F5D0A9", health: 80, speed: 0.75, team: "bandit"})
-  n.kind = "bandit"
-  n.home_spot = n.position
-end
-
-func spawn_boss()
-  let arena = block("Boss Arena")
-  boss = create_npc({name: "海の巨人", position: arena.position + {x: 0, y: 2, z: 0}, color: "#1E3A8A",
-                     head_color: "#60A5FA", size: 4, health: 4000, speed: 0.6, team: "bandit"})
-  boss.kind = "boss"
-  boss.give("shotgun")
-  boss_damage = {}
-  announce("🌊 砂漠の島に海の巨人があらわれた！", 4)
-  sound("goal")
+  kit_welcome(p)
+  kit_give(p, 200)
+  refresh_max_health(p)
+  p.heal(p.max_health)
+  hold_sword(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  menu_refresh(p)
+  hud(p)
+  move_buttons(p)
+  -- 最初の果実: はじめだけ、コモンの実を1つプレゼント
+  bag_add(p, random(["flame", "rubber", "smoke", "spring"]))
+  kit_later(p, 4.5, func()
+    choose_side(p)
+    p.message("🎁 かばんに果実が入っています！🎒で食べよう", 3)
+  end)
+  -- えらばないままなら海賊に
+  kit_later(p, 25, func()
+    if p.team == nil then set_side(p, "pirate") end
+  end)
 end
 
 on start()
-  game.respawn_time = 4
-  for i in 1 to 6 do spawn_bandit() end
-  every(12, func()
-    let count = len(filter(npcs(), func(n) return n.kind == "bandit" end))
-    if count < 8 then spawn_bandit() end
+  every(10, func()
+    kit_leaderboard("⭐ レベル")
   end)
-  every(40, func()
-    if len(blocks("fruit")) < 3 then
-      let spot = block("Fruit Spot " + random(1, 8))
-      let key = random(fruit_keys)
-      create_block({name: key, shape: "sphere", position: spot.position + {x: 0, y: 1.2, z: 0}, size: 1.2,
-                    color: fruits[key].color, material: "neon", tags: ["fruit"], behavior: "trigger"})
-    end
-  end)
-  every(180, func()
-    if boss == nil or not boss.alive then spawn_boss() end
-  end)
-end
-
-on join(p)
-  kit_welcome(p)
-  p.team = "crew"
-  p.level = 1
-  p.xp = 0
-  p.give("カタナ")
-  kit_give(p, 50)
-  kit_shop_button(p)
-  show_stats(p)
-end
-
-on tick(dt)
-  for n in npcs() do
-    if n.kind == "bandit" then
-      if kit_chase(n, 22, 9, dt) == nil and n.home_spot != nil then n.move_to(n.home_spot) end
-    elif n.kind == "boss" then
-      let t = kit_chase(n, 45, 30, dt)
-      if t != nil and random() < 0.04 then n.shoot(t) end
-    end
-  end
-  -- 海では泳ぐのでおそくなる
-  for p in players() do
-    let want = 1
-    if p.y < -0.3 then want = 0.6 end
-    if p.speed < 2 and abs(p.speed - want) > 0.05 then p.speed = want end
-  end
-end
-
-on hit(victim, attacker, damage)
-  if not attacker.is_npc then
-    if victim.kind == "boss" then
-      boss_damage[attacker.id] = (boss_damage[attacker.id] or 0) + damage
-    end
-    return damage * (1 + (attacker.level - 1) * 0.12)
-  end
-  return damage
-end
-
-on death(victim, killer)
-  if victim.is_npc then
-    if killer != nil and not killer.is_npc then
-      if victim.kind == "boss" then
-        announce("🏆 海の巨人をたおした！", 4)
-        for p in players() do
-          let share = boss_damage[p.id] or 0
-          if share > 0 then gain(p, 300 + floor(share / 10), 800) end
-        end
-        boss = nil
-      else
-        gain(killer, 25, 20)
-      end
-    end
-  else
-    victim.message("やられた…スタート島にもどります", 2)
-  end
-end
-
-on respawn(p)
-  if not p.is_npc then show_stats(p) end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "fruit") then
-    let key = b.name
-    b.destroy()
-    eat(p, key)
-    announce(p.name + " が " + fruits[key].name + " を見つけた！", 2)
-  end
-end
-
-on button(p, id)
-  if id == "skill" then use_skill(p) end
 end

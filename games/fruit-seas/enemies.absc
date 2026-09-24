@@ -1,0 +1,367 @@
+-- enemies.absc — 敵とボス
+-- 島ごとに2種類の敵（5体まで）がキャンプのまわりにいる。近づくとおそってくる。
+-- ボスは島のボス広場に出る。技: たたきつけ・とっしん・手下よび・雨・こおりの波・雷。
+-- ボスは体力が半分になると怒って技が速くなる。たおすと手伝った人みんなにごほうび。
+
+let ENEMY_CAP = 5
+let BOSS_RESPAWN = 60
+let bosses = {}       -- 島id → ボスNPC
+let boss_next = {}    -- 島id → 次に出てくる時間
+let givers = {}       -- 島id → クエストの人
+let ai_clock = 0
+let spawn_toggle = 0
+
+-- 遠くからうつ敵の銃（ダメージは敵ごと）
+for key in keys(ENEMIES) do
+  let e = ENEMIES[key]
+  if e.ranged then
+    weapon("enemy_" + key, {model: "rifle", damage: e.dmg, rate: 0.6, range: 45, ammo: 100000, reload: 0, spread: 3})
+  end
+end
+
+-- MARK: 出す
+
+func alive_on(isl, kind)
+  let n = 0
+  for c in npcs() do
+    if c.island == isl.id and c.kind == kind then n = n + 1 end
+  end
+  return n
+end
+
+func spawn_enemy(isl, key, near)
+  let e = ENEMIES[key]
+  let camp = block(isl.name + " Camp")
+  if camp == nil then return nil end
+  let base = near or camp.position
+  let a = random() * 360
+  let d = 1 + random() * 6
+  let n = create_npc({name: e.name + " Lv." + e.level, position: base + {x: cos(a) * d, y: 1, z: sin(a) * d},
+                      color: e.color, head_color: e.head, size: e.size, health: e.hp, speed: e.speed, team: "enemy"})
+  n.kind = "enemy"
+  n.etype = key
+  n.island = isl.id
+  n.home = camp.position
+  n.next_hit = 0
+  n.next_shot = time() + 1
+  n.next_wander = 0
+  if e.ranged then n.give("enemy_" + key) end
+  return n
+end
+
+func spawn_boss(isl)
+  let b = BOSSES[isl.boss]
+  let arena = block(isl.name + " Boss")
+  if arena == nil then return end
+  let n = create_npc({name: "👑 " + b.name, position: arena.position + {x: 0, y: 2, z: 0}, color: b.color, head_color: b.head,
+                      size: b.size, health: b.hp, speed: 0.8, team: "enemy"})
+  n.kind = "boss"
+  n.boss_id = isl.boss
+  n.island = isl.id
+  n.home = arena.position
+  n.dmg = {}
+  n.next_skill = time() + 5
+  n.next_hit = 0
+  n.angry = false
+  n.skill_i = 0
+  bosses[isl.id] = n
+  announce("👑 " + isl.jp + " に " + b.name + "（Lv." + b.level + "）があらわれた！", 3.5)
+end
+
+func spawn_giver(isl)
+  let spot = block(isl.name + " Quest")
+  if spot == nil then return end
+  let n = create_npc({name: "📜 " + isl.jp, position: spot.position + {x: 0, y: 1, z: 0}, color: "#FDE047", head_color: "#FDE68A",
+                      health: 1000000000, speed: 0, team: "friend"})
+  n.kind = "giver"
+  n.island = isl.id
+  givers[isl.id] = n
+end
+
+func keep_spawning()
+  spawn_toggle = spawn_toggle + 1
+  for isl in ISLANDS do
+    if givers[isl.id] == nil or not kit_here(givers[isl.id]) then spawn_giver(isl) end
+    if len(isl.enemies) > 0 and alive_on(isl, "enemy") < ENEMY_CAP then
+      let key = isl.enemies[spawn_toggle % len(isl.enemies) + 1]
+      spawn_enemy(isl, key, nil)
+    end
+    if isl.boss != nil then
+      let b = bosses[isl.id]
+      if (b == nil or not kit_here(b)) and time() >= (boss_next[isl.id] or 0) then spawn_boss(isl) end
+    end
+  end
+end
+
+-- MARK: ねらう相手
+
+func target_for(n, sight, leash)
+  let best = nil
+  let best_d = sight
+  for p in players() do
+    if p.alive and p.visible then
+      let d = distance(n, p)
+      if d < best_d and distance(p, n.home) < leash and abs(p.y - n.y) < 10 then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+-- MARK: ふつうの敵
+
+func enemy_ai(n)
+  let e = ENEMIES[n.etype]
+  let t = target_for(n, 18, 36)
+  if t != nil then
+    if e.ranged then
+      if distance(n, t) > 14 then n.follow(t) else n.stop() end
+      n.look_at(t)
+      if time() > n.next_shot then
+        n.shoot(t)
+        n.next_shot = time() + 1.6
+      end
+    else
+      n.follow(t)
+      if distance(n, t) < 2.4 + e.size * 0.6 and time() > n.next_hit then
+        hurt(n, t, e.dmg, "enemy", nil)
+        n.next_hit = time() + 1
+      end
+    end
+  elif distance(n, n.home) > 9 then
+    n.move_to(n.home)
+  elif time() > n.next_wander then
+    n.next_wander = time() + random(4, 9)
+    let a = random() * 360
+    n.move_to(n.home + {x: cos(a) * 6, y: 0, z: sin(a) * 6})
+  end
+end
+
+-- MARK: ボス
+
+func boss_area(n, center, r, amount, effect)
+  for p in players() do
+    if p.alive and distance(center, p) <= r then hurt(n, p, amount, "boss", effect) end
+  end
+end
+
+func boss_skill(n)
+  let b = BOSSES[n.boss_id]
+  let t = target_for(n, 32, 40)
+  if t == nil then return end
+  n.skill_i = n.skill_i % len(b.skills) + 1
+  let skill = b.skills[n.skill_i]
+  if skill == "slam" then
+    n.say("ドーン！")
+    let spot = n.position
+    fx_warning(spot, 8, 1)
+    after(1, func()
+      if kit_here(n) then
+        fx_ball(spot + {x: 0, y: 1, z: 0}, 16, b.color, 0.4)
+        boss_area(n, spot, 8, b.dmg * 2, "launch")
+      end
+    end)
+  elif skill == "charge" then
+    n.say("うおおお！")
+    let d = normalize(t.position - n.position)
+    n.launch(d.x * 26, 4, d.z * 26)
+    after(0.6, func()
+      if kit_here(n) then boss_area(n, n.position, 4 + b.size, b.dmg * 1.6, "launch") end
+    end)
+  elif skill == "summon" then
+    n.say("手下ども、かかれ！")
+    let isl = island_by_id(n.island)
+    let helpers = 0
+    for c in npcs() do
+      if c.summoned == n.id then helpers = helpers + 1 end
+    end
+    if len(isl.enemies) > 0 and helpers < 3 then
+      for k in 1 to 2 do
+        let m = spawn_enemy(isl, isl.enemies[1], n.position)
+        if m != nil then m.summoned = n.id end
+      end
+    end
+  elif skill == "rain" then
+    n.say("ふりそそげ！")
+    let k = 0
+    for p in players() do
+      if p.alive and distance(n, p) < 32 then
+        for j in 1 to 2 do
+          k = k + 1
+          let spot = p.position + {x: random(-3, 3), y: 0, z: random(-3, 3)}
+          let delay = 0.9 + k * 0.15
+          fx_warning(spot, 3, delay)
+          after(delay, func()
+            if kit_here(n) then
+              fx_ball(spot + {x: 0, y: 1, z: 0}, 5, b.head, 0.3)
+              boss_area(n, spot, 3, b.dmg * 1.5, nil)
+            end
+          end)
+        end
+      end
+    end
+  elif skill == "nova" then
+    n.say("こおりつけ！")
+    let spot = n.position
+    fx_warning(spot, 11, 1.2)
+    after(1.2, func()
+      if kit_here(n) then
+        fx_ball(spot + {x: 0, y: 1, z: 0}, 22, "#BAE6FD", 0.5)
+        boss_area(n, spot, 11, b.dmg * 1.4, "freeze")
+      end
+    end)
+  elif skill == "bolt" then
+    n.say("雷よ！")
+    for p in players() do
+      if p.alive and distance(n, p) < 32 then
+        let spot = p.position
+        fx_warning(spot, 2.5, 0.8)
+        after(0.8, func()
+          if kit_here(n) then
+            fx_beam(spot + {x: 0, y: 14, z: 0}, {x: 0, y: -1, z: 0}, 14, "#FDE047", 1)
+            boss_area(n, spot, 2.5, b.dmg * 2.2, "stun")
+          end
+        end)
+      end
+    end
+  end
+end
+
+func boss_ai(n)
+  let b = BOSSES[n.boss_id]
+  if not n.angry and n.health < n.max_health * 0.5 then
+    n.angry = true
+    n.color = "#DC2626"
+    announce("💢 " + b.name + " が怒った！", 2)
+  end
+  let t = target_for(n, 30, 40)
+  if t == nil then
+    if distance(n, n.home) > 6 then n.move_to(n.home) end
+    -- だれもいないと少しずつ回復
+    if n.health < n.max_health then n.heal(n.max_health * 0.01) end
+    return
+  end
+  n.follow(t)
+  if distance(n, t) < 2 + b.size * 0.8 and time() > n.next_hit then
+    hurt(n, t, b.dmg, "boss", nil)
+    n.next_hit = time() + 1.2
+  end
+  if time() > n.next_skill then
+    let gap = 7
+    if n.angry then gap = 4.5 end
+    n.next_skill = time() + gap
+    boss_skill(n)
+  end
+end
+
+-- ボスの近くにいる人に体力バー
+func boss_bars()
+  for p in players() do
+    let near = nil
+    for key in keys(bosses) do
+      let n = bosses[key]
+      if n != nil and kit_here(n) and n.alive and distance(p, n) < 45 then near = n end
+    end
+    if near != nil then
+      let b = BOSSES[near.boss_id]
+      set_line(p, "boss_name", "👑 " + b.name + " Lv." + b.level + "   " + kit_short(near.health) + " / " + kit_short(near.max_health),
+               {at: "top", dy: 150, size: 16, bold: true, color: "#FCA5A5"})
+      set_bar(p, "boss_hp", near.health, near.max_health, {at: "top", dy: 174, w: 360, h: 14, color: "#DC2626"})
+    elif p.lines != nil and p.lines["boss_name"] != nil then
+      set_line(p, "boss_name", nil, nil)
+      p.ui_remove("boss_hp")
+      p.bars["boss_hp"] = nil
+    end
+  end
+end
+
+-- MARK: たおしたとき
+
+func enemy_died(n, killer)
+  let e = ENEMIES[n.etype]
+  if e == nil or killer == nil or killer.is_npc then return end
+  -- レベル差が大きいと経験値が減る（弱い敵ばかりではレベルが上がりにくい）
+  let gap = killer.level - e.level
+  let xp = e.xp
+  if gap > 20 then xp = max(1, floor(xp * 0.3)) end
+  reward(killer, xp, e.coins, "")
+  if n.last_kind == "fruit" and killer.fruit != nil then
+    killer.mastery[killer.fruit] = mastery_of(killer, killer.fruit) + 3
+  end
+  killer.kills = (killer.kills or 0) + 1
+  kit_quest_progress(killer, "kill50", 1)
+  quest_kill(killer, n.etype)
+end
+
+func boss_died(n, killer)
+  let b = BOSSES[n.boss_id]
+  bosses[n.island] = nil
+  boss_next[n.island] = time() + BOSS_RESPAWN
+  let total = 0
+  for id in keys(n.dmg or {}) do total = total + n.dmg[id] end
+  let top = nil
+  let top_d = 0
+  for id in keys(n.dmg or {}) do
+    let p = player_by_id(id)
+    if p != nil then
+      let frac = n.dmg[id] / max(1, total)
+      reward(p, b.xp * (0.4 + 0.6 * frac), b.coins * (0.4 + 0.6 * frac), "👑 " + b.name + " 討伐")
+      kit_quest_progress(p, "boss", 1)
+      quest_boss(p, n.boss_id)
+      add_bounty(p, b.level * 20)
+      if n.dmg[id] > top_d then
+        top = p
+        top_d = n.dmg[id]
+      end
+    end
+  end
+  announce("🏆 " + b.name + " をたおした！", 3.5)
+  sound("goal")
+  if top != nil then
+    if b.drop != nil and random() < b.chance and not contains(top.swords, b.drop) then
+      grant_sword(top, b.drop)
+      announce("🎁 " + top.name + " が " + sword_by_id(b.drop).name + " を手に入れた！", 3.5)
+    end
+    if random() < 0.12 then
+      let key = random_fruit()
+      if bag_add(top, key) then top.message("🎁 ボスが " + fruit_label(key) + " を落とした！", 3) end
+    end
+  end
+end
+
+on start()
+  game.respawn_time = 4
+  for isl in ISLANDS do spawn_giver(isl) end
+  for isl in ISLANDS do
+    for k in 1 to 3 do
+      if len(isl.enemies) > 0 then spawn_enemy(isl, isl.enemies[(k % len(isl.enemies)) + 1], nil) end
+    end
+    if isl.boss != nil then boss_next[isl.id] = time() + 20 end
+  end
+  every(4, func() keep_spawning() end)
+end
+
+on tick(dt)
+  ai_clock = ai_clock + dt
+  if ai_clock < 0.3 then return end
+  ai_clock = 0
+  for n in npcs() do
+    if kit_here(n) and n.alive then
+      if n.kind == "enemy" then enemy_ai(n)
+      elif n.kind == "boss" then boss_ai(n)
+      end
+    end
+  end
+  boss_bars()
+end
+
+on death(victim, killer)
+  if not victim.is_npc then return end
+  if victim.kind == "enemy" then
+    enemy_died(victim, killer)
+  elif victim.kind == "boss" then
+    boss_died(victim, killer)
+  end
+end

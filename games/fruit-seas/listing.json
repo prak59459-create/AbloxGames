@@ -1,11 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 100,
+  "blockCount" : 291,
   "id" : "fruit-seas",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/fruit-seas\/data.absc",
+    "games\/fruit-seas\/combat.absc",
+    "games\/fruit-seas\/common.absc",
+    "games\/fruit-seas\/enemies.absc",
+    "games\/fruit-seas\/fruits.absc",
+    "games\/fruit-seas\/gear.absc",
+    "games\/fruit-seas\/islands.absc",
+    "games\/fruit-seas\/pvp.absc",
     "games\/fruit-seas\/main.absc"
   ],
   "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",

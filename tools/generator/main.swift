@@ -82,7 +82,10 @@ for game in Catalogue.games {
         // Again with rich robots, who can buy everything.
         let rich = Harness.play(playable, seconds: quick ? 40 : 150, seed: 29, rich: true)
         problems += rich.errors.filter { !report.errors.contains($0) }.map { "play (rich): \($0)" }
-        if verbose { for line in report.output.prefix(40) { print("    print: \(line)") } }
+        if verbose {
+            for line in report.output.prefix(40) { print("    print: \(line)") }
+            print("    buttons: " + report.buttonsPressed.union(rich.buttonsPressed).sorted().joined(separator: " "))
+        }
         let lines = playable.scripts.dropFirst().reduce(0) { $0 + $1.source.split(separator: "\n", omittingEmptySubsequences: false).count }
         note = "\(playable.scripts.count - 1) files, \(lines) lines, \(world.blocks.count) blocks, \(report.buttonsPressed.count) buttons, \(report.touches) touches, "
             + "\(report.npcsSeen) npcs max, \(report.blocksAtEnd) blocks after" + (report.roundEnded ? ", round ended" : "")

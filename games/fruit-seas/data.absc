@@ -1,0 +1,166 @@
+-- data.absc — Fruit Seas の表（島・敵・ボス・果実と技・剣・銃・拳法・称号）
+-- 数字を変えるとゲームのバランスが変わる。ほかのファイルは読むだけ。
+
+let MAX_LEVEL = 250
+
+-- MARK: 島（地図の名前・中心・半径・入れるレベル・敵・ボス）
+let ISLANDS = [
+  {id: "start", name: "Start Island", jp: "はじまりの島", level: 0, x: 0, z: 0, r: 22, y: 0.6, enemies: [], boss: nil},
+  {id: "pirate", name: "Pirate Islet", jp: "海賊の小島", level: 1, x: 40, z: 32, r: 12, y: 0.6, enemies: ["rookie", "deckhand"], boss: "captain"},
+  {id: "jungle", name: "Jungle Island", jp: "ジャングル島", level: 10, x: 75, z: -40, r: 26, y: 0.6, enemies: ["bandit", "monkey"], boss: "ape"},
+  {id: "desert", name: "Desert Island", jp: "砂漠の島", level: 30, x: -80, z: -55, r: 30, y: 0.6, enemies: ["sandman", "scorpion"], boss: "general"},
+  {id: "snow", name: "Snow Island", jp: "雪の島", level: 60, x: 10, z: 95, r: 22, y: 0.6, enemies: ["yeti", "icesoldier"], boss: "queen"},
+  {id: "fort", name: "Marine Fort", jp: "海軍のとりで", level: 90, x: -95, z: 55, r: 22, y: 0.6, enemies: ["marine", "sniper"], boss: "colonel"},
+  {id: "volcano", name: "Volcano Island", jp: "火山島", level: 130, x: 110, z: 75, r: 24, y: 0.6, enemies: ["golem", "flame"], boss: "demon"},
+  {id: "sky", name: "Sky Island", jp: "空島", level: 180, x: -10, z: -115, r: 20, y: 40.2, enemies: ["skyguard", "cloudkeeper"], boss: "thunder"}
+]
+
+-- MARK: 敵（ranged: 銃でうってくる）
+let ENEMIES = {
+  rookie: {name: "見習い海賊", level: 2, hp: 60, dmg: 6, xp: 16, coins: 12, color: "#7C2D12", head: "#F5D0A9", size: 1, speed: 0.75},
+  deckhand: {name: "甲板そうじ係", level: 5, hp: 90, dmg: 8, xp: 22, coins: 16, color: "#B45309", head: "#F5D0A9", size: 1, speed: 0.8},
+  bandit: {name: "山賊", level: 12, hp: 180, dmg: 12, xp: 45, coins: 32, color: "#78350F", head: "#E7B98A", size: 1.1, speed: 0.8},
+  monkey: {name: "暴れザル", level: 16, hp: 220, dmg: 14, xp: 55, coins: 38, color: "#92400E", head: "#D6A77A", size: 0.8, speed: 1.2},
+  sandman: {name: "砂賊", level: 32, hp: 480, dmg: 22, xp: 110, coins: 75, color: "#CA8A04", head: "#FDE68A", size: 1.1, speed: 0.85},
+  scorpion: {name: "大サソリ", level: 38, hp: 600, dmg: 26, xp: 130, coins: 85, color: "#3F3F46", head: "#71717A", size: 0.7, speed: 1.1},
+  yeti: {name: "雪男", level: 62, hp: 1100, dmg: 38, xp: 240, coins: 150, color: "#F8FAFC", head: "#CBD5E1", size: 1.6, speed: 0.8},
+  icesoldier: {name: "氷の兵士", level: 68, hp: 1200, dmg: 40, xp: 260, coins: 165, color: "#7DD3FC", head: "#E0F2FE", size: 1.1, speed: 0.85},
+  marine: {name: "海兵", level: 92, hp: 1800, dmg: 50, xp: 380, coins: 230, color: "#F8FAFC", head: "#1E3A8A", size: 1, speed: 0.9, ranged: true},
+  sniper: {name: "狙撃海兵", level: 98, hp: 1500, dmg: 70, xp: 400, coins: 250, color: "#1E3A8A", head: "#F8FAFC", size: 1, speed: 0.7, ranged: true},
+  golem: {name: "溶岩ゴーレム", level: 132, hp: 3000, dmg: 70, xp: 560, coins: 340, color: "#44403C", head: "#F97316", size: 1.7, speed: 0.7},
+  flame: {name: "炎の精", level: 140, hp: 2600, dmg: 80, xp: 590, coins: 360, color: "#F97316", head: "#FDE047", size: 0.9, speed: 1.3},
+  skyguard: {name: "天空の兵士", level: 182, hp: 4500, dmg: 95, xp: 820, coins: 500, color: "#FDE68A", head: "#FFFFFF", size: 1.2, speed: 0.95, ranged: true},
+  cloudkeeper: {name: "雲の番人", level: 190, hp: 5000, dmg: 105, xp: 860, coins: 520, color: "#E0E7FF", head: "#A5B4FC", size: 1.4, speed: 0.9}
+}
+
+-- MARK: ボス（skills: slam / charge / summon / rain / nova / bolt）
+let BOSSES = {
+  captain: {name: "ヒゲの船長", level: 8, hp: 900, dmg: 14, xp: 300, coins: 300, color: "#991B1B", head: "#F5D0A9", size: 2,
+            skills: ["slam", "summon"], drop: "cutlass", chance: 0.35},
+  ape: {name: "森の大猿", level: 25, hp: 3500, dmg: 26, xp: 900, coins: 900, color: "#78350F", head: "#A16207", size: 3.2,
+        skills: ["slam", "charge"], drop: "twin", chance: 0.2},
+  general: {name: "砂の将軍", level: 50, hp: 8000, dmg: 40, xp: 2000, coins: 2000, color: "#A16207", head: "#FDE68A", size: 2.6,
+            skills: ["rain", "summon", "charge"], drop: nil, chance: 0},
+  queen: {name: "氷の女王", level: 80, hp: 16000, dmg: 55, xp: 3800, coins: 3500, color: "#BAE6FD", head: "#F0F9FF", size: 2.6,
+          skills: ["nova", "rain", "summon"], drop: "icekatana", chance: 0.2},
+  colonel: {name: "鉄拳の大佐", level: 115, hp: 28000, dmg: 75, xp: 6500, coins: 6000, color: "#F8FAFC", head: "#1E3A8A", size: 2.8,
+            skills: ["charge", "slam", "rain"], drop: "black", chance: 0.12},
+  demon: {name: "炎の魔神", level: 160, hp: 45000, dmg: 100, xp: 11000, coins: 10000, color: "#7F1D1D", head: "#F97316", size: 3.6,
+          skills: ["rain", "slam", "nova"], drop: nil, chance: 0},
+  thunder: {name: "天空の雷帝", level: 220, hp: 80000, dmg: 130, xp: 20000, coins: 20000, color: "#FACC15", head: "#FFFFFF", size: 3,
+            skills: ["bolt", "nova", "rain", "charge"], drop: "skyblade", chance: 0.15}
+}
+
+-- MARK: 果実
+-- 技の kind: beam（まっすぐ）/ blast（まわり）/ dash（とっしん）/ rain（ふりそそぐ）/ pull（ひきよせ）
+--           freeze（こおらせる）/ shield（守り）/ heal（回復）/ fly（空へ）/ invis（消える）
+-- effect: burn（やけど）/ freeze / stun / slow / launch（ふっとばす）
+-- mastery: その技を使えるようになる熟練度
+let RARITY = {
+  common: {name: "コモン", color: "#9CA3AF", weight: 40, price: 800},
+  uncommon: {name: "アンコモン", color: "#22C55E", weight: 25, price: 2500},
+  rare: {name: "レア", color: "#3B82F6", weight: 12, price: 6000},
+  legendary: {name: "レジェンド", color: "#A855F7", weight: 5, price: 15000},
+  mythic: {name: "ミシック", color: "#F43F5E", weight: 2, price: 40000}
+}
+
+let FRUITS = {
+  flame: {name: "炎の実", rarity: "common", color: "#F97316", moves: [
+    {name: "火の拳", kind: "beam", power: 1.2, range: 24, cd: 3, effect: "burn", mastery: 0},
+    {name: "炎の輪", kind: "blast", power: 1.6, r: 9, cd: 7, effect: "burn", mastery: 30},
+    {name: "炎の柱", kind: "rain", power: 1.2, r: 7, range: 14, count: 4, cd: 11, effect: "burn", mastery: 100}]},
+  rubber: {name: "ゴムの実", rarity: "common", color: "#FB7185", moves: [
+    {name: "ゴムの銃", kind: "beam", power: 1.5, range: 14, cd: 3, effect: "launch", mastery: 0},
+    {name: "ゴムの風船", kind: "shield", secs: 5, cd: 14, mastery: 30},
+    {name: "ゴムのガトリング", kind: "rain", power: 0.8, r: 4, range: 6, count: 7, cd: 10, effect: nil, mastery: 100}]},
+  smoke: {name: "煙の実", rarity: "common", color: "#A8A29E", moves: [
+    {name: "煙の拳", kind: "beam", power: 1.1, range: 18, cd: 3, effect: "slow", mastery: 0},
+    {name: "けむりがくれ", kind: "invis", secs: 5, cd: 16, mastery: 30},
+    {name: "煙の竜巻", kind: "pull", power: 1.4, r: 12, cd: 11, effect: "slow", mastery: 100}]},
+  spring: {name: "バネの実", rarity: "common", color: "#EC4899", moves: [
+    {name: "バネの蹴り", kind: "dash", power: 1.3, speed: 30, r: 5, cd: 4, effect: "launch", mastery: 0},
+    {name: "大ジャンプ", kind: "fly", secs: 3, lift: 28, cd: 8, mastery: 30},
+    {name: "バネの衝撃", kind: "blast", power: 2, r: 10, cd: 10, effect: "launch", mastery: 100}]},
+  ice: {name: "氷の実", rarity: "uncommon", color: "#7DD3FC", moves: [
+    {name: "氷の矢", kind: "beam", power: 1.2, range: 26, cd: 3, effect: "slow", mastery: 0},
+    {name: "氷の床", kind: "freeze", power: 1, r: 11, secs: 2.5, cd: 12, mastery: 30},
+    {name: "氷河時代", kind: "freeze", power: 2.2, r: 16, secs: 4, cd: 20, mastery: 100}]},
+  sand: {name: "砂の実", rarity: "uncommon", color: "#D6B45A", moves: [
+    {name: "砂の刃", kind: "beam", power: 1.3, range: 22, cd: 3, effect: nil, mastery: 0},
+    {name: "流砂", kind: "pull", power: 1.3, r: 11, cd: 9, effect: "slow", mastery: 30},
+    {name: "砂嵐", kind: "rain", power: 1.1, r: 9, range: 12, count: 6, cd: 14, effect: "slow", mastery: 100}]},
+  stone: {name: "岩の実", rarity: "uncommon", color: "#78716C", moves: [
+    {name: "岩投げ", kind: "beam", power: 1.6, range: 18, cd: 4, effect: "stun", mastery: 0},
+    {name: "岩の鎧", kind: "shield", secs: 7, cd: 18, mastery: 30},
+    {name: "地震", kind: "blast", power: 2.2, r: 13, cd: 14, effect: "launch", mastery: 100}]},
+  thunder: {name: "雷の実", rarity: "rare", color: "#FACC15", moves: [
+    {name: "稲妻", kind: "dash", power: 1.5, speed: 42, r: 5, cd: 4, effect: "stun", mastery: 0},
+    {name: "放電", kind: "blast", power: 1.8, r: 10, cd: 8, effect: "stun", mastery: 30},
+    {name: "雷雨", kind: "rain", power: 1.5, r: 10, range: 14, count: 7, cd: 15, effect: "stun", mastery: 100}]},
+  light: {name: "光の実", rarity: "rare", color: "#FEF08A", moves: [
+    {name: "光線", kind: "beam", power: 1.5, range: 40, cd: 3, effect: nil, mastery: 0},
+    {name: "光速移動", kind: "dash", power: 1.2, speed: 60, r: 4, cd: 5, effect: nil, mastery: 30},
+    {name: "光の雨", kind: "rain", power: 1.4, r: 11, range: 18, count: 8, cd: 15, effect: nil, mastery: 100}]},
+  dark: {name: "闇の実", rarity: "legendary", color: "#4C1D95", moves: [
+    {name: "闇の手", kind: "pull", power: 1.5, r: 14, cd: 6, effect: "stun", mastery: 0},
+    {name: "黒い渦", kind: "blast", power: 2.2, r: 11, cd: 10, effect: "slow", mastery: 30},
+    {name: "闇の世界", kind: "freeze", power: 3, r: 18, secs: 3, cd: 22, mastery: 100}]},
+  soul: {name: "魂の実", rarity: "mythic", color: "#F0ABFC", moves: [
+    {name: "魂の雷", kind: "beam", power: 2, range: 30, cd: 3, effect: "stun", mastery: 0},
+    {name: "魂の回復", kind: "heal", power: 0.5, r: 12, cd: 14, mastery: 30},
+    {name: "魂の嵐", kind: "rain", power: 2.2, r: 12, range: 16, count: 8, cd: 16, effect: "burn", mastery: 100}]},
+  dragon: {name: "龍の実", rarity: "mythic", color: "#DC2626", moves: [
+    {name: "竜の息", kind: "beam", power: 2.2, range: 30, cd: 4, effect: "burn", mastery: 0},
+    {name: "竜の飛行", kind: "fly", secs: 6, lift: 18, cd: 12, mastery: 30},
+    {name: "竜の咆哮", kind: "blast", power: 3.2, r: 18, cd: 18, effect: "launch", mastery: 100}]}
+}
+let FRUIT_ORDER = ["flame", "rubber", "smoke", "spring", "ice", "sand", "stone", "thunder", "light", "dark", "soul", "dragon"]
+let MOVE_KEYS = ["Z", "X", "C"]
+let AWAKEN_MASTERY = 300
+let AWAKEN_PRICE = 25000
+
+-- MARK: 剣（skill: ⚔️ボタンの技）
+let SWORDS = [
+  {id: "katana", name: "カタナ", damage: 18, rate: 2.5, reach: 6, price: 0, level: 0, skill: "居合い斬り"},
+  {id: "cutlass", name: "海賊のカトラス", damage: 28, rate: 2.3, reach: 6.5, price: 400, level: 8, skill: "回転斬り"},
+  {id: "twin", name: "双剣", damage: 38, rate: 3.2, reach: 6, price: 1500, level: 25, skill: "乱れ斬り"},
+  {id: "icekatana", name: "氷の刀", damage: 52, rate: 2.5, reach: 7, price: 4000, level: 60, skill: "氷結斬り"},
+  {id: "black", name: "黒刀", damage: 72, rate: 2.4, reach: 7.5, price: 9000, level: 100, skill: "黒い斬撃"},
+  {id: "skyblade", name: "天空の剣", damage: 100, rate: 2.6, reach: 8, price: 25000, level: 170, skill: "天の裁き"}
+]
+
+-- MARK: 銃
+let GUNS = [
+  {id: "flintlock", name: "フリントロック", model: "pistol", damage: 22, rate: 1.6, range: 60, ammo: 6, reload: 1.4, price: 600, level: 5},
+  {id: "musket", name: "マスケット銃", model: "rifle", damage: 45, rate: 0.9, range: 90, ammo: 4, reload: 2, price: 2500, level: 30},
+  {id: "blunder", name: "ラッパ銃", model: "shotgun", damage: 18, rate: 0.8, range: 25, ammo: 5, reload: 2, price: 5000, level: 60},
+  {id: "handcannon", name: "手持ち大砲", model: "rifle", damage: 110, rate: 0.5, range: 80, ammo: 3, reload: 2.5, price: 14000, level: 110}
+]
+
+-- MARK: 拳法（👊ボタンの技）
+let STYLES = [
+  {id: "basic", name: "基本の拳", kind: "blast", power: 2, r: 4, cd: 5, effect: "launch", price: 0, level: 0},
+  {id: "water", name: "水の拳", kind: "beam", power: 2.6, range: 16, cd: 6, effect: "slow", price: 1500, level: 20},
+  {id: "electric", name: "電気の拳", kind: "dash", power: 3, speed: 40, r: 5, cd: 7, effect: "stun", price: 5000, level: 50},
+  {id: "dragonfist", name: "龍の拳", kind: "blast", power: 4.2, r: 10, cd: 10, effect: "launch", price: 15000, level: 100}
+]
+
+-- MARK: 能力（道場で覚える）
+let ABILITIES = [
+  {id: "dash", name: "💨 ソル（すばやく移動）", price: 300, level: 5},
+  {id: "aura", name: "🛡 闘気（20秒 強くなる）", price: 2500, level: 25},
+  {id: "sense", name: "👁 見聞（敵の攻撃をよける）", price: 8000, level: 60}
+]
+
+-- MARK: 称号（賞金・レベルで決まる）
+let TITLES = [
+  {level: 0, name: "見習い"}, {level: 15, name: "海の新人"}, {level: 40, name: "船乗り"},
+  {level: 80, name: "船長"}, {level: 130, name: "大海賊"}, {level: 200, name: "海の王"}
+]
+
+-- MARK: 宝箱の色（島のレベルで中身が増える）
+let CHEST_KINDS = [
+  {name: "木の宝箱", color: "#A16207", mult: 1, weight: 70},
+  {name: "銀の宝箱", color: "#CBD5E1", mult: 3, weight: 25},
+  {name: "金の宝箱", color: "#FACC15", mult: 8, weight: 5}
+]

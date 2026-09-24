@@ -1,0 +1,464 @@
+-- combat.absc — 戦いのしくみ
+-- ステータス（体術・防御・剣術・果実）、ダメージの計算、技の形（ビーム・爆発・とっしん…）、
+-- やけど・こおり・しびれ、ソルと闘気、レベルアップ、動きの速さ。
+
+let STAT_NAMES = {melee: "👊 体術", defense: "🛡 防御", sword: "⚔️ 剣術", fruit: "🍎 果実"}
+let STAT_HELP = {melee: "拳法の技が強くなる", defense: "体力が増えて、ダメージが減る", sword: "剣と剣の技が強くなる", fruit: "果実の技が強くなる"}
+let STAT_ORDER = ["melee", "defense", "sword", "fruit"]
+
+func stat(p, key)
+  if p.stats == nil then return 0 end
+  return p.stats[key] or 0
+end
+
+func mastery_of(p, key)
+  if p.mastery == nil or key == nil then return 0 end
+  return p.mastery[key] or 0
+end
+
+func refresh_max_health(p)
+  let hp = 100 + p.level * 10 + stat(p, "defense") * 12
+  if p.max_health != hp then
+    let full = p.health >= p.max_health
+    p.max_health = hp
+    if full then p.heal(hp) end
+  end
+end
+
+-- MARK: レベル
+
+func gain_xp(p, amount)
+  if not kit_here(p) or p.level >= MAX_LEVEL then return end
+  p.xp = p.xp + floor(amount)
+  let ups = 0
+  while p.xp >= need_xp(p.level) and p.level < MAX_LEVEL do
+    p.xp = p.xp - need_xp(p.level)
+    p.level = p.level + 1
+    p.points = p.points + 3
+    ups = ups + 1
+  end
+  if ups > 0 then
+    refresh_max_health(p)
+    p.heal(p.max_health)
+    p.message("⬆️ レベル " + p.level + "！ ステータスポイント +" + ups * 3 + "（📊で割りふろう）", 3)
+    p.sound("goal")
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 4, "#FDE047", 0.6)
+    if floor(p.level / 10) > floor((p.level - ups) / 10) then announce("⭐ " + p.name + " がレベル " + p.level + " になった！", 3) end
+    kit_quest_progress(p, "lv10", ups)
+    kit_quest_progress(p, "lv50", ups)
+    kit_quest_progress(p, "lv120", ups)
+    menu_refresh(p)
+  end
+  hud(p)
+end
+
+func reward(p, xp, coins, why)
+  if not kit_here(p) then return end
+  kit_give(p, floor(coins))
+  gain_xp(p, xp)
+  if why != nil then p.message("+" + kit_short(xp) + " XP  💰+" + kit_short(coins) + "  " + why, 1.6) end
+end
+
+-- MARK: 強さ
+
+-- kind: sword / fruit / melee / gun
+func power_of(p, kind)
+  let m = 1
+  if kind == "sword" then m = 1 + stat(p, "sword") * 0.02 end
+  if kind == "fruit" then
+    m = (1 + stat(p, "fruit") * 0.025) * (1 + min(mastery_of(p, p.fruit), 400) * 0.002)
+    if contains(p.awakened, p.fruit) then m = m * 1.3 end
+  end
+  if kind == "melee" then m = 1 + stat(p, "melee") * 0.02 end
+  if kind == "gun" then m = 1 + (stat(p, "sword") + stat(p, "melee")) * 0.008 + p.level * 0.004 end
+  if p.aura_until != nil and time() < p.aura_until then m = m * 1.25 end
+  return m
+end
+
+func fruit_base(p) return 20 + p.level * 4 end
+func melee_base(p) return 15 + p.level * 3 end
+func sword_base(p) return current_sword(p).damage end
+
+-- 受けるダメージの倍率（防御・闘気・守りの技）
+func taken_factor(v)
+  if v.is_npc then return 1 end
+  let f = 1 - min(0.6, stat(v, "defense") * 0.003)
+  if v.aura_until != nil and time() < v.aura_until then f = f * 0.75 end
+  if v.shield_until != nil and time() < v.shield_until then f = f * 0.35 end
+  return f
+end
+
+-- a が v をこうげきしていいか
+func can_hurt(a, v)
+  if a == nil or not kit_here(v) or not v.alive or a.id == v.id then return false end
+  if v.is_npc then
+    if v.kind == "giver" then return false end
+    return not a.is_npc
+  end
+  if a.is_npc then return true end
+  return pvp_ok(a, v)
+end
+
+-- MARK: ダメージ
+
+func hurt(a, v, amount, kind, effect)
+  if not can_hurt(a, v) then return 0 end
+  if not v.is_npc and kind != "touch" and contains(v.abilities, "sense") and random() < 0.2 then
+    v.message("👁 見聞でよけた！", 0.6)
+    return 0
+  end
+  let dmg = amount * taken_factor(v)
+  note_hit(a, v, dmg, kind)
+  v.damage(dmg, a)
+  if effect != nil and kit_here(v) and v.alive then apply_effect(a, v, effect, dmg) end
+  return dmg
+end
+
+-- だれがどれだけ当てたか（ボスの分け前・熟練度・とどめ）
+func note_hit(a, v, dmg, kind)
+  if v.is_npc then
+    v.last_by = a.id
+    v.last_kind = kind
+    if v.boss_id != nil then
+      if v.dmg == nil then v.dmg = {} end
+      v.dmg[a.id] = (v.dmg[a.id] or 0) + dmg
+    end
+  end
+  if not a.is_npc and kind == "fruit" and a.fruit != nil then
+    a.mastery[a.fruit] = mastery_of(a, a.fruit) + 0.6
+  end
+  if not a.is_npc and not v.is_npc then
+    v.last_by = a.id
+  end
+end
+
+func apply_effect(a, v, effect, dmg)
+  if effect == "burn" then
+    for k in 1 to 3 do
+      after(k, func()
+        if kit_here(v) and v.alive and kit_here(a) then v.damage(dmg * 0.15, a) end
+      end)
+    end
+    fx_ball(v.position + {x: 0, y: 1, z: 0}, 1.6, "#F97316", 0.4)
+  elif effect == "freeze" then
+    freeze(v, 2)
+  elif effect == "stun" then
+    freeze(v, 1)
+  elif effect == "slow" then
+    slow(v, 3)
+  elif effect == "launch" then
+    let d = normalize(v.position - a.position)
+    v.launch(d.x * 9, 9, d.z * 9)
+  end
+end
+
+func freeze(v, seconds)
+  if not kit_here(v) then return end
+  v.frozen = true
+  v.frozen_until = time() + seconds
+  after(seconds, func()
+    if kit_here(v) and time() >= (v.frozen_until or 0) - 0.05 then v.frozen = false end
+  end)
+end
+
+func slow(v, seconds)
+  if not kit_here(v) then return end
+  v.slow_until = time() + seconds
+  if v.is_npc then
+    if v.base_speed == nil then v.base_speed = v.speed end
+    v.speed = v.base_speed * 0.5
+    after(seconds, func()
+      if kit_here(v) and time() >= v.slow_until - 0.05 then v.speed = v.base_speed end
+    end)
+  else
+    move_refresh(v)
+  end
+end
+
+-- MARK: 範囲のこうげき
+
+func targets_near(a, center, r)
+  let list = []
+  for c in kit_everyone() do
+    if distance(center, c) <= r and can_hurt(a, c) then append(list, c) end
+  end
+  return list
+end
+
+func area_hit(a, center, r, amount, kind, effect)
+  let n = 0
+  for c in targets_near(a, center, r) do
+    hurt(a, c, amount, kind, effect)
+    n = n + 1
+  end
+  return n
+end
+
+func line_hit(a, from, dir, len, width, amount, kind, effect)
+  let n = 0
+  for c in kit_everyone() do
+    if can_hurt(a, c) and distance_to_line(c.position + {x: 0, y: 1, z: 0}, from, dir, len) <= width then
+      hurt(a, c, amount, kind, effect)
+      n = n + 1
+    end
+  end
+  return n
+end
+
+-- MARK: 技の形（果実・拳法・剣で共通）
+
+func do_move(p, m, kind, base, color)
+  let amount = base * (m.power or 1) * power_of(p, kind)
+  let dir = kit_dir(p.yaw)
+  let eye = p.position + {x: 0, y: 1.2, z: 0}
+  if m.kind == "beam" then
+    fx_beam(eye + dir, dir, m.range, color, 0.8)
+    return line_hit(p, eye, dir, m.range, 2.3, amount, kind, m.effect)
+  elif m.kind == "blast" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, color, 0.45)
+    p.shake(0.3, 0.3)
+    return area_hit(p, p.position, m.r, amount, kind, m.effect)
+  elif m.kind == "dash" then
+    p.launch(dir.x * m.speed, 5, dir.z * m.speed)
+    fx_beam(eye, dir, m.speed * 0.3, color, 1.2)
+    kit_later(p, 0.35, func()
+      fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, color, 0.4)
+      area_hit(p, p.position, m.r, amount, kind, m.effect)
+    end)
+    return 1
+  elif m.kind == "rain" then
+    let center = p.position + dir * m.range
+    for k in 1 to m.count do
+      let spot = {x: center.x + random(0 - m.r, m.r), y: p.y, z: center.z + random(0 - m.r, m.r)}
+      let delay = 0.3 + k * 0.18
+      fx_warning(spot, 2.4, delay)
+      after(delay, func()
+        if kit_here(p) then
+          fx_ball(spot + {x: 0, y: 1, z: 0}, 4.5, color, 0.3)
+          area_hit(p, spot, 3.2, amount * 0.7, kind, m.effect)
+        end
+      end)
+    end
+    return m.count
+  elif m.kind == "pull" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, color, 0.5)
+    let n = 0
+    for c in targets_near(p, p.position, m.r) do
+      let pull = normalize(p.position - c.position)
+      c.launch(pull.x * 14, 4, pull.z * 14)
+      hurt(p, c, amount, kind, m.effect)
+      n = n + 1
+    end
+    return n
+  elif m.kind == "freeze" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, m.r * 2, "#E0F2FE", 0.6)
+    let n = 0
+    for c in targets_near(p, p.position, m.r) do
+      hurt(p, c, amount, kind, nil)
+      if kit_here(c) and c.alive then freeze(c, m.secs) end
+      n = n + 1
+    end
+    return n
+  elif m.kind == "shield" then
+    p.shield_until = time() + m.secs
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 3.5, color, m.secs)
+    p.message("🛡 " + m.name + "（" + m.secs + "秒 ダメージ大きく減る）", 1.5)
+    return 0
+  elif m.kind == "heal" then
+    for c in players() do
+      if distance(p, c) <= m.r and (c.id == p.id or (c.team == p.team and not c.pvp)) then
+        c.heal(c.max_health * m.power)
+        fx_ball(c.position + {x: 0, y: 1, z: 0}, 2.5, "#86EFAC", 0.5)
+      end
+    end
+    return 0
+  elif m.kind == "fly" then
+    p.launch(dir.x * 10, m.lift, dir.z * 10)
+    p.float_until = time() + m.secs
+    move_refresh(p)
+    return 0
+  elif m.kind == "invis" then
+    p.visible = false
+    p.invis_until = time() + m.secs
+    move_refresh(p)
+    kit_later(p, m.secs, func()
+      p.visible = true
+      move_refresh(p)
+    end)
+    return 0
+  end
+  return 0
+end
+
+-- MARK: 動きの速さ（泳ぎ・スロー・煙・飛行）
+
+func move_refresh(p)
+  if not kit_here(p) then return end
+  let speed = 1
+  let gravity = 1
+  let jump = 1
+  if p.y < 0 and island_at(p.position) == nil then speed = 0.65 end
+  if p.invis_until != nil and time() < p.invis_until then speed = 1.8 end
+  if p.float_until != nil and time() < p.float_until then
+    gravity = 0.35
+    speed = max(speed, 1.6)
+  end
+  if p.slow_until != nil and time() < p.slow_until then speed = speed * 0.5 end
+  if contains(p.abilities, "dash") then jump = 1.15 end
+  if p.mv_speed != speed then
+    p.speed = speed
+    p.mv_speed = speed
+  end
+  if p.mv_gravity != gravity then
+    p.gravity = gravity
+    p.mv_gravity = gravity
+  end
+  if p.mv_jump != jump then
+    p.jump = jump
+    p.mv_jump = jump
+  end
+end
+
+-- MARK: ソル・闘気
+
+func use_dash(p)
+  if not contains(p.abilities, "dash") then
+    p.message("💨 ソルは道場で覚えられます", 1.5)
+    return
+  end
+  if cooldown_left(p, "dash") > 0 then return end
+  start_cooldown(p, "dash", 2.5)
+  let dir = kit_dir(p.yaw)
+  p.launch(dir.x * 30, 3, dir.z * 30)
+  fx_beam(p.position + {x: 0, y: 1, z: 0}, dir, 6, "#E0F2FE", 0.5)
+end
+
+func use_aura(p)
+  if not contains(p.abilities, "aura") then
+    p.message("🛡 闘気は道場で覚えられます", 1.5)
+    return
+  end
+  let left = cooldown_left(p, "aura")
+  if left > 0 then
+    p.message("闘気はあと " + ceil(left) + " 秒", 1)
+    return
+  end
+  start_cooldown(p, "aura", 45)
+  p.aura_until = time() + 20
+  p.message("🛡 闘気！20秒 こうげき+25% ダメージ-25%", 2)
+  p.sound("checkpoint")
+  let color = p.color
+  p.color = "#1F2937"
+  kit_later(p, 20, func() p.color = color end)
+end
+
+-- MARK: ステータスの割りふり（📊ボタン）
+
+func stats_menu(p)
+  let h = 380
+  p.ui_panel("stats", {at: "center", w: 480, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("stats_t", "📊 ステータス（のこり " + p.points + " ポイント）", {parent: "stats", y: 0.08, size: 20, bold: true, color: "gold"})
+  let i = 0
+  for key in STAT_ORDER do
+    i = i + 1
+    let y = 0.1 + i * 0.17
+    p.ui_text("stats_n" + i, STAT_NAMES[key] + "  " + stat(p, key), {parent: "stats", x: 0.28, y: y - 0.03, size: 17, bold: true})
+    p.ui_text("stats_h" + i, STAT_HELP[key], {parent: "stats", x: 0.28, y: y + 0.04, size: 12, color: "#94A3B8"})
+    p.ui_button("stat_1_" + key, "+1", {parent: "stats", x: 0.66, y: y, w: 64, h: 40, size: 16, bg: "#2563EB"})
+    p.ui_button("stat_10_" + key, "+10", {parent: "stats", x: 0.84, y: y, w: 70, h: 40, size: 16, bg: "#7C3AED"})
+  end
+  p.ui_button("stats_reset", "やり直す（💰" + reset_price(p) + "）", {parent: "stats", x: 0.3, y: 0.92, w: 190, h: 38, size: 14, bg: "#B91C1C"})
+  p.ui_button("stats_close", "閉じる", {parent: "stats", x: 0.75, y: 0.92, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func reset_price(p)
+  return 200 + p.level * 20
+end
+
+func stat_add(p, key, amount)
+  let n = min(amount, p.points)
+  if n <= 0 then
+    p.message("ポイントがありません（レベルアップでもらえる）", 1.5)
+    return
+  end
+  p.stats[key] = stat(p, key) + n
+  p.points = p.points - n
+  if key == "defense" then refresh_max_health(p) end
+  p.sound("collect")
+  stats_menu(p)
+  hud(p)
+end
+
+func stats_reset(p)
+  if not kit_pay(p, reset_price(p)) then return end
+  let total = 0
+  for key in STAT_ORDER do total = total + stat(p, key) end
+  p.stats = {melee: 0, defense: 0, sword: 0, fruit: 0}
+  p.points = p.points + total
+  refresh_max_health(p)
+  p.message("📊 ステータスをリセットしました", 1.5)
+  stats_menu(p)
+end
+
+-- MARK: イベント
+
+on hit(victim, attacker, damage)
+  if attacker == nil then return damage end
+  if attacker.is_npc then
+    if victim.is_npc then return 0 end
+    if contains(victim.abilities, "sense") and random() < 0.2 then
+      victim.message("👁 見聞でよけた！", 0.6)
+      return 0
+    end
+    return damage * taken_factor(victim)
+  end
+  if not can_hurt(attacker, victim) then return 0 end
+  let kind = "sword"
+  if is_gun(attacker.weapon) then kind = "gun" end
+  let dmg = damage * power_of(attacker, kind) * taken_factor(victim)
+  note_hit(attacker, victim, dmg, kind)
+  return dmg
+end
+
+let combat_clock = 0
+on tick(dt)
+  combat_clock = combat_clock + dt
+  if combat_clock < 0.5 then return end
+  combat_clock = 0
+  for p in players() do
+    move_refresh(p)
+    hud(p)
+    move_buttons(p)
+  end
+end
+
+on button(p, id)
+  if id == "open_stats" then
+    stats_menu(p)
+  elif id == "stats_close" then
+    p.ui_remove("stats")
+  elif id == "stats_reset" then
+    stats_reset(p)
+  elif starts_with(id, "stat_1_") then
+    stat_add(p, replace(id, "stat_1_", ""), 1)
+  elif starts_with(id, "stat_10_") then
+    stat_add(p, replace(id, "stat_10_", ""), 10)
+  elif id == "act_dash" then
+    use_dash(p)
+  elif id == "act_aura" then
+    use_aura(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "stats") then
+    stats_menu(p)
+  elif contains(b.tags, "lava") then
+    if cooldown_left(p, "lava") <= 0 then
+      start_cooldown(p, "lava", 1)
+      p.damage(p.max_health * 0.08)
+      p.message("🔥 溶岩！あつい！", 1)
+    end
+  end
+end

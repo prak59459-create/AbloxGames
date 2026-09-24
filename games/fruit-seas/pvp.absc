@@ -1,0 +1,118 @@
+-- pvp.absc — 海賊と海軍・PvP・賞金
+-- はじめに「海賊」か「海軍」をえらぶ。⚔️PvP を ON にした人どうしだけが戦える。
+-- 同じ陣営どうしは戦えない。はじまりの島の真ん中（安全地帯）では戦えない。
+-- 海賊は賞金が上がり、海軍は賞金首をたおすと名声とコインがもらえる。
+
+let BOUNTY_TIERS = [10000, 50000, 200000, 1000000]
+
+func pvp_ok(a, v)
+  if not a.pvp or not v.pvp then return false end
+  if a.team == nil or a.team == v.team then return false end
+  if in_safe_zone(a) or in_safe_zone(v) then return false end
+  return true
+end
+
+func side_name(team)
+  if team == "marine" then return "⚓ 海軍" end
+  return "🏴‍☠️ 海賊"
+end
+
+func choose_side(p)
+  p.ui_panel("side", {at: "center", w: 500, h: 230, bg: "#0B1120F0", radius: 24, layer: 55})
+  p.ui_text("side_t", "あなたはどっち？", {parent: "side", y: 0.16, size: 24, bold: true, color: "gold"})
+  p.ui_text("side_s", "海賊は賞金が上がる / 海軍は賞金首をつかまえて名声", {parent: "side", y: 0.36, size: 15, color: "#CBD5E1"})
+  p.ui_button("side_pirate", "🏴‍☠️ 海賊になる", {parent: "side", x: 0.28, y: 0.72, w: 200, h: 56, size: 18, bg: "#111827"})
+  p.ui_button("side_marine", "⚓ 海軍になる", {parent: "side", x: 0.72, y: 0.72, w: 200, h: 56, size: 18, bg: "#1D4ED8"})
+end
+
+func set_side(p, team)
+  p.ui_remove("side")
+  if p.team == team then return end
+  p.team = team
+  if team == "marine" then
+    p.leg_color = "#1E3A8A"
+    p.message("⚓ 海軍に入った！賞金首（PvPの海賊）をたおすと名声", 3)
+  else
+    p.leg_color = "#111827"
+    p.message("🏴‍☠️ 海賊になった！強い敵やボスで賞金が上がる", 3)
+  end
+  hud(p)
+end
+
+func toggle_pvp(p)
+  if cooldown_left(p, "pvp") > 0 then
+    p.message("少し待ってから（" + ceil(cooldown_left(p, "pvp")) + "秒）", 1)
+    return
+  end
+  start_cooldown(p, "pvp", 5)
+  p.pvp = not p.pvp
+  if p.pvp then
+    p.message("⚔️ PvP ON！ちがう陣営のPvP ONの人と戦える（安全地帯はだめ）", 2.5)
+  else
+    p.message("🕊 PvP OFF", 1.5)
+  end
+  menu_refresh(p)
+  hud(p)
+end
+
+-- 賞金（海賊）・名声（海軍）を足す
+func add_bounty(p, amount)
+  if not kit_here(p) then return end
+  if p.team == "marine" then
+    p.honor = p.honor + floor(amount / 2)
+    return
+  end
+  let before = p.bounty
+  p.bounty = p.bounty + floor(amount)
+  for tier in BOUNTY_TIERS do
+    if before < tier and p.bounty >= tier then
+      announce("💀 " + p.name + " の賞金が " + kit_short(tier) + " をこえた！", 3.5)
+    end
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  victim.ui_remove("stats")
+  if killer == nil or killer.is_npc or killer.id == victim.id then
+    victim.message("やられた…拠点の島にもどります", 2)
+    return
+  end
+  -- PvP
+  kit_quest_progress(killer, "pvp", 1)
+  if killer.team == "pirate" then
+    let gain = 300 + floor((victim.honor or 0) * 0.1)
+    add_bounty(killer, gain)
+    killer.message("💀 " + victim.name + " をたおした！ 賞金 +" + kit_short(gain), 2.5)
+  else
+    let prize = floor(victim.bounty * 0.05) + 100
+    kit_give(killer, prize)
+    add_bounty(killer, 200 + floor(victim.bounty * 0.1))
+    killer.message("⚓ 賞金首 " + victim.name + " をつかまえた！ 💰+" + kit_short(prize), 2.5)
+  end
+  if victim.team == "pirate" then victim.bounty = floor(victim.bounty * 0.9) end
+  chat("⚔️ " + killer.name + " が " + victim.name + " をたおした")
+end
+
+on button(p, id)
+  if id == "side_pirate" then set_side(p, "pirate")
+  elif id == "side_marine" then set_side(p, "marine")
+  elif id == "pvp_toggle" then toggle_pvp(p)
+  end
+end
+
+on start()
+  -- 賞金首ランキング
+  every(10, func()
+    let list = filter(players(), func(p) return p.team == "pirate" and p.bounty > 0 end)
+    if len(list) == 0 then return end
+    let top = sort(list, func(a, b) return a.bounty > b.bounty end)
+    let line = "💀 賞金首"
+    let i = 0
+    for p in slice(top, 1, 3) do
+      i = i + 1
+      line = line + "  " + i + ". " + p.name + " " + kit_short(p.bounty)
+    end
+    ui_text("wanted", line, {at: "bottom", dy: -34, size: 14, color: "#FCA5A5"})
+  end)
+end

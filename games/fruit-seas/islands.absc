@@ -1,0 +1,352 @@
+-- islands.absc — 島めぐり
+-- 港（水色のパッド）から船で島へ（レベルが足りないと行けない）・島のクエスト（📜の人）
+-- 拠点（やられたらもどる場所）・宝箱・海王類（ときどき海にあらわれる大物）・地図
+
+let chests = []        -- {block, value, name}
+let CHEST_CAP = 10
+let sea_beast = nil
+let island_clock = 0
+
+-- MARK: 船
+
+func travel_menu(p)
+  let h = 130 + len(ISLANDS) * 50
+  p.ui_panel("travel", {at: "center", w: 480, h: h, bg: "#082F49F2", radius: 22, layer: 30})
+  p.ui_text("travel_t", "⛵ どの島へ行く？", {parent: "travel", y: 26 / h, size: 21, bold: true, color: "#7DD3FC"})
+  let i = 0
+  for isl in ISLANDS do
+    i = i + 1
+    let label = isl.jp + "   推奨 Lv." + isl.level
+    let bg = "#0369A1"
+    if p.level < isl.level then
+      label = "🔒 " + isl.jp + "（Lv." + isl.level + " から）"
+      bg = "#374151"
+    elif not contains(p.visited, isl.id) then
+      label = "❔ " + label
+    end
+    p.ui_button("sail_" + isl.id, label, {parent: "travel", y: (30 + i * 50) / h, w: 400, h: 42, size: 15, bg: bg})
+  end
+  p.ui_button("travel_close", "閉じる", {parent: "travel", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+func sail(p, id)
+  let isl = island_by_id(id)
+  if p.level < isl.level then
+    p.message("🔒 レベル " + isl.level + " になったら行けます", 1.5)
+    return
+  end
+  let spot = block(isl.name + " Spawn")
+  if spot == nil then return end
+  p.ui_remove("travel")
+  p.fade("#0EA5E9", 0.4)
+  p.teleport(spot)
+  arrive(p, isl)
+end
+
+-- 島に着いた（船でも泳いでも）
+func arrive(p, isl)
+  if p.here == isl.id then return end
+  p.here = isl.id
+  let first = not contains(p.visited, isl.id)
+  if first then
+    append(p.visited, isl.id)
+    kit_quest_progress(p, "visit", 1)
+    if isl.level > 0 then reward(p, 40 + isl.level * 6, 0, "新しい島を発見！") end
+  end
+  let warn = ""
+  if p.level < isl.level then warn = "  ⚠️ あなたにはまだ危険！" end
+  p.message("🏝 " + isl.jp + "（推奨 Lv." + isl.level + "）" + warn, 2.5)
+end
+
+-- MARK: 島のクエスト
+
+func quest_offer(p, isl)
+  let h = 330
+  p.ui_panel("iq", {at: "center", w: 500, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("iq_t", "📜 " + isl.jp + " のたのみごと", {parent: "iq", y: 0.08, size: 21, bold: true, color: "#FDE047"})
+  if len(isl.enemies) == 0 then
+    p.ui_text("iq_s", "ここは安全な島。準備をととのえて冒険へ！", {parent: "iq", y: 0.3, size: 16})
+  end
+  let i = 0
+  for key in isl.enemies do
+    i = i + 1
+    let e = ENEMIES[key]
+    let q = quest_for(isl, key)
+    p.ui_button("iq_take_" + key, e.name + " を " + q.need + " 体   " + kit_short(q.xp) + "XP 💰" + kit_short(q.coins),
+                {parent: "iq", y: 0.12 + i * 0.16, w: 440, h: 46, size: 15, bg: "#92400E"})
+  end
+  if isl.boss != nil then
+    let b = BOSSES[isl.boss]
+    p.ui_button("iq_boss", "👑 " + b.name + " をたおす（Lv." + b.level + "）   " + kit_short(b.xp / 2) + "XP",
+                {parent: "iq", y: 0.6, w: 440, h: 46, size: 15, bg: "#991B1B"})
+  end
+  p.ui_button("iq_base", "📍 ここを拠点にする（やられたらここから）", {parent: "iq", y: 0.76, w: 440, h: 40, size: 14, bg: "#0F766E"})
+  p.ui_button("iq_close", "閉じる", {parent: "iq", y: 0.92, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func quest_for(isl, key)
+  let e = ENEMIES[key]
+  let need = 6
+  if key == isl.enemies[len(isl.enemies)] then need = 5 end
+  return {island: isl.id, etype: key, need: need, have: 0, xp: floor(e.xp * need * 1.6), coins: floor(e.coins * need * 1.5), boss: nil}
+end
+
+func quest_take(p, key)
+  let isl = island_by_id(p.near_giver)
+  if not contains(isl.enemies, key) then return end
+  p.quest = quest_for(isl, key)
+  p.ui_remove("iq")
+  p.message("📜 クエストを受けた！", 1.5)
+  quest_show(p)
+end
+
+func quest_take_boss(p)
+  let isl = island_by_id(p.near_giver)
+  if isl.boss == nil then return end
+  let b = BOSSES[isl.boss]
+  p.quest = {island: isl.id, etype: nil, need: 1, have: 0, xp: floor(b.xp / 2), coins: floor(b.coins / 2), boss: isl.boss}
+  p.ui_remove("iq")
+  quest_show(p)
+end
+
+func quest_show(p)
+  let q = p.quest
+  if q == nil then
+    task_line(p, nil)
+    return
+  end
+  if q.boss != nil then
+    task_line(p, "📜 👑 " + BOSSES[q.boss].name + " をたおせ  " + q.have + "/1")
+  else
+    task_line(p, "📜 " + ENEMIES[q.etype].name + " をたおせ  " + q.have + "/" + q.need)
+  end
+end
+
+func quest_done(p)
+  let q = p.quest
+  p.quest = nil
+  task_line(p, nil)
+  reward(p, q.xp, q.coins, "📜 クエスト達成！")
+  p.sound("goal")
+  kit_quest_progress(p, "iquest", 1)
+end
+
+func quest_kill(p, etype)
+  let q = p.quest
+  if q == nil or q.etype != etype then return end
+  q.have = q.have + 1
+  if q.have >= q.need then quest_done(p) else quest_show(p) end
+end
+
+func quest_boss(p, boss_id)
+  let q = p.quest
+  if q == nil or q.boss != boss_id then return end
+  q.have = 1
+  quest_done(p)
+end
+
+-- MARK: 宝箱
+
+func spawn_chest()
+  if len(chests) >= CHEST_CAP then return end
+  let isl = ISLANDS[random(2, len(ISLANDS))]
+  let kind = weighted(CHEST_KINDS)
+  let pos = island_point(isl, 0.85)
+  let b = create_block({name: kind.name, shape: "box", position: {x: pos.x, y: isl.y + 0.5, z: pos.z}, size: {x: 1.2, y: 0.9, z: 0.9},
+                        color: kind.color, material: "metal", behavior: "trigger", tags: ["chest"]})
+  append(chests, {block: b, value: floor((20 + isl.level * 5) * kind.mult), name: kind.name})
+end
+
+func open_chest(p, b)
+  for c in copy(chests) do
+    if c.block == b then
+      remove(chests, index_of(chests, c))
+      gone(b)
+      kit_give(p, c.value)
+      p.message("📦 " + c.name + "！ 💰+" + kit_short(c.value), 1.8)
+      p.sound("collect")
+      kit_quest_progress(p, "chest", 1)
+      return
+    end
+  end
+end
+
+-- MARK: 海王類
+
+func sea_point()
+  let tries = 0
+  while tries < 20 do
+    tries = tries + 1
+    let pos = {x: random(-120, 120), y: -0.8, z: random(-120, 120)}
+    if island_at(pos) == nil then return pos end
+  end
+  return {x: 40, y: -0.8, z: -80}
+end
+
+func spawn_sea_beast()
+  if sea_beast != nil and kit_here(sea_beast) then return end
+  let pos = sea_point()
+  let n = create_npc({name: "🐉 海王類", position: pos, color: "#0E7490", head_color: "#22D3EE", size: 6, health: 30000, speed: 0.9, team: "enemy"})
+  n.kind = "seabeast"
+  n.boss_id = "seabeast"
+  n.dmg = {}
+  n.home = pos
+  n.next_hit = 0
+  n.next_wave = time() + 6
+  n.until = time() + 180
+  sea_beast = n
+  announce("🌊 海に 海王類 があらわれた！（" + floor(pos.x) + ", " + floor(pos.z) + " あたり）", 4)
+end
+
+func sea_beast_ai()
+  let n = sea_beast
+  if n == nil or not kit_here(n) then
+    sea_beast = nil
+    return
+  end
+  if time() > n.until then
+    announce("🌊 海王類は深い海へ帰っていった…", 3)
+    n.destroy()
+    sea_beast = nil
+    return
+  end
+  let t = nil
+  for p in players() do
+    if p.alive and distance(n, p) < 34 and (t == nil or distance(n, p) < distance(n, t)) then t = p end
+  end
+  if t == nil then return end
+  n.follow(t)
+  if distance(n, t) < 7 and time() > n.next_hit then
+    hurt(n, t, 80, "boss", "launch")
+    n.next_hit = time() + 1.5
+  end
+  if time() > n.next_wave then
+    n.next_wave = time() + 8
+    let spot = n.position
+    fx_warning({x: spot.x, y: 0, z: spot.z}, 13, 1.2)
+    n.say("ザバーン！")
+    after(1.2, func()
+      if kit_here(n) then boss_area(n, spot, 13, 120, "launch") end
+    end)
+  end
+end
+
+func sea_beast_died(n)
+  sea_beast = nil
+  let total = 0
+  for id in keys(n.dmg) do total = total + n.dmg[id] end
+  for id in keys(n.dmg) do
+    let p = player_by_id(id)
+    if p != nil then
+      let frac = n.dmg[id] / max(1, total)
+      reward(p, 1500 + 3000 * frac, 3000 + 6000 * frac, "🐉 海王類 討伐")
+      kit_quest_progress(p, "beast", 1)
+      if random() < 0.25 * frac + 0.05 then
+        let key = random_fruit()
+        if bag_add(p, key) then p.message("🎁 海王類のおなかから " + fruit_label(key) + "！", 3) end
+      end
+    end
+  end
+  announce("🏆 海王類をたおした！", 3.5)
+  sound("goal")
+end
+
+-- MARK: 地図（🗺）
+
+func world_map(p)
+  let h = 130 + len(ISLANDS) * 46
+  p.ui_panel("wmap", {at: "center", w: 520, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("wmap_t", "🗺 海の地図（港の水色パッドから船が出ます）", {parent: "wmap", y: 26 / h, size: 17, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for isl in ISLANDS do
+    i = i + 1
+    let mark = "❔"
+    if contains(p.visited, isl.id) then mark = "✅" end
+    let boss = ""
+    if isl.boss != nil then
+      let b = bosses[isl.id]
+      if b != nil and kit_here(b) then
+        boss = "  👑 " + BOSSES[isl.boss].name + " いる"
+      else
+        boss = "  👑 あと " + ceil(max(0, (boss_next[isl.id] or 0) - time())) + " 秒"
+      end
+    end
+    p.ui_text("wmap_" + i, mark + " " + isl.jp + "  Lv." + isl.level + boss, {parent: "wmap", y: (34 + i * 46) / h, size: 15})
+  end
+  p.ui_button("wmap_close", "閉じる", {parent: "wmap", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+end
+
+-- MARK: イベント
+
+on start()
+  for i in 1 to 5 do spawn_chest() end
+  every(15, func() spawn_chest() end)
+  every(300, func() spawn_sea_beast() end)
+  after(150, func() spawn_sea_beast() end)
+end
+
+on tick(dt)
+  island_clock = island_clock + dt
+  if island_clock < 0.5 then return end
+  island_clock = 0
+  sea_beast_ai()
+  for p in players() do
+    let isl = island_at(p.position)
+    if isl != nil then arrive(p, isl) end
+    -- クエストの人の近く
+    let giver = nil
+    for key in keys(givers) do
+      let g = givers[key]
+      if g != nil and kit_here(g) and distance(p, g) < 5 then giver = g end
+    end
+    if giver != nil then
+      p.near_giver = giver.island
+      set_btn(p, "act_quest", "📜 話す", {at: "bottom", dy: -96, w: 150, h: 50, size: 16, bg: "#CA8A04", radius: 16})
+    else
+      set_btn(p, "act_quest", nil, nil)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "act_quest" and p.near_giver != nil then
+    quest_offer(p, island_by_id(p.near_giver))
+  elif id == "iq_close" then p.ui_remove("iq")
+  elif starts_with(id, "iq_take_") then quest_take(p, replace(id, "iq_take_", ""))
+  elif id == "iq_boss" then quest_take_boss(p)
+  elif id == "iq_base" then
+    p.base = p.near_giver
+    p.ui_remove("iq")
+    p.message("📍 " + island_by_id(p.base).jp + " を拠点にした", 2)
+  elif id == "travel_close" then p.ui_remove("travel")
+  elif starts_with(id, "sail_") then sail(p, replace(id, "sail_", ""))
+  elif id == "open_map" then world_map(p)
+  elif id == "wmap_close" then p.ui_remove("wmap")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "dock") then
+    if cooldown_left(p, "dock") <= 0 then
+      start_cooldown(p, "dock", 3)
+      travel_menu(p)
+    end
+  elif contains(b.tags, "chest") then
+    open_chest(p, b)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and victim.kind == "seabeast" then sea_beast_died(victim) end
+end
+
+on respawn(p)
+  if p.is_npc then return end
+  let isl = island_by_id(p.base or "start")
+  let spot = block(isl.name + " Spawn")
+  if spot != nil then p.teleport(spot) end
+  p.here = nil
+  hold_again(p)
+  hud(p)
+end

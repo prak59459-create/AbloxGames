@@ -174,41 +174,105 @@ func island(_ m: MapBuilder, _ name: String, x: Float, z: Float, radius: Float, 
 func fruitSeas(_ m: MapBuilder) {
     m.ocean()
     m.environment.killPlaneHeight = -30
-    m.ground(300, 300, color: "#C9B98A", name: "Seabed", y: -1.4)
-    m.part("Sea", at: (0, -0.25, 0), size: (300, 0.1, 300), color: "#2C8BE0", material: .glass, solid: false, opacity: 0.7)
+    m.ground(320, 320, color: "#C9B98A", name: "Seabed", y: -1.4)
+    m.part("Sea", at: (0, -0.25, 0), size: (320, 0.1, 320), color: "#2C8BE0", material: .glass, solid: false, opacity: 0.7)
 
-    island(m, "Start Island", x: 0, z: 0, radius: 20, color: "#6CC26A")
+    // Every island has the same named places, so the script can find them:
+    // "<Island> Dock" (the boat menu), "<Island> Quest" (the quest giver),
+    // "<Island> Spawn" (where you come back), "<Island> Camp" (enemies) and
+    // "<Island> Boss" (the boss's arena).
+    func places(_ name: String, x: Float, z: Float, radius r: Float, y: Float = 0.6, dock: String = "#38BDF8") {
+        m.slab("\(name) Pier", x: x, y: y - 0.6, z: z + r + 1, w: 5, h: 0.6, d: 7, color: "#8B5A2B")
+        m.pad("\(name) Dock", x: x, z: z + r - 2.5, y: y, size: 2.6, color: dock, tags: ["dock"])
+        m.part("\(name) Quest", at: (x - 5, y + 0.1, z + r - 6), size: (1.4, 0.2, 1.4), color: "#FDE047", shape: .cylinder,
+               material: .neon, behavior: .trigger, solid: false)
+        m.part("\(name) Spawn", at: (x + 4, y + 0.1, z + r - 5), size: (1, 0.2, 1), color: "#FFFFFF", shape: .cylinder,
+               solid: false, visible: false)
+        m.part("\(name) Camp", at: (x + r * 0.35, y + 0.06, z - r * 0.3), size: (8, 0.12, 8), color: "#7C2D12", shape: .cylinder,
+               material: .matte, solid: false)
+        m.part("\(name) Boss", at: (x - r * 0.4, y + 0.06, z - r * 0.35), size: (12, 0.12, 12), color: "#991B1B", shape: .cylinder,
+               material: .matte, solid: false)
+        for p in ring(6, radius: 7, cx: x - r * 0.4, cz: z - r * 0.35) {
+            m.pillar("\(name) Boss Pillar", x: p.0, z: p.1, y: y, height: 3.5, radius: 0.5, color: "#57534E")
+        }
+    }
+
+    // 1 Start Island: the town. Shops for swords, fruit, guns and fighting styles.
+    island(m, "Start Island", x: 0, z: 0, radius: 22, color: "#6CC26A")
     m.spawnRing(0, 0, y: 0.6, radius: 5, count: 6)
-    m.shop("Sword Dealer", x: -10, z: -10, w: 8, d: 6, color: "#8B5E3C", sign: "#FDE68A")
-    for p in ring(5, radius: 15) { m.tree(p.0, p.1, y: 0.6, height: 5, leaves: "#3FA34D") }
+    m.shop("Sword Dealer", x: -11, z: -11, y: 0.6, w: 8, d: 6, color: "#8B5E3C", sign: "#FDE68A")
+    m.pad("Sword Shop", x: -11, z: -13, y: 0.6, size: 2.2, color: "#F59E0B", tags: ["shop_sword"])
+    m.shop("Fruit Dealer", x: 11, z: -11, y: 0.6, w: 8, d: 6, color: "#DB2777", sign: "#FBCFE8")
+    m.pad("Fruit Shop", x: 11, z: -13, y: 0.6, size: 2.2, color: "#EC4899", tags: ["shop_fruit"])
+    m.shop("Dojo", x: -12, z: 9, y: 0.6, w: 8, d: 6, color: "#1E3A8A", sign: "#93C5FD", facing: -1)
+    m.pad("Dojo Mat", x: -12, z: 11, y: 0.6, size: 2.2, color: "#3B82F6", tags: ["shop_style"])
+    m.shop("Gun Shop", x: 12, z: 9, y: 0.6, w: 8, d: 6, color: "#374151", sign: "#D1D5DB", facing: -1)
+    m.pad("Gun Counter", x: 12, z: 11, y: 0.6, size: 2.2, color: "#9CA3AF", tags: ["shop_gun"])
+    m.part("Stat Stone", at: (0, 1.6, -6), size: (1.4, 2, 1.4), color: "#A78BFA", shape: .cylinder, material: .neon,
+           behavior: .trigger, tags: ["stats"])
+    m.part("Gacha Well", at: (0, 1.1, 8), size: (2.4, 1, 2.4), color: "#FDE68A", shape: .cylinder, material: .metal,
+           behavior: .trigger, tags: ["gacha"])
+    for p in ring(6, radius: 17) { m.tree(p.0, p.1, y: 0.6, height: 5, leaves: "#3FA34D") }
+    places("Start Island", x: 0, z: 0, radius: 22)
 
+    // 2 Pirate Islet: the first enemies.
+    island(m, "Pirate Islet", x: 40, z: 32, radius: 12, color: "#86C06C")
+    for i in 0..<3 { m.crate(36 + Float(i) * 2.2, 30, y: 0.6) }
+    m.part("Pirate Flag Pole", at: (44, 3.6, 36), size: (0.3, 6, 0.3), color: "#3F3F46", shape: .cylinder)
+    m.part("Pirate Flag", at: (45.2, 5.8, 36), size: (2.2, 1.4, 0.1), color: "#111827", solid: false)
+    places("Pirate Islet", x: 40, z: 32, radius: 12)
+
+    // 3 Jungle Island.
     island(m, "Jungle Island", x: 75, z: -40, radius: 26, color: "#2F8F3A")
-    for p in ring(9, radius: 18, cx: 75, cz: -40) { m.tree(p.0, p.1, y: 0.6, height: 6, leaves: "#1F6E2A") }
-    m.part("Bandit Camp", at: (75, 0.65, -40), size: (6, 0.1, 6), color: "#7C2D12", shape: .cylinder, material: .matte)
-    for i in 0..<4 { m.crate(70 + Float(i) * 3, -46, y: 0.6) }
+    for p in ring(10, radius: 19, cx: 75, cz: -40) { m.tree(p.0, p.1, y: 0.6, height: 6, leaves: "#1F6E2A") }
+    for p in ring(5, radius: 9, cx: 75, cz: -40) { m.tree(p.0, p.1, y: 0.6, height: 4, leaves: "#166534") }
+    places("Jungle Island", x: 75, z: -40, radius: 26)
 
+    // 4 Desert Island.
     island(m, "Desert Island", x: -80, z: -55, radius: 30, color: "#E3C77A", sand: "#F0DFA8")
-    m.part("Boss Arena", at: (-80, 0.65, -55), size: (26, 0.1, 26), color: "#B45309", shape: .cylinder, material: .matte)
-    for p in ring(8, radius: 16, cx: -80, cz: -55) {
-        m.pillar("Arena Pillar", x: p.0, z: p.1, y: 0.6, height: 6, radius: 1, color: "#A16207")
+    for p in ring(8, radius: 22, cx: -80, cz: -55) {
+        m.part("Cactus", at: (p.0, 2, p.1), size: (0.8, 2.8, 0.8), color: "#4D7C0F", shape: .cylinder)
     }
+    m.part("Pyramid", at: (-92, 4, -40), size: (12, 7, 12), color: "#D6B45A", shape: .cone, material: .matte)
+    places("Desert Island", x: -80, z: -55, radius: 30)
 
+    // 5 Snow Island.
     island(m, "Snow Island", x: 10, z: 95, radius: 22, color: "#F1F5F9", sand: "#E2E8F0")
-    for p in ring(6, radius: 14, cx: 10, cz: 95) { m.pine(p.0, p.1, y: 0.6, height: 6, leaves: "#E0F2FE") }
+    for p in ring(8, radius: 16, cx: 10, cz: 95) { m.pine(p.0, p.1, y: 0.6, height: 6, leaves: "#E0F2FE") }
+    m.part("Ice Castle", at: (18, 3.5, 84), size: (6, 6, 6), color: "#BAE6FD", material: .glass, opacity: 0.8)
+    places("Snow Island", x: 10, z: 95, radius: 22)
 
-    // Where fruit may wash up.
-    m.markers("Fruit Spot", points: [(8, 12), (-14, 6), (80, -30), (65, -52), (-70, -40), (-92, -62), (18, 88), (0, 104)],
-              y: 0.6, color: "#FFFFFF", visible: false, behavior: .none)
-
-    // Docks: a teleport pad on each island to the next.
-    let docks: [(String, Float, Float)] = [("Start", 0, 18), ("Jungle", 75, -16), ("Desert", -80, -27), ("Snow", 10, 75)]
-    var pads: [UUID] = []
-    for d in docks {
-        m.slab("\(d.0) Dock", x: d.1, y: 0, z: d.2, w: 5, h: 0.6, d: 5, color: "#8B5A2B")
-        pads.append(m.part("Boat to next island (\(d.0))", at: (d.1, 0.7, d.2), size: (2.4, 0.2, 2.4), color: "#38BDF8",
-                           shape: .cylinder, material: .neon, behavior: .teleport, tags: ["boat"]))
+    // 6 Marine Fort.
+    island(m, "Marine Fort", x: -95, z: 55, radius: 22, color: "#9CA3AF", sand: "#D1D5DB")
+    m.walls(-95, 55, w: 30, d: 30, h: 1.2, y: 0.6, color: "#E5E7EB", name: "Fort Wall")
+    for p in ring(4, radius: 12, cx: -95, cz: 55) {
+        m.part("Cannon", at: (p.0, 1.3, p.1), size: (0.8, 0.8, 2.4), color: "#1F2937", shape: .cylinder, rotation: (90, 0, 0))
     }
-    for i in pads.indices { m.setTeleport(from: pads[i], to: pads[(i + 1) % pads.count]) }
+    m.part("Marine Tower", at: (-95, 5, 55), size: (4, 9, 4), color: "#F8FAFC", shape: .cylinder)
+    places("Marine Fort", x: -95, z: 55, radius: 22)
+
+    // 7 Volcano Island.
+    island(m, "Volcano Island", x: 110, z: 75, radius: 24, color: "#44403C", sand: "#57534E")
+    m.part("Volcano", at: (118, 5, 66), size: (14, 10, 14), color: "#292524", shape: .cone, material: .matte)
+    m.part("Lava Top", at: (118, 9.6, 66), size: (3, 1, 3), color: "#F97316", shape: .cylinder, material: .neon, solid: false)
+    for p in ring(5, radius: 15, cx: 110, cz: 75) {
+        m.part("Lava Pool", at: (p.0, 0.62, p.1), size: (3, 0.06, 3), color: "#EA580C", shape: .cylinder, material: .neon, behavior: .trigger,
+               tags: ["lava"], solid: false)
+    }
+    places("Volcano Island", x: 110, z: 75, radius: 24)
+
+    // 8 Sky Island, high above the sea. The boat menu takes you up.
+    m.part("Sky Island", at: (-10, 39.4, -115), size: (40, 1.6, 40), color: "#F5F3FF", shape: .cylinder, material: .matte, tags: ["island"])
+    for p in ring(8, radius: 24, cx: -10, cz: -115) {
+        m.part("Cloud", at: (p.0, 38.5, p.1), size: (7, 2.5, 5), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false, opacity: 0.85)
+    }
+    m.part("Sky Temple", at: (-10, 44, -125), size: (8, 7, 8), color: "#FDE68A", shape: .cylinder, material: .metal)
+    places("Sky Island", x: -10, z: -115, radius: 20, y: 40.2, dock: "#E879F9")
+
+    // Where fruit may appear, under the trees.
+    m.markers("Fruit Spot", points: [(8, 12), (-14, 6), (80, -30), (65, -52), (-70, -40), (-92, -62), (18, 88), (0, 104),
+                                     (44, 36), (-88, 62), (104, 84), (-4, -110)],
+              y: 0.6, color: "#FFFFFF", visible: false, behavior: .none)
 }
 
 
