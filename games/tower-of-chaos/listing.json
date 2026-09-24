@@ -6,6 +6,12 @@
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/tower-of-chaos\/data.absc",
+    "games\/tower-of-chaos\/events.absc",
+    "games\/tower-of-chaos\/round.absc",
+    "games\/tower-of-chaos\/shop.absc",
+    "games\/tower-of-chaos\/style.absc",
+    "games\/tower-of-chaos\/tower.absc",
     "games\/tower-of-chaos\/main.absc"
   ],
   "summary" : "チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！",

@@ -1,0 +1,207 @@
+-- tower.absc — タワーを組み立てる
+-- 1つの階は、タワーのまわりを1周しながら HEIGHT だけ上がる10個の足場。
+-- 階ごとに SECTIONS からランダムに1つ（上の階ほどむずかしいものが出やすい）。
+
+let movers = []     -- {block, dx, dy, dz, secs}
+let spinners = []   -- 回るバー
+let lasers = []     -- 点めつするレーザー
+let ghosts = []     -- 近づくと見える床
+let winds = []      -- {y0, y1, dir}
+let sliders = []    -- {block, dx}
+let coins = []
+let steps = []      -- ふつうの足場（イベントで小さくしたり色を変えたり）
+
+func part(name, x, y, z, sx, sy, sz, color, extra)
+  let opts = {name: name, position: {x: x, y: y, z: z}, size: {x: sx, y: sy, z: sz}, color: color}
+  if extra != nil then
+    for k in keys(extra) do opts[k] = extra[k] end
+  end
+  return create_block(opts)
+end
+
+func spot(k, radius)
+  let a = 90 + k * 36
+  return {x: cos(a) * radius, z: sin(a) * radius}
+end
+
+func step_at(name, k, base, y, size, color, extra)
+  let s = spot(k, 5)
+  let b = part(name, s.x, base + y, s.z, size, 0.4, size, color, extra)
+  if extra == nil then append(steps, {block: b, size: size, color: color}) end
+  return b
+end
+
+func pick_section(i)
+  if i == 1 then return "stairs" end
+  let list = []
+  for sct in SECTIONS do
+    let w = sct.weight
+    -- 上の階ほどむずかしい階が出やすい
+    if sct.hard >= 3 then w = w * (0.5 + i / 8) end
+    append(list, {id: sct.id, weight: w})
+  end
+  return kit_pick(list, 1).id
+end
+
+func maybe_coin(tag, k, base, y)
+  if random() > 0.25 then return end
+  let s = spot(k, 5)
+  let c = part(tag + "Coin " + k, s.x, base + y + 1.1, s.z, 0.6, 0.15, 0.6, "#FACC15",
+               {shape: "cylinder", material: "neon", behavior: "trigger", tags: ["coin"], rotation: {x: 90, y: 0, z: 0}, solid: false})
+  append(coins, c)
+end
+
+func section(i, base)
+  let kind = pick_section(i)
+  let c = COLORS[(i - 1) % len(COLORS) + 1]
+  let tag = "F" + i + " "
+  if kind == "stairs" then
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 1.9, c, nil) end
+  elif kind == "stones" then
+    for k in 1 to 10 do
+      let r = 4.4
+      if k % 2 == 0 then r = 5.8 end
+      let s = spot(k, r)
+      part(tag + k, s.x, base + k * 0.6, s.z, 1.3, 0.4, 1.3, c, nil)
+    end
+  elif kind == "lava" then
+    for k in 1 to 10 do
+      step_at(tag + k, k, base, k * 0.6, 2.4, c, nil)
+      if k % 3 == 0 then
+        let s = spot(k, 5)
+        part(tag + k + " Lava", s.x, base + k * 0.6 + 0.25, s.z, 1.2, 0.1, 1.2, "#EF4444", {material: "neon", behavior: "hazard"})
+      end
+    end
+  elif kind == "mover" then
+    for k in 1 to 10 do
+      if k < 4 or k > 6 then step_at(tag + k, k, base, k * 0.6, 1.9, c, nil) end
+    end
+    let a = spot(4, 5)
+    let b = spot(6, 5)
+    let m = part(tag + "Mover", a.x, base + 2.4, a.z, 2.2, 0.4, 2.2, "#FFFFFF", {material: "neon"})
+    append(movers, {block: m, dx: b.x - a.x, dy: 1.2, dz: b.z - a.z})
+  elif kind == "bounce" then
+    for k in 1 to 3 do step_at(tag + k, k, base, k * 0.6, 1.9, c, nil) end
+    step_at(tag + "Pad", 4, base, 2.4, 2.2, "#22C55E", {material: "neon", behavior: "bounce"})
+    for k in 5 to 10 do step_at(tag + k, k, base, 5.4 + (k - 5) * 0.12, 1.9, c, nil) end
+  elif kind == "vanish" then
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 1.9, "#FDE047", {behavior: "disappear"}) end
+  elif kind == "tiny" then
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 0.9, c, nil) end
+  elif kind == "spinner" then
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 2.2, c, nil) end
+    -- 足場の上を回る赤いバー
+    let s = spot(5, 5)
+    let bar = part(tag + "Spinner", s.x, base + 3.9, s.z, 6, 0.4, 0.4, "#DC2626", {material: "neon", behavior: "hazard", solid: false})
+    append(spinners, bar)
+  elif kind == "laser" then
+    for k in 1 to 10 do
+      step_at(tag + k, k, base, k * 0.6, 2, c, nil)
+      if k == 4 or k == 8 then
+        let s = spot(k, 5)
+        let l = part(tag + k + " Laser", s.x, base + k * 0.6 + 1.2, s.z, 0.2, 2, 2.4, "#F43F5E",
+                     {material: "neon", behavior: "hazard", solid: false, rotation: {x: 0, y: 90 + k * 36, z: 0}})
+        append(lasers, l)
+      end
+    end
+  elif kind == "beam" then
+    -- 足場のあいだを細い棒でつなぐ
+    for k in 1 to 10 do
+      if k % 3 == 1 then
+        step_at(tag + k, k, base, k * 0.6, 1.8, c, nil)
+      else
+        step_at(tag + k, k, base, k * 0.6, 0.6, c, nil)
+      end
+    end
+  elif kind == "ghost" then
+    for k in 1 to 10 do
+      let b = step_at(tag + k, k, base, k * 0.6, 1.9, "#E0E7FF", {opacity: 0.08})
+      append(ghosts, b)
+    end
+  elif kind == "wind" then
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 2.2, c, nil) end
+    append(winds, {y0: base, y1: base + HEIGHT, dir: random([1, -1])})
+    let s = spot(5, 8)
+    part(tag + "Wind Sign", s.x, base + 3, s.z, 0.3, 2, 2, "#BAE6FD", {material: "glass", opacity: 0.4, solid: false})
+  elif kind == "fan" then
+    for k in 1 to 3 do step_at(tag + k, k, base, k * 0.6, 1.9, c, nil) end
+    let s = spot(4, 5)
+    part(tag + "Fan", s.x, base + 2.4, s.z, 2.4, 0.3, 2.4, "#93C5FD", {material: "neon", behavior: "trigger", tags: ["fan"]})
+    part(tag + "Fan Air", s.x, base + 5.2, s.z, 2.2, 5, 2.2, "#E0F2FE", {material: "glass", opacity: 0.2, solid: false})
+    for k in 6 to 10 do step_at(tag + k, k, base, 5.4 + (k - 6) * 0.12, 1.9, c, nil) end
+  elif kind == "slider" then
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 2.2, c, nil) end
+    let s = spot(6, 5)
+    let lava = part(tag + "Slider", s.x - 1.5, base + 6 * 0.6 + 0.55, s.z, 0.8, 0.8, 0.8, "#EF4444", {material: "neon", behavior: "hazard", solid: false})
+    append(sliders, {block: lava, dx: 3})
+  end
+  for k in [3, 7] do maybe_coin(tag, k, base, k * 0.6) end
+  return kind
+end
+
+func build_tower(floors)
+  movers = []
+  spinners = []
+  lasers = []
+  ghosts = []
+  winds = []
+  sliders = []
+  coins = []
+  steps = []
+  let kinds = []
+  for i in 1 to floors do append(kinds, section(i, (i - 1) * HEIGHT)) end
+  let top = floors * HEIGHT
+  part("Top", 0, top + 0.3, 3, 7, 0.4, 7, "#FBBF24", {material: "neon"})
+  part("Goal", 0, top + 0.7, 2, 3, 0.2, 3, "#FDE047", {material: "neon", behavior: "trigger", tags: ["goal"], shape: "cylinder"})
+  return kinds
+end
+
+-- MARK: 動くもの
+
+func animate_tower()
+  for m in movers do
+    m.block.move(m.dx, m.dy, m.dz, 1.4)
+    after(1.5, func() m.block.move(0 - m.dx, 0 - m.dy, 0 - m.dz, 1.4) end)
+  end
+  for s in sliders do
+    s.block.move(s.dx, 0, 0, 1.4)
+    after(1.5, func() s.block.move(0 - s.dx, 0, 0, 1.4) end)
+  end
+end
+
+let blink = true
+func blink_lasers()
+  blink = not blink
+  if event_is("freeze") then blink = false end
+  for l in lasers do
+    l.visible = blink
+    if blink then l.behavior = "hazard" else l.behavior = "none" end
+  end
+end
+
+let tower_clock = 0
+on tick(dt)
+  tower_clock = tower_clock + dt
+  if tower_clock < 0.2 then return end
+  tower_clock = 0
+  if not event_is("freeze") then
+    for bar in spinners do bar.rotate(0, 18, 0) end
+  end
+  -- 近づくと見える床
+  for g in ghosts do
+    let near = false
+    for p in players() do
+      if distance(p, g) < 4 then near = true end
+    end
+    if near then g.opacity = 0.85 else g.opacity = 0.08 end
+  end
+  -- 横風
+  for w in winds do
+    for p in players() do
+      if p.y > w.y0 and p.y < w.y1 and random() < 0.12 then
+        let side = kit_dir(p.yaw + 90 * w.dir)
+        p.launch(side.x * 6, 1, side.z * 6)
+      end
+    end
+  end
+end

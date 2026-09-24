@@ -1,0 +1,145 @@
+-- style.absc — スキン・記録・成績
+-- スキンはコインで買うとずっと使える。いちばん速いクリアは「最速記録」として画面にのこる。
+
+let record_time = 0
+let record_name = ""
+let rainbow_clock = 0
+
+func own_colors(p)
+  if p.own_body == nil then
+    p.own_body = p.color
+    p.own_head = p.head_color
+    p.own_legs = p.leg_color
+  end
+end
+
+func wear_skin(p, id)
+  own_colors(p)
+  p.skin = id
+  if id == "own" then
+    p.color = p.own_body
+    p.head_color = p.own_head
+    p.leg_color = p.own_legs
+    return
+  end
+  for sk in SKINS do
+    if sk.id == id and sk.body != nil then
+      p.color = sk.body
+      p.head_color = sk.head
+      p.leg_color = sk.legs
+    end
+  end
+end
+
+func skin_menu(p)
+  let h = 130 + len(SKINS) * 48
+  p.ui_panel("skins_box", {at: "center", w: 440, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("skins_t", "🎨 スキン（🪙 " + kit_money(p) + "）", {parent: "skins_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for sk in SKINS do
+    i = i + 1
+    let label = sk.name + "  🪙" + sk.price
+    let bg = "#1D4ED8"
+    if contains(p.skins, sk.id) then
+      label = sk.name + "  を着る"
+      bg = "#0F766E"
+    end
+    if p.skin == sk.id then
+      label = "✅ " + sk.name + "（着ている）"
+      bg = "#374151"
+    end
+    p.ui_button("skin_" + sk.id, label, {parent: "skins_box", y: (30 + i * 48) / h, w: 400, h: 40, size: 15, bg: bg})
+  end
+  p.ui_button("skin_close", "閉じる", {parent: "skins_box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_skin(p, id)
+  if not contains(p.skins, id) then
+    let price = nil
+    for sk in SKINS do
+      if sk.id == id then price = sk.price end
+    end
+    if price == nil then return end
+    if not kit_pay(p, price) then return end
+    append(p.skins, id)
+    p.sound("checkpoint")
+    p.message("🎨 新しいスキンを手に入れた！", 1.5)
+    kit_quest_progress(p, "skin", 1)
+    if len(p.skins) >= len(SKINS) then kit_badge(p, "all_skins", "スキンコレクター") end
+  end
+  wear_skin(p, id)
+  skin_menu(p)
+end
+
+-- MARK: 記録
+
+func show_record()
+  if record_time > 0 then
+    ui_text("record", "🥇 最速記録 " + kit_clock(record_time) + "（" + record_name + "）", {at: "top_left", dy: 40, size: 14, color: "#FDE68A"})
+  end
+end
+
+func record_clear(p, secs)
+  p.clears = (p.clears or 0) + 1
+  if p.best_time == nil or secs < p.best_time then
+    p.best_time = secs
+    p.message("⏱ 自己ベスト！ " + kit_clock(secs), 2)
+  end
+  if record_time == 0 or secs < record_time then
+    record_time = secs
+    record_name = p.name
+    announce("🥇 新記録！ " + p.name + " が " + kit_clock(secs) + " でクリア！（🪙+50）", 4)
+    kit_give(p, 50)
+  end
+  show_record()
+  kit_badge(p, "first_top", "はじめてのてっぺん")
+  if p.clears >= 5 then kit_badge(p, "tower5", "タワーの常連") end
+  if p.clears >= 20 then kit_badge(p, "tower20", "カオスマスター") end
+  if secs < 180 then kit_quest_progress(p, "fast", 1) end
+  if (p.falls_round or 0) == 0 then kit_badge(p, "nofall", "一度も落ちずにクリア") end
+end
+
+func stats(p)
+  let best = "まだなし"
+  if p.best_time != nil then best = kit_clock(p.best_time) end
+  let lines = [
+    "🏆 クリア: " + (p.clears or 0) + " 回",
+    "⏱ 自己ベスト: " + best,
+    "🧗 いちばん高く登った階: " + (p.top_floor or 0),
+    "💥 落ちた回数: " + (p.falls or 0),
+    "🪙 拾ったコイン: " + (p.coins_picked or 0) + " まい",
+    "🎨 スキン: " + len(p.skins) + " / " + len(SKINS),
+    "🏅 実績: " + len(p.badges or []) + " こ"
+  ]
+  let h = 120 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 420, h: h, bg: "#111827F2", radius: 22, layer: 30})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 16})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+on tick(dt)
+  rainbow_clock = rainbow_clock + dt
+  if rainbow_clock < 0.5 then return end
+  rainbow_clock = 0
+  for p in players() do
+    if p.skin == "rainbow" then
+      p.color = random(COLORS)
+      p.head_color = random(COLORS)
+      p.leg_color = random(COLORS)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "skins" then skin_menu(p)
+  elif id == "skin_close" then p.ui_remove("skins_box")
+  elif starts_with(id, "skin_") then pick_skin(p, replace(id, "skin_", ""))
+  elif id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  end
+end

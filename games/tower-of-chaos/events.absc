@@ -1,0 +1,122 @@
+-- events.absc — カオスイベント
+-- ラウンド中、40〜70びょうごとに EVENTS から1つ。コインの雨・足場ちぢみ・月面タイム・ターボ・
+-- 突風・にじ色・ゴールボーナス・わなストップ・きり・巨人タイム。
+
+let event_now = nil
+let event_ends = 0
+let event_next = 0
+let event_clock = 0
+let event_coins = []
+
+-- まだ消えていないブロック？
+func still(b)
+  return b != nil and b.destroy != nil
+end
+
+func event_is(id)
+  return event_now != nil and event_now.id == id
+end
+
+func everyone_mods()
+  for p in players() do apply_mods(p) end
+end
+
+func base_light()
+  if has_mod("dark") then return 0.2 end
+  return 0.7
+end
+
+func rain_coins()
+  event_coins = []
+  let count = min(16, len(steps))
+  for i in 1 to count do
+    let s = random(steps)
+    if still(s.block) then
+      let at = s.block.position
+      let c = part("Rain Coin " + i, at.x, at.y + 1.1, at.z, 0.6, 0.15, 0.6, "#FDE047",
+                   {shape: "cylinder", material: "neon", behavior: "trigger", tags: ["coin"], rotation: {x: 90, y: 0, z: 0}, solid: false})
+      append(event_coins, c)
+    end
+  end
+end
+
+func start_event(e)
+  event_now = e
+  event_ends = time() + e.secs
+  announce(e.name + "！ " + e.text, 3)
+  for p in players() do p.sound("tick") end
+  if e.id == "coins" then
+    rain_coins()
+  elif e.id == "shrink" then
+    for s in steps do
+      if still(s.block) then s.block.size = {x: s.size * 0.6, y: 0.4, z: s.size * 0.6} end
+    end
+  elif e.id == "moon" or e.id == "turbo" or e.id == "giant" then
+    everyone_mods()
+  elif e.id == "gust" then
+    for p in players() do
+      if not p.done then
+        let push = kit_dir(random(0, 359))
+        p.launch(push.x * 9, 3, push.z * 9)
+      end
+    end
+  elif e.id == "rainbow" then
+    for s in steps do
+      if still(s.block) then s.block.color = random(COLORS) end
+    end
+  elif e.id == "fog" then
+    world.light = 0.25
+  end
+end
+
+func end_event()
+  if event_now == nil then return end
+  let e = event_now
+  event_now = nil
+  ui_remove("event")
+  if e.id == "coins" then
+    for c in event_coins do kit_gone(c) end
+    event_coins = []
+  elif e.id == "shrink" then
+    for s in steps do
+      if still(s.block) then s.block.size = {x: s.size, y: 0.4, z: s.size} end
+    end
+  elif e.id == "moon" or e.id == "turbo" or e.id == "giant" then
+    everyone_mods()
+  elif e.id == "rainbow" then
+    for s in steps do
+      if still(s.block) then s.block.color = s.color end
+    end
+  elif e.id == "fog" then
+    world.light = base_light()
+  end
+end
+
+on start()
+  event_now = nil
+  event_coins = []
+  ui_remove("event")
+  event_next = time() + random(30, 50)
+end
+
+on tick(dt)
+  event_clock = event_clock + dt
+  if event_clock < 1 then return end
+  event_clock = 0
+  if event_now != nil then
+    let left = ceil(event_ends - time())
+    if left <= 0 then
+      end_event()
+      event_next = time() + random(40, 70)
+    else
+      ui_text("event", event_now.name + " あと " + left + " びょう", {at: "top", dy: 96, size: 17, bold: true, color: "#FDE68A"})
+      if event_now.id == "rainbow" then
+        for s in steps do
+          if still(s.block) and random() < 0.3 then s.block.color = random(COLORS) end
+        end
+      end
+    end
+  elif time() >= event_next and not kit_ending then
+    start_event(kit_pick(EVENTS, 1))
+  end
+end

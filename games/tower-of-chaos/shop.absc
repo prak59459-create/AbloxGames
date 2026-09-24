@@ -1,0 +1,73 @@
+-- shop.absc — 道具屋（コインで買う・そのラウンドだけ使える）
+
+func shop(p)
+  let h = 130 + len(GEAR) * 50
+  p.ui_panel("shop", {at: "center", w: 500, h: h, bg: "#1E1B4BF2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🛒 道具屋（🪙 " + kit_money(p) + "・このラウンドだけ）", {parent: "shop", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for g in GEAR do
+    i = i + 1
+    let label = g.name + "  🪙" + g.price + "  " + g.text
+    let bg = "#4338CA"
+    if contains(p.gear, g.id) then
+      label = "✅ " + g.name
+      bg = "#374151"
+    end
+    p.ui_button("gear_" + g.id, label, {parent: "shop", y: (30 + i * 50) / h, w: 460, h: 42, size: 13, bg: bg})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy(p, id)
+  for g in GEAR do
+    if g.id == id and not contains(p.gear, id) then
+      if not kit_pay(p, g.price) then return end
+      append(p.gear, id)
+      p.message(g.name + " を手に入れた！", 1.5)
+      kit_quest_progress(p, "gear", 1)
+      apply_mods(p)
+      shop_buttons(p)
+      shop(p)
+    end
+  end
+end
+
+func shop_buttons(p)
+  if contains(p.gear, "flag") and p.flag == nil and not p.flag_used then
+    p.ui_button("put_flag", "🚩 旗を立てる", {at: "bottom_right", dx: -120, dy: -150, w: 140, h: 52, size: 15, bg: "#DC2626", radius: 14})
+  else
+    p.ui_remove("put_flag")
+  end
+  if contains(p.gear, "jumppad") and not p.pad_used then
+    p.ui_button("put_pad", "🦘 ジャンプ台", {at: "bottom_right", dx: -270, dy: -150, w: 140, h: 52, size: 15, bg: "#16A34A", radius: 14})
+  else
+    p.ui_remove("put_pad")
+  end
+end
+
+func put_flag(p)
+  if not contains(p.gear, "flag") or p.flag != nil then return end
+  p.flag = p.position + {x: 0, y: 1, z: 0}
+  p.flag_used = true
+  p.flag_block = create_block({name: "Flag", shape: "cylinder", position: p.position + {x: 0, y: 1.2, z: 0}, size: {x: 0.15, y: 2.4, z: 0.15},
+                               color: "#DC2626", material: "neon", solid: false})
+  p.message("🚩 旗を立てた！落ちたらここへもどれる（1回）", 2)
+  shop_buttons(p)
+end
+
+func put_pad(p)
+  if not contains(p.gear, "jumppad") or p.pad_used then return end
+  p.pad_used = true
+  create_block({name: "Placed Pad", shape: "cylinder", position: p.position + {x: 0, y: 0.1, z: 0}, size: {x: 2, y: 0.2, z: 2},
+                color: "#22C55E", material: "neon", behavior: "bounce"})
+  shop_buttons(p)
+end
+
+on button(p, id)
+  if id == "open_shop" then shop(p)
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif starts_with(id, "gear_") then buy(p, replace(id, "gear_", ""))
+  elif id == "put_flag" then put_flag(p)
+  elif id == "put_pad" then put_pad(p)
+  end
+end

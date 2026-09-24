@@ -1,0 +1,71 @@
+-- data.absc — Tower of Chaos の表（階のしゅるい・特殊ルール・道具）
+
+let HEIGHT = 6           -- 1階の高さ
+let ROUND_TIME = 420     -- 1ラウンドの長さ
+let COLORS = ["#F472B6", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F87171", "#22D3EE", "#FB923C"]
+
+-- MARK: 階のしゅるい（weight: 出やすさ / hard: むずかしさ）
+let SECTIONS = [
+  {id: "stairs", name: "ふつうの階段", weight: 5, hard: 1},
+  {id: "stones", name: "飛び石", weight: 4, hard: 2},
+  {id: "lava", name: "溶岩つき", weight: 4, hard: 2},
+  {id: "mover", name: "動く足場", weight: 3, hard: 2},
+  {id: "bounce", name: "ジャンプ台", weight: 3, hard: 1},
+  {id: "vanish", name: "消える床", weight: 3, hard: 3},
+  {id: "tiny", name: "小さな足場", weight: 3, hard: 3},
+  {id: "spinner", name: "回るバー", weight: 3, hard: 3},
+  {id: "laser", name: "点めつレーザー", weight: 3, hard: 3},
+  {id: "beam", name: "細い平均台", weight: 3, hard: 2},
+  {id: "ghost", name: "近づくと見える床", weight: 2, hard: 3},
+  {id: "wind", name: "横風", weight: 2, hard: 3},
+  {id: "fan", name: "上へふき上げる風", weight: 2, hard: 1},
+  {id: "slider", name: "左右に動く溶岩", weight: 2, hard: 3}
+]
+
+-- MARK: 特殊ルール（1つか2つ）
+let MODIFIERS = [
+  {id: "none", name: "なし", weight: 4},
+  {id: "lowgrav", name: "🌙 低重力", weight: 2},
+  {id: "highgrav", name: "🪨 高重力", weight: 1},
+  {id: "fast", name: "⚡ スピードアップ", weight: 2},
+  {id: "jump", name: "🦘 ジャンプ強化", weight: 2},
+  {id: "tiny", name: "🐜 小さくなる", weight: 1},
+  {id: "dark", name: "🌑 くらやみ", weight: 1},
+  {id: "lava", name: "🌋 上がってくる溶岩", weight: 1},
+  {id: "long", name: "📏 長いタワー", weight: 1}
+]
+
+-- MARK: 道具（コインで買う・そのラウンドだけ）
+let GEAR = [
+  {id: "speed", name: "⚡ スピードコイル", price: 30, text: "足が速くなる"},
+  {id: "gravity", name: "🎈 重力コイル", price: 40, text: "ふんわりジャンプ"},
+  {id: "fusion", name: "🌀 フュージョンコイル", price: 90, text: "速い＋ふんわり"},
+  {id: "flag", name: "🚩 チェックポイント旗", price: 60, text: "1回だけ、落ちたら旗の場所へもどれる"},
+  {id: "jumppad", name: "🦘 ジャンプパッド", price: 45, text: "足もとに1回だけジャンプ台を置く"}
+]
+
+-- MARK: カオスイベント（ラウンド中にときどき起きる・secs: つづく時間）
+let EVENTS = [
+  {id: "coins", name: "🪙 コインの雨", text: "タワーじゅうにコインがふってきた！", secs: 25, weight: 3},
+  {id: "shrink", name: "🔻 足場ちぢみ", text: "足場が小さくなった！ しばらくがまん", secs: 20, weight: 2},
+  {id: "moon", name: "🌙 月面タイム", text: "みんなふんわりジャンプ！", secs: 20, weight: 2},
+  {id: "turbo", name: "⚡ ターボタイム", text: "みんな足が速くなった！", secs: 20, weight: 2},
+  {id: "gust", name: "🌪 突風", text: "強い風がふいた！ しがみつけ！", secs: 3, weight: 1},
+  {id: "rainbow", name: "🌈 レインボー", text: "足場がにじ色に光る…", secs: 20, weight: 2},
+  {id: "double", name: "✨ ゴールボーナス", text: "いまゴールすると🪙2倍！", secs: 30, weight: 2},
+  {id: "freeze", name: "🧊 わなストップ", text: "レーザーと回るバーが止まった！", secs: 20, weight: 2},
+  {id: "fog", name: "🌫 きり", text: "まわりが見えにくい…", secs: 20, weight: 1},
+  {id: "giant", name: "🦍 巨人タイム", text: "みんな大きくなった！ 足場がせまい！", secs: 15, weight: 1}
+]
+
+-- MARK: スキン（ずっと使える・コインで買う）
+let SKINS = [
+  {id: "own", name: "👤 いつもの", price: 0},
+  {id: "magma", name: "🌋 マグマ", price: 60, body: "#EA580C", head: "#FCD34D", legs: "#7C2D12"},
+  {id: "mint", name: "🌿 ミント", price: 60, body: "#34D399", head: "#ECFDF5", legs: "#065F46"},
+  {id: "sky", name: "☁️ そら", price: 80, body: "#7DD3FC", head: "#FFFFFF", legs: "#0369A1"},
+  {id: "shadow", name: "🌑 シャドウ", price: 150, body: "#111827", head: "#374151", legs: "#000000"},
+  {id: "neon", name: "💜 ネオン", price: 180, body: "#A855F7", head: "#F0ABFC", legs: "#4C1D95"},
+  {id: "gold", name: "🏆 ゴールド", price: 300, body: "#FBBF24", head: "#FEF3C7", legs: "#B45309"},
+  {id: "rainbow", name: "🌈 レインボー", price: 500}
+]
