@@ -1,0 +1,48 @@
+-- data.absc — Metro Response の表
+-- チーム5・階級・車・出動の種類
+
+let TEAMS = {
+  police: {pad: "Team Police", name: "🚓 警察", color: "#1E40AF", hat: "cap", car: "🚓 パトカー", speed: 2.4},
+  fire: {pad: "Team Fire", name: "🚒 消防", color: "#B91C1C", hat: "cap", car: "🚒 消防車", speed: 2},
+  medic: {pad: "Team Medic", name: "🚑 救急", color: "#FFFFFF", hat: "none", car: "🚑 救急車", speed: 2.3},
+  civilian: {pad: "Team Civilian", name: "🧑 市民", color: "#9CA3AF", hat: "none", car: "🚕 タクシー", speed: 2.1},
+  criminal: {pad: "Team Criminal", name: "🦹 犯罪者", color: "#111827", hat: "none", car: "🏎 逃走車", speed: 2.5}
+}
+let TEAM_ORDER = ["police", "fire", "medic", "civilian", "criminal"]
+
+-- 階級（チームごとのポイント）
+let RANK_NAMES = {
+  police: ["巡査", "巡査長", "巡査部長", "警部", "署長"],
+  fire: ["消防士", "消防副士長", "消防士長", "小隊長", "消防署長"],
+  medic: ["救急隊員", "救急救命士", "主任救命士", "救急隊長", "救命センター長"],
+  civilian: ["新人ドライバー", "ドライバー", "ベテラン", "エース", "街の顔"],
+  criminal: ["チンピラ", "こそ泥", "強盗", "大強盗", "黒幕"]
+}
+let RANK_STEPS = [0, 150, 500, 1200, 2500]
+
+-- 出動（だれがいると起きるか・ごほうび）
+let CALLS = {
+  fire: {name: "🔥 火事", team: "fire", pay: 90},
+  injured: {name: "🚑 けが人", team: "medic", pay: 80},
+  robbery: {name: "🚨 強盗", team: "police", pay: 90},
+  crash: {name: "💥 交通事故", team: "medic", pay: 100}
+}
+let CALL_EVERY = 18
+let CALL_LIMIT = 120
+let FAST_BONUS_SECS = 45
+
+-- 消防
+let TANK_MAX = 100
+let TANK_UPGRADE = 60        -- 階級が上がるごとに増える
+let HOSE_USE = 8
+
+-- 救急・倒れたプレイヤー
+let DOWNED_SECS = 25
+
+-- 警察・犯罪
+let TASER_STUN = 2.5
+let JAIL_SECS = 30
+let VAULT_SECS = 10
+let VAULT_VALUE = 500
+let ATM_SECS = 5
+let ATM_VALUE = 150

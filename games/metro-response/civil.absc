@@ -1,0 +1,64 @@
+-- civil.absc — 市民の仕事（配達・タクシー）と ATM
+-- 📦 配達: 茶色く光る場所へ荷物をとどける
+-- 🚕 タクシー: 黄色いタクシー乗り場で客を乗せ、黄色い光の柱まで運ぶ（遠いほど高い）
+-- 🏧 ATM（犯罪者）: そばに5びょう
+
+let civ_clock = 0
+
+func new_delivery(p)
+  if p.drop != nil then gone(p.drop) end
+  let spot = block("Emergency Spot " + random(1, 8))
+  p.drop = create_block({name: "Package Drop", shape: "box", position: spot.position + {x: random(-4, 4), y: 0.8, z: random(-4, 4)},
+                         size: 1.2, color: "#A16207", material: "neon", solid: false, behavior: "trigger", tags: ["package", p.id]})
+  p.message("📦 茶色く光る場所へ配達！", 2)
+end
+
+func take_fare(p)
+  if p.team != "civilian" or p.fare != nil then return end
+  let spot = block("Emergency Spot " + random(1, 8))
+  let d = distance(p, spot.position)
+  let beam = create_block({name: "Taxi Beam", shape: "cylinder", position: spot.position + {x: 0, y: 10, z: 0}, size: {x: 1, y: 20, z: 1},
+                           color: "#FDE047", material: "neon", solid: false, opacity: 0.4})
+  p.fare = {pos: spot.position, beam: beam, pay: 20 + floor(d / 4)}
+  p.message("🚕 お客さんを乗せた！ 黄色い光の柱へ（" + floor(d) + "m）", 2.5)
+end
+
+on tick(dt)
+  civ_clock = civ_clock + dt
+  if civ_clock < 0.5 then return end
+  civ_clock = 0
+  for p in team_members("civilian") do
+    if p.fare != nil and distance(p, p.fare.pos) < 5 then
+      gone(p.fare.beam)
+      let pay = p.fare.pay
+      p.fare = nil
+      earn(p, pay, "🚕 到着")
+      kit_quest_progress(p, "taxi", 1)
+    end
+  end
+  for p in team_members("criminal") do
+    if p.rob == nil and not active_until(p.jailed_until) then
+      for i in 1 to 2 do
+        let a = block("ATM " + i)
+        if a != nil and distance(p, a.position) < 3 and time() > (atm_cd["" + i] or 0) then
+          atm_cd["" + i] = time() + 45
+          p.rob = {name: "ATM " + i, t: 0, need: ATM_SECS, value: ATM_VALUE, stars: 1}
+          p.message("🏧 ATMをハック中…", 1.5)
+          for c in team_members("police") do c.message("📻 ATMがねらわれている！", 2) end
+        end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "package") and contains(b.tags, p.id) then
+    gone(b)
+    p.drop = nil
+    earn(p, 30, "📦 配達")
+    kit_quest_progress(p, "deliver", 1)
+    if p.team == "civilian" then kit_later(p, 1, func() if p.team == "civilian" then new_delivery(p) end end) end
+  elif contains(b.tags, "taxi") and quiet_ready(p, "taxi_pad", 2) then take_fare(p)
+  end
+end

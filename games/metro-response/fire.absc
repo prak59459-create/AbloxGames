@@ -1,0 +1,108 @@
+-- fire.absc — 消防
+-- 火の近く（7m）で「💦 放水」を押すと水を使って火が弱まる。水は消防署の消火栓（赤いパッド）で補給。
+-- 大きな火事には逃げおくれた人がいることも。近くに行くと助け出せる。放っておくと火は広がる。
+
+let fires = []        -- {uid, call, b, hp, pos}
+let fire_uid = 0
+let spread_clock = 0
+let fire_clock = 0
+
+func add_fire(call_uid, pos)
+  fire_uid = fire_uid + 1
+  let b = create_block({name: "Fire", shape: "cone", position: pos + {x: 0, y: 1.4, z: 0}, size: {x: 2.8, y: 2.8, z: 2.8},
+                        color: "#F97316", material: "neon", solid: false, tags: ["fire"]})
+  append(fires, {uid: fire_uid, call: call_uid, b: b, hp: 100, pos: pos})
+end
+
+func start_fire(c, pos, n)
+  for k in 1 to n do add_fire(c.uid, pos + {x: random(-4, 4), y: 0, z: random(-4, 4)}) end
+  if n >= 3 then
+    let t = create_npc({name: "逃げおくれた人", position: pos + {x: 1, y: 1, z: 1}, color: "#FDE68A", head_color: "#F5D0A9",
+                        health: 100000, speed: 0.9, team: "citizens"})
+    t.kind = "trapped"
+    t.call = c.uid
+    t.frozen = true
+    t.say("たすけて！ 火がこわい！")
+  end
+end
+
+func spray(p)
+  if p.team != "fire" then return end
+  if p.water < HOSE_USE then
+    p.message("💧 水がない！ 消防署の消火栓で補給", 1.5)
+    return
+  end
+  let best = nil
+  for f in fires do
+    if distance(p, f.pos) < 7 and (best == nil or distance(p, f.pos) < distance(p, best.pos)) then best = f end
+  end
+  if best == nil then
+    p.message("近くに火がない", 0.8)
+    return
+  end
+  p.water = p.water - HOSE_USE
+  best.hp = best.hp - (14 + rank_i(p) * 3)
+  let dir = normalize(best.pos - p.position)
+  let b = create_block({name: "FX", shape: "box", position: p.position + dir * 2 + {x: 0, y: 1.2, z: 0}, size: {x: 0.4, y: 0.4, z: 4},
+                        rotation: {x: 0, y: atan2(dir.x, dir.z), z: 0}, color: "#7DD3FC", material: "neon", solid: false, opacity: 0.6})
+  after(0.3, func() gone(b) end)
+  if best.hp <= 0 then
+    gone(best.b)
+    fires = filter(fires, func(f) return f.uid != best.uid end)
+    fx_ball(best.pos + {x: 0, y: 1, z: 0}, 3, "#E5E7EB", 0.5)
+    earn(p, 25, "🧯 鎮火")
+    kit_quest_progress(p, "fires", 1)
+  else
+    best.b.size = {x: 0.8 + best.hp / 40, y: 0.8 + best.hp / 40, z: 0.8 + best.hp / 40}
+  end
+  hud(p)
+end
+
+func rescue_step(p)
+  for n in npcs() do
+    if n.kind == "trapped" and kit_here(n) and distance(p, n) < 3.5 then
+      n.kind = "saved"
+      n.frozen = false
+      n.say("ありがとう！ 命の恩人だ！")
+      let nn = n
+      after(2, func() gone(nn) end)
+      earn(p, 60, "🙋 救助")
+      kit_quest_progress(p, "rescue", 1)
+    end
+  end
+end
+
+on tick(dt)
+  spread_clock = spread_clock + dt
+  fire_clock = fire_clock + dt
+  if spread_clock >= 20 then
+    spread_clock = 0
+    for f in copy(fires) do
+      if len(fires) < 14 and random() < 0.5 then add_fire(f.call, f.pos + {x: random(-6, 6), y: 0, z: random(-6, 6)}) end
+    end
+  end
+  if fire_clock < 1 then return end
+  fire_clock = 0
+  let hydrant = block("Hydrant")
+  for p in team_members("fire") do
+    if hydrant != nil and distance(p, hydrant.position) < 3.5 and p.water < tank_max(p) then
+      p.water = min(tank_max(p), p.water + 25)
+      p.message("💧 補給中 " + floor(p.water), 0.6)
+      hud(p)
+    end
+    rescue_step(p)
+  end
+  -- 火のそばは熱い
+  for p in players() do
+    if ready(p) and p.team != "fire" then
+      for f in fires do
+        if distance(p, f.pos) < 2 then p.damage(4) end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "spray" then spray(p) end
+end

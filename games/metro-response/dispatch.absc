@@ -1,0 +1,99 @@
+-- dispatch.absc — 出動指令
+-- チームのだれかがいると、そのチームの出動がときどき起きる（火事・けが人・強盗・交通事故）。
+-- 画面の上に一覧（場所まで何m）。早く解決するとボーナス。放っておくと火事は広がる。
+
+let calls = []        -- {uid, kind, spot, since, done}
+let call_uid = 0
+let call_clock = 0
+let dispatch_clock = 0
+
+func new_call(kind)
+  let spot = block("Emergency Spot " + random(1, 8))
+  if spot == nil then return end
+  call_uid = call_uid + 1
+  let c = {uid: call_uid, kind: kind, pos: spot.position, since: time(), done: false}
+  append(calls, c)
+  let info = CALLS[kind]
+  if kind == "fire" then start_fire(c, spot.position, 3)
+  elif kind == "injured" then spawn_injured(c, spot.position)
+  elif kind == "robbery" then spawn_robber(c, spot.position)
+  elif kind == "crash" then
+    spawn_injured(c, spot.position)
+    spawn_injured(c, spot.position + {x: 2, y: 0, z: 1})
+    let car = create_block({name: "Wreck", shape: "box", position: spot.position + {x: -2, y: 0.8, z: 0}, size: {x: 3.6, y: 1.4, z: 1.8},
+                            rotation: {x: 0, y: random(0, 180), z: 12}, color: random(["#DC2626", "#2563EB", "#F59E0B"]), solid: false, tags: ["wreck"]})
+    c.wreck = car
+    if len(team_members("fire")) > 0 then start_fire(c, spot.position + {x: -2, y: 0, z: 0}, 1) end
+  end
+  for p in team_members(info.team) do
+    p.message("📻 " + info.name + " の通報！ " + floor(distance(p, c.pos)) + "m 先", 2.5)
+    p.sound("tick")
+  end
+end
+
+-- 出動の中身がぜんぶ片づいたら終わり
+func check_calls()
+  for c in calls do
+    if not c.done then
+      let left = 0
+      if c.kind == "fire" then
+        left = len(filter(fires, func(f) return f.call == c.uid end)) + len(filter(npcs(), func(n) return n.call == c.uid and n.kind == "trapped" end))
+      end
+      if c.kind == "injured" or c.kind == "crash" then left = left + len(filter(npcs(), func(n) return n.call == c.uid and n.kind == "injured" end)) end
+      if c.kind == "robbery" then left = len(filter(npcs(), func(n) return n.call == c.uid and n.kind == "robber" end)) end
+      if left == 0 then
+        c.done = true
+        gone(c.wreck)
+        let fast = time() - c.since < FAST_BONUS_SECS
+        let team = CALLS[c.kind].team
+        for p in team_members(team) do
+          if distance(p, c.pos) < 40 then
+            let bonus = 0
+            if fast then bonus = 30 end
+            earn(p, CALLS[c.kind].pay + bonus, "✅ " + CALLS[c.kind].name + " 解決")
+            kit_quest_progress(p, "calls", 1)
+          end
+        end
+      elif time() - c.since > CALL_LIMIT and c.kind != "fire" then
+        c.done = true
+        gone(c.wreck)
+        for n in npcs() do
+          if n.call == c.uid then gone(n) end
+        end
+      end
+    end
+  end
+  calls = filter(calls, func(c) return not c.done end)
+end
+
+on tick(dt)
+  call_clock = call_clock + dt
+  dispatch_clock = dispatch_clock + dt
+  if call_clock >= CALL_EVERY then
+    call_clock = 0
+    let kinds = []
+    if len(team_members("fire")) > 0 then append(kinds, "fire") end
+    if len(team_members("medic")) > 0 then
+      append(kinds, "injured")
+      append(kinds, "crash")
+    end
+    if len(team_members("police")) > 0 then append(kinds, "robbery") end
+    if len(kinds) > 0 and len(calls) < 6 then new_call(random(kinds)) end
+  end
+  if dispatch_clock < 1 then return end
+  dispatch_clock = 0
+  check_calls()
+  for p in players() do
+    if ready(p) and p.team != nil and p.team != "civilian" and p.team != "criminal" then
+      let mine = filter(calls, func(c) return CALLS[c.kind].team == p.team end)
+      if len(mine) == 0 then
+        p.ui_text("calls", "📻 通報なし（待機中）", {at: "top", dy: 30, size: 14, color: "#A7F3D0"})
+      else
+        let parts = map(mine, func(c) return CALLS[c.kind].name + " " + floor(distance(p, c.pos)) + "m" end)
+        p.ui_text("calls", "📻 " + join(slice(parts, 1, 4), "   "), {at: "top", dy: 30, size: 14, bold: true, color: "#FDE68A"})
+      end
+    else
+      p.ui_remove("calls")
+    end
+  end
+end

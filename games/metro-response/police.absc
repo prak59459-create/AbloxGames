@@ -1,0 +1,170 @@
+-- police.absc — 警察と犯罪者
+-- 👮 テーザーで撃つとしびれる → 近くで「🔗 手錠」。NPCの強盗も、手配⭐のある犯罪者プレイヤーも。
+-- 🦹 犯罪者: 市役所の金庫（10びょう）・ATM（5びょう）→ アジトの緑のパッドで山分け。つかまると留置所。
+
+weapon("taser", {model: "pistol", damage: 1, rate: 1.4, range: 28, ammo: 6, reload: 2, spread: 0.6})
+weapon("crook_gun", {model: "pistol", damage: 14, rate: 3, range: 40, ammo: 10, reload: 1.4, spread: 1.4})
+
+let police_clock = 0
+let atm_cd = {}
+let vault_cd = 0
+
+func spawn_robber(c, pos)
+  let n = create_npc({name: "逃走中の強盗", position: pos + {x: 0, y: 1, z: 0}, color: "#111827", head_color: "#F87171",
+                      health: 60, speed: 1.05, team: "criminal"})
+  n.kind = "robber"
+  n.call = c.uid
+  n.say("へへっ、つかまるもんか！")
+end
+
+func cuff(p)
+  if p.team != "police" then return end
+  for n in npcs() do
+    if n.kind == "robber" and kit_here(n) and distance(p, n) < 3.2 and (n.frozen or n.health < 30) then
+      n.kind = "caught"
+      n.frozen = true
+      n.say("くそっ…")
+      let nn = n
+      after(1.5, func() gone(nn) end)
+      earn(p, 60, "🔗 強盗を確保")
+      kit_quest_progress(p, "arrests", 1)
+      return
+    end
+  end
+  for q in team_members("criminal") do
+    if q.alive and q.wanted > 0 and not active_until(q.jailed_until) and distance(p, q) < 3.2 and (q.frozen or q.health < q.max_health * 0.4) then
+      let bounty = 50 + q.wanted * 40 + floor(q.loot / 2)
+      earn(p, bounty, "🔗 " + q.name + " を逮捕")
+      kit_quest_progress(p, "arrests", 1)
+      announce("🚓 " + p.name + " が " + q.name + " を逮捕！", 2)
+      jail(q)
+      return
+    end
+  end
+  p.message("🔗 しびれている（弱っている）相手の近くで押そう", 1.2)
+end
+
+func jail(q)
+  q.loot = 0
+  q.wanted = 0
+  q.rob = nil
+  q.frozen = false
+  q.jailed_until = time() + JAIL_SECS
+  let cell = block("Jail Door")
+  if cell != nil then q.teleport(cell) end
+  q.message("🚔 留置所 " + JAIL_SECS + "びょう", 2.5)
+  hud(q)
+end
+
+func rob_step(p)
+  let r = p.rob
+  let target = block(r.name)
+  if target == nil or distance(p, target.position) > 3.5 or p.frozen or not p.alive then
+    p.rob = nil
+    p.ui_remove("rob")
+    return
+  end
+  r.t = r.t + 0.5
+  p.ui_bar("rob", {at: "center", dy: 90, w: 220, h: 12, value: r.t, max: r.need, color: "#FACC15", bg: "#00000099"})
+  if r.t >= r.need then
+    p.rob = nil
+    p.ui_remove("rob")
+    p.loot = p.loot + r.value
+    p.wanted = min(5, p.wanted + r.stars)
+    p.wanted_at = time()
+    p.message("💰 +" + r.value + "！ アジト（北東）で山分け", 2)
+    kit_quest_progress(p, "heist", 1)
+    hud(p)
+  end
+end
+
+on tick(dt)
+  police_clock = police_clock + dt
+  if police_clock < 0.5 then return end
+  police_clock = 0
+  -- 強盗NPCは警察から逃げる
+  for n in npcs() do
+    if n.kind == "robber" and kit_here(n) and not n.frozen then
+      let cop = nil
+      for p in team_members("police") do
+        if distance(p, n) < 25 and (cop == nil or distance(p, n) < distance(cop, n)) then cop = p end
+      end
+      if cop != nil then
+        let away = normalize({x: n.x - cop.x, y: 0, z: n.z - cop.z})
+        let dest = n.position + away * 8
+        n.move_to({x: max(-105, min(105, dest.x)), y: dest.y, z: max(-105, min(105, dest.z))})
+      end
+    end
+  end
+  for p in team_members("criminal") do
+    if p.rob != nil then rob_step(p) end
+    if p.wanted > 0 and time() - (p.wanted_at or 0) > 50 then
+      p.wanted = p.wanted - 1
+      p.wanted_at = time()
+      hud(p)
+    end
+  end
+  -- 留置所
+  let cell = block("Jail Door")
+  for p in players() do
+    if ready(p) and p.jailed_until != nil then
+      if time() >= p.jailed_until then
+        p.jailed_until = nil
+        let ex = block("Jail Exit 1")
+        if ex != nil then p.teleport(ex) end
+        p.message("🚪 釈放", 1.5)
+        p.ui_remove("jail")
+      else
+        if cell != nil and distance(p, cell.position) > 4 then p.teleport(cell) end
+        p.ui_text("jail", "🚔 のこり " + ceil(p.jailed_until - time()) + "s", {at: "top", dy: 80, size: 15, bold: true, color: "#FCA5A5"})
+      end
+    end
+  end
+  let wanted = filter(team_members("criminal"), func(q) return q.wanted > 0 and not active_until(q.jailed_until) end)
+  for c in team_members("police") do
+    if len(wanted) > 0 then
+      c.ui_text("wanted", "🚨 手配: " + join(map(wanted, func(q) return q.name + "⭐" + q.wanted + "(" + floor(distance(c, q)) + "m)" end), "  "),
+                {at: "top", dy: 52, size: 13, bold: true, color: "#93C5FD"})
+    else
+      c.ui_remove("wanted")
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or p.team != "criminal" or active_until(p.jailed_until) or p.rob != nil then return end
+  if contains(b.tags, "vault") then
+    if time() < vault_cd then
+      if quiet_ready(p, "vault_msg", 3) then p.message("金庫は空っぽ（" + ceil(vault_cd - time()) + "s）", 1.2) end
+      return
+    end
+    vault_cd = time() + 90
+    p.rob = {name: b.name, t: 0, need: VAULT_SECS, value: VAULT_VALUE, stars: 3}
+    announce("🚨 市役所の金庫がねらわれている！", 3)
+  elif contains(b.tags, "stash") and p.loot > 0 then
+    let got = p.loot
+    p.loot = 0
+    p.wanted = max(0, p.wanted - 1)
+    earn(p, got, "🏴 山分け")
+    kit_quest_progress(p, "stash", 1)
+  end
+end
+
+on hit(victim, attacker, damage)
+  if kit_same_team(victim, attacker) then return 0 end
+  if active_until(victim.jailed_until) then return 0 end
+  if attacker.team == "police" and attacker.weapon == "taser" then
+    if victim.team == "criminal" then
+      victim.frozen = true
+      if not victim.is_npc then victim.rob = nil end
+      let v = victim
+      after(TASER_STUN, func() if kit_here(v) then v.frozen = false end end)
+      return 2
+    end
+    return 0
+  end
+  -- 警察が撃てるのは犯罪者だけ、犯罪者が撃てるのは警察だけ
+  if attacker.team == "police" and victim.team != "criminal" then return 0 end
+  if attacker.team == "criminal" and victim.team != "police" then return 0 end
+  return damage
+end

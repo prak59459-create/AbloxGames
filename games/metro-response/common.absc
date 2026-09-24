@@ -1,0 +1,94 @@
+-- common.absc — 小さな道具・階級・画面
+
+func ready(p)
+  return p.pts != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func team_members(t)
+  return filter(players(), func(p) return ready(p) and p.team == t end)
+end
+
+func rank_i(p)
+  if p.team == nil then return 1 end
+  let v = p.pts[p.team] or 0
+  let r = 1
+  let i = 0
+  for need in RANK_STEPS do
+    i = i + 1
+    if v >= need then r = i end
+  end
+  return r
+end
+
+func rank_name(p)
+  if p.team == nil then return "" end
+  return RANK_NAMES[p.team][rank_i(p)]
+end
+
+-- チームのポイントとお給料
+func earn(p, amount, why)
+  if p.team == nil then return end
+  let before = rank_i(p)
+  let pay = floor(amount * (1 + (before - 1) * 0.15))
+  kit_give(p, pay)
+  p.pts[p.team] = (p.pts[p.team] or 0) + amount
+  p.score = p.score + pay
+  p.message(why + " +" + pay, 1.8)
+  p.sound("collect")
+  if rank_i(p) > before then
+    announce("🎖 " + p.name + " が「" + rank_name(p) + "」に！", 3)
+    kit_quest_progress(p, "rank", 1)
+  end
+  hud(p)
+end
+
+func hud(p)
+  if not ready(p) then return end
+  if p.team == nil then
+    p.ui_text("team", "署の前のパッドでチームを選ぼう", {at: "top_left", dy: 34, size: 15})
+    return
+  end
+  let t = TEAMS[p.team]
+  let line = t.name + "「" + rank_name(p) + "」"
+  if p.team == "fire" then line = line + "   💧 " + floor(p.water) + "/" + tank_max(p) end
+  if p.team == "criminal" then line = line + "   💰 " + p.loot + "   手配⭐" + p.wanted end
+  if p.carrying != nil then line = line + "   🩹 運んでいる" end
+  p.ui_text("team", line, {at: "top_left", dy: 34, size: 15, bold: true, color: t.color})
+end
+
+func tank_max(p)
+  return TANK_MAX + (rank_i(p) - 1) * TANK_UPGRADE / 2
+end

@@ -1,0 +1,110 @@
+-- medic.absc — 救急
+-- けが人の近くで「🩺 手当て」を3回 → 自分についてくる → 病院のベッド（ピンク）まで連れていく。
+-- たおれたプレイヤーは25びょう待つ。そのあいだに救急が近くで「🩺」を押すと、その場で復活（両方にごほうび）。
+
+let medic_clock = 0
+
+func spawn_injured(c, pos)
+  let n = create_npc({name: "けが人", position: pos + {x: 0, y: 1, z: 0}, color: random(["#FCA5A5", "#FDE68A", "#93C5FD"]),
+                      head_color: "#F5D0A9", health: 100000, speed: 0.9, team: "citizens"})
+  n.kind = "injured"
+  n.call = c.uid
+  n.frozen = true
+  n.care = 0
+  n.say("いたい…")
+end
+
+func treat(p)
+  if p.team != "medic" then return end
+  -- まずは倒れているプレイヤー
+  for q in players() do
+    if q.id != p.id and not q.alive and q.downed_at != nil and distance(p, q.down_pos) < 4 then
+      let pos = q.down_pos
+      q.respawn()
+      q.teleport(pos)
+      q.downed_at = nil
+      q.ui_remove("downed")
+      q.message("🩺 " + p.name + " が助けてくれた！", 2)
+      earn(p, 70, "🩺 救命")
+      kit_quest_progress(p, "revive", 1)
+      return
+    end
+  end
+  for n in npcs() do
+    if n.kind == "injured" and kit_here(n) and n.carrier == nil and distance(p, n) < 4 then
+      n.care = n.care + 1
+      fx_ball(n.position + {x: 0, y: 1.5, z: 0}, 0.8, "#F472B6", 0.3)
+      if n.care >= 3 then
+        n.carrier = p.id
+        n.frozen = false
+        n.say("ありがとう… 病院へ")
+        p.carrying = n.id
+        p.message("🩹 手当て完了！ 病院のベッドへ連れていこう", 2)
+        hud(p)
+      else
+        p.message("🩺 手当て中 " + n.care + "/3", 0.8)
+      end
+      return
+    end
+  end
+  p.message("近くにけが人がいない", 0.8)
+end
+
+func carry_step()
+  let bed = block("Hospital Bed")
+  for n in npcs() do
+    if n.kind == "injured" and n.carrier != nil and kit_here(n) then
+      let m = player_by_id(n.carrier)
+      if m == nil or m.team != "medic" then
+        n.carrier = nil
+        n.frozen = true
+      else
+        -- 車についてこられないので、はなれすぎたらそばへ
+        if distance(n, m) > 8 then n.teleport(m.position + {x: 1.2, y: 0.5, z: 1.2}) else n.follow(m) end
+        if bed != nil and distance(m, bed.position) < 4.5 and distance(n, m) < 9 then
+          n.kind = "healed"
+          n.say("たすかった！")
+          let nn = n
+          after(1.5, func() gone(nn) end)
+          m.carrying = nil
+          earn(m, 50, "🏥 搬送")
+          kit_quest_progress(m, "patients", 1)
+          hud(m)
+        end
+      end
+    end
+  end
+end
+
+on tick(dt)
+  medic_clock = medic_clock + dt
+  if medic_clock < 0.5 then return end
+  medic_clock = 0
+  carry_step()
+  for p in players() do
+    if ready(p) and not p.alive and p.downed_at != nil then
+      p.ui_text("downed", "🚑 救急を待っています… " + max(0, ceil(p.downed_at + DOWNED_SECS - time())) + "s", {at: "center", dy: -60, size: 18, bold: true, color: "#FCA5A5"})
+    end
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  -- 犯罪者が警察にやられたら逮捕（police.absc）。それ以外は救急を待つ
+  victim.downed_at = time()
+  victim.down_pos = victim.position
+  if len(team_members("medic")) > 0 then
+    for m in team_members("medic") do m.message("🚑 " + victim.name + " がたおれた（" + floor(distance(m, victim.down_pos)) + "m）", 2) end
+  end
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  p.ui_remove("downed")
+  p.downed_at = nil
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "treat" then treat(p) end
+end

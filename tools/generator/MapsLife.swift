@@ -31,7 +31,7 @@ let lifeGames: [Game] = [
          summary: "5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。",
          tags: ["life", "sim", "needs"], maxPlayers: 12, build: lifeVille),
     Game(number: 42, id: "metro-response", title: "Metro Response",
-         summary: "警察・消防・救急・市民・犯罪者に分かれる街のRP。火事を消し、けが人を運び、犯人をつかまえよう。",
+         summary: "警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。",
          tags: ["rp", "emergency", "teams"], maxPlayers: 16, build: metroResponse),
     Game(number: 43, id: "academy-days", title: "Academy Days",
          summary: "チャイムが鳴ったら教室へ！算数クイズ、美術、体育の競走、音楽のリズム。成績を上げて学園のスターになろう。",
@@ -470,13 +470,30 @@ func metroResponse(_ m: MapBuilder) {
     m.pad("Team Criminal", x: 90, z: 90, size: 3, color: "#111827", tags: ["team"])
     m.pad("Hospital Bed", x: 44, z: 30, size: 2.4, color: "#FCA5A5", tags: ["hospital"])
     m.pad("Jail Door", x: -44, z: -30, size: 2.4, color: "#93C5FD", tags: ["jail"])
+    m.markers("Jail Exit", points: [(-40, -18)], color: "#000000", visible: false, behavior: .none)
+    m.pad("Hydrant", x: 33, z: -21, size: 1.6, color: "#DC2626", tags: ["hydrant"])
+    m.pad("City Hall Vault", x: -44, z: 27, size: 2, color: "#FACC15", tags: ["vault"])
+    m.pad("Hideout Stash", x: 84, z: 86, size: 2.4, color: "#22C55E", tags: ["stash"])
+    m.pad("Taxi Stand", x: 10, z: 10, size: 2.4, color: "#FDE047", tags: ["taxi"])
+    for (i, p) in [(20, 70), (-60, -70)].enumerated() {
+        m.part("ATM \(i + 1)", at: (Float(p.0), 1.1, Float(p.1)), size: (1.2, 2.2, 0.8), color: "#16A34A", material: .neon, tags: ["atm"])
+    }
     m.markers("Emergency Spot", points: [(70, 80), (-70, 80), (80, -80), (-80, -80), (20, 85), (-90, 20), (90, -20), (-20, -90)],
               color: "#000000", visible: false, behavior: .none)
+    // Buildings, kept off the emergency spots, ATMs and the hideout.
+    let keepClear: [(Float, Float)] = [(70, 80), (-70, 80), (80, -80), (-80, -80), (20, 85), (-90, 20), (90, -20), (-20, -90),
+                                       (20, 70), (-60, -70), (86, 88)]
     var r = Seeded("metro")
-    for i in 0..<12 {
+    var built = 0
+    for _ in 0..<30 where built < 12 {
         let x = r.range(-100, 100), z = r.range(-100, 100)
+        let h = r.range(6, 24)
+        let color = r.pick(["#9CA3AF", "#78716C", "#A8A29E"])
         if abs(x) < 20 || abs(z) < 20 { continue }
-        m.slab("Building \(i + 1)", x: x, y: 0, z: z, w: 12, h: r.range(6, 24), d: 12, color: r.pick(["#9CA3AF", "#78716C", "#A8A29E"]))
+        if abs(abs(z) - 60) < 11 { continue }
+        if keepClear.contains(where: { abs($0.0 - x) < 13 && abs($0.1 - z) < 13 }) { continue }
+        built += 1
+        m.slab("Building \(built)", x: x, y: 0, z: z, w: 12, h: h, d: 12, color: color)
     }
 }
 
