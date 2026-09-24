@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 93,
+  "cover" : "games\/buzz-meadow\/cover-42e02926.png",
   "id" : "buzz-meadow",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

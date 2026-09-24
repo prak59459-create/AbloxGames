@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 253,
+  "cover" : "games\/endless-rooms\/cover-4a1dfce7.png",
   "id" : "endless-rooms",
   "maxPlayers" : 8,
   "schemaVersion" : 1,

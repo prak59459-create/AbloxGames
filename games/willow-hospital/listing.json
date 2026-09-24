@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 51,
+  "cover" : "games\/willow-hospital\/cover-cd2d07d1.png",
   "id" : "willow-hospital",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

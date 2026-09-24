@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 128,
+  "cover" : "games\/slime-roll\/cover-4c4530e4.png",
   "id" : "slime-roll",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

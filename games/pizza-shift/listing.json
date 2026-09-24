@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 155,
+  "cover" : "games\/pizza-shift\/cover-8a229862.png",
   "id" : "pizza-shift",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

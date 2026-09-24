@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 154,
+  "cover" : "games\/crystal-wars\/cover-c509bae9.png",
   "id" : "crystal-wars",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

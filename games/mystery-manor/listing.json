@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 163,
+  "cover" : "games\/mystery-manor\/cover-128744a9.png",
   "id" : "mystery-manor",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

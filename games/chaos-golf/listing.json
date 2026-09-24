@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 44,
+  "cover" : "games\/chaos-golf\/cover-ea3a0cbe.png",
   "id" : "chaos-golf",
   "maxPlayers" : 8,
   "schemaVersion" : 1,

@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 253,
+  "cover" : "games\/life-ville\/cover-ab934086.png",
   "id" : "life-ville",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

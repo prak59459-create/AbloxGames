@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 138,
+  "cover" : "games\/neo-city-life\/cover-084185fe.png",
   "id" : "neo-city-life",
   "maxPlayers" : 16,
   "schemaVersion" : 1,

@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 115,
+  "cover" : "games\/mega-minigames\/cover-5fcf5518.png",
   "id" : "mega-minigames",
   "maxPlayers" : 16,
   "schemaVersion" : 1,

@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 251,
+  "cover" : "games\/hero-academy-sim\/cover-cf51d0e4.png",
   "id" : "hero-academy-sim",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

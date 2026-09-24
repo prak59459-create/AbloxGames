@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 18,
+  "cover" : "games\/tower-of-chaos\/cover-2ef8c551.png",
   "id" : "tower-of-chaos",
   "maxPlayers" : 16,
   "schemaVersion" : 1,

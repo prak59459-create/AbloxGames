@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 89,
+  "cover" : "games\/tip-jar-plaza\/cover-37642799.png",
   "id" : "tip-jar-plaza",
   "maxPlayers" : 16,
   "schemaVersion" : 1,

@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 25,
+  "cover" : "games\/anomaly-hallway\/cover-f2ce5e2c.png",
   "id" : "anomaly-hallway",
   "maxPlayers" : 6,
   "schemaVersion" : 1,

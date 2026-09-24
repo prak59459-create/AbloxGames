@@ -7,6 +7,7 @@ import Foundation
 //   tools/build.sh              build, check, play, write
 //   tools/build.sh --only 12    one game
 //   tools/build.sh --quick      skip the long robot play
+//   tools/build.sh --covers     draw every cover again, write the index, no play
 
 let arguments = CommandLine.arguments
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -14,6 +15,7 @@ let quick = arguments.contains("--quick")
 let verbose = arguments.contains("--verbose")
 let reachOnly = arguments.contains("--reach")
 let only: Int? = arguments.firstIndex(of: "--only").flatMap { i in i + 1 < arguments.count ? Int(arguments[i + 1]) : nil }
+let coversOnly = arguments.contains("--covers")
 
 func read(_ path: String) -> String? {
     try? String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
@@ -26,6 +28,36 @@ func write(_ data: Data, to path: String) {
 }
 
 guard let kit = read(Catalogue.kitPath) else { fatalError("missing \(Catalogue.kitPath)") }
+
+/// The cover already in the game's folder, if any: `cover-<fingerprint>.png`.
+func existingCover(in folder: String) -> String? {
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent(folder).path)) ?? []
+    return names.filter { $0.hasPrefix("cover-") && $0.hasSuffix(".png") }.sorted().first.map { "\(folder)/\($0)" }
+}
+
+/// Draws the cover and saves it under a name that changes with the picture,
+/// so the app — which keeps covers it has fetched — sees a new file instead
+/// of its old copy. Older covers in the folder are removed.
+func drawCover(_ world: WorldDocument, id: String, folder: String) -> String? {
+    let picture = Cover.render(world, seed: id)
+    let path = "\(folder)/cover-\(picture.fingerprint).png"
+    if FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path) { return path }
+    let raw = FileManager.default.temporaryDirectory.appendingPathComponent("ablox-cover-\(id).rgb")
+    do { try Data(picture.rgb).write(to: raw) } catch { return nil }
+    defer { try? FileManager.default.removeItem(at: raw) }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["python3", root.appendingPathComponent("tools/png.py").path, raw.path,
+                         String(picture.width), String(picture.height), root.appendingPathComponent(path).path]
+    do { try process.run() } catch { return nil }
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else { return nil }
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent(folder).path)) ?? []
+    for name in names where name.hasPrefix("cover-") && name.hasSuffix(".png") && "\(folder)/\(name)" != path {
+        try? FileManager.default.removeItem(at: root.appendingPathComponent(folder).appendingPathComponent(name))
+    }
+    return path
+}
 
 var listings: [GameListing] = []
 var failures = 0
@@ -50,14 +82,26 @@ for game in Catalogue.games {
         return ScriptFile(name: name, source: path == Catalogue.kitPath ? kit : (read(path) ?? ""))
     }
 
+    // Drawn again for the game being worked on, for every game with
+    // --covers, and for any game that has none yet.
+    var cover = existingCover(in: game.folder)
+    if coversOnly || only == game.number || cover == nil {
+        cover = drawCover(world, id: game.id, folder: game.folder) ?? cover
+    }
+
     let listing = GameListing(
         id: game.id, title: game.title, author: Catalogue.author, summary: game.summary,
-        world: "\(game.folder)/world.ablox", cover: nil, scripts: paths,
+        world: "\(game.folder)/world.ablox", cover: cover, scripts: paths,
         tags: game.tags, blockCount: world.blocks.count, maxPlayers: game.maxPlayers,
         schemaVersion: WorldDocument.currentSchemaVersion, updatedAt: Catalogue.date
     )
     listings.append(listing)
 
+    if coversOnly {
+        write(Data((listing.indexEntryJSON() + "\n").utf8), to: "\(game.folder)/listing.json")
+        print("🖼 \(String(format: "%2d", game.number)) \(game.id) — \(cover ?? "no cover")")
+        continue
+    }
     if let only, only != game.number { continue }
 
     var problems: [String] = []
@@ -127,6 +171,31 @@ if !validated.rejected.isEmpty {
 }
 if only == nil {
     write(index + Data("\n".utf8), to: "index.json")
+    writeReadmeList(listings)
+}
+
+/// The game list in README.md, with each cover, between the two markers.
+func writeReadmeList(_ listings: [GameListing]) {
+    guard var readme = read("README.md"),
+          let start = readme.range(of: "<!-- games:start -->"),
+          let end = readme.range(of: "<!-- games:end -->"), start.upperBound <= end.lowerBound else { return }
+    let sections: [(String, ClosedRange<Int>)] = [
+        ("🔥 人気の定番", 1...20), ("⚔️ アクション・バトル", 21...32), ("🏡 ロールプレイ・生活", 33...45),
+        ("👻 ホラー・サバイバル", 46...58), ("🏗️ 放置・ガチャ・タイクーン", 59...70), ("🏃 アスレチック・ミニゲーム", 71...80)
+    ]
+    var text = "\n"
+    for (heading, numbers) in sections {
+        text += "### \(heading)\n\n| | # | ゲーム | 内容 |\n|---|---|---|---|\n"
+        for game in Catalogue.games where numbers.contains(game.number) {
+            guard let listing = listings.first(where: { $0.id == game.id }) else { continue }
+            let picture = listing.cover.map { "<img src=\"\($0)\" width=\"200\">" } ?? ""
+            let summary = listing.summary.replacingOccurrences(of: "|", with: "｜")
+            text += "| \(picture) | \(game.number) | **\(listing.title)** | \(summary) |\n"
+        }
+        text += "\n"
+    }
+    readme.replaceSubrange(start.upperBound..<end.lowerBound, with: text)
+    write(Data(readme.utf8), to: "README.md")
 }
 print("\(listings.count) games, \(validated.accepted.count) accepted, \(failures) with problems")
 exit(failures == 0 ? 0 : 1)

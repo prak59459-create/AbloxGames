@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 121,
+  "cover" : "games\/infinite-store\/cover-2970f54e.png",
   "id" : "infinite-store",
   "maxPlayers" : 10,
   "schemaVersion" : 1,

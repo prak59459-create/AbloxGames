@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 45,
+  "cover" : "games\/last-survivor-games\/cover-861c67dd.png",
   "id" : "last-survivor-games",
   "maxPlayers" : 16,
   "schemaVersion" : 1,

@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 291,
+  "cover" : "games\/fruit-seas\/cover-b3eec4d7.png",
   "id" : "fruit-seas",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 54,
+  "cover" : "games\/last-squad\/cover-7ee27d5b.png",
   "id" : "last-squad",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

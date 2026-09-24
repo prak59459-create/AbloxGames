@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 166,
+  "cover" : "games\/pet-coin-frenzy\/cover-21bd56cb.png",
   "id" : "pet-coin-frenzy",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

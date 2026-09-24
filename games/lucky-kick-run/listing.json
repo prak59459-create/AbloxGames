@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 103,
+  "cover" : "games\/lucky-kick-run\/cover-a05c97cc.png",
   "id" : "lucky-kick-run",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

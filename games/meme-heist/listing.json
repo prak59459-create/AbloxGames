@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 191,
+  "cover" : "games\/meme-heist\/cover-78657f74.png",
   "id" : "meme-heist",
   "maxPlayers" : 8,
   "schemaVersion" : 1,

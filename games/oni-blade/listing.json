@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 256,
+  "cover" : "games\/oni-blade\/cover-ee414eb6.png",
   "id" : "oni-blade",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

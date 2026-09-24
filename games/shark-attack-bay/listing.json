@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 27,
+  "cover" : "games\/shark-attack-bay\/cover-c4317cef.png",
   "id" : "shark-attack-bay",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

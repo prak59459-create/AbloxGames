@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 140,
+  "cover" : "games\/reel-legends\/cover-78152a7e.png",
   "id" : "reel-legends",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

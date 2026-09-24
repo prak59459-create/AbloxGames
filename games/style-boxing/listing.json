@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 51,
+  "cover" : "games\/style-boxing\/cover-175340f2.png",
   "id" : "style-boxing",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

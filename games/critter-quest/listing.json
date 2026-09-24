@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 151,
+  "cover" : "games\/critter-quest\/cover-1afa0645.png",
   "id" : "critter-quest",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

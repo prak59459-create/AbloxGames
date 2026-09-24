@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 54,
+  "cover" : "games\/slime-merge\/cover-df4b3452.png",
   "id" : "slime-merge",
   "maxPlayers" : 10,
   "schemaVersion" : 1,

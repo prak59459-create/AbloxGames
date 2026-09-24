@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 67,
+  "cover" : "games\/runway-star\/cover-90cd5ccb.png",
   "id" : "runway-star",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

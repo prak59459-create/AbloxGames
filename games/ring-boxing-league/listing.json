@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 69,
+  "cover" : "games\/ring-boxing-league\/cover-e70d12bc.png",
   "id" : "ring-boxing-league",
   "maxPlayers" : 10,
   "schemaVersion" : 1,

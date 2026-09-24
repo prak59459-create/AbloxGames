@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 291,
+  "cover" : "games\/pom-town\/cover-4f995181.png",
   "id" : "pom-town",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

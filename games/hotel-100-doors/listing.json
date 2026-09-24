@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 1344,
+  "cover" : "games\/hotel-100-doors\/cover-f9a46163.png",
   "id" : "hotel-100-doors",
   "maxPlayers" : 8,
   "schemaVersion" : 1,

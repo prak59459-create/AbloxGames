@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 41,
+  "cover" : "games\/obby-maker\/cover-8e0abe52.png",
   "id" : "obby-maker",
   "maxPlayers" : 8,
   "schemaVersion" : 1,

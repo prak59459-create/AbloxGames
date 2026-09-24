@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 62,
+  "cover" : "games\/raft-to-treasure\/cover-b71e1a8b.png",
   "id" : "raft-to-treasure",
   "maxPlayers" : 10,
   "schemaVersion" : 1,

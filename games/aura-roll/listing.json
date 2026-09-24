@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 36,
+  "cover" : "games\/aura-roll\/cover-496a8535.png",
   "id" : "aura-roll",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

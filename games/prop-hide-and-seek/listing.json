@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 61,
+  "cover" : "games\/prop-hide-and-seek\/cover-687c8be2.png",
   "id" : "prop-hide-and-seek",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

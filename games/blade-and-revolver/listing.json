@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 57,
+  "cover" : "games\/blade-and-revolver\/cover-4738dba6.png",
   "id" : "blade-and-revolver",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

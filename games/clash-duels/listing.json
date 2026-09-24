@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 118,
+  "cover" : "games\/clash-duels\/cover-dd1f3711.png",
   "id" : "clash-duels",
   "maxPlayers" : 10,
   "schemaVersion" : 1,

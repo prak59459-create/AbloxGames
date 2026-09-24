@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 99,
+  "cover" : "games\/academy-days\/cover-7b2c8532.png",
   "id" : "academy-days",
   "maxPlayers" : 16,
   "schemaVersion" : 1,

@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 89,
+  "cover" : "games\/toy-army-tycoon\/cover-046d569d.png",
   "id" : "toy-army-tycoon",
   "maxPlayers" : 8,
   "schemaVersion" : 1,

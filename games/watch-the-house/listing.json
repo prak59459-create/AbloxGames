@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 41,
+  "cover" : "games\/watch-the-house\/cover-0615e7d3.png",
   "id" : "watch-the-house",
   "maxPlayers" : 6,
   "schemaVersion" : 1,

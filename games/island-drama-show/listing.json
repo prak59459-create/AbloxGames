@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 29,
+  "cover" : "games\/island-drama-show\/cover-6e8a15a1.png",
   "id" : "island-drama-show",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

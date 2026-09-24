@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 42,
+  "cover" : "games\/porkys-house\/cover-c693ca42.png",
   "id" : "porkys-house",
   "maxPlayers" : 8,
   "schemaVersion" : 1,

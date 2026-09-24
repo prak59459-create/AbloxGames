@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 212,
+  "cover" : "games\/gun-swap-arena\/cover-fa965b4f.png",
   "id" : "gun-swap-arena",
   "maxPlayers" : 12,
   "schemaVersion" : 1,

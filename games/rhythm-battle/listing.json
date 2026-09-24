@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 19,
+  "cover" : "games\/rhythm-battle\/cover-77ca8c22.png",
   "id" : "rhythm-battle",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
