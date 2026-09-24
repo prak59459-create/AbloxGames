@@ -1,0 +1,78 @@
+-- styles.absc — スタイルのスピン（ガチャ）とえらぶ
+
+func apply_style(p)
+  let s = st(p)
+  p.color = s.color
+  p.speed = s.move
+  p.max_health = s.hp
+  p.heal(999)
+  hud(p)
+end
+
+func spin_menu(p)
+  let h = 170 + ceil(len(p.owned) / 2) * 40
+  p.ui_panel("spin_box", {at: "center", w: 600, h: h, bg: "#2E1065F2", radius: 22, layer: 30})
+  p.ui_text("spin_t", "🎰 スタイル（スピン " + p.spins + "・🪙 " + kit_money(p) + "）", {parent: "spin_box", y: 26 / h, size: 19, bold: true, color: "#E9D5FF"})
+  p.ui_button("spin_go", "🎰 スピン（1回）", {parent: "spin_box", x: 0.3, y: 70 / h, w: 220, h: 40, size: 15, bg: "#7C3AED"})
+  p.ui_button("spin_buy", "🪙" + SPIN_PRICE + " でスピン+1", {parent: "spin_box", x: 0.72, y: 70 / h, w: 200, h: 40, size: 14, bg: "#B45309"})
+  let i = 0
+  for id in p.owned do
+    i = i + 1
+    let s = style_info(id)
+    let label = s.name + "（" + s.rarity + "）"
+    if p.style == id then label = "✅ " + label end
+    let col = 0.27
+    if i % 2 == 0 then col = 0.74 end
+    p.ui_button("pick_" + id, label, {parent: "spin_box", x: col, y: (90 + ceil(i / 2) * 40) / h, w: 270, h: 34, size: 13, bg: s.color, color: "#111111"})
+  end
+  p.ui_button("spin_close", "閉じる", {parent: "spin_box", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func do_spin(p)
+  if p.spins <= 0 then
+    p.message("🎰 スピンがない（勝つかコインで買える）", 1.5)
+    return
+  end
+  p.spins = p.spins - 1
+  let s = kit_pick(STYLES, 1)
+  for k in 1 to 5 do
+    kit_later(p, k * 0.1, func()
+      p.ui_text("spin_fx", "🎰 " + random(STYLES).name, {at: "center", dy: -150, size: 24, bold: true, color: "#9CA3AF"})
+    end)
+  end
+  kit_later(p, 0.6, func()
+    p.ui_text("spin_fx", "🎰 " + s.name + "（" + s.rarity + "）", {at: "center", dy: -150, size: 26, bold: true, color: RARITY_COLOR[s.rarity]})
+    kit_later(p, 1.5, func() p.ui_remove("spin_fx") end)
+    if not contains(p.owned, s.id) then
+      append(p.owned, s.id)
+      p.style = s.id
+      apply_style(p)
+      if s.rarity == "レジェンド" or s.rarity == "ミシック" then announce("🌟 " + p.name + " が " + s.rarity + "「" + s.name + "」を引いた！", 3) end
+    else
+      kit_give(p, 30)
+      p.message("もう持っている → 🪙30", 1.2)
+    end
+    kit_quest_progress(p, "spin", 1)
+    spin_menu(p)
+  end)
+end
+
+on button(p, id)
+  if id == "spin" then spin_menu(p)
+  elif id == "spin_close" then p.ui_remove("spin_box")
+  elif id == "spin_go" then do_spin(p)
+  elif id == "spin_buy" then
+    if kit_pay(p, SPIN_PRICE) then
+      p.spins = p.spins + 1
+      spin_menu(p)
+    end
+  elif starts_with(id, "pick_") then
+    let id2 = replace(id, "pick_", "")
+    if contains(p.owned, id2) then
+      p.style = id2
+      apply_style(p)
+      spin_menu(p)
+    end
+  elif id == "duel" then join_duel(p)
+  end
+end

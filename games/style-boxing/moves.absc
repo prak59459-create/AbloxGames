@@ -1,0 +1,149 @@
+-- moves.absc — パンチ・ガード・ステップ・必殺技・フロー
+
+func facing_target(p, reach)
+  let best = nil
+  for q in players() do
+    if q.id != p.id and q.alive and distance(p, q) < reach and dot(normalize(q.position - p.position), p.look) > 0.35 then
+      if can_fight(p, q) and (best == nil or distance(p, q) < distance(p, best)) then best = q end
+    end
+  end
+  return best
+end
+
+func show_meter(p)
+  p.ui_bar("meter", {at: "bottom", dy: -24, w: 280, h: 14, value: p.meter, max: 100, color: "#F97316", bg: "#00000099"})
+  if p.meter >= 100 then
+    p.ui_button("special", "💥 " + st(p).sp_name, {at: "bottom", dy: -64, w: 220, h: 48, size: 15, bg: "#B91C1C"})
+  else
+    p.ui_remove("special")
+  end
+end
+
+func dmg_mult(p)
+  let m = st(p).dmg
+  if active_until(p.flow_until) then m = m * 1.2 end
+  if active_until(p.rage_until) then m = m * 1.4 end
+  return m
+end
+
+-- 当たったあと（フローとゲージ）
+func landed(p, amount)
+  p.meter = min(100, p.meter + amount * 1.2)
+  if p.combo_at != nil and time() - p.combo_at < 3 then p.combo = p.combo + 1 else p.combo = 1 end
+  p.combo_at = time()
+  if p.combo >= FLOW_HITS and not active_until(p.flow_until) then
+    p.flow_until = time() + 5
+    p.combo = 0
+    p.message("🌊 フロー！ 5びょう ダメージ ×1.2", 1.2)
+    kit_quest_progress(p, "flow", 1)
+  end
+  show_meter(p)
+end
+
+func strike(p, t, dmg, lift)
+  if active_until(t.guard_until) then
+    if t.style == "counter" or active_until(t.perfect_until) then
+      p.damage(dmg * 1.5, t)
+      t.message("🔄 カウンター！", 1)
+      kit_quest_progress(t, "counter", 1)
+      return
+    end
+    dmg = dmg * 0.25
+  end
+  if active_until(t.iron_until) then dmg = dmg * 0.1 end
+  if active_until(t.phantom_until) then return end
+  t.damage(dmg, p)
+  p.sound("hit")
+  if lift > 0 and kit_here(t) and t.alive then t.launch(p.look.x * 5, lift, p.look.z * 5) end
+  landed(p, dmg)
+end
+
+func punch(p, power, reach, lift, wait)
+  if p.style == nil or not p.alive or not quiet_ready(p, "punch", wait / st(p).rate) then return end
+  let t = facing_target(p, reach)
+  if t == nil then return end
+  strike(p, t, power * dmg_mult(p), lift)
+end
+
+func special(p)
+  if p.meter < 100 or not p.alive then return end
+  p.meter = 0
+  show_meter(p)
+  kit_quest_progress(p, "special", 1)
+  let s = st(p)
+  announce("💥 " + p.name + " の " + s.sp_name + "！", 2)
+  let id = s.special
+  if id == "combo" then
+    for k in 1 to 3 do
+      kit_later(p, k * 0.2, func()
+        let t = facing_target(p, 3.6)
+        if t != nil then strike(p, t, 12 * dmg_mult(p), 0) end
+      end)
+    end
+  elif id == "rush" or id == "rage" then
+    if id == "rage" then p.rage_until = time() + 6 end
+    for k in 1 to 8 do
+      kit_later(p, k * 0.15, func()
+        let t = facing_target(p, 3.5)
+        if t != nil then strike(p, t, 6 * dmg_mult(p), 0) end
+      end)
+    end
+  elif id == "gigaton" or id == "hammer" then
+    let t = facing_target(p, 4)
+    if t != nil then
+      strike(p, t, 55 * dmg_mult(p), 12)
+      if kit_here(t) and t.alive then t.launch(p.look.x * 25, 12, p.look.z * 25) end
+    end
+    p.shake(0.5, 0.4)
+  elif id == "iron" then
+    p.iron_until = time() + 6
+    p.message("🛡 6びょう ほとんど効かない！", 2)
+  elif id == "perfect" then
+    p.guard_until = time() + 4
+    p.perfect_until = time() + 4
+    p.message("🔄 4びょう すべてカウンター！", 2)
+  elif id == "sting" then
+    let t = facing_target(p, 5)
+    if t != nil then
+      p.teleport(t.position - normalize(t.look) * 1.5)
+      strike(p, t, 35 * dmg_mult(p), 4)
+    end
+  elif id == "reach" then
+    let t = facing_target(p, 8)
+    if t != nil then strike(p, t, 40 * dmg_mult(p), 6) end
+  elif id == "matador" then
+    p.guard_until = time() + 2
+    p.perfect_until = time() + 2
+    p.flow_until = time() + 6
+    p.message("🐂 いなしてから反撃！", 1.5)
+  elif id == "phantom" then
+    p.phantom_until = time() + 1.5
+    p.visible = false
+    kit_later(p, 1.5, func()
+      p.visible = true
+      let t = facing_target(p, 5)
+      if t != nil then strike(p, t, 45 * dmg_mult(p), 6) end
+    end)
+  elif id == "titan" then
+    for q in players() do
+      if q.id != p.id and q.alive and distance(p, q) < 7 and can_fight(p, q) then strike(p, q, 45 * dmg_mult(p), 14) end
+    end
+    shake(0.5, 0.6)
+  end
+end
+
+func side_step(p)
+  if not p.alive or not quiet_ready(p, "sidestep", 1.2) then return end
+  p.launch(p.look.x * 14, 2, p.look.z * 14)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "jab" then punch(p, 7, 3.4, 0, 0.35)
+  elif id == "hook" then punch(p, 13, 3.2, 0, 0.7)
+  elif id == "upper" then punch(p, 16, 3, 9, 1.1)
+  elif id == "guard" and p.alive and quiet_ready(p, "guard", 1.5) then p.guard_until = time() + 1.2
+  elif id == "step" then side_step(p)
+  elif id == "special" then special(p)
+  end
+end

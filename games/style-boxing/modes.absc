@@ -1,0 +1,147 @@
+-- modes.absc — リングA: ランク戦（先に3回KO）・リングB: キング・オブ・リング・外: 自由に練習
+
+let duel = nil          -- {a, b, score: {id: n}}
+let duel_queue = []
+let king_points = {}
+let mode_clock = 0
+
+func in_ring(p, prefix)
+  let c = block(prefix + " Canvas")
+  if c == nil then return false end
+  return abs(p.x - c.x) < 7 and abs(p.z - c.z) < 7 and p.y > 0.8
+end
+
+func in_duel(p)
+  return duel != nil and (duel.a.id == p.id or duel.b.id == p.id)
+end
+
+-- だれとだれが殴り合えるか
+func can_fight(p, q)
+  if in_duel(p) or in_duel(q) then return in_duel(p) and in_duel(q) end
+  return true
+end
+
+func start_duel()
+  duel_queue = filter(duel_queue, func(q) return kit_here(q) end)
+  if duel != nil or len(duel_queue) < 2 then return end
+  let a = duel_queue[1]
+  let b = duel_queue[2]
+  duel_queue = slice(duel_queue, 3, len(duel_queue))
+  duel = {a: a, b: b, score: {}}
+  duel.score[a.id] = 0
+  duel.score[b.id] = 0
+  for p in [a, b] do
+    if not p.alive then p.respawn() end
+    p.heal(999)
+  end
+  a.teleport(block("Ring A Corner A"))
+  b.teleport(block("Ring A Corner B"))
+  a.look_at(b)
+  b.look_at(a)
+  announce("🔔 ランク戦: " + a.name + "（" + a.rating + "） vs " + b.name + "（" + b.rating + "）", 3)
+end
+
+func duel_ko(winner, loser)
+  duel.score[winner.id] = duel.score[winner.id] + 1
+  announce("🥊 " + winner.name + " " + duel.score[winner.id] + " - " + duel.score[loser.id] + " " + loser.name, 2)
+  if duel.score[winner.id] >= DUEL_TO then
+    -- レーティング（強い相手に勝つほど多く）
+    let expected = 1 / (1 + pow(10, (loser.rating - winner.rating) / 400))
+    let change = max(5, floor(32 * (1 - expected)))
+    winner.rating = winner.rating + change
+    loser.rating = max(0, loser.rating - change)
+    winner.duel_wins = (winner.duel_wins or 0) + 1
+    winner.spins = winner.spins + 1
+    kit_give(winner, 80)
+    kit_quest_progress(winner, "duel", 1)
+    announce("🏆 " + winner.name + " の勝ち！（レート +" + change + "・🎰+1）", 4)
+    hud(winner)
+    hud(loser)
+    duel = nil
+    after(4, func() start_duel() end)
+  else
+    after(3, func()
+      if duel != nil and kit_here(winner) and kit_here(loser) then
+        winner.teleport(block("Ring A Corner A"))
+        loser.teleport(block("Ring A Corner B"))
+      end
+    end)
+  end
+end
+
+func join_duel(p)
+  if in_duel(p) or contains(map(duel_queue, func(q) return q.id end), p.id) then return end
+  append(duel_queue, p)
+  p.message("🔔 ランク戦の順番待ち（" + len(duel_queue) + " 番目）", 2)
+  start_duel()
+end
+
+on tick(dt)
+  mode_clock = mode_clock + dt
+  if mode_clock < 1 then return end
+  mode_clock = 0
+  -- キング・オブ・リング: リングBに1人だけなら点が入る
+  let inside = filter(players(), func(p) return p.alive and not in_duel(p) and in_ring(p, "Ring B") end)
+  if len(inside) == 1 then
+    let k = inside[1]
+    k.king_time = (k.king_time or 0) + 1
+    if k.king_time % KING_POINT_EVERY == 0 then
+      king_points[k.id] = (king_points[k.id] or 0) + 1
+      k.message("👑 キング +1（" + king_points[k.id] + "）", 0.8)
+      kit_give(k, 3)
+      kit_quest_progress(k, "king", 1)
+    end
+  end
+  if duel != nil then
+    if not kit_here(duel.a) or not kit_here(duel.b) then
+      duel = nil
+      start_duel()
+    else
+      ui_text("duel", "🔔 ランク戦 " + duel.a.name + " " + duel.score[duel.a.id] + " - " + duel.score[duel.b.id] + " " + duel.b.name,
+              {at: "top", dy: 26, size: 17, bold: true})
+    end
+  else
+    ui_remove("duel")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "duel_queue") and quiet_ready(p, "duel_pad", 2) then join_duel(p)
+  elif contains(b.tags, "king_entry") and quiet_ready(p, "king_pad", 2) then
+    p.teleport(block("Ring B Canvas"))
+    p.message("👑 リングに1人だけ残ればキング！", 2)
+  elif contains(b.tags, "spinner") and quiet_ready(p, "spinner", 4) then spin_menu(p)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  if killer != nil and killer.id != victim.id and not killer.is_npc then
+    killer.kos = (killer.kos or 0) + 1
+    killer.score = killer.kos
+    kit_quest_progress(killer, "ko5", 1)
+    killer.message("🥊 KO! " + victim.name, 1.5)
+    if duel != nil and in_duel(killer) and in_duel(victim) then duel_ko(killer, victim) end
+    hud(killer)
+  end
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  apply_style(p)
+  if in_duel(p) then
+    if duel.a.id == p.id then p.teleport(block("Ring A Corner A")) else p.teleport(block("Ring A Corner B")) end
+  end
+end
+
+on leave(p)
+  duel_queue = filter(duel_queue, func(q) return kit_here(q) and q.id != p.id end)
+  if in_duel(p) then
+    let other = duel.a
+    if other.id == p.id then other = duel.b end
+    duel = nil
+    if kit_here(other) then other.message("相手がいなくなった（ランク戦は無効）", 2) end
+    after(2, func() start_duel() end)
+  end
+end

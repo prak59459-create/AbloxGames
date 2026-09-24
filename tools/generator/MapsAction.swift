@@ -412,6 +412,11 @@ func styleBoxing(_ m: MapBuilder) {
     boxingRing(m, name: "Ring B", x: 18, z: 0, size: 14, rope: "#22D3EE")
     m.walls(0, 0, w: 90, d: 90, h: 6, color: "#0F172A", name: "Arena Wall")
     m.spawnRing(0, 26, radius: 6, count: 10, color: "#38BDF8")
+    m.pad("Duel Queue", x: -18, z: 14, size: 3, color: "#F59E0B", tags: ["duel_queue"])
+    m.pad("King Entry", x: 18, z: 14, size: 3, color: "#22D3EE", tags: ["king_entry"])
+    m.pad("Style Spinner", x: 0, z: 36, size: 3.4, color: "#A855F7", tags: ["spinner"])
+    m.part("Spinner Wheel", at: (0, 3, 39), size: (5, 5, 0.4), color: "#7C3AED", shape: .cylinder, material: .neon, solid: false,
+           rotation: (90, 0, 0))
 }
 
 // MARK: 31 Hero Academy Sim

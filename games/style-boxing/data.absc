@@ -1,0 +1,24 @@
+-- data.absc — Style Boxing の表
+-- スタイル（12・レア度つき）
+
+-- MARK: スタイル {dmg: ダメージ, move: 速さ, hp: 体力, rate: パンチの速さ, special: 必殺技のid}
+let STYLES = [
+  {id: "basic", name: "🥊 ベーシック", rarity: "コモン", weight: 30, color: "#9CA3AF", dmg: 1, move: 1, hp: 100, rate: 1, special: "combo", sp_name: "ワンツー連打"},
+  {id: "speed", name: "⚡ スピード", rarity: "コモン", weight: 20, color: "#FACC15", dmg: 0.8, move: 1.4, hp: 90, rate: 1.3, special: "rush", sp_name: "連打ラッシュ"},
+  {id: "power", name: "💪 パワー", rarity: "コモン", weight: 20, color: "#EF4444", dmg: 1.5, move: 0.9, hp: 110, rate: 0.85, special: "gigaton", sp_name: "ギガトンパンチ"},
+  {id: "tank", name: "🛡 タンク", rarity: "レア", weight: 10, color: "#64748B", dmg: 1, move: 0.85, hp: 180, rate: 0.9, special: "iron", sp_name: "アイアンボディ"},
+  {id: "counter", name: "🔄 カウンター", rarity: "レア", weight: 10, color: "#22D3EE", dmg: 1.1, move: 1.1, hp: 100, rate: 1, special: "perfect", sp_name: "完全カウンター"},
+  {id: "swarmer", name: "🐝 スウォーマー", rarity: "レア", weight: 8, color: "#F59E0B", dmg: 0.95, move: 1.25, hp: 100, rate: 1.2, special: "sting", sp_name: "ハチの一刺し"},
+  {id: "slugger", name: "🔨 スラッガー", rarity: "エピック", weight: 5, color: "#B91C1C", dmg: 1.7, move: 0.85, hp: 120, rate: 0.8, special: "hammer", sp_name: "ハンマーフック"},
+  {id: "outboxer", name: "🦢 アウトボクサー", rarity: "エピック", weight: 5, color: "#60A5FA", dmg: 1, move: 1.3, hp: 95, rate: 1.1, special: "reach", sp_name: "ロングストレート"},
+  {id: "brawler", name: "🍺 ブロウラー", rarity: "エピック", weight: 4, color: "#92400E", dmg: 1.3, move: 1, hp: 140, rate: 1, special: "rage", sp_name: "怒りのラッシュ"},
+  {id: "matador", name: "🐂 マタドール", rarity: "レジェンド", weight: 1.5, color: "#DB2777", dmg: 1.2, move: 1.35, hp: 100, rate: 1.15, special: "matador", sp_name: "闘牛士のいなし"},
+  {id: "phantom", name: "👻 ファントム", rarity: "レジェンド", weight: 1.2, color: "#A78BFA", dmg: 1.2, move: 1.3, hp: 100, rate: 1.1, special: "phantom", sp_name: "消える一撃"},
+  {id: "titan", name: "🗿 タイタン", rarity: "ミシック", weight: 0.3, color: "#FBBF24", dmg: 1.8, move: 1, hp: 200, rate: 1, special: "titan", sp_name: "天地崩し"}
+]
+let RARITY_COLOR = {コモン: "#D1D5DB", レア: "#60A5FA", エピック: "#C084FC", レジェンド: "#FBBF24", ミシック: "#F43F5E"}
+
+let SPIN_PRICE = 80
+let FLOW_HITS = 4           -- 3びょう以内に4回当てると「フロー」
+let DUEL_TO = 3             -- デュエルは先に3回KO
+let KING_POINT_EVERY = 2    -- キング・オブ・リング: リングの中に1人だけなら2びょうごとに1点

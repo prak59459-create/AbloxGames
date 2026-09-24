@@ -1,0 +1,44 @@
+-- common.absc — 小さな道具
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.owned != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func style_info(id)
+  for s in STYLES do
+    if s.id == id then return s end
+  end
+  return STYLES[1]
+end
+
+func st(p)
+  return style_info(p.style)
+end
+
+func tier(p)
+  let r = p.rating or 1000
+  if r >= 1600 then return "👑 マスター" end
+  if r >= 1400 then return "💎 ダイヤ" end
+  if r >= 1250 then return "🥇 ゴールド" end
+  if r >= 1100 then return "🥈 シルバー" end
+  return "🥉 ブロンズ"
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let s = st(p)
+  p.ui_text("hud", s.name + "   " + tier(p) + " " + p.rating + "   🥊 " + (p.kos or 0) + " KO   🎰 " + p.spins,
+            {at: "top_left", dy: 34, size: 15, bold: true, color: s.color})
+end
