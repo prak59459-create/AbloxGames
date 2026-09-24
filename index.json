@@ -660,6 +660,266 @@
       "title" : "Oni Blade",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/oni-blade\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 256,
+      "id" : "pom-town",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/pom-town\/main.absc"
+      ],
+      "summary" : "自分の家を家具でかざって、ふわふわのペット「ポム」と街でくらそう。釣りでスターコインを集めて、パーティーを開こう。",
+      "tags" : [
+        "rp",
+        "house",
+        "pets"
+      ],
+      "title" : "Pom Town",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/pom-town\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 296,
+      "id" : "cherry-lane-rp",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/cherry-lane-rp\/main.absc"
+      ],
+      "summary" : "おしゃれな街で学校生活や家族ごっこ。役割（生徒・先生・親・赤ちゃん）を選んで、授業のチャイムに合わせて過ごそう。",
+      "tags" : [
+        "rp",
+        "school",
+        "family"
+      ],
+      "title" : "Cherry Lane RP",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/cherry-lane-rp\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 142,
+      "id" : "pizza-shift",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/pizza-shift\/main.absc"
+      ],
+      "summary" : "ピザ屋でみんなで働こう。レジで注文を取り、生地・ソース・チーズでピザを作り、オーブンで焼いて、家まで配達！",
+      "tags" : [
+        "jobs",
+        "coop",
+        "classic"
+      ],
+      "title" : "Pizza Shift",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/pizza-shift\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 102,
+      "id" : "neo-city-life",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/neo-city-life\/main.absc"
+      ],
+      "summary" : "未来のハイテク都市でくらすRP。ホバーカー、ジェットパック、ドローン視点。仕事でかせいで、空飛ぶ家を手に入れよう。",
+      "tags" : [
+        "rp",
+        "city",
+        "future"
+      ],
+      "title" : "Neo City Life",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/neo-city-life\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 59,
+      "id" : "club-hangout",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/club-hangout\/main.absc"
+      ],
+      "summary" : "家族をつくって、家を建てて、クラブのダンスパーティーへ。家具を置いて自分だけの部屋を作ろう。",
+      "tags" : [
+        "rp",
+        "social",
+        "build"
+      ],
+      "title" : "Club Hangout",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/club-hangout\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 259,
+      "id" : "ridgeport-cops",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/ridgeport-cops\/main.absc"
+      ],
+      "summary" : "警察と強盗に分かれる街アクション。強盗は店や銀行をねらい、警察はタックルで逮捕。刑務所からの脱獄もできる！",
+      "tags" : [
+        "cops",
+        "robbers",
+        "teams"
+      ],
+      "title" : "Ridgeport Cops & Robbers",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/ridgeport-cops\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 101,
+      "id" : "dinner-rush-tycoon",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/dinner-rush-tycoon\/main.absc"
+      ],
+      "summary" : "自分のレストランを経営。テーブルやコンロを買いそろえて、お客さんに料理を運ぼう。店を大きくして人気店に！",
+      "tags" : [
+        "tycoon",
+        "cooking",
+        "business"
+      ],
+      "title" : "Dinner Rush Tycoon",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/dinner-rush-tycoon\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 85,
+      "id" : "coaster-park-tycoon",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/coaster-park-tycoon\/main.absc"
+      ],
+      "summary" : "遊園地を作ろう。メリーゴーランド、観覧車、ジェットコースター。お客さんを楽しませてお金をかせぎ、自分でも乗ってみよう。",
+      "tags" : [
+        "tycoon",
+        "theme-park",
+        "build"
+      ],
+      "title" : "Coaster Park Tycoon",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/coaster-park-tycoon\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 214,
+      "id" : "life-ville",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/life-ville\/main.absc"
+      ],
+      "summary" : "おなか・元気・楽しさ・清潔の4つのゲージを気にしながらくらすライフシム。仕事で給料をもらって家を大きくしよう。",
+      "tags" : [
+        "life",
+        "sim",
+        "needs"
+      ],
+      "title" : "Life Ville",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/life-ville\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 266,
+      "id" : "metro-response",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/metro-response\/main.absc"
+      ],
+      "summary" : "警察・消防・救急・市民・犯罪者に分かれる街のRP。火事を消し、けが人を運び、犯人をつかまえよう。",
+      "tags" : [
+        "rp",
+        "emergency",
+        "teams"
+      ],
+      "title" : "Metro Response",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/metro-response\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 68,
+      "id" : "academy-days",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/academy-days\/main.absc"
+      ],
+      "summary" : "チャイムが鳴ったら教室へ！算数クイズ、美術、体育の競走、音楽のリズム。成績を上げて学園のスターになろう。",
+      "tags" : [
+        "school",
+        "rp",
+        "minigames"
+      ],
+      "title" : "Academy Days",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/academy-days\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 34,
+      "id" : "willow-hospital",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/willow-hospital\/main.absc"
+      ],
+      "summary" : "病院で医者・看護師・患者になりきる。受付、診察、薬、治療。患者さんを元気にして病院の評判を上げよう。",
+      "tags" : [
+        "rp",
+        "hospital",
+        "jobs"
+      ],
+      "title" : "Willow Hospital RP",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/willow-hospital\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 369,
+      "id" : "street-drive-empire",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/street-drive-empire\/main.absc"
+      ],
+      "summary" : "車を買って街を走るドライブゲーム。走った距離でお金がたまり、もっと速い車へ。サーキットでレースにも挑戦！",
+      "tags" : [
+        "cars",
+        "driving",
+        "collect"
+      ],
+      "title" : "Street Drive Empire",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/street-drive-empire\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

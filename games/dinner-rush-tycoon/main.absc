@@ -1,0 +1,197 @@
+-- Dinner Rush Tycoon — レストラン経営タイクーン
+
+kit_setup("Dinner Rush Tycoon", "店を大きくして、人気レストランに", [
+  "色のついたパッドにさわると、その区画があなたの店に",
+  "緑のパッドで設備を買う（コンロ → テーブル → …）",
+  "お客さんがテーブルにすわったら、コンロで料理を作る",
+  "料理を持って、そのテーブルの緑パッドへ運ぶ",
+  "早く出すほどチップが多い。お店の評判も上がる",
+  "テーブルが多いほどお客さんがたくさん来る"
+])
+
+let items = ["コンロ", "テーブル1", "テーブル2", "テーブル3", "テーブル4", "2台目のコンロ", "噴水", "ネオン看板", "テーブル5", "テーブル6"]
+let prices = [0, 60, 120, 250, 450, 700, 1000, 1500, 2500, 4000]
+let tables = {"2": 1, "3": 2, "4": 3, "5": 4, "9": 5, "10": 6}   -- アイテム番号 → テーブル番号
+let dishes = [{name: "オムライス", price: 30}, {name: "ラーメン", price: 40}, {name: "ステーキ", price: 70}, {name: "パフェ", price: 35}]
+let owner = {}      -- 区画 → プレイヤーid
+let bought = {}     -- "区画:番号" → true
+let seats = {}      -- "区画:テーブル" → お客さん {npc, dish, since}
+
+kit_quest("serve", "10人に料理を出す", 10, 200)
+kit_quest("tables", "テーブルを4つにする", 1, 300)
+kit_quest("rich", "売上1万", 10000, 1000)
+
+func has(plot, k)
+  return bought[plot + ":" + k] == true
+end
+
+func table_count(plot)
+  let n = 0
+  for k in keys(tables) do
+    if has(plot, k) then n = n + 1 end
+  end
+  return n
+end
+
+func show(p)
+  if p.plot == nil then
+    p.ui_text("shop", "色のパッドで区画を手に入れよう", {at: "top", dy: 30, size: 16})
+    return
+  end
+  p.ui_text("shop", "🍽 レストラン " + p.plot + "   ⭐ " + fixed(p.rating, 1) + "   テーブル " + table_count(p.plot) + "   売上 " + kit_short(p.sales),
+            {at: "top", dy: 30, size: 17, bold: true})
+  let dish = p.dish != nil and ("🍳 " + p.dish.name + " を運んでいる") or (p.cooking and "🔥 料理中…" or "")
+  p.ui_text("hand", dish, {at: "bottom", dy: -24, size: 16})
+end
+
+func buy(p, plot, k)
+  if p.plot != plot or has(plot, k) then return end
+  let n = num(k)
+  if n > 1 and not has(plot, str(n - 1)) then
+    p.message("先に「" + items[n - 1] + "」を買おう", 1.5)
+    return
+  end
+  if not kit_pay(p, prices[n]) then return end
+  bought[plot + ":" + k] = true
+  let item = block("Plot " + plot + " Item " + k)
+  item.visible = true
+  item.solid = true
+  p.message("✨ " + items[n] + " を置いた！", 2)
+  p.sound("collect")
+  if table_count(plot) >= 4 then kit_quest_progress(p, "tables", 1) end
+  show(p)
+end
+
+func seat_customer(plot)
+  let free = []
+  for k in keys(tables) do
+    let t = str(tables[k])
+    if has(plot, k) and seats[plot + ":" + t] == nil then append(free, k) end
+  end
+  if len(free) == 0 then return end
+  let k = random(free)
+  let t = str(tables[k])
+  let door = block("Plot " + plot + " Door")
+  let item = block("Plot " + plot + " Item " + k)
+  let dish = random(dishes)
+  let n = create_npc({name: "お客さん（" + dish.name + "）", position: door.position + {x: 0, y: 1, z: 0},
+                      color: random(["#F97316", "#3B82F6", "#22C55E", "#EC4899", "#A855F7"]), health: 999999, speed: 0.8})
+  n.move_to(item.position + {x: 1.6, y: 0, z: 0})
+  seats[plot + ":" + t] = {npc: n, dish: dish, since: time(), item: k}
+end
+
+func serve(p, plot, k)
+  let t = tables[k]
+  if t == nil then return end
+  let key = plot + ":" + t
+  let c = seats[key]
+  if c == nil or p.dish == nil then return end
+  if c.dish.name != p.dish.name then
+    p.message("それは注文とちがう（" + c.dish.name + "）", 1.5)
+    return
+  end
+  let wait = time() - c.since
+  let tip = max(0, floor(30 - wait))
+  let earned = c.dish.price + tip
+  kit_give(p, earned)
+  p.sales = p.sales + earned
+  p.score = p.sales
+  p.rating = min(5, max(1, p.rating + (wait < 25 and 0.1 or -0.1)))
+  p.dish = nil
+  kit_quest_progress(p, "serve", 1)
+  kit_quest_progress(p, "rich", earned)
+  if kit_here(c.npc) then
+    c.npc.say("おいしい！")
+    let n = c.npc
+    after(3, func() if kit_here(n) then n.destroy() end end)
+  end
+  remove(seats, key)
+  p.message("🍽 +" + earned + "（チップ " + tip + "）", 1.5)
+  show(p)
+end
+
+on start()
+  every(3, func()
+    for p in players() do
+      if p.plot != nil then
+        -- テーブルと評判が多いほど、よく来る
+        let chance = 0.15 + table_count(p.plot) * 0.06 + p.rating * 0.03
+        if random() < chance then seat_customer(p.plot) end
+      end
+    end
+    -- 待たせすぎたお客さんは帰る
+    for key in keys(seats) do
+      let c = seats[key]
+      if time() - c.since > 60 then
+        if kit_here(c.npc) then c.npc.destroy() end
+        remove(seats, key)
+      end
+    end
+  end)
+  every(10, func() kit_leaderboard("🍽 売上") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_give(p, 100)
+  p.sales = 0
+  p.rating = 3
+  show(p)
+end
+
+on leave(p)
+  if p.plot != nil then
+    let plot = p.plot
+    remove(owner, plot)
+    for k in 1 to len(items) do
+      remove(bought, plot + ":" + k)
+      let item = block("Plot " + plot + " Item " + k)
+      item.visible = false
+      item.solid = false
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  let parts = split(b.name, " ")
+  if contains(b.tags, "claim") then
+    let plot = parts[2]
+    if owner[plot] == nil and p.plot == nil then
+      owner[plot] = p.id
+      p.plot = plot
+      p.message("🍽 区画 " + plot + " があなたのレストランに！まずコンロを", 3)
+      buy(p, plot, "1")
+    end
+  elif contains(b.tags, "buy") then
+    let plot = parts[2]
+    let k = parts[4]
+    if p.plot != plot then return end
+    if has(plot, k) then
+      if k == "1" or k == "6" then
+        -- コンロ: 料理を作る
+        if p.dish == nil and not p.cooking then
+          -- 待っているお客さんの注文を作る
+          let want = nil
+          for key in keys(seats) do
+            if starts_with(key, plot + ":") and want == nil then want = seats[key].dish end
+          end
+          if want == nil then want = random(dishes) end
+          p.cooking = true
+          show(p)
+          kit_later(p, k == "6" and 2 or 4, func()
+            p.cooking = false
+            p.dish = want
+            p.sound("collect")
+            show(p)
+          end)
+        end
+      else
+        serve(p, plot, k)
+      end
+    else
+      buy(p, plot, k)
+    end
+  end
+end

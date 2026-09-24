@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 369,
+  "id" : "street-drive-empire",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/street-drive-empire\/main.absc"
+  ],
+  "summary" : "車を買って街を走るドライブゲーム。走った距離でお金がたまり、もっと速い車へ。サーキットでレースにも挑戦！",
+  "tags" : [
+    "cars",
+    "driving",
+    "collect"
+  ],
+  "title" : "Street Drive Empire",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/street-drive-empire\/world.ablox"
+}

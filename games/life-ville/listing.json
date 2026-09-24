@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 214,
+  "id" : "life-ville",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/life-ville\/main.absc"
+  ],
+  "summary" : "おなか・元気・楽しさ・清潔の4つのゲージを気にしながらくらすライフシム。仕事で給料をもらって家を大きくしよう。",
+  "tags" : [
+    "life",
+    "sim",
+    "needs"
+  ],
+  "title" : "Life Ville",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/life-ville\/world.ablox"
+}

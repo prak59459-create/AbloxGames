@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 102,
+  "id" : "neo-city-life",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/neo-city-life\/main.absc"
+  ],
+  "summary" : "未来のハイテク都市でくらすRP。ホバーカー、ジェットパック、ドローン視点。仕事でかせいで、空飛ぶ家を手に入れよう。",
+  "tags" : [
+    "rp",
+    "city",
+    "future"
+  ],
+  "title" : "Neo City Life",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/neo-city-life\/world.ablox"
+}

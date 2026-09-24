@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 68,
+  "id" : "academy-days",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/academy-days\/main.absc"
+  ],
+  "summary" : "チャイムが鳴ったら教室へ！算数クイズ、美術、体育の競走、音楽のリズム。成績を上げて学園のスターになろう。",
+  "tags" : [
+    "school",
+    "rp",
+    "minigames"
+  ],
+  "title" : "Academy Days",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/academy-days\/world.ablox"
+}

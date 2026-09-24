@@ -1,0 +1,181 @@
+-- Cherry Lane RP — 学校と家族のロールプレイ
+
+kit_setup("Cherry Lane RP", "役割を選んで、街でくらそう", [
+  "「役割」ボタンで 生徒・先生・親・赤ちゃん を選べる",
+  "チャイムが鳴ったら、黒板の前（教室）へ行こう",
+  "授業に出た生徒は成績アップ、教えた先生はお給料",
+  "黄色い看板で家を手に入れて、家族で住もう",
+  "ブティック（ピンクのパッド）で服を着がえられる",
+  "カフェでドリンクを買って友だちとおしゃべり"
+])
+
+let roles = {
+  student: {name: "🎒 生徒", size: 1, pay: 5},
+  teacher: {name: "📚 先生", size: 1.05, pay: 15},
+  parent: {name: "👪 親", size: 1.1, pay: 20},
+  baby: {name: "🍼 赤ちゃん", size: 0.55, pay: 2}
+}
+let role_order = ["student", "teacher", "parent", "baby"]
+let outfits = [
+  {name: "制服", body: "#1E3A8A", head: "#F5D0A9", legs: "#374151", hat: "none"},
+  {name: "カジュアル", body: "#F472B6", head: "#F5D0A9", legs: "#60A5FA", hat: "cap"},
+  {name: "パーティー", body: "#A855F7", head: "#F5D0A9", legs: "#111827", hat: "crown"},
+  {name: "パジャマ", body: "#93C5FD", head: "#F5D0A9", legs: "#93C5FD", hat: "none"},
+  {name: "スポーツ", body: "#EF4444", head: "#F5D0A9", legs: "#FFFFFF", hat: "cap"},
+  {name: "天使", body: "#FFFFFF", head: "#FDE68A", legs: "#FFFFFF", hat: "halo"}
+]
+let subjects = [["Class Math", "算数"], ["Class Art", "図工"], ["Class Music", "音楽"]]
+let period = 0
+let current_class = nil
+let class_open = false
+let owners = {}
+
+kit_shop_title = "カフェ"
+kit_shop_add("boba", "タピオカミルクティー", 10, func(p) p.message("🧋 おいしい！", 1.5) end)
+kit_shop_add("cake", "いちごケーキ", 15, func(p) p.heal(20) end)
+kit_shop_add("coffee", "コーヒー（10秒 速く歩ける）", 12, func(p)
+  p.speed = 1.3
+  kit_later(p, 10, func() p.speed = 1 end)
+end)
+
+kit_quest("class", "授業に3回出る", 3, 60)
+kit_quest("teach", "先生として授業する", 1, 80)
+kit_quest("home", "家を手に入れる", 1, 30)
+kit_quest("outfit", "服を3回着がえる", 3, 30)
+
+func set_role(p, key)
+  p.role = key
+  p.size = roles[key].size
+  p.speed = key == "baby" and 0.8 or 1
+  p.ui_text("role", roles[key].name + (p.grade != nil and ("   成績 " + p.grade) or ""), {at: "top_left", dy: 34, size: 17, bold: true})
+  p.ui_remove("roles")
+end
+
+func role_panel(p)
+  p.ui_panel("roles", {at: "center", w: 480, h: 160, bg: "#831843EE", radius: 22, layer: 30})
+  p.ui_text("roles_t", "役割をえらぶ", {parent: "roles", y: 0.2, size: 22, bold: true})
+  let i = 0
+  for key in role_order do
+    i = i + 1
+    p.ui_button("role_" + key, roles[key].name, {parent: "roles", x: (i - 0.5) / 4, y: 0.65, w: 110, h: 56, size: 16, bg: "#DB2777"})
+  end
+end
+
+func wardrobe(p)
+  let h = 110 + len(outfits) * 50
+  p.ui_panel("wardrobe", {at: "center", w: 360, h: h, bg: "#831843EE", radius: 22, layer: 30})
+  p.ui_text("ward_t", "👗 ブティック", {parent: "wardrobe", y: 28 / h, size: 22, bold: true})
+  let i = 0
+  for o in outfits do
+    i = i + 1
+    p.ui_button("outfit_" + i, o.name, {parent: "wardrobe", y: (28 + i * 50) / h, w: 280, h: 42, size: 16, bg: o.body})
+  end
+  p.ui_button("ward_close", "閉じる", {parent: "wardrobe", y: (h - 26) / h, w: 120, h: 38, size: 14, bg: "gray"})
+end
+
+func bell()
+  period = period + 1
+  let s = subjects[(period - 1) % len(subjects) + 1]
+  current_class = s[1]
+  class_open = false
+  announce("🔔 キーンコーン… 次は「" + s[2] + "」の時間！学校へ", 4)
+  ui_text("class", "📖 次の授業: " + s[2], {at: "top", dy: 26, size: 18, bold: true})
+  after(25, func()
+    class_open = true
+    let teacher_here = 0
+    let students = 0
+    for p in players() do
+      if p.room == current_class and p.room_at != nil and time() - p.room_at < 30 then
+        if p.role == "teacher" then teacher_here = teacher_here + 1 else students = students + 1 end
+      end
+    end
+    for p in players() do
+      if p.room == current_class and p.room_at != nil and time() - p.room_at < 30 then
+        if p.role == "teacher" then
+          kit_give(p, 20 + students * 10)
+          kit_quest_progress(p, "teach", 1)
+          p.message("📚 授業をした！生徒 " + students + " 人", 2)
+        else
+          let gain = teacher_here > 0 and 3 or 1
+          p.grade = (p.grade or 0) + gain
+          p.score = p.grade
+          kit_give(p, 5 * gain)
+          kit_quest_progress(p, "class", 1)
+          p.message("✏️ 授業に出た！成績 +" + gain, 2)
+          set_role(p, p.role)
+        end
+      end
+    end
+    ui_text("class", "🏫 自由時間", {at: "top", dy: 26, size: 18})
+  end)
+end
+
+on start()
+  after(10, func() bell() end)
+  every(80, func() bell() end)
+  every(45, func()
+    for p in players() do
+      if p.role != nil then kit_give(p, roles[p.role].pay) end
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_give(p, 30)
+  set_role(p, "student")
+  p.ui_button("open_roles", "🎭 役割", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#DB2777"})
+  p.ui_button("car", "🚗 車", {at: "right", dy: 0, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+end
+
+on leave(p)
+  if p.home != nil then remove(owners, p.home) end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "class") then
+    p.room = b.name
+    p.room_at = time()
+  elif contains(b.tags, "claim") then
+    let n = split(b.name, " ")[2]
+    if owners[n] == nil and p.home == nil then
+      owners[n] = p.id
+      p.home = n
+      p.message("🏠 Home " + n + " があなたの家に！家族を招待しよう", 3)
+      kit_quest_progress(p, "home", 1)
+    end
+  elif contains(b.tags, "wardrobe") and kit_ready(p, "ward", 3) then
+    wardrobe(p)
+  elif contains(b.tags, "cafe") and kit_ready(p, "cafe", 3) then
+    kit_open_shop(p)
+  end
+end
+
+on button(p, id)
+  if id == "open_roles" then role_panel(p)
+  elif starts_with(id, "role_") then set_role(p, replace(id, "role_", ""))
+  elif starts_with(id, "outfit_") then
+    let o = outfits[num(replace(id, "outfit_", ""))]
+    p.color = o.body
+    p.head_color = o.head
+    p.leg_color = o.legs
+    p.hat = o.hat
+    kit_quest_progress(p, "outfit", 1)
+  elif id == "ward_close" then p.ui_remove("wardrobe")
+  elif id == "car" then
+    if p.driving then
+      p.driving = false
+      p.speed = p.role == "baby" and 0.8 or 1
+    else
+      p.driving = true
+      p.speed = 2.3
+      p.message("🚗 ドライブ中", 1.5)
+    end
+  end
+end
+
+on chat(p, text)
+  if text == "/home" and p.home != nil then p.teleport(block("Home " + p.home + " Floor")) end
+end

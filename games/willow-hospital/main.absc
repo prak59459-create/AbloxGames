@@ -1,0 +1,193 @@
+-- Willow Hospital RP — 病院で患者さんを治すお仕事RP
+
+kit_setup("Willow Hospital", "チームで患者さんを元気に", [
+  "患者さんが入口から来る。受付（緑）にさわってベッドへ案内",
+  "ベッドの患者さんの近くで「🩺 診察」→ 症状から病気をえらぶ",
+  "正しく診断したら、薬局（紫）で薬をもらう",
+  "薬を持って、その患者さんのベッド（青いパッド）へ",
+  "治すと病院の評判とお給料アップ！",
+  "「🎭 役割」で医者・看護師・患者になりきれる"
+])
+
+let illnesses = [
+  {name: "かぜ", symptom: "せきと鼻水", medicine: "かぜ薬"},
+  {name: "ねつ", symptom: "体が熱くてだるい", medicine: "解熱剤"},
+  {name: "ねんざ", symptom: "足首がはれている", medicine: "しっぷ"},
+  {name: "はらいた", symptom: "おなかがいたい", medicine: "胃腸薬"},
+  {name: "アレルギー", symptom: "くしゃみと目のかゆみ", medicine: "アレルギー薬"},
+  {name: "すり傷", symptom: "ひざから血が出ている", medicine: "ばんそうこう"}
+]
+let beds = {}          -- ベッド番号 → 患者 {npc, illness, stage}
+let rating = 3
+let treated = 0
+
+kit_quest("guide", "患者さんを3人ベッドへ案内", 3, 60)
+kit_quest("diagnose", "3回正しく診断", 3, 100)
+kit_quest("cure", "5人治す", 5, 200)
+
+func show_rating()
+  let stars = ""
+  for i in 1 to 5 do stars = stars + (i <= round(rating) and "⭐" or "☆") end
+  ui_text("rating", "🏥 病院の評判 " + stars + "   治した人 " + treated, {at: "top", dy: 26, size: 18, bold: true})
+end
+
+func free_bed()
+  for i in 1 to 6 do
+    if beds[str(i)] == nil then return str(i) end
+  end
+  return nil
+end
+
+func new_patient()
+  let waiting = len(filter(npcs(), func(n) return n.waiting end))
+  if waiting >= 3 then return end
+  let door = block("Patient Door")
+  let n = create_npc({name: "患者さん", position: door.position + {x: random(-2, 2), y: 1, z: 2}, color: "#E2E8F0",
+                      head_color: "#F5D0A9", health: 999999, speed: 0.6})
+  n.waiting = true
+  n.illness = random(illnesses)
+  n.move_to(block("Reception"))
+end
+
+func role_panel(p)
+  p.ui_panel("roles", {at: "center", w: 420, h: 150, bg: "#0C4A6EEE", radius: 22, layer: 30})
+  let list = [["doctor", "👩‍⚕️ 医者", "#FFFFFF"], ["nurse", "🧑‍⚕️ 看護師", "#F9A8D4"], ["patient", "🤒 患者", "#93C5FD"]]
+  let i = 0
+  for r in list do
+    i = i + 1
+    p.ui_button("role_" + r[1], r[2], {parent: "roles", x: (i - 0.5) / 3, y: 0.5, w: 120, h: 56, size: 16, bg: r[3], color: "#111111"})
+  end
+end
+
+func nearest_bed_patient(p)
+  let best = nil
+  for key in keys(beds) do
+    let b = beds[key]
+    if kit_here(b.npc) and distance(p, b.npc) < 5 then best = key end
+  end
+  return best
+end
+
+on start()
+  show_rating()
+  after(4, func() new_patient() end)
+  every(20, func() new_patient() end)
+  every(10, func() kit_leaderboard("💰") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_give(p, 0)
+  p.ui_button("open_roles", "🎭 役割", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+  p.ui_button("diagnose", "🩺 診察", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#16A34A", radius: 16})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "reception") then
+    let patient = nil
+    for n in npcs() do
+      if n.waiting and distance(n, b) < 6 then patient = n end
+    end
+    if patient == nil then return end
+    let bed = free_bed()
+    if bed == nil then
+      p.message("ベッドがいっぱい！", 1.5)
+      return
+    end
+    patient.waiting = false
+    beds[bed] = {npc: patient, illness: patient.illness, stage: "bed"}
+    patient.move_to(block("Bed " + bed))
+    kit_give(p, 10)
+    kit_quest_progress(p, "guide", 1)
+    p.message("🛏 ベッド " + bed + " へ案内した", 1.5)
+  elif contains(b.tags, "pharmacy") then
+    let ready = nil
+    for key in keys(beds) do
+      if beds[key].stage == "diagnosed" and beds[key].med_for == nil then ready = key end
+    end
+    if ready != nil and p.medicine == nil then
+      p.medicine = {bed: ready, name: beds[ready].illness.medicine}
+      beds[ready].med_for = p.id
+      p.message("💊 " + p.medicine.name + " をもらった（ベッド " + ready + "）", 2)
+    end
+  elif contains(b.tags, "bed") then
+    let key = split(b.name, " ")[2]
+    let patient = beds[key]
+    if patient != nil and p.medicine != nil and p.medicine.bed == key then
+      p.medicine = nil
+      remove(beds, key)
+      treated = treated + 1
+      rating = min(5, rating + 0.15)
+      for q in players() do kit_give(q, 15) end
+      kit_give(p, 40)
+      p.score = p.score + 40
+      kit_quest_progress(p, "cure", 1)
+      if kit_here(patient.npc) then
+        patient.npc.say("すっかり元気になりました！")
+        let n = patient.npc
+        n.move_to(block("Patient Door"))
+        after(6, func() if kit_here(n) then n.destroy() end end)
+      end
+      announce("🎉 " + p.name + " が患者さんを治した！", 2)
+      show_rating()
+    end
+  end
+end
+
+on button(p, id)
+  if id == "open_roles" then role_panel(p)
+  elif starts_with(id, "role_") then
+    let r = replace(id, "role_", "")
+    p.ui_remove("roles")
+    if r == "doctor" then
+      p.color = "#FFFFFF"
+      p.leg_color = "#1E3A8A"
+    elif r == "nurse" then
+      p.color = "#F9A8D4"
+      p.leg_color = "#F9A8D4"
+    else
+      p.color = "#93C5FD"
+      p.leg_color = "#93C5FD"
+    end
+    p.role = r
+  elif id == "diagnose" then
+    let key = nearest_bed_patient(p)
+    if key == nil then
+      p.message("ベッドの患者さんの近くで押そう", 1.5)
+      return
+    end
+    let patient = beds[key]
+    if patient.stage != "bed" then
+      p.message("もう診察ずみ。薬局へ", 1.5)
+      return
+    end
+    p.diag_bed = key
+    let options = shuffle(copy(illnesses))
+    let choices = slice(options, 1, 3)
+    if not contains(choices, patient.illness) then choices[1] = patient.illness end
+    shuffle(choices)
+    p.ui_panel("diag", {at: "center", w: 460, h: 180, bg: "#14532DEE", radius: 20, layer: 30})
+    p.ui_text("diag_q", "症状: " + patient.illness.symptom, {parent: "diag", y: 0.25, size: 20, bold: true})
+    let i = 0
+    for c in choices do
+      i = i + 1
+      p.ui_button("ill_" + c.name, c.name, {parent: "diag", x: (i - 0.5) / 3, y: 0.7, w: 130, h: 50, size: 17, bg: "#16A34A"})
+    end
+  elif starts_with(id, "ill_") then
+    p.ui_remove("diag")
+    let key = p.diag_bed
+    if key == nil or beds[key] == nil then return end
+    if replace(id, "ill_", "") == beds[key].illness.name then
+      beds[key].stage = "diagnosed"
+      kit_give(p, 20)
+      kit_quest_progress(p, "diagnose", 1)
+      p.message("✅ 正しい診断！ 薬局で「" + beds[key].illness.medicine + "」を", 2.5)
+    else
+      rating = max(1, rating - 0.2)
+      show_rating()
+      p.message("❌ 誤診… もう一度よく見よう", 2)
+    end
+  end
+end

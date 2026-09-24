@@ -1,0 +1,203 @@
+-- Metro Response — 警察・消防・救急・市民・犯罪者の街RP
+
+kit_setup("Metro Response", "緊急出動！街を守れ", [
+  "署の前のパッドでチームを選ぶ（警察・消防・救急・市民・犯罪者）",
+  "🔥 消防: 火事の近くで「消火」を押しつづける",
+  "🩺 救急: けが人の近くで「手当て」→ 病院のベッドまで連れていく",
+  "🚓 警察: 逃げる犯人（NPCも人も）をテーザーで確保",
+  "🧑 市民: 配達の仕事。🦹 犯罪者: 市役所の金庫をねらう",
+  "30秒ごとに街のどこかで事件が起きる"
+])
+weapon("テーザー", {model: "pistol", damage: 25, rate: 2, range: 30, ammo: 8, reload: 1.5, spread: 0.5})
+
+let teams = {
+  "Team Police": {id: "police", name: "🚓 警察", color: "#1E40AF", hat: "cap"},
+  "Team Fire": {id: "fire", name: "🚒 消防", color: "#B91C1C", hat: "cap"},
+  "Team Medic": {id: "medic", name: "🚑 救急", color: "#FFFFFF", hat: "none"},
+  "Team Civilian": {id: "civilian", name: "🧑 市民", color: "#9CA3AF", hat: "none"},
+  "Team Criminal": {id: "criminal", name: "🦹 犯罪者", color: "#111827", hat: "none"}
+}
+let fires = {}
+let calls = 0
+
+kit_quest("fire", "火事を3つ消す", 3, 200)
+kit_quest("rescue", "けが人を2人運ぶ", 2, 200)
+kit_quest("arrest", "犯人を3人確保", 3, 200)
+kit_quest("deliver", "配達を5回", 5, 150)
+
+func set_team(p, t)
+  p.team = t.id
+  p.color = t.color
+  p.hat = t.hat
+  p.ui_text("team", t.name, {at: "top_left", dy: 34, size: 18, bold: true})
+  p.take()
+  for id in ["extinguish", "treat"] do p.ui_remove(id) end
+  if t.id == "police" then p.give("テーザー") end
+  if t.id == "fire" then p.ui_button("extinguish", "💦 消火", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#0EA5E9", radius: 16}) end
+  if t.id == "medic" then p.ui_button("treat", "🩺 手当て", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#F472B6", radius: 16}) end
+  if t.id == "civilian" then new_delivery(p) end
+  if t.id == "criminal" then p.give("pistol") end
+end
+
+func new_delivery(p)
+  let spot = block("Emergency Spot " + random(1, 8))
+  let b = create_block({name: "Package Drop", shape: "box", position: spot.position + {x: random(-4, 4), y: 0.8, z: random(-4, 4)},
+                        size: 1.2, color: "#A16207", material: "neon", solid: false, behavior: "trigger", tags: ["package", p.id]})
+  p.message("📦 茶色く光る場所へ配達！", 2)
+end
+
+func emergency()
+  calls = calls + 1
+  let spot = block("Emergency Spot " + random(1, 8))
+  let kind = random(["fire", "injured", "crime"])
+  if kind == "fire" then
+    let id = "Fire " + calls
+    create_block({name: id, shape: "cone", position: spot.position + {x: 0, y: 1.5, z: 0}, size: {x: 3, y: 3, z: 3},
+                  color: "#F97316", material: "neon", solid: false, tags: ["fire"]})
+    fires[id] = 100
+    announce("🔥 火事だ！消防は出動！", 3)
+  elif kind == "injured" then
+    let n = create_npc({name: "けが人", position: spot.position + {x: 0, y: 1, z: 0}, color: "#FCA5A5", health: 999999, speed: 0.8})
+    n.injured = true
+    n.frozen = true
+    announce("🚑 けが人がいる！救急は出動！", 3)
+  else
+    let n = create_npc({name: "逃走中の犯人", position: spot.position + {x: 0, y: 1, z: 0}, color: "#111827", head_color: "#F87171",
+                        health: 60, speed: 1.1, team: "criminal"})
+    n.fleeing = true
+    announce("🚨 犯人が逃げている！警察は出動！", 3)
+  end
+end
+
+on start()
+  after(5, func() emergency() end)
+  every(30, func() emergency() end)
+  every(20, func()
+    -- 消されない火事は広がる
+    for id in keys(fires) do
+      let f = block(id)
+      if f != nil and len(keys(fires)) < 10 then
+        calls = calls + 1
+        let nid = "Fire " + calls
+        create_block({name: nid, shape: "cone", position: f.position + {x: random(-6, 6), y: 0, z: random(-6, 6)}, size: {x: 2.4, y: 2.4, z: 2.4},
+                      color: "#FB923C", material: "neon", solid: false, tags: ["fire"]})
+        fires[nid] = 80
+      end
+    end
+  end)
+  every(10, func() kit_leaderboard("⭐") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_give(p, 0)
+  p.ui_text("team", "署の前のパッドでチームを選ぼう", {at: "top_left", dy: 34, size: 16})
+end
+
+on tick(dt)
+  for n in npcs() do
+    if n.fleeing then
+      -- 近くの警察から逃げる
+      let cop = nil
+      for p in players() do
+        if p.team == "police" and distance(p, n) < 25 then cop = p end
+      end
+      if cop != nil then
+        n.move_to(n.position + normalize(n.position - cop.position) * 8)
+      end
+    elif n.carried_by != nil then
+      let medic = nil
+      for p in players() do
+        if p.id == n.carried_by then medic = p end
+      end
+      if medic != nil then n.follow(medic) end
+    end
+  end
+  -- 病院のベッドにけが人を連れてきた
+  let bed = block("Hospital Bed")
+  for n in npcs() do
+    if n.carried_by != nil and distance(n, bed) < 4 then
+      for p in players() do
+        if p.id == n.carried_by then
+          kit_give(p, 80)
+          p.score = p.score + 80
+          kit_quest_progress(p, "rescue", 1)
+          p.message("🏥 救出成功！ +80", 2)
+        end
+      end
+      n.destroy()
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  let t = teams[b.name]
+  if t != nil and p.team != t.id then
+    set_team(p, t)
+  elif contains(b.tags, "package") and contains(b.tags, p.id) then
+    b.destroy()
+    kit_give(p, 30)
+    p.score = p.score + 30
+    kit_quest_progress(p, "deliver", 1)
+    if p.team == "civilian" then kit_later(p, 1, func() new_delivery(p) end) end
+  end
+end
+
+on button(p, id)
+  if id == "extinguish" and p.team == "fire" then
+    for fid in keys(fires) do
+      let f = block(fid)
+      if f != nil and distance(p, f) < 7 then
+        fires[fid] = fires[fid] - 12
+        f.size = max(0.4, fires[fid] / 35)
+        if fires[fid] <= 0 then
+          remove(fires, fid)
+          f.destroy()
+          kit_give(p, 60)
+          p.score = p.score + 60
+          kit_quest_progress(p, "fire", 1)
+          p.message("🧯 鎮火！ +60", 2)
+        end
+        return
+      end
+    end
+    p.message("近くに火事はない", 1)
+  elif id == "treat" and p.team == "medic" then
+    for n in npcs() do
+      if n.injured and n.carried_by == nil and distance(p, n) < 4 then
+        n.carried_by = p.id
+        n.frozen = false
+        p.message("🩺 手当てした！病院のベッドへ連れていこう", 2.5)
+        return
+      end
+    end
+  end
+end
+
+on hit(victim, attacker, damage)
+  if kit_same_team(victim, attacker) then return 0 end
+  return damage
+end
+
+on death(victim, killer)
+  if killer == nil or killer.is_npc then return end
+  if killer.team == "police" and victim.team == "criminal" then
+    kit_give(killer, 70)
+    killer.score = killer.score + 70
+    kit_quest_progress(killer, "arrest", 1)
+    killer.message("🚓 確保！ +70", 2)
+    if not victim.is_npc then victim.jailed = true end
+  end
+end
+
+on respawn(p)
+  if p.jailed then
+    p.jailed = false
+    p.teleport(block("Jail Door"))
+    p.frozen = true
+    p.message("🚔 20秒間、留置所…", 3)
+    kit_later(p, 20, func() p.frozen = false end)
+  end
+end

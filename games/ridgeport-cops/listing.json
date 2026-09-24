@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 259,
+  "id" : "ridgeport-cops",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/ridgeport-cops\/main.absc"
+  ],
+  "summary" : "警察と強盗に分かれる街アクション。強盗は店や銀行をねらい、警察はタックルで逮捕。刑務所からの脱獄もできる！",
+  "tags" : [
+    "cops",
+    "robbers",
+    "teams"
+  ],
+  "title" : "Ridgeport Cops & Robbers",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/ridgeport-cops\/world.ablox"
+}

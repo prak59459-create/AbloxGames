@@ -1,0 +1,196 @@
+-- Ridgeport Cops & Robbers — 警察と強盗の街アクション
+
+kit_setup("Ridgeport Cops & Robbers", "ぬすむか、つかまえるか", [
+  "広場の青いパッドで警察、赤いパッドで強盗になる",
+  "強盗: 店の金庫（黄色）に6秒いてお金をうばい、アジトへ運ぶ",
+  "運んでいる間は手配度が上がる。つかまると全部没収！",
+  "警察: テーザー銃で強盗をたおすと逮捕 → 刑務所へ",
+  "刑務所では「脱獄」ボタンを20回連打でカギが開く",
+  "銀行はもうかるけど、みんなに通報される"
+])
+weapon("テーザー", {model: "pistol", damage: 25, rate: 2, range: 30, ammo: 8, reload: 1.5, spread: 0.5})
+weapon("ピストル", {model: "pistol", damage: 20, rate: 2.5, range: 40, ammo: 10, reload: 1.5, spread: 1})
+
+let loot_value = {"Gas Station Safe": 150, "Jewelry Store Safe": 300, "Bank Safe": 800, "Gun Shop Safe": 200}
+let cooldowns = {}
+
+kit_shop_add("armor", "防弾ベスト（体力150）", 200, func(p)
+  p.max_health = 150
+  p.heal(200)
+end)
+kit_shop_add("rifle", "ライフル", 500, func(p) p.give("rifle") end)
+kit_shop_add("speed", "スニーカー（ずっと少し速い）", 300, func(p)
+  p.fast = true
+  p.speed = 1.2
+end)
+
+kit_quest("rob", "強盗: 3回お金を運びきる", 3, 300)
+kit_quest("arrest", "警察: 3人逮捕", 3, 300)
+kit_quest("escape", "刑務所から脱獄", 1, 150)
+
+func set_team(p, team)
+  p.team = team
+  p.loot = 0
+  p.wanted = 0
+  if team == "police" then
+    p.color = "#1E3A8A"
+    p.hat = "cap"
+    p.give("テーザー")
+    p.teleport(block("Police Spawn " + random(1, 6)))
+  else
+    p.color = "#44403C"
+    p.hat = "none"
+    p.give("ピストル")
+    p.teleport(block("Criminal Spawn " + random(1, 6)))
+  end
+  hud(p)
+end
+
+func hud(p)
+  if p.team == "police" then
+    p.ui_text("hud", "👮 警察   逮捕 " + p.arrests, {at: "top_left", dy: 34, size: 18, bold: true, color: "#93C5FD"})
+  elif p.team == "criminal" then
+    let stars = ""
+    for i in 1 to max(1, p.wanted) do
+      if i <= p.wanted then stars = stars + "⭐" end
+    end
+    p.ui_text("hud", "🦹 強盗   持ち金 " + p.loot + "   手配 " + stars, {at: "top_left", dy: 34, size: 18, bold: true, color: "#FCA5A5"})
+  else
+    p.ui_text("hud", "広場のパッドでチームを選ぼう", {at: "top_left", dy: 34, size: 16})
+  end
+end
+
+func jail(p)
+  p.jailed = true
+  p.loot = 0
+  p.wanted = 0
+  p.escape = 0
+  p.teleport(block("Jail Cell"))
+  p.ui_button("breakout", "🔓 脱獄（20回）", {at: "bottom", dy: -110, w: 220, h: 60, size: 18, bg: "#B45309"})
+  p.message("🚔 逮捕された！30秒で釈放、または脱獄", 3)
+  kit_later(p, 30, func()
+    if p.jailed then
+      p.jailed = false
+      p.ui_remove("breakout")
+      p.teleport(block("Criminal Spawn 1"))
+      p.message("釈放された", 2)
+    end
+  end)
+  hud(p)
+end
+
+on start()
+  every(1, func()
+    for p in players() do
+      if p.robbing != nil then
+        if distance(p, p.robbing) > 3.5 or not p.alive then
+          p.robbing = nil
+          p.ui_remove("rob")
+        else
+          p.rob_time = p.rob_time + 1
+          p.ui_bar("rob", p.rob_time, 6, {at: "center", dy: 80, w: 240, h: 16, color: "#FACC15"})
+          if p.rob_time >= 6 then
+            let value = loot_value[p.robbing.name] or 100
+            p.loot = p.loot + value
+            p.wanted = min(5, p.wanted + (value >= 800 and 3 or 1))
+            cooldowns[p.robbing.name] = time() + 45
+            p.robbing = nil
+            p.ui_remove("rob")
+            p.message("💰 +" + value + "！アジトへ運べ！", 2)
+            hud(p)
+          end
+        end
+      end
+      -- アジトに着いたら持ち金を確定
+      if p.team == "criminal" and p.loot > 0 and distance(p, block("Criminal Spawn 1")) < 8 then
+        kit_give(p, p.loot)
+        p.score = p.score + p.loot
+        p.message("🏴 " + p.loot + " を手に入れた！", 2.5)
+        p.loot = 0
+        p.wanted = max(0, p.wanted - 1)
+        kit_quest_progress(p, "rob", 1)
+        hud(p)
+      end
+    end
+  end)
+  every(10, func() kit_leaderboard("💰") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  p.arrests = 0
+  p.loot = 0
+  p.wanted = 0
+  kit_give(p, 50)
+  hud(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "team") then
+    let t = b.name == "Team Police" and "police" or "criminal"
+    if p.team != t then set_team(p, t) end
+  elif contains(b.tags, "safe") and p.team == "criminal" and not p.jailed and p.robbing == nil then
+    let cd = cooldowns[b.name]
+    if cd != nil and time() < cd then
+      p.message("金庫は空っぽ… あと " + ceil(cd - time()) + " 秒", 1.5)
+      return
+    end
+    p.robbing = b
+    p.rob_time = 0
+    if b.name == "Bank Safe" then announce("🚨 銀行強盗だ！警察は急げ！", 3) end
+  elif contains(b.tags, "exit") and p.jailed and p.escape >= 20 then
+    p.jailed = false
+    p.ui_remove("breakout")
+    p.teleport(block("Criminal Spawn 1"))
+    announce("🔓 " + p.name + " が脱獄した！", 3)
+    p.wanted = 2
+    kit_quest_progress(p, "escape", 1)
+    hud(p)
+  end
+end
+
+on button(p, id)
+  if id == "breakout" and p.jailed then
+    p.escape = p.escape + 1
+    if p.escape >= 20 then
+      p.ui_remove("breakout")
+      p.message("🔓 カギが開いた！黄色いパッドから逃げろ", 2.5)
+      p.teleport(block("Jail Exit"))
+    end
+  end
+end
+
+on hit(victim, attacker, damage)
+  if kit_same_team(victim, attacker) then return 0 end
+  if victim.jailed then return 0 end
+  return damage
+end
+
+on death(victim, killer)
+  if killer != nil and killer.team == "police" and victim.team == "criminal" then
+    killer.arrests = killer.arrests + 1
+    let bounty = 50 + victim.wanted * 60 + floor(victim.loot / 2)
+    kit_give(killer, bounty)
+    killer.score = killer.score + bounty
+    killer.message("🚔 逮捕！ +" + bounty, 2)
+    kit_quest_progress(killer, "arrest", 1)
+    hud(killer)
+    victim.arrested = true
+  end
+end
+
+on respawn(p)
+  if p.arrested then
+    p.arrested = false
+    jail(p)
+  elif p.team == "police" then
+    p.teleport(block("Police Spawn " + random(1, 6)))
+  elif p.team == "criminal" then
+    p.loot = 0
+    p.teleport(block("Criminal Spawn " + random(1, 6)))
+    hud(p)
+  end
+end

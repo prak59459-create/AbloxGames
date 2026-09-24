@@ -1,0 +1,158 @@
+-- Club Hangout — 家族をつくって家を建てて、クラブでおどる
+
+kit_setup("Club Hangout", "建てて、おどって、なかよく", [
+  "黄色い看板で空き地を手に入れて、家を建てよう",
+  "「🧱 建てる」メニュー: かべ・ゆか・まど・家具を目の前に置く",
+  "「🎭 役割」で 親・子ども・赤ちゃん・ペット になれる",
+  "クラブ（紫の建物）のDJブースにさわるとダンスパーティー！",
+  "パーティー中にダンスフロアにいるとコインがもらえる",
+  "チャットで /dance でおどれるよ"
+])
+
+let pieces = [
+  {id: "wall", name: "かべ", price: 5, size: {x: 4, y: 3, z: 0.3}, color: "#F5F5F4", shape: "box", lift: 1.5},
+  {id: "floor", name: "ゆか", price: 3, size: {x: 4, y: 0.2, z: 4}, color: "#D6B98C", shape: "box", lift: 0.1},
+  {id: "window", name: "まど", price: 6, size: {x: 2, y: 1.4, z: 0.1}, color: "#BAE6FD", shape: "box", lift: 1.6},
+  {id: "roof", name: "やね", price: 8, size: {x: 4, y: 0.3, z: 4}, color: "#B91C1C", shape: "box", lift: 3.1},
+  {id: "bed", name: "ベッド", price: 20, size: {x: 2, y: 0.7, z: 3}, color: "#93C5FD", shape: "box", lift: 0.35},
+  {id: "sofa", name: "ソファ", price: 20, size: {x: 3, y: 1, z: 1.2}, color: "#F472B6", shape: "box", lift: 0.5},
+  {id: "tree", name: "木", price: 10, size: {x: 1.6, y: 3, z: 1.6}, color: "#16A34A", shape: "cone", lift: 1.5},
+  {id: "lamp", name: "ランプ", price: 8, size: {x: 0.6, y: 1.6, z: 0.6}, color: "#FDE68A", shape: "cylinder", lift: 0.8}
+]
+let roles = {parent: ["👩 親", 1.1, 1], kid: ["🧒 子ども", 0.8, 1.1], baby: ["👶 赤ちゃん", 0.55, 0.8], pet: ["🐶 ペット", 0.5, 1.4]}
+let lots = {}
+let party = false
+let tile_colors = ["#EC4899", "#22D3EE", "#FACC15", "#A855F7", "#22C55E", "#F97316"]
+let beat = 0
+
+kit_quest("lot", "空き地を手に入れる", 1, 20)
+kit_quest("build", "20個建てる", 20, 100)
+kit_quest("dance", "パーティーで3回コインをもらう", 3, 60)
+
+func build_menu(p)
+  let h = 100 + len(pieces) * 44
+  p.ui_panel("build", {at: "left", dx: 16, w: 250, h: h, bg: "#0C4A6EEE", radius: 20, layer: 30})
+  p.ui_text("build_t", "🧱 建てる", {parent: "build", y: 24 / h, size: 20, bold: true})
+  let i = 0
+  for piece in pieces do
+    i = i + 1
+    p.ui_button("piece_" + piece.id, piece.name + " 💰" + piece.price, {parent: "build", y: (24 + i * 44) / h, w: 210, h: 38, size: 15, bg: piece.color, color: "#111111"})
+  end
+  p.ui_button("build_close", "閉じる", {parent: "build", y: (h - 24) / h, w: 120, h: 34, size: 14, bg: "gray"})
+end
+
+func place(p, piece)
+  if p.lot == nil then
+    p.message("まず空き地を手に入れよう", 1.5)
+    return
+  end
+  let lot = block("Lot " + p.lot)
+  if distance(p, lot) > 14 then
+    p.message("自分の空き地で建てよう", 1.5)
+    return
+  end
+  if not kit_pay(p, piece.price) then return end
+  let spot = kit_ahead(p, 2.5)
+  let gx = round(spot.x * 2) / 2
+  let gz = round(spot.z * 2) / 2
+  let yaw = round(p.yaw / 90) * 90
+  create_block({name: "Built " + p.lot, shape: piece.shape, position: {x: gx, y: lot.y + 0.1 + piece.lift, z: gz},
+                size: piece.size, color: piece.color, rotation: {x: 0, y: yaw, z: 0}, tags: ["built", "lot" + p.lot]})
+  kit_quest_progress(p, "build", 1)
+end
+
+on start()
+  every(0.5, func()
+    if party then
+      beat = beat + 1
+      let i = 0
+      for tile in blocks("tile") do
+        i = i + 1
+        tile.color = tile_colors[(i + beat) % len(tile_colors) + 1]
+      end
+    end
+  end)
+  every(10, func()
+    if party then
+      for p in players() do
+        if p.on_floor_at != nil and time() - p.on_floor_at < 2 then
+          kit_give(p, 5)
+          kit_quest_progress(p, "dance", 1)
+        end
+      end
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_give(p, 120)
+  p.ui_button("open_build", "🧱 建てる", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+  p.ui_button("undo", "↩ こわす", {at: "right", dy: 0, w: 150, h: 50, size: 16, bg: "#6B7280"})
+  p.ui_button("open_roles", "🎭 役割", {at: "right", dy: 180, w: 150, h: 50, size: 17, bg: "#DB2777"})
+end
+
+on leave(p)
+  if p.lot != nil then
+    remove(lots, p.lot)
+    for b in blocks("lot" + p.lot) do b.destroy() end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "claim") then
+    let n = split(b.name, " ")[2]
+    if lots[n] == nil and p.lot == nil then
+      lots[n] = p.id
+      p.lot = n
+      p.message("🏗 空き地 " + n + " があなたのものに！", 2.5)
+      kit_quest_progress(p, "lot", 1)
+    end
+  elif contains(b.tags, "tile") then
+    p.on_floor_at = time()
+  elif contains(b.tags, "dj") and kit_ready(p, "dj", 20) then
+    party = not party
+    if party then
+      announce("🪩 " + p.name + " がダンスパーティーを始めた！クラブへ！", 4)
+      world.light = 0.35
+    else
+      announce("パーティーおしまい", 2)
+      world.light = 0.6
+      for tile in blocks("tile") do tile.color = "#EC4899" end
+    end
+  elif contains(b.tags, "store") and kit_ready(p, "store", 3) then
+    build_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "open_build" then build_menu(p)
+  elif id == "build_close" then p.ui_remove("build")
+  elif starts_with(id, "piece_") then
+    let key = replace(id, "piece_", "")
+    for piece in pieces do
+      if piece.id == key then place(p, piece) end
+    end
+  elif id == "undo" and p.lot != nil then
+    let mine = blocks("lot" + p.lot)
+    if len(mine) > 0 then
+      mine[len(mine)].destroy()
+      kit_give(p, 2)
+    end
+  elif id == "open_roles" then
+    p.ui_panel("roles", {at: "center", w: 480, h: 150, bg: "#831843EE", radius: 22, layer: 30})
+    let i = 0
+    for key in ["parent", "kid", "baby", "pet"] do
+      i = i + 1
+      p.ui_button("role_" + key, roles[key][1], {parent: "roles", x: (i - 0.5) / 4, y: 0.5, w: 110, h: 56, size: 16, bg: "#DB2777"})
+    end
+  elif starts_with(id, "role_") then
+    let r = roles[replace(id, "role_", "")]
+    p.size = r[2]
+    p.speed = r[3]
+    p.ui_text("role", r[1], {at: "top_left", dy: 34, size: 18, bold: true})
+    p.ui_remove("roles")
+  end
+end

@@ -1,0 +1,192 @@
+-- Coaster Park Tycoon — 遊園地をつくって、お客さんを楽しませる
+
+kit_setup("Coaster Park Tycoon", "夢の遊園地をつくろう", [
+  "色のパッドで区画を手に入れて、自分の遊園地に",
+  "緑のパッドでアトラクションを買う（順番に解放）",
+  "お客さんが来て乗り物に乗ると、入場料が入る",
+  "買ったアトラクションの緑パッドにさわると、自分も乗れる！",
+  "乗り物が多いほど評判が上がって、お客さんが増える"
+])
+
+let rides = ["道", "メリーゴーランド", "屋台", "観覧車", "ゴーカート", "フリーフォール", "ジェットコースター", "噴水"]
+let prices = [0, 80, 150, 400, 800, 1500, 3000, 5000]
+let fares = [0, 5, 8, 12, 15, 20, 35, 10]
+let owner = {}
+let bought = {}
+
+kit_quest("rides", "アトラクションを4つ建てる", 4, 300)
+kit_quest("guests", "お客さんを30人楽しませる", 30, 300)
+kit_quest("ride", "ジェットコースターに乗る", 1, 200)
+
+func has(plot, k)
+  return bought[plot + ":" + k] == true
+end
+
+func ride_count(plot)
+  let n = 0
+  for k in 1 to len(rides) do
+    if has(plot, str(k)) then n = n + 1 end
+  end
+  return n
+end
+
+func show(p)
+  if p.plot == nil then return end
+  p.ui_text("park", "🎡 パーク " + p.plot + "   アトラクション " + ride_count(p.plot) + "   お客さん " + p.guests + "   ⭐" + ride_count(p.plot),
+            {at: "top", dy: 30, size: 17, bold: true})
+end
+
+func buy(p, plot, k)
+  let n = num(k)
+  if n > 1 and not has(plot, str(n - 1)) then
+    p.message("先に「" + rides[n - 1] + "」", 1.5)
+    return
+  end
+  if not kit_pay(p, prices[n]) then return end
+  bought[plot + ":" + k] = true
+  let item = block("Plot " + plot + " Item " + k)
+  item.visible = true
+  item.solid = true
+  p.message("🎉 " + rides[n] + " オープン！", 2)
+  if ride_count(plot) >= 4 then kit_quest_progress(p, "rides", 1) end
+  show(p)
+end
+
+-- 自分で乗る
+func ride(p, plot, k)
+  let n = num(k)
+  let item = block("Plot " + plot + " Item " + k)
+  if not kit_ready(p, "ride", 4) then return end
+  if n == 2 then
+    for i in 1 to 16 do kit_later(p, i * 0.2, func() p.yaw = p.yaw + 22.5 end) end
+    p.message("🎠 くるくる〜", 2)
+  elif n == 4 then
+    p.teleport(item.position + {x: 0, y: 6, z: 0})
+    p.frozen = true
+    kit_later(p, 4, func()
+      p.frozen = false
+      p.teleport(item.position + {x: 3, y: 0, z: 0})
+    end)
+    p.message("🎡 いい景色！", 3)
+  elif n == 5 then
+    p.speed = 3
+    kit_later(p, 8, func() p.speed = 1 end)
+    p.message("🏎 ゴーカート！8秒間", 2)
+  elif n == 6 then
+    p.teleport(item.position + {x: 0, y: 9, z: 0})
+    kit_later(p, 1.5, func() p.launch(0, -30, 0) end)
+    p.message("😱 フリーフォール！", 2)
+  elif n == 7 then
+    kit_quest_progress(p, "ride", 1)
+    let base = item.position
+    let path = [{x: 0, y: 6, z: -10}, {x: 0, y: 8, z: -2}, {x: 0, y: 3, z: 6}, {x: 0, y: 9, z: 11}, {x: 0, y: 1, z: 12}]
+    let i = 0
+    for pt in path do
+      i = i + 1
+      kit_later(p, i * 0.7, func() p.teleport(base + pt) end)
+    end
+    p.shake(0.3, 3.5)
+    p.message("🎢 キャーーー！", 3)
+  else
+    p.message("✨ " + rides[n], 1)
+  end
+end
+
+on start()
+  every(4, func()
+    for p in players() do
+      if p.plot != nil and ride_count(p.plot) > 1 then
+        -- お客さんが来る
+        let count = len(filter(npcs(), func(n) return n.park == p.plot end))
+        if count < min(12, ride_count(p.plot) * 2) then
+          let gate = block("Plot " + p.plot + " Gate")
+          let n = create_npc({name: "お客さん", position: gate.position + {x: random(-2, 2), y: 1, z: 0},
+                              color: random(["#F97316", "#3B82F6", "#22C55E", "#EC4899", "#FACC15"]), health: 999999, speed: 0.7})
+          n.park = p.plot
+          n.owner = p.id
+          n.visits = 0
+        end
+      end
+    end
+    -- お客さんは乗り物をめぐって、お金を払う
+    for n in npcs() do
+      if n.park != nil then
+        let options = []
+        for k in 2 to len(rides) do
+          if has(n.park, str(k)) then append(options, k) end
+        end
+        if len(options) > 0 and random() < 0.5 then
+          let k = random(options)
+          n.move_to(block("Plot " + n.park + " Item " + k).position + {x: 2, y: 0, z: 2})
+          n.visits = n.visits + 1
+          for p in players() do
+            if p.id == n.owner then
+              kit_give(p, fares[k])
+              p.score = p.score + fares[k]
+            end
+          end
+        end
+        if n.visits > 5 then
+          for p in players() do
+            if p.id == n.owner then
+              p.guests = p.guests + 1
+              kit_quest_progress(p, "guests", 1)
+              show(p)
+            end
+          end
+          n.destroy()
+        end
+      end
+    end
+  end)
+  every(0.5, func()
+    for p in players() do
+      if p.plot != nil and has(p.plot, "2") then block("Plot " + p.plot + " Item 2").rotate(0, 15, 0) end
+    end
+  end)
+  every(10, func() kit_leaderboard("🎡") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_give(p, 120)
+  p.guests = 0
+end
+
+on leave(p)
+  for n in npcs() do
+    if n.owner == p.id then n.destroy() end
+  end
+  if p.plot != nil then
+    remove(owner, p.plot)
+    for k in 1 to len(rides) do
+      remove(bought, p.plot + ":" + k)
+      let item = block("Plot " + p.plot + " Item " + k)
+      item.visible = false
+      item.solid = false
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  let parts = split(b.name, " ")
+  if contains(b.tags, "claim") then
+    let plot = parts[2]
+    if owner[plot] == nil and p.plot == nil then
+      owner[plot] = p.id
+      p.plot = plot
+      buy(p, plot, "1")
+      show(p)
+    end
+  elif contains(b.tags, "buy") then
+    let plot = parts[2]
+    let k = parts[4]
+    if has(plot, k) then
+      ride(p, plot, k)
+    elif p.plot == plot then
+      buy(p, plot, k)
+    end
+  end
+end

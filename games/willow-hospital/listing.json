@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 34,
+  "id" : "willow-hospital",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/willow-hospital\/main.absc"
+  ],
+  "summary" : "病院で医者・看護師・患者になりきる。受付、診察、薬、治療。患者さんを元気にして病院の評判を上げよう。",
+  "tags" : [
+    "rp",
+    "hospital",
+    "jobs"
+  ],
+  "title" : "Willow Hospital RP",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/willow-hospital\/world.ablox"
+}

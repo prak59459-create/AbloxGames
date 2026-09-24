@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 59,
+  "id" : "club-hangout",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/club-hangout\/main.absc"
+  ],
+  "summary" : "家族をつくって、家を建てて、クラブのダンスパーティーへ。家具を置いて自分だけの部屋を作ろう。",
+  "tags" : [
+    "rp",
+    "social",
+    "build"
+  ],
+  "title" : "Club Hangout",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/club-hangout\/world.ablox"
+}

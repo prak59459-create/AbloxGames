@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 85,
+  "id" : "coaster-park-tycoon",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/coaster-park-tycoon\/main.absc"
+  ],
+  "summary" : "遊園地を作ろう。メリーゴーランド、観覧車、ジェットコースター。お客さんを楽しませてお金をかせぎ、自分でも乗ってみよう。",
+  "tags" : [
+    "tycoon",
+    "theme-park",
+    "build"
+  ],
+  "title" : "Coaster Park Tycoon",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/coaster-park-tycoon\/world.ablox"
+}

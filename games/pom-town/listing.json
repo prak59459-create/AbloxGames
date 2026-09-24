@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 256,
+  "id" : "pom-town",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/pom-town\/main.absc"
+  ],
+  "summary" : "自分の家を家具でかざって、ふわふわのペット「ポム」と街でくらそう。釣りでスターコインを集めて、パーティーを開こう。",
+  "tags" : [
+    "rp",
+    "house",
+    "pets"
+  ],
+  "title" : "Pom Town",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/pom-town\/world.ablox"
+}

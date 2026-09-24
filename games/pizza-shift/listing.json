@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 142,
+  "id" : "pizza-shift",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/pizza-shift\/main.absc"
+  ],
+  "summary" : "ピザ屋でみんなで働こう。レジで注文を取り、生地・ソース・チーズでピザを作り、オーブンで焼いて、家まで配達！",
+  "tags" : [
+    "jobs",
+    "coop",
+    "classic"
+  ],
+  "title" : "Pizza Shift",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/pizza-shift\/world.ablox"
+}

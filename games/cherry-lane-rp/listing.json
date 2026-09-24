@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 296,
+  "id" : "cherry-lane-rp",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/cherry-lane-rp\/main.absc"
+  ],
+  "summary" : "おしゃれな街で学校生活や家族ごっこ。役割（生徒・先生・親・赤ちゃん）を選んで、授業のチャイムに合わせて過ごそう。",
+  "tags" : [
+    "rp",
+    "school",
+    "family"
+  ],
+  "title" : "Cherry Lane RP",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/cherry-lane-rp\/world.ablox"
+}

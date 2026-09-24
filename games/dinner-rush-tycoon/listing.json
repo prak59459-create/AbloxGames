@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 101,
+  "id" : "dinner-rush-tycoon",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/dinner-rush-tycoon\/main.absc"
+  ],
+  "summary" : "自分のレストランを経営。テーブルやコンロを買いそろえて、お客さんに料理を運ぼう。店を大きくして人気店に！",
+  "tags" : [
+    "tycoon",
+    "cooking",
+    "business"
+  ],
+  "title" : "Dinner Rush Tycoon",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/dinner-rush-tycoon\/world.ablox"
+}

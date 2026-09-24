@@ -1,0 +1,165 @@
+-- Street Drive Empire — 車を買って走るドライブゲーム
+
+kit_setup("Street Drive Empire", "走ってかせいで、夢の車へ", [
+  "「🚗 乗る」で車に乗る。走った距離でお金がたまる",
+  "カーディーラー（黄色）でもっと速い車を買える",
+  "ペイントショップ（ピンク）で車の色を変える",
+  "緑のスタートパッドでタイムアタック！4つのコーナーを回ってもどる",
+  "「🔥 ニトロ」で一瞬だけ超加速（15秒に1回）"
+])
+
+let cars = [
+  {name: "ミニ", speed: 1.8, price: 0},
+  {name: "セダン", speed: 2.2, price: 300},
+  {name: "SUV", speed: 2.4, price: 800},
+  {name: "スポーツカー", speed: 3, price: 2500},
+  {name: "スーパーカー", speed: 3.8, price: 8000},
+  {name: "ハイパーカー", speed: 4.8, price: 25000}
+]
+let paints = ["#EF4444", "#3B82F6", "#FACC15", "#22C55E", "#111827", "#FFFFFF", "#A855F7", "#F97316"]
+let best_time = nil
+let best_name = ""
+
+kit_quest("drive", "5km走る", 5000, 300)
+kit_quest("car", "新しい車を買う", 1, 100)
+kit_quest("race", "タイムアタックを完走", 1, 200)
+
+func dealer(p)
+  let h = 110 + len(cars) * 50
+  p.ui_panel("dealer", {at: "center", w: 400, h: h, bg: "#111827F0", radius: 22, layer: 30})
+  p.ui_text("dealer_t", "🚘 カーディーラー", {parent: "dealer", y: 28 / h, size: 22, bold: true, color: "gold"})
+  let i = 0
+  for c in cars do
+    i = i + 1
+    let owned = contains(p.garage, c.name)
+    p.ui_button("car_" + i, c.name + "（速さ " + c.speed + "）" + (owned and " ✅" or (" 💰" + kit_short(c.price))),
+                {parent: "dealer", y: (28 + i * 50) / h, w: 340, h: 42, size: 15, bg: owned and "#16A34A" or "#1D4ED8"})
+  end
+  p.ui_button("dealer_close", "閉じる", {parent: "dealer", y: (h - 26) / h, w: 120, h: 38, size: 14, bg: "gray"})
+end
+
+func current(p)
+  for c in cars do
+    if c.name == p.car then return c end
+  end
+  return cars[1]
+end
+
+func show(p)
+  p.ui_text("car", "🚗 " + p.car + (p.driving and "（運転中）" or "") + "   走行 " + fixed(p.meters / 1000, 1) + " km", {at: "top_left", dy: 34, size: 17, bold: true})
+end
+
+on start()
+  every(1, func()
+    for p in players() do
+      if p.driving then
+        let here = p.position
+        if p.last_pos != nil then
+          let d = magnitude({x: here.x - p.last_pos.x, y: 0, z: here.z - p.last_pos.z})
+          if d < 60 then
+            p.meters = p.meters + d
+            p.carry = p.carry + d
+            kit_quest_progress(p, "drive", d)
+            if p.carry >= 50 then
+              let coins = floor(p.carry / 50) * 2
+              p.carry = p.carry % 50
+              kit_give(p, coins)
+              p.score = floor(p.meters / 100)
+            end
+          end
+        end
+        p.last_pos = here
+        show(p)
+      end
+      if p.racing then
+        p.ui_text("race", "⏱ " + fixed(time() - p.race_start, 1) + " 秒   コーナー " + p.race_cp + "/4", {at: "top", dy: 60, size: 20, bold: true})
+      end
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.garage = ["ミニ"]
+  p.car = "ミニ"
+  p.meters = 0
+  p.carry = 0
+  kit_give(p, 50)
+  p.ui_button("drive", "🚗 乗る", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+  p.ui_button("nitro", "🔥 ニトロ", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#DC2626", radius: 16})
+  p.camera_distance = 9
+  show(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "dealer") and kit_ready(p, "dealer", 3) then
+    dealer(p)
+  elif contains(b.tags, "paint") and kit_ready(p, "paint", 2) then
+    if kit_pay(p, 20) then
+      p.color = random(paints)
+      p.message("🎨 塗りかえた！", 1.5)
+    end
+  elif contains(b.tags, "racestart") and not p.racing then
+    p.racing = true
+    p.race_cp = 0
+    p.race_start = time()
+    p.message("🏁 タイムアタック開始！コーナーを順番に", 2)
+  elif contains(b.tags, "racecp") and p.racing then
+    let n = num(split(b.name, " ")[3])
+    if n == p.race_cp + 1 then
+      p.race_cp = n
+      p.sound("checkpoint")
+      if n >= 4 then
+        let t = time() - p.race_start
+        p.racing = false
+        p.ui_remove("race")
+        let reward = max(50, floor(400 - t * 3))
+        kit_give(p, reward)
+        kit_quest_progress(p, "race", 1)
+        p.message("🏁 " + fixed(t, 1) + " 秒！ +" + reward, 3)
+        if best_time == nil or t < best_time then
+          best_time = t
+          best_name = p.name
+          announce("🏆 新記録！ " + p.name + " " + fixed(t, 1) + " 秒", 4)
+          ui_text("record", "🏆 最速 " + best_name + " " + fixed(best_time, 1) + "秒", {at: "top_right", dy: 60, size: 15})
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "drive" then
+    p.driving = not p.driving
+    if p.driving then
+      p.speed = current(p).speed
+      p.last_pos = p.position
+    else
+      p.speed = 1
+    end
+    show(p)
+  elif id == "nitro" and p.driving and kit_ready(p, "nitro", 15) then
+    p.speed = current(p).speed * 1.8
+    p.shake(0.2, 1.5)
+    kit_later(p, 2, func() if p.driving then p.speed = current(p).speed end end)
+  elif starts_with(id, "car_") then
+    let c = cars[num(replace(id, "car_", ""))]
+    if contains(p.garage, c.name) then
+      p.car = c.name
+    elif kit_pay(p, c.price) then
+      append(p.garage, c.name)
+      p.car = c.name
+      kit_quest_progress(p, "car", 1)
+      announce("🚘 " + p.name + " が " + c.name + " を買った！", 2)
+    else
+      return
+    end
+    if p.driving then p.speed = c.speed end
+    dealer(p)
+    show(p)
+  elif id == "dealer_close" then
+    p.ui_remove("dealer")
+  end
+end
