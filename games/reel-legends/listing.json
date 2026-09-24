@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 68,
+  "id" : "reel-legends",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/reel-legends\/main.absc"
+  ],
+  "summary" : "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",
+  "tags" : [
+    "fishing",
+    "simulator",
+    "collect",
+    "top20"
+  ],
+  "title" : "Reel Legends",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/reel-legends\/world.ablox"
+}

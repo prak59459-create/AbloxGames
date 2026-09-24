@@ -1,0 +1,104 @@
+-- Tsunami Dash — うしろからせまる津波からにげて、ゴールまで走りぬけろ
+
+kit_setup("Tsunami Dash", "止まったら、のまれる！", [
+  "スタートの合図で走り出そう。津波はだんだん速くなる",
+  "とちゅうのミームキャラ（光る玉）を拾うとボーナス",
+  "緑のジャンプ台で穴を飛びこえる",
+  "ゴールした順番でポイント。津波にのまれたらアウト",
+  "全員ゴールかアウトで次のレース"
+])
+
+let wave = nil
+let racing = false
+let start_time = 0
+let finished = 0
+let wave_z = -30
+
+func alive_runners()
+  return len(filter(players(), func(p) return not p.out and not p.done end))
+end
+
+func begin()
+  let start = block("Wave Start")
+  wave = create_block({name: "Tsunami", position: start.position, size: {x: 40, y: 14, z: 6}, color: "#1D4ED8",
+                       material: "glass", opacity: 0.8, solid: false})
+  wave_z = start.position.z
+  for p in players() do
+    p.frozen = true
+    p.teleport(block("Spawn " + random(1, 8)))
+  end
+  for k in 1 to 3 do
+    after(k, func()
+      announce(str(4 - k), 0.8)
+      sound("tick")
+    end)
+  end
+  after(4, func()
+    racing = true
+    start_time = time()
+    for p in players() do p.frozen = false end
+    announce("GO! 🌊", 1)
+    sound("goal")
+  end)
+end
+
+func finish_race(message)
+  if not racing then return end
+  racing = false
+  kit_finish(message, 5)
+end
+
+on start()
+  after(2, func() begin() end)
+  every(10, func() kit_leaderboard("🏃") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.memes = 0
+  if racing then
+    p.out = true
+    p.message("次のレースから参加！", 2)
+  end
+end
+
+on tick(dt)
+  if not racing or wave == nil then return end
+  let t = time() - start_time
+  let speed = 5 + t * 0.06
+  wave_z = wave_z + speed * dt
+  wave.z = wave_z
+  for p in players() do
+    if not p.out and not p.done then
+      p.ui_text("gap", "🌊 あと " + max(0, floor(p.z - wave_z)) + " m", {at: "top", dy: 30, size: 20, bold: true,
+                color: p.z - wave_z < 15 and "#F87171" or "#FFFFFF"})
+      if p.z < wave_z + 3 then
+        p.out = true
+        p.message("🌊 のまれた！", 2)
+        p.ui_remove("gap")
+        p.shake(0.6, 0.6)
+        p.teleport(block("Finish"))
+      end
+    end
+  end
+  if alive_runners() == 0 then finish_race("🏁 レース終了！ " + finished + " 人ゴール") end
+  if wave_z > 330 then finish_race("🌊 津波がゴールに…") end
+end
+
+on touch(p, b)
+  if p.is_npc or p.out then return end
+  if contains(b.tags, "meme") and b.visible then
+    b.visible = false
+    p.memes = p.memes + 1
+    p.score = p.score + 2
+    p.sound("collect")
+    p.message("✨ ミームゲット！ +2", 1)
+  elif contains(b.tags, "finish") and racing and not p.done then
+    p.done = true
+    finished = finished + 1
+    let points = max(3, 15 - (finished - 1) * 4)
+    p.score = p.score + points
+    announce("🏁 " + p.name + " が " + finished + " 位でゴール！ +" + points, 3)
+    p.ui_remove("gap")
+  end
+end

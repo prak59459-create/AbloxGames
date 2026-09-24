@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 100,
+  "id" : "fruit-seas",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/fruit-seas\/main.absc"
+  ],
+  "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",
+  "tags" : [
+    "rpg",
+    "action",
+    "adventure",
+    "top20"
+  ],
+  "title" : "Fruit Seas Adventure",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/fruit-seas\/world.ablox"
+}

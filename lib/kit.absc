@@ -1,0 +1,317 @@
+-- kit.absc — みんなで使う道具箱（Ablox Games の全ゲーム共通）
+-- Shared helpers for every game in this catalogue: money, a shop, the help
+-- box, the title card, rounds, timers and "who is nearest".
+--
+-- Games call these from their own main.absc. This file also answers the
+-- buttons whose names start with "kit_" (help and shop), so a game only has
+-- to handle its own buttons.
+
+let kit_title = "Ablox"
+let kit_subtitle = ""
+let kit_help_lines = []
+let kit_shop_items = []
+let kit_shop_title = "ショップ"
+let kit_currency = "コイン"
+let kit_ending = false
+
+-- ゲームの名前と遊び方を登録する
+func kit_setup(title, subtitle, lines)
+  kit_title = title
+  kit_subtitle = subtitle
+  kit_help_lines = lines
+end
+
+-- その人がまだゲームにいるか（抜けた人は id が nil）
+func kit_here(p)
+  return p != nil and p.id != nil
+end
+
+-- あとで実行。その人が抜けていたら何もしない
+func kit_later(p, seconds, f)
+  after(seconds, func()
+    if kit_here(p) then f() end
+  end)
+end
+
+-- 1234567 → 1.2M
+func kit_short(n)
+  if n == nil then return "0" end
+  let a = abs(n)
+  if a >= 1000000000000 then return fixed(n / 1000000000000, 1) + "T" end
+  if a >= 1000000000 then return fixed(n / 1000000000, 1) + "B" end
+  if a >= 1000000 then return fixed(n / 1000000, 1) + "M" end
+  if a >= 10000 then return fixed(n / 1000, 1) + "K" end
+  return str(floor(n))
+end
+
+-- 75 → "1:15"
+func kit_clock(seconds)
+  let s = max(0, ceil(seconds))
+  let m = floor(s / 60)
+  let r = s % 60
+  if r < 10 then return m + ":0" + r end
+  return m + ":" + r
+end
+
+-- MARK: お金
+
+func kit_money(p)
+  if p.coins == nil then p.coins = 0 end
+  return p.coins
+end
+
+func kit_show_money(p)
+  p.ui_text("kit_money", "💰 " + kit_short(kit_money(p)), {at: "top_left", size: 24, bold: true, color: "gold"})
+end
+
+func kit_give(p, amount)
+  p.coins = kit_money(p) + amount
+  kit_show_money(p)
+end
+
+func kit_can_pay(p, price)
+  return kit_money(p) >= price
+end
+
+func kit_pay(p, price)
+  if kit_money(p) < price then
+    p.message(kit_currency + "が足りません（あと " + kit_short(price - p.coins) + "）", 1.5)
+    p.sound("error")
+    return false
+  end
+  p.coins = p.coins - price
+  kit_show_money(p)
+  return true
+end
+
+-- MARK: 最初の画面と「？」ボタン
+
+func kit_welcome(p)
+  p.ui_panel("kit_card", {at: "center", w: 520, h: 150, bg: "#000000B8", radius: 24, layer: 50})
+  p.ui_text("kit_card_title", kit_title, {parent: "kit_card", y: 0.36, size: 34, bold: true, color: "gold"})
+  p.ui_text("kit_card_sub", kit_subtitle, {parent: "kit_card", y: 0.74, size: 17})
+  kit_later(p, 4, func() p.ui_remove("kit_card") end)
+  p.ui_button("kit_help", "？", {at: "top_right", w: 52, h: 52, size: 24, bg: "#00000099", radius: 26})
+end
+
+func kit_open_help(p)
+  let n = len(kit_help_lines)
+  let h = 110 + n * 30
+  p.ui_panel("kit_helpbox", {at: "center", w: 560, h: h, bg: "#000000E0", radius: 20, layer: 60})
+  p.ui_text("kit_help_title", kit_title + " の遊び方", {parent: "kit_helpbox", y: 30 / h, size: 22, bold: true, color: "gold"})
+  let i = 0
+  for line in kit_help_lines do
+    i = i + 1
+    p.ui_text("kit_help_line" + i, line, {parent: "kit_helpbox", y: (45 + i * 30) / h, size: 16})
+  end
+  p.ui_button("kit_help_close", "OK", {parent: "kit_helpbox", y: (h - 30) / h, w: 120, h: 42, size: 17, bg: "green"})
+end
+
+-- MARK: ショップ
+
+-- 品物を登録する。buy は買えたときに呼ばれる func(p)
+func kit_shop_add(id, label, price, buy)
+  append(kit_shop_items, {id: id, label: label, price: price, buy: buy})
+end
+
+func kit_shop_price(id, price)
+  for item in kit_shop_items do
+    if item.id == id then item.price = price end
+  end
+end
+
+func kit_open_shop(p)
+  let n = len(kit_shop_items)
+  let h = 150 + n * 60
+  p.ui_panel("kit_shop", {at: "center", w: 460, h: h, bg: "#0F1020F0", radius: 22, layer: 40})
+  p.ui_text("kit_shop_head", kit_shop_title, {parent: "kit_shop", y: 34 / h, size: 26, bold: true, color: "gold"})
+  let i = 0
+  for item in kit_shop_items do
+    i = i + 1
+    p.ui_button("kit_buy_" + item.id, item.label + "   💰" + kit_short(item.price),
+                {parent: "kit_shop", y: (40 + i * 60) / h, w: 410, h: 50, size: 17, bg: "#2563EB"})
+  end
+  p.ui_button("kit_shop_close", "閉じる", {parent: "kit_shop", y: (h - 34) / h, w: 150, h: 44, size: 16, bg: "gray"})
+end
+
+-- 画面の右下あたりに置く「ショップ」ボタン
+func kit_shop_button(p)
+  p.ui_button("kit_shop_open", "🛒 " + kit_shop_title, {at: "right", dy: 60, w: 150, h: 50, size: 17, bg: "purple"})
+end
+
+on button(p, id)
+  if id == "kit_help" then
+    kit_open_help(p)
+  elif id == "kit_help_close" then
+    p.ui_remove("kit_helpbox")
+  elif id == "kit_shop_open" then
+    kit_open_shop(p)
+  elif id == "kit_shop_close" then
+    p.ui_remove("kit_shop")
+  elif starts_with(id, "kit_buy_") then
+    let key = replace(id, "kit_buy_", "")
+    for item in kit_shop_items do
+      if item.id == key and kit_pay(p, item.price) then
+        p.sound("collect")
+        item.buy(p)
+        kit_open_shop(p)
+      end
+    end
+  end
+end
+
+-- MARK: ラウンド
+
+-- 勝ち負けを表示して、少し待ってから最初からやり直す
+func kit_finish(message, seconds)
+  if kit_ending then return end
+  kit_ending = true
+  announce(message, seconds)
+  sound("goal")
+  after(seconds, func() restart_round() end)
+end
+
+-- MARK: だれが近い？
+
+func kit_nearest(from, list)
+  let best = nil
+  let best_d = 0
+  for c in list do
+    if c.alive then
+      let d = distance(from, c)
+      if best == nil or d < best_d then
+        best = c
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func kit_nearest_player(from)
+  return kit_nearest(from, players())
+end
+
+func kit_alive_players()
+  return filter(players(), func(p) return p.alive end)
+end
+
+-- MARK: 運（ガチャ）
+
+-- list の中から weight の重さで1つ選ぶ。luck が大きいほど重さの小さい（レアな）ものが出やすい
+func kit_pick(list, luck)
+  let l = luck or 1
+  let total = 0
+  for item in list do total = total + pow(item.weight, 1 / l) end
+  let r = random() * total
+  for item in list do
+    r = r - pow(item.weight, 1 / l)
+    if r <= 0 then return item end
+  end
+  return list[len(list)]
+end
+
+-- MARK: ランキング
+
+func kit_top(count)
+  let list = sort(players(), func(a, b) return a.score > b.score end)
+  return slice(list, 1, min(count, len(list)))
+end
+
+func kit_leaderboard(title)
+  let lines = title
+  let i = 0
+  for p in kit_top(3) do
+    i = i + 1
+    lines = lines + "   " + i + ". " + p.name + " " + kit_short(p.score)
+  end
+  ui_text("kit_board", lines, {at: "bottom", dy: -8, size: 15, color: "#FFFFFFCC"})
+end
+
+-- MARK: チーム
+
+func kit_team_count(team)
+  let n = 0
+  for p in players() do
+    if p.team == team then n = n + 1 end
+  end
+  return n
+end
+
+-- 人数の少ないチームに入れる
+func kit_balance(p, teams)
+  let best = teams[1]
+  for t in teams do
+    if kit_team_count(t) < kit_team_count(best) then best = t end
+  end
+  p.team = best
+  return best
+end
+
+-- 方向（度）を向いた長さ1の矢印
+func kit_dir(yaw)
+  return {x: sin(yaw), y: 0, z: 0 - cos(yaw)}
+end
+
+-- MARK: 戦い
+
+-- プレイヤーとNPC、全員のリスト
+func kit_everyone()
+  let all = copy(players())
+  for n in npcs() do append(all, n) end
+  return all
+end
+
+-- 同じチームどうしか（どちらかがチームなしなら false）
+func kit_same_team(a, b)
+  return a.team != nil and a.team == b.team
+end
+
+-- center から radius 以内の相手（自分と味方以外）にダメージ。lift で上に飛ばす
+func kit_blast(p, center, radius, damage, lift)
+  let hit = 0
+  for c in kit_everyone() do
+    if c.id != p.id and c.alive and not kit_same_team(c, p) and distance(center, c) <= radius then
+      c.damage(damage, p)
+      -- たおれたNPCはもういないので、いるときだけ飛ばす
+      if lift > 0 and kit_here(c) and c.alive then c.launch(0, lift, 0) end
+      hit = hit + 1
+    end
+  end
+  return hit
+end
+
+-- 技の待ち時間。使えるなら true（そして待ち時間スタート）
+let kit_cds = {}
+func kit_ready(p, key, seconds)
+  let k = p.id + ":" + key
+  let last = kit_cds[k]
+  if last != nil and time() - last < seconds then
+    p.message("あと " + ceil(seconds - (time() - last)) + " 秒", 0.8)
+    return false
+  end
+  kit_cds[k] = time()
+  return true
+end
+
+-- 近接武器（ピストルの形で、射程が短い）
+func kit_melee(name, damage, rate, reach)
+  weapon(name, {model: "pistol", damage: damage, rate: rate, range: reach or 5, ammo: 1000, reload: 0, spread: 4})
+end
+
+-- NPC の基本: sight 以内のプレイヤーを追いかけ、くっついたら1秒に dps のダメージ
+func kit_chase(n, sight, dps, dt)
+  let target = kit_nearest_player(n)
+  if target != nil and distance(n, target) <= sight then
+    n.follow(target)
+    if distance(n, target) < 2.2 then target.damage(dps * dt, n) end
+    return target
+  end
+  n.stop()
+  return nil
+end
+
+-- 見ている方向に dist だけ前の位置
+func kit_ahead(p, dist)
+  return p.position + p.look * dist
+end

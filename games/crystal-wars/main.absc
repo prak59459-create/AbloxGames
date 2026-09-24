@@ -1,0 +1,182 @@
+-- Crystal Wars — 浮島のクリスタル防衛チーム戦
+
+kit_setup("Crystal Wars", "自分のクリスタルを守り、相手のをこわせ", [
+  "灰色のパッド（ジェネレーター）に立つと鉄がたまる",
+  "真ん中の島の水色パッドはもっとたくさん鉄が出る",
+  "チームカラーのパッドでお店。ブロック・剣・よろい・弓",
+  "「ブロック」ボタンで目の前に足場を置いて橋をかけよう",
+  "相手のクリスタルを何度もタップするとこわれる",
+  "クリスタルがあるうちは復活できる。こわされたら最後！",
+  "最後まで残ったチームの勝ち"
+])
+kit_currency = "鉄"
+kit_shop_title = "お店"
+kit_melee("木の剣", 14, 2.5, 5)
+kit_melee("石の剣", 22, 2.5, 5)
+kit_melee("鉄の剣", 32, 2.5, 5.5)
+kit_melee("ダイヤの剣", 45, 2.6, 6)
+
+let all_teams = ["red", "blue", "green", "yellow"]
+let names = {red: "Red", blue: "Blue", green: "Green", yellow: "Yellow"}
+let jp = {red: "赤", blue: "青", green: "緑", yellow: "黄"}
+let colors = {red: "#EF4444", blue: "#3B82F6", green: "#22C55E", yellow: "#EAB308"}
+let crystal_hp = {red: 15, blue: 15, green: 15, yellow: 15}
+let active = []
+let over = false
+
+kit_shop_add("blocks", "ブロック ×16", 8, func(p)
+  p.blocks = p.blocks + 16
+  show(p)
+end)
+kit_shop_add("stone", "石の剣", 20, func(p) p.give("石の剣") end)
+kit_shop_add("iron", "鉄の剣", 60, func(p) p.give("鉄の剣") end)
+kit_shop_add("diamond", "ダイヤの剣", 160, func(p) p.give("ダイヤの剣") end)
+kit_shop_add("armor", "よろい（体力150）", 50, func(p)
+  p.max_health = max(p.max_health, 150)
+  p.heal(999)
+end)
+kit_shop_add("armor2", "ダイヤのよろい（体力250）", 180, func(p)
+  p.max_health = 250
+  p.heal(999)
+end)
+kit_shop_add("bow", "弓（ライフル）", 90, func(p) p.give("rifle") end)
+kit_shop_add("apple", "金のリンゴ（回復）", 12, func(p) p.heal(80) end)
+
+func show(p)
+  p.ui_text("inv", "🧱 " + p.blocks + "   " + jp[p.team] + "チーム", {at: "top_left", dy: 34, size: 18, bold: true, color: colors[p.team]})
+end
+
+func show_crystals()
+  let line = ""
+  for t in active do
+    let hp = crystal_hp[t]
+    line = line + jp[t] + (hp > 0 and (" 💎" + hp) or " ❌") + "   "
+  end
+  ui_text("crystals", line, {at: "top", dy: 26, size: 20, bold: true})
+end
+
+func team_alive(t)
+  if crystal_hp[t] > 0 and kit_team_count(t) > 0 then return true end
+  for p in players() do
+    if p.team == t and p.alive then return true end
+  end
+  return false
+end
+
+func check_winner()
+  if over then return end
+  let left = filter(active, func(t) return team_alive(t) end)
+  if len(left) == 1 and len(players()) > 1 then
+    over = true
+    for p in players() do
+      if p.team == left[1] then p.score = p.score + 1 end
+    end
+    kit_finish("🏆 " + jp[left[1]] + "チームの勝利！", 8)
+  end
+end
+
+func home(p)
+  p.teleport(block(names[p.team] + " Spawn " + random(1, 2)))
+end
+
+on start()
+  game.respawn_time = -1
+  let n = max(2, min(4, len(players())))
+  active = slice(all_teams, 1, n)
+  show_crystals()
+  for t in all_teams do
+    if not contains(active, t) then
+      let c = block(names[t] + " Crystal")
+      if c != nil then c.destroy() end
+    end
+  end
+  every(2, func() check_winner() end)
+end
+
+on join(p)
+  kit_welcome(p)
+  if not contains(active, "red") then active = ["red", "blue"] end
+  let t = kit_balance(p, active)
+  p.color = colors[t]
+  p.blocks = 16
+  p.give("木の剣")
+  kit_give(p, 10)
+  kit_shop_button(p)
+  p.ui_button("place", "🧱 ブロック", {at: "bottom_right", dx: -120, dy: -160, w: 110, h: 60, size: 16, bg: colors[t], radius: 14})
+  show(p)
+  home(p)
+end
+
+on leave(p)
+  after(0.2, func() check_winner() end)
+end
+
+on tick(dt)
+  for p in players() do
+    -- 奈落に落ちたらアウト
+    if p.alive and p.y < -14 then p.kill() end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "generator") then
+    if contains(b.tags, "diamond") then
+      if kit_ready(p, "gen_d", 1.5) then kit_give(p, 4) end
+    elif contains(b.tags, p.team) then
+      kit_give(p, 1)
+    end
+  elif contains(b.tags, "shop") then
+    if kit_ready(p, "shop", 3) then kit_open_shop(p) end
+  end
+end
+
+on button(p, id)
+  if id == "place" and p.alive then
+    if p.blocks <= 0 then
+      p.message("ブロックがない！お店で買おう", 1.5)
+      return
+    end
+    let spot = kit_ahead(p, 2.2)
+    let pos = {x: round(spot.x / 2) * 2, y: round((p.y - 0.5) / 1) * 1 - 0.5, z: round(spot.z / 2) * 2}
+    create_block({name: "Placed", position: pos, size: {x: 2, y: 1, z: 2}, color: colors[p.team], tags: ["placed"]})
+    p.blocks = p.blocks - 1
+    show(p)
+  end
+end
+
+on tap(p, b)
+  if not p.alive then return end
+  if contains(b.tags, "placed") and distance(p, b) < 7 then
+    b.destroy()
+  elif contains(b.tags, "crystal") and distance(p, b) < 6 then
+    let t = nil
+    for key in all_teams do
+      if contains(b.tags, key) then t = key end
+    end
+    if t == nil or t == p.team then return end
+    crystal_hp[t] = crystal_hp[t] - 1
+    p.sound("hit")
+    show_crystals()
+    if crystal_hp[t] <= 0 then
+      b.destroy()
+      announce("💥 " + jp[t] + "チームのクリスタルがこわされた！（" + p.name + "）", 4)
+      p.score = p.score + 2
+      check_winner()
+    end
+  end
+end
+
+on death(victim, killer)
+  if killer != nil and killer.id != victim.id then kit_give(killer, 5) end
+  if crystal_hp[victim.team] != nil and crystal_hp[victim.team] > 0 then
+    victim.message("5秒で復活", 2)
+    kit_later(victim, 5, func()
+      victim.respawn()
+      home(victim)
+    end)
+  else
+    victim.message("💀 クリスタルがないので復活できない…", 3)
+  end
+  check_winner()
+end

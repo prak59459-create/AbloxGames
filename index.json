@@ -1,0 +1,426 @@
+{
+  "catalogueVersion" : 1,
+  "games" : [
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 415,
+      "id" : "maple-bay-life",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/maple-bay-life\/main.absc"
+      ],
+      "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",
+      "tags" : [
+        "rp",
+        "town",
+        "life",
+        "top20"
+      ],
+      "title" : "Maple Bay Life RP",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/maple-bay-life\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 100,
+      "id" : "fruit-seas",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/fruit-seas\/main.absc"
+      ],
+      "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",
+      "tags" : [
+        "rpg",
+        "action",
+        "adventure",
+        "top20"
+      ],
+      "title" : "Fruit Seas Adventure",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/fruit-seas\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 99,
+      "id" : "pet-home-paradise",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/pet-home-paradise\/main.absc"
+      ],
+      "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
+      "tags" : [
+        "pets",
+        "collect",
+        "cute",
+        "top20"
+      ],
+      "title" : "Pet Home Paradise",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/pet-home-paradise\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 121,
+      "id" : "meme-heist",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/meme-heist\/main.absc"
+      ],
+      "summary" : "ランウェイを歩くヘンなミームキャラを買って自分の基地へ。キャラはお金を生み出す。ほかの人の基地からこっそり盗み出せ！",
+      "tags" : [
+        "simulator",
+        "steal",
+        "funny",
+        "top20"
+      ],
+      "title" : "Meme Heist",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/meme-heist\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 68,
+      "id" : "reel-legends",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/reel-legends\/main.absc"
+      ],
+      "summary" : "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",
+      "tags" : [
+        "fishing",
+        "simulator",
+        "collect",
+        "top20"
+      ],
+      "title" : "Reel Legends",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/reel-legends\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 35,
+      "id" : "clash-duels",
+      "maxPlayers" : 10,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/clash-duels\/main.absc"
+      ],
+      "summary" : "1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。",
+      "tags" : [
+        "fps",
+        "pvp",
+        "teams",
+        "top20"
+      ],
+      "title" : "Clash Duels",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/clash-duels\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 188,
+      "id" : "sprout-garden",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/sprout-garden\/main.absc"
+      ],
+      "summary" : "自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。",
+      "tags" : [
+        "farming",
+        "simulator",
+        "chill",
+        "top20"
+      ],
+      "title" : "Sprout Garden",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/sprout-garden\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 48,
+      "id" : "runway-star",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/runway-star\/main.absc"
+      ],
+      "summary" : "テーマに合わせて服の色や帽子をコーディネートしてランウェイへ。みんなで星をつけ合って、トップモデルを決めよう。",
+      "tags" : [
+        "fashion",
+        "vote",
+        "party",
+        "top20"
+      ],
+      "title" : "Runway Star",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/runway-star\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 70,
+      "id" : "mystery-manor",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/mystery-manor\/main.absc"
+      ],
+      "summary" : "市民・保安官・犯人に分かれる推理サバイバル。犯人は正体をかくして全員を、保安官は犯人を見つけてたおせ。市民は生きのこれ！",
+      "tags" : [
+        "mystery",
+        "roles",
+        "pvp",
+        "top20"
+      ],
+      "title" : "Mystery Manor",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/mystery-manor\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 176,
+      "id" : "99-nights-camp",
+      "maxPlayers" : 10,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/99-nights-camp\/main.absc"
+      ],
+      "summary" : "森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。",
+      "tags" : [
+        "survival",
+        "horror",
+        "coop",
+        "top20"
+      ],
+      "title" : "99 Nights Camp",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/99-nights-camp\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 99,
+      "id" : "lucky-kick-run",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/lucky-kick-run\/main.absc"
+      ],
+      "summary" : "ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！",
+      "tags" : [
+        "luck",
+        "survival",
+        "action",
+        "top20"
+      ],
+      "title" : "Lucky Kick Run",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/lucky-kick-run\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 41,
+      "id" : "battleground-legends",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/battleground-legends\/main.absc"
+      ],
+      "summary" : "パンチ、アッパー、衝撃波、そして必殺の覚醒！技を組み合わせてオープンフィールドで戦う爽快バトル。",
+      "tags" : [
+        "pvp",
+        "fighting",
+        "combo",
+        "top20"
+      ],
+      "title" : "Battleground Legends",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/battleground-legends\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 1134,
+      "id" : "hotel-100-doors",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/hotel-100-doors\/main.absc"
+      ],
+      "summary" : "なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。",
+      "tags" : [
+        "horror",
+        "coop",
+        "escape",
+        "top20"
+      ],
+      "title" : "Hotel 100 Doors",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/hotel-100-doors\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 75,
+      "id" : "pet-coin-frenzy",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/pet-coin-frenzy\/main.absc"
+      ],
+      "summary" : "コインの山をタップしてこわし、たまごからペットを出してパワーアップ。新しいエリアを開いて、巨大ペットを引き当てろ！",
+      "tags" : [
+        "pets",
+        "clicker",
+        "collect",
+        "top20"
+      ],
+      "title" : "Pet Coin Frenzy",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/pet-coin-frenzy\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 18,
+      "id" : "tower-of-chaos",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/tower-of-chaos\/main.absc"
+      ],
+      "summary" : "チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！",
+      "tags" : [
+        "obby",
+        "hard",
+        "tower",
+        "top20"
+      ],
+      "title" : "Tower of Chaos",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/tower-of-chaos\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 46,
+      "id" : "crystal-wars",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/crystal-wars\/main.absc"
+      ],
+      "summary" : "浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。",
+      "tags" : [
+        "pvp",
+        "teams",
+        "build",
+        "top20"
+      ],
+      "title" : "Crystal Wars",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/crystal-wars\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 44,
+      "id" : "slime-roll",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/slime-roll\/main.absc"
+      ],
+      "summary" : "運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？",
+      "tags" : [
+        "rng",
+        "idle",
+        "collect",
+        "top20"
+      ],
+      "title" : "Slime Roll",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/slime-roll\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 46,
+      "id" : "hero-tower-defense",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/hero-tower-defense\/main.absc"
+      ],
+      "summary" : "道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。",
+      "tags" : [
+        "tower-defense",
+        "coop",
+        "strategy",
+        "top20"
+      ],
+      "title" : "Hero Tower Defense",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/hero-tower-defense\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 34,
+      "id" : "domain-clash",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/domain-clash\/main.absc"
+      ],
+      "summary" : "炎・雷・重力・影の術で戦うバトル。ゲージがたまったら「領域展開」で相手を閉じこめろ！地面や柱もこわれる。",
+      "tags" : [
+        "pvp",
+        "fighting",
+        "powers",
+        "top20"
+      ],
+      "title" : "Domain Clash",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/domain-clash\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 77,
+      "id" : "tsunami-dash",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/tsunami-dash\/main.absc"
+      ],
+      "summary" : "うしろからせまる巨大な津波！障害物をかわし、アイテムを拾いながらゴールまで走りぬけろ。ミームだらけのにぎやかコース。",
+      "tags" : [
+        "runner",
+        "survival",
+        "funny",
+        "top20"
+      ],
+      "title" : "Tsunami Dash",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/tsunami-dash\/world.ablox"
+    }
+  ],
+  "updatedAt" : "2026-09-24T00:00:00Z"
+}

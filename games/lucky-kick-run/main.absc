@@ -1,0 +1,127 @@
+-- Lucky Kick Run — ラッキーブロックをけって、大津波からにげる
+
+kit_setup("Lucky Kick Run", "けって、引いて、にげろ！", [
+  "浜辺の黄色いラッキーブロックにさわると、けとばして中身が出る",
+  "出たアイテムは「持ちもの」。紫のパッド（丘の上）で預けると自分のもの",
+  "ときどき大津波が来る！高い塔の緑のパッドに登れば安全",
+  "津波にのまれると、預けていない持ちものは流される",
+  "預けたアイテムの価値がスコアになります"
+])
+
+let loot = [
+  {name: "コイン袋", value: 10, weight: 40, effect: "none"},
+  {name: "スピードぐつ", value: 25, weight: 18, effect: "speed"},
+  {name: "ジャンプばね", value: 25, weight: 18, effect: "jump"},
+  {name: "黄金のトロフィー", value: 120, weight: 6, effect: "none"},
+  {name: "ミームねこ", value: 60, weight: 10, effect: "none"},
+  {name: "ダイヤモンド", value: 300, weight: 2, effect: "none"},
+  {name: "ハズレ（バナナの皮）", value: 0, weight: 14, effect: "slip"},
+  {name: "虹色ユニコーン", value: 1000, weight: 0.5, effect: "none"}
+]
+let wave = nil
+let wave_coming = false
+let next_wave = 40
+
+func show_carry(p)
+  let total = 0
+  for item in p.carry do total = total + item.value end
+  p.ui_text("carry", "🎒 持ちもの " + len(p.carry) + " 個（" + total + "）  🏦 " + p.score, {at: "top", dy: 30, size: 18, bold: true})
+end
+
+func kick(p, b)
+  if not b.visible then return end
+  b.visible = false
+  b.solid = false
+  p.launch(0, 6, 0)
+  let item = kit_pick(loot, p.luck or 1)
+  if item.effect == "speed" then
+    p.speed = 1.6
+    kit_later(p, 20, func() p.speed = 1 end)
+  elif item.effect == "jump" then
+    p.jump = 1.8
+    kit_later(p, 20, func() p.jump = 1 end)
+  elif item.effect == "slip" then
+    p.launch(random(-15, 15), 8, random(-15, 15))
+  end
+  if item.value > 0 then append(p.carry, item) end
+  p.message("🎁 " + item.name + "！", 2)
+  p.sound(item.value >= 300 and "goal" or "collect")
+  if item.value >= 300 then announce("✨ " + p.name + " が「" + item.name + "」を引いた！", 3) end
+  show_carry(p)
+  after(8, func()
+    b.visible = true
+    b.solid = true
+  end)
+end
+
+func tsunami()
+  wave_coming = true
+  announce("🌊 大津波が来る！高い塔へにげろ！", 4)
+  shake(0.4, 3)
+  after(5, func()
+    let start = block("Wave Start")
+    wave = create_block({name: "Tsunami", position: start.position + {x: 0, y: 4, z: 0}, size: {x: 70, y: 12, z: 6},
+                         color: "#1D4ED8", material: "glass", opacity: 0.85, solid: false, behavior: "trigger", tags: ["wave"]})
+    wave.move_to(block("Wave End"), 16)
+    after(16.5, func()
+      if wave != nil then wave.destroy() end
+      wave = nil
+      wave_coming = false
+      announce("津波が去った… 浜辺にもどろう", 2)
+    end)
+  end)
+end
+
+on start()
+  every(1, func()
+    if not wave_coming then
+      next_wave = next_wave - 1
+      ui_text("wave", "🌊 次の津波まで " + next_wave + " 秒", {at: "top", dy: 60, size: 16, color: "#BFDBFE"})
+      if next_wave <= 0 then
+        next_wave = random(35, 55)
+        tsunami()
+      end
+    else
+      ui_text("wave", "🌊 津波が来ている！", {at: "top", dy: 60, size: 18, bold: true, color: "#F87171"})
+    end
+  end)
+  every(10, func() kit_leaderboard("🏦") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.carry = []
+  show_carry(p)
+end
+
+on tick(dt)
+  if wave == nil then return end
+  for p in players() do
+    let safe = p.safe_at != nil and time() - p.safe_at < 1.2
+    if p.alive and not safe and abs(p.z - wave.z) < 4 then
+      if len(p.carry) > 0 then p.message("🌊 持ちものが流された…", 2) end
+      p.carry = []
+      show_carry(p)
+      p.kill()
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "lucky") then
+    kick(p, b)
+  elif contains(b.tags, "safe") then
+    p.safe_at = time()
+  elif contains(b.tags, "bank") then
+    if len(p.carry) > 0 then
+      let total = 0
+      for item in p.carry do total = total + item.value end
+      p.score = p.score + total
+      p.carry = []
+      p.message("🏦 預けた！ +" + total, 2)
+      p.sound("goal")
+      show_carry(p)
+    end
+  end
+end

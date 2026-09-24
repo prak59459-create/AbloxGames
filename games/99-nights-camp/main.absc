@@ -1,0 +1,180 @@
+-- 99 Nights Camp — 森で99日生きのびるサバイバル
+-- 昼: 木をタップして切る → たき火にくべる。夜: 怪物からキャンプを守る。
+
+kit_setup("99 Nights Camp", "たき火を守って、99日生きのびろ", [
+  "木をタップすると木材が手に入ります",
+  "たき火にさわると木材をくべて火が強くなる",
+  "夜は怪物が来る！たき火の光からはなれると寒さでダメージ",
+  "たき火が消えると夜はずっと寒い…",
+  "怪物をたおしたり夜を越えるとコイン",
+  "作業台（🛒）でオノや銃を買おう"
+])
+
+kit_currency = "コイン"
+kit_melee("こんぼう", 22, 2, 5)
+let day = 1
+let night = false
+let fuel = 60
+let tree_hits = {}
+let phase_left = 50
+
+kit_shop_add("axe2", "石のオノ（木材×2）", 40, func(p) p.axe = 2 end)
+kit_shop_add("axe3", "鉄のオノ（木材×4）", 200, func(p) p.axe = 4 end)
+kit_shop_add("rifle", "ライフル", 300, func(p) p.give("rifle") end)
+kit_shop_add("medkit", "救急箱（全回復）", 30, func(p) p.heal(9999) end)
+kit_shop_title = "作業台"
+
+func show_fire()
+  ui_text("day", (night and "🌙 夜 " or "☀️ 昼 ") + day + " 日目  ⏱ " + kit_clock(phase_left), {at: "top", dy: 26, size: 22, bold: true})
+  ui_bar("fuel", fuel, 100, {at: "top", dy: 58, w: 260, h: 14, color: "#F97316"})
+  let fire = block("Campfire")
+  if fire != nil then
+    let s = 1 + fuel / 30
+    fire.size = {x: s, y: s * 0.9, z: s}
+    fire.position = {x: 0, y: s * 0.45, z: 0}
+  end
+end
+
+func show_wood(p)
+  p.ui_text("wood", "🪵 木材 " + p.wood, {at: "top_left", dy: 34, size: 20, bold: true, color: "#FDBA74"})
+end
+
+func start_night()
+  night = true
+  phase_left = 40
+  world.sky_top = "#050816"
+  world.sky_bottom = "#101830"
+  world.light = 0.12
+  announce("🌙 " + day + " 日目の夜が来た…", 3)
+  let count = min(30, 2 + day)
+  for i in 1 to count do
+    let den = block("Monster Den " + random(1, 6))
+    let wolf = random() < 0.5
+    create_npc({name: wolf and "オオカミ" or "影のシカ", position: den.position + {x: random(-6, 6), y: 1, z: random(-6, 6)},
+                color: wolf and "#6B7280" or "#111827", head_color: wolf and "#9CA3AF" or "#EF4444",
+                size: wolf and 0.9 or 1.3, health: 40 + day * 8, speed: wolf and 1.1 or 0.8, team: "monster"})
+  end
+  if day % 5 == 0 then
+    create_npc({name: "森の王", position: block("Monster Den 1").position + {x: 0, y: 2, z: 0}, color: "#14532D",
+                head_color: "#FACC15", size: 3.5, health: 1500 + day * 50, speed: 0.6, team: "monster"})
+    announce("🌲 森の王があらわれた！", 3)
+  end
+end
+
+func start_day()
+  night = false
+  phase_left = 50
+  for n in npcs() do n.destroy() end
+  world.sky_top = "#6FB7E8"
+  world.sky_bottom = "#D8EEFF"
+  world.light = 0.7
+  day = day + 1
+  for p in players() do
+    if not p.alive then p.respawn() end
+    kit_give(p, 10 + day)
+    p.score = day
+  end
+  if day >= 99 then
+    kit_finish("🏆 99日を生きのびた！伝説のキャンパーだ！", 10)
+    return
+  end
+  announce("☀️ " + day + " 日目の朝。生きのびた！ +" + (10 + day) + " コイン", 3)
+end
+
+on start()
+  game.respawn_time = 8
+  every(1, func()
+    phase_left = phase_left - 1
+    if night then fuel = max(0, fuel - 1.2) else fuel = max(0, fuel - 0.3) end
+    if phase_left <= 0 then
+      if night then start_day() else start_night() end
+    end
+    show_fire()
+    -- 寒さ: 夜、火から遠い（または火が消えている）と冷える
+    if night then
+      let reach = fuel / 2 + 6
+      for p in players() do
+        if p.alive and (fuel <= 0 or distance(p, block("Campfire")) > reach) then
+          p.damage(3)
+          p.message("🥶 寒い！たき火の近くへ", 0.8)
+        end
+      end
+      let everyone_down = len(kit_alive_players()) == 0 and len(players()) > 0
+      if everyone_down then kit_finish("💀 全員たおれた… " + day + " 日目で力つきた", 8) end
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.wood = 0
+  p.axe = 1
+  p.give("こんぼう")
+  kit_give(p, 20)
+  kit_shop_button(p)
+  show_wood(p)
+end
+
+on tick(dt)
+  for n in npcs() do
+    if n.name == "森の王" then
+      kit_chase(n, 80, 25, dt)
+    elif kit_chase(n, 30, 10, dt) == nil then
+      n.move_to(block("Campfire"))
+    end
+  end
+end
+
+on tap(p, b)
+  if not contains(b.tags, "tree") or not b.visible then return end
+  if distance(p, b) > 8 then
+    p.message("もっと木に近づこう", 1)
+    return
+  end
+  let name = replace(b.name, " Trunk", "")
+  tree_hits[name] = (tree_hits[name] or 0) + 1
+  p.wood = p.wood + p.axe
+  show_wood(p)
+  p.sound("hit")
+  if tree_hits[name] >= 5 then
+    remove(tree_hits, name)
+    let top = block(name)
+    let trunk = block(name + " Trunk")
+    for part in [top, trunk] do
+      if part != nil then
+        part.visible = false
+        part.solid = false
+      end
+    end
+    after(60, func()
+      for part in [top, trunk] do
+        if part != nil then
+          part.visible = true
+          part.solid = true
+        end
+      end
+    end)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "fire") and p.wood > 0 then
+    fuel = min(100, fuel + p.wood * 4)
+    p.message("🔥 木材 " + p.wood + " をくべた！", 1.5)
+    p.score = p.score + p.wood
+    p.wood = 0
+    show_wood(p)
+    show_fire()
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and killer != nil and not killer.is_npc then
+    kit_give(killer, 5)
+    if victim.name == "森の王" then
+      announce("🌲 " + killer.name + " たちが森の王をたおした！", 3)
+      for p in players() do kit_give(p, 100) end
+    end
+  end
+end

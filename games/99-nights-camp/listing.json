@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 176,
+  "id" : "99-nights-camp",
+  "maxPlayers" : 10,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/99-nights-camp\/main.absc"
+  ],
+  "summary" : "森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。",
+  "tags" : [
+    "survival",
+    "horror",
+    "coop",
+    "top20"
+  ],
+  "title" : "99 Nights Camp",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/99-nights-camp\/world.ablox"
+}

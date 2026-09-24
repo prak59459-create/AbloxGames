@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 18,
+  "id" : "tower-of-chaos",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/tower-of-chaos\/main.absc"
+  ],
+  "summary" : "チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！",
+  "tags" : [
+    "obby",
+    "hard",
+    "tower",
+    "top20"
+  ],
+  "title" : "Tower of Chaos",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/tower-of-chaos\/world.ablox"
+}

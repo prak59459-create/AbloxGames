@@ -1,0 +1,253 @@
+-- Hero Tower Defense — ヒーローを置いて城を守る
+
+kit_setup("Hero Tower Defense", "ヒーローを置いて、敵の大群から城を守れ", [
+  "下のボタンでヒーローを選び、道ばたの灰色の台にさわって置く",
+  "自分のヒーローの台にもう一度さわると強化（最大Lv5）",
+  "⚔️剣士: 近くを強くなぐる  🏹弓: 遠くまで届く",
+  "🔮魔法: まとめてダメージ  ❄️氷: 敵をおそくする",
+  "敵が城にたどりつくと城の体力が減る。0で負け",
+  "30ウェーブ守りきれば勝ち！お金はみんなで山分け"
+])
+weapon("弓", {model: "rifle", damage: 18, rate: 1.2, range: 26, ammo: 1000, reload: 0, spread: 0.5})
+
+let units = {
+  sword: {name: "⚔️剣士", cost: 100, range: 7, damage: 22, color: "#F87171"},
+  bow: {name: "🏹弓", cost: 150, range: 26, damage: 18, color: "#4ADE80"},
+  magic: {name: "🔮魔法", cost: 250, range: 14, damage: 14, color: "#A78BFA"},
+  ice: {name: "❄️氷", cost: 200, range: 12, damage: 6, color: "#67E8F9"}
+}
+let unit_order = ["sword", "bow", "magic", "ice"]
+let towers = {}      -- 台の名前 → タワーNPC
+let wave = 0
+let castle = 20
+let spawning = 0
+let path_len = 10
+let over = false
+
+func show_game()
+  ui_text("wave", "🌊 ウェーブ " + wave + " / 30   🏰 " + castle, {at: "top", dy: 26, size: 22, bold: true})
+end
+
+func pay_all(amount)
+  for p in players() do kit_give(p, amount) end
+end
+
+func spawn_enemy(kind)
+  let start = block("Waypoint 1")
+  let hp = 50 + wave * 22
+  let speed = 0.55
+  let color = "#7F1D1D"
+  let name = "ゴブリン"
+  let size = 1
+  if kind == "fast" then
+    hp = hp * 0.6
+    speed = 1.1
+    color = "#EA580C"
+    name = "すばやいコウモリ"
+    size = 0.7
+  elif kind == "tank" then
+    hp = hp * 4
+    speed = 0.35
+    color = "#3F3F46"
+    name = "よろいオーク"
+    size = 1.5
+  elif kind == "boss" then
+    hp = hp * 25
+    speed = 0.3
+    color = "#581C87"
+    name = "魔王の手下"
+    size = 3
+  end
+  let n = create_npc({name: name, position: start.position + {x: random(-2, 2), y: 1, z: random(-2, 2)},
+                      color: color, head_color: "#111111", health: hp, speed: speed, size: size, team: "enemy"})
+  n.wp = 2
+  n.base_speed = speed
+  n.hit = kind == "boss" and 10 or (kind == "tank" and 3 or 1)
+  n.reward = kind == "boss" and 300 or (kind == "tank" and 30 or 10)
+  n.move_to(block("Waypoint 2"))
+end
+
+func next_wave()
+  if over then return end
+  wave = wave + 1
+  show_game()
+  if wave > 30 then
+    over = true
+    for p in players() do p.score = p.score + 30 end
+    kit_finish("🏆 30ウェーブ守りきった！城は無事だ！", 10)
+    return
+  end
+  announce("🌊 ウェーブ " + wave, 2)
+  let count = 5 + wave * 2
+  spawning = count
+  for i in 1 to count do
+    after(i * 0.9, func()
+      spawning = spawning - 1
+      if len(filter(npcs(), func(n) return n.team == "enemy" end)) > 60 then return end
+      let kind = "normal"
+      if wave >= 3 and i % 4 == 0 then kind = "fast" end
+      if wave >= 6 and i % 7 == 0 then kind = "tank" end
+      spawn_enemy(kind)
+    end)
+  end
+  if wave % 5 == 0 then after(count * 0.9 + 1, func() spawn_enemy("boss") end) end
+end
+
+func place(p, spot)
+  let u = units[p.unit]
+  if not kit_pay(p, u.cost) then return end
+  let n = create_npc({name: u.name + " Lv1", position: spot.position + {x: 0, y: 0.5, z: 0}, color: u.color,
+                      head_color: "#FDE68A", health: 999999, speed: 0, team: "heroes"})
+  n.frozen = true
+  n.kind = p.unit
+  n.level = 1
+  n.owner = p.id
+  n.spot = spot.name
+  if p.unit == "bow" then n.give("弓") end
+  towers[spot.name] = n
+  p.message(u.name + " を置いた！", 1.5)
+end
+
+func upgrade(p, n)
+  if n.level >= 5 then
+    p.message("最大レベル！", 1)
+    return
+  end
+  let cost = units[n.kind].cost * n.level
+  if kit_pay(p, cost) then
+    n.level = n.level + 1
+    n.name = units[n.kind].name + " Lv" + n.level
+    n.size = 1 + n.level * 0.1
+    p.message("⬆️ " + n.name + "（次: 💰" + units[n.kind].cost * n.level + "）", 2)
+  end
+end
+
+func attack(n)
+  let u = units[n.kind]
+  let range = u.range * (1 + (n.level - 1) * 0.1)
+  let dmg = u.damage * (1 + (n.level - 1) * 0.6)
+  let target = nil
+  let best = 0
+  for e in npcs() do
+    if e.team == "enemy" and e.alive then
+      let d = distance(n, e)
+      -- 城にいちばん近い（先頭の）敵をねらう
+      if d <= range and (target == nil or e.wp > best) then
+        target = e
+        best = e.wp
+      end
+    end
+  end
+  if target == nil then return end
+  n.look_at(target)
+  if n.kind == "bow" then
+    n.shoot(target)
+    if kit_here(target) and target.alive then target.damage(dmg - 18, n) end
+  elif n.kind == "magic" then
+    -- 先に場所を覚えておく（最初の一撃でたおれて消えるかもしれないので）
+    let center = target.position
+    for e in npcs() do
+      if e.team == "enemy" and e.alive and distance(center, e) < 5 then e.damage(dmg, n) end
+    end
+  elif n.kind == "ice" then
+    target.damage(dmg, n)
+    if kit_here(target) and target.alive then
+      target.speed = target.base_speed * 0.4
+      after(2, func() if kit_here(target) then target.speed = target.base_speed end end)
+    end
+  else
+    target.damage(dmg, n)
+  end
+end
+
+on start()
+  show_game()
+  after(8, func() next_wave() end)
+  every(0.7, func()
+    for key in keys(towers) do
+      let n = towers[key]
+      if kit_here(n) then attack(n) end
+    end
+  end)
+  every(1, func()
+    if not over and wave > 0 and spawning <= 0 and len(filter(npcs(), func(n) return n.team == "enemy" end)) == 0 then
+      pay_all(40 + wave * 10)
+      after(4, func() next_wave() end)
+      spawning = 1
+      after(4.5, func() spawning = 0 end)
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_give(p, 300)
+  p.unit = "sword"
+  p.ui_panel("units", {at: "bottom", dy: -96, w: 600, h: 70, bg: "#00000099", radius: 16})
+  let i = 0
+  for key in unit_order do
+    i = i + 1
+    let u = units[key]
+    p.ui_button("unit_" + key, u.name + " " + u.cost, {parent: "units", x: (i - 0.5) / 4, w: 140, h: 50, size: 15, bg: u.color, color: "#111111"})
+  end
+end
+
+on tick(dt)
+  for n in npcs() do
+    if n.team == "enemy" and n.alive then
+      let wp = block("Waypoint " + n.wp)
+      if distance(n, wp) < 2 then
+        if n.wp >= path_len then
+          castle = castle - n.hit
+          n.destroy()
+          show_game()
+          shake(0.3, 0.4)
+          if castle <= 0 and not over then
+            over = true
+            kit_finish("💀 城が落ちた… ウェーブ " + wave + " まで守った", 8)
+          end
+        else
+          n.wp = n.wp + 1
+          n.move_to(block("Waypoint " + n.wp))
+        end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not contains(b.tags, "spot") then return end
+  if not kit_ready(p, "spot", 1) then return end
+  let n = towers[b.name]
+  if n == nil or not kit_here(n) then
+    place(p, b)
+  elif n.owner == p.id then
+    upgrade(p, n)
+  else
+    p.message("ほかの人のヒーローです", 1)
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "unit_") then
+    p.unit = replace(id, "unit_", "")
+    p.message(units[p.unit].name + " を選んだ。台にさわって置こう", 2)
+  end
+end
+
+on death(victim, killer)
+  if victim.team == "enemy" then
+    pay_all(floor(victim.reward / max(1, len(players())) + 2))
+    for p in players() do p.score = p.score + 1 end
+  end
+end
+
+on leave(p)
+  for key in keys(towers) do
+    let n = towers[key]
+    if kit_here(n) and n.owner == p.id then
+      n.destroy()
+      remove(towers, key)
+    end
+  end
+end

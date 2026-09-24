@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 77,
+  "id" : "tsunami-dash",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/tsunami-dash\/main.absc"
+  ],
+  "summary" : "うしろからせまる巨大な津波！障害物をかわし、アイテムを拾いながらゴールまで走りぬけろ。ミームだらけのにぎやかコース。",
+  "tags" : [
+    "runner",
+    "survival",
+    "funny",
+    "top20"
+  ],
+  "title" : "Tsunami Dash",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/tsunami-dash\/world.ablox"
+}

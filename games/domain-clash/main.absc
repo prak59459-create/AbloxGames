@@ -1,0 +1,266 @@
+-- Domain Clash — 術を選んで戦い、領域展開で決める
+
+kit_setup("Domain Clash", "4つの術から1つを選んで戦おう", [
+  "最初に術を選ぶ: 🔥炎 ⚡雷 🌀重力 🌑影",
+  "術ごとに3つの技（ボタン）",
+  "相手にダメージを与えると呪力ゲージがたまる",
+  "ゲージMAXで「領域展開」！10秒間、中の相手を弱らせる",
+  "柱やかべは技でこわれる"
+])
+kit_melee("拳", 9, 3.5, 5)
+
+let styles = {
+  fire: {name: "🔥 炎", color: "#F97316", moves: ["火球", "爆炎", "炎の突進"], sky: "#7C2D12"},
+  thunder: {name: "⚡ 雷", color: "#FACC15", moves: ["雷撃", "瞬身", "放電"], sky: "#1E3A8A"},
+  gravity: {name: "🌀 重力", color: "#8B5CF6", moves: ["引力", "重圧", "浮遊"], sky: "#2E1065"},
+  shadow: {name: "🌑 影", color: "#1F2937", moves: ["影分身", "影縫い", "影渡り"], sky: "#030712"}
+}
+let style_order = ["fire", "thunder", "gravity", "shadow"]
+let domains = []
+
+func pick_panel(p)
+  p.ui_panel("pick", {at: "center", w: 480, h: 180, bg: "#000000CC", radius: 22, layer: 30})
+  p.ui_text("pick_t", "術をえらべ", {parent: "pick", y: 0.2, size: 24, bold: true, color: "#E9D5FF"})
+  let i = 0
+  for key in style_order do
+    i = i + 1
+    let s = styles[key]
+    p.ui_button("style_" + key, s.name, {parent: "pick", x: (i - 0.5) / 4, y: 0.65, w: 100, h: 60, size: 18, bg: s.color})
+  end
+end
+
+func set_style(p, key)
+  p.style = key
+  let s = styles[key]
+  p.leg_color = s.color
+  p.ui_remove("pick")
+  let i = 0
+  for m in s.moves do
+    i = i + 1
+    p.ui_button("move" + i, m, {at: "bottom_right", dx: -120 - (i - 1) * 104, dy: -160, w: 96, h: 56, size: 16, bg: s.color, radius: 14})
+  end
+  p.message(s.name + " の術を使う", 2)
+end
+
+func show_meter(p)
+  p.ui_bar("meter", p.meter, 100, {at: "bottom", dy: -24, w: 300, h: 14, color: "#A855F7"})
+  if p.meter >= 100 then
+    p.ui_button("domain", "領域展開", {at: "bottom", dy: -60, w: 180, h: 50, size: 19, bg: "#6D28D9"})
+  else
+    p.ui_remove("domain")
+  end
+end
+
+func hurt(p, c, amount, lift)
+  if not c.alive or c.id == p.id or kit_same_team(c, p) then return end
+  let dmg = amount
+  if c.in_domain_of != nil and c.in_domain_of != p.id then dmg = dmg * 0.8 end
+  c.damage(dmg, p)
+  if lift != 0 and kit_here(c) and c.alive then c.launch(0, lift, 0) end
+  p.meter = min(100, p.meter + dmg * 0.6)
+  show_meter(p)
+end
+
+func area(p, center, radius, amount, lift)
+  let n = 0
+  for c in kit_everyone() do
+    if c.id != p.id and c.alive and distance(center, c) <= radius then
+      hurt(p, c, amount, lift)
+      n = n + 1
+    end
+  end
+  for b in blocks("breakable") do
+    if b.visible and distance(center, b) < radius + 2 then
+      b.visible = false
+      b.solid = false
+      after(25, func()
+        b.visible = true
+        b.solid = true
+      end)
+    end
+  end
+  return n
+end
+
+-- 見ている方向で一番近い相手
+func aimed(p, range)
+  let best = nil
+  for c in kit_everyone() do
+    if c.id != p.id and c.alive and distance(p, c) < range then
+      let dir = normalize(c.position - p.position)
+      if dot(dir, p.look) > 0.8 and (best == nil or distance(p, c) < distance(p, best)) then best = c end
+    end
+  end
+  return best
+end
+
+func use(p, i)
+  if p.style == nil or not p.alive then return end
+  if not kit_ready(p, "move" + i, 3 + i * 2) then return end
+  let st = p.style
+  if st == "fire" then
+    if i == 1 then area(p, kit_ahead(p, 9), 3.5, 22, 4)
+    elif i == 2 then
+      area(p, p, 7, 26, 9)
+      p.shake(0.4, 0.4)
+    else
+      p.launch(p.look * 26 + {x: 0, y: 2, z: 0})
+      kit_later(p, 0.4, func() area(p, p, 4, 16, 3) end)
+    end
+  elif st == "thunder" then
+    if i == 1 then
+      let t = aimed(p, 30)
+      if t != nil then hurt(p, t, 28, 2) else p.message("相手がいない", 0.8) end
+    elif i == 2 then
+      p.teleport(kit_ahead(p, 12) + {x: 0, y: 0.5, z: 0})
+    else
+      for c in kit_everyone() do
+        if c.id != p.id and c.alive and distance(p, c) < 8 then
+          hurt(p, c, 18, 0)
+          if kit_here(c) and c.alive then
+            c.frozen = true
+            after(1, func() if kit_here(c) then c.frozen = false end end)
+          end
+        end
+      end
+    end
+  elif st == "gravity" then
+    if i == 1 then
+      for c in kit_everyone() do
+        if c.id != p.id and c.alive and distance(p, c) < 14 then
+          let pull = normalize(p.position - c.position) * 18
+          c.launch(pull + {x: 0, y: 4, z: 0})
+          hurt(p, c, 8, 0)
+        end
+      end
+    elif i == 2 then
+      for c in kit_everyone() do
+        if c.id != p.id and c.alive and distance(p, c) < 9 then
+          hurt(p, c, 15, 0)
+          if kit_here(c) and c.alive then
+            c.speed = 0.3
+            after(3, func() if kit_here(c) then c.speed = 1 end end)
+          end
+        end
+      end
+    else
+      area(p, p, 9, 10, 24)
+    end
+  else
+    if i == 1 then
+      for k in 1 to 2 do
+        let clone = create_npc({name: p.name + "の影", position: p.position + {x: k * 2 - 3, y: 0.5, z: 0}, color: "#111827",
+                                head_color: "#111827", health: 30, speed: 1.2})
+        clone.shadow_of = p.id
+        clone.team = p.id
+        after(8, func() if kit_here(clone) then clone.destroy() end end)
+      end
+    elif i == 2 then
+      let t = aimed(p, 25)
+      if t != nil then
+        hurt(p, t, 10, 0)
+        if kit_here(t) and t.alive then
+          t.frozen = true
+          after(2, func() if kit_here(t) then t.frozen = false end end)
+        end
+      end
+    else
+      p.visible = false
+      p.speed = 1.8
+      kit_later(p, 3, func()
+        p.visible = true
+        p.speed = 1
+      end)
+    end
+  end
+end
+
+func expand(p)
+  if p.meter < 100 then return end
+  p.meter = 0
+  show_meter(p)
+  let s = styles[p.style]
+  let dome = create_block({name: "Domain", shape: "sphere", position: p.position, size: 28, color: s.color, material: "glass",
+                           opacity: 0.35, solid: false})
+  let d = {owner: p.id, block: dome, center: p.position, until: time() + 10, style: p.style}
+  append(domains, d)
+  world.sky = s.sky
+  announce("🌀 " + p.name + " の領域展開！ " + s.name, 3)
+  shake(0.5, 1)
+  after(10, func()
+    dome.destroy()
+    domains = filter(domains, func(x) return x.until > time() end)
+    if len(domains) == 0 then
+      world.sky_top = "#1E1B4B"
+      world.sky_bottom = "#6D28D9"
+    end
+  end)
+end
+
+on start()
+  every(8, func() kit_leaderboard("💥 KO") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.meter = 0
+  p.give("拳")
+  pick_panel(p)
+  show_meter(p)
+end
+
+on tick(dt)
+  -- 影分身は近くの相手にくっついてダメージ
+  for n in npcs() do
+    if n.shadow_of != nil then
+      let owner = nil
+      for p in players() do
+        if p.id == n.shadow_of then owner = p end
+      end
+      let t = nil
+      for p in players() do
+        if p.id != n.shadow_of and p.alive and (t == nil or distance(n, p) < distance(n, t)) then t = p end
+      end
+      if t != nil and owner != nil then
+        n.follow(t)
+        if distance(n, t) < 2 then hurt(owner, t, 12 * dt, 0) end
+      end
+    end
+  end
+  -- 領域の中の相手は弱る
+  for d in domains do
+    if time() < d.until then
+      for p in players() do
+        if p.id != d.owner and p.alive and distance(p, d.center) < 14 then
+          p.damage(6 * dt)
+          p.in_domain_of = d.owner
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "style_") then set_style(p, replace(id, "style_", ""))
+  elif id == "move1" then use(p, 1)
+  elif id == "move2" then use(p, 2)
+  elif id == "move3" then use(p, 3)
+  elif id == "domain" then expand(p)
+  end
+end
+
+on hit(victim, attacker, damage)
+  if not attacker.is_npc then
+    attacker.meter = min(100, attacker.meter + damage * 0.6)
+    show_meter(attacker)
+  end
+  return damage
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  if killer != nil and not killer.is_npc and killer.id != victim.id then
+    killer.score = killer.score + 1
+    killer.message("💥 KO! " + victim.name, 1.5)
+  end
+end

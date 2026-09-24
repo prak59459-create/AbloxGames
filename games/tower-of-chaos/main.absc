@@ -1,0 +1,140 @@
+-- Tower of Chaos — 毎回ちがう、チェックポイントなしのタワー
+-- ラウンドの始めにスクリプトがタワーを組み立てる。時間内にてっぺんへ！
+
+kit_setup("Tower of Chaos", "チェックポイントなし。落ちたら下から", [
+  "タワーは毎ラウンドちがう形に組み上がります",
+  "赤く光る床にさわると一番下にもどされる",
+  "緑のパッドはジャンプ台、点滅する床はすぐ消える",
+  "てっぺんの金色のパッドにたどりつけばクリア！",
+  "制限時間が終わると、新しいタワーになります"
+])
+
+let floors = 12
+let height = 6
+let colors = ["#F472B6", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F87171", "#22D3EE", "#FB923C"]
+let round_time = 360
+let ends_at = 0
+let finished = 0
+let modifier = ""
+let movers = []
+
+func part(name, x, y, z, sx, sy, sz, color, extra)
+  let opts = {name: name, position: {x: x, y: y, z: z}, size: {x: sx, y: sy, z: sz}, color: color}
+  if extra != nil then
+    for k in keys(extra) do opts[k] = extra[k] end
+  end
+  return create_block(opts)
+end
+
+-- 1つの階: タワーのまわりを1周しながら height だけ上がる。
+-- 10個の足場が36度ずつ、0.6mずつ高くなる。10個目が次の階の最初の足場のそば。
+func spot(k, radius)
+  let a = 90 + k * 36
+  return {x: cos(a) * radius, z: sin(a) * radius}
+end
+
+func step_at(name, k, base, y, size, color, extra)
+  let s = spot(k, 5)
+  return part(name, s.x, base + y, s.z, size, 0.4, size, color, extra)
+end
+
+func section(i, base)
+  let kind = random(1, 7)
+  if i == 1 then kind = 1 end
+  let c = colors[(i - 1) % len(colors) + 1]
+  let tag = "F" + i + " "
+  if kind == 1 then
+    -- ふつうの階段
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 1.9, c, nil) end
+  elif kind == 2 then
+    -- 飛び石（内と外に交互）
+    for k in 1 to 10 do
+      let r = 4.4
+      if k % 2 == 0 then r = 5.8 end
+      let s = spot(k, r)
+      part(tag + k, s.x, base + k * 0.6, s.z, 1.3, 0.4, 1.3, c, nil)
+    end
+  elif kind == 3 then
+    -- 溶岩つきの足場
+    for k in 1 to 10 do
+      step_at(tag + k, k, base, k * 0.6, 2.4, c, nil)
+      if k % 3 == 0 then
+        let s = spot(k, 5)
+        part(tag + k + " Lava", s.x, base + k * 0.6 + 0.25, s.z, 1.2, 0.1, 1.2, "#EF4444", {material: "neon", behavior: "hazard"})
+      end
+    end
+  elif kind == 4 then
+    -- 動く足場（4番目から6番目まで運んでくれる）
+    for k in 1 to 10 do
+      if k < 4 or k > 6 then step_at(tag + k, k, base, k * 0.6, 1.9, c, nil) end
+    end
+    let a = spot(4, 5)
+    let b = spot(6, 5)
+    let m = part(tag + "Mover", a.x, base + 2.4, a.z, 2.2, 0.4, 2.2, "#FFFFFF", {material: "neon"})
+    append(movers, {block: m, dx: b.x - a.x, dy: 1.2, dz: b.z - a.z})
+  elif kind == 5 then
+    -- ジャンプ台で一気に上へ
+    for k in 1 to 3 do step_at(tag + k, k, base, k * 0.6, 1.9, c, nil) end
+    step_at(tag + "Pad", 4, base, 2.4, 2.2, "#22C55E", {material: "neon", behavior: "bounce"})
+    for k in 5 to 10 do step_at(tag + k, k, base, 5.4 + (k - 5) * 0.12, 1.9, c, nil) end
+  elif kind == 6 then
+    -- 乗るとすぐ消える床
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 1.9, "#FDE047", {behavior: "disappear"}) end
+  else
+    -- 小さな足場（せいかくなジャンプ）
+    for k in 1 to 10 do step_at(tag + k, k, base, k * 0.6, 0.9, c, nil) end
+  end
+end
+
+func build_tower()
+  for i in 1 to floors do section(i, (i - 1) * height) end
+  let top = floors * height
+  part("Top", 0, top + 0.3, 3, 7, 0.4, 7, "#FBBF24", {material: "neon"})
+  part("Goal", 0, top + 0.7, 2, 3, 0.2, 3, "#FDE047", {material: "neon", behavior: "trigger", tags: ["goal"], shape: "cylinder"})
+end
+
+on start()
+  build_tower()
+  ends_at = time() + round_time
+  modifier = random(["なし", "低重力", "スピードアップ", "ジャンプ強化", "なし"])
+  if modifier == "低重力" then world.gravity = -6 end
+  announce("🗼 新しいタワー！ 特殊ルール: " + modifier, 4)
+  ui_text("mod", "特殊ルール: " + modifier, {at: "top_right", dy: 60, size: 15})
+  every(3, func()
+    for m in movers do
+      m.block.move(m.dx, m.dy, m.dz, 1.4)
+      after(1.5, func() m.block.move(0 - m.dx, 0 - m.dy, 0 - m.dz, 1.4) end)
+    end
+  end)
+  every(1, func()
+    let left = ends_at - time()
+    ui_text("timer", "⏱ " + kit_clock(left), {at: "top", dy: 26, size: 26, bold: true})
+    for p in players() do
+      let floor_now = max(0, min(floors, floor(p.y / height)))
+      if floor_now > (p.best or 0) then p.best = floor_now end
+      p.ui_text("height", "🧗 " + floor_now + " / " + floors + " 階（最高 " + p.best + "）", {at: "top", dy: 62, size: 17})
+    end
+    if left <= 0 then kit_finish("⏰ 時間切れ！ 新しいタワーを作ります", 5) end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.best = 0
+  if modifier == "スピードアップ" then p.speed = 1.3 end
+  if modifier == "ジャンプ強化" then p.jump = 1.25 end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "goal") and not p.done then
+    p.done = true
+    finished = finished + 1
+    let reward = max(10, 60 - finished * 10)
+    p.score = p.score + reward
+    announce("🏆 " + p.name + " がてっぺんに到着！（" + finished + " 位）", 4)
+    p.sound("goal")
+    kit_later(p, 3, func() p.teleport(block("Spawn 1")) end)
+    if finished >= len(players()) then kit_finish("🎉 全員クリア！ 新しいタワーへ", 6) end
+  end
+end

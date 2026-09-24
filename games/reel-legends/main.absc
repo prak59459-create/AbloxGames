@@ -1,0 +1,200 @@
+-- Reel Legends — つりのアドベンチャー
+-- つり場に立って「なげる」→ 魚がかかったら、ゲージが緑に入った時に「引く！」
+
+kit_setup("Reel Legends", "タイミングよく引いて、伝説の魚をつり上げろ", [
+  "桟橋の先の光るパッドに立つと「なげる」ボタン",
+  "「！」が出たら、動くゲージが緑の中にある時に「引く！」",
+  "3回成功でつり上げ。2回ミスでにげられる",
+  "つった魚は黄色いパッド（商人）で売れます",
+  "🛒ショップで良いロッドを買うと、レアな魚がつれやすい",
+  "池 → 海 → 深海 → 火山湖 の順でレアな魚がいます"
+])
+
+let fish = {
+  Pond: [
+    {name: "コイ", price: 8, weight: 40}, {name: "フナ", price: 6, weight: 40},
+    {name: "金色のコイ", price: 60, weight: 6}, {name: "カエルの王さま", price: 200, weight: 1}
+  ],
+  Ocean: [
+    {name: "アジ", price: 15, weight: 40}, {name: "タイ", price: 40, weight: 25},
+    {name: "マグロ", price: 120, weight: 10}, {name: "虹色のカジキ", price: 600, weight: 1}
+  ],
+  "Deep Trench": [
+    {name: "チョウチンアンコウ", price: 90, weight: 35}, {name: "リュウグウノツカイ", price: 300, weight: 12},
+    {name: "ダイオウイカ", price: 900, weight: 4}, {name: "深海の主", price: 4000, weight: 0.6}
+  ],
+  "Volcano Lake": [
+    {name: "マグマウナギ", price: 250, weight: 30}, {name: "ほのおのコイ", price: 700, weight: 12},
+    {name: "溶岩ドラゴンフィッシュ", price: 3000, weight: 3}, {name: "伝説のフェニックス魚", price: 15000, weight: 0.5}
+  ]
+}
+let zone_price = {Pond: 0, Ocean: 150, "Deep Trench": 800, "Volcano Lake": 3000}
+let rods = [
+  {name: "木のロッド", luck: 1, zone: 22},
+  {name: "カーボンロッド", luck: 1.4, zone: 28},
+  {name: "黄金のロッド", luck: 2, zone: 34},
+  {name: "伝説のロッド", luck: 3, zone: 42}
+]
+
+kit_shop_add("rod2", "カーボンロッド（運×1.4）", 400, func(p) set_rod(p, 2) end)
+kit_shop_add("rod3", "黄金のロッド（運×2）", 2500, func(p) set_rod(p, 3) end)
+kit_shop_add("rod4", "伝説のロッド（運×3）", 12000, func(p) set_rod(p, 4) end)
+
+func set_rod(p, i)
+  p.rod = i
+  p.ui_text("rod", "🎣 " + rods[i].name, {at: "top_left", dy: 34, size: 17, color: "#BAE6FD"})
+end
+
+func show_bag(p)
+  p.ui_text("bag", "🐟 バッグ " + len(p.bag) + " 匹  📖 図鑑 " + len(p.seen) + " 種", {at: "top", dy: 30, size: 17})
+end
+
+func stop_fishing(p)
+  p.state = nil
+  p.ui_remove("reel")
+  p.ui_remove("pull")
+  p.frozen = false
+end
+
+func cast(p)
+  if p.spot == nil or p.state != nil then return end
+  if p.zone_paid == nil then p.zone_paid = {} end
+  let price = zone_price[p.spot]
+  if price > 0 and p.zone_paid[p.spot] == nil then
+    if not kit_pay(p, price) then
+      p.message(p.spot + " のつり券が必要（💰" + price + "）", 2)
+      return
+    end
+    p.zone_paid[p.spot] = true
+    p.message("🎫 " + p.spot + " のつり券を買った！", 2)
+  end
+  p.state = "waiting"
+  p.frozen = true
+  p.ui_remove("cast")
+  p.message("🎣 ポチャン…", 1)
+  kit_later(p, 1.5 + random() * 4, func()
+    if p.state != "waiting" then return end
+    p.state = "reeling"
+    p.hits = 0
+    p.misses = 0
+    p.gauge = 0
+    p.gauge_dir = 1
+    new_zone(p)
+    p.sound("tick")
+    p.message("❗ かかった！", 0.8)
+    p.ui_button("pull", "引く！", {at: "bottom_right", dx: -110, dy: -150, w: 120, h: 80, size: 26, bg: "#EF4444", radius: 20})
+  end)
+end
+
+func new_zone(p)
+  let width = rods[p.rod].zone
+  p.zone_lo = random(5, 95 - width)
+  p.zone_hi = p.zone_lo + width
+  p.ui_panel("reel", {at: "bottom", dy: -200, w: 420, h: 70, bg: "#000000AA", radius: 14})
+  p.ui_panel("reel_track", {parent: "reel", y: 0.35, w: 400, h: 16, bg: "#FFFFFF22", radius: 8})
+  p.ui_panel("reel_zone", {parent: "reel", x: (10 + 2 * (p.zone_lo + p.zone_hi)) / 420, y: 0.35, w: 4 * width, h: 16, bg: "#22C55E", radius: 8})
+  p.ui_panel("reel_needle", {parent: "reel", x: (10 + 4 * p.gauge) / 420, y: 0.35, w: 6, h: 32, bg: "#FFFFFF", radius: 3, layer: 2})
+  p.ui_text("reel_info", "成功 " + p.hits + "/3  ミス " + p.misses + "/2", {parent: "reel", y: 0.78, size: 14})
+end
+
+func pull(p)
+  if p.state != "reeling" then return end
+  if p.gauge >= p.zone_lo and p.gauge <= p.zone_hi then
+    p.hits = p.hits + 1
+    p.sound("hit")
+    if p.hits >= 3 then
+      catch_fish(p)
+      return
+    end
+  else
+    p.misses = p.misses + 1
+    p.sound("error")
+    if p.misses >= 2 then
+      p.message("💨 にげられた…", 1.5)
+      stop_fishing(p)
+      p.ui_button("cast", "なげる 🎣", {at: "bottom_right", dx: -110, dy: -150, w: 130, h: 70, size: 20, bg: "#0EA5E9"})
+      return
+    end
+  end
+  new_zone(p)
+end
+
+func catch_fish(p)
+  let f = kit_pick(fish[p.spot], rods[p.rod].luck)
+  append(p.bag, f)
+  if not contains(p.seen, f.name) then
+    append(p.seen, f.name)
+    p.score = len(p.seen)
+    if f.weight < 2 then announce("🌟 " + p.name + " が「" + f.name + "」をつり上げた！", 4) end
+  end
+  p.message("🐟 " + f.name + " をつった！（💰" + f.price + "）", 2.5)
+  p.sound("collect")
+  stop_fishing(p)
+  show_bag(p)
+  p.ui_button("cast", "なげる 🎣", {at: "bottom_right", dx: -110, dy: -150, w: 130, h: 70, size: 20, bg: "#0EA5E9"})
+end
+
+on start()
+  every(10, func() kit_leaderboard("📖 図鑑") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.bag = []
+  p.seen = []
+  set_rod(p, 1)
+  kit_give(p, 30)
+  kit_shop_button(p)
+  show_bag(p)
+end
+
+on tick(dt)
+  for p in players() do
+    if p.state == "reeling" then
+      p.gauge = p.gauge + p.gauge_dir * dt * (70 + p.hits * 25)
+      if p.gauge >= 100 then
+        p.gauge = 100
+        p.gauge_dir = -1
+      elif p.gauge <= 0 then
+        p.gauge = 0
+        p.gauge_dir = 1
+      end
+      p.ui_set("reel_needle", {x: (10 + 4 * p.gauge) / 420})
+    end
+    -- つり場から離れたら終わり
+    if p.spot != nil and p.spot_block != nil then
+      let b = block(p.spot_block)
+      if b != nil and distance(p, b) > 3 then
+        p.spot = nil
+        p.ui_remove("cast")
+        if p.state != nil then stop_fishing(p) end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "spot") then
+    if p.spot == nil then
+      p.spot = b.tags[2]
+      p.spot_block = b.name
+      p.ui_button("cast", "なげる 🎣", {at: "bottom_right", dx: -110, dy: -150, w: 130, h: 70, size: 20, bg: "#0EA5E9"})
+      p.message(p.spot + " でつりができます", 1.5)
+    end
+  elif contains(b.tags, "merchant") then
+    if len(p.bag) > 0 then
+      let total = sum(map(p.bag, func(f) return f.price end))
+      kit_give(p, total)
+      p.message("💰 " + len(p.bag) + " 匹を " + kit_short(total) + " で売った！", 2.5)
+      p.bag = []
+      show_bag(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "cast" then cast(p)
+  elif id == "pull" then pull(p)
+  end
+end

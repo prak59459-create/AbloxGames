@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 35,
+  "id" : "clash-duels",
+  "maxPlayers" : 10,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/clash-duels\/main.absc"
+  ],
+  "summary" : "1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。",
+  "tags" : [
+    "fps",
+    "pvp",
+    "teams",
+    "top20"
+  ],
+  "title" : "Clash Duels",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/clash-duels\/world.ablox"
+}

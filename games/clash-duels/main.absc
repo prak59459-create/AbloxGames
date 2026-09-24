@@ -1,0 +1,165 @@
+-- Clash Duels — ラウンド制のチーム対戦FPS
+-- 赤と青に分かれて、相手チームを全員たおせばラウンド勝利。先に5ラウンド取ったら勝ち。
+
+kit_setup("Clash Duels", "先に5ラウンド取ったチームの勝ち", [
+  "人数に合わせて赤チームと青チームに自動で分かれます",
+  "ラウンドの始めに武器を選ぼう（5秒）",
+  "相手チームを全員たおすとラウンド勝利",
+  "たおされたら次のラウンドまで待ち",
+  "「ダッシュ」で前に飛び出し、「回復」で体力が戻る",
+  "1人のときは練習モード（3秒で復活）"
+])
+
+let red = 0
+let blue = 0
+let round_no = 0
+let live = false
+let target = 5
+let loadouts = [
+  {id: "rifle", name: "ライフル"}, {id: "shotgun", name: "ショットガン"},
+  {id: "pistol", name: "ピストル"}, {id: "blaster", name: "ブラスター"}
+]
+
+func show_score()
+  ui_text("score", "🔴 " + red + "  -  " + blue + " 🔵", {at: "top", dy: 26, size: 30, bold: true})
+  ui_text("round", "ラウンド " + round_no + "（先に " + target + " 勝）", {at: "top", dy: 62, size: 15, color: "#CBD5E1"})
+end
+
+func team_color(t)
+  if t == "red" then return "#EF4444" end
+  return "#3B82F6"
+end
+
+func alive_in(team)
+  let n = 0
+  for p in players() do
+    if p.team == team and p.alive then n = n + 1 end
+  end
+  return n
+end
+
+func both_teams()
+  return kit_team_count("red") > 0 and kit_team_count("blue") > 0
+end
+
+func place(p)
+  let k = 0
+  for q in players() do
+    if q.team == p.team then k = k + 1 end
+    if q.id == p.id then break end
+  end
+  let prefix = "Red Spawn "
+  if p.team == "blue" then prefix = "Blue Spawn " end
+  p.teleport(block(prefix + ((k - 1) % 4 + 1)))
+end
+
+func show_loadout(p)
+  p.ui_panel("loadout", {at: "bottom", dy: -120, w: 560, h: 80, bg: "#000000AA", radius: 16})
+  let i = 0
+  for l in loadouts do
+    i = i + 1
+    p.ui_button("gun_" + l.id, l.name, {parent: "loadout", x: (i - 0.5) / 4, w: 125, h: 54, size: 17, bg: team_color(p.team)})
+  end
+  kit_later(p, 5, func() p.ui_remove("loadout") end)
+end
+
+func start_round()
+  round_no = round_no + 1
+  live = both_teams()
+  show_score()
+  for p in players() do
+    if not p.alive then p.respawn() end
+    p.heal(9999)
+    place(p)
+    p.frozen = true
+    show_loadout(p)
+  end
+  announce("ラウンド " + round_no + " — 武器を選ぼう！", 3)
+  after(5, func()
+    for p in players() do p.frozen = false end
+    announce("GO!", 1)
+    sound("goal")
+  end)
+end
+
+func end_round_for(winner)
+  if not live then return end
+  live = false
+  if winner == "red" then red = red + 1 else blue = blue + 1 end
+  show_score()
+  for p in players() do
+    if p.team == winner then p.score = p.score + 1 end
+  end
+  if red >= target then
+    kit_finish("🔴 赤チームの勝利！", 6)
+  elif blue >= target then
+    kit_finish("🔵 青チームの勝利！", 6)
+  else
+    announce(winner == "red" and "🔴 赤がラウンドを取った！" or "🔵 青がラウンドを取った！", 3)
+    after(3.5, func() start_round() end)
+  end
+end
+
+on start()
+  game.respawn_time = -1
+  show_score()
+  after(2, func() start_round() end)
+end
+
+on join(p)
+  kit_welcome(p)
+  let t = kit_balance(p, ["red", "blue"])
+  p.color = team_color(t)
+  p.camera = "first"
+  p.give("rifle")
+  p.ui_button("dash", "ダッシュ", {at: "bottom_right", dx: -120, dy: -160, w: 100, h: 60, size: 17, bg: "#0EA5E9", radius: 16})
+  p.ui_button("heal", "回復", {at: "bottom_right", dx: -230, dy: -160, w: 90, h: 60, size: 17, bg: "#16A34A", radius: 16})
+  place(p)
+  -- ラウンドの途中から入った人は、次のラウンドから
+  if live then
+    p.message("次のラウンドから参加します", 3)
+  end
+end
+
+on leave(p)
+  after(0.2, func()
+    if live and (alive_in("red") == 0 or alive_in("blue") == 0) then
+      live = false
+      after(2, func() start_round() end)
+    end
+  end)
+end
+
+on button(p, id)
+  if starts_with(id, "gun_") then
+    p.give(replace(id, "gun_", ""))
+    p.ui_remove("loadout")
+  elif id == "dash" then
+    if p.alive and kit_ready(p, "dash", 4) then p.launch(p.look * 22 + {x: 0, y: 3, z: 0}) end
+  elif id == "heal" then
+    if p.alive and kit_ready(p, "heal", 20) then
+      p.heal(40)
+      p.message("❤️ +40", 1)
+    end
+  end
+end
+
+on death(victim, killer)
+  if killer != nil and killer.id != victim.id then
+    killer.message("💥 " + victim.name + " をたおした！", 1.5)
+  end
+  if not live then
+    -- 練習モード
+    kit_later(victim, 3, func()
+      if not victim.alive then
+        victim.respawn()
+        place(victim)
+      end
+    end)
+    return
+  end
+  victim.message("次のラウンドまで待ってね", 2)
+  if alive_in("red") == 0 then end_round_for("blue")
+  elif alive_in("blue") == 0 then end_round_for("red")
+  end
+end

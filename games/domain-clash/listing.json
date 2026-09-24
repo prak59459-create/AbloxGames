@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 34,
+  "id" : "domain-clash",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/domain-clash\/main.absc"
+  ],
+  "summary" : "炎・雷・重力・影の術で戦うバトル。ゲージがたまったら「領域展開」で相手を閉じこめろ！地面や柱もこわれる。",
+  "tags" : [
+    "pvp",
+    "fighting",
+    "powers",
+    "top20"
+  ],
+  "title" : "Domain Clash",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/domain-clash\/world.ablox"
+}

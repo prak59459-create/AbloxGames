@@ -1,0 +1,183 @@
+-- Sprout Garden — 畑でタネを育てて売るゲーム
+
+kit_setup("Sprout Garden", "タネをまいて、育てて、売って、夢の庭へ", [
+  "黄色いパッドにさわると、その畑があなたのものに",
+  "緑のパッド（タネ屋）でタネを買う",
+  "自分の畑の土にさわるとタネを植えます",
+  "実ったら（光ったら）もう一度さわって収穫",
+  "オレンジのパッド（市場）で全部売れます",
+  "雨で成長が2倍、虹の日は収穫が3倍の値段！",
+  "「タネ」ボタンで植えるタネを切りかえ"
+])
+
+let seeds = [
+  {id: "carrot", name: "にんじん", cost: 10, sell: 18, grow: 20, color: "#F97316"},
+  {id: "tomato", name: "トマト", cost: 40, sell: 75, grow: 35, color: "#EF4444"},
+  {id: "corn", name: "トウモロコシ", cost: 120, sell: 230, grow: 50, color: "#FACC15"},
+  {id: "pumpkin", name: "カボチャ", cost: 400, sell: 820, grow: 70, color: "#EA580C"},
+  {id: "star", name: "スターフルーツ", cost: 1500, sell: 3300, grow: 90, color: "#FDE047"},
+  {id: "dragon", name: "ドラゴンペッパー", cost: 6000, sell: 14000, grow: 120, color: "#DC2626"}
+]
+let crops = {}         -- 土の名前 → {seed, owner, grown}
+let plot_owner = {}    -- 畑の番号 → プレイヤーid
+let weather = "晴れ"
+let weather_until = 0
+
+func seed_by_id(id)
+  for s in seeds do
+    if s.id == id then return s end
+  end
+  return nil
+end
+
+for s in seeds do
+  kit_shop_add(s.id, s.name + "のタネ（売値 " + s.sell + "）", s.cost, func(p)
+    p.seeds[s.id] = (p.seeds[s.id] or 0) + 1
+    p.selected = s.id
+    show_seed(p)
+  end)
+end
+kit_shop_title = "タネ屋"
+
+func show_seed(p)
+  let s = seed_by_id(p.selected)
+  let count = p.seeds[p.selected] or 0
+  p.ui_text("seed", "🌱 " + s.name + " ×" + count + "   🧺 " + len(p.basket), {at: "top", dy: 30, size: 17, bold: true})
+end
+
+func next_seed(p)
+  let start = index_of(map(seeds, func(s) return s.id end), p.selected)
+  for k in 1 to len(seeds) do
+    let s = seeds[(start + k - 1) % len(seeds) + 1]
+    if (p.seeds[s.id] or 0) > 0 then
+      p.selected = s.id
+      show_seed(p)
+      return
+    end
+  end
+  p.message("タネを持っていません。タネ屋で買おう", 2)
+end
+
+func plot_of(soil_name)
+  return split(soil_name, " ")[2]
+end
+
+func set_weather(kind, seconds)
+  weather = kind
+  weather_until = time() + seconds
+  if kind == "雨" then
+    world.sky = "#64748B"
+    world.light = 0.45
+    announce("🌧 雨がふってきた！成長が2倍", 3)
+  elif kind == "虹" then
+    world.sky_top = "#A78BFA"
+    world.sky_bottom = "#FDE68A"
+    announce("🌈 虹の日！収穫した作物が3倍の値段に", 3)
+  else
+    world.sky_top = "#5AB2FF"
+    world.sky_bottom = "#CDEBFF"
+    world.light = 0.75
+  end
+  ui_text("weather", "天気: " + weather, {at: "top_right", dy: 60, size: 15})
+end
+
+on start()
+  set_weather("晴れ", 0)
+  -- 2秒ごとに作物が育つ
+  every(2, func()
+    let speed = 1
+    if weather == "雨" then speed = 2 end
+    for key in keys(crops) do
+      let c = crops[key]
+      let s = seed_by_id(c.seed)
+      if c.grown < 1 then
+        c.grown = min(1, c.grown + 2 * speed / s.grow)
+        let b = block("Crop " + key)
+        if b != nil then
+          b.size = 0.3 + c.grown * 1.1
+          if c.grown >= 1 then
+            b.color = s.color
+            b.material = "neon"
+          end
+        end
+      end
+    end
+    if weather != "晴れ" and time() > weather_until then set_weather("晴れ", 0) end
+  end)
+  every(75, func()
+    if random() < 0.5 then set_weather("雨", 30) else set_weather("虹", 25) end
+  end)
+  every(10, func() kit_leaderboard("💰") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  p.seeds = {carrot: 3}
+  p.selected = "carrot"
+  p.basket = []
+  kit_give(p, 20)
+  kit_shop_button(p)
+  p.ui_button("next_seed", "🌱 タネ", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#65A30D"})
+  show_seed(p)
+end
+
+on leave(p)
+  for key in keys(plot_owner) do
+    if plot_owner[key] == p.id then remove(plot_owner, key) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "claim") then
+    let n = plot_of(b.name)
+    if p.plot == nil and plot_owner[n] == nil then
+      plot_owner[n] = p.id
+      p.plot = n
+      p.message("🌾 畑 " + n + " があなたの畑になった！", 2.5)
+      p.sound("checkpoint")
+    end
+  elif contains(b.tags, "soil") then
+    let n = plot_of(b.name)
+    if n != p.plot then return end
+    let c = crops[b.name]
+    if c == nil then
+      let count = p.seeds[p.selected] or 0
+      if count <= 0 then
+        p.message("タネがありません", 1.2)
+        return
+      end
+      p.seeds[p.selected] = count - 1
+      crops[b.name] = {seed: p.selected, owner: p.id, grown: 0}
+      create_block({name: "Crop " + b.name, shape: "sphere", position: b.position + {x: 0, y: 0.6, z: 0},
+                    size: 0.3, color: "#4ADE80", solid: false})
+      show_seed(p)
+    elif c.grown >= 1 then
+      let s = seed_by_id(c.seed)
+      let bonus = 1
+      if weather == "虹" then bonus = 3 end
+      append(p.basket, s.sell * bonus)
+      remove(crops, b.name)
+      let crop = block("Crop " + b.name)
+      if crop != nil then crop.destroy() end
+      p.message("🧺 " + s.name + " を収穫！", 1.2)
+      p.sound("collect")
+      show_seed(p)
+    end
+  elif contains(b.tags, "seeds") then
+    kit_open_shop(p)
+  elif contains(b.tags, "sell") then
+    if len(p.basket) > 0 then
+      let total = sum(p.basket)
+      kit_give(p, total)
+      p.score = p.score + total
+      p.message("💰 " + len(p.basket) + " 個を " + kit_short(total) + " で売った！", 2.5)
+      p.basket = []
+      show_seed(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "next_seed" then next_seed(p) end
+end

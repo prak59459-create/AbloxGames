@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 99,
+  "id" : "lucky-kick-run",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/lucky-kick-run\/main.absc"
+  ],
+  "summary" : "ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！",
+  "tags" : [
+    "luck",
+    "survival",
+    "action",
+    "top20"
+  ],
+  "title" : "Lucky Kick Run",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/lucky-kick-run\/world.ablox"
+}

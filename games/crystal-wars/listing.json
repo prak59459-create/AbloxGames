@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 46,
+  "id" : "crystal-wars",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/crystal-wars\/main.absc"
+  ],
+  "summary" : "浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。",
+  "tags" : [
+    "pvp",
+    "teams",
+    "build",
+    "top20"
+  ],
+  "title" : "Crystal Wars",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/crystal-wars\/world.ablox"
+}

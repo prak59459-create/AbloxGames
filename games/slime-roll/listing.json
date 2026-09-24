@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 44,
+  "id" : "slime-roll",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/slime-roll\/main.absc"
+  ],
+  "summary" : "運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？",
+  "tags" : [
+    "rng",
+    "idle",
+    "collect",
+    "top20"
+  ],
+  "title" : "Slime Roll",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/slime-roll\/world.ablox"
+}

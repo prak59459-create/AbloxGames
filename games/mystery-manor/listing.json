@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 70,
+  "id" : "mystery-manor",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/mystery-manor\/main.absc"
+  ],
+  "summary" : "市民・保安官・犯人に分かれる推理サバイバル。犯人は正体をかくして全員を、保安官は犯人を見つけてたおせ。市民は生きのこれ！",
+  "tags" : [
+    "mystery",
+    "roles",
+    "pvp",
+    "top20"
+  ],
+  "title" : "Mystery Manor",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/mystery-manor\/world.ablox"
+}

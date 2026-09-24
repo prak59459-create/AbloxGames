@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 48,
+  "id" : "runway-star",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/runway-star\/main.absc"
+  ],
+  "summary" : "テーマに合わせて服の色や帽子をコーディネートしてランウェイへ。みんなで星をつけ合って、トップモデルを決めよう。",
+  "tags" : [
+    "fashion",
+    "vote",
+    "party",
+    "top20"
+  ],
+  "title" : "Runway Star",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/runway-star\/world.ablox"
+}

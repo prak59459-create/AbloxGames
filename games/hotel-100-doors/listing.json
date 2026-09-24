@@ -1,0 +1,21 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 1134,
+  "id" : "hotel-100-doors",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/hotel-100-doors\/main.absc"
+  ],
+  "summary" : "なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。",
+  "tags" : [
+    "horror",
+    "coop",
+    "escape",
+    "top20"
+  ],
+  "title" : "Hotel 100 Doors",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/hotel-100-doors\/world.ablox"
+}

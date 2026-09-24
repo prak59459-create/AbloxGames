@@ -1,0 +1,191 @@
+-- Maple Bay Life RP — 街でくらすロールプレイ
+-- 家に住む・仕事を選ぶ・車に乗る。勝ち負けはなし。
+
+kit_setup("Maple Bay Life", "家・仕事・車。好きなように街でくらそう", [
+  "家のドアに入ると、空いている家に住めます",
+  "「仕事」ボタンで仕事を選ぶと、30秒ごとに給料",
+  "オレンジのパッドで車を出す（もう一度で降りる）",
+  "🛒ショップでジェットパックや王冠を買えます",
+  "チャットで /home と打つと家に帰れます"
+])
+
+-- 仕事: 名前, 色, 帽子, 給料
+let jobs = {
+  citizen: {name: "市民", color: "#64748B", hat: "none", pay: 10},
+  police: {name: "警察官", color: "#1E3A8A", hat: "cap", pay: 30},
+  doctor: {name: "医者", color: "#F8FAFC", hat: "none", pay: 30},
+  chef: {name: "シェフ", color: "#FFFFFF", hat: "antenna", pay: 25},
+  firefighter: {name: "消防士", color: "#B91C1C", hat: "cap", pay: 30},
+  teacher: {name: "先生", color: "#15803D", hat: "none", pay: 25}
+}
+let job_order = ["citizen", "police", "doctor", "chef", "firefighter", "teacher"]
+let pad_jobs = {"Job Police": "police", "Job Doctor": "doctor", "Job Chef": "chef",
+                "Job Firefighter": "firefighter", "Job Teacher": "teacher"}
+
+-- 家の持ち主（家の番号 → プレイヤーid と名前）
+let owners = {}
+let owner_names = {}
+let is_night = false
+
+kit_shop_add("jetpack", "ジェットパック（大ジャンプ）", 400, func(p)
+  p.jump = 2.6
+  p.gravity = 0.55
+  p.message("ジェットパックを装備！", 2)
+end)
+kit_shop_add("crown", "王冠", 250, func(p) p.hat = "crown" end)
+kit_shop_add("sports", "スポーツカーの鍵（車が速くなる）", 300, func(p) p.car_speed = 3.4 end)
+kit_shop_add("halo", "天使の輪", 150, func(p) p.hat = "halo" end)
+
+func set_job(p, key)
+  let job = jobs[key]
+  p.job = key
+  p.color = job.color
+  p.hat = job.hat
+  p.ui_text("job", "💼 " + job.name + "（給料 " + job.pay + "）", {at: "top_left", dy: 34, size: 17, color: "#E2E8F0"})
+  p.message(job.name + " になりました！", 2)
+  p.sound("checkpoint")
+end
+
+func open_jobs(p)
+  let h = 110 + len(job_order) * 56
+  p.ui_panel("jobs", {at: "center", w: 380, h: h, bg: "#0F172AEE", radius: 22, layer: 30})
+  p.ui_text("jobs_title", "仕事をえらぶ", {parent: "jobs", y: 30 / h, size: 24, bold: true, color: "gold"})
+  let i = 0
+  for key in job_order do
+    i = i + 1
+    let job = jobs[key]
+    p.ui_button("job_" + key, job.name + "（" + job.pay + "）", {parent: "jobs", y: (30 + i * 56) / h, w: 300, h: 46, size: 17, bg: job.color, color: "#FFFFFF"})
+  end
+  p.ui_button("jobs_close", "閉じる", {parent: "jobs", y: (h - 28) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func toggle_car(p)
+  if p.driving then
+    p.driving = false
+    p.speed = 1
+    p.message("車を降りた", 1.5)
+  else
+    p.driving = true
+    p.speed = p.car_speed or 2.4
+    p.message("🚗 運転中！（もう一度で降りる）", 2)
+    p.sound("bounce")
+  end
+end
+
+func go_home(p)
+  let n = p.home
+  if n == nil then
+    p.message("まだ家がありません。家のドアに入ってみよう", 2.5)
+    return
+  end
+  p.teleport(block("House " + n + " Floor"))
+  p.message("🏠 おかえりなさい", 2)
+end
+
+on start()
+  -- 昼と夜が1分ごとに入れかわる
+  every(60, func()
+    is_night = not is_night
+    if is_night then
+      world.sky_top = "#0B1330"
+      world.sky_bottom = "#28315C"
+      world.light = 0.3
+      announce("🌙 夜になりました", 2)
+    else
+      world.sky_top = "#5AB2FF"
+      world.sky_bottom = "#CDEBFF"
+      world.light = 0.75
+      announce("☀️ 朝になりました", 2)
+    end
+  end)
+  -- 給料
+  every(30, func()
+    for p in players() do
+      let job = jobs[p.job or "citizen"]
+      kit_give(p, job.pay)
+      p.score = p.coins
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_give(p, 100)
+  set_job(p, "citizen")
+  p.ui_button("open_jobs", "💼 仕事", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+  p.ui_button("home", "🏠 家へ", {at: "right", dy: 0, w: 150, h: 50, size: 17, bg: "#16A34A"})
+  kit_shop_button(p)
+end
+
+on leave(p)
+  for key in keys(owners) do
+    if owners[key] == p.id then
+      remove(owners, key)
+      remove(owner_names, key)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "open_jobs" then
+    open_jobs(p)
+  elif id == "jobs_close" then
+    p.ui_remove("jobs")
+  elif starts_with(id, "job_") then
+    set_job(p, replace(id, "job_", ""))
+    p.ui_remove("jobs")
+  elif id == "home" then
+    go_home(p)
+  elif id == "claim_no" then
+    p.ui_remove("claim")
+  elif starts_with(id, "claim_") then
+    let n = replace(id, "claim_", "")
+    p.ui_remove("claim")
+    if owners[n] != nil then
+      p.message("その家はもう " + owner_names[n] + " の家です", 2)
+      return
+    end
+    -- 前の家は手放す
+    if p.home != nil then
+      remove(owners, str(p.home))
+      remove(owner_names, str(p.home))
+    end
+    owners[n] = p.id
+    owner_names[n] = p.name
+    p.home = n
+    p.message("🏠 House " + n + " があなたの家になりました！", 3)
+    sound("goal")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "door") and starts_with(b.name, "House ") then
+    let n = split(b.name, " ")[2]
+    if owners[n] == nil then
+      p.ui_panel("claim", {at: "bottom", dy: -90, w: 420, h: 70, bg: "#000000CC", radius: 16})
+      p.ui_button("claim_" + n, "House " + n + " に住む", {parent: "claim", x: 0.33, w: 220, h: 46, size: 16, bg: "green"})
+      p.ui_button("claim_no", "やめる", {parent: "claim", x: 0.8, w: 110, h: 46, size: 16, bg: "gray"})
+    elif owners[n] == p.id then
+      p.message("🏠 おかえり！", 1.2)
+    else
+      p.message(owner_names[n] + " の家", 1.2)
+    end
+  elif contains(b.tags, "job") then
+    let key = pad_jobs[b.name]
+    if key != nil and p.job != key then set_job(p, key) end
+  elif contains(b.tags, "car") then
+    toggle_car(p)
+  elif contains(b.tags, "fountain") then
+    if random() < 0.2 then
+      kit_give(p, 5)
+      p.message("噴水でコインを拾った！ +5", 1.5)
+    end
+  end
+end
+
+on chat(p, text)
+  if text == "/home" then go_home(p) end
+  if text == "/job" then open_jobs(p) end
+  if text == "/car" then toggle_car(p) end
+end
