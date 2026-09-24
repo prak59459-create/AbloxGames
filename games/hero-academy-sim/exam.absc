@@ -1,0 +1,180 @@
+-- exam.absc — 昇格試験（仮免許 → プロ → 特級）
+-- 学園のうらの試験場で、時間内に試験ロボをぜんぶたおす。1人ずつ（順番待ちあり）。
+-- 合格すると報酬が増え（×1.25 / ×1.5 / ×1.8）、個性チケットがもらえる。特級は天使の輪。
+
+let exam = nil          -- {pid, tier, until, to_spawn, left}
+let exam_queue = []
+let exam_clock = 0
+
+func exam_tier(p)
+  return (p.license or 0) + 1
+end
+
+func robot_scale(tier)
+  return 1 + EXAMS[tier].level * 0.08
+end
+
+func spawn_robot(big)
+  let e = EXAMS[exam.tier]
+  let s = robot_scale(exam.tier)
+  let spot = block("Exam Bot " + random(1, 8))
+  if spot == nil then return end
+  let hp = 70 * s
+  let size = 1
+  let name = "試験ロボ"
+  if big then
+    hp = hp * 4
+    size = 1.8
+    name = "大型試験ロボ"
+  end
+  let r = create_npc({name: name, position: spot.position + {x: 0, y: 1, z: 0}, color: "#9CA3AF", head_color: "#38BDF8",
+                      size: size, health: hp, speed: 0.95, team: "robot"})
+  r.kind = "robot"
+  r.dmg = 8 * s
+  if big then r.dmg = 16 * s end
+  r.next_hit = 0
+  r.home = spot.position
+  exam.to_spawn = exam.to_spawn - 1
+end
+
+func start_exam(p)
+  let tier = exam_tier(p)
+  let e = EXAMS[tier]
+  exam = {pid: p.id, tier: tier, until: time() + e.secs, to_spawn: e.bots, left: e.bots, bigs: e.big}
+  let start = block("Exam Start")
+  if start != nil then p.teleport(start) end
+  p.heal(p.max_health)
+  p.energy = max_energy(p)
+  announce("📝 " + p.name + " が「" + e.name + "」に挑戦！", 3)
+  p.message("📝 " + e.name + ": " + e.secs + "びょう以内にロボ " + e.bots + " 体をたおせ！", 3)
+  -- はじめは6体まで。たおすと次が出てくる
+  let first = min(6, e.bots)
+  for i in 1 to first do
+    spawn_robot(exam.bigs > 0 and i == first)
+    if exam.bigs > 0 and i == first then exam.bigs = exam.bigs - 1 end
+  end
+end
+
+func end_exam(passed)
+  let p = player_by_id(exam.pid)
+  let e = EXAMS[exam.tier]
+  let tier = exam.tier
+  for n in npcs() do
+    if n.kind == "robot" then gone(n) end
+  end
+  exam = nil
+  ui_remove("exam")
+  if p != nil then
+    p.ui_remove("exam_t")
+    let out = block("Exam Exit")
+    if out != nil and p.alive then p.teleport(out) end
+    if passed then
+      p.license = tier
+      p.tickets = p.tickets + 2
+      reward(p, 300 * tier, 250 * tier, "📝 合格！")
+      announce("🎉 " + p.name + " が「" + e.name + "」に合格！ " + e.badge, 4)
+      p.sound("goal")
+      kit_quest_progress(p, "exam1", 1)
+      if tier == 3 then
+        kit_quest_progress(p, "exam3", 1)
+        kit_badge(p, "exam3", "特級")
+        if p.hat != "crown" then p.hat = "halo" end
+      end
+      update_titles()
+    else
+      p.message("📝 不合格… レベルを上げて、また挑戦しよう", 3)
+      p.sound("defeat")
+    end
+    hud(p)
+  end
+  after(3, func() next_exam() end)
+end
+
+func next_exam()
+  if exam != nil then return end
+  exam_queue = filter(exam_queue, func(q) return kit_here(q) end)
+  if len(exam_queue) == 0 then return end
+  let p = exam_queue[1]
+  exam_queue = slice(exam_queue, 2, len(exam_queue))
+  if not p.alive then p.respawn() end
+  start_exam(p)
+end
+
+func join_exam(p)
+  if p.team == nil then return end
+  let tier = exam_tier(p)
+  if tier > len(EXAMS) then
+    p.message("🏅 試験はぜんぶ合格ずみ！", 1.5)
+    return
+  end
+  let e = EXAMS[tier]
+  if p.level < e.level then
+    p.message("📝 「" + e.name + "」はレベル " + e.level + " から（いま " + p.level + "）", 2)
+    return
+  end
+  if exam != nil and exam.pid == p.id then return end
+  if contains(map(exam_queue, func(q) return q.id end), p.id) then
+    p.message("📝 順番待ち中", 1)
+    return
+  end
+  if exam == nil then
+    start_exam(p)
+  else
+    append(exam_queue, p)
+    p.message("📝 試験中の人がいる。順番待ち（" + len(exam_queue) + " 番目）", 2)
+  end
+end
+
+on tick(dt)
+  exam_clock = exam_clock + dt
+  if exam_clock < 0.5 then return end
+  exam_clock = 0
+  if exam == nil or exam.finishing then return end
+  let p = player_by_id(exam.pid)
+  if p == nil then
+    end_exam(false)
+    return
+  end
+  let left = exam.until - time()
+  if left <= 0 then
+    end_exam(false)
+    return
+  end
+  p.ui_text("exam_t", "📝 " + EXAMS[exam.tier].name + "  🤖 のこり " + exam.left + "   ⏱ " + ceil(left),
+            {at: "top", dy: 50, size: 17, bold: true, color: "#FDE047"})
+  -- ロボのAI（受けている人だけをねらう）
+  for r in npcs() do
+    if r.kind == "robot" and kit_here(r) and r.alive then
+      r.follow(p)
+      if distance(r, p) < 2.4 + (r.size or 1) * 0.4 and time() > r.next_hit then
+        hurt(r, p, r.dmg, nil, 0)
+        r.next_hit = time() + 1
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "exam") and quiet_ready(p, "exam_pad", 2) then join_exam(p) end
+end
+
+on death(victim, killer)
+  if exam == nil then return end
+  if victim.is_npc and victim.kind == "robot" then
+    exam.left = exam.left - 1
+    if exam.left <= 0 then
+      -- たおれたロボが消えてから終える
+      if not exam.finishing then
+        exam.finishing = true
+        after(0.3, func() if exam != nil then end_exam(true) end end)
+      end
+    elif exam.to_spawn > 0 then
+      let big = exam.bigs > 0 and exam.to_spawn <= exam.bigs * 2
+      if big then exam.bigs = exam.bigs - 1 end
+      spawn_robot(big)
+    end
+  elif not victim.is_npc and victim.id == exam.pid and not exam.finishing then
+    end_exam(false)
+  end
+end

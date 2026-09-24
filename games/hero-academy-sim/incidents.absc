@@ -1,0 +1,337 @@
+-- incidents.absc — ヒーローの仕事: 事件
+-- 強盗（悪党をぜんぶたおす）・火事（火を消して、市民を安全地帯へ）・人質事件（人質犯をたおして人質を安全地帯へ）。
+-- 事件の場所には赤い光の柱。時間内に解決できないと悪党は逃げ、ヴィランの悪名が上がる。
+
+let incident = nil
+let incident_uid = 0
+let incident_next = 0
+let last_spot = 0
+let inc_clock = 0
+let fire_clock = 0
+
+func heroes()
+  return filter(players(), func(p) return ready(p) and p.team == "hero" end)
+end
+
+func villains()
+  return filter(players(), func(p) return ready(p) and p.team == "villain" end)
+end
+
+-- 敵の強さ: 陣営を選んだ人の平均レベルで上がる
+func npc_scale()
+  let total = 0
+  let n = 0
+  for p in players() do
+    if ready(p) and p.team != nil then
+      total = total + p.level
+      n = n + 1
+    end
+  end
+  if n == 0 then return 1 end
+  return 1 + (total / n) * 0.07
+end
+
+func around(pos, r)
+  return pos + {x: random(-r * 10, r * 10) / 10, y: 0, z: random(-r * 10, r * 10) / 10}
+end
+
+func safe_zones()
+  return filter([block("Safe Zone 1"), block("Safe Zone 2")], func(b) return b != nil end)
+end
+
+-- MARK: 出す
+
+func spawn_crook(kind, pos, hp, name, color, size)
+  let n = create_npc({name: name, position: pos + {x: 0, y: 1, z: 0}, color: color, head_color: "#FCA5A5", health: hp,
+                      speed: 0.75, team: "villain", size: size or 1})
+  n.kind = kind
+  n.incident_id = incident.uid
+  n.home = pos
+  n.next_hit = 0
+  n.next_shot = time() + 1.5
+  n.dmg = 9 * npc_scale()
+  if kind == "gunner" then n.give("crook_gun") end
+  if kind == "boss" then
+    n.give("boss_gun")
+    n.dmg = 16 * npc_scale()
+    n.next_slam = time() + 6
+  end
+  return n
+end
+
+func spawn_civ(pos, trapped)
+  let c = create_npc({name: "市民", position: pos + {x: 0, y: 1, z: 0}, color: random(["#FDE68A", "#A7F3D0", "#FBCFE8", "#BFDBFE"]),
+                      head_color: "#FDE68A", health: 100000, speed: 1.05, team: "civ"})
+  c.kind = "civ"
+  c.trapped = trapped
+  c.incident_id = incident.uid
+  c.frozen = true
+  c.say("たすけて！")
+  append(incident.civs, c)
+  return c
+end
+
+func spawn_fire(pos)
+  let b = create_block({name: "Fire", shape: "sphere", position: pos + {x: 0, y: 1, z: 0}, size: 2.4, color: "#F97316",
+                        material: "neon", solid: false, opacity: 0.8})
+  append(incident.fires, {b: b, hp: 4, pos: pos})
+end
+
+func start_incident()
+  if incident != nil then return end
+  if len(heroes()) == 0 then
+    incident_next = time() + 10
+    return
+  end
+  let t = kit_pick(INCIDENTS, 1)
+  let idx = random(1, 6)
+  if idx == last_spot then idx = idx % 6 + 1 end
+  last_spot = idx
+  let spot = block("Incident " + idx)
+  if spot == nil then return end
+  incident_uid = incident_uid + 1
+  incident = {uid: incident_uid, kind: t.id, name: t.name, icon: t.icon, spot: spot.position, started: time(),
+              helpers: {}, civs: [], fires: [], boss: nil}
+  incident.beacon = create_block({name: "Beacon", shape: "cylinder", position: spot.position + {x: 0, y: 20, z: 0},
+                                  size: {x: 1.4, y: 40, z: 1.4}, color: "#EF4444", material: "neon", solid: false, opacity: 0.35})
+  let s = npc_scale()
+  if t.id == "robbery" then
+    let count = 3 + min(4, len(heroes()))
+    for i in 1 to count do
+      let kind = "crook"
+      if i % 3 == 0 then kind = "gunner" end
+      spawn_crook(kind, around(spot.position, 5), 110 * s, "強盗", "#111827", 1)
+    end
+  elif t.id == "fire" then
+    for i in 1 to 5 do spawn_fire(around(spot.position, 7)) end
+    for i in 1 to 2 do spawn_civ(around(spot.position, 3), true) end
+  else
+    let boss = spawn_crook("boss", spot.position, 420 * s, "人質犯 ガロン", "#7F1D1D", 1.35)
+    boss.dmg_by = {}
+    incident.boss = boss
+    for i in 1 to 2 do spawn_crook("crook", around(spot.position, 5), 110 * s, "手下", "#1F2937", 1) end
+    spawn_civ(spot.position + {x: 2, y: 0, z: 2}, true)
+  end
+  announce(t.icon + " 事件発生！「" + t.name + "」 — ヒーローは赤い光の柱へ！", 3.5)
+  for p in heroes() do p.sound("tick") end
+end
+
+-- MARK: 終わり
+
+func incident_npcs()
+  if incident == nil then return [] end
+  return filter(npcs(), func(n) return n.incident_id == incident.uid end)
+end
+
+func cleanup_incident()
+  if incident == nil then return end
+  for n in incident_npcs() do gone(n) end
+  for f in incident.fires do gone(f.b) end
+  gone(incident.beacon)
+  incident = nil
+  incident_next = time() + INCIDENT_GAP
+  ui_remove("incident")
+end
+
+func solve_incident()
+  let name = incident.name
+  announce("✅ 事件「" + name + "」解決！ ヒーローたちに報酬", 3)
+  for p in heroes() do
+    if incident.helpers[p.id] or distance(p, incident.spot) < 35 then
+      reward(p, 150, 120, "✅ 事件解決")
+      add_hero_pts(p, 15)
+      kit_quest_progress(p, "save1", 1)
+      kit_quest_progress(p, "save10", 1)
+    end
+  end
+  cleanup_incident()
+end
+
+func fail_incident()
+  announce("❌ 事件「" + incident.name + "」は未解決… 悪党は逃げていった", 3)
+  for p in villains() do
+    reward(p, 40, 40, "😈 悪党が逃げ切った")
+    add_fame(p, 6)
+  end
+  cleanup_incident()
+end
+
+func burning(f)
+  return f.hp > 0
+end
+
+-- まだ助けていない市民（助けた市民は少しして消えるので、いる人だけ数える）
+func waiting_civs()
+  return filter(incident.civs, func(c) return kit_here(c) and not c.saved end)
+end
+
+func check_incident()
+  if incident == nil then return end
+  let done = false
+  if incident.kind == "robbery" then
+    done = len(filter(incident_npcs(), func(n) return n.kind == "crook" or n.kind == "gunner" end)) == 0
+  elif incident.kind == "fire" then
+    done = len(filter(incident.fires, burning)) == 0 and len(waiting_civs()) == 0
+  else
+    let boss_down = not (kit_here(incident.boss) and incident.boss.alive)
+    done = boss_down and len(waiting_civs()) == 0
+  end
+  if done then solve_incident() end
+end
+
+-- MARK: 火
+
+func put_out(f, p)
+  if f.hp <= 0 then return end
+  f.hp = 0
+  let pos = f.b.position
+  gone(f.b)
+  fx_ball(pos, 3, "#E5E7EB", 0.5)
+  if p != nil and not p.is_npc and p.team == "hero" then
+    reward(p, 15, 10, nil)
+    kit_quest_progress(p, "fire10", 1)
+    incident.helpers[p.id] = true
+  end
+end
+
+-- 氷の技などで消す
+func put_out_fires(p, center, radius)
+  if incident == nil or incident.kind != "fire" then return end
+  let o = owner_of(p)
+  for f in incident.fires do
+    if burning(f) and distance(center, f.pos) <= radius then put_out(f, o) end
+  end
+end
+
+func fire_step()
+  for f in incident.fires do
+    if burning(f) then
+      if random() < 0.5 then f.b.color = "#EF4444" else f.b.color = "#F97316" end
+      for p in heroes() do
+        if p.alive and distance(p, f.pos) < 3 then
+          f.hp = f.hp - 0.5
+          if not active_until(p.hard_until) then p.damage(2) end
+          if f.hp <= 0 then put_out(f, p) end
+        end
+      end
+    end
+  end
+  -- 燃えひろがる
+  fire_clock = fire_clock + 0.5
+  if fire_clock >= 12 then
+    fire_clock = 0
+    let live = filter(incident.fires, burning)
+    if len(live) > 0 and len(live) < 8 then
+      spawn_fire(around(random(live).pos, 3))
+      for p in heroes() do p.message("🔥 火が燃えひろがった！", 1.2) end
+    end
+  end
+end
+
+-- MARK: 市民を安全地帯へ
+
+func rescue(c, r)
+  c.saved = true
+  c.say("ありがとう、ヒーロー！")
+  fx_ball(c.position + {x: 0, y: 1, z: 0}, 3, "#22C55E", 0.5)
+  if r != nil then
+    reward(r, 60, 50, "🙋 救助")
+    add_hero_pts(r, 6)
+    kit_quest_progress(r, "rescue5", 1)
+    incident.helpers[r.id] = true
+  end
+  after(1.5, func() gone(c) end)
+end
+
+func civ_step()
+  let zones = safe_zones()
+  for c in incident.civs do
+    if kit_here(c) and not c.saved then
+      if c.trapped then
+        if incident.kind == "fire" then
+          c.trapped = len(filter(incident.fires, func(f) return burning(f) and distance(f.pos, c.position) < 6 end)) > 0
+        else
+          c.trapped = kit_here(incident.boss) and incident.boss.alive
+        end
+        if not c.trapped then c.say("動けるようになった！ 近くに来て！") end
+      end
+      if not c.trapped then
+        let r = nil
+        if c.rescuer != nil then r = player_by_id(c.rescuer) end
+        if r == nil or not r.alive or r.team != "hero" then
+          c.rescuer = nil
+          r = nil
+          for h in heroes() do
+            if r == nil and h.alive and distance(h, c) < 4 then r = h end
+          end
+          if r != nil then
+            c.rescuer = r.id
+            c.frozen = false
+            r.message("🙋 市民があなたについてくる。緑の安全地帯（病院・避難所）へ！", 2.5)
+          else
+            c.stop()
+          end
+        end
+        if r != nil then c.follow(r) end
+        for z in zones do
+          if not c.saved and distance(c, z) < 6 then rescue(c, r) end
+        end
+      end
+    end
+  end
+end
+
+-- MARK: 毎0.5びょう
+
+on tick(dt)
+  inc_clock = inc_clock + dt
+  if inc_clock < 0.5 then return end
+  inc_clock = 0
+  if incident == nil then
+    if incident_next > 0 and time() >= incident_next then start_incident() end
+    return
+  end
+  if incident.kind == "fire" then fire_step() end
+  if incident == nil then return end
+  civ_step()
+  let left = INCIDENT_LIMIT - (time() - incident.started)
+  if left <= 0 then
+    fail_incident()
+    return
+  end
+  check_incident()
+  if incident == nil then return end
+  -- 画面の上に: 何が・どこで・あと何びょう
+  let extra = ""
+  if incident.kind == "robbery" then
+    extra = "  悪党 " + len(filter(incident_npcs(), func(n) return n.kind == "crook" or n.kind == "gunner" end))
+  elif incident.kind == "fire" then
+    extra = "  🔥 " + len(filter(incident.fires, burning)) + "  🙋 " + len(waiting_civs())
+  else
+    extra = "  🙋 " + len(waiting_civs())
+  end
+  for p in players() do
+    if ready(p) then
+      let d = floor(distance(p, incident.spot))
+      p.ui_text("incident", incident.icon + " " + incident.name + extra + "   📍" + d + "m   ⏱ " + kit_clock(left),
+                {at: "top", dy: 26, size: 16, bold: true, color: "#FCA5A5"})
+    end
+  end
+end
+
+-- MARK: 悪党をたおした
+
+on death(victim, killer)
+  if not victim.is_npc or victim.incident_id == nil then return end
+  let k = owner_of(killer)
+  if k == nil or k.is_npc or not ready(k) then return end
+  if victim.kind == "boss" then
+    reward(k, 140, 110, "🦹 人質犯をたおした")
+    add_hero_pts(k, 12)
+    announce("🦸 " + k.name + " が人質犯をたおした！ 人質を安全地帯へ！", 3)
+  elif victim.kind == "crook" or victim.kind == "gunner" then
+    reward(k, 35, 25, "👊 悪党をたおした")
+    add_hero_pts(k, 2)
+    kit_quest_progress(k, "crooks", 1)
+  end
+end

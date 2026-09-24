@@ -1,262 +1,183 @@
 -- Hero Academy Sim — ヒーローかヴィランか、個性で戦う
+-- 個性16種（ガチャ・レア度・熟練度・技3つ）、レベルとステータス、サポートアイテム。
+-- ヒーロー: 事件（強盗・火事・人質）・パトロールと戦う・昇格試験・懸賞金。
+-- ヴィラン: 金庫やぶり・発電所をこわして停電・ヒーローをたおす。
+-- ときどき改造怪人ゴウラがあらわれ、みんなで戦う。
+--
+-- ファイル:
+--   data.absc       表（個性・ステータス・ランク・試験・金庫・アイテム）
+--   common.absc     小さな道具・エフェクト・画面の左上
+--   combat.absc     ダメージ・熟練度・気力・経験値・PvP
+--   quirks.absc     個性の技（16 × 3）とボタン
+--   incidents.absc  事件（ヒーローの仕事）
+--   villains.absc   金庫やぶり・停電・パトロール（ヴィランの仕事）
+--   kaijin.absc     改造怪人（みんなで戦うボス）
+--   exam.absc       昇格試験
+--   npcs.absc       NPCの動き
+--   menus.absc      陣営・ガチャ・ステータス・アイテムの画面
+--   main.absc       このファイル
 
 kit_setup("Hero Academy Sim", "個性をみがいて、街を守るか、ねらうか", [
-  "最初にヒーロー（青）かヴィラン（赤）を選ぶ",
-  "「個性ガチャ」で能力を引く（最初の1回は無料）",
-  "「個性」ボタンで能力を使う。レベルが上がるほど強い",
-  "ヒーロー: 事件現場の強盗をたおす → 経験値とお金",
-  "ヴィラン: 金庫（黄色・ピンクのパッド）に5秒いてお宝をうばう",
-  "ヒーローとヴィランは戦える。同じ側どうしは攻撃できない"
+  "🦸 ヒーロー（青）か 🦹 ヴィラン（赤）を選ぶ。最初の個性ガチャは無料",
+  "⚡ 右下の3つの技: すぐ使える技・強い技・🔥限界突破（ゲージMAX＋熟練度2）",
+  "🚨 ヒーロー: 赤い光の柱の事件へ。火事は近づいて消し、市民は緑の安全地帯へ",
+  "💰 ヴィラン: 金庫のパッドにいつづける。発電所の3台をこわすと停電",
+  "📝 学園うらの黄色いパッドで昇格試験（Lv5・15・30）。合格で報酬アップ",
+  "👹 ときどき改造怪人ゴウラが出る。みんなで戦えばごほうび",
+  "📊 レベルアップでポイント。🛡 装備でさらに強く"
 ])
 kit_melee("パンチ", 10, 3, 5)
+kit_level_base = 40
 
-let quirks = [
-  {id: "blast", name: "💥 爆破", weight: 12, text: "前方を爆発させる"},
-  {id: "ice", name: "🧊 氷結", weight: 12, text: "近くの相手をこおらせる"},
-  {id: "might", name: "💪 怪力", weight: 10, text: "強烈なパンチでふっとばす"},
-  {id: "warp", name: "🌀 ワープ", weight: 10, text: "見ている方向へワープ"},
-  {id: "harden", name: "🪨 硬化", weight: 10, text: "5秒間ダメージを大きく減らす"},
-  {id: "volt", name: "⚡ 電撃", weight: 10, text: "まわりの敵に連鎖する電撃"},
-  {id: "gale", name: "🌪 疾風", weight: 10, text: "ものすごい速さで走る"},
-  {id: "double", name: "👥 ダブル", weight: 6, text: "分身をつくって戦わせる"},
-  {id: "gravity", name: "🪐 無重力", weight: 4, text: "近くの敵を宙に浮かせる"},
-  {id: "star", name: "🌟 スター", weight: 1, text: "全能力アップの伝説の個性"}
-]
-let incident = nil
+kit_quest("save1", "事件を1つ解決", 1, 100)
+kit_quest("save10", "事件を10解決", 10, 800)
+kit_quest("rescue5", "市民を5人救助", 5, 250)
+kit_quest("fire10", "火を10個消す", 10, 200)
+kit_quest("crooks", "悪党を20人たおす", 20, 250)
+kit_quest("rob3", "金庫を3回やぶる", 3, 300)
+kit_quest("rob15", "金庫を15回やぶる", 15, 1200)
+kit_quest("blackout", "停電を起こす", 1, 500)
+kit_quest("kaijin", "改造怪人をたおす", 1, 600)
+kit_quest("exam1", "仮免許試験に合格", 1, 300)
+kit_quest("exam3", "特級試験に合格", 1, 2000)
+kit_quest("lv10", "レベル10になる", 9, 300)
+kit_quest("lv30", "レベル30になる", 29, 1500)
+kit_quest("mastery3", "熟練度を3回上げる", 3, 250)
+kit_quest("collect5", "個性を5種類集める", 5, 500)
+kit_quest("pvp10", "相手の陣営を10人たおす", 10, 400)
+kit_quest("ult10", "限界突破を10回使う", 10, 300)
+kit_quest("heal", "仲間を合計500回復", 500, 250)
+kit_quest("rank", "ランクを上げる", 1, 200)
+kit_quest("gear", "サポートアイテムを3回強化", 3, 200)
 
-kit_quest("save", "事件を3つ解決（ヒーロー）", 3, 300)
-kit_quest("rob", "金庫を3回うばう（ヴィラン）", 3, 300)
-kit_quest("lv10", "レベル10になる", 1, 500)
-kit_quest("pvp", "相手の陣営を5人たおす", 5, 250)
+kit_shop_title = "コスチューム"
+kit_shop_add("c_gold", "金のスーツ", 300, func(p) set_costume(p, "#F59E0B") end)
+kit_shop_add("c_green", "みどりのスーツ", 300, func(p) set_costume(p, "#16A34A") end)
+kit_shop_add("c_white", "白のスーツ", 300, func(p) set_costume(p, "#F8FAFC") end)
+kit_shop_add("c_black", "黒のスーツ", 300, func(p) set_costume(p, "#111827") end)
+kit_shop_add("c_pink", "ピンクのスーツ", 300, func(p) set_costume(p, "#EC4899") end)
+kit_shop_add("h_cap", "ぼうし", 200, func(p) set_hat(p, "cap") end)
+kit_shop_add("h_ant", "アンテナ", 500, func(p) set_hat(p, "antenna") end)
 
-kit_shop_add("reroll", "個性ガチャ", 300, func(p) roll(p) end)
-kit_shop_add("costume", "コスチュームの色", 80, func(p) p.leg_color = random(["#F59E0B", "#10B981", "#6366F1", "#F43F5E", "#FFFFFF"]) end)
-
-kit_on_level = func(p)
-  p.max_health = 100 + p.level * 15
-  p.heal(999)
-  if p.level >= 10 then kit_quest_progress(p, "lv10", 1) end
+func set_costume(p, color)
+  if p.team == "villain" then p.villain_color = color else p.hero_color = color end
+  p.own_color = color
+  p.color = color
+  p.leg_color = color
 end
 
-func find_quirk(id)
-  for q in quirks do
-    if q.id == id then return q end
+func set_hat(p, hat)
+  p.own_hat = hat
+  if p.hat != "crown" and p.hat != "halo" then p.hat = hat end
+end
+
+-- MARK: No.1ヒーローと最重要指名手配
+
+let no1_hero = nil
+let most_wanted = nil
+
+func update_titles()
+  let best_h = nil
+  let best_v = nil
+  for p in players() do
+    if ready(p) and p.team == "hero" and (p.hero_pts or 0) >= 400 and (best_h == nil or p.hero_pts > best_h.hero_pts) then best_h = p end
+    if ready(p) and p.team == "villain" and (p.fame or 0) >= 100 and (best_v == nil or p.fame > best_v.fame) then best_v = p end
   end
-  return quirks[1]
-end
-
-func roll(p)
-  let q = kit_pick(quirks, 1)
-  p.quirk = q.id
-  p.ui_text("quirk", q.name + " — " + q.text, {at: "top", dy: 60, size: 16, bold: true, color: "#FDE68A"})
-  p.ui_button("use", q.name, {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 64, size: 17, bg: p.team == "hero" and "#2563EB" or "#B91C1C", radius: 16})
-  if q.weight <= 4 then announce("🌟 " + p.name + " が伝説級の個性「" + q.name + "」を手に入れた！", 4) end
-end
-
-func side_panel(p)
-  p.ui_panel("side", {at: "center", w: 440, h: 170, bg: "#000000CC", radius: 22, layer: 30})
-  p.ui_text("side_t", "どちらになる？", {parent: "side", y: 0.2, size: 24, bold: true})
-  p.ui_button("side_hero", "🦸 ヒーロー", {parent: "side", x: 0.28, y: 0.65, w: 170, h: 60, size: 19, bg: "#2563EB"})
-  p.ui_button("side_villain", "🦹 ヴィラン", {parent: "side", x: 0.72, y: 0.65, w: 170, h: 60, size: 19, bg: "#B91C1C"})
-end
-
-func power(p)
-  let base = 10 + p.level * 4
-  if p.quirk == "star" then base = base * 1.6 end
-  return base
-end
-
-func use_quirk(p)
-  if p.quirk == nil or not p.alive then return end
-  if not kit_ready(p, "quirk", 3) then return end
-  let q = p.quirk
-  let pw = power(p)
-  if q == "blast" then
-    kit_blast(p, kit_ahead(p, 6), 4.5, pw * 1.5, 5)
-  elif q == "ice" then
-    for c in kit_everyone() do
-      if c.id != p.id and not kit_same_team(c, p) and c.alive and distance(p, c) < 9 then
-        c.frozen = true
-        c.damage(pw * 0.5, p)
-        after(2, func() if kit_here(c) then c.frozen = false end end)
-      end
+  let new_h = nil
+  if best_h != nil then new_h = best_h.id end
+  if new_h != no1_hero then
+    let old = nil
+    if no1_hero != nil then old = player_by_id(no1_hero) end
+    if old != nil then restore_hat(old) end
+    no1_hero = new_h
+    if best_h != nil then
+      best_h.hat = "crown"
+      announce("👑 " + best_h.name + " が No.1ヒーロー になった！", 3.5)
     end
-  elif q == "might" then
-    kit_blast(p, kit_ahead(p, 2.5), 3, pw * 2.2, 12)
-  elif q == "warp" then
-    p.teleport(kit_ahead(p, 16) + {x: 0, y: 1, z: 0})
-  elif q == "harden" then
-    p.hard_until = time() + 5
-    p.message("🪨 硬化！", 1)
-  elif q == "volt" then
-    let n = 0
-    for c in kit_everyone() do
-      if c.id != p.id and not kit_same_team(c, p) and c.alive and distance(p, c) < 14 and n < 4 then
-        c.damage(pw, p)
-        n = n + 1
-      end
-    end
-  elif q == "gale" then
-    p.speed = 2.6
-    kit_later(p, 6, func() p.speed = 1 end)
-  elif q == "double" then
-    let d = create_npc({name: p.name + "の分身", position: p.position + {x: 2, y: 0.5, z: 0}, color: p.color, health: 60 + p.level * 10,
-                        speed: 1.1, team: p.team})
-    d.clone_of = p.id
-    after(12, func() if kit_here(d) then d.destroy() end end)
-  elif q == "gravity" then
-    kit_blast(p, p, 10, pw * 0.8, 22)
-  else
-    kit_blast(p, p, 8, pw * 2, 10)
-    p.heal(30)
   end
+  let new_v = nil
+  if best_v != nil then new_v = best_v.id end
+  if new_v != most_wanted then
+    most_wanted = new_v
+    if best_v != nil then announce("💀 " + best_v.name + " が最重要指名手配に！ 懸賞金 🪙" + bounty_of(best_v), 3.5) end
+  end
+  let line = ""
+  if best_h != nil then line = "👑 No.1: " + best_h.name end
+  if best_v != nil then
+    if line != "" then line = line + "   " end
+    line = line + "💀 指名手配: " + best_v.name + "（🪙" + bounty_of(best_v) + "）"
+  end
+  if line == "" then ui_remove("titles") else ui_text("titles", line, {at: "top_right", dx: -70, dy: 130, size: 13, bold: true, color: "#FDE68A"}) end
 end
 
-func start_incident()
-  if incident != nil then return end
-  let spot = block("Incident " + random(1, 6))
-  incident = {spot: spot, left: 3}
-  for i in 1 to 3 do
-    let r = create_npc({name: "強盗", position: spot.position + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: "#111827",
-                        head_color: "#FCA5A5", health: 120, speed: 0.7, team: "villain"})
-    r.robber = true
-  end
-  announce("🚨 事件発生！強盗があばれている！", 3)
-end
-
-func patrol()
-  -- ヴィランがいるときは、街にヒーローのパトロールが出る
-  let villains = filter(players(), func(p) return p.team == "villain" end)
-  if len(villains) == 0 then return end
-  let count = len(filter(npcs(), func(n) return n.patrol end))
-  if count < 4 then
-    let spot = block("Incident " + random(1, 6))
-    let n = create_npc({name: "パトロールヒーロー", position: spot.position + {x: 0, y: 1, z: 0}, color: "#1D4ED8",
-                        head_color: "#FDE68A", health: 150, speed: 0.8, team: "hero"})
-    n.patrol = true
-  end
+func restore_hat(p)
+  if (p.license or 0) >= 3 then p.hat = "halo" else p.hat = p.own_hat or "none" end
 end
 
 on start()
-  every(40, func() start_incident() end)
-  every(15, func() patrol() end)
-  every(1, func()
-    for p in players() do
-      if p.robbing != nil then
-        if distance(p, p.robbing) > 3.5 then
-          p.robbing = nil
-          p.ui_remove("rob")
-        else
-          p.rob_time = p.rob_time + 1
-          p.ui_bar("rob", p.rob_time, 5, {at: "center", dy: 80, w: 240, h: 16, color: "#FACC15"})
-          if p.rob_time >= 5 then
-            p.robbing = nil
-            p.ui_remove("rob")
-            kit_give(p, 250)
-            kit_xp(p, 60)
-            p.score = p.score + 2
-            kit_quest_progress(p, "rob", 1)
-            announce("💰 " + p.name + " が金庫からお宝をうばった！", 3)
-          end
-        end
-      end
-    end
+  game.respawn_time = 4
+  incident_next = time() + 20
+  kaijin_next = time() + KAIJIN_FIRST
+  reset_generators()
+  -- 前のラウンドのNPCは消す
+  for n in npcs() do n.destroy() end
+  every(10, func()
+    update_titles()
+    kit_leaderboard("⭐")
   end)
-  every(10, func() kit_leaderboard("⭐") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
   kit_shop_button(p)
+  kit_camera_button(p)
   p.level = 1
   p.xp = 0
+  p.points = 0
+  p.stats = {}
+  p.gear = {}
+  p.mxp = {}
+  p.owned = []
+  p.tickets = 0
+  p.energy = 100
+  p.limit = 0
+  p.hero_pts = 0
+  p.fame = 0
+  p.license = 0
+  p.cd = {}
+  p.btn = {}
+  p.own_color = p.color
   kit_show_level(p)
-  kit_give(p, 0)
+  kit_show_money(p)
   p.give("パンチ")
+  p.ui_button("open_gacha", "🎰 個性", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#7C3AED"})
+  p.ui_button("open_stats", "📊 ステータス", {at: "right", dy: -60, w: 150, h: 50, size: 16, bg: "#0F766E"})
+  p.ui_button("open_gear", "🛡 装備", {at: "right", dy: 0, w: 150, h: 50, size: 17, bg: "#0E7490"})
   side_panel(p)
+  hud(p)
 end
 
-on tick(dt)
+on respawn(p)
+  if not ready(p) then return end
+  p.energy = max_energy(p)
+  p.frozen = false
+  p.visible = true
+  refresh_body(p)
+  p.heal(p.max_health)
+  if p.team == "villain" then
+    let s = block("Villain Spawn " + random(1, 6))
+    if s != nil then p.teleport(s) end
+  end
+  if p.own_color != nil then p.color = p.own_color end
+  show_bars(p)
+end
+
+on leave(p)
   for n in npcs() do
-    if n.robber or n.patrol then
-      let t = nil
-      for p in players() do
-        if p.alive and p.team != nil and p.team != n.team and distance(n, p) < 25 then
-          if t == nil or distance(n, p) < distance(n, t) then t = p end
-        end
-      end
-      if t != nil then
-        n.follow(t)
-        if distance(n, t) < 2.2 then t.damage(12 * dt, n) end
-      else
-        n.stop()
-      end
-    elif n.clone_of != nil then
-      let t = nil
-      for c in kit_everyone() do
-        if c.alive and c.team != n.team and c.id != n.id and distance(n, c) < 20 then t = c end
-      end
-      if t != nil then
-        n.follow(t)
-        if distance(n, t) < 2.2 then t.damage(10 * dt, n) end
-      end
-    end
+    if n.kind == "clone" and n.owner == p.id then gone(n) end
+    if n.kind == "civ" and n.rescuer == p.id then n.rescuer = nil end
   end
-end
-
-on button(p, id)
-  if id == "side_hero" or id == "side_villain" then
-    p.team = id == "side_hero" and "hero" or "villain"
-    p.color = p.team == "hero" and "#1D4ED8" or "#7F1D1D"
-    p.ui_remove("side")
-    if p.team == "villain" then p.teleport(block("Villain Spawn 1")) end
-    roll(p)
-  elif id == "use" then
-    use_quirk(p)
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "vault") and p.team == "villain" and p.robbing == nil and kit_ready(p, "vault", 30) then
-    p.robbing = b
-    p.rob_time = 0
-    p.message("💰 うばっている… 5秒その場にいろ！", 2)
-  end
-end
-
-on hit(victim, attacker, damage)
-  if victim.hard_until != nil and time() < victim.hard_until then return damage * 0.2 end
-  if not attacker.is_npc then return damage + attacker.level * 2 end
-  return damage
-end
-
-on death(victim, killer)
-  if killer == nil or killer.is_npc then return end
-  if victim.robber then
-    kit_xp(killer, 40)
-    kit_give(killer, 60)
-    if incident != nil then
-      incident.left = incident.left - 1
-      if incident.left <= 0 then
-        incident = nil
-        announce("✅ " + killer.name + " たちが事件を解決！", 3)
-        for p in players() do
-          if p.team == "hero" then
-            kit_give(p, 150)
-            kit_quest_progress(p, "save", 1)
-            p.score = p.score + 2
-          end
-        end
-      end
-    end
-  elif victim.patrol then
-    kit_xp(killer, 40)
-    kit_give(killer, 50)
-  elif not victim.is_npc and victim.team != killer.team then
-    kit_xp(killer, 80)
-    kit_quest_progress(killer, "pvp", 1)
-    killer.score = killer.score + 1
-  end
+  if no1_hero == p.id then no1_hero = nil end
+  if most_wanted == p.id then most_wanted = nil end
 end

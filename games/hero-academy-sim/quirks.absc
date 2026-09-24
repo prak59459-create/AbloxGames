@@ -1,0 +1,540 @@
+-- quirks.absc — 個性の技（16個性 × 3技）
+-- Z: すぐ使える技・X: 強い技・U: 限界突破（ゲージ100・熟練度2から）
+-- どの技も m（power_mult）をかけたダメージ。ヴィランの技は発電機もこわせる。
+
+let MOVE_SLOTS = ["z", "x", "u"]
+
+func move_name(q, slot)
+  if slot == "z" then return q.z end
+  if slot == "x" then return q.x end
+  return q.u
+end
+
+-- MARK: 分身
+
+func my_clones(p)
+  return filter(npcs(), func(n) return n.kind == "clone" and n.owner == p.id end)
+end
+
+func make_clone(p, pos, seconds, strong)
+  let hp = 60 + p.level * 8
+  if strong then hp = hp * 1.5 end
+  let c = create_npc({name: p.name + "の分身", position: pos + {x: 0, y: 0.5, z: 0}, color: p.color, head_color: p.head_color,
+                      health: hp, speed: 1.15, team: p.team})
+  c.kind = "clone"
+  c.owner = p.id
+  c.dps = (10 + p.level * 0.8) * power_mult(p)
+  c.next_hit = 0
+  after(seconds, func() gone(c) end)
+  return c
+end
+
+-- MARK: Z（すぐ使える技）
+
+func do_z(p, id, m)
+  let fl = flat_look(p)
+  if id == "blast" then
+    let pt = aim_point(p, 24)
+    fx_ball(pt, 3.2, "#F97316", 0.35)
+    area(p, pt, 3, 18 * m, "lift", 5)
+    p.sound("shoot")
+  elif id == "ice" then
+    fx_beam(p.position + {x: 0, y: 0.3, z: 0} + fl * 0.5, fl, 11, "#BAE6FD", 1.6)
+    cone(p, 11, 0.75, 12 * m, "freeze", 1.5)
+    put_out_fires(p, p.position + fl * 5, 7)
+  elif id == "might" then
+    fx_ball(p.position + fl * 2 + {x: 0, y: 1.2, z: 0}, 2.4, "#EF4444", 0.25)
+    cone(p, 4, 0.5, 22 * m, "knock", 18)
+    p.sound("hit")
+  elif id == "gale" then
+    let from = p.position + {x: 0, y: 1, z: 0}
+    p.launch(fl.x * 26, 3, fl.z * 26)
+    beam(p, from, fl, 9, 2.5, 12 * m, nil, 0, "#D9F99D")
+  elif id == "volt" then
+    chain_lightning(p, 12, 3, 14 * m)
+  elif id == "warp" then
+    let pt = aim_point(p, 16)
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 2, "#818CF8", 0.3)
+    p.teleport(pt)
+    fx_ball(pt + {x: 0, y: 1, z: 0}, 3, "#818CF8", 0.3)
+    area(p, pt, 2.5, 10 * m, "stun", 0.4)
+    p.sound("teleport")
+  elif id == "harden" then
+    p.hard_until = time() + 4
+    p.color = "#78716C"
+    kit_later(p, 4, func() p.color = p.own_color end)
+    p.message("🪨 硬化！ 4びょう ダメージ -75%", 1.2)
+  elif id == "fire" then
+    let pt = aim_point(p, 24)
+    fx_beam(eye_of(p), p.look, distance(eye_of(p), pt), "#F97316", 0.6)
+    fx_ball(pt, 2.6, "#DC2626", 0.35)
+    area(p, pt, 2.5, 14 * m, "burn", 0)
+  elif id == "shadow" then
+    let mult = 1
+    if p.ambush then
+      mult = 1.6
+      p.ambush = false
+    end
+    beam(p, eye_of(p), p.look, 20, 1.2, 18 * m * mult, "stun", 0.3, "#4C1D95")
+  elif id == "double" then
+    if len(my_clones(p)) >= 3 then
+      p.message("分身は3体まで", 1)
+      return false
+    end
+    make_clone(p, p.position + fl * 2, 14, false)
+  elif id == "gravity" then
+    fx_ball(p.position + fl * 3 + {x: 0, y: 1, z: 0}, 3, "#C4B5FD", 0.3)
+    cone(p, 6, 0.6, 14 * m, "lift", 16)
+  elif id == "heal" then
+    heal_allies(p, 10, 22 * m, false)
+  elif id == "halfhot" then
+    p.hh = not p.hh
+    if p.hh then
+      fx_beam(p.position + {x: 0, y: 0.3, z: 0} + fl * 0.5, fl, 11, "#BAE6FD", 1.6)
+      cone(p, 11, 0.75, 16 * m, "freeze", 1.4)
+      put_out_fires(p, p.position + fl * 5, 7)
+    else
+      beam(p, eye_of(p), p.look, 22, 1.4, 18 * m, "burn", 0, "#F97316")
+    end
+  elif id == "inherit" then
+    fx_ball(p.position + fl * 2 + {x: 0, y: 1.2, z: 0}, 2.8, "#86EFAC", 0.25)
+    cone(p, 4.5, 0.45, 24 * m, "knock", 22)
+    p.sound("hit")
+  elif id == "steal" then
+    beam(p, eye_of(p), p.look, 26, 1.8, 22 * m, "knock", 14, "#E5E7EB")
+  elif id == "star" then
+    let targets = enemies_near(p, p.position, 24)
+    targets = sort(targets, func(a, b) return distance(p, a) < distance(p, b) end)
+    let shots = 0
+    for t in targets do
+      if shots < 3 then
+        shots = shots + 1
+        let tp = t.position + {x: 0, y: 1, z: 0}
+        fx_beam(eye_of(p), normalize(tp - eye_of(p)), distance(eye_of(p), tp), "#FDE047", 0.4)
+        hurt(p, t, 14 * m, nil, 0)
+      end
+    end
+    if shots == 0 then fx_ball(eye_of(p) + p.look * 3, 1.5, "#FDE047", 0.3) end
+  end
+  return true
+end
+
+-- MARK: X（強い技）
+
+func do_x(p, id, m)
+  let fl = flat_look(p)
+  if id == "blast" then
+    p.launch(fl.x * 22, 6, fl.z * 22)
+    fx_ball(p.position + {x: 0, y: 0.5, z: 0}, 3, "#F97316", 0.3)
+    kit_later(p, 0.45, func()
+      fx_ball(p.position + {x: 0, y: 1, z: 0}, 9, "#F97316", 0.4)
+      area(p, p.position, 4.5, 34 * m, "lift", 8)
+    end)
+  elif id == "ice" then
+    let center = p.position + fl * 4
+    let yaw = atan2(fl.x, fl.z)
+    let wall = create_block({name: "Ice Wall", shape: "box", position: center + {x: 0, y: 2, z: 0}, size: {x: 7, y: 4, z: 1.2},
+                             rotation: {x: 0, y: yaw, z: 0}, color: "#BAE6FD", material: "glass", solid: true, opacity: 0.75})
+    after(6, func() gone(wall) end)
+    area(p, center, 4.5, 26 * m, "freeze", 2)
+    put_out_fires(p, center, 8)
+  elif id == "might" then
+    fx_ring(p.position, 7, "#92400E", 0.5)
+    area(p, p.position, 7, 36 * m, "lift", 10)
+    p.shake(0.3, 0.3)
+  elif id == "gale" then
+    let pt = aim_point(p, 12)
+    for k in 0 to 2 do
+      kit_later(p, k * 0.4, func()
+        fx_ring(pt, 5, "#A3E635", 0.35)
+        area(p, pt, 5, 12 * m, "lift", 7)
+      end)
+    end
+  elif id == "volt" then
+    beam(p, eye_of(p), p.look, 28, 1.6, 36 * m, "stun", 0.8, "#FACC15")
+  elif id == "warp" then
+    let t = nearest_enemy(p, 22)
+    if t == nil then
+      p.message("近くに相手がいない", 1)
+      return false
+    end
+    let behind = t.position - flat_look(t) * 1.8
+    p.teleport(behind)
+    p.look_at(t)
+    fx_ball(behind + {x: 0, y: 1, z: 0}, 2.5, "#818CF8", 0.3)
+    hurt(p, t, 38 * m, "stun", 0.6)
+    p.sound("teleport")
+  elif id == "harden" then
+    let from = p.position + {x: 0, y: 1, z: 0}
+    p.hard_until = time() + 1.5
+    p.launch(fl.x * 24, 3, fl.z * 24)
+    beam(p, from, fl, 10, 2.5, 30 * m, "knock", 16, "#A8A29E")
+  elif id == "fire" then
+    let pt = aim_point(p, 16)
+    fx_warning(pt, 4, 0.5)
+    kit_later(p, 0.5, func()
+      let col = create_block({name: "FX", shape: "cylinder", position: pt + {x: 0, y: 4, z: 0}, size: {x: 5, y: 8, z: 5},
+                              color: "#F97316", material: "neon", solid: false, opacity: 0.6})
+      after(0.6, func() gone(col) end)
+      area(p, pt, 4, 32 * m, "burn", 0)
+      area(p, pt, 4, 1, "lift", 9)
+    end)
+  elif id == "shadow" then
+    p.visible = false
+    p.sneak_until = time() + 3.5
+    p.ambush = true
+    p.message("🌑 影隠れ… 次の攻撃が強くなる", 1.5)
+    kit_later(p, 3.5, func() p.visible = true end)
+  elif id == "double" then
+    let cl = my_clones(p)
+    if len(cl) == 0 then
+      make_clone(p, p.position + fl * 2, 14, false)
+      make_clone(p, p.position - fl * 2, 14, false)
+      p.message("分身がいなかったので2体つくった", 1.2)
+      return true
+    end
+    for c in cl do
+      let pos = c.position
+      fx_ball(pos + {x: 0, y: 1, z: 0}, 8, "#F472B6", 0.4)
+      gone(c)
+      area(p, pos, 5, 40 * m, "lift", 8)
+    end
+  elif id == "gravity" then
+    p.float_until = time() + 6
+    p.launch(0, 14, 0)
+    refresh_body(p)
+    area(p, p.position, 6, 16 * m, "lift", 12)
+  elif id == "heal" then
+    let t = nearest_enemy(p, 18)
+    if t == nil then
+      p.message("近くに相手がいない", 1)
+      return false
+    end
+    let tp = t.position + {x: 0, y: 1, z: 0}
+    fx_beam(eye_of(p), normalize(tp - eye_of(p)), distance(eye_of(p), tp), "#4ADE80", 0.6)
+    let got = hurt(p, t, 26 * m, nil, 0)
+    p.heal(got * 0.6)
+  elif id == "halfhot" then
+    let from = p.position
+    for k in 1 to 5 do
+      let spot = from + fl * (k * 3.2)
+      let spike = create_block({name: "FX", shape: "cone", position: spot + {x: 0, y: 1.5, z: 0}, size: {x: 2.4, y: 3, z: 2.4},
+                                color: "#BAE6FD", material: "glass", solid: false, opacity: 0.8})
+      after(1.5, func() gone(spike) end)
+    end
+    beam(p, from + {x: 0, y: 1, z: 0}, fl, 18, 3, 38 * m, "freeze", 1.5, "#BAE6FD")
+    put_out_fires(p, from + fl * 9, 10)
+  elif id == "inherit" then
+    beam(p, eye_of(p), p.look, 32, 2.5, 34 * m, "knock", 26, "#F0FDF4")
+    p.sound("shoot")
+  elif id == "steal" then
+    let t = nearest_enemy(p, 14)
+    if t == nil then
+      p.message("近くに相手がいない", 1)
+      return false
+    end
+    hurt(p, t, 20 * m, "freeze", 2)
+    p.steal_buff = time() + 6
+    p.heal(30)
+    if kit_here(t) and not t.is_npc and t.quirk != nil and t.quirk != "steal" then
+      p.stolen = t.quirk
+      p.stolen_until = time() + 20
+      p.message("🖐 " + t.name + " の「" + quirk_info(t.quirk).name + "」をうばった！ Z が20びょう その技に", 2.5)
+    else
+      p.message("🖐 力をうばった！ 6びょう ダメージ ×1.3", 1.5)
+    end
+  elif id == "star" then
+    let pt = aim_point(p, 26)
+    fx_warning(pt, 6, 0.9)
+    kit_later(p, 0.9, func()
+      fx_ball(pt + {x: 0, y: 1, z: 0}, 12, "#FDE047", 0.5)
+      area(p, pt, 6, 50 * m, "lift", 12)
+    end)
+  end
+  return true
+end
+
+-- MARK: U（限界突破）
+
+func do_u(p, id, m)
+  let fl = flat_look(p)
+  if id == "blast" then
+    p.launch(0, 10, 0)
+    kit_later(p, 0.6, func()
+      fx_ball(p.position + {x: 0, y: 1, z: 0}, 20, "#F97316", 0.6)
+      area(p, p.position, 10, 110 * m, "lift", 14)
+      shake(0.4, 0.5)
+    end)
+  elif id == "ice" then
+    fx_ring(p.position, 14, "#BAE6FD", 0.8)
+    area(p, p.position, 14, 70 * m, "freeze", 3.5)
+    put_out_fires(p, p.position, 20)
+  elif id == "might" then
+    beam(p, p.position + {x: 0, y: 1, z: 0}, fl, 30, 3.5, 120 * m, "knock", 30, "#FCA5A5")
+    shake(0.5, 0.6)
+  elif id == "gale" then
+    p.haste_until = time() + 8
+    p.aura_until = time() + 8
+    p.aura_dmg = 10 * m
+    refresh_body(p)
+    p.message("🌪 神速！ 8びょう 速さ×2・まわりにダメージ", 2)
+  elif id == "volt" then
+    for k in 0 to 5 do
+      kit_later(p, k * 0.5, func()
+        fx_ring(p.position, 12, "#FACC15", 0.25)
+        area(p, p.position, 12, 16 * m, "stun", 0.4)
+      end)
+    end
+  elif id == "warp" then
+    let gate = p.position + fl * 5
+    fx_ball(gate + {x: 0, y: 1.5, z: 0}, 5, "#6366F1", 1.2)
+    for c in enemies_near(p, p.position, 18) do
+      c.teleport(gate + {x: random(-1, 1), y: 0, z: random(-1, 1)})
+    end
+    kit_later(p, 0.45, func()
+      area(p, gate, 4.5, 80 * m, "lift", 10)
+    end)
+  elif id == "harden" then
+    p.hard_until = time() + 8
+    p.reflect_until = time() + 8
+    p.heal(p.max_health * 0.25)
+    p.color = "#44403C"
+    kit_later(p, 8, func() p.color = p.own_color end)
+    p.message("🏰 不壊の城！ 8びょう かたくなり、受けた攻撃の一部をはね返す", 2.5)
+  elif id == "fire" then
+    let center = p.position
+    let radii = [5, 9, 13]
+    let i = 0
+    for r in radii do
+      i = i + 1
+      kit_later(p, i * 0.35, func()
+        fx_ring(center, r, "#EA580C", 0.35)
+        area(p, center, r, (45 - i * 5) * m, "burn", 0)
+      end)
+    end
+  elif id == "shadow" then
+    for c in enemies_near(p, p.position, 15) do
+      fx_ring(c.position, 1.6, "#1E1B4B", 2)
+      hurt(p, c, 60 * m, "freeze", 2.5)
+    end
+  elif id == "double" then
+    for k in 1 to 5 do
+      let a = k * 72
+      make_clone(p, p.position + {x: cos(a) * 3, y: 0, z: sin(a) * 3}, 12, true)
+    end
+    p.message("👥 百人組手！（のつもりで5体）", 1.5)
+  elif id == "gravity" then
+    let hitlist = enemies_near(p, p.position, 14)
+    for c in hitlist do c.launch(0, 18, 0) end
+    fx_ring(p.position, 14, "#C4B5FD", 1.2)
+    kit_later(p, 1.2, func()
+      for c in hitlist do
+        if kit_here(c) and c.alive then
+          fx_ball(c.position, 3, "#7C3AED", 0.3)
+          hurt(p, c, 90 * m, nil, 0)
+        end
+      end
+    end)
+  elif id == "heal" then
+    heal_allies(p, 18, 9999, true)
+    p.message("💚 再生の奇跡！", 1.5)
+  elif id == "halfhot" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 18, "#E11D48", 0.5)
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 26, "#7DD3FC", 0.4)
+    area(p, p.position, 16, 130 * m, "burn", 0)
+    area(p, p.position, 16, 1, "lift", 12)
+    put_out_fires(p, p.position, 16)
+    shake(0.4, 0.5)
+  elif id == "inherit" then
+    p.buff_until = time() + 10
+    refresh_body(p)
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 14, "#22C55E", 0.5)
+    area(p, p.position, 12, 90 * m, "lift", 14)
+    announce("✊ " + p.name + "「限界突破！」", 2)
+    shake(0.4, 0.5)
+  elif id == "steal" then
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 22, "#111827", 0.5)
+    area(p, p.position, 14, 80 * m, "freeze", 2)
+    for k in 1 to 3 do
+      kit_later(p, k * 0.5, func()
+        fx_ring(p.position, 12, "#FACC15", 0.25)
+        area(p, p.position, 12, 14 * m, "stun", 0.3)
+      end)
+    end
+  elif id == "star" then
+    p.hard_until = time() + 1
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 4, "#FDE047", 1)
+    kit_later(p, 1, func()
+      fx_ball(p.position + {x: 0, y: 1, z: 0}, 40, "#FEF08A", 0.6)
+      area(p, p.position, 20, 150 * m, "lift", 16)
+      shake(0.6, 0.6)
+    end)
+  end
+  return true
+end
+
+-- MARK: 補助
+
+func chain_lightning(p, range, jumps, dmg)
+  let from = p
+  let done = []
+  for k in 1 to jumps do
+    let best = nil
+    for c in enemies_near(p, from.position, range) do
+      if not contains(done, c.id) and (best == nil or distance(from, c) < distance(from, best)) then best = c end
+    end
+    if best == nil then break end
+    append(done, best.id)
+    let a = from.position + {x: 0, y: 1, z: 0}
+    let b = best.position + {x: 0, y: 1, z: 0}
+    fx_beam(a, normalize(b - a), distance(a, b), "#FACC15", 0.35)
+    let next_from = best
+    hurt(p, best, dmg, "stun", 0.4)
+    if not kit_here(next_from) then break end
+    from = next_from
+    range = 8
+  end
+  if len(done) == 0 then fx_ball(eye_of(p) + p.look * 2, 1.6, "#FACC15", 0.25) end
+end
+
+func heal_allies(p, radius, amount, full)
+  fx_ring(p.position, radius, "#4ADE80", 0.6)
+  let healed = 0
+  for q in players() do
+    if q.alive and distance(p, q) <= radius and (q.id == p.id or (p.team != nil and q.team == p.team)) then
+      let before = q.health
+      if full then
+        q.heal(q.max_health)
+        q.regen_until = time() + 8
+        q.burn_until = 0
+        q.frozen = false
+      else
+        q.heal(amount)
+      end
+      if q.id != p.id then healed = healed + (q.health - before) end
+    end
+  end
+  if healed >= 30 and p.team == "hero" then
+    add_hero_pts(p, 1)
+    kit_quest_progress(p, "heal", floor(healed))
+  end
+end
+
+-- MARK: 使う
+
+func use_move(p, slot)
+  if not ready(p) or not p.alive or p.team == nil then return end
+  if p.frozen then return end
+  let q = quirk_info(p.quirk)
+  let id = q.id
+  if slot == "z" and active_until(p.stolen_until) then id = p.stolen end
+  let now = time()
+  if p.cd == nil then p.cd = {} end
+  if active_until(p.cd[slot]) then return end
+  if slot == "u" then
+    if mastery_level(p, q.id) < 2 then
+      p.message("🔒 限界突破は熟練度2から（技を使って上げよう）", 1.5)
+      return
+    end
+    if (p.limit or 0) < 100 then
+      p.message("限界ゲージがたまっていない（" + floor(p.limit or 0) + "/100）", 1)
+      return
+    end
+  else
+    let cost = q.ez
+    if slot == "x" then cost = q.ex end
+    if p.energy < cost then
+      p.message("⚡ 気力が足りない", 0.8)
+      return
+    end
+  end
+  let m = power_mult(p)
+  let ok = false
+  if slot == "z" then ok = do_z(p, id, m)
+  elif slot == "x" then ok = do_x(p, id, m)
+  else ok = do_u(p, id, m)
+  end
+  if not ok then return end
+  if slot == "u" then
+    p.limit = 0
+    p.cd.u = now + 3
+    gain_mastery(p, 10)
+    kit_quest_progress(p, "ult10", 1)
+    announce("🔥 " + p.name + " の限界突破「" + q.u + "」！", 2)
+  elif slot == "x" then
+    p.energy = p.energy - q.ex
+    p.cd.x = now + q.cx * cooldown_mult(p)
+    gain_mastery(p, 4)
+  else
+    p.energy = p.energy - q.ez
+    p.cd.z = now + q.cz * cooldown_mult(p)
+    gain_mastery(p, 2)
+  end
+  p.moves_used = (p.moves_used or 0) + 1
+  -- 分身は、持ち主が技を使うと同じ相手をねらう
+  show_bars(p)
+  move_buttons(p)
+end
+
+-- MARK: ボタンと気力のバー
+
+func move_buttons(p)
+  if not ready(p) then return end
+  let q = quirk_info(p.quirk)
+  if p.btn == nil then p.btn = {} end
+  if p.cd == nil then p.cd = {} end
+  let i = 0
+  for slot in MOVE_SLOTS do
+    i = i + 1
+    let label = move_name(q, slot)
+    if slot == "z" and active_until(p.stolen_until) then label = "🖐" + quirk_info(p.stolen).z end
+    let bg = q.color
+    if active_until(p.cd[slot]) then
+      label = label + " " + ceil(p.cd[slot] - time())
+      bg = "#374151"
+    end
+    if slot == "u" then
+      if mastery_level(p, q.id) < 2 then
+        label = "🔒 " + label
+        bg = "#1F2937"
+      elif (p.limit or 0) >= 100 then
+        label = "🔥 " + label
+        bg = "#DC2626"
+      else
+        bg = "#4B5563"
+      end
+    end
+    let key = label + bg
+    if p.btn[slot] != key then
+      p.btn[slot] = key
+      p.ui_button("mv_" + slot, label, {at: "bottom_right", dx: -110 - (i - 1) * 124, dy: -170, w: 118, h: 58, size: 13, bg: bg,
+                                       color: "#FFFFFF", radius: 14})
+    end
+  end
+end
+
+func show_bars(p)
+  if not ready(p) then return end
+  let me = max_energy(p)
+  let e = floor(p.energy)
+  let l = floor(p.limit or 0)
+  if p.bar_e != e or p.bar_me != me then
+    p.bar_e = e
+    p.bar_me = me
+    p.ui_bar("energy", {at: "bottom", dy: -28, w: 260, h: 12, value: e, max: me, color: "#38BDF8", bg: "#00000099"})
+  end
+  if p.bar_l != l then
+    p.bar_l = l
+    let col = "#F97316"
+    if l >= 100 then col = "#EF4444" end
+    p.ui_bar("limit", {at: "bottom", dy: -46, w: 260, h: 8, value: l, max: 100, color: col, bg: "#00000099"})
+  end
+  move_buttons(p)
+end
+
+on button(p, id)
+  if id == "mv_z" then use_move(p, "z")
+  elif id == "mv_x" then use_move(p, "x")
+  elif id == "mv_u" then use_move(p, "u")
+  end
+end

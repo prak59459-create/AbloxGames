@@ -1,0 +1,388 @@
+-- combat.absc — 戦いのしくみ
+-- だれがだれを攻撃できるか・ダメージの計算・範囲/ビーム/円すい・やけど/こおり・
+-- 気力・限界ゲージ・熟練度・経験値とレベル・たおしたときのごほうび（PvP・懸賞金）
+
+let blackout_until = 0
+
+-- 分身ならその持ち主（プレイヤー）
+func owner_of(a)
+  if a == nil then return nil end
+  if a.is_npc and a.owner != nil then
+    let o = player_by_id(a.owner)
+    if o != nil then return o end
+  end
+  return a
+end
+
+-- a が v を攻撃できるか
+func can_hurt(a, v)
+  if a == nil or v == nil or not kit_here(v) or not v.alive or a.id == v.id then return false end
+  if v.kind == "civ" or a.kind == "civ" then return false end
+  let o = owner_of(a)
+  if o.id == v.id then return false end
+  -- 試験中は、受けている人とロボットだけの世界
+  if v.kind == "robot" then return exam != nil and o.id == exam.pid end
+  if a.kind == "robot" then return exam != nil and v.id == exam.pid end
+  if exam != nil and (v.id == exam.pid or o.id == exam.pid) then return false end
+  -- 怪人と手下はみんなの敵
+  if v.kind == "kaijin" or v.kind == "minion" then return a.kind != "kaijin" and a.kind != "minion" end
+  if a.kind == "kaijin" or a.kind == "minion" then return true end
+  -- 陣営を選んでいない人は戦わない
+  if not v.is_npc and v.team == nil then return false end
+  if not o.is_npc and o.team == nil then return false end
+  if o.team != nil and o.team == v.team then return false end
+  return true
+end
+
+-- MARK: 強さ
+
+func mastery_level(p, id)
+  if p.mxp == nil or id == nil then return 0 end
+  let x = p.mxp[id] or 0
+  let lv = 0
+  for need in MASTERY_NEED do
+    if x >= need then lv = lv + 1 end
+  end
+  return lv
+end
+
+-- プレイヤーの技の倍率
+func power_mult(p)
+  let q = quirk_info(p.quirk)
+  let ml = mastery_level(p, q.id)
+  let m = (1 + p.level * 0.025) * (1 + stat(p, "power") * 0.03) * (1 + gear_level(p, "glove") * 0.08)
+  m = m * RARITY_POWER[q.rarity] * (1 + ml * 0.08)
+  if q.id == "inherit" then m = m * (1 + ml * 0.05) end
+  if active_until(p.buff_until) then m = m * 1.5 end
+  if active_until(p.steal_buff) then m = m * 1.3 end
+  if p.team == "villain" and active_until(blackout_until) then m = m * 1.3 end
+  return m
+end
+
+func cooldown_mult(p)
+  return max(0.6, 1 - gear_level(p, "visor") * 0.07)
+end
+
+func refresh_body(p)
+  if not ready(p) then return end
+  let hp = 100 + p.level * 6 + stat(p, "tough") * 8 + gear_level(p, "suit") * 30
+  if p.max_health != hp then
+    let full = p.health >= p.max_health
+    p.max_health = hp
+    if full then p.heal(hp) end
+  end
+  let sp = 1 + min(30, stat(p, "speed")) * 0.015 + gear_level(p, "boots") * 0.06
+  if active_until(p.haste_until) then sp = sp * 2 end
+  if active_until(p.buff_until) then sp = sp * 1.3 end
+  if active_until(p.sneak_until) then sp = sp * 1.5 end
+  if p.speed != sp then p.speed = sp end
+  let jp = 1 + gear_level(p, "boots") * 0.12
+  if p.jump != jp then p.jump = jp end
+  let gr = 1
+  if active_until(p.float_until) then gr = 0.25 end
+  if p.gravity != gr then p.gravity = gr end
+end
+
+func max_energy(p)
+  return 100 + stat(p, "stamina") * 5
+end
+
+-- MARK: ダメージ
+
+-- だれがどれだけ当てたか（怪人の分け前・事件の手伝い）
+func note_hit(o, v, dmg)
+  if not v.is_npc or o.is_npc then return end
+  if v.dmg_by != nil then v.dmg_by[o.id] = (v.dmg_by[o.id] or 0) + dmg end
+  if v.incident_id != nil and incident != nil and incident.uid == v.incident_id then incident.helpers[o.id] = true end
+end
+
+func gain_limit(p, amount)
+  if p.is_npc or not ready(p) then return end
+  p.limit = min(100, (p.limit or 0) + amount)
+end
+
+func gain_mastery(p, amount)
+  if p.is_npc or not ready(p) or p.quirk == nil then return end
+  let before = mastery_level(p, p.quirk)
+  p.mxp[p.quirk] = (p.mxp[p.quirk] or 0) + amount
+  let after_lv = mastery_level(p, p.quirk)
+  if after_lv > before then
+    p.message("✨ " + quirk_info(p.quirk).name + " の熟練度が " + after_lv + " になった！", 2.5)
+    p.sound("checkpoint")
+    if after_lv == 2 then p.message("🔓 限界突破技「" + quirk_info(p.quirk).u + "」が使えるようになった！", 3) end
+    kit_quest_progress(p, "mastery3", after_lv - before)
+    hud(p)
+  end
+end
+
+-- a が v に amount のダメージ。effect: "freeze" "burn" "stun" "lift" "knock"
+func hurt(a, v, amount, effect, power)
+  if not can_hurt(a, v) then return 0 end
+  let o = owner_of(a)
+  let dmg = amount
+  if active_until(v.hard_until) then
+    dmg = dmg * 0.25
+    if active_until(v.reflect_until) and kit_here(a) and a.alive and can_hurt(v, a) then a.damage(amount * 0.4, v) end
+  end
+  if not v.is_npc then dmg = dmg * (1 - min(0.3, stat(v, "tough") * 0.004)) end
+  if v.kind == "kaijin" and active_until(v.shield_until) then dmg = dmg * 0.3 end
+  note_hit(o, v, dmg)
+  gain_limit(o, dmg * 0.3)
+  gain_limit(v, dmg * 0.45)
+  if not o.is_npc and a.id == o.id then gain_mastery(o, 0.5) end
+  -- 位置はダメージの前に（たおれたNPCはいなくなる）
+  let from = a.position
+  v.damage(dmg, a)
+  if kit_here(v) and v.alive and effect != nil then apply_effect(o, v, effect, power or 0, from, dmg) end
+  return dmg
+end
+
+func freeze_for(v, seconds)
+  v.frozen_until = max(v.frozen_until or 0, time() + seconds)
+  v.frozen = true
+  after(seconds + 0.05, func()
+    if kit_here(v) and v.alive and time() >= (v.frozen_until or 0) then v.frozen = false end
+  end)
+end
+
+func apply_effect(o, v, effect, power, from, dmg)
+  if effect == "freeze" then
+    freeze_for(v, max(0.8, power))
+    fx_ball(v.position + {x: 0, y: 1, z: 0}, 2.2, "#BAE6FD", 0.5)
+  elif effect == "stun" then
+    freeze_for(v, max(0.3, power))
+  elif effect == "burn" then
+    v.burn_until = time() + 3
+    v.burn_by = o.id
+    v.burn_dmg = max(2, dmg * 0.12)
+  elif effect == "lift" then
+    v.launch(0, max(4, power), 0)
+  elif effect == "knock" then
+    let d = v.position - from
+    let flat = normalize({x: d.x, y: 0, z: d.z})
+    v.launch(flat.x * power, 5, flat.z * power)
+  end
+end
+
+-- MARK: 攻撃の形
+
+-- center から radius 以内
+func area(p, center, radius, amount, effect, power)
+  let n = 0
+  for c in kit_everyone() do
+    if kit_here(c) and c.alive and distance(center, c) <= radius and can_hurt(p, c) then
+      hurt(p, c, amount, effect, power)
+      n = n + 1
+    end
+  end
+  hit_generators(p, center, radius, amount)
+  return n
+end
+
+-- from から dir へ len、太さ width
+func beam(p, from, dir, len, width, amount, effect, power, color)
+  fx_beam(from + dir * 0.5, dir, len, color or "#FFFFFF", min(width, 3))
+  let n = 0
+  for c in kit_everyone() do
+    if kit_here(c) and c.alive and can_hurt(p, c) and beam_distance(c.position + {x: 0, y: 1, z: 0}, from, dir, len) <= width then
+      hurt(p, c, amount, effect, power)
+      n = n + 1
+    end
+  end
+  for g in generators() do
+    if beam_distance(g.position, from, dir, len) <= width + 1.3 then hit_generator(p, g, amount) end
+  end
+  return n
+end
+
+-- 前の円すい（dot_min: 0.5 で左右60°）
+func cone(p, reach, dot_min, amount, effect, power)
+  let n = 0
+  for c in kit_everyone() do
+    if kit_here(c) and c.alive and can_hurt(p, c) and distance(p, c) <= reach then
+      let d = c.position - p.position
+      let flat = normalize({x: d.x, y: 0, z: d.z})
+      let fl = flat_look(p)
+      if distance(p, c) < 1.2 or flat.x * fl.x + flat.z * fl.z >= dot_min then
+        hurt(p, c, amount, effect, power)
+        n = n + 1
+      end
+    end
+  end
+  hit_generators(p, p.position + flat_look(p) * (reach / 2), reach / 2 + 1, amount)
+  return n
+end
+
+func nearest_enemy(p, range)
+  let best = nil
+  let best_d = range
+  for c in kit_everyone() do
+    if kit_here(c) and c.alive and can_hurt(p, c) and c.visible then
+      let d = distance(p, c)
+      if d < best_d then
+        best = c
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func enemies_near(p, center, range)
+  return filter(kit_everyone(), func(c) return kit_here(c) and c.alive and can_hurt(p, c) and distance(center, c) <= range end)
+end
+
+-- 見ているところ（かべがあればその手前）
+func aim_point(p, range)
+  let eye = p.position + {x: 0, y: 1.4, z: 0}
+  let r = raycast(p, p.look, range)
+  if r != nil and r.point != nil then return r.point - p.look * 0.5 end
+  return eye + p.look * range
+end
+
+func eye_of(p)
+  return p.position + {x: 0, y: 1.4, z: 0}
+end
+
+-- MARK: 経験値とレベル
+
+func gain_xp(p, amount)
+  if not kit_here(p) or not ready(p) or p.level >= MAX_LEVEL then return end
+  p.xp = p.xp + floor(amount)
+  let ups = 0
+  while p.xp >= kit_level_need(p.level) and p.level < MAX_LEVEL do
+    p.xp = p.xp - kit_level_need(p.level)
+    p.level = p.level + 1
+    p.points = p.points + 3
+    ups = ups + 1
+    if p.level % 5 == 0 then
+      p.tickets = p.tickets + 1
+      p.message("🎟 レベル " + p.level + " で個性チケット +1", 2.5)
+    end
+  end
+  if ups > 0 then
+    refresh_body(p)
+    p.heal(p.max_health)
+    p.message("⬆️ レベル " + p.level + "！ ステータスポイント +" + ups * 3 + "（📊 で割りふろう）", 3)
+    p.sound("goal")
+    fx_ball(p.position + {x: 0, y: 1, z: 0}, 4, "#FDE047", 0.6)
+    if floor(p.level / 10) > floor((p.level - ups) / 10) then announce("⭐ " + p.name + " がレベル " + p.level + " になった！", 3) end
+    kit_quest_progress(p, "lv10", ups)
+    kit_quest_progress(p, "lv30", ups)
+    if p.stat_open then stat_menu(p) end
+  end
+  kit_show_level(p)
+  hud(p)
+end
+
+func reward(p, xp, coins, why)
+  if not kit_here(p) or not ready(p) then return end
+  let c = floor(coins * pay_mult(p))
+  kit_give(p, c)
+  gain_xp(p, xp)
+  if why != nil then p.message(why + "  +" + kit_short(xp) + " XP  🪙+" + kit_short(c), 1.8) end
+end
+
+func add_hero_pts(p, n)
+  if p.team != "hero" then return end
+  let before = rank_of(p)
+  p.hero_pts = (p.hero_pts or 0) + n
+  let now = rank_of(p)
+  if now.name != before.name then
+    announce("🦸 " + p.name + " が「" + now.name + "」になった！", 3)
+    kit_quest_progress(p, "rank", 1)
+  end
+  p.score = p.hero_pts
+  hud(p)
+end
+
+func add_fame(p, n)
+  if p.team != "villain" then return end
+  let before = rank_of(p)
+  p.fame = (p.fame or 0) + n
+  let now = rank_of(p)
+  if now.name != before.name then
+    announce("🦹 " + p.name + " が「" + now.name + "」になった…", 3)
+    kit_quest_progress(p, "rank", 1)
+  end
+  p.score = p.fame
+  hud(p)
+end
+
+-- 懸賞金: 悪名の高いヴィランほど高い
+func bounty_of(v)
+  if v.team != "villain" or (v.fame or 0) < 100 then return 0 end
+  return 50 + floor(v.fame / 5)
+end
+
+-- MARK: 毎0.5びょう: 気力・やけど・オーラ・回復
+
+let body_clock = 0
+
+on tick(dt)
+  body_clock = body_clock + dt
+  if body_clock < 0.5 then return end
+  body_clock = 0
+  for p in players() do
+    if ready(p) then
+      let me = max_energy(p)
+      if p.energy < me then
+        p.energy = min(me, p.energy + (4 + stat(p, "stamina") * 0.25))
+      end
+      if active_until(p.regen_until) and p.alive then p.heal(p.max_health * 0.04) end
+      if active_until(p.aura_until) and p.alive then area(p, p.position, 3.8, p.aura_dmg, "stun", 0.2) end
+      refresh_body(p)
+      show_bars(p)
+    end
+  end
+  for c in kit_everyone() do
+    if kit_here(c) and c.alive and active_until(c.burn_until) then
+      let by = player_by_id(c.burn_by)
+      if by != nil then hurt(by, c, c.burn_dmg, nil, 0) else c.damage(c.burn_dmg) end
+      if kit_here(c) and c.alive and random() < 0.5 then fx_ball(c.position + {x: 0, y: 1.2, z: 0}, 1.2, "#F97316", 0.3) end
+    end
+  end
+end
+
+-- MARK: 武器（パンチ）の当たり
+
+on hit(victim, attacker, damage)
+  if not can_hurt(attacker, victim) then return 0 end
+  let dmg = damage
+  if not attacker.is_npc and ready(attacker) then
+    dmg = dmg * (1 + attacker.level * 0.025) * (1 + stat(attacker, "power") * 0.03)
+    gain_limit(attacker, dmg * 0.3)
+  end
+  if active_until(victim.hard_until) then dmg = dmg * 0.25 end
+  if victim.kind == "kaijin" and active_until(victim.shield_until) then dmg = dmg * 0.3 end
+  note_hit(owner_of(attacker), victim, dmg)
+  gain_limit(victim, dmg * 0.45)
+  return dmg
+end
+
+-- MARK: たおしたとき（プレイヤーどうし）
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  let k = owner_of(killer)
+  victim.limit = 0
+  victim.burn_until = 0
+  if k == nil or k.is_npc or k.id == victim.id or not ready(k) then return end
+  if k.team == "hero" and victim.team == "villain" then
+    let b = bounty_of(victim)
+    reward(k, 80 + victim.level * 4, 60 + b, "🦹 ヴィランをたおした")
+    add_hero_pts(k, 8 + floor(b / 10))
+    if b > 0 then announce("💰 " + k.name + " が " + victim.name + " の懸賞金 🪙" + b + " を手に入れた！", 3) end
+    victim.fame = max(0, floor((victim.fame or 0) * 0.9))
+    kit_quest_progress(k, "pvp10", 1)
+    if victim.heisting != nil then
+      k.message("🚨 強盗を止めた！", 1.5)
+      add_hero_pts(k, 10)
+    end
+  elif k.team == "villain" and victim.team == "hero" then
+    reward(k, 80 + victim.level * 4, 60, "🦸 ヒーローをたおした")
+    add_fame(k, 12)
+    kit_quest_progress(k, "pvp10", 1)
+  end
+  hud(victim)
+end

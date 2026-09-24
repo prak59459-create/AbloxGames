@@ -1,0 +1,154 @@
+-- common.absc — 小さな道具・エフェクト・画面の左上
+
+func ready(p)
+  return p.owned != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quirk_info(id)
+  for q in QUIRKS do
+    if q.id == id then return q end
+  end
+  return QUIRKS[1]
+end
+
+func stat(p, key)
+  if p.stats == nil then return 0 end
+  return p.stats[key] or 0
+end
+
+func gear_level(p, id)
+  if p.gear == nil then return 0 end
+  return p.gear[id] or 0
+end
+
+-- MARK: エフェクト
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func fx_ring(pos, radius, color, seconds)
+  let b = create_block({name: "FX", shape: "cylinder", position: {x: pos.x, y: pos.y + 0.08, z: pos.z},
+                        size: {x: radius * 2, y: 0.1, z: radius * 2}, color: color, material: "neon", solid: false, opacity: 0.45})
+  after(seconds or 0.6, func() gone(b) end)
+  return b
+end
+
+func fx_warning(pos, radius, seconds)
+  return fx_ring(pos, radius, "#EF4444", seconds)
+end
+
+func fx_beam(from, dir, len, color, width)
+  let mid = from + dir * (len / 2)
+  let yaw = atan2(dir.x, dir.z)
+  let b = create_block({name: "FX", shape: "box", position: mid, size: {x: width or 0.7, y: width or 0.7, z: len},
+                        rotation: {x: 0, y: yaw, z: 0}, color: color, material: "neon", solid: false, opacity: 0.7})
+  after(0.35, func() gone(b) end)
+end
+
+-- 点から線分までのきょり（ビームの当たり判定）
+func beam_distance(point, from, dir, len)
+  let rel = point - from
+  let along = rel.x * dir.x + rel.y * dir.y + rel.z * dir.z
+  if along < 0 or along > len then return 999 end
+  let closest = from + dir * along
+  return distance(point, closest)
+end
+
+-- 水平な向き（上下を見ていても地面にそって進む）
+func flat_look(p)
+  let d = {x: p.look.x, y: 0, z: p.look.z}
+  if abs(d.x) + abs(d.z) < 0.01 then return {x: 0, y: 0, z: 1} end
+  return normalize(d)
+end
+
+-- MARK: ランク
+
+func rank_of(p)
+  let list = HERO_RANKS
+  let pts = p.hero_pts or 0
+  if p.team == "villain" then
+    list = VILLAIN_RANKS
+    pts = p.fame or 0
+  end
+  let r = list[1]
+  for x in list do
+    if pts >= x.need then r = x end
+  end
+  return r
+end
+
+func next_rank(p)
+  let list = HERO_RANKS
+  let pts = p.hero_pts or 0
+  if p.team == "villain" then
+    list = VILLAIN_RANKS
+    pts = p.fame or 0
+  end
+  for x in list do
+    if pts < x.need then return x end
+  end
+  return nil
+end
+
+func license_name(p)
+  if (p.license or 0) == 0 then return "" end
+  return EXAMS[p.license].badge + " "
+end
+
+func pay_mult(p)
+  if (p.license or 0) == 0 then return 1 end
+  return EXAMS[p.license].pay
+end
+
+-- MARK: 画面の左上
+
+func hud(p)
+  if not ready(p) then return end
+  let q = quirk_info(p.quirk)
+  let side = "🦸"
+  let pts = "⭐ " + kit_short(p.hero_pts or 0)
+  let color = "#93C5FD"
+  if p.team == "villain" then
+    side = "🦹"
+    pts = "😈 " + kit_short(p.fame or 0)
+    color = "#FCA5A5"
+  end
+  if p.team == nil then side = "❔" end
+  let r = rank_of(p)
+  let line2 = side + " " + license_name(p) + r.name + "   " + pts
+  let nx = next_rank(p)
+  if nx != nil then line2 = line2 + " / " + kit_short(nx.need) end
+  p.ui_text("hud", line2, {at: "top_left", dy: 72, size: 14, bold: true, color: color})
+  p.ui_text("hud_q", q.name + " 熟練度 " + mastery_level(p, q.id) + "   🎟 " + p.tickets + "   📊 " + p.points,
+            {at: "top_left", dy: 92, size: 13, bold: true, color: q.color})
+end

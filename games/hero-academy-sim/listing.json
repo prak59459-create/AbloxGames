@@ -1,14 +1,24 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 164,
+  "blockCount" : 251,
   "id" : "hero-academy-sim",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/hero-academy-sim\/data.absc",
+    "games\/hero-academy-sim\/combat.absc",
+    "games\/hero-academy-sim\/common.absc",
+    "games\/hero-academy-sim\/exam.absc",
+    "games\/hero-academy-sim\/incidents.absc",
+    "games\/hero-academy-sim\/kaijin.absc",
+    "games\/hero-academy-sim\/menus.absc",
+    "games\/hero-academy-sim\/npcs.absc",
+    "games\/hero-academy-sim\/quirks.absc",
+    "games\/hero-academy-sim\/villains.absc",
     "games\/hero-academy-sim\/main.absc"
   ],
-  "summary" : "ヒーローかヴィランか。ガチャで個性（能力）を引いて、事件を解決したり起こしたり。レベルを上げて最強をめざせ。",
+  "summary" : "ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。",
   "tags" : [
     "heroes",
     "rpg",

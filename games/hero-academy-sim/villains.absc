@@ -1,0 +1,258 @@
+-- villains.absc — ヴィランの仕事
+-- 金庫やぶり（銀行・宝石店・美術館: その場にいつづける。警備ヒーローが来る）、
+-- 発電所の破壊（3台ぜんぶ止めると街が停電。ヴィランが強くなる。ヒーローは修理で止められる）、
+-- パトロールヒーロー（ヴィランがいると街を見回る）。
+
+let GEN_NAMES = ["Generator 1", "Generator 2", "Generator 3"]
+let gen_hp = {}
+let gen_fix = {}
+let gen_dmg_by = {}
+let vault_cd = {}
+let vil_clock = 0
+let generators_ready_at = 0   -- 停電のあとしばらくは発電機が強化されている
+let patrol_clock = 0
+
+func generators()
+  return filter(map(GEN_NAMES, func(n) return block(n) end), func(b) return b != nil end)
+end
+
+func reset_generators()
+  for g in generators() do
+    gen_hp[g.name] = GENERATOR_HP
+    gen_fix[g.name] = 0
+    g.color = "#FDE047"
+  end
+  gen_dmg_by = {}
+end
+
+func vault_key(b)
+  if starts_with(b.name, "Bank") then return "銀行" end
+  if starts_with(b.name, "Jewelry") then return "宝石店" end
+  return "美術館"
+end
+
+func guard_post(key)
+  if key == "銀行" then return block("Guard Post 1") end
+  if key == "宝石店" then return block("Guard Post 2") end
+  return block("Guard Post 3")
+end
+
+-- MARK: 発電機
+
+func hit_generator(p, g, amount)
+  let o = owner_of(p)
+  if o == nil or o.is_npc or o.team != "villain" or active_until(blackout_until) then return end
+  if time() < generators_ready_at then
+    if quiet_ready(o, "gen_locked", 4) then o.message("🛡 発電機は強化中（あと " + ceil(generators_ready_at - time()) + " びょう）", 1.5) end
+    return
+  end
+  let hp = gen_hp[g.name] or GENERATOR_HP
+  if hp <= 0 then return end
+  hp = max(0, hp - amount)
+  gen_hp[g.name] = hp
+  gen_dmg_by[o.id] = (gen_dmg_by[o.id] or 0) + amount
+  if hp <= 0 then
+    g.color = "#27272A"
+    fx_ball(g.position + {x: 0, y: 2, z: 0}, 6, "#FACC15", 0.5)
+    announce("⚡ 発電機が1台止まった！（のこり " + len(filter(generators(), func(x) return (gen_hp[x.name] or 0) > 0 end)) + "）", 2)
+    if len(filter(generators(), func(x) return (gen_hp[x.name] or 0) > 0 end)) == 0 then start_blackout() end
+  elif random() < 0.3 then
+    g.color = "#F59E0B"
+  end
+end
+
+func hit_generators(p, center, radius, amount)
+  for g in generators() do
+    if distance(center, g.position) <= radius + 1.3 then hit_generator(p, g, amount) end
+  end
+end
+
+func start_blackout()
+  blackout_until = time() + BLACKOUT_SECS
+  world.light = 0.12
+  world.sky_top = "#020617"
+  world.sky_bottom = "#1E1B4B"
+  announce("🌑 停電！ 街が闇につつまれた… ヴィランの力が 1.3倍！（ヒーローは発電所で修理できる）", 4)
+  for p in villains() do
+    if (gen_dmg_by[p.id] or 0) > 0 then
+      reward(p, 200, 200, "🌑 停電を起こした")
+      add_fame(p, 30)
+      kit_quest_progress(p, "blackout", 1)
+    end
+  end
+  for g in generators() do gen_fix[g.name] = 0 end
+end
+
+func end_blackout(fixed)
+  blackout_until = 0
+  generators_ready_at = time() + 90
+  world.light = 0.75
+  world.sky_top = "#5AB2FF"
+  world.sky_bottom = "#CDEBFF"
+  reset_generators()
+  if fixed then
+    announce("💡 ヒーローたちが発電所を直した！ 街に明かりがもどった", 3)
+  else
+    announce("💡 停電が終わった", 2)
+  end
+end
+
+func generator_step()
+  if active_until(blackout_until) then
+    -- ヒーローが近くにいると修理が進む（1台6びょう）
+    for g in generators() do
+      if (gen_fix[g.name] or 0) < 6 then
+        for p in heroes() do
+          if p.alive and distance(p, g.position) < 4 then
+            gen_fix[g.name] = (gen_fix[g.name] or 0) + 0.5
+            p.ui_bar("fix", {at: "center", dy: 90, w: 220, h: 14, value: gen_fix[g.name], max: 6, color: "#FDE047", bg: "#00000099"})
+            if gen_fix[g.name] >= 6 then
+              g.color = "#FDE047"
+              p.ui_remove("fix")
+              reward(p, 80, 60, "🔧 発電機を修理")
+              add_hero_pts(p, 8)
+            end
+          end
+        end
+      end
+    end
+    if len(filter(generators(), func(g) return (gen_fix[g.name] or 0) < 6 end)) == 0 then end_blackout(true) end
+  elif blackout_until != 0 then
+    end_blackout(false)
+  else
+    -- 止まっていない発電機は、ヒーローが近くにいると少しずつ直る
+    for g in generators() do
+      let hp = gen_hp[g.name] or GENERATOR_HP
+      if hp < GENERATOR_HP then
+        for p in heroes() do
+          if p.alive and distance(p, g.position) < 4 then hp = min(GENERATOR_HP, hp + 25) end
+        end
+        gen_hp[g.name] = hp
+        if hp >= GENERATOR_HP then g.color = "#FDE047" end
+      end
+    end
+  end
+end
+
+-- MARK: 金庫やぶり
+
+func start_heist(p, b)
+  let key = vault_key(b)
+  if active_until(vault_cd[key]) then
+    if quiet_ready(p, "vault_msg", 3) then p.message("🔒 " + key + "は警戒中（あと " + ceil(vault_cd[key] - time()) + " びょう）", 1.5) end
+    return
+  end
+  for q in villains() do
+    if q.heisting != nil and q.heisting.key == key then
+      p.message("仲間が " + key + " をやぶっている。守ってあげよう", 1.5)
+      return
+    end
+  end
+  p.heisting = {b: b, key: key, t: 0}
+  p.message("💰 " + key + "をやぶっている… 金庫の近くにいつづけろ！", 2)
+  for h in heroes() do
+    h.message("🚨 " + key + "で強盗発生！ " + p.name + " を止めろ！", 3)
+    h.sound("tick")
+  end
+  -- 警備ヒーローがかけつける
+  let post = guard_post(key)
+  if post != nil then
+    for i in 1 to 2 do
+      let g = create_npc({name: "警備ヒーロー", position: post.position + {x: i * 2 - 3, y: 1, z: 0}, color: "#1E40AF",
+                          head_color: "#FDE68A", health: 130 * npc_scale(), speed: 0.9, team: "hero"})
+      g.kind = "guard"
+      g.home = post.position
+      g.next_shot = time() + 2
+      g.give("police_gun")
+      after(45, func() gone(g) end)
+    end
+  end
+end
+
+func heist_step(p)
+  let h = p.heisting
+  let v = VAULTS[h.key]
+  if not p.alive or distance(p, h.b.position) > 4.5 then
+    p.heisting = nil
+    p.ui_remove("heist")
+    p.message("❌ 金庫からはなれた… 失敗", 1.5)
+    vault_cd[h.key] = time() + 10
+    return
+  end
+  h.t = h.t + 0.5
+  p.ui_bar("heist", {at: "center", dy: 90, w: 260, h: 16, value: h.t, max: v.secs, color: "#FACC15", bg: "#00000099"})
+  if h.t >= v.secs then
+    p.heisting = nil
+    p.ui_remove("heist")
+    vault_cd[h.key] = time() + VAULT_COOLDOWN
+    reward(p, v.xp, v.coins, "💰 " + h.key + "から盗んだ")
+    add_fame(p, v.fame)
+    kit_quest_progress(p, "rob3", 1)
+    kit_quest_progress(p, "rob15", 1)
+    announce("💰 " + p.name + " が" + h.key + "の金庫をやぶった！", 3)
+    fx_ball(h.b.position + {x: 0, y: 1, z: 0}, 5, "#FACC15", 0.6)
+  end
+end
+
+-- MARK: パトロール
+
+func patrol_step()
+  let vs = len(villains())
+  if vs == 0 then
+    for n in npcs() do
+      if n.kind == "patrol" then gone(n) end
+    end
+    return
+  end
+  let count = len(filter(npcs(), func(n) return n.kind == "patrol" end))
+  if count < min(4, vs * 2) then
+    let spot = block("Incident " + random(1, 6))
+    if spot == nil then return end
+    let n = create_npc({name: "パトロールヒーロー", position: spot.position + {x: 0, y: 1, z: 0}, color: "#1D4ED8",
+                        head_color: "#FDE68A", health: 150 * npc_scale(), speed: 0.85, team: "hero"})
+    n.kind = "patrol"
+    n.home = spot.position
+    n.next_shot = time() + 2
+    n.next_wander = 0
+    n.give("police_gun")
+  end
+end
+
+-- MARK: 毎0.5びょう
+
+on tick(dt)
+  vil_clock = vil_clock + dt
+  if vil_clock < 0.5 then return end
+  vil_clock = 0
+  for p in villains() do
+    if p.heisting != nil then heist_step(p) end
+  end
+  generator_step()
+  if active_until(blackout_until) then
+    ui_text("blackout", "🌑 停電中 " + ceil(blackout_until - time()) + "s（発電所を直せば終わる）", {at: "top", dy: 50, size: 14, bold: true, color: "#FDE047"})
+  else
+    ui_remove("blackout")
+  end
+  patrol_clock = patrol_clock + 0.5
+  if patrol_clock >= 15 then
+    patrol_clock = 0
+    patrol_step()
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "vault") then
+    if p.team == "villain" and p.heisting == nil then start_heist(p, b)
+    elif p.team == "hero" and quiet_ready(p, "vault_hint", 6) then p.message("🦸 ここはヴィランがねらう金庫。見張っておこう", 1.5)
+    end
+  end
+end
+
+on death(victim, killer)
+  if not victim.is_npc or (victim.kind != "patrol" and victim.kind != "guard") then return end
+  let k = owner_of(killer)
+  if k == nil or k.is_npc or not ready(k) then return end
+  reward(k, 45, 40, "🦸 ヒーローをたおした")
+  add_fame(k, 5)
+end

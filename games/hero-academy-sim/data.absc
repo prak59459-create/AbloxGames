@@ -1,0 +1,109 @@
+-- data.absc — Hero Academy Sim の表
+-- 個性16（レア度つき・技3つ）・ステータス・ランク・試験・事件・サポートアイテム
+
+-- MARK: 個性
+-- z: すぐ使える技 / x: 強い技 / u: 限界突破（ゲージMAX・熟練度2から）
+-- cz, cx: 待ち時間（びょう） ez, ex: 使う気力
+let QUIRKS = [
+  {id: "blast", name: "💥 爆破", rarity: "コモン", weight: 14, color: "#F97316",
+   z: "爆破ショット", x: "爆速ターボ", u: "大爆破ハウザー", cz: 2.2, cx: 7, ez: 14, ex: 28, text: "手のひらで爆発を起こす"},
+  {id: "ice", name: "🧊 氷結", rarity: "コモン", weight: 14, color: "#7DD3FC",
+   z: "氷の道", x: "氷壁", u: "絶対零度", cz: 2.5, cx: 8, ez: 14, ex: 26, text: "前の相手をこおらせる。火も消せる"},
+  {id: "might", name: "💪 怪力", rarity: "コモン", weight: 14, color: "#EF4444",
+   z: "剛腕パンチ", x: "地割れ", u: "全力スマッシュ", cz: 1.8, cx: 7, ez: 12, ex: 30, text: "力こそすべて。ふっとばしが強い"},
+  {id: "gale", name: "🌪 疾風", rarity: "コモン", weight: 12, color: "#A3E635",
+   z: "疾風ステップ", x: "竜巻", u: "神速", cz: 2, cx: 8, ez: 10, ex: 26, text: "風のように走る"},
+  {id: "volt", name: "⚡ 電撃", rarity: "コモン", weight: 12, color: "#FACC15",
+   z: "放電", x: "雷の槍", u: "百万ボルト", cz: 2.4, cx: 7, ez: 14, ex: 28, text: "電気が次々に飛び移る"},
+  {id: "warp", name: "🌀 ワープ", rarity: "レア", weight: 7, color: "#818CF8",
+   z: "瞬間移動", x: "背後取り", u: "次元の門", cz: 2, cx: 7, ez: 12, ex: 24, text: "見ている方向へ一瞬で移動"},
+  {id: "harden", name: "🪨 硬化", rarity: "レア", weight: 7, color: "#78716C",
+   z: "硬化", x: "硬化突進", u: "不壊の城", cz: 6, cx: 7, ez: 16, ex: 26, text: "体を石のようにかたくする"},
+  {id: "fire", name: "🔥 炎", rarity: "レア", weight: 7, color: "#DC2626",
+   z: "火炎弾", x: "炎の柱", u: "灼熱地獄", cz: 2.4, cx: 8, ez: 14, ex: 28, text: "当たった相手はしばらく燃える"},
+  {id: "shadow", name: "🌑 影", rarity: "レア", weight: 6, color: "#4C1D95",
+   z: "影うち", x: "影隠れ", u: "影の手", cz: 2.2, cx: 9, ez: 12, ex: 24, text: "影にかくれて不意をつく"},
+  {id: "double", name: "👥 ダブル", rarity: "エピック", weight: 3.5, color: "#F472B6",
+   z: "分身", x: "分身爆弾", u: "百人組手", cz: 5, cx: 9, ez: 20, ex: 26, text: "分身をつくって戦わせる"},
+  {id: "gravity", name: "🪐 無重力", rarity: "エピック", weight: 3.5, color: "#C4B5FD",
+   z: "浮遊", x: "無重力ジャンプ", u: "重力崩壊", cz: 2.6, cx: 9, ez: 14, ex: 20, text: "さわった相手を宙に浮かせる"},
+  {id: "heal", name: "💚 治癒", rarity: "エピック", weight: 3, color: "#4ADE80",
+   z: "治癒の光", x: "生命吸収", u: "再生の奇跡", cz: 4, cx: 7, ez: 18, ex: 24, text: "自分と仲間をなおす"},
+  {id: "halfhot", name: "❄️🔥 半冷半燃", rarity: "レジェンド", weight: 1, color: "#E11D48",
+   z: "氷炎", x: "大氷山", u: "大熱波", cz: 2, cx: 7, ez: 12, ex: 26, text: "右で凍らせ、左で燃やす"},
+  {id: "inherit", name: "✊ 継承", rarity: "レジェンド", weight: 0.9, color: "#16A34A",
+   z: "継承スマッシュ", x: "空気砲", u: "限界突破・継承", cz: 1.8, cx: 6, ez: 12, ex: 24, text: "受けつがれた力。つかうほど強くなる"},
+  {id: "steal", name: "🖐 奪取", rarity: "ミシック", weight: 0.25, color: "#111827",
+   z: "衝撃砲", x: "奪う", u: "集合体", cz: 2, cx: 8, ez: 12, ex: 22, text: "相手の力をうばって使う"},
+  {id: "star", name: "🌟 スター", rarity: "ミシック", weight: 0.25, color: "#FDE047",
+   z: "星くず", x: "流星", u: "超新星", cz: 1.8, cx: 6, ez: 10, ex: 22, text: "すべてが強い、伝説の個性"}
+]
+let RARITY_COLOR = {コモン: "#D1D5DB", レア: "#60A5FA", エピック: "#C084FC", レジェンド: "#FBBF24", ミシック: "#F43F5E"}
+let RARITY_POWER = {コモン: 1, レア: 1.1, エピック: 1.2, レジェンド: 1.35, ミシック: 1.5}
+
+-- 熟練度（使うほど上がる）: この経験値でレベル1〜5
+let MASTERY_NEED = [30, 100, 250, 600, 1400]
+let MAX_MASTERY = 5
+
+-- MARK: ステータス（レベルアップで3ポイント）
+let STAT_ORDER = ["power", "tough", "stamina", "speed"]
+let STAT_NAME = {power: "💪 パワー", tough: "🛡 タフネス", stamina: "⚡ スタミナ", speed: "👟 スピード"}
+let STAT_HELP = {power: "技のダメージ +3%", tough: "体力 +8", stamina: "気力の最大と回復", speed: "走る速さ +1.5%（30まで）"}
+let MAX_LEVEL = 100
+
+-- MARK: ランク
+let HERO_RANKS = [
+  {need: 0, name: "見習いヒーロー"},
+  {need: 100, name: "新人ヒーロー"},
+  {need: 400, name: "人気ヒーロー"},
+  {need: 1200, name: "トップ10ヒーロー"},
+  {need: 3000, name: "伝説のヒーロー"}
+]
+let VILLAIN_RANKS = [
+  {need: 0, name: "チンピラ"},
+  {need: 100, name: "ならず者"},
+  {need: 400, name: "指名手配犯"},
+  {need: 1200, name: "大悪党"},
+  {need: 3000, name: "闇の帝王"}
+]
+
+-- MARK: 昇格試験（ロボットを時間内に全部たおす）
+let EXAMS = [
+  {name: "仮免許試験", level: 5, bots: 6, big: 0, secs: 60, pay: 1.25, badge: "🎫 仮免許"},
+  {name: "プロ試験", level: 15, bots: 9, big: 1, secs: 75, pay: 1.5, badge: "🎖 プロ"},
+  {name: "特級試験", level: 30, bots: 12, big: 2, secs: 90, pay: 1.8, badge: "🏅 特級"}
+]
+
+-- MARK: 事件
+let INCIDENTS = [
+  {id: "robbery", name: "強盗", icon: "🚨", weight: 4},
+  {id: "fire", name: "火事", icon: "🔥", weight: 3},
+  {id: "hostage", name: "人質事件", icon: "🆘", weight: 2}
+]
+let INCIDENT_LIMIT = 100    -- これまでに解決しないと失敗
+let INCIDENT_GAP = 25       -- 次の事件まで
+
+-- MARK: 金庫（ヴィラン）
+let VAULTS = {
+  銀行: {secs: 9, coins: 260, fame: 30, xp: 70},
+  宝石店: {secs: 6, coins: 160, fame: 18, xp: 45},
+  美術館: {secs: 13, coins: 420, fame: 50, xp: 110}
+}
+let VAULT_COOLDOWN = 40
+let GENERATOR_HP = 500
+let BLACKOUT_SECS = 60
+
+-- MARK: 改造怪人（みんなで戦うボス）
+let KAIJIN_EVERY = 240
+let KAIJIN_FIRST = 150
+
+-- MARK: サポートアイテム（3段階）
+let GEAR = [
+  {id: "glove", name: "🥊 パワーグローブ", text: "ダメージ +8%", prices: [400, 1500, 5000]},
+  {id: "boots", name: "👟 ジェットブーツ", text: "速さ +6%・ジャンプ", prices: [350, 1300, 4500]},
+  {id: "suit", name: "🦺 強化スーツ", text: "体力 +30", prices: [400, 1500, 5000]},
+  {id: "visor", name: "🥽 集中バイザー", text: "待ち時間 -7%", prices: [500, 1800, 6000]}
+]
+let DRINK_PRICE = 60
+let KIT_PRICE = 90
+let TICKET_PRICE = 350

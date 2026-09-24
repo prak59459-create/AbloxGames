@@ -1,0 +1,272 @@
+-- menus.absc — 画面: 陣営えらび・個性ガチャ・ステータス・サポートアイテム
+
+let HERO_COLOR = "#1D4ED8"
+let VILLAIN_COLOR = "#7F1D1D"
+
+-- MARK: 陣営
+
+func side_panel(p)
+  p.ui_panel("side", {at: "center", w: 520, h: 230, bg: "#000000D8", radius: 22, layer: 30})
+  p.ui_text("side_t", "どちらになる？", {parent: "side", y: 0.14, size: 24, bold: true})
+  p.ui_text("side_h", "事件を解決・人を助ける・ヴィランをつかまえる", {parent: "side", x: 0.27, y: 0.38, size: 12, color: "#93C5FD"})
+  p.ui_text("side_v", "金庫やぶり・停電・ヒーローをたおす", {parent: "side", x: 0.73, y: 0.38, size: 12, color: "#FCA5A5"})
+  p.ui_button("side_hero", "🦸 ヒーロー", {parent: "side", x: 0.27, y: 0.62, w: 200, h: 62, size: 20, bg: "#2563EB"})
+  p.ui_button("side_villain", "🦹 ヴィラン", {parent: "side", x: 0.73, y: 0.62, w: 200, h: 62, size: 20, bg: "#B91C1C"})
+  p.ui_text("side_n", "（学園・アジトの白いパッドで、あとから変えられる）", {parent: "side", y: 0.88, size: 12, color: "#D1D5DB"})
+end
+
+func choose_side(p, team)
+  let first = p.team == nil
+  p.team = team
+  p.heisting = nil
+  p.ui_remove("heist")
+  if team == "hero" then p.own_color = p.hero_color or HERO_COLOR else p.own_color = p.villain_color or VILLAIN_COLOR end
+  p.color = p.own_color
+  p.ui_remove("side")
+  if team == "villain" then
+    let s = block("Villain Spawn " + random(1, 6))
+    if s != nil then p.teleport(s) end
+    p.message("🦹 ヴィランになった。金庫（黄・ピンク・緑のパッド）と発電所をねらえ！", 3)
+    p.score = p.fame or 0
+  else
+    let s = block("Spawn " + random(1, 6))
+    if s != nil then p.teleport(s) end
+    p.message("🦸 ヒーローになった。赤い光の柱（事件）へ向かおう！", 3)
+    p.score = p.hero_pts or 0
+  end
+  if first and len(p.owned) == 0 then
+    p.message("🎟 最初の個性ガチャは無料！", 2)
+    roll(p)
+  end
+  hud(p)
+  move_buttons(p)
+end
+
+func switch_panel(p)
+  let dest = "villain"
+  let label = "🦹 ヴィランになる"
+  if p.team == "villain" then
+    dest = "hero"
+    label = "🦸 ヒーローになる"
+  end
+  p.switch_to = dest
+  p.ui_panel("switch", {at: "center", w: 440, h: 170, bg: "#000000D8", radius: 20, layer: 30})
+  p.ui_text("switch_t", "陣営を変える？（ポイントは陣営ごとに残る）", {parent: "switch", y: 0.22, size: 15, bold: true})
+  p.ui_button("switch_yes", label, {parent: "switch", x: 0.3, y: 0.65, w: 180, h: 52, size: 16, bg: "#7C3AED"})
+  p.ui_button("switch_no", "やめる", {parent: "switch", x: 0.74, y: 0.65, w: 130, h: 52, size: 16, bg: "gray"})
+end
+
+-- MARK: 個性ガチャ
+
+func roll(p)
+  let q = kit_pick(QUIRKS, 1)
+  let is_new = not contains(p.owned, q.id)
+  -- くるくる回る演出
+  for k in 1 to 6 do
+    kit_later(p, k * 0.1, func()
+      p.ui_text("roll_fx", "🎰 " + random(QUIRKS).name, {at: "center", dy: -170, size: 24, bold: true, color: "#9CA3AF"})
+    end)
+  end
+  kit_later(p, 0.75, func()
+    p.ui_text("roll_fx", "🎰 " + q.name + "（" + q.rarity + "）", {at: "center", dy: -170, size: 28, bold: true, color: RARITY_COLOR[q.rarity]})
+    kit_later(p, 2, func() p.ui_remove("roll_fx") end)
+    if is_new then
+      append(p.owned, q.id)
+      equip(p, q.id)
+      p.message("✨ 新しい個性「" + q.name + "」！ " + q.text, 3)
+      kit_quest_progress(p, "collect5", 1)
+      if q.rarity == "レジェンド" or q.rarity == "ミシック" then
+        announce("🌟 " + p.name + " が" + q.rarity + "の個性「" + q.name + "」を手に入れた！", 4)
+        kit_badge(p, "legend_" + q.id, q.name)
+      end
+    else
+      p.mxp[q.id] = (p.mxp[q.id] or 0) + 60
+      kit_give(p, 80)
+      p.message("もう持っている → " + q.name + " の熟練度 +60・🪙80", 2)
+    end
+    if p.gacha_open then gacha_menu(p) end
+    hud(p)
+  end)
+end
+
+func equip(p, id)
+  p.quirk = id
+  p.cd = {}
+  p.btn = {}
+  p.stolen_until = 0
+  let q = quirk_info(id)
+  p.ui_text("quirk", q.name + " — " + q.text, {at: "top", dy: 100, size: 14, bold: true, color: q.color})
+  kit_later(p, 4, func() p.ui_remove("quirk") end)
+  move_buttons(p)
+  hud(p)
+end
+
+func gacha_menu(p)
+  p.gacha_open = true
+  let rows = ceil(len(p.owned) / 2)
+  let h = 190 + rows * 40
+  p.ui_panel("gacha", {at: "center", w: 620, h: h, bg: "#2E1065F2", radius: 22, layer: 30})
+  p.ui_text("gacha_t", "🎰 個性ガチャ（🎟 " + p.tickets + "・🪙 " + kit_short(kit_money(p)) + "）", {parent: "gacha", y: 26 / h, size: 19, bold: true, color: "#E9D5FF"})
+  p.ui_button("gacha_roll", "🎟 1回まわす", {parent: "gacha", x: 0.3, y: 70 / h, w: 220, h: 42, size: 16, bg: "#7C3AED"})
+  p.ui_button("gacha_buy", "🪙" + TICKET_PRICE + " でチケット+1", {parent: "gacha", x: 0.72, y: 70 / h, w: 220, h: 42, size: 14, bg: "#B45309"})
+  p.ui_text("gacha_n", "コモン〜ミシックの16種類。同じのが出ると熟練度が上がる", {parent: "gacha", y: 106 / h, size: 12, color: "#C4B5FD"})
+  let i = 0
+  for id in p.owned do
+    i = i + 1
+    let q = quirk_info(id)
+    let label = q.name + "  熟練" + mastery_level(p, id)
+    if p.quirk == id then label = "✅ " + label end
+    let col = 0.27
+    if i % 2 == 0 then col = 0.74 end
+    p.ui_button("eq_" + id, label, {parent: "gacha", x: col, y: (110 + ceil(i / 2) * 40) / h, w: 280, h: 34, size: 13,
+                                    bg: RARITY_COLOR[q.rarity], color: "#111111"})
+  end
+  p.ui_button("gacha_close", "閉じる", {parent: "gacha", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+-- MARK: ステータス
+
+func stat_menu(p)
+  p.stat_open = true
+  let h = 330
+  p.ui_panel("stats", {at: "center", w: 520, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("st_t", "📊 ステータス（のこり " + p.points + " ポイント）", {parent: "stats", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for key in STAT_ORDER do
+    i = i + 1
+    let y = (40 + i * 52) / h
+    p.ui_text("st_n_" + key, STAT_NAME[key] + "  " + stat(p, key), {parent: "stats", x: 0.24, y: y - 0.03, size: 16, bold: true})
+    p.ui_text("st_h_" + key, STAT_HELP[key], {parent: "stats", x: 0.24, y: y + 0.045, size: 11, color: "#94A3B8"})
+    p.ui_button("st_1_" + key, "+1", {parent: "stats", x: 0.64, y: y, w: 70, h: 38, size: 15, bg: "#2563EB"})
+    p.ui_button("st_5_" + key, "+5", {parent: "stats", x: 0.8, y: y, w: 70, h: 38, size: 15, bg: "#1D4ED8"})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats", y: (h - 28) / h, w: 130, h: 36, size: 14, bg: "gray"})
+end
+
+func add_stat(p, key, n)
+  let k = min(n, p.points)
+  if k <= 0 then
+    p.message("ポイントがない（レベルを上げよう）", 1)
+    return
+  end
+  if key == "speed" and stat(p, "speed") >= 30 then
+    p.message("スピードは30まで", 1)
+    return
+  end
+  if key == "speed" then k = min(k, 30 - stat(p, "speed")) end
+  p.points = p.points - k
+  p.stats[key] = stat(p, key) + k
+  refresh_body(p)
+  stat_menu(p)
+  hud(p)
+end
+
+-- MARK: サポートアイテム
+
+func gear_menu(p)
+  p.gear_open = true
+  let h = 120 + len(GEAR) * 54 + 60
+  p.ui_panel("gear", {at: "center", w: 560, h: h, bg: "#082F49F2", radius: 22, layer: 30})
+  p.ui_text("gear_t", "🛡 サポートアイテム（🪙 " + kit_short(kit_money(p)) + "）", {parent: "gear", y: 28 / h, size: 19, bold: true, color: "#A5F3FC"})
+  let i = 0
+  for g in GEAR do
+    i = i + 1
+    let lv = gear_level(p, g.id)
+    let y = (30 + i * 54) / h
+    p.ui_text("gr_n_" + g.id, g.name + " Lv." + lv + "  " + g.text, {parent: "gear", x: 0.33, y: y, size: 14, bold: true})
+    if lv >= len(g.prices) then
+      p.ui_button("gr_" + g.id, "MAX", {parent: "gear", x: 0.82, y: y, w: 150, h: 40, size: 14, bg: "#374151"})
+    else
+      p.ui_button("gr_" + g.id, "🪙" + kit_short(g.prices[lv + 1]), {parent: "gear", x: 0.82, y: y, w: 150, h: 40, size: 14, bg: "#0E7490"})
+    end
+  end
+  let y2 = (30 + (len(GEAR) + 1) * 54) / h
+  p.ui_button("gr_drink", "⚡ 気力ドリンク 🪙" + DRINK_PRICE, {parent: "gear", x: 0.28, y: y2, w: 230, h: 40, size: 14, bg: "#0369A1"})
+  p.ui_button("gr_kit", "🩹 救急キット 🪙" + KIT_PRICE, {parent: "gear", x: 0.72, y: y2, w: 230, h: 40, size: 14, bg: "#15803D"})
+  p.ui_button("gear_close", "閉じる", {parent: "gear", y: (h - 26) / h, w: 130, h: 34, size: 14, bg: "gray"})
+end
+
+func buy_gear(p, id)
+  for g in GEAR do
+    if g.id == id then
+      let lv = gear_level(p, id)
+      if lv >= len(g.prices) then return end
+      if kit_pay(p, g.prices[lv + 1]) then
+        p.gear[id] = lv + 1
+        refresh_body(p)
+        p.message("🛡 " + g.name + " Lv." + (lv + 1) + "！", 1.5)
+        p.sound("collect")
+        kit_quest_progress(p, "gear", 1)
+      end
+    end
+  end
+  gear_menu(p)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "side_hero" then choose_side(p, "hero")
+  elif id == "side_villain" then choose_side(p, "villain")
+  elif id == "switch_yes" then
+    p.ui_remove("switch")
+    if p.switch_to != nil and p.switch_to != p.team then choose_side(p, p.switch_to) end
+  elif id == "switch_no" then p.ui_remove("switch")
+  elif id == "open_gacha" then gacha_menu(p)
+  elif id == "gacha_close" then
+    p.gacha_open = false
+    p.ui_remove("gacha")
+  elif id == "gacha_roll" then
+    if p.tickets <= 0 then
+      p.message("🎟 チケットがない（レベル5ごと・試験合格・コインで買える）", 2)
+    elif quiet_ready(p, "roll", 1) then
+      p.tickets = p.tickets - 1
+      roll(p)
+      gacha_menu(p)
+    end
+  elif id == "gacha_buy" then
+    if kit_pay(p, TICKET_PRICE) then
+      p.tickets = p.tickets + 1
+      gacha_menu(p)
+      hud(p)
+    end
+  elif starts_with(id, "eq_") then
+    let q = replace(id, "eq_", "")
+    if contains(p.owned, q) then
+      equip(p, q)
+      gacha_menu(p)
+    end
+  elif id == "open_stats" then stat_menu(p)
+  elif id == "stats_close" then
+    p.stat_open = false
+    p.ui_remove("stats")
+  elif starts_with(id, "st_1_") then add_stat(p, replace(id, "st_1_", ""), 1)
+  elif starts_with(id, "st_5_") then add_stat(p, replace(id, "st_5_", ""), 5)
+  elif id == "open_gear" then gear_menu(p)
+  elif id == "gear_close" then
+    p.gear_open = false
+    p.ui_remove("gear")
+  elif id == "gr_drink" then
+    if kit_pay(p, DRINK_PRICE) then
+      p.energy = max_energy(p)
+      p.message("⚡ 気力が満タン！", 1)
+      show_bars(p)
+    end
+    gear_menu(p)
+  elif id == "gr_kit" then
+    if kit_pay(p, KIT_PRICE) then
+      p.heal(p.max_health)
+      p.burn_until = 0
+      p.message("🩹 体力が回復した", 1)
+    end
+    gear_menu(p)
+  elif starts_with(id, "gr_") then buy_gear(p, replace(id, "gr_", ""))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or p.team == nil then return end
+  if contains(b.tags, "gacha") and quiet_ready(p, "gacha_pad", 3) then gacha_menu(p)
+  elif contains(b.tags, "gear") and quiet_ready(p, "gear_pad", 3) then gear_menu(p)
+  elif contains(b.tags, "side") and quiet_ready(p, "side_pad", 3) then switch_panel(p)
+  end
+end

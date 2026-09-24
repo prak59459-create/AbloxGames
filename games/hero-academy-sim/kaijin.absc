@@ -1,0 +1,217 @@
+-- kaijin.absc — 改造怪人（みんなで戦うボス）
+-- ときどき街にあらわれる。ヒーローもヴィランも関係なくおそう。
+-- 技: たたきつけ・とびかかり・ほうこう（こおらせて、しばらくかたくなる）・手下よび・破壊光線。
+-- 体力が半分をきると暴走して技が速くなる。当てたダメージに応じてみんなにごほうび。
+
+let kaijin = nil
+let kaijin_next = 0
+let kaijin_clock = 0
+let KAIJIN_SKILLS = ["slam", "beam", "leap", "summon", "slam", "roar"]
+
+func kaijin_targets(n, range)
+  return filter(players(), func(p) return ready(p) and p.team != nil and p.alive and p.visible and distance(n, p) < range and can_hurt(n, p) end)
+end
+
+func spawn_kaijin()
+  let fighters = len(filter(players(), func(p) return ready(p) and p.team != nil end))
+  if fighters == 0 then
+    kaijin_next = time() + 30
+    return
+  end
+  let spot = block("Incident " + random(1, 6))
+  if spot == nil then return end
+  let s = npc_scale()
+  let hp = (2200 + 700 * fighters) * s
+  let n = create_npc({name: "👹 改造怪人ゴウラ", position: spot.position + {x: 0, y: 2, z: 0}, color: "#44403C", head_color: "#A21CAF",
+                      size: 2.6, health: hp, speed: 0.85, team: "kaijin"})
+  n.kind = "kaijin"
+  n.dmg_by = {}
+  n.max_hp = hp
+  n.power = s
+  n.next_skill = time() + 5
+  n.next_hit = 0
+  n.skill_i = 0
+  n.angry = false
+  n.born = time()
+  kaijin = n
+  announce("👹 改造怪人ゴウラがあらわれた！ ヒーローもヴィランも力を合わせろ！", 4)
+  shake(0.4, 0.8)
+  for p in players() do p.sound("error") end
+end
+
+func kaijin_minions()
+  return filter(npcs(), func(c) return c.kind == "minion" end)
+end
+
+func kaijin_area(n, center, r, amount, effect, power)
+  for p in players() do
+    if ready(p) and p.alive and distance(center, p) <= r then hurt(n, p, amount, effect, power) end
+  end
+  for c in npcs() do
+    if c.kind == "clone" and kit_here(c) and c.alive and distance(center, c) <= r then hurt(n, c, amount, nil, 0) end
+  end
+end
+
+func kaijin_skill(n)
+  let s = n.power
+  let targets = kaijin_targets(n, 40)
+  if len(targets) == 0 then return end
+  let t = random(targets)
+  n.skill_i = n.skill_i % len(KAIJIN_SKILLS) + 1
+  let skill = KAIJIN_SKILLS[n.skill_i]
+  if skill == "slam" then
+    n.say("グオオオ！")
+    let spot = n.position
+    fx_warning(spot, 8, 1)
+    after(1, func()
+      if kit_here(n) and n.alive then
+        fx_ring(spot, 8, "#A21CAF", 0.4)
+        kaijin_area(n, spot, 8, 30 * s, "lift", 12)
+      end
+    end)
+  elif skill == "beam" then
+    n.say("ハカイコウセン…")
+    n.look_at(t)
+    let from = n.position + {x: 0, y: 3, z: 0}
+    let aim = t.position + {x: 0, y: 1, z: 0}
+    let dir = normalize(aim - from)
+    fx_beam(from, dir, 30, "#F0ABFC", 0.3)
+    after(0.8, func()
+      if kit_here(n) and n.alive then
+        fx_beam(from, dir, 30, "#C026D3", 2.2)
+        for p in players() do
+          if ready(p) and p.alive and beam_distance(p.position + {x: 0, y: 1, z: 0}, from, dir, 30) < 2 then hurt(n, p, 35 * s, "knock", 16) end
+        end
+      end
+    end)
+  elif skill == "leap" then
+    n.say("にがさん！")
+    let far = t
+    for p in targets do
+      if distance(n, p) > distance(n, far) then far = p end
+    end
+    let d = normalize({x: far.x - n.x, y: 0, z: far.z - n.z})
+    let dist = min(30, distance(n, far))
+    n.launch(d.x * dist * 1.1, 14, d.z * dist * 1.1)
+    let land = far.position
+    fx_warning(land, 6, 1)
+    after(1, func()
+      if kit_here(n) and n.alive then
+        fx_ring(n.position, 6, "#A21CAF", 0.4)
+        kaijin_area(n, n.position, 6, 28 * s, "lift", 10)
+      end
+    end)
+  elif skill == "roar" then
+    n.say("ウオオオオオ！！")
+    fx_ring(n.position, 12, "#F0ABFC", 0.6)
+    for p in players() do
+      if ready(p) and p.alive and distance(n, p) < 12 then freeze_for(p, 1.2) end
+    end
+    n.shield_until = time() + 3
+    n.color = "#A8A29E"
+    after(3, func()
+      if kit_here(n) and n.alive then
+        if n.angry then n.color = "#7F1D1D" else n.color = "#44403C" end
+      end
+    end)
+  elif skill == "summon" then
+    if len(kaijin_minions()) < 6 then
+      n.say("出てこい、失敗作ども！")
+      for k in 1 to 3 do
+        let a = k * 120
+        let m = create_npc({name: "改造兵", position: n.position + {x: cos(a) * 4, y: 1, z: sin(a) * 4}, color: "#57534E",
+                            head_color: "#C084FC", health: 150 * s, speed: 0.95, team: "kaijin"})
+        m.kind = "minion"
+        m.dmg = 12 * s
+        m.next_hit = 0
+        m.home = n.position
+      end
+    end
+  end
+end
+
+func kaijin_step(n)
+  let t = nil
+  for p in kaijin_targets(n, 45) do
+    if t == nil or distance(n, p) < distance(n, t) then t = p end
+  end
+  if t != nil then
+    n.follow(t)
+    if distance(n, t) < 4.2 and time() > n.next_hit then
+      hurt(n, t, 22 * n.power, "knock", 14)
+      n.next_hit = time() + 1.3
+    end
+  else
+    n.stop()
+  end
+  if kit_here(n) and n.alive and not n.angry and n.health < n.max_hp / 2 then
+    n.angry = true
+    n.color = "#7F1D1D"
+    n.speed = 1.1
+    announce("👹 ゴウラが暴走した！ 技が速くなる！", 3)
+  end
+  if time() >= n.next_skill then
+    kaijin_skill(n)
+    if kit_here(n) then
+      if n.angry then n.next_skill = time() + 3 else n.next_skill = time() + 5 end
+    end
+  end
+end
+
+on tick(dt)
+  kaijin_clock = kaijin_clock + dt
+  if kaijin_clock < 0.25 then return end
+  kaijin_clock = 0
+  if kaijin == nil or not kit_here(kaijin) then
+    if kaijin != nil then kaijin = nil end
+    if kaijin_next > 0 and time() >= kaijin_next then spawn_kaijin() end
+    ui_remove("kaijin_hp")
+    return
+  end
+  if time() - kaijin.born > 180 then
+    announce("👹 ゴウラはどこかへ去っていった…", 3)
+    for m in kaijin_minions() do gone(m) end
+    gone(kaijin)
+    kaijin = nil
+    kaijin_next = time() + KAIJIN_EVERY
+    ui_remove("kaijin_hp")
+    return
+  end
+  kaijin_step(kaijin)
+  if kaijin != nil and kit_here(kaijin) then
+    ui_bar("kaijin_hp", {at: "top", dy: 74, w: 360, h: 16, value: max(0, kaijin.health), max: kaijin.max_hp, color: "#C026D3", bg: "#00000099"})
+  end
+end
+
+on death(victim, killer)
+  if not victim.is_npc or victim.kind != "kaijin" then return end
+  let total = 0
+  for id in keys(victim.dmg_by) do total = total + victim.dmg_by[id] end
+  let best = nil
+  let best_d = 0
+  for p in players() do
+    let d = victim.dmg_by[p.id] or 0
+    if d > 0 and total > 0 then
+      let share = d / total
+      reward(p, 200 + floor(900 * share), 150 + floor(1200 * share), "👹 ゴウラ討伐")
+      if p.team == "hero" then add_hero_pts(p, 20 + floor(60 * share)) end
+      if p.team == "villain" then add_fame(p, 20 + floor(60 * share)) end
+      kit_quest_progress(p, "kaijin", 1)
+      if d > best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  let pos = victim.position
+  fx_ball(pos + {x: 0, y: 2, z: 0}, 16, "#C026D3", 0.8)
+  if best != nil then
+    announce("🏆 ゴウラをたおした！ MVP: " + best.name + "（" + floor(best_d) + " ダメージ）", 4)
+    kit_badge(best, "kaijin_mvp", "怪人討伐MVP")
+  else
+    announce("👹 ゴウラをたおした！", 3)
+  end
+  for m in kaijin_minions() do gone(m) end
+  kaijin = nil
+  kaijin_next = time() + KAIJIN_EVERY
+end

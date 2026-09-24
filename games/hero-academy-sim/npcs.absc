@@ -1,0 +1,140 @@
+-- npcs.absc — NPCの動き（0.25びょうごと）
+-- 悪党（なぐる）・銃の悪党・人質犯（銃とたたきつけ）・パトロール/警備ヒーロー（ヴィランをうつ）・
+-- 分身（持ち主の敵をなぐる）・改造兵（だれでもおそう）
+
+weapon("crook_gun", {model: "pistol", damage: 7, rate: 0.7, range: 40, ammo: 100000, reload: 0, spread: 4})
+weapon("boss_gun", {model: "rifle", damage: 12, rate: 0.8, range: 45, ammo: 100000, reload: 0, spread: 3})
+weapon("police_gun", {model: "pistol", damage: 9, rate: 0.7, range: 40, ammo: 100000, reload: 0, spread: 3})
+
+let ai_clock = 0
+
+func npc_target(n, sight)
+  let best = nil
+  let best_d = sight
+  for p in players() do
+    if p.alive and p.visible and can_hurt(n, p) then
+      let d = distance(n, p)
+      if d < best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+-- 分身は、持ち主が攻撃できる相手ならだれでも
+func clone_target(n, sight)
+  let best = nil
+  let best_d = sight
+  for c in kit_everyone() do
+    if c.id != n.id and kit_here(c) and c.alive and c.visible and can_hurt(n, c) then
+      let d = distance(n, c)
+      if d < best_d then
+        best = c
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func go_home(n, leash)
+  if n.home != nil and distance(n, n.home) > leash then n.move_to(n.home) else n.stop() end
+end
+
+func melee_ai(n, sight)
+  let t = npc_target(n, sight)
+  if t != nil then
+    n.follow(t)
+    if distance(n, t) < 2.4 + ((n.size or 1) - 1) * 0.8 and time() > (n.next_hit or 0) then
+      hurt(n, t, n.dmg or 8, nil, 0)
+      if kit_here(n) then n.next_hit = time() + 1 end
+    end
+  else
+    go_home(n, 8)
+  end
+end
+
+func ranged_ai(n, sight, keep)
+  let t = npc_target(n, sight)
+  if t != nil then
+    if distance(n, t) > keep then n.follow(t) else n.stop() end
+    n.look_at(t)
+    if time() > (n.next_shot or 0) then
+      n.shoot(t)
+      n.next_shot = time() + 1.6
+    end
+    return true
+  end
+  return false
+end
+
+func boss_ai(n)
+  ranged_ai(n, 30, 10)
+  if time() > n.next_slam then
+    n.next_slam = time() + 7
+    let near = filter(players(), func(p) return p.alive and can_hurt(n, p) and distance(n, p) < 6 end)
+    if len(near) > 0 then
+      n.say("近よるな！")
+      let spot = n.position
+      fx_warning(spot, 5, 0.8)
+      after(0.8, func()
+        if kit_here(n) and n.alive then
+          fx_ring(spot, 5, "#7F1D1D", 0.3)
+          for p in players() do
+            if p.alive and distance(spot, p) < 5 then hurt(n, p, 18 * npc_scale(), "lift", 9) end
+          end
+        end
+      end)
+    end
+  end
+end
+
+func patrol_ai(n)
+  if ranged_ai(n, 26, 12) then return end
+  if time() > (n.next_wander or 0) then
+    n.next_wander = time() + random(8, 14)
+    let spot = block("Incident " + random(1, 6))
+    if spot != nil then n.move_to(spot.position) end
+  end
+end
+
+func clone_ai(n)
+  let t = clone_target(n, 18)
+  if t != nil then
+    n.follow(t)
+    if distance(n, t) < 2.4 and time() > (n.next_hit or 0) then
+      hurt(n, t, n.dps, nil, 0)
+      if kit_here(n) then n.next_hit = time() + 1 end
+    end
+  else
+    let o = player_by_id(n.owner)
+    if o != nil and o.alive then
+      if distance(n, o) > 4 then n.follow(o) else n.stop() end
+    else
+      n.stop()
+    end
+  end
+end
+
+on tick(dt)
+  ai_clock = ai_clock + dt
+  if ai_clock < 0.25 then return end
+  ai_clock = 0
+  for n in npcs() do
+    if kit_here(n) and n.alive and not n.frozen then
+      let k = n.kind
+      if k == "crook" then melee_ai(n, 22)
+      elif k == "minion" then melee_ai(n, 30)
+      elif k == "gunner" then
+        if not ranged_ai(n, 28, 12) then go_home(n, 8) end
+      elif k == "boss" then boss_ai(n)
+      elif k == "patrol" then patrol_ai(n)
+      elif k == "guard" then
+        if not ranged_ai(n, 30, 10) then go_home(n, 6) end
+      elif k == "clone" then clone_ai(n)
+      end
+    end
+  end
+end

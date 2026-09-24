@@ -34,7 +34,7 @@ let actionGames: [Game] = [
          summary: "スピード、パワー、タンク、カウンター。自分のスタイルを選んで、必殺技ゲージをためて殴り合うボクシングバトル。",
          tags: ["boxing", "pvp", "styles"], maxPlayers: 12, build: styleBoxing),
     Game(number: 31, id: "hero-academy-sim", title: "Hero Academy Sim",
-         summary: "ヒーローかヴィランか。ガチャで個性（能力）を引いて、事件を解決したり起こしたり。レベルを上げて最強をめざせ。",
+         summary: "ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。",
          tags: ["heroes", "rpg", "powers"], maxPlayers: 12, build: heroAcademy),
     Game(number: 32, id: "oni-blade", title: "Oni Blade",
          summary: "夜になると鬼があらわれる。呼吸の型をきわめ、刀をきたえて鬼を斬れ。階級を上げて、鬼の王を討伐しよう。",
@@ -426,24 +426,64 @@ func heroAcademy(_ m: MapBuilder) {
     m.ground(200, 200, color: "#A8A29E", name: "City")
     m.road(from: (-100, 0), to: (100, 0), width: 10)
     m.road(from: (0, -100), to: (0, 100), width: 10)
-    // The academy.
+    // The academy, its gear shop, quirk lottery and the side gate.
     m.house("Academy", x: -40, z: -40, w: 30, d: 20, h: 8, wall: "#F1F5F9", roof: "#1D4ED8", floor: "#CBD5E1", tags: ["academy"])
     m.spawnRing(-40, -40, radius: 6, count: 6, color: "#60A5FA")
-    // The villains' hideout.
+    m.pillar("Hero Signal", x: -52, z: -44, y: 8, height: 8, radius: 0.6, color: "#E2E8F0")
+    m.part("Hero Signal Lamp", at: (-52, 16.6, -44), size: (3, 1.2, 3), color: "#FDE047", shape: .sphere, material: .neon, solid: false)
+    m.pad("Quirk Lottery", x: -50, z: -24, size: 3, color: "#A855F7", tags: ["gacha"])
+    m.pad("Support Gear", x: -30, z: -24, size: 3, color: "#22D3EE", tags: ["gear"])
+    m.pad("Side Gate", x: -40, z: -20, size: 2.4, color: "#F8FAFC", tags: ["side"])
+    // The promotion exam hall, behind the academy.
+    m.slab("Exam Floor", x: -75, y: 0, z: -72, w: 24, h: 0.2, d: 24, color: "#CBD5E1")
+    m.walls(-75, -72, w: 24, d: 24, h: 4, color: "#1E3A8A", name: "Exam Wall")
+    m.pad("Exam Gate", x: -58, z: -52, size: 3, color: "#FACC15", tags: ["exam"])
+    m.markers("Exam Start", points: [(-75, -80)], y: 0.2, color: "#FDE047", visible: true, size: 2, behavior: .none)
+    m.markers("Exam Bot", points: ring(8, radius: 8).map { ($0.0 - 75, $0.1 - 70) }, y: 0.2, color: "#000000", visible: false,
+              behavior: .none)
+    m.markers("Exam Exit", points: [(-58, -46)], color: "#000000", visible: false, behavior: .none)
+    // The villains' hideout, black market and their own lottery.
     m.house("Hideout", x: 40, z: 40, w: 22, d: 16, h: 6, wall: "#1F2937", roof: "#7F1D1D", floor: "#111827", tags: ["hideout"])
     m.spawnRing(40, 40, radius: 5, count: 6, name: "Villain Spawn", color: "#F87171")
-    // Buildings that get robbed.
+    m.pad("Dark Lottery", x: 32, z: 54, size: 3, color: "#A855F7", tags: ["gacha"])
+    m.pad("Black Market", x: 48, z: 54, size: 3, color: "#22D3EE", tags: ["gear"])
+    m.pad("Hideout Gate", x: 40, z: 58, size: 2.4, color: "#F8FAFC", tags: ["side"])
+    // Places villains rob.
     m.shop("Bank", x: 40, z: -40, w: 16, d: 12, color: "#D4AF37", sign: "#FFFFFF")
     m.pad("Bank Vault", x: 40, z: -42, size: 3, color: "#FACC15", tags: ["vault"])
     m.shop("Jewelry", x: -40, z: 40, w: 12, d: 10, color: "#BE185D", sign: "#FBCFE8")
     m.pad("Jewelry Case", x: -40, z: 38, size: 3, color: "#F472B6", tags: ["vault"])
-    var r = Seeded("hero")
-    for i in 0..<12 {
-        let x = r.range(-90, 90), z = r.range(-90, 90)
-        if abs(x) < 12 || abs(z) < 12 { continue }
-        m.slab("Tower \(i + 1)", x: x, y: 0, z: z, w: 10, h: r.range(10, 30), d: 10, color: r.pick(["#64748B", "#94A3B8", "#475569"]))
+    m.shop("Museum", x: -72, z: 72, w: 16, d: 12, color: "#E7E5E4", sign: "#FDE68A")
+    m.pad("Museum Gem", x: -72, z: 70, size: 3, color: "#34D399", tags: ["vault"])
+    m.markers("Guard Post", points: [(40, -28), (-40, 50), (-72, 84)], color: "#000000", visible: false, behavior: .none)
+    // The power plant: knock out all three generators for a city-wide blackout.
+    m.slab("Power Plant", x: 72, y: 0, z: -72, w: 22, h: 0.3, d: 22, color: "#3F3F46")
+    m.fence(from: (61, -83), to: (83, -83), color: "#71717A")
+    m.fence(from: (83, -83), to: (83, -61), color: "#71717A")
+    m.fence(from: (61, -83), to: (61, -61), color: "#71717A")
+    for (i, p) in [(66, -77), (78, -77), (72, -66)].enumerated() {
+        m.pillar("Generator \(i + 1)", x: Float(p.0), z: Float(p.1), y: 0.3, height: 4, radius: 1.3, color: "#FDE047", material: .neon,
+                 tags: ["generator"])
     }
-    m.markers("Incident", points: [(20, 20), (-20, 25), (25, -18), (-25, -22), (60, 0), (-60, 5)], color: "#000000", visible: false,
+    // Where rescued people are taken.
+    m.shop("Hospital", x: 22, z: -72, w: 14, d: 10, color: "#F8FAFC", sign: "#EF4444")
+    m.markers("Safe Zone", points: [(22, -60), (22, 62)], color: "#22C55E", tags: ["safe"], visible: true, size: 5, behavior: .none)
+    m.shop("Shelter", x: 22, z: 74, w: 14, d: 10, color: "#DCFCE7", sign: "#16A34A")
+    // Towers, kept clear of everything above.
+    let keepClear: [(Float, Float, Float)] = [(-40, -40, 22), (-75, -72, 18), (40, 40, 18), (40, -40, 14), (-40, 40, 12), (-72, 72, 14),
+                                             (72, -72, 16), (22, -68, 14), (22, 68, 14)]
+    var r = Seeded("hero")
+    var towers = 0
+    for _ in 0..<40 where towers < 14 {
+        let x = r.range(-90, 90), z = r.range(-90, 90)
+        let h = r.range(10, 30)
+        let color = r.pick(["#64748B", "#94A3B8", "#475569"])
+        if abs(x) < 12 || abs(z) < 12 { continue }
+        if keepClear.contains(where: { abs($0.0 - x) < $0.2 && abs($0.1 - z) < $0.2 }) { continue }
+        towers += 1
+        m.slab("Tower \(towers)", x: x, y: 0, z: z, w: 10, h: h, d: 10, color: color)
+    }
+    m.markers("Incident", points: [(20, 20), (-20, 25), (25, -18), (-25, -18), (60, 0), (-60, 5)], color: "#000000", visible: false,
               behavior: .none)
 }
 
