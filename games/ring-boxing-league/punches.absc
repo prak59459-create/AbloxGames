@@ -1,0 +1,126 @@
+-- punches.absc — パンチ・ガード・ウィービング・必殺ブロー
+-- 当てると必殺ゲージがたまる。MAX で「必殺ブロー」（ガードの上からでもよく通る）。
+
+func punch_buttons(p, shown)
+  let list = [["jab", "ジャブ", "#F59E0B"], ["straight", "ストレート", "#EF4444"], ["hook", "フック", "#EA580C"], ["upper", "アッパー", "#8B5CF6"],
+              ["guard", "ガード", "#64748B"], ["weave", "ウィービング", "#0EA5E9"]]
+  if shown then
+    let i = 0
+    for b in list do
+      i = i + 1
+      p.ui_button(b[1], b[2], {at: "bottom_right", dx: -110 - ((i - 1) % 3) * 104, dy: -150 - floor((i - 1) / 3) * 62,
+                               w: 98, h: 54, size: 14, bg: b[3], radius: 14})
+    end
+  else
+    for b in list do p.ui_remove(b[1]) end
+    p.ui_remove("special")
+  end
+end
+
+func show_fighter(p)
+  if p.is_npc then return end
+  p.ui_bar("stamina", {at: "bottom", dy: -24, w: 280, h: 14, value: p.stamina, max: 100, color: "#22C55E", bg: "#00000099"})
+  p.ui_bar("meter", {at: "bottom", dy: -44, w: 280, h: 8, value: p.meter, max: 100, color: "#F59E0B", bg: "#00000099"})
+  if p.meter >= 100 then
+    p.ui_button("special", "💥 必殺ブロー", {at: "bottom", dy: -84, w: 200, h: 48, size: 17, bg: "#DC2626", radius: 16})
+  else
+    p.ui_remove("special")
+  end
+end
+
+func punch(c, kind)
+  let o = opponent(c)
+  let b = bout_of(c)
+  if o == nil or b == nil or b.resting or b.over or not c.alive then return end
+  let info = PUNCHES[kind]
+  if kind == "special" and c.meter < 100 then return end
+  if not kit_ready(c, "punch", info.wait * speed_mult(c)) then return end
+  if c.stamina < info.cost then
+    say(c, "💦 スタミナ切れ", 0.8)
+    return
+  end
+  c.stamina = c.stamina - info.cost
+  c.last_punch_at = time()
+  if kind == "special" then c.meter = 0 end
+  show_fighter(c)
+  let facing = dot(normalize(o.position - c.position), c.look)
+  if distance(c, o) > 3.4 or facing < 0.4 then
+    say(c, "スカッ", 0.5)
+    return
+  end
+  if active_until(o.weave_until) then
+    say(o, "💨 かわした！", 0.6)
+    say(c, "かわされた", 0.6)
+    return
+  end
+  let dmg = info.power * power_mult(c) * chin_mult(o)
+  if active_until(o.guard_until) then
+    dmg = dmg * info.guard
+    o.stamina = max(0, o.stamina - 6)
+    show_fighter(o)
+  end
+  b.dealt[c.id] = (b.dealt[c.id] or 0) + dmg
+  b.round_dealt[c.id] = (b.round_dealt[c.id] or 0) + dmg
+  c.meter = min(100, c.meter + info.meter)
+  show_fighter(c)
+  if not c.is_npc then
+    c.sound("hit")
+    c.punches_landed = (c.punches_landed or 0) + 1
+    kit_quest_progress(c, "land", 1)
+  end
+  if kind == "special" then
+    announce("💥 " + c.name + " の必殺ブロー！", 2)
+    shake(0.3, 0.4)
+  end
+  if o.health - dmg <= 0 then
+    knockdown(b, o, c)
+    return
+  end
+  o.damage(dmg, c)
+  if (kind == "upper" or kind == "special") and kit_here(o) and o.alive then
+    o.launch(c.look.x * 6, 7, c.look.z * 6)
+  end
+end
+
+func guard(c)
+  if bout_of(c) == nil or c.stamina < 10 or not kit_ready(c, "guard", 1) then return end
+  c.stamina = c.stamina - 10
+  c.guard_until = time() + 1.5
+  show_fighter(c)
+end
+
+func weave(c)
+  if bout_of(c) == nil or c.stamina < 15 or not kit_ready(c, "weave", 2) then return end
+  c.stamina = c.stamina - 15
+  c.weave_until = time() + 0.5
+  let side = {x: 0 - c.look.z, y: 0, z: c.look.x}
+  if random() < 0.5 then side = side * -1 end
+  c.launch(side.x * 8, 1, side.z * 8)
+  show_fighter(c)
+end
+
+-- 1びょうごと: スタミナの回復
+let stamina_clock = 0
+on tick(dt)
+  stamina_clock = stamina_clock + dt
+  if stamina_clock < 0.5 then return end
+  stamina_clock = 0
+  for r in RINGS do
+    let b = bouts[r.id]
+    if b != nil then
+      for c in fighters(b) do
+        if kit_here(c) and c.stamina < 100 then
+          c.stamina = min(100, c.stamina + 3 * regen_mult(c))
+          show_fighter(c)
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "guard" then guard(p)
+  elif id == "weave" then weave(p)
+  elif id == "jab" or id == "straight" or id == "hook" or id == "upper" or id == "special" then punch(p, id)
+  end
+end

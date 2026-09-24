@@ -1,0 +1,101 @@
+-- ai.absc — キャリアモード（AIの相手に順番に勝ちすすむ）
+-- ドアのパッドで次の相手を見て挑戦。勝つとキャリアが進み、ファイトマネーがもらえる。
+
+let ai_clock = 0
+
+func career_menu(p)
+  let h = 220
+  p.ui_panel("car_box", {at: "center", w: 520, h: h, bg: "#451A03F2", radius: 22, layer: 30})
+  if p.career >= len(CAREER) then
+    p.ui_text("car_t", "🏆 世界王者！ キャリアは制覇した", {parent: "car_box", y: 40 / h, size: 20, bold: true, color: "#FDE68A"})
+    p.ui_text("car_s", "強くなった自分で、ほかのプレイヤーとリングで戦おう", {parent: "car_box", y: 90 / h, size: 14})
+  else
+    let next = CAREER[p.career + 1]
+    p.ui_text("car_t", "🥊 キャリア " + (p.career + 1) + "/" + len(CAREER) + "【" + next.title + "】", {parent: "car_box", y: 34 / h, size: 19, bold: true, color: "#FDE68A"})
+    p.ui_text("car_s", "相手: " + next.name + "   ファイトマネー 💰" + next.prize, {parent: "car_box", y: 76 / h, size: 16})
+    p.ui_text("car_s2", "パワー ×" + next.power + "・スピード ×" + next.speed + "・かしこさ " + floor(next.smart * 100) + "%", {parent: "car_box", y: 106 / h, size: 13, color: "#FED7AA"})
+    p.ui_button("car_go", "🔔 挑戦する", {parent: "car_box", y: 150 / h, w: 240, h: 44, size: 17, bg: "#DC2626"})
+  end
+  p.ui_button("car_close", "閉じる", {parent: "car_box", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func start_career(p)
+  p.ui_remove("car_box")
+  if p.bout != nil or p.career >= len(CAREER) then return end
+  let ring = free_ring()
+  if ring == nil then
+    p.message("リングがあいていない。少し待とう", 2)
+    return
+  end
+  let info = CAREER[p.career + 1]
+  let r = ring_info(ring.id)
+  let n = create_npc({name: info.name, position: {x: r.x, y: 2, z: r.z}, color: info.color, head_color: "#FDE68A",
+                      health: info.hp, speed: 0.9 * info.speed, team: "ai"})
+  n.ai = info
+  start_bout(ring, p, n, p.career + 1)
+end
+
+func career_won(p, lvl)
+  if lvl == p.career + 1 then
+    p.career = lvl
+    let info = CAREER[lvl]
+    kit_give(p, info.prize)
+    announce("📰 " + p.name + " が「" + info.title + "」に勝利！（ファイトマネー 💰" + info.prize + "）", 4)
+    kit_quest_progress(p, "career", 1)
+    if lvl == len(CAREER) then
+      kit_badge(p, "champ", "世界王者")
+      kit_quest_progress(p, "champion", 1)
+    end
+    hud(p)
+  end
+end
+
+-- 0.25びょうごと: AIのボクサー
+func ai_step(n)
+  let b = bout_of(n)
+  if b == nil or b.resting or b.over then return end
+  let o = opponent(n)
+  if o == nil or not kit_here(o) or not o.alive then return end
+  n.look_at(o)
+  let d = distance(n, o)
+  if d > 2.8 then
+    n.follow(o)
+    return
+  end
+  n.stop()
+  let smart = n.ai.smart
+  -- 相手がパンチを打ったら、かしこいほどガードやウィービング
+  if o.last_punch_at != nil and time() - o.last_punch_at < 0.4 and random() < smart * 0.5 then
+    if random() < 0.5 then guard(n) else weave(n) end
+    return
+  end
+  if n.meter >= 100 then
+    punch(n, "special")
+  elif n.stamina > 30 and random() < 0.55 then
+    let pick = random(["jab", "jab", "straight", "hook", "upper"])
+    punch(n, pick)
+  elif n.stamina < 25 and random() < smart then
+    guard(n)
+  end
+end
+
+on tick(dt)
+  ai_clock = ai_clock + dt
+  if ai_clock < 0.25 then return end
+  ai_clock = 0
+  for r in RINGS do
+    let b = bouts[r.id]
+    if b != nil then
+      for c in fighters(b) do
+        if c.is_npc and kit_here(c) and c.alive then ai_step(c) end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "career" then career_menu(p)
+  elif id == "car_close" then p.ui_remove("car_box")
+  elif id == "car_go" then start_career(p)
+  end
+end

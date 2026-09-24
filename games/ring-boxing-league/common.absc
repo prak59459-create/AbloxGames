@@ -1,0 +1,67 @@
+-- common.absc — 小さな道具
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.train != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func say(c, text, secs)
+  if not c.is_npc then c.message(text, secs) end
+end
+
+func rank(p)
+  let r = RANKS[1][1]
+  for row in RANKS do
+    if p.rp >= row[2] then r = row[1] end
+  end
+  return r
+end
+
+func level(c, stat)
+  if c.is_npc then return 0 end
+  return c.train[stat] or 0
+end
+
+-- 練習とAIの強さをまとめた倍率
+func power_mult(c)
+  if c.is_npc then return c.ai.power end
+  return 1 + level(c, "power") * 0.03
+end
+
+func speed_mult(c)
+  if c.is_npc then return 1 / c.ai.speed end
+  return 1 - level(c, "speed") * 0.02
+end
+
+func chin_mult(c)
+  if c.is_npc then return 1 end
+  return 1 - level(c, "chin") * 0.02
+end
+
+func regen_mult(c)
+  if c.is_npc then return 1 end
+  return 1 + level(c, "stamina") * 0.04
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let belt = ""
+  if p.career >= len(CAREER) then belt = "  🏆 世界王者" end
+  p.ui_text("rank", "🥊 " + rank(p) + "（" + p.rp + " pt）  キャリア " + p.career + "/" + len(CAREER) + belt,
+            {at: "top_left", dy: 34, size: 16, bold: true})
+end

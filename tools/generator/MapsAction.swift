@@ -242,19 +242,32 @@ func boxingRing(_ m: MapBuilder, name: String, x: Float, z: Float, size: Float =
 func ringBoxing(_ m: MapBuilder) {
     m.indoor()
     m.sky("#111827", "#1F2937", light: 0.65, showGround: false)
-    m.ground(80, 70, color: "#374151", name: "Gym Floor")
-    m.walls(0, 0, w: 80, d: 70, h: 10, color: "#1F2937", name: "Gym Wall")
-    boxingRing(m, name: "Ring", x: 0, z: 0, size: 12)
-    m.part("Ring Light", at: (0, 8, 0), size: (10, 0.3, 10), color: "#FFFFFF", material: .neon, solid: false)
+    m.ground(90, 80, color: "#374151", name: "Gym Floor")
+    m.walls(0, 0, w: 90, d: 80, h: 10, color: "#1F2937", name: "Gym Wall")
+    // Two rings, so two bouts can run at once.
+    boxingRing(m, name: "Ring", x: -14, z: 0, size: 12)
+    boxingRing(m, name: "Ring2", x: 14, z: 0, size: 12, rope: "#2563EB")
+    for x: Float in [-14, 14] {
+        m.part("Ring Light", at: (x, 8, 0), size: (10, 0.3, 10), color: "#FFFFFF", material: .neon, solid: false)
+    }
     for i in 0..<10 {
-        m.slab("Bench \(i + 1)", x: -30 + Float(i % 5) * 15, y: 0, z: i < 5 ? -26 : 26, w: 10, h: 0.8, d: 2, color: "#7C2D12")
+        m.slab("Bench \(i + 1)", x: -30 + Float(i % 5) * 15, y: 0, z: i < 5 ? -30 : 30, w: 10, h: 0.8, d: 2, color: "#7C2D12")
     }
     m.spawnRing(0, 22, radius: 6, count: 8, color: "#FBBF24")
-    m.pad("Queue Pad", x: 20, z: 12, size: 4, color: "#22C55E", tags: ["queue"])
+    m.pad("Queue Pad", x: 0, z: 12, size: 4, color: "#22C55E", tags: ["queue"])
+    m.pad("Career Door", x: -8, z: 30, size: 3, color: "#F59E0B", tags: ["career"])
+    m.pad("Bet Board", x: 8, z: 30, size: 3, color: "#A855F7", tags: ["bets"])
+    // The gym: heavy bags (power), speed bags (speed), the rope (stamina), the chin trainer.
     for i in 0..<4 {
-        m.part("Punching Bag \(i + 1)", at: (-30 + Float(i) * 5, 2, -14), size: (1, 2.4, 1), color: "#B91C1C", shape: .cylinder,
-               behavior: .trigger, tags: ["bag"])
+        m.part("Punching Bag \(i + 1)", at: (-38 + Float(i) * 4, 2, -18), size: (1, 2.4, 1), color: "#B91C1C", shape: .cylinder,
+               behavior: .trigger, tags: ["bag", "power"])
     }
+    for i in 0..<3 {
+        m.part("Speed Bag \(i + 1)", at: (38 - Float(i) * 4, 2.2, -18), size: (0.6, 0.8, 0.6), color: "#F59E0B", shape: .sphere,
+               behavior: .trigger, tags: ["bag", "speed"])
+    }
+    m.pad("Jump Rope", x: -34, z: 18, size: 3, color: "#38BDF8", tags: ["bag", "stamina"])
+    m.pad("Chin Trainer", x: 34, z: 18, size: 3, color: "#64748B", tags: ["bag", "chin"])
 }
 
 // MARK: 26 Power Roulette

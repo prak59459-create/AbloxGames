@@ -1,0 +1,79 @@
+-- bets.absc — 観客の応援（プレイヤーどうしの試合に 💰50 かける。当たると2倍）
+
+let BET = 50
+let betting = {}     -- リングid → {until, bets: {pid: "red"/"blue"}}
+
+func open_bets(b)
+  betting[b.ring] = {until: time() + 20, bets: {}}
+  for p in players() do
+    if ready(p) and p.bout == nil then
+      p.message("📣 応援しよう！ 右の「応援」から赤か青に 💰" + BET, 3)
+      p.ui_button("cheer", "📣 応援", {at: "right", dy: 60, w: 130, h: 46, size: 16, bg: "#7C3AED"})
+    end
+  end
+end
+
+func bet_menu(p)
+  let open = []
+  for r in RINGS do
+    let bt = betting[r.id]
+    let b = bouts[r.id]
+    if bt != nil and b != nil and time() < bt.until then append(open, b) end
+  end
+  let h = 130 + max(1, len(open)) * 50
+  p.ui_panel("bet_box", {at: "center", w: 520, h: h, bg: "#2E1065F2", radius: 22, layer: 30})
+  p.ui_text("bet_t", "📣 応援（💰" + BET + "・当たると2倍）", {parent: "bet_box", y: 26 / h, size: 19, bold: true, color: "#E9D5FF"})
+  if len(open) == 0 then
+    p.ui_text("bet_none", "いまは応援できる試合がない", {parent: "bet_box", y: 70 / h, size: 14})
+  end
+  let i = 0
+  for b in open do
+    i = i + 1
+    p.ui_button("bet_red_" + b.ring, "🔴 " + b.red.name, {parent: "bet_box", x: 0.28, y: (40 + i * 50) / h, w: 220, h: 40, size: 14, bg: "#B91C1C"})
+    p.ui_button("bet_blue_" + b.ring, "🔵 " + b.blue.name, {parent: "bet_box", x: 0.74, y: (40 + i * 50) / h, w: 220, h: 40, size: 14, bg: "#1D4ED8"})
+  end
+  p.ui_button("bet_close", "閉じる", {parent: "bet_box", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func place_bet(p, ring_id, side)
+  let bt = betting[ring_id]
+  let b = bouts[ring_id]
+  if bt == nil or b == nil or time() >= bt.until then
+    p.message("もう応援はしめきり", 1.2)
+    return
+  end
+  if p.bout != nil or bt.bets[p.id] != nil then return end
+  if not kit_pay(p, BET) then return end
+  bt.bets[p.id] = side
+  p.message("📣 " + side + " を応援！", 1.5)
+  p.ui_remove("bet_box")
+end
+
+func settle_bets(b, winner)
+  let bt = betting[b.ring]
+  if bt == nil then return end
+  let side = "red"
+  if winner.id == b.blue.id then side = "blue" end
+  for p in players() do
+    let pick = bt.bets[p.id]
+    if pick != nil then
+      if pick == side then
+        kit_give(p, BET * 2)
+        p.message("📣 応援が当たった！ 💰+" + BET * 2, 2)
+        kit_quest_progress(p, "bet", 1)
+      else
+        p.message("📣 応援ははずれ…", 1.5)
+      end
+    end
+    p.ui_remove("cheer")
+  end
+  betting[b.ring] = nil
+end
+
+on button(p, id)
+  if id == "cheer" then bet_menu(p)
+  elif id == "bet_close" then p.ui_remove("bet_box")
+  elif starts_with(id, "bet_red_") then place_bet(p, replace(id, "bet_red_", ""), "red")
+  elif starts_with(id, "bet_blue_") then place_bet(p, replace(id, "bet_blue_", ""), "blue")
+  end
+end

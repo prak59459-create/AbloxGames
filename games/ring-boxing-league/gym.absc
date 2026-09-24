@@ -1,0 +1,60 @@
+-- gym.absc — ジム（練習するとずっと強くなる）
+-- 赤いサンドバッグ=パワー、黄色いスピードバッグ=スピード、青いパッド=なわとび（スタミナ）、灰色のパッド=打たれ強さ。
+
+func train_need(p, stat)
+  return TRAIN_HITS + level(p, stat) * 5
+end
+
+func train_hit(p, stat)
+  if p.bout != nil then return end
+  if level(p, stat) >= TRAIN_MAX then
+    if quiet_ready(p, "max_" + stat, 3) then p.message(TRAINING[stat].name + " は最大！", 1.2) end
+    return
+  end
+  if not quiet_ready(p, "gym", 0.3) then return end
+  p.train_hits[stat] = (p.train_hits[stat] or 0) + 1
+  p.sound("hit")
+  kit_quest_progress(p, "gym", 1)
+  let need = train_need(p, stat)
+  if p.train_hits[stat] >= need then
+    p.train_hits[stat] = 0
+    p.train[stat] = level(p, stat) + 1
+    p.message("⬆ " + TRAINING[stat].name + " Lv" + p.train[stat] + "！（" + TRAINING[stat].text + "）", 2)
+    p.sound("goal")
+    kit_quest_progress(p, "train_up", 1)
+  else
+    p.ui_text("gym_bar", TRAINING[stat].name + " " + p.train_hits[stat] + "/" + need, {at: "center", dy: -140, size: 16, bold: true})
+    kit_later(p, 1.5, func() p.ui_remove("gym_bar") end)
+  end
+end
+
+func gym_card(p)
+  let h = 110 + 4 * 34
+  p.ui_panel("gym_box", {at: "center", w: 480, h: h, bg: "#111827F2", radius: 22, layer: 30})
+  p.ui_text("gym_t", "🏋 ジムの記録", {parent: "gym_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for stat in ["power", "speed", "stamina", "chin"] do
+    i = i + 1
+    p.ui_text("gym_" + stat, TRAINING[stat].name + " Lv" + level(p, stat) + "/" + TRAIN_MAX + "  " + TRAINING[stat].text,
+              {parent: "gym_box", y: (36 + i * 34) / h, size: 14})
+  end
+  p.ui_button("gym_close", "閉じる", {parent: "gym_box", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "bag") then
+    for stat in ["power", "speed", "stamina", "chin"] do
+      if contains(b.tags, stat) then train_hit(p, stat) end
+    end
+  elif contains(b.tags, "queue") then join_queue(p)
+  elif contains(b.tags, "career") and quiet_ready(p, "career_pad", 4) then career_menu(p)
+  elif contains(b.tags, "bets") and quiet_ready(p, "bets_pad", 4) then bet_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "gym" then gym_card(p)
+  elif id == "gym_close" then p.ui_remove("gym_box")
+  end
+end

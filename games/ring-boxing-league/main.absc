@@ -1,235 +1,55 @@
 -- Ring Boxing League — リングで1対1のボクシング
+-- 緑のパッドで順番待ち → 2つのリングで試合（3ラウンド）。オレンジのドアでAIとのキャリアモード。
+-- ジムで練習するとずっと強くなる。観客はむらさきのパッドで応援（かけ）。
+--
+-- ファイル:
+--   data.absc     表（パンチ・リング・ランク・キャリア8人・ジム）
+--   common.absc   倍率と画面
+--   fight.absc    試合の流れ・ラウンド・ダウン・判定・順番待ち
+--   punches.absc  パンチ・ガード・ウィービング・必殺ブロー
+--   ai.absc       キャリアモードとAIのボクサー
+--   gym.absc      ジムの練習・パッド
+--   bets.absc     応援
+--   main.absc     このファイル
 
 kit_setup("Ring Boxing League", "スタミナを読んで、打ち勝て", [
-  "緑のパッドにのると試合の順番待ちに入る",
-  "順番が来るとリングへ。相手を3回ダウンさせるか、KOで勝ち",
-  "ジャブ（速い）ストレート（強い）アッパー（ふっとばす）",
-  "パンチとガードはスタミナを使う。休むと回復",
-  "90秒たつとダメージの多いほうの判定勝ち",
-  "勝つとランクポイント。サンドバッグで練習もできる"
+  "🟢 緑のパッドで順番待ち。2人そろうとあいているリングへ",
+  "🥊 ジャブ・ストレート・フック（ガードの上から通る）・アッパー",
+  "🛡 ガードと 💨 ウィービング（0.5びょうかわす）。どれもスタミナを使う",
+  "💥 当てると必殺ゲージ。MAXで必殺ブロー",
+  "🔔 3ラウンド。3回ダウンでTKO、最後まで行けば判定",
+  "🟠 キャリア: AIのボクサー8人を倒して世界王者へ。🏋 ジムで練習",
+  "🟣 観客は応援（💰50）。当たると2倍"
 ])
-
-let queue = []
-let red = nil
-let blue = nil
-let fighting = false
-let ends_at = 0
-let dealt = {}
-let downs = {}
-let ranks = [["ルーキー", 0], ["ブロンズ", 3], ["シルバー", 8], ["ゴールド", 15], ["チャンピオン", 25]]
 
 kit_quest("fight", "1試合する", 1, 50)
 kit_quest("win", "3勝する", 3, 200)
-kit_quest("ko", "KOで勝つ", 1, 150)
-kit_quest("bag", "サンドバッグを30回たたく", 30, 40)
-
-func rank(p)
-  let r = ranks[1][1]
-  for row in ranks do
-    if p.rp >= row[2] then r = row[1] end
-  end
-  return r
-end
-
-func show(p)
-  p.ui_text("rank", "🥊 " + rank(p) + "（" + p.rp + " pt）", {at: "top_left", dy: 34, size: 17, bold: true})
-  if p.fighter then
-    p.ui_bar("stamina", p.stamina, 100, {at: "bottom", dy: -24, w: 280, h: 14, color: "#22C55E"})
-  else
-    p.ui_remove("stamina")
-  end
-end
-
-func show_queue()
-  let names = map(queue, func(q) return q.name end)
-  ui_text("queue", "順番待ち: " + (len(names) > 0 and join(names, ", ") or "なし"), {at: "top", dy: 60, size: 15})
-end
-
-func punch_buttons(p, shown)
-  if shown then
-    let list = [["jab", "ジャブ", "#F59E0B"], ["straight", "ストレート", "#EF4444"], ["upper", "アッパー", "#8B5CF6"], ["guard", "ガード", "#64748B"]]
-    let i = 0
-    for b in list do
-      i = i + 1
-      p.ui_button(b[1], b[2], {at: "bottom_right", dx: -120 - ((i - 1) % 2) * 110, dy: -160 - floor((i - 1) / 2) * 66, w: 100, h: 56, size: 16, bg: b[3], radius: 14})
-    end
-  else
-    for id in ["jab", "straight", "upper", "guard"] do p.ui_remove(id) end
-  end
-end
-
-func opponent(p)
-  if red != nil and p.id == red.id then return blue end
-  if blue != nil and p.id == blue.id then return red end
-  return nil
-end
-
-func start_fight()
-  if fighting or len(queue) < 2 then return end
-  red = remove(queue, 1)
-  blue = remove(queue, 1)
-  if not kit_here(red) or not kit_here(blue) then
-    red = nil
-    blue = nil
-    return
-  end
-  fighting = true
-  dealt = {}
-  downs = {}
-  for f in [red, blue] do
-    f.fighter = true
-    f.stamina = 100
-    f.heal(999)
-    punch_buttons(f, true)
-    show(f)
-    kit_quest_progress(f, "fight", 1)
-  end
-  red.teleport(block("Ring Corner A"))
-  blue.teleport(block("Ring Corner B"))
-  red.look_at(blue)
-  blue.look_at(red)
-  red.color = "#DC2626"
-  blue.color = "#2563EB"
-  ends_at = time() + 90
-  announce("🔔 " + red.name + " vs " + blue.name + "！", 3)
-  show_queue()
-end
-
-func finish(winner, loser, how)
-  if not fighting then return end
-  fighting = false
-  if winner != nil and kit_here(winner) then
-    winner.rp = winner.rp + (how == "KO" and 3 or 2)
-    winner.score = winner.rp
-    kit_give(winner, 100)
-    kit_quest_progress(winner, "win", 1)
-    if how == "KO" then kit_quest_progress(winner, "ko", 1) end
-    announce("🏆 " + winner.name + " の勝ち！（" + how + "）", 4)
-  end
-  if loser != nil and kit_here(loser) then loser.rp = max(0, loser.rp - 1) end
-  for f in [red, blue] do
-    if f != nil and kit_here(f) then
-      f.fighter = false
-      punch_buttons(f, false)
-      if not f.alive then f.respawn() end
-      f.teleport(block("Spawn " + random(1, 8)))
-      show(f)
-    end
-  end
-  red = nil
-  blue = nil
-  after(4, func() start_fight() end)
-end
-
-func punch(p, kind)
-  let o = opponent(p)
-  if o == nil or not fighting then return end
-  let cost = {jab: 8, straight: 18, upper: 26}
-  let power = {jab: 6, straight: 14, upper: 18}
-  let wait = {jab: 0.35, straight: 0.8, upper: 1.2}
-  if not kit_ready(p, "punch", wait[kind]) then return end
-  if p.stamina < cost[kind] then
-    p.message("💦 スタミナ切れ", 0.8)
-    return
-  end
-  p.stamina = p.stamina - cost[kind]
-  show(p)
-  let facing = dot(normalize(o.position - p.position), p.look)
-  if distance(p, o) > 3.4 or facing < 0.4 then
-    p.message("スカッ", 0.5)
-    return
-  end
-  let dmg = power[kind]
-  if o.guard_until != nil and time() < o.guard_until then
-    dmg = dmg * 0.2
-    o.stamina = max(0, o.stamina - 6)
-    show(o)
-  end
-  dealt[p.id] = (dealt[p.id] or 0) + dmg
-  p.sound("hit")
-  if o.health - dmg <= 0 then
-    downs[o.id] = (downs[o.id] or 0) + 1
-    o.health = 100
-    announce("⬇️ " + o.name + " ダウン！（" + downs[o.id] + "/3）", 2)
-    o.frozen = true
-    after(2, func() if kit_here(o) then o.frozen = false end end)
-    if downs[o.id] >= 3 then finish(p, o, "KO") end
-    return
-  end
-  o.damage(dmg, p)
-  if kind == "upper" then o.launch(p.look * 6 + {x: 0, y: 7, z: 0}) end
-end
+kit_quest("ko", "KO・TKOで勝つ", 1, 150)
+kit_quest("knockdown", "5回ダウンを奪う", 5, 150)
+kit_quest("land", "パンチを100発当てる", 100, 200)
+kit_quest("career", "キャリアで3勝", 3, 300)
+kit_quest("champion", "世界王者になる", 1, 2000)
+kit_quest("gym", "ジムで50回練習", 50, 100)
+kit_quest("train_up", "練習のレベルを5回上げる", 5, 300)
+kit_quest("bet", "応援を当てる", 1, 50)
 
 on start()
-  every(1, func()
-    for p in players() do
-      if p.fighter then
-        p.stamina = min(100, p.stamina + 6)
-        show(p)
-      end
-    end
-    if fighting then
-      let left = ends_at - time()
-      ui_text("clock", "⏱ " + kit_clock(left), {at: "top", dy: 26, size: 22, bold: true})
-      if left <= 0 then
-        let a = dealt[red.id] or 0
-        let b = dealt[blue.id] or 0
-        if a >= b then finish(red, blue, "判定") else finish(blue, red, "判定") end
-      end
-    else
-      ui_remove("clock")
-      start_fight()
-    end
-  end)
+  every(10, func() kit_leaderboard("🥊 pt") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_camera_button(p)
+  kit_show_money(p)
   p.rp = 0
-  p.fighter = false
-  show(p)
+  p.career = 0
+  p.train = {}
+  p.train_hits = {}
+  p.stamina = 100
+  p.meter = 0
+  p.ui_button("career", "🥊 キャリア", {at: "right", dy: -60, w: 130, h: 46, size: 15, bg: "#B45309"})
+  p.ui_button("gym", "🏋 ジム", {at: "right", dy: 0, w: 130, h: 46, size: 15, bg: "#334155"})
+  hud(p)
   show_queue()
-end
-
-on leave(p)
-  queue = filter(queue, func(q) return q.id != p.id end)
-  show_queue()
-  if fighting and (p.id == red.id or p.id == blue.id) then
-    let o = opponent(p)
-    finish(o, nil, "相手が退場")
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "queue") and not p.fighter then
-    for q in queue do
-      if q.id == p.id then return end
-    end
-    append(queue, p)
-    p.message("順番待ちに入った（" + len(queue) + " 番目）", 2)
-    show_queue()
-  elif contains(b.tags, "bag") then
-    kit_quest_progress(p, "bag", 1)
-    p.sound("hit")
-  end
-end
-
-on button(p, id)
-  if id == "guard" then
-    if p.fighter and p.stamina >= 10 and kit_ready(p, "guard", 1) then
-      p.stamina = p.stamina - 10
-      p.guard_until = time() + 1.5
-      show(p)
-    end
-  elif id == "jab" or id == "straight" or id == "upper" then
-    punch(p, id)
-  end
-end
-
-on death(victim, killer)
-  if fighting and victim.fighter then
-    finish(opponent(victim), victim, "KO")
-  end
 end

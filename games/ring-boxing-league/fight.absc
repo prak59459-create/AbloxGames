@@ -1,0 +1,262 @@
+-- fight.absc — 試合の流れ
+-- 3ラウンド × 60びょう（あいだに8びょう休けい）。3回ダウンでTKO、体力0でKO。
+-- 最後までいったらジャッジの判定（ラウンドごとに多く当てたほうが10点、もう一方が9点、ダウン1回で-1点）。
+
+let bouts = {}       -- リングid → 試合
+let queue = []
+let fight_clock = 0
+
+func ring_info(id)
+  for r in RINGS do
+    if r.id == id then return r end
+  end
+  return RINGS[1]
+end
+
+func free_ring()
+  for r in RINGS do
+    if bouts[r.id] == nil then return r end
+  end
+  return nil
+end
+
+func bout_of(c)
+  if c == nil or c.bout == nil then return nil end
+  return bouts[c.bout]
+end
+
+func opponent(c)
+  let b = bout_of(c)
+  if b == nil then return nil end
+  if b.red.id == c.id then return b.blue end
+  return b.red
+end
+
+func fighters(b)
+  return [b.red, b.blue]
+end
+
+func corner(b, c)
+  let r = ring_info(b.ring)
+  if b.red.id == c.id then return block(r.prefix + " Corner A") end
+  return block(r.prefix + " Corner B")
+end
+
+func to_corners(b)
+  for c in fighters(b) do
+    if kit_here(c) then
+      c.teleport(corner(b, c))
+      c.stamina = 100
+    end
+  end
+  if kit_here(b.red) and kit_here(b.blue) then
+    b.red.look_at(b.blue)
+    b.blue.look_at(b.red)
+  end
+end
+
+func start_bout(ring, red, blue, career_level)
+  let b = {ring: ring.id, red: red, blue: blue, round: 1, round_ends: time() + ROUND_SECS, resting: false, rest_ends: 0,
+           dealt: {}, round_dealt: {}, downs: {}, round_downs: {}, cards: {}, career: career_level, over: false}
+  bouts[ring.id] = b
+  for c in fighters(b) do
+    c.bout = ring.id
+    c.stamina = 100
+    c.meter = 0
+    c.heal(9999)
+    b.cards[c.id] = 0
+    if not c.is_npc then
+      c.own_color = c.color
+      punch_buttons(c, true)
+      show_fighter(c)
+      kit_quest_progress(c, "fight", 1)
+    end
+  end
+  if not red.is_npc then red.color = "#DC2626" end
+  if not blue.is_npc then blue.color = "#2563EB" end
+  to_corners(b)
+  let title = ""
+  if career_level != nil then title = "【" + CAREER[career_level].title + "】" end
+  announce("🔔 " + title + red.name + " vs " + blue.name + "！", 3)
+  if career_level == nil then open_bets(b) end
+end
+
+func round_points(b)
+  let a = b.red
+  let c = b.blue
+  let da = b.round_dealt[a.id] or 0
+  let dc = b.round_dealt[c.id] or 0
+  let pa = 9
+  let pc = 9
+  if da >= dc then pa = 10 end
+  if dc >= da then pc = 10 end
+  pa = pa - (b.round_downs[a.id] or 0)
+  pc = pc - (b.round_downs[c.id] or 0)
+  b.cards[a.id] = b.cards[a.id] + pa
+  b.cards[c.id] = b.cards[c.id] + pc
+  b.round_dealt = {}
+  b.round_downs = {}
+  return [pa, pc]
+end
+
+func end_round(b)
+  let pts = round_points(b)
+  if b.round >= ROUNDS then
+    let a = b.cards[b.red.id]
+    let c = b.cards[b.blue.id]
+    if a == c then
+      -- 同点ならダメージの多いほう
+      if (b.dealt[b.red.id] or 0) >= (b.dealt[b.blue.id] or 0) then a = a + 1 else c = c + 1 end
+    end
+    if a > c then finish(b, b.red, b.blue, "判定 " + b.cards[b.red.id] + "-" + b.cards[b.blue.id])
+    else finish(b, b.blue, b.red, "判定 " + b.cards[b.blue.id] + "-" + b.cards[b.red.id]) end
+    return
+  end
+  announce("🔔 ラウンド " + b.round + " 終了（" + b.red.name + " " + pts[1] + " - " + pts[2] + " " + b.blue.name + "）", 3)
+  b.resting = true
+  b.rest_ends = time() + REST_SECS
+  for c in fighters(b) do
+    if kit_here(c) then
+      c.stamina = 100
+      c.heal(20)
+    end
+  end
+end
+
+func knockdown(b, victim, by)
+  b.downs[victim.id] = (b.downs[victim.id] or 0) + 1
+  b.round_downs[victim.id] = (b.round_downs[victim.id] or 0) + 1
+  victim.health = victim.max_health * 0.6
+  announce("⬇️ " + victim.name + " ダウン！（" + b.downs[victim.id] + "/" + KNOCKDOWNS_TKO + "）", 2)
+  victim.frozen = true
+  after(2.5, func()
+    if kit_here(victim) then victim.frozen = false end
+  end)
+  if not by.is_npc then kit_quest_progress(by, "knockdown", 1) end
+  if b.downs[victim.id] >= KNOCKDOWNS_TKO then finish(b, by, victim, "TKO") end
+end
+
+func finish(b, winner, loser, how)
+  if b.over then return end
+  b.over = true
+  bouts[b.ring] = nil
+  announce("🏆 " + winner.name + " の勝ち！（" + how + "）", 4)
+  if not winner.is_npc and kit_here(winner) then
+    let pts = 2
+    if how == "TKO" or how == "KO" then pts = 3 end
+    winner.rp = winner.rp + pts
+    winner.wins = (winner.wins or 0) + 1
+    winner.score = winner.rp
+    kit_give(winner, 100)
+    kit_quest_progress(winner, "win", 1)
+    if how == "TKO" or how == "KO" then kit_quest_progress(winner, "ko", 1) end
+    if b.career != nil then career_won(winner, b.career) end
+  end
+  if not loser.is_npc and kit_here(loser) then
+    loser.rp = max(0, loser.rp - 1)
+    loser.losses = (loser.losses or 0) + 1
+  end
+  settle_bets(b, winner)
+  for c in fighters(b) do
+    if c.is_npc then
+      kit_gone(c)
+    elif kit_here(c) then
+      c.bout = nil
+      c.frozen = false
+      punch_buttons(c, false)
+      if c.own_color != nil then c.color = c.own_color end
+      if not c.alive then c.respawn() end
+      c.teleport(block("Spawn " + random(1, 8)))
+      c.ui_remove("stamina")
+      c.ui_remove("meter")
+      hud(c)
+    end
+  end
+  after(4, func() try_queue() end)
+end
+
+func try_queue()
+  queue = filter(queue, func(q) return kit_here(q) and q.bout == nil end)
+  while len(queue) >= 2 do
+    let ring = free_ring()
+    if ring == nil then break end
+    let a = queue[1]
+    let c = queue[2]
+    queue = slice(queue, 3, len(queue))
+    start_bout(ring, a, c, nil)
+  end
+  show_queue()
+end
+
+func show_queue()
+  let names = map(queue, func(q) return q.name end)
+  let text = "なし"
+  if len(names) > 0 then text = join(names, ", ") end
+  ui_text("queue", "順番待ち: " + text, {at: "top", dy: 60, size: 15})
+end
+
+func join_queue(p)
+  if p.bout != nil or contains(map(queue, func(q) return q.id end), p.id) then return end
+  append(queue, p)
+  p.message("順番待ちに入った（" + len(queue) + " 番目）", 2)
+  try_queue()
+end
+
+-- 1びょうごと: 時計・休けい・リングの外に出たらもどす
+on tick(dt)
+  fight_clock = fight_clock + dt
+  if fight_clock < 1 then return end
+  fight_clock = 0
+  for r in RINGS do
+    let b = bouts[r.id]
+    if b != nil then
+      if not kit_here(b.red) or not kit_here(b.blue) then
+        let stay = b.red
+        let gone = b.blue
+        if not kit_here(b.red) then
+          stay = b.blue
+          gone = b.red
+        end
+        finish(b, stay, gone, "相手が退場")
+      elif b.resting then
+        if time() >= b.rest_ends then
+          b.resting = false
+          b.round = b.round + 1
+          b.round_ends = time() + ROUND_SECS
+          to_corners(b)
+          announce("🔔 ラウンド " + b.round + "！", 2)
+        end
+      else
+        if time() >= b.round_ends then end_round(b) end
+        -- 判定で試合がおわったら、もういない相手には何もしない
+        if not b.over and not b.resting then
+          for c in fighters(b) do
+            if kit_here(c) and (abs(c.x - r.x) > 7 or abs(c.z - r.z) > 7 or c.y < 0.8) then c.teleport(corner(b, c)) end
+          end
+        end
+      end
+      if not b.over then
+        let left = b.round_ends - time()
+        if b.resting then left = b.rest_ends - time() end
+        let label = "R" + b.round + "/" + ROUNDS + " ⏱ " + kit_clock(max(0, left))
+        if b.resting then label = "休けい " + ceil(max(0, left)) end
+        for c in fighters(b) do
+          if not c.is_npc then c.ui_text("clock", label, {at: "top", dy: 26, size: 22, bold: true}) end
+        end
+      end
+    end
+  end
+end
+
+on leave(p)
+  queue = filter(queue, func(q) return q.id != p.id end)
+  show_queue()
+end
+
+on death(victim, killer)
+  let b = bout_of(victim)
+  if b != nil and not b.over then
+    let o = opponent(victim)
+    finish(b, o, victim, "KO")
+  end
+end
