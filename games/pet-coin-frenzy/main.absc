@@ -1,186 +1,52 @@
 -- Pet Coin Frenzy — コインの山をこわしてペットを集めるクリッカー
+-- ワールド8つ・ペット48種（Huge つき）・ゴールド/レインボー/合成マシン・ペットが自動でこわす・
+-- 強化7種・転生・イベント3種（コインラッシュ・ラッキーアワー・ボス宝箱）・プレゼント・図鑑。
+--
+-- ファイル:
+--   data.absc    表（ワールド・ペット・強化・イベント）
+--   common.absc  人さがし・画面・ワールドの番号
+--   pets.absc    ペット・たまご・マシン・図鑑
+--   world.absc   山・門・強化・転生・イベント・プレゼント
+--   main.absc    このファイル
 
 kit_setup("Pet Coin Frenzy", "タップでこわして、ペットで強くなれ", [
-  "コインの山をタップするとダメージ。こわれるとコイン",
-  "光るたまごにさわると、コインでペットが出る（3匹まで連れて歩ける）",
-  "ペットのパワーでタップが強くなる",
-  "紫のゲートはコインを払うと通れる。先のエリアほどもうかる",
-  "100万コインで「転生」。コインはリセット、ずっと1.5倍",
-  "巨大ペット（Huge）は250分の1！"
+  "👆 コインの山や宝箱をタップするとダメージ。こわれるとコイン",
+  "🐾 連れているペットが 近くの山を自動でこわしてくれる",
+  "🥚 光るたまごにさわるとペット。強いペットから連れて歩く（枠の数まで）",
+  "✨ 同じペット5ひき → ゴールド、ゴールド5ひき → レインボー（広場のマシン）",
+  "🟣 紫の門はコインで開く。先のワールドほど もうかる",
+  "♻️ 「ぎんが」まで行ったら転生。コインはリセット、ずっと稼ぎアップ",
+  "🌟 Huge ペットは1000分の1！"
 ])
+kit_currency = "コイン"
 
-let zones = ["Spawn Meadow", "Candy Land", "Frost Peak", "Lava Isle", "Galaxy"]
-let gate_price = [0, 500, 8000, 150000, 3000000]
-let egg_price = [100, 1200, 20000, 400000, 8000000]
-let pet_table = [
-  [{name: "こいぬ", power: 1, weight: 50, color: "#D6A76B"}, {name: "こねこ", power: 2, weight: 35, color: "#F59E0B"},
-   {name: "うさぎ", power: 4, weight: 14, color: "#FFFFFF"}, {name: "Huge こいぬ", power: 60, weight: 0.4, color: "#FDE047"}],
-  [{name: "グミベア", power: 8, weight: 50, color: "#F472B6"}, {name: "キャンディねこ", power: 14, weight: 35, color: "#FB7185"},
-   {name: "わたあめユニコーン", power: 30, weight: 14, color: "#F0ABFC"}, {name: "Huge グミベア", power: 400, weight: 0.4, color: "#FDE047"}],
-  [{name: "ゆきうさぎ", power: 60, weight: 50, color: "#E0F2FE"}, {name: "ペンギン", power: 100, weight: 35, color: "#1E293B"},
-   {name: "こおりドラゴン", power: 220, weight: 14, color: "#67E8F9"}, {name: "Huge ペンギン", power: 3000, weight: 0.4, color: "#FDE047"}],
-  [{name: "ひのこトカゲ", power: 500, weight: 50, color: "#F97316"}, {name: "マグマいぬ", power: 900, weight: 35, color: "#DC2626"},
-   {name: "フェニックス", power: 2000, weight: 14, color: "#FB923C"}, {name: "Huge フェニックス", power: 30000, weight: 0.4, color: "#FDE047"}],
-  [{name: "ほしくらげ", power: 5000, weight: 50, color: "#818CF8"}, {name: "宇宙ねこ", power: 9000, weight: 35, color: "#6D28D9"},
-   {name: "ブラックホールドラゴン", power: 22000, weight: 14, color: "#111827"}, {name: "Huge 宇宙ねこ", power: 300000, weight: 0.4, color: "#FDE047"}]
-]
-let pile_hp = {}
-let followers = {}
-
-kit_shop_add("auto", "オートタップ（近くの山を自動でたたく）", 2000, func(p) p.auto = true end)
-kit_shop_add("luck", "ラッキーポーション（60秒 運×3）", 800, func(p)
-  p.luck = 3
-  kit_later(p, 60, func() p.luck = 1 end)
-end)
-kit_shop_add("slot", "ペット枠 +1（最大6）", 5000, func(p) p.slots = min(6, p.slots + 1) end)
-
-func zone_of(b)
-  for t in b.tags do
-    if starts_with(t, "zone") then return num(replace(t, "zone", "")) end
-  end
-  return 1
-end
-
-func max_hp(b)
-  let z = zone_of(b)
-  let hp = 20 * pow(12, z - 1)
-  if b.shape == "sphere" then hp = hp * 8 end
-  return hp
-end
-
-func power(p)
-  let total = 1
-  let best = sort(p.pets, func(a, b) return a.power > b.power end)
-  for pet in slice(best, 1, p.slots) do total = total + pet.power end
-  return total * p.mult
-end
-
-func show(p)
-  p.ui_text("power", "💪 パワー " + kit_short(power(p)) + "   🐾 " + len(p.pets) + "   ♻️ 転生 " + p.rebirths, {at: "top", dy: 30, size: 17, bold: true})
-  p.score = floor(power(p))
-end
-
-func refresh_followers(p)
-  let list = followers[p.id] or []
-  for n in list do
-    if kit_here(n) then n.destroy() end
-  end
-  let made = []
-  let best = sort(p.pets, func(a, b) return a.power > b.power end)
-  for pet in slice(best, 1, min(3, p.slots)) do
-    let n = create_npc({name: pet.name, position: p.position + {x: random(-2, 2), y: 0.5, z: random(-2, 2)},
-                        color: pet.color, head_color: pet.color, size: starts_with(pet.name, "Huge") and 0.9 or 0.45,
-                        health: 999999, speed: 1.4, team: "pets"})
-    n.follow(p)
-    append(made, n)
-  end
-  followers[p.id] = made
-end
-
-func hit_pile(p, b)
-  if not b.visible then return end
-  let hp = pile_hp[b.name]
-  if hp == nil then hp = max_hp(b) end
-  hp = hp - power(p)
-  if hp <= 0 then
-    let reward = floor(max_hp(b) * 0.6 * p.mult)
-    kit_give(p, reward)
-    p.message("💰 +" + kit_short(reward), 0.8)
-    p.sound("collect")
-    b.visible = false
-    remove(pile_hp, b.name)
-    after(8, func() b.visible = true end)
-  else
-    pile_hp[b.name] = hp
-    p.ui_bar("pile_hp", hp, max_hp(b), {at: "bottom", dy: -40, w: 240, h: 10, color: "#FACC15"})
-  end
-end
-
-on start()
-  every(1, func()
-    for p in players() do
-      if p.auto then
-        let best = nil
-        for b in blocks("pile") do
-          if b.visible and distance(p, b) < 20 and (best == nil or distance(p, b) < distance(p, best)) then best = b end
-        end
-        if best != nil then hit_pile(p, best) end
-      end
-    end
-  end)
-  every(10, func() kit_leaderboard("💪") end)
-end
+kit_quest("tap", "100回タップ", 100, 100)
+kit_quest("break", "山を50こ こわす", 50, 300)
+kit_quest("chest", "宝箱をこわす", 5, 800)
+kit_quest("hatch", "たまごを10こ", 10, 500)
+kit_quest("index", "図鑑を10うめる", 10, 3000)
+kit_quest("golden", "ゴールドペットを作る", 1, 5000)
+kit_quest("rainbow", "レインボーペットを作る", 1, 50000)
+kit_quest("fuse", "合成する", 1, 2000)
+kit_quest("world", "新しいワールドへ", 3, 20000)
+kit_quest("upgrade", "強化を5回", 5, 3000)
+kit_quest("boss", "ボス宝箱をこわす", 1, 10000)
+kit_quest("huge", "Hugeペットを出す", 1, 100000)
+kit_quest("gift", "ペットをプレゼント", 1, 500)
+kit_quest("rebirth", "転生する", 1, 50000)
 
 on join(p)
-  kit_welcome(p)
   p.pets = []
-  p.slots = 3
-  p.zone = 1
-  p.mult = 1
+  p.index = []
+  p.up = {}
+  p.world = 1
   p.rebirths = 0
-  kit_give(p, 0)
-  kit_shop_button(p)
-  p.ui_button("rebirth", "♻️ 転生", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#7C3AED"})
-  show(p)
-end
-
-on leave(p)
-  for n in followers[p.id] or [] do
-    if kit_here(n) then n.destroy() end
-  end
-  remove(followers, p.id)
-end
-
-on tap(p, b)
-  if contains(b.tags, "pile") and distance(p, b) < 30 then hit_pile(p, b) end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "egg") then
-    let z = num(split(b.name, " ")[2])
-    if z > p.zone then return end
-    if not kit_ready(p, "egg", 1.5) then return end
-    if kit_pay(p, egg_price[z]) then
-      let pet = kit_pick(pet_table[z], p.luck or 1)
-      append(p.pets, {name: pet.name, power: pet.power, color: pet.color})
-      if starts_with(pet.name, "Huge") then
-        announce("🌟🌟 " + p.name + " が " + pet.name + " を引き当てた！！", 5)
-        p.fade("#FDE047", 0.2)
-        kit_later(p, 0.4, func() p.fade(nil, 0.8) end)
-      else
-        p.message("🥚 " + pet.name + "（パワー " + kit_short(pet.power) + "）", 2)
-      end
-      refresh_followers(p)
-      show(p)
-    end
-  elif contains(b.tags, "gate") then
-    let n = num(split(b.name, " ")[2])
-    if p.zone >= n then return end
-    if p.zone == n - 1 and kit_pay(p, gate_price[n]) then
-      p.zone = n
-      p.message("🔓 " + zones[n] + " が開いた！", 3)
-      p.sound("goal")
-    else
-      p.message("🔒 " + zones[n] + " に入るには 💰" + kit_short(gate_price[n]), 2)
-      p.teleport(block(zones[max(1, n - 1)] + " Ground"))
-    end
-  end
-end
-
-on button(p, id)
-  if id == "rebirth" then
-    if kit_money(p) < 1000000 then
-      p.message("転生には 💰1M 必要", 2)
-      return
-    end
-    p.coins = 0
-    kit_show_money(p)
-    p.rebirths = p.rebirths + 1
-    p.mult = pow(1.5, p.rebirths)
-    p.zone = 1
-    p.teleport(block("Spawn Meadow Ground"))
-    announce("♻️ " + p.name + " が転生した！（×" + fixed(p.mult, 1) + "）", 3)
-    show(p)
-  end
+  kit_welcome(p)
+  kit_give(p, 100)
+  p.ui_button("open_pets", "🐾 ペット", {at: "right", dy: -180, w: 150, h: 50, size: 17, bg: "#7C3AED"})
+  p.ui_button("open_shop", "⬆️ 強化", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#0369A1"})
+  p.ui_button("rebirth", "♻️ 転生", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#DB2777"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  hud(p)
 end

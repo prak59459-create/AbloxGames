@@ -1,11 +1,15 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 75,
+  "blockCount" : 166,
   "id" : "pet-coin-frenzy",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/pet-coin-frenzy\/data.absc",
+    "games\/pet-coin-frenzy\/common.absc",
+    "games\/pet-coin-frenzy\/pets.absc",
+    "games\/pet-coin-frenzy\/world.absc",
     "games\/pet-coin-frenzy\/main.absc"
   ],
   "summary" : "コインの山をタップしてこわし、たまごからペットを出してパワーアップ。新しいエリアを開いて、巨大ペットを引き当てろ！",

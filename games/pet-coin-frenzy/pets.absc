@@ -1,0 +1,270 @@
+-- pets.absc — ペット
+-- たまご（ワールドごと）→ ペット。強いペットが自動で連れて歩くペットになる（枠の数まで）。
+-- 連れているペットは近くの山を自動でこわしてくれる。
+-- ゴールドマシン: 同じペット5ひき → ゴールド（×2.5）。レインボーマシン: ゴールド5ひき → レインボー（×6）。
+-- 合成マシン: ペット10ひき → ワールドの強いペット1ぴき。📖図鑑。
+
+let followers = {}   -- プレイヤーid → [NPC]
+let next_pet = 0
+
+func pet_power(pet)
+  let r = RARITIES[pet.rarity]
+  let base = pow(11, pet.world - 1) * r.power
+  if pet.tier == 1 then base = base * GOLD_MULT end
+  if pet.tier == 2 then base = base * RAINBOW_MULT end
+  return base
+end
+
+func pet_label(pet)
+  let prefix = ""
+  if pet.tier == 1 then prefix = "✨ゴールド " end
+  if pet.tier == 2 then prefix = "🌈レインボー " end
+  return prefix + PET_NAMES[pet.world][pet.rarity]
+end
+
+func pet_key(pet)
+  return pet.world + ":" + pet.rarity + ":" + pet.tier
+end
+
+func slots(p) return 3 + up(p, "slots") end
+
+func equipped(p)
+  let best = sort(copy(p.pets), func(a, b) return pet_power(a) > pet_power(b) end)
+  return slice(best, 1, slots(p))
+end
+
+func total_power(p)
+  let t = 0
+  for pet in equipped(p) do t = t + pet_power(pet) end
+  return t * pow(1.3, up(p, "petdmg")) * rebirth_mult(p)
+end
+
+func tap_power(p)
+  return (1 + total_power(p) * 0.2) * pow(1.5, up(p, "tap"))
+end
+
+-- MARK: ついてくるペット（見た目は上位3ひき）
+
+func refresh_followers(p)
+  for n in followers[p.id] or [] do
+    if kit_here(n) then n.destroy() end
+  end
+  let made = []
+  for pet in slice(equipped(p), 1, 3) do
+    let r = RARITIES[pet.rarity]
+    let color = WORLDS[pet.world].color
+    if pet.tier == 1 then color = "#FACC15" end
+    if pet.tier == 2 then color = "#EC4899" end
+    let size = 0.45
+    if pet.rarity == 6 then size = 0.9 end
+    let n = create_npc({name: pet_label(pet), position: p.position + {x: random(-2, 2), y: 0.5, z: random(-2, 2)}, color: color,
+                        head_color: r.color, size: size, health: 1000000000, speed: 1.6, team: "pets"})
+    n.follow(p)
+    n.pet_owner = p.id
+    append(made, n)
+  end
+  followers[p.id] = made
+end
+
+-- MARK: たまご
+
+func hatch(p, world)
+  let luck = 1 + up(p, "luck") * 0.35
+  if event_now == "lucky" then luck = luck * 2 end
+  let list = []
+  let i = 0
+  for r in RARITIES do
+    i = i + 1
+    append(list, {rarity: i, weight: r.weight})
+  end
+  let pick = kit_pick(list, luck)
+  let pet = {world: world, rarity: pick.rarity, tier: 0}
+  append(p.pets, pet)
+  let key = world + ":" + pick.rarity
+  if not contains(p.index, key) then
+    append(p.index, key)
+    kit_quest_progress(p, "index", 1)
+  end
+  kit_quest_progress(p, "hatch", 1)
+  if pick.rarity == 6 then
+    announce("🌟🌟 " + p.name + " が " + pet_label(pet) + " を引き当てた！！", 5)
+    p.fade("#FDE047", 0.2)
+    kit_later(p, 0.4, func() p.fade(nil, 0.8) end)
+    kit_quest_progress(p, "huge", 1)
+  elif pick.rarity == 5 then
+    announce("⭐ " + p.name + " が レジェンドの " + pet_label(pet) + " を出した！", 3)
+  end
+  return pet
+end
+
+func open_egg(p, world)
+  if world > p.world then
+    p.message("🔒 まだこのワールドのたまごは開けられない", 1.5)
+    return
+  end
+  if cooldown_left(p, "egg") > 0 then return end
+  start_cooldown(p, "egg", 1)
+  let count = 1
+  if up(p, "triple") > 0 then count = 3 end
+  let price = WORLDS[world].egg * count
+  if not kit_pay(p, price) then return end
+  let names = []
+  for k in 1 to count do
+    let pet = hatch(p, world)
+    append(names, pet_label(pet) + "（" + RARITIES[pet.rarity].name + "）")
+  end
+  p.message("🥚 " + join(names, " / "), 3)
+  p.sound("collect")
+  refresh_followers(p)
+  hud(p)
+end
+
+-- MARK: マシン
+
+func count_of(p, key)
+  return len(filter(p.pets, func(x) return pet_key(x) == key end))
+end
+
+func machine_menu(p, kind)
+  let groups = {}
+  let order = []
+  for pet in p.pets do
+    let key = pet_key(pet)
+    if groups[key] == nil then
+      groups[key] = pet
+      append(order, key)
+    end
+  end
+  let rows = []
+  if kind == "golden" then
+    for key in order do
+      let pet = groups[key]
+      if pet.tier == 0 and count_of(p, key) >= COMBINE then append(rows, key) end
+    end
+  elif kind == "rainbow" then
+    for key in order do
+      let pet = groups[key]
+      if pet.tier == 1 and count_of(p, key) >= COMBINE then append(rows, key) end
+    end
+  end
+  let titles = {golden: "✨ ゴールドマシン（同じペット5ひき → ゴールド）", rainbow: "🌈 レインボーマシン（ゴールド5ひき → レインボー）",
+                fuse: "🧪 合成マシン（弱いペット10ひき → ワールドの強いペット）"}
+  let h = 150 + max(1, len(rows)) * 46
+  if kind == "fuse" then h = 230 end
+  p.ui_panel("machine", {at: "center", w: 540, h: h, bg: "#1E1B4BF2", radius: 22, layer: 30})
+  p.ui_text("machine_t", titles[kind], {parent: "machine", y: 26 / h, size: 16, bold: true, color: "#E9D5FF"})
+  if kind == "fuse" then
+    p.ui_text("machine_s", "持っているペット " + len(p.pets) + " ひき（連れていない弱い順に10ひき使う）", {parent: "machine", y: 0.36, size: 14})
+    p.ui_button("fuse_go", "🧪 合成する", {parent: "machine", y: 0.6, w: 220, h: 44, size: 17, bg: "#7C3AED"})
+  else
+    if len(rows) == 0 then
+      p.ui_text("machine_none", "まだ作れるペットがいません", {parent: "machine", y: 90 / h, size: 15})
+    end
+    let i = 0
+    for key in slice(rows, 1, 8) do
+      i = i + 1
+      let pet = groups[key]
+      p.ui_button("combine_" + i, pet_label(pet) + " ×" + count_of(p, key) + " → 1ぴき", {parent: "machine", y: (40 + i * 46) / h, w: 480, h: 40, size: 14, bg: "#6D28D9"})
+    end
+    p.combine_keys = rows
+    p.combine_kind = kind
+  end
+  p.ui_button("machine_close", "閉じる", {parent: "machine", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func combine(p, i)
+  let key = (p.combine_keys or [])[i]
+  if key == nil or count_of(p, key) < COMBINE then return end
+  let used = 0
+  let sample = nil
+  for pet in copy(p.pets) do
+    if used < COMBINE and pet_key(pet) == key then
+      sample = pet
+      remove(p.pets, index_of(p.pets, pet))
+      used = used + 1
+    end
+  end
+  let made = {world: sample.world, rarity: sample.rarity, tier: sample.tier + 1}
+  append(p.pets, made)
+  p.message("✨ " + pet_label(made) + " ができた！", 2.5)
+  p.sound("goal")
+  if made.tier == 1 then kit_quest_progress(p, "golden", 1) end
+  if made.tier == 2 then kit_quest_progress(p, "rainbow", 1) end
+  refresh_followers(p)
+  machine_menu(p, p.combine_kind)
+  hud(p)
+end
+
+func fuse(p)
+  let spare = sort(copy(p.pets), func(a, b) return pet_power(a) < pet_power(b) end)
+  let keep = equipped(p)
+  let use = []
+  for pet in spare do
+    if len(use) < 10 and not contains(keep, pet) then append(use, pet) end
+  end
+  if len(use) < 10 then
+    p.message("連れていないペットが10ひき必要", 1.5)
+    return
+  end
+  for pet in use do remove(p.pets, index_of(p.pets, pet)) end
+  let rarity = random(3, 5)
+  let made = {world: p.world, rarity: rarity, tier: 0}
+  append(p.pets, made)
+  p.message("🧪 合成で " + pet_label(made) + "（" + RARITIES[rarity].name + "）！", 2.5)
+  p.sound("goal")
+  kit_quest_progress(p, "fuse", 1)
+  refresh_followers(p)
+  p.ui_remove("machine")
+  hud(p)
+end
+
+-- MARK: 📖 図鑑とペット一覧
+
+func pets_menu(p)
+  let list = equipped(p)
+  let h = 170 + len(list) * 34
+  p.ui_panel("petlist", {at: "center", w: 520, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("petlist_t", "🐾 ペット " + len(p.pets) + "ひき（連れている " + len(list) + "/" + slots(p) + "）", {parent: "petlist", y: 24 / h, size: 18, bold: true, color: "gold"})
+  p.ui_text("petlist_s", "📖 図鑑 " + len(p.index) + " / " + len(WORLDS) * len(RARITIES), {parent: "petlist", y: 50 / h, size: 14, color: "#93C5FD"})
+  let i = 0
+  for pet in list do
+    i = i + 1
+    p.ui_text("petlist_" + i, pet_label(pet) + "  💪" + kit_short(pet_power(pet)), {parent: "petlist", y: (50 + i * 34) / h, size: 14,
+              color: RARITIES[pet.rarity].color})
+  end
+  p.ui_button("petlist_close", "閉じる", {parent: "petlist", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "machine_close" then p.ui_remove("machine")
+  elif starts_with(id, "combine_") then combine(p, num(replace(id, "combine_", "")))
+  elif id == "fuse_go" then fuse(p)
+  elif id == "open_pets" then pets_menu(p)
+  elif id == "petlist_close" then p.ui_remove("petlist")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "egg") then
+    open_egg(p, num(split(b.name, " ")[2]))
+  elif cooldown_left(p, "machinepad") <= 0 then
+    if contains(b.tags, "golden") then
+      start_cooldown(p, "machinepad", 3)
+      machine_menu(p, "golden")
+    elif contains(b.tags, "rainbow") then
+      start_cooldown(p, "machinepad", 3)
+      machine_menu(p, "rainbow")
+    elif contains(b.tags, "fuse") then
+      start_cooldown(p, "machinepad", 3)
+      machine_menu(p, "fuse")
+    end
+  end
+end
+
+on leave(p)
+  for n in followers[p.id] or [] do
+    if kit_here(n) then n.destroy() end
+  end
+  remove(followers, p.id)
+end

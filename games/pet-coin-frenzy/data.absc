@@ -1,0 +1,54 @@
+-- data.absc — Pet Coin Frenzy の表（ワールド・ペット・強化・イベント）
+
+-- MARK: ワールド（gate: 門を開ける値段 / egg: たまごの値段）
+let WORLDS = [
+  {name: "Spawn Meadow", jp: "はじまりの草原", gate: 0, egg: 100, color: "#86EFAC"},
+  {name: "Candy Land", jp: "おかしの国", gate: 800, egg: 1500, color: "#F9A8D4"},
+  {name: "Frost Peak", jp: "こおりの山", gate: 15000, egg: 22000, color: "#E0F2FE"},
+  {name: "Lava Isle", jp: "ようがん島", gate: 250000, egg: 320000, color: "#F97316"},
+  {name: "Galaxy", jp: "ぎんが", gate: 4000000, egg: 4500000, color: "#312E81"},
+  {name: "Toy Town", jp: "おもちゃの町", gate: 60000000, egg: 65000000, color: "#FDE68A"},
+  {name: "Crystal Cave", jp: "水晶のどうくつ", gate: 900000000, egg: 950000000, color: "#67E8F9"},
+  {name: "Rainbow Road", jp: "にじの道", gate: 14000000000, egg: 14000000000, color: "#F0ABFC"}
+]
+
+-- MARK: ペット（ワールドごとに5ひき＋Huge）。power はワールドで大きくなる
+let RARITIES = [
+  {id: "common", name: "コモン", color: "#9CA3AF", weight: 55, power: 1},
+  {id: "uncommon", name: "アンコモン", color: "#22C55E", weight: 28, power: 2},
+  {id: "rare", name: "レア", color: "#3B82F6", weight: 12, power: 4.5},
+  {id: "epic", name: "エピック", color: "#A855F7", weight: 4.5, power: 10},
+  {id: "legendary", name: "レジェンド", color: "#F59E0B", weight: 0.9, power: 30},
+  {id: "huge", name: "🌟 Huge", color: "#FDE047", weight: 0.1, power: 250}
+]
+let PET_NAMES = [
+  ["こいぬ", "こねこ", "うさぎ", "きつね", "ユニコーン", "Huge こいぬ"],
+  ["グミベア", "キャンディねこ", "ドーナツいぬ", "わたあめヒツジ", "おかしドラゴン", "Huge グミベア"],
+  ["ゆきうさぎ", "ペンギン", "しろくま", "こおりオオカミ", "こおりドラゴン", "Huge ペンギン"],
+  ["ひのこトカゲ", "マグマいぬ", "ほのおのウマ", "ようがんゴーレム", "フェニックス", "Huge フェニックス"],
+  ["ほしくらげ", "宇宙ねこ", "UFOブタ", "ロケットいぬ", "ブラックホールドラゴン", "Huge 宇宙ねこ"],
+  ["つみきベア", "ブリキのロボ", "ゼンマイねずみ", "くるみわりへい", "おもちゃの王さま", "Huge ブリキのロボ"],
+  ["水晶ガエル", "ダイヤこうもり", "ルビーへび", "サファイアクジラ", "クリスタルドラゴン", "Huge 水晶ガエル"],
+  ["にじいろインコ", "にじいろねこ", "オーロラきつね", "プリズムユニコーン", "にじの神竜", "Huge にじの神竜"]
+]
+let GOLD_MULT = 2.5
+let RAINBOW_MULT = 6
+let COMBINE = 5        -- 同じペット5ひきで ゴールド / ゴールド5ひきで レインボー
+
+-- MARK: 強化（ショップ）
+let UPGRADES = [
+  {id: "tap", name: "👆 タップの強さ", text: "タップのダメージ×1.5", base: 200, grow: 3, max: 10},
+  {id: "petdmg", name: "🐾 ペットの強さ", text: "ペットのダメージ×1.3", base: 500, grow: 3.2, max: 10},
+  {id: "coins", name: "💰 コイン倍率", text: "もらえるコイン×1.25", base: 1000, grow: 3.4, max: 10},
+  {id: "luck", name: "🍀 たまごの運", text: "レアが出やすい", base: 2000, grow: 3.6, max: 8},
+  {id: "slots", name: "🧩 ペット枠", text: "連れて歩けるペット +1（最大8）", base: 3000, grow: 4, max: 5},
+  {id: "auto", name: "🤖 オートタップ", text: "近くの山を自動でたたく（Lvで速く）", base: 5000, grow: 5, max: 3},
+  {id: "triple", name: "🥚 3連たまご", text: "たまごを3つ同時にあける", base: 50000, grow: 1, max: 1}
+]
+
+-- MARK: イベント
+let EVENTS = [
+  {id: "coinrush", name: "💰 コインラッシュ", text: "コイン2倍！", seconds: 60},
+  {id: "lucky", name: "🍀 ラッキーアワー", text: "たまごの運2倍！", seconds: 60},
+  {id: "bosschest", name: "👑 ボス宝箱", text: "広場に巨大な宝箱！みんなでこわそう", seconds: 90}
+]

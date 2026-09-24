@@ -1,0 +1,313 @@
+-- world.absc — コインの山・門・強化・転生・イベント・プレゼント
+-- 山（コイン・宝箱・大宝箱）をタップするか、ペットが近くの山を自動でこわす → コイン。
+-- 紫の門はコインで開く。先のワールドほど山もたまごも強い。
+
+let pile_hp = {}
+let event_now = nil
+let event_until = 0
+let boss_chest = nil
+let world_clock = 0
+
+func rebirth_mult(p) return pow(1.6, p.rebirths) end
+
+func coin_mult(p)
+  let m = pow(1.25, up(p, "coins")) * rebirth_mult(p)
+  if event_now == "coinrush" then m = m * 2 end
+  return m
+end
+
+func pile_max(b)
+  let z = zone_of_block(b)
+  let hp = 20 * pow(12, z - 1)
+  let k = kind_of_block(b)
+  if k == 1 then hp = hp * 10 end
+  if k == 2 then hp = hp * 100 end
+  return hp
+end
+
+-- 山にダメージ。こわれたらコイン
+func damage_pile(p, b, amount)
+  if not b.visible then return end
+  let z = zone_of_block(b)
+  if z > p.world then return end
+  let hp = pile_hp[b.name]
+  if hp == nil then hp = pile_max(b) end
+  hp = hp - amount
+  if hp > 0 then
+    pile_hp[b.name] = hp
+    p.ui_bar("pile_hp", hp, pile_max(b), {at: "bottom", dy: -40, w: 240, h: 10, color: "#FACC15"})
+    return
+  end
+  remove(pile_hp, b.name)
+  let reward = floor(pile_max(b) * 0.6 * coin_mult(p))
+  kit_give(p, reward)
+  p.earned = (p.earned or 0) + reward
+  p.ui_remove("pile_hp")
+  p.message("💰 +" + kit_short(reward), 0.8)
+  p.sound("collect")
+  kit_quest_progress(p, "break", 1)
+  let k = kind_of_block(b)
+  if k >= 1 then kit_quest_progress(p, "chest", 1) end
+  b.visible = false
+  let wait = 6
+  if k == 1 then wait = 20 end
+  if k == 2 then
+    wait = 60
+    announce("💎 " + p.name + " が " + WORLDS[z].jp + " の大宝箱をこわした！", 2.5)
+  end
+  after(wait, func() b.visible = true end)
+  hud(p)
+end
+
+-- MARK: 門
+
+func try_gate(p, b)
+  let n = num(split(b.name, " ")[2])
+  if p.world >= n then return end
+  if p.world == n - 1 and kit_pay(p, WORLDS[n].gate) then
+    p.world = n
+    p.message("🔓 " + WORLDS[n].jp + " が開いた！", 3)
+    p.sound("goal")
+    kit_quest_progress(p, "world", 1)
+    hud(p)
+  else
+    p.message("🔒 " + WORLDS[n].jp + " に入るには 💰" + kit_short(WORLDS[n].gate), 2)
+    p.teleport(block(WORLDS[max(1, n - 1)].name + " Ground"))
+  end
+end
+
+-- MARK: 強化
+
+func up_price(p, u) return floor(u.base * pow(u.grow, up(p, u.id))) end
+
+func shop(p)
+  let h = 130 + len(UPGRADES) * 54
+  p.ui_panel("shop", {at: "center", w: 560, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "⬆️ 強化ショップ", {parent: "shop", y: 26 / h, size: 20, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = up(p, u.id)
+    let label = u.name + " Lv." + lv + "  💰" + kit_short(up_price(p, u)) + "  " + u.text
+    let bg = "#0369A1"
+    if lv >= u.max then
+      label = u.name + " Lv." + lv + "（最大）"
+      bg = "#374151"
+    end
+    p.ui_button("up_" + u.id, label, {parent: "shop", y: (30 + i * 54) / h, w: 520, h: 44, size: 13, bg: bg})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_up(p, id)
+  for u in UPGRADES do
+    if u.id == id then
+      let lv = up(p, id)
+      if lv >= u.max or not kit_pay(p, up_price(p, u)) then return end
+      p.up[id] = lv + 1
+      p.sound("collect")
+      kit_quest_progress(p, "upgrade", 1)
+      if id == "slots" then refresh_followers(p) end
+      shop(p)
+      hud(p)
+    end
+  end
+end
+
+-- MARK: 転生
+
+func rebirth_price(p) return 1000000 * pow(8, p.rebirths) end
+
+func rebirth(p)
+  if p.world < 5 then
+    p.message("♻️ 転生は「ぎんが」まで行ってから", 2)
+    return
+  end
+  if not kit_pay(p, rebirth_price(p)) then return end
+  p.rebirths = p.rebirths + 1
+  p.coins = 0
+  kit_show_money(p)
+  p.world = 1
+  p.up = {}
+  p.teleport(block("Spawn Meadow Ground"))
+  announce("♻️ " + p.name + " が転生！（コイン×" + fixed(rebirth_mult(p), 1) + " ずっと）", 3.5)
+  kit_quest_progress(p, "rebirth", 1)
+  refresh_followers(p)
+  hud(p)
+end
+
+-- MARK: イベント
+
+func start_event(e)
+  event_now = e.id
+  event_until = time() + e.seconds
+  announce(e.name + "！ " + e.text, 4)
+  if e.id == "bosschest" then
+    boss_chest = create_block({name: "Boss Chest", shape: "box", position: {x: 0, y: 2.5, z: 10}, size: {x: 5, y: 4, z: 4}, color: "#FDE047",
+                               material: "metal", tags: ["bosschest"]})
+    pile_hp["Boss Chest"] = 5000 * pow(10, max_world() - 1)
+  end
+end
+
+func max_world()
+  let m = 1
+  for p in players() do m = max(m, p.world) end
+  return m
+end
+
+func end_event()
+  if event_now == "bosschest" and boss_chest != nil then
+    gone(boss_chest)
+    boss_chest = nil
+  end
+  event_now = nil
+  ui_remove("event")
+end
+
+func hit_boss_chest(p, amount)
+  if boss_chest == nil then return end
+  let hp = (pile_hp["Boss Chest"] or 0) - amount
+  pile_hp["Boss Chest"] = hp
+  if p.boss_dmg == nil then p.boss_dmg = 0 end
+  p.boss_dmg = p.boss_dmg + amount
+  if hp <= 0 then
+    gone(boss_chest)
+    boss_chest = nil
+    announce("👑 ボス宝箱がこわれた！手伝ったみんなにごほうび", 3.5)
+    for q in players() do
+      if (q.boss_dmg or 0) > 0 then
+        let prize = floor(WORLDS[q.world].egg * 3 * coin_mult(q))
+        kit_give(q, prize)
+        q.message("👑 ボス宝箱 💰+" + kit_short(prize), 3)
+        kit_quest_progress(q, "boss", 1)
+        q.boss_dmg = 0
+      end
+    end
+    end_event()
+  end
+end
+
+-- MARK: プレゼント（トレードブース）
+
+func gift_menu(p)
+  let others = filter(players(), func(o) return o.id != p.id end)
+  let rows = max(1, min(6, len(others)))
+  let h = 150 + rows * 46
+  p.ui_panel("gift", {at: "center", w: 460, h: h, bg: "#14532DF2", radius: 22, layer: 30})
+  p.ui_text("gift_t", "🎁 連れていないペットのいちばん強い1ぴきをプレゼント", {parent: "gift", y: 26 / h, size: 14, bold: true, color: "#BBF7D0"})
+  if len(others) == 0 then
+    p.ui_text("gift_none", "ほかにだれもいません", {parent: "gift", y: 80 / h, size: 15})
+  end
+  let i = 0
+  for o in slice(others, 1, 6) do
+    i = i + 1
+    p.ui_button("giftto_" + o.id, o.name + " にあげる", {parent: "gift", y: (40 + i * 46) / h, w: 380, h: 38, size: 15, bg: "#15803D"})
+  end
+  p.ui_button("gift_close", "閉じる", {parent: "gift", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func gift(p, id)
+  let o = player_by_id(id)
+  if o == nil then return end
+  let keep = equipped(p)
+  let spare = filter(p.pets, func(x) return not contains(keep, x) end)
+  if len(spare) == 0 then
+    p.message("あげられるペットがいません（連れていないペットだけ）", 1.5)
+    return
+  end
+  let best = sort(spare, func(a, b) return pet_power(a) > pet_power(b) end)[1]
+  remove(p.pets, index_of(p.pets, best))
+  append(o.pets, best)
+  o.message("🎁 " + p.name + " から " + pet_label(best) + " をもらった！", 3)
+  p.message("🎁 " + o.name + " に " + pet_label(best) + " をあげた", 2)
+  kit_quest_progress(p, "gift", 1)
+  refresh_followers(o)
+  p.ui_remove("gift")
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "power", "💪 ペット " + kit_short(total_power(p)) + "   👆 " + kit_short(tap_power(p)) + "   🌍 " + WORLDS[p.world].jp,
+           {at: "top", dy: 30, size: 16, bold: true})
+  let rb = ""
+  if p.rebirths > 0 then rb = "♻️ 転生 " + p.rebirths + "（×" + fixed(rebirth_mult(p), 1) + "）" end
+  set_line(p, "rb", rb, {at: "top_left", dy: 34, size: 14, color: "#F0ABFC"})
+  p.score = floor(p.earned or 0)
+end
+
+-- MARK: イベントハンドラ
+
+on start()
+  every(200, func() start_event(random(EVENTS)) end)
+  every(10, func() kit_leaderboard("💰 かせいだ合計") end)
+end
+
+on tick(dt)
+  world_clock = world_clock + dt
+  if world_clock < 1 then return end
+  world_clock = 0
+  if event_now != nil then
+    let left = event_until - time()
+    if left <= 0 then
+      end_event()
+    else
+      for e in EVENTS do
+        if e.id == event_now then ui_text("event", e.name + " のこり " + kit_clock(left), {at: "top", dy: 56, size: 15, bold: true, color: "#FDE047"}) end
+      end
+    end
+  end
+  for p in players() do
+    -- ペットが近くの山をこわす（1秒ごと）
+    let best = nil
+    for b in blocks("pile") do
+      if b.visible and zone_of_block(b) <= p.world and distance(p, b) < 22 and (best == nil or distance(p, b) < distance(p, best)) then best = b end
+    end
+    if best != nil then
+      damage_pile(p, best, total_power(p) * 0.5)
+      for n in followers[p.id] or [] do
+        if kit_here(n) and random() < 0.3 then n.move_to(best) end
+      end
+    end
+    if boss_chest != nil and distance(p, boss_chest) < 25 then hit_boss_chest(p, total_power(p) * 0.5) end
+    -- オートタップ
+    let auto = up(p, "auto")
+    if auto > 0 and best != nil then
+      for k in 1 to auto do damage_pile(p, best, tap_power(p)) end
+    end
+  end
+end
+
+on tap(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "pile") and distance(p, b) < 30 then
+    damage_pile(p, b, tap_power(p))
+    kit_quest_progress(p, "tap", 1)
+  elif contains(b.tags, "bosschest") then
+    hit_boss_chest(p, tap_power(p))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "gate") then
+    try_gate(p, b)
+  elif contains(b.tags, "shop") and cooldown_left(p, "shoppad") <= 0 then
+    start_cooldown(p, "shoppad", 3)
+    shop(p)
+  elif contains(b.tags, "trade") and cooldown_left(p, "tradepad") <= 0 then
+    start_cooldown(p, "tradepad", 3)
+    gift_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "shop_close" then p.ui_remove("shop")
+  elif starts_with(id, "up_") then buy_up(p, replace(id, "up_", ""))
+  elif id == "open_shop" then shop(p)
+  elif id == "rebirth" then rebirth(p)
+  elif id == "gift_close" then p.ui_remove("gift")
+  elif starts_with(id, "giftto_") then gift(p, replace(id, "giftto_", ""))
+  end
+end

@@ -896,8 +896,10 @@ func hotelDoors(_ m: MapBuilder) {
 
 func petCoin(_ m: MapBuilder) {
     m.sky("#7DD3FC", "#FDF4FF", light: 0.8, ground: "#86EFAC")
+    // Eight worlds in a row, each behind a gate that costs coins.
     let zones: [(String, String, Float)] = [("Spawn Meadow", "#86EFAC", 0), ("Candy Land", "#F9A8D4", 60),
-                                            ("Frost Peak", "#E0F2FE", 120), ("Lava Isle", "#F97316", 180), ("Galaxy", "#312E81", 240)]
+                                            ("Frost Peak", "#E0F2FE", 120), ("Lava Isle", "#F97316", 180), ("Galaxy", "#312E81", 240),
+                                            ("Toy Town", "#FDE68A", 300), ("Crystal Cave", "#67E8F9", 360), ("Rainbow Road", "#F0ABFC", 420)]
     for (i, z) in zones.enumerated() {
         m.ground(56, 56, color: z.1, name: "\(z.0) Ground", z: z.2)
         if i > 0 {
@@ -905,17 +907,27 @@ func petCoin(_ m: MapBuilder) {
                    behavior: .trigger, tags: ["gate"], solid: false, opacity: 0.5)
         }
         var r = Seeded("coins\(i)")
-        for k in 0..<10 {
-            let big = k == 9
-            m.part("\(z.0) Pile \(k + 1)", at: (r.range(-22, 22), big ? 1.5 : 0.6, z.2 + r.range(-20, 20)),
-                   size: big ? (3, 3, 3) : (1.4, 1.2, 1.4), color: big ? "#FDE047" : "#FACC15",
-                   shape: big ? .sphere : .cylinder, material: .metal, tags: ["pile", "zone\(i + 1)"])
+        for k in 0..<14 {
+            let kind = k == 13 ? 2 : (k >= 10 ? 1 : 0)   // 0 coins, 1 chest, 2 giant chest
+            let size: (Float, Float, Float) = kind == 2 ? (3.4, 3, 3.4) : (kind == 1 ? (2, 1.6, 1.4) : (1.4, 1.2, 1.4))
+            m.part("\(z.0) Pile \(k + 1)", at: (r.range(-22, 22), size.1 / 2, z.2 + r.range(-20, 20)), size: size,
+                   color: kind == 2 ? "#F59E0B" : (kind == 1 ? "#B45309" : "#FACC15"),
+                   shape: kind == 0 ? .cylinder : .box, material: .metal, tags: ["pile", "zone\(i + 1)", "kind\(kind)"])
         }
         m.slab("\(z.0) Egg Stand", x: 20, y: 0, z: z.2 + 22, w: 4, h: 1, d: 4, color: "#FFFFFF")
         m.part("Egg \(i + 1)", at: (20, 2, z.2 + 22), size: (1.6, 2, 1.6), color: z.1, shape: .sphere, material: .neon,
                behavior: .trigger, tags: ["egg"])
+        m.slab("\(z.0) Golden Stand", x: -20, y: 0, z: z.2 + 22, w: 4, h: 1, d: 4, color: "#FDE68A")
     }
     m.spawnRing(0, -10, radius: 4, count: 6)
+    // Machines in the meadow: gold, rainbow, fuse, and the trading booth.
+    let machines: [(String, String, Float, String)] = [("Golden Machine", "#FACC15", -18, "golden"), ("Rainbow Machine", "#EC4899", -10, "rainbow"),
+                                                       ("Fuse Machine", "#8B5CF6", 10, "fuse"), ("Trade Booth", "#22C55E", 18, "trade")]
+    for mc in machines {
+        m.slab("\(mc.0) Body", x: mc.2, y: 0, z: -22, w: 4, h: 3, d: 3, color: mc.1, material: .metal)
+        m.pad(mc.0, x: mc.2, z: -19, size: 2.6, color: mc.1, tags: [mc.3])
+    }
+    m.pad("Upgrade Shop", x: 0, z: -24, size: 3, color: "#38BDF8", tags: ["shop"])
 }
 
 // MARK: 15 Tower of Chaos

@@ -1,0 +1,53 @@
+-- common.absc — Pet Coin Frenzy の道具
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+func up(p, id) return p.up[id] or 0 end
+
+-- ワールド z の番号（1〜8）
+func zone_of_block(b)
+  for t in b.tags do
+    if starts_with(t, "zone") then return num(replace(t, "zone", "")) end
+  end
+  return 1
+end
+
+func kind_of_block(b)
+  for t in b.tags do
+    if starts_with(t, "kind") then return num(replace(t, "kind", "")) end
+  end
+  return 0
+end
+
+func world_at(p)
+  return clamp(floor((p.z + 30) / 60) + 1, 1, len(WORLDS))
+end
