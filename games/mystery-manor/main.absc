@@ -1,167 +1,52 @@
 -- Mystery Manor — 市民・保安官・犯人の推理サバイバル
+-- マップ3つ（投票）・能力7種・ナイフ投げ・落ちた銃でヒーロー・観戦・コイン・ミステリーボックス・
+-- ナイフ9種と銃5種の見た目（レアはたおした時に光る）・レベル。
+--
+-- ファイル:
+--   data.absc        表（マップ・能力・ナイフと銃・効果・ボックス）
+--   common.absc      人さがし・画面・レベル
+--   round.absc       ロビーと投票・役・勝ち負け・コイン・観戦
+--   roles.absc       ナイフ投げ・能力・落ちた銃・わな・たおした時の効果
+--   collection.absc  ミステリーボックスと武器ラック
+--   main.absc        このファイル
 
 kit_setup("Mystery Manor", "犯人を見つけろ。犯人は正体をかくせ", [
-  "ラウンドの始めに、自分だけに役が知らされます",
-  "🔪 犯人: ナイフで全員をたおせば勝ち",
+  "🏠 ロビーで次のマップに投票。ラウンドの始めに自分だけに役が知らされる",
+  "🔪 犯人: ナイフと 🗡投げナイフで全員をたおせば勝ち",
   "🔫 保安官: 犯人を撃てば市民の勝ち（市民を撃つと自分もアウト）",
   "🙂 市民: 3分生きのこれば勝ち。コインも集めよう",
-  "保安官がたおれると銃が落ちる。市民が拾うと保安官に",
-  "3人以上で遊ぶのがおすすめ"
+  "🔫 保安官がたおれると銃が落ちる。市民が拾うと保安官に（ヒーロー！）",
+  "✨ 犯人と保安官は ラウンドの始めに能力を1つえらべる",
+  "🎁 コインで ミステリーボックス（紫）→ ナイフや銃の見た目",
+  "👁 たおされたら観戦できる。3人以上で遊ぶのがおすすめ"
 ])
+kit_currency = "コイン"
 
-kit_melee("ナイフ", 200, 1.2, 5)
-weapon("リボルバー", {model: "pistol", damage: 200, rate: 0.8, range: 80, ammo: 1, reload: 2.5, spread: 0})
-
-let phase = "lobby"
-let ends_at = 0
-let lobby_count = 0
-
-func role_name(p)
-  if p.role == "murderer" then return "🔪 犯人" end
-  if p.role == "sheriff" then return "🔫 保安官" end
-  return "🙂 市民"
-end
-
-func alive_role(role)
-  let n = 0
-  for p in players() do
-    if p.alive and p.in_round and p.role == role then n = n + 1 end
-  end
-  return n
-end
-
-func alive_innocents()
-  let n = 0
-  for p in players() do
-    if p.alive and p.in_round and p.role != "murderer" then n = n + 1 end
-  end
-  return n
-end
-
-func begin()
-  let list = shuffle(copy(players()))
-  if len(list) < 2 then
-    ui_text("status", "あと1人以上で始まります", {at: "top", dy: 30, size: 18})
-    phase = "lobby"
-    return
-  end
-  phase = "play"
-  ends_at = time() + 180
-  let i = 0
-  for p in list do
-    i = i + 1
-    p.in_round = true
-    p.take()
-    if i == 1 then
-      p.role = "murderer"
-      p.give("ナイフ")
-    elif i == 2 then
-      p.role = "sheriff"
-      p.give("リボルバー")
-    else
-      p.role = "innocent"
-    end
-    p.teleport(block("Manor Spawn " + ((i - 1) % 6 + 1)))
-    p.ui_panel("role", {at: "center", w: 360, h: 120, bg: "#000000CC", radius: 20})
-    p.ui_text("role_t", "あなたは " + role_name(p), {parent: "role", y: 0.4, size: 30, bold: true})
-    p.ui_text("role_s", "誰にも言わないでね", {parent: "role", y: 0.78, size: 14})
-    kit_later(p, 4, func() p.ui_remove("role") end)
-    p.ui_text("myrole", role_name(p), {at: "bottom_left", dx: 20, dy: -150, size: 18, bold: true})
-  end
-  ui_remove("status")
-  announce("🕯 館の中で… ラウンド開始！", 3)
-end
-
-func check_end()
-  if phase != "play" then return end
-  if alive_role("murderer") == 0 then
-    phase = "over"
-    for p in players() do
-      if p.in_round and p.role != "murderer" then p.score = p.score + 1 end
-    end
-    kit_finish("🎉 市民の勝ち！ 犯人がたおされた", 7)
-  elif alive_innocents() == 0 then
-    phase = "over"
-    for p in players() do
-      if p.role == "murderer" then p.score = p.score + 2 end
-    end
-    kit_finish("🔪 犯人の勝ち！", 7)
-  end
-end
-
-on start()
-  game.respawn_time = -1
-  game.friendly_fire = true
-  ui_text("status", "まもなくスタート…", {at: "top", dy: 30, size: 18})
-  after(8, func() begin() end)
-  every(1, func()
-    if phase == "play" then
-      let left = ends_at - time()
-      ui_text("timer", "⏱ " + kit_clock(left), {at: "top", dy: 30, size: 22, bold: true})
-      if left <= 0 then
-        phase = "over"
-        for p in players() do
-          if p.in_round and p.alive and p.role != "murderer" then p.score = p.score + 1 end
-        end
-        kit_finish("⏰ 時間切れ！ 市民の勝ち", 7)
-      end
-    elif phase == "lobby" then
-      lobby_count = lobby_count + 1
-      if lobby_count % 5 == 0 then begin() end
-    end
-  end)
-  every(4, func()
-    if phase == "play" and len(blocks("coin")) < 10 then
-      let spot = block("Coin Spot " + random(1, 14))
-      create_block({name: "Coin", shape: "cylinder", position: spot.position + {x: 0, y: 0.8, z: 0},
-                    size: {x: 0.8, y: 0.15, z: 0.8}, rotation: {x: 90, y: 0, z: 0}, color: "gold", material: "neon",
-                    tags: ["coin"], behavior: "trigger"})
-    end
-  end)
-end
+kit_quest("win", "ラウンドで勝つ", 1, 20)
+kit_quest("survive", "市民として生きのこる", 3, 40)
+kit_quest("catch", "保安官で犯人をたおす", 1, 60)
+kit_quest("hero", "落ちた銃を拾う", 1, 50)
+kit_quest("murderwin", "犯人として勝つ", 1, 60)
+kit_quest("knife", "犯人で5人たおす", 5, 60)
+kit_quest("throw", "ナイフを投げる", 1, 10)
+kit_quest("perk", "能力を使う", 3, 20)
+kit_quest("coins", "コインを100まい拾う", 100, 50)
+kit_quest("collect", "ボックスで3つ当てる", 3, 80)
+kit_quest("lv5", "レベル5", 4, 100)
 
 on join(p)
+  p.level = 1
+  p.xp = 0
+  p.wins = 0
+  p.knives = ["default"]
+  p.guns = ["default"]
+  p.knife = "default"
+  p.gun = "default"
   kit_welcome(p)
-  p.in_round = false
   kit_show_money(p)
-  if phase == "play" then p.message("次のラウンドから参加します（ロビーで待ってね）", 3) end
-end
-
-on leave(p)
-  after(0.2, func() check_end() end)
-end
-
-on death(victim, killer)
-  if not victim.in_round then return end
-  victim.message("あなたはたおされた… 次のラウンドを待とう", 3)
-  if victim.role == "sheriff" then
-    -- 銃を落とす
-    create_block({name: "Dropped Gun", shape: "box", position: victim.position + {x: 0, y: 0.6, z: 0},
-                  size: {x: 0.9, y: 0.4, z: 0.3}, color: "#9CA3AF", material: "metal", tags: ["gun"], behavior: "trigger"})
-    announce("🔫 保安官がたおれた！銃が落ちている…", 3)
-  end
-  if killer != nil and killer.role == "sheriff" and victim.role != "murderer" then
-    killer.message("市民を撃ってしまった！", 2)
-    killer.kill()
-  end
-  kit_later(victim, 2.5, func()
-    victim.in_round = false
-    victim.respawn()
-  end)
-  check_end()
-end
-
-on touch(p, b)
-  if p.is_npc or not p.alive then return end
-  if contains(b.tags, "coin") and p.in_round then
-    b.destroy()
-    kit_give(p, 1)
-    p.sound("collect")
-  elif contains(b.tags, "gun") and p.in_round and p.role == "innocent" then
-    b.destroy()
-    p.role = "sheriff"
-    p.give("リボルバー")
-    p.ui_text("myrole", role_name(p), {at: "bottom_left", dx: 20, dy: -150, size: 18, bold: true})
-    announce("🔫 だれかが銃を拾った！", 2)
-  end
+  p.ui_button("open_rack", "🗄 武器ラック", {at: "right", dy: -120, w: 160, h: 50, size: 16, bg: "#0369A1"})
+  p.ui_button("open_boxes", "🎁 ボックス", {at: "right", dy: -60, w: 160, h: 50, size: 16, bg: "#7E22CE"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+  hud(p)
 end

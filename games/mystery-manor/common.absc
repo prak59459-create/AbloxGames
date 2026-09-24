@@ -1,0 +1,62 @@
+-- common.absc — Mystery Manor の道具（人さがし・画面・レベル）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+func need_xp(level)
+  return 80 + level * 30
+end
+
+func gain(p, xp, why)
+  if not kit_here(p) then return end
+  p.xp = p.xp + xp
+  let up = false
+  while p.xp >= need_xp(p.level) do
+    p.xp = p.xp - need_xp(p.level)
+    p.level = p.level + 1
+    up = true
+  end
+  if why != nil then p.message(why + "  +" + xp + "XP", 2) end
+  if up then
+    p.message("⬆️ レベル " + p.level + "！ 🪙+20", 2.5)
+    kit_give(p, 20)
+    p.sound("goal")
+    kit_quest_progress(p, "lv5", 1)
+  end
+  hud(p)
+end
+
+func hud(p)
+  if not kit_here(p) then return end
+  set_line(p, "lv", "🕵 Lv." + p.level + "   🏆 " + p.wins, {at: "top_left", dy: 34, size: 16, bold: true, color: "#FDE68A"})
+  p.ui_bar("xpbar", p.xp, need_xp(p.level), {at: "top_left", dy: 58, dx: 4, w: 150, h: 8, color: "#FBBF24"})
+  p.score = p.wins
+end

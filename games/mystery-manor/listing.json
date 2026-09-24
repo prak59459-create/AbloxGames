@@ -1,11 +1,16 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 70,
+  "blockCount" : 163,
   "id" : "mystery-manor",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/mystery-manor\/data.absc",
+    "games\/mystery-manor\/collection.absc",
+    "games\/mystery-manor\/common.absc",
+    "games\/mystery-manor\/roles.absc",
+    "games\/mystery-manor\/round.absc",
     "games\/mystery-manor\/main.absc"
   ],
   "summary" : "市民・保安官・犯人に分かれる推理サバイバル。犯人は正体をかくして全員を、保安官は犯人を見つけてたおせ。市民は生きのこれ！",

@@ -1,0 +1,91 @@
+-- collection.absc — コレクション
+-- ラウンドで拾ったコインで ミステリーボックス（紫のパッド）をあけると ナイフや銃の見た目が出る。
+-- 武器ラック（水色のパッド）で使う見た目をえらぶ。レアな見た目は たおした時に光の効果が出る。
+
+func box_menu(p)
+  let h = 130 + len(BOXES) * 56
+  p.ui_panel("box", {at: "center", w: 460, h: h, bg: "#3B0764F2", radius: 22, layer: 30})
+  p.ui_text("box_t", "🎁 ミステリーボックス（🪙 " + kit_money(p) + "）", {parent: "box", y: 26 / h, size: 19, bold: true, color: "#E9D5FF"})
+  let i = 0
+  for b in BOXES do
+    i = i + 1
+    p.ui_button("open_box_" + b.id, b.name + "  🪙" + b.price, {parent: "box", y: (30 + i * 56) / h, w: 400, h: 46, size: 16, bg: "#7E22CE"})
+  end
+  p.ui_button("box_close", "閉じる", {parent: "box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func open_box(p, id)
+  let box = nil
+  for b in BOXES do
+    if b.id == id then box = b end
+  end
+  if box == nil or not kit_pay(p, box.price) then return end
+  let list = KNIVES
+  if box.list == "guns" then list = GUNS end
+  let choices = map(list, func(x) return {item: x, weight: RARITY[x.rarity].weight} end)
+  let item = kit_pick(choices, 1).item
+  let owned = p.knives
+  if box.list == "guns" then owned = p.guns end
+  let r = RARITY[item.rarity]
+  if contains(owned, item.id) then
+    let back = floor(box.price / 3)
+    kit_give(p, back)
+    p.message("もう持っている " + item.name + "（" + r.name + "）… 🪙" + back + " もどってきた", 2.5)
+  else
+    append(owned, item.id)
+    p.message("🎁 " + item.name + "（" + r.name + "）が出た！武器ラックで持てます", 3)
+    if item.rarity == "godly" or item.rarity == "legendary" then
+      announce("🎁 " + p.name + " が " + r.name + " の「" + item.name + "」を当てた！", 3.5)
+    end
+    kit_quest_progress(p, "collect", 1)
+  end
+  p.sound("goal")
+  box_menu(p)
+end
+
+func rack_menu(p)
+  let rows = []
+  for k in KNIVES do
+    if contains(p.knives, k.id) then append(rows, {id: "useknife_" + k.id, label: "🔪 " + k.name, rarity: k.rarity, using: p.knife == k.id}) end
+  end
+  for g in GUNS do
+    if contains(p.guns, g.id) then append(rows, {id: "usegun_" + g.id, label: "🔫 " + g.name, rarity: g.rarity, using: p.gun == g.id}) end
+  end
+  let h = 130 + len(rows) * 44
+  p.ui_panel("rack", {at: "center", w: 440, h: h, bg: "#0C1A2BF2", radius: 22, layer: 30})
+  p.ui_text("rack_t", "🗄 武器ラック（見た目をえらぶ）", {parent: "rack", y: 26 / h, size: 18, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for r in rows do
+    i = i + 1
+    let mark = ""
+    if r.using then mark = "✅ " end
+    p.ui_button(r.id, mark + r.label + "（" + RARITY[r.rarity].name + "）", {parent: "rack", y: (30 + i * 44) / h, w: 380, h: 38, size: 14, bg: RARITY[r.rarity].color})
+  end
+  p.ui_button("rack_close", "閉じる", {parent: "rack", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "box_close" then p.ui_remove("box")
+  elif starts_with(id, "open_box_") then open_box(p, replace(id, "open_box_", ""))
+  elif id == "rack_close" then p.ui_remove("rack")
+  elif starts_with(id, "useknife_") then
+    p.knife = replace(id, "useknife_", "")
+    rack_menu(p)
+  elif starts_with(id, "usegun_") then
+    p.gun = replace(id, "usegun_", "")
+    rack_menu(p)
+  elif id == "open_rack" then rack_menu(p)
+  elif id == "open_boxes" then box_menu(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "crate") and cooldown_left(p, "crate") <= 0 then
+    start_cooldown(p, "crate", 3)
+    box_menu(p)
+  elif contains(b.tags, "inventory") and cooldown_left(p, "rack") <= 0 then
+    start_cooldown(p, "rack", 3)
+    rack_menu(p)
+  end
+end

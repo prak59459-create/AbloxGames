@@ -1,0 +1,238 @@
+-- roles.absc — 役ごとの道具と能力
+-- 🔪 犯人: ナイフ（近く）と ナイフ投げ（遠く・6秒に1回）＋ 能力（ゴースト・ヘイスト・トラップ・ニセの銃）
+-- 🔫 保安官: 銃（市民を撃つと自分もアウト）＋ 能力（ダッシュ・レーダー・足あと）
+-- 保安官がたおれると銃が落ちる。市民が拾うと保安官になれる（ヒーロー）。
+
+for k in KNIVES do kit_melee(k.name, 200, 1.2, 5) end
+for g in GUNS do
+  weapon(g.name, {model: "pistol", damage: 200, rate: 0.8, range: 80, ammo: 1, reload: 2.5, spread: 0})
+end
+weapon("ニセの銃", {model: "pistol", damage: 0, rate: 0.8, range: 80, ammo: 1, reload: 2.5, spread: 0})
+
+let traps = []
+
+func knife_of(p)
+  for k in KNIVES do
+    if k.id == (p.knife or "default") then return k end
+  end
+  return KNIVES[1]
+end
+
+func gun_of(p)
+  for g in GUNS do
+    if g.id == (p.gun or "default") then return g end
+  end
+  return GUNS[1]
+end
+
+-- 役の道具を持つ
+func arm_role(p)
+  if p.role == "murderer" then
+    p.give(knife_of(p).name)
+    p.ui_button("throw", "🗡 投げる", {at: "bottom_right", dx: -120, dy: -210, w: 120, h: 54, size: 16, bg: "#7F1D1D", radius: 16})
+  elif p.role == "sheriff" then
+    p.give(gun_of(p).name)
+  end
+end
+
+-- MARK: 能力をえらぶ
+
+func perk_menu(p)
+  let list = []
+  if p.role == "murderer" then list = MURDER_PERKS end
+  if p.role == "sheriff" then list = SHERIFF_PERKS end
+  if len(list) == 0 then return end
+  let h = 120 + len(list) * 52
+  p.ui_panel("perkpick", {at: "center", w: 480, h: h, bg: "#1C1917F0", radius: 20, layer: 35})
+  p.ui_text("perkpick_t", "能力をえらぶ（このラウンドだけ）", {parent: "perkpick", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for pk in list do
+    i = i + 1
+    p.ui_button("perk_" + pk.id, pk.name + "：" + pk.text, {parent: "perkpick", y: (30 + i * 52) / h, w: 440, h: 44, size: 13, bg: "#44403C"})
+  end
+  kit_later(p, 10, func() p.ui_remove("perkpick") end)
+end
+
+func choose_perk(p, id)
+  p.ui_remove("perkpick")
+  p.perk = id
+  p.ui_button("perks", "✨ 能力", {at: "bottom_right", dx: -250, dy: -210, w: 120, h: 54, size: 16, bg: "#6D28D9", radius: 16})
+end
+
+func perk_info(id)
+  for pk in MURDER_PERKS do
+    if pk.id == id then return pk end
+  end
+  for pk in SHERIFF_PERKS do
+    if pk.id == id then return pk end
+  end
+  return nil
+end
+
+func use_perk(p)
+  if phase != "play" or not p.alive or p.perk == nil then return end
+  let pk = perk_info(p.perk)
+  if pk == nil then return end
+  let left = cooldown_left(p, "perk")
+  if left > 0 then
+    p.message("あと " + ceil(left) + " 秒", 1)
+    return
+  end
+  start_cooldown(p, "perk", pk.cd)
+  let id = p.perk
+  if id == "ghost" then
+    p.visible = false
+    p.message("👻 5秒 見えない", 1.5)
+    kit_later(p, 5, func() p.visible = true end)
+  elif id == "haste" or id == "sprint" then
+    p.speed = 1.6
+    let secs = 4
+    if id == "sprint" then secs = 3 end
+    kit_later(p, secs, func() p.speed = 1 end)
+  elif id == "trap" then
+    let mine = filter(traps, func(t) return t.owner == p.id end)
+    if len(mine) >= 2 then
+      p.message("トラップは2こまで", 1)
+      return
+    end
+    let b = create_block({name: "Trap", shape: "cylinder", position: p.position + {x: 0, y: 0.05, z: 0}, size: {x: 1.4, y: 0.08, z: 1.4},
+                          color: "#57534E", material: "metal", behavior: "trigger", tags: ["trap"], solid: false, opacity: 0.5})
+    append(traps, {block: b, owner: p.id})
+    p.message("🪤 トラップを置いた", 1)
+  elif id == "fakegun" then
+    if p.fake then
+      p.fake = false
+      p.give(knife_of(p).name)
+    else
+      p.fake = true
+      p.give("ニセの銃")
+      p.message("🔫 銃を持っているふり（もう一度でナイフ）", 1.5)
+    end
+  elif id == "radar" then
+    let m = player_by_id(murderer_id)
+    if m != nil and m.alive then
+      let d = floor(distance(p, m))
+      p.message("📡 犯人は " + arrow_to(p, m.position) + " の方向、" + d + "m", 3)
+    end
+  elif id == "footsteps" then
+    let m = player_by_id(murderer_id)
+    if m != nil and m.alive then
+      for k in 0 to 9 do
+        after(k * 0.5, func()
+          if kit_here(m) and m.alive then
+            let fp = create_block({name: "Footstep", shape: "cylinder", position: m.position + {x: 0, y: 0.05, z: 0}, size: {x: 0.5, y: 0.04, z: 0.8},
+                                   color: "#DC2626", material: "neon", solid: false, opacity: 0.8})
+            after(4, func() gone(fp) end)
+          end
+        end)
+      end
+      p.message("👣 犯人の足あとが赤く光る！", 2)
+    end
+  end
+  kit_quest_progress(p, "perk", 1)
+end
+
+let ARROWS = ["⬆️", "↗️", "➡️", "↘️", "⬇️", "↙️", "⬅️", "↖️"]
+func arrow_to(p, pos)
+  let bearing = atan2(pos.x - p.x, 0 - (pos.z - p.z))
+  let rel = bearing - p.yaw
+  while rel < -180 do rel = rel + 360 end
+  while rel >= 180 do rel = rel - 360 end
+  return ARROWS[floor(((rel + 360 + 22.5) % 360) / 45) + 1]
+end
+
+-- MARK: ナイフ投げ
+
+func throw_knife(p)
+  if phase != "play" or p.role != "murderer" or not p.alive then return end
+  let left = cooldown_left(p, "throw")
+  if left > 0 then
+    p.message("🗡 あと " + ceil(left) + " 秒", 0.8)
+    return
+  end
+  start_cooldown(p, "throw", 6)
+  let from = p.position + {x: 0, y: 1.4, z: 0}
+  let hit = raycast(p, p.look, 40)
+  let reach = 40
+  if hit != nil then reach = hit.distance end
+  let d = p.look
+  let blade = create_block({name: "Thrown Knife", shape: "box", position: from, size: {x: 0.15, y: 0.15, z: 0.8}, color: "#D1D5DB",
+                            material: "metal", solid: false, rotation: {x: 0, y: atan2(d.x, d.z), z: 0}})
+  blade.move_to(from + d * reach, 0.25)
+  after(0.35, func() gone(blade) end)
+  if hit != nil and hit.player != nil and not hit.player.is_npc and hit.player.id != p.id and hit.player.in_round then
+    let v = hit.player
+    after(0.25, func()
+      if kit_here(v) and v.alive then v.damage(200, p) end
+    end)
+  end
+  kit_quest_progress(p, "throw", 1)
+end
+
+-- MARK: 落ちた銃
+
+func drop_gun(pos)
+  gone(dropped_gun)
+  dropped_gun = create_block({name: "Dropped Gun", shape: "box", position: pos + {x: 0, y: 0.8, z: 0}, size: {x: 0.9, y: 0.4, z: 0.3},
+                              color: "#9CA3AF", material: "neon", tags: ["gun"], behavior: "trigger", solid: false})
+  announce("🔫 保安官がたおれた！銃が落ちている…", 3)
+end
+
+func pick_gun(p)
+  if p.role != "innocent" then return end
+  gone(dropped_gun)
+  dropped_gun = nil
+  p.role = "sheriff"
+  p.give(gun_of(p).name)
+  p.ui_text("myrole", role_name(p), {at: "bottom_left", dx: 20, dy: -150, size: 18, bold: true})
+  announce("🔫 だれかが銃を拾った！", 2)
+  kit_quest_progress(p, "hero", 1)
+  p.perk = nil
+  perk_menu(p)
+end
+
+func clear_traps()
+  for t in traps do gone(t.block) end
+  traps = []
+end
+
+-- MARK: たおした時の効果
+
+func kill_effect(killer, victim)
+  let effect = nil
+  if killer.role == "murderer" then effect = knife_of(killer).effect end
+  if killer.role == "sheriff" then effect = gun_of(killer).effect end
+  if effect == nil then return end
+  let e = EFFECTS[effect]
+  let pos = victim.position
+  for i in 1 to e.count do
+    let b = create_block({name: "Effect", shape: "sphere", position: pos + {x: 0, y: 1, z: 0}, size: 0.5, color: random(e.colors),
+                          material: "neon", solid: false})
+    b.move(random(-3, 3), random(2, 5), random(-3, 3), 0.6)
+    after(0.9, func() gone(b) end)
+  end
+end
+
+on button(p, id)
+  if id == "throw" then throw_knife(p)
+  elif id == "perks" then use_perk(p)
+  elif starts_with(id, "perk_") then choose_perk(p, replace(id, "perk_", ""))
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive or not p.in_round then return end
+  if contains(b.tags, "gun") then
+    pick_gun(p)
+  elif contains(b.tags, "trap") then
+    for t in copy(traps) do
+      if t.block == b and t.owner != p.id then
+        gone(b)
+        remove(traps, index_of(traps, t))
+        p.frozen = true
+        p.message("🪤 わなにかかった！", 2)
+        kit_later(p, 3, func() p.frozen = false end)
+      end
+    end
+  end
+end

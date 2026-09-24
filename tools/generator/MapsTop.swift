@@ -660,6 +660,54 @@ func mysteryManor(_ m: MapBuilder) {
     m.markers("Coin Spot", points: (0..<14).map { _ in (r.range(-25, 25), r.range(-9, 29)) }, y: 0.3, color: "#000000",
               visible: false, behavior: .none)
     m.slab("Front Steps", x: 0, y: 0, z: -13, w: 8, h: 0.3, d: 2, color: "#57534E")
+
+    // The lobby's mystery box and wardrobe.
+    m.pad("Mystery Box", x: -8, z: -52, y: 0.4, size: 2.4, color: "#A855F7", tags: ["crate"])
+    m.part("Mystery Box Chest", at: (-8, 1.2, -54.5), size: (1.6, 1.2, 1.2), color: "#7E22CE", material: .metal)
+    m.pad("Weapon Rack", x: 8, z: -52, y: 0.4, size: 2.4, color: "#38BDF8", tags: ["inventory"])
+    m.part("Weapon Rack Board", at: (8, 1.6, -54.5), size: (3, 2, 0.3), color: "#1E3A8A")
+
+    // Map 2: the ski lodge, west of the manor.
+    m.slab("Lodge Floor", x: -80, y: 0, z: 10, w: 50, h: 0.3, d: 40, color: "#A16207")
+    m.walls(-80, 10, w: 50, d: 40, h: 5, y: 0.3, color: "#78350F", name: "Lodge Wall")
+    m.slab("Lodge Roof", x: -80, y: 5.3, z: 10, w: 51, h: 0.5, d: 41, color: "#F8FAFC")
+    for (x, z0, z1) in [(-88, -10, 0), (-88, 6, 30), (-70, -10, 14), (-70, 20, 30)] {
+        m.slab("Lodge Inner Wall", x: Float(x), y: 0.3, z: Float(z0 + z1) / 2, w: 0.5, h: 4.7, d: Float(z1 - z0), color: "#92400E")
+    }
+    m.slab("Fireplace", x: -104, y: 0.3, z: 10, w: 1.5, h: 3, d: 5, color: "#57534E")
+    m.part("Fireplace Fire", at: (-103.4, 1, 10), size: (0.6, 1, 3), color: "#F97316", material: .neon, solid: false)
+    var lr = Seeded("lodge")
+    for i in 0..<12 {
+        m.slab("Lodge Furniture \(i + 1)", x: lr.range(-102, -58), y: 0.3, z: lr.range(-8, 28), w: lr.range(1.5, 3), h: lr.range(0.8, 2),
+               d: lr.range(1, 2.5), color: lr.pick(["#7F1D1D", "#F8FAFC", "#1E3A8A", "#15803D"]))
+    }
+    for (i, p) in grid(3, 2, spacing: 14, cx: -80, cz: 10).enumerated() {
+        m.part("Lodge Spawn \(i + 1)", at: (p.0, 0.4, p.1), size: (1, 0.1, 1), color: "#000000", shape: .cylinder, visible: false)
+    }
+    m.markers("Lodge Coin", points: (0..<14).map { _ in (lr.range(-102, -58), lr.range(-8, 28)) }, y: 0.3, color: "#000000",
+              visible: false, behavior: .none)
+
+    // Map 3: the laboratory, east of the manor.
+    m.slab("Lab Floor", x: 80, y: 0, z: 10, w: 50, h: 0.3, d: 40, color: "#E5E7EB")
+    m.walls(80, 10, w: 50, d: 40, h: 5, y: 0.3, color: "#94A3B8", name: "Lab Wall")
+    m.slab("Lab Roof", x: 80, y: 5.3, z: 10, w: 51, h: 0.5, d: 41, color: "#475569")
+    for (z, x0, x1) in [(0, 56, 70), (0, 76, 104), (20, 56, 84), (20, 90, 104)] {
+        m.slab("Lab Inner Wall", x: Float(x0 + x1) / 2, y: 0.3, z: Float(z), w: Float(x1 - x0), h: 4.7, d: 0.5, color: "#CBD5E1")
+    }
+    for i in 0..<5 {
+        m.part("Lab Tank \(i + 1)", at: (62 + Float(i) * 9, 1.8, 10), size: (1.8, 3, 1.8), color: "#22D3EE", shape: .cylinder,
+               material: .glass, opacity: 0.6)
+    }
+    var ar = Seeded("lab")
+    for i in 0..<10 {
+        m.slab("Lab Desk \(i + 1)", x: ar.range(58, 102), y: 0.3, z: ar.range(-8, 28), w: ar.range(2, 3.5), h: 1, d: ar.range(1, 1.6),
+               color: "#F8FAFC")
+    }
+    for (i, p) in [(62, 5), (80, 12), (98, 5), (62, 26), (80, 26), (98, 12)].enumerated() {
+        m.part("Lab Spawn \(i + 1)", at: (Float(p.0), 0.4, Float(p.1)), size: (1, 0.1, 1), color: "#000000", shape: .cylinder, visible: false)
+    }
+    m.markers("Lab Coin", points: (0..<14).map { _ in (ar.range(58, 102), ar.range(-8, 28)) }, y: 0.3, color: "#000000",
+              visible: false, behavior: .none)
 }
 
 // MARK: 10 99 Nights Camp

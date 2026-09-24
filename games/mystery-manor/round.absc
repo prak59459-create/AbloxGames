@@ -1,0 +1,334 @@
+-- round.absc — ラウンドの流れ
+-- ロビー（20秒・マップ投票）→ 役が知らされる → 3分間 → 結果発表 → ロビー
+-- 犯人をたおせば市民の勝ち。市民が全員たおれたら犯人の勝ち。時間切れも市民の勝ち。
+-- たおれた人は「👁 観戦」でほかの人を見られる。
+
+let phase = "lobby"
+let phase_until = 0
+let current_map = nil
+let votes = {}          -- プレイヤーid → マップid
+let murderer_id = nil
+let sheriff_id = nil
+let hero_id = nil
+let round_coins = []    -- コインのブロック
+let dropped_gun = nil
+let round_clock = 0
+
+func role_name(p)
+  if p.role == "murderer" then return "🔪 犯人" end
+  if p.role == "sheriff" then return "🔫 保安官" end
+  return "🙂 市民"
+end
+
+func in_round()
+  return filter(players(), func(p) return p.in_round end)
+end
+
+func alive_role(role)
+  let n = 0
+  for p in in_round() do
+    if p.alive and p.role == role then n = n + 1 end
+  end
+  return n
+end
+
+func alive_innocents()
+  let n = 0
+  for p in in_round() do
+    if p.alive and p.role != "murderer" then n = n + 1 end
+  end
+  return n
+end
+
+-- MARK: ロビーとマップ投票
+
+func start_lobby()
+  phase = "lobby"
+  phase_until = time() + LOBBY_TIME
+  votes = {}
+  for p in players() do
+    p.in_round = false
+    p.role = nil
+    if not p.alive then p.respawn() end
+    p.take()
+    p.camera_reset()
+    p.visible = true
+    p.frozen = false
+    p.ui_remove("myrole")
+    p.ui_remove("perks")
+    let spot = block("Lobby Spawn " + random(1, 6))
+    if spot != nil then p.teleport(spot) end
+    vote_panel(p)
+  end
+end
+
+func vote_panel(p)
+  p.ui_panel("mapvote", {at: "bottom", dy: -110, w: 520, h: 90, bg: "#000000B0", radius: 16, layer: 10})
+  let i = 0
+  for m in MAPS do
+    i = i + 1
+    let n = 0
+    for id in keys(votes) do
+      if votes[id] == m.id then n = n + 1 end
+    end
+    let bg = "#44403C"
+    if votes[p.id] == m.id then bg = "#7C3AED" end
+    p.ui_button("vote_" + m.id, m.name + "  " + n + "票", {parent: "mapvote", x: (i - 0.5) / 3, y: 0.5, w: 160, h: 56, size: 15, bg: bg})
+  end
+end
+
+func cast_vote(p, id)
+  if phase != "lobby" then return end
+  votes[p.id] = id
+  for q in players() do
+    if not q.in_round then vote_panel(q) end
+  end
+end
+
+func pick_map()
+  let counts = {}
+  for id in keys(votes) do counts[votes[id]] = (counts[votes[id]] or 0) + 1 end
+  let best = nil
+  let best_n = -1
+  for m in shuffle(copy(MAPS)) do
+    let n = counts[m.id] or 0
+    if n > best_n then
+      best = m
+      best_n = n
+    end
+  end
+  return best
+end
+
+-- MARK: ラウンド開始
+
+func begin_round()
+  let list = shuffle(copy(players()))
+  if len(list) < 2 then
+    for p in players() do p.message("あと1人以上で始まります（2人から）", 2) end
+    phase_until = time() + 10
+    return
+  end
+  current_map = pick_map()
+  phase = "play"
+  phase_until = time() + ROUND_TIME
+  murderer_id = nil
+  sheriff_id = nil
+  hero_id = nil
+  let i = 0
+  for p in list do
+    i = i + 1
+    p.ui_remove("mapvote")
+    p.in_round = true
+    p.round_coins = 0
+    p.take()
+    if i == 1 then
+      p.role = "murderer"
+      murderer_id = p.id
+    elif i == 2 then
+      p.role = "sheriff"
+      sheriff_id = p.id
+    else
+      p.role = "innocent"
+    end
+    p.teleport(block(current_map.spawn + " " + ((i - 1) % 6 + 1)))
+    p.frozen = true
+    p.ui_panel("role", {at: "center", w: 380, h: 130, bg: "#000000D0", radius: 20, layer: 40})
+    p.ui_text("role_t", "あなたは " + role_name(p), {parent: "role", y: 0.38, size: 30, bold: true})
+    p.ui_text("role_s", "誰にも言わないでね", {parent: "role", y: 0.78, size: 14})
+    kit_later(p, 4, func() p.ui_remove("role") end)
+    p.ui_text("myrole", role_name(p), {at: "bottom_left", dx: 20, dy: -150, size: 18, bold: true})
+  end
+  announce("🕯 " + current_map.name + " … 5秒後に動けるよ", 3)
+  after(5, func()
+    if phase != "play" then return end
+    for p in in_round() do
+      p.frozen = false
+      arm_role(p)
+      perk_menu(p)
+    end
+  end)
+end
+
+-- MARK: 終わり
+
+func end_round(winner, why)
+  if phase != "play" then return end
+  phase = "result"
+  phase_until = time() + 8
+  let m = player_by_id(murderer_id)
+  let mname = "？"
+  if m != nil then mname = m.name end
+  let line = why + "   犯人は " + mname
+  let hero = player_by_id(hero_id)
+  if hero != nil then line = line + "  🦸 ヒーロー: " + hero.name end
+  announce(line, 7)
+  sound("goal")
+  for p in in_round() do
+    let won = (winner == "murderer" and p.role == "murderer") or (winner == "innocent" and p.role != "murderer")
+    let xp = 20
+    if won then xp = 60 end
+    if p.alive and p.role != "murderer" then xp = xp + 20 end
+    if p.id == hero_id then xp = xp + 50 end
+    gain(p, xp, "ラウンド終了")
+    if won then
+      p.wins = p.wins + 1
+      kit_quest_progress(p, "win", 1)
+      if p.role == "murderer" then kit_quest_progress(p, "murderwin", 1) end
+    end
+    if p.alive and p.role != "murderer" then kit_quest_progress(p, "survive", 1) end
+  end
+  clear_round()
+end
+
+func clear_round()
+  for b in round_coins do gone(b) end
+  round_coins = []
+  gone(dropped_gun)
+  dropped_gun = nil
+  clear_traps()
+  for p in players() do
+    p.take()
+    p.frozen = false
+    p.visible = true
+    p.ui_remove("perks")
+    p.ui_remove("throw")
+    p.ui_remove("perkpick")
+    p.ui_remove("spectate")
+    p.ui_remove("coinbag")
+    if p.lines != nil then p.lines["coinbag"] = nil end
+    p.perk = nil
+    p.fake = false
+    p.spectating = nil
+    p.camera_reset()
+  end
+end
+
+func check_end()
+  if phase != "play" then return end
+  if alive_role("murderer") == 0 then
+    end_round("innocent", "🎉 市民の勝ち！ 犯人がたおされた")
+  elif alive_innocents() == 0 then
+    end_round("murderer", "🔪 犯人の勝ち！")
+  end
+end
+
+-- MARK: コイン
+
+func spawn_coin()
+  if current_map == nil or len(round_coins) >= 12 then return end
+  let spot = block(current_map.coin + " " + random(1, current_map.coins))
+  if spot == nil then return end
+  let b = create_block({name: "Coin", shape: "cylinder", position: spot.position + {x: 0, y: 0.8, z: 0}, size: {x: 0.8, y: 0.15, z: 0.8},
+                        rotation: {x: 90, y: 0, z: 0}, color: "#FACC15", material: "neon", tags: ["coin"], behavior: "trigger"})
+  append(round_coins, b)
+end
+
+func pick_coin(p, b)
+  if not contains(round_coins, b) then return end
+  if p.round_coins >= COIN_BAG then
+    if cooldown_left(p, "bagfull") <= 0 then
+      start_cooldown(p, "bagfull", 5)
+      p.message("コインのふくろがいっぱい（" + COIN_BAG + "）", 1.5)
+    end
+    return
+  end
+  remove(round_coins, index_of(round_coins, b))
+  gone(b)
+  p.round_coins = p.round_coins + 1
+  kit_give(p, 1)
+  p.sound("collect")
+  kit_quest_progress(p, "coins", 1)
+  set_line(p, "coinbag", "🪙 " + p.round_coins + "/" + COIN_BAG, {at: "bottom_left", dx: 20, dy: -120, size: 15, color: "#FDE68A"})
+end
+
+-- MARK: 観戦
+
+func spectate_next(p)
+  let alive = filter(in_round(), func(q) return q.alive and q.id != p.id end)
+  if len(alive) == 0 then return end
+  let i = (p.spec_i or 0) % len(alive) + 1
+  p.spec_i = i
+  p.spectating = alive[i].id
+  p.message("👁 " + alive[i].name + " を観戦中", 1.2)
+end
+
+-- MARK: 毎ティック
+
+on start()
+  game.respawn_time = -1
+  game.friendly_fire = true
+  start_lobby()
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if round_clock < 0.5 then return end
+  round_clock = 0
+  let left = phase_until - time()
+  if phase == "lobby" then
+    ui_text("timer", "🏠 ロビー  あと " + kit_clock(left) + "（マップに投票しよう）", {at: "top", dy: 30, size: 18, bold: true})
+    if left <= 0 then begin_round() end
+  elif phase == "play" then
+    ui_text("timer", "⏱ " + kit_clock(left) + "   " + current_map.name, {at: "top", dy: 30, size: 20, bold: true})
+    if floor(time() * 2) % 6 == 0 then spawn_coin() end
+    if left <= 0 then end_round("innocent", "⏰ 時間切れ！ 市民の勝ち") end
+    -- 観戦カメラ
+    for p in players() do
+      if p.spectating != nil then
+        let t = player_by_id(p.spectating)
+        if t != nil and t.alive then
+          p.camera_look(t.position + {x: 0, y: 6, z: 6}, t)
+        else
+          spectate_next(p)
+        end
+      end
+    end
+  elif phase == "result" then
+    ui_text("timer", "結果発表", {at: "top", dy: 30, size: 20, bold: true})
+    if left <= 0 then start_lobby() end
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc or not victim.in_round or phase != "play" then return end
+  victim.message("あなたはたおされた… 👁 観戦ボタンで見られます", 3)
+  victim.ui_button("spectate", "👁 観戦", {at: "bottom", dy: -110, w: 150, h: 50, size: 16, bg: "#475569", radius: 14})
+  if killer != nil and not killer.is_npc and killer.id != victim.id then
+    kill_effect(killer, victim)
+    if killer.role == "murderer" then
+      killer.kills = (killer.kills or 0) + 1
+      kit_quest_progress(killer, "knife", 1)
+    elif killer.role == "sheriff" and victim.role == "murderer" then
+      if killer.id != sheriff_id then hero_id = killer.id end
+      kit_quest_progress(killer, "catch", 1)
+      gain(killer, 40, "🔫 犯人をたおした！")
+    elif killer.role == "sheriff" and victim.role != "murderer" then
+      killer.message("❌ 市民を撃ってしまった！", 2.5)
+      kit_later(killer, 0.1, func() killer.kill() end)
+    end
+  end
+  if victim.role == "sheriff" then drop_gun(victim.position) end
+  after(0.2, func() check_end() end)
+end
+
+on join(p)
+  p.in_round = false
+  if phase == "lobby" then vote_panel(p) end
+  if phase == "play" then p.message("次のラウンドから参加します（ロビーで待ってね）", 3) end
+end
+
+on leave(p)
+  after(0.3, func() check_end() end)
+end
+
+on button(p, id)
+  if starts_with(id, "vote_") then cast_vote(p, replace(id, "vote_", ""))
+  elif id == "spectate" then spectate_next(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "coin") and p.in_round then pick_coin(p, b) end
+end
