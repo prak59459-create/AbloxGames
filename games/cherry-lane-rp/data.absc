@@ -1,0 +1,98 @@
+-- data.absc — Cherry Lane RP の表
+-- 役割6・時間割・授業の問題・学年・服12・ドリンク・車
+
+-- MARK: 役割（pay: 45びょうごとのおこづかい）
+let ROLES = {
+  student: {name: "🎒 生徒", size: 1, pay: 5, text: "授業に出て成績を上げ、進級・卒業をめざす"},
+  teacher: {name: "📚 先生", size: 1.05, pay: 15, text: "教室にいると授業の成績が1.5倍。生徒が正解するとお給料"},
+  parent: {name: "👪 親", size: 1.1, pay: 18, text: "家族をつくり、赤ちゃんのお世話をする"},
+  baby: {name: "🍼 赤ちゃん", size: 0.55, pay: 2, text: "お世話してもらうとごきげん。ハイハイでゆっくり"},
+  barista: {name: "☕ カフェ店員", size: 1, pay: 8, text: "カフェのお客さんの注文どおりにドリンクを作る"},
+  stylist: {name: "💇 美容師", size: 1, pay: 8, text: "ブティックのお客さんの希望の服にコーディネート"}
+}
+let ROLE_ORDER = ["student", "teacher", "parent", "baby", "barista", "stylist"]
+
+-- MARK: 時間割（1コマ45びょう）
+let SCHEDULE = [
+  {id: "homeroom", name: "🏫 朝の会", room: "Homeroom"},
+  {id: "math", name: "➗ 算数", room: "Class Math"},
+  {id: "art", name: "🎨 図工", room: "Class Art"},
+  {id: "lunch", name: "🍱 昼休み", room: nil},
+  {id: "music", name: "🎵 音楽", room: "Class Music"},
+  {id: "science", name: "🔬 理科", room: "Class Science"},
+  {id: "pe", name: "🏃 体育", room: "Class PE"},
+  {id: "after", name: "🌇 放課後", room: nil},
+  {id: "night", name: "🌙 夜（家でねるとボーナス）", room: nil}
+]
+let PERIOD_SECS = 45
+let SUBJECTS = ["math", "art", "music", "science", "pe"]
+let SUBJECT_NAME = {math: "算数", art: "図工", music: "音楽", science: "理科", pe: "体育"}
+
+-- MARK: 問題
+let SCIENCE_QS = [
+  {q: "水が氷になる温度は？", a: "0℃", w: ["10℃", "100℃"]},
+  {q: "植物が光で養分を作るはたらきは？", a: "光合成", w: ["呼吸", "発酵"]},
+  {q: "地球のまわりを回っているのは？", a: "月", w: ["太陽", "火星"]},
+  {q: "磁石がくっつくのは？", a: "鉄", w: ["アルミ", "木"]},
+  {q: "こん虫の足は何本？", a: "6本", w: ["4本", "8本"]},
+  {q: "空気の中でいちばん多いのは？", a: "ちっ素", w: ["酸素", "二酸化炭素"]},
+  {q: "太陽はどの方角からのぼる？", a: "東", w: ["西", "北"]},
+  {q: "水がふっとうする温度は？", a: "100℃", w: ["50℃", "80℃"]},
+  {q: "メダカのたまごがかえるまでにいるのは？", a: "水の中", w: ["土の中", "木の上"]},
+  {q: "音が伝わらないのは？", a: "宇宙", w: ["水", "空気"]},
+  {q: "電気を通すのは？", a: "銅", w: ["ガラス", "ゴム"]},
+  {q: "季節で夏の星座は？", a: "さそり座", w: ["オリオン座", "しし座"]}
+]
+let ART_QS = [
+  {q: "赤 + 黄 = ？", a: "オレンジ", w: ["みどり", "むらさき"]},
+  {q: "青 + 黄 = ？", a: "みどり", w: ["オレンジ", "ピンク"]},
+  {q: "赤 + 青 = ？", a: "むらさき", w: ["茶色", "みどり"]},
+  {q: "赤 + 白 = ？", a: "ピンク", w: ["オレンジ", "水色"]},
+  {q: "青 + 白 = ？", a: "水色", w: ["むらさき", "灰色"]},
+  {q: "黒 + 白 = ？", a: "灰色", w: ["茶色", "こん色"]},
+  {q: "3原色にないのは？", a: "みどり", w: ["赤", "青"]},
+  {q: "あたたかい色は？", a: "オレンジ", w: ["青", "水色"]}
+]
+let QUIZ_COUNT = {math: 5, art: 3, science: 3}
+let MUSIC_NOTES = 6
+
+-- MARK: 学年（成績の合計で進級）
+let GRADES = [
+  {name: "1年生", need: 0}, {name: "2年生", need: 30}, {name: "3年生", need: 70}, {name: "4年生", need: 120},
+  {name: "5年生", need: 190}, {name: "6年生", need: 270}, {name: "🎓 卒業生", need: 380}
+]
+
+-- MARK: 服（price 0 は最初から）
+let OUTFITS = [
+  {id: "uniform", name: "制服", price: 0, body: "#1E3A8A", head: "#F5D0A9", legs: "#374151", hat: "none", tag: "きちんと"},
+  {id: "casual", name: "カジュアル", price: 0, body: "#F472B6", head: "#F5D0A9", legs: "#60A5FA", hat: "cap", tag: "カジュアル"},
+  {id: "pajama", name: "パジャマ", price: 0, body: "#93C5FD", head: "#F5D0A9", legs: "#93C5FD", hat: "none", tag: "おうち"},
+  {id: "sports", name: "スポーツ", price: 40, body: "#EF4444", head: "#F5D0A9", legs: "#FFFFFF", hat: "cap", tag: "スポーツ"},
+  {id: "party", name: "パーティー", price: 80, body: "#A855F7", head: "#F5D0A9", legs: "#111827", hat: "crown", tag: "はなやか"},
+  {id: "suit", name: "スーツ", price: 90, body: "#111827", head: "#F5D0A9", legs: "#111827", hat: "none", tag: "きちんと"},
+  {id: "summer", name: "夏のワンピース", price: 70, body: "#FDE047", head: "#F5D0A9", legs: "#FDE047", hat: "cap", tag: "カジュアル"},
+  {id: "chef", name: "コック", price: 60, body: "#FFFFFF", head: "#F5D0A9", legs: "#111827", hat: "cap", tag: "おしごと"},
+  {id: "doctor", name: "白衣", price: 60, body: "#F8FAFC", head: "#F5D0A9", legs: "#60A5FA", hat: "none", tag: "おしごと"},
+  {id: "angel", name: "天使", price: 200, body: "#FFFFFF", head: "#FDE68A", legs: "#FFFFFF", hat: "halo", tag: "はなやか"},
+  {id: "alien", name: "うちゅう人", price: 150, body: "#4ADE80", head: "#86EFAC", legs: "#166534", hat: "antenna", tag: "ユニーク"},
+  {id: "grad", name: "卒業ガウン", price: -1, body: "#111827", head: "#F5D0A9", legs: "#111827", hat: "crown", tag: "きちんと"}
+]
+let THEMES = ["きちんと", "カジュアル", "スポーツ", "はなやか", "おしごと", "ユニーク"]
+
+-- MARK: カフェとブティックのお客さん
+let DRINKS = [
+  {id: "boba", name: "🧋 タピオカ", price: 10, color: "#D6B98C"},
+  {id: "latte", name: "☕ ラテ", price: 12, color: "#A16207"},
+  {id: "soda", name: "🥤 メロンソーダ", price: 8, color: "#4ADE80"},
+  {id: "cocoa", name: "🍫 ココア", price: 10, color: "#78350F"}
+]
+let CAFE_PAY = 18
+let SALON_PAY = 22
+
+-- MARK: 乗り物
+let CARS = [
+  {id: "bike", name: "🚲 自転車", price: 0, speed: 1.5},
+  {id: "scooter", name: "🛵 スクーター", price: 150, speed: 1.9},
+  {id: "car", name: "🚗 車", price: 400, speed: 2.3},
+  {id: "sports", name: "🏎 スポーツカー", price: 1200, speed: 2.8}
+]

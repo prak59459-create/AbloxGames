@@ -1,0 +1,80 @@
+-- common.absc — 小さな道具・画面の左上
+
+func ready(p)
+  return p.role != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func outfit_info(id)
+  for o in OUTFITS do
+    if o.id == id then return o end
+  end
+  return OUTFITS[1]
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func total_grade(p)
+  let t = 0
+  for s in SUBJECTS do t = t + (p.grades[s] or 0) end
+  return t
+end
+
+func grade_level(p)
+  let g = GRADES[1]
+  for x in GRADES do
+    if total_grade(p) >= x.need then g = x end
+  end
+  return g
+end
+
+func in_room(p, name)
+  if name == nil then return false end
+  let b = block(name)
+  if b == nil then return false end
+  return distance(p, b.position) < 6.5
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let r = ROLES[p.role]
+  let line = r.name
+  if p.role == "student" then line = line + "  " + grade_level(p).name + "（成績 " + total_grade(p) + "）" end
+  if p.family != nil then
+    let head = player_by_id(p.family)
+    if head != nil then line = line + "   👪 " + head.name + " 家" end
+  end
+  if p.home != nil then line = line + "   🏠 " + p.home end
+  p.ui_text("hud", line, {at: "top_left", dy: 34, size: 15, bold: true, color: "#FCE7F3"})
+  p.ui_text("hud2", "🤝 友だち " + len(keys(p.friends)) + "   🚗 " + p.car_name, {at: "top_left", dy: 54, size: 13, color: "#FBCFE8"})
+end

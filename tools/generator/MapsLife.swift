@@ -7,7 +7,7 @@ let lifeGames: [Game] = [
          summary: "家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！",
          tags: ["rp", "house", "pets"], maxPlayers: 12, build: pomTown),
     Game(number: 34, id: "cherry-lane-rp", title: "Cherry Lane RP",
-         summary: "おしゃれな街で学校生活や家族ごっこ。役割（生徒・先生・親・赤ちゃん）を選んで、授業のチャイムに合わせて過ごそう。",
+         summary: "学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。",
          tags: ["rp", "school", "family"], maxPlayers: 16, build: cherryLane),
     Game(number: 35, id: "pizza-shift", title: "Pizza Shift",
          summary: "ピザ屋でみんなで働こう。レジで注文を取り、生地・ソース・チーズでピザを作り、オーブンで焼いて、家まで配達！",
@@ -106,21 +106,42 @@ func cherryLane(_ m: MapBuilder) {
     m.spawnRing(8, 8, radius: 4, count: 8, color: "#FBCFE8")
     homesRow(m, count: 5, x: -80, z: 26, spacing: 18, facing: -1, walls: ["#FCE7F3", "#E0E7FF", "#FEF3C7", "#F5F5F4", "#ECFCCB"])
     homesRow(m, count: 5, x: 16, z: -26, spacing: 18, facing: 1, first: 6)
-    // The school, with three classrooms.
+    // The school: three classrooms along the back wall and a doorway at the front.
     m.slab("School Floor", x: 50, y: 0, z: 50, w: 44, h: 0.2, d: 26, color: "#E5E7EB")
-    m.walls(50, 50, w: 44, d: 26, h: 5, y: 0.2, color: "#F59E0B", name: "School Wall")
+    m.slab("School Wall", x: 50, y: 0.2, z: 63, w: 45, h: 5, d: 1, color: "#F59E0B")
+    m.slab("School Wall", x: 28, y: 0.2, z: 50, w: 1, h: 5, d: 26, color: "#F59E0B")
+    m.slab("School Wall", x: 72, y: 0.2, z: 50, w: 1, h: 5, d: 26, color: "#F59E0B")
+    m.slab("School Wall", x: 38, y: 0.2, z: 37, w: 21, h: 5, d: 1, color: "#F59E0B")
+    m.slab("School Wall", x: 62, y: 0.2, z: 37, w: 21, h: 5, d: 1, color: "#F59E0B")
+    m.slab("School Wall", x: 50, y: 3.2, z: 37, w: 4, h: 2, d: 1, color: "#F59E0B")
     m.slab("School Roof", x: 50, y: 5.2, z: 50, w: 45, h: 0.4, d: 27, color: "#B45309")
+    m.part("School Clock", at: (50, 4.4, 36.4), size: (1.6, 1.6, 0.2), color: "#FFFFFF", shape: .cylinder, rotation: (90, 0, 0))
     for (i, name) in ["Class Math", "Class Art", "Class Music"].enumerated() {
         let cx = 36 + Float(i) * 14
         m.pad(name, x: cx, z: 52, y: 0.2, size: 6, color: ["#60A5FA", "#F472B6", "#A78BFA"][i], tags: ["class"], shape: .box)
-        m.slab("\(name) Board", x: cx, y: 1, z: 62.5, w: 8, h: 2.5, d: 0.2, color: "#14532D")
+        m.slab("\(name) Board", x: cx, y: 1, z: 62.4, w: 8, h: 2.5, d: 0.2, color: "#14532D")
     }
-    m.slab("School Door Gap", x: 50, y: 0.2, z: 37, w: 4, h: 0.01, d: 1, color: "#E5E7EB")
+    m.pad("Homeroom", x: 50, z: 42, y: 0.2, size: 5, color: "#FDE68A", tags: ["class"], shape: .box)
+    // The science lab and the sports field.
+    m.house("Science Lab", x: 88, z: 50, w: 12, d: 10, h: 4, wall: "#E0F2FE", roof: "#0369A1", floor: "#F1F5F9", tags: ["lab"], facing: -1)
+    m.pad("Class Science", x: 88, z: 52, size: 5, color: "#22D3EE", tags: ["class"], shape: .box)
+    m.slab("Sports Field", x: 50, y: 0, z: 84, w: 40, h: 0.1, d: 18, color: "#16A34A")
+    m.pad("Class PE", x: 50, z: 84, y: 0.1, size: 5, color: "#FACC15", tags: ["class"], shape: .box)
+    m.markers("Lap", points: [(34, 78), (66, 78), (66, 90), (34, 90)], y: 0.1, color: "#F97316", tags: ["lap"], size: 2.4)
+    // Shops and places for jobs.
     m.shop("Boutique", x: -50, z: -50, w: 12, d: 10, color: "#F9A8D4", sign: "#FFFFFF")
     m.pad("Wardrobe", x: -50, z: -48, size: 2.4, color: "#EC4899", tags: ["wardrobe"])
+    m.markers("Salon Seat", points: [(-54, -46), (-46, -46)], color: "#000000", visible: false, behavior: .none)
     m.shop("Cafe", x: -20, z: -50, w: 10, d: 8, color: "#D97706", sign: "#FEF3C7")
     m.pad("Cafe Counter", x: -20, z: -48, size: 2.4, color: "#F59E0B", tags: ["cafe"])
-    for p in ring(16, radius: 90) { m.tree(p.0, p.1, height: 5, leaves: "#F9A8D4") }
+    m.markers("Cafe Seat", points: [(-23, -41), (-20, -40), (-17, -41)], color: "#000000", visible: false, behavior: .none)
+    m.pad("Car Lot", x: -80, z: -14, size: 3, color: "#0EA5E9", tags: ["carlot"])
+    m.slab("Nursery", x: -70, y: 0, z: 60, w: 12, h: 0.1, d: 10, color: "#FBCFE8")
+    m.pad("Nursery Mat", x: -70, z: 60, y: 0.1, size: 3, color: "#F9A8D4", tags: ["nursery"])
+    m.part("Nursery Slide", at: (-66, 1, 62), size: (1.2, 2, 4), color: "#38BDF8", rotation: (30, 0, 0))
+    for p in ring(16, radius: 90) where !(abs(p.0 - 50) < 26 && abs(p.1 - 84) < 14) {
+        m.tree(p.0, p.1, height: 5, leaves: "#F9A8D4")
+    }
 }
 
 // MARK: 35 Pizza Shift

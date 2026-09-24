@@ -1,0 +1,281 @@
+-- family.absc — 役割・家・家族・赤ちゃんのお世話・友だち
+-- 役割は6つ（生徒・先生・親・赤ちゃん・カフェ店員・美容師）。いつでも変えられる。
+-- 家: 黄色い看板。親は近くの人を家族にさそえる（家族は /home で家へ）。
+-- 赤ちゃん: 「ミルク」「おねむ」「あそんで」のお願い → 家族が近くで「🍼 お世話」、保育園のマットでもOK。
+-- 友だち: 近くの人と「🙌 ハイタッチ」。夜に自分（家族）の家にいると「ぐっすり」ボーナス。
+
+let owners = {}
+let family_clock = 0
+let BABY_NEEDS = [
+  {id: "milk", name: "🍼 ミルクがほしい"},
+  {id: "nap", name: "💤 おねむ"},
+  {id: "play", name: "🧸 あそんでほしい"}
+]
+
+-- MARK: 役割
+
+func set_role(p, key)
+  if ROLES[key] == nil then return end
+  let before = p.role
+  p.role = key
+  p.size = ROLES[key].size
+  refresh_speed(p)
+  p.ui_remove("roles")
+  if key == "baby" then
+    p.baby_need = nil
+    p.baby_next = time() + 15
+  else
+    p.ui_remove("baby")
+  end
+  if before != nil and before != key then p.message(ROLES[key].name + " になった！ " + ROLES[key].text, 3) end
+  if key == "barista" or key == "stylist" then work_buttons(p) else p.ui_remove("work") end
+  kit_quest_progress(p, "roles", 1)
+  hud(p)
+end
+
+func refresh_speed(p)
+  let s = 1
+  if p.role == "baby" then s = 0.75 end
+  if p.driving then s = p.car_speed end
+  if active_until(p.coffee_until) then s = s * 1.25 end
+  if active_until(p.rested_until) then s = s * 1.08 end
+  if p.speed != s then p.speed = s end
+end
+
+func role_panel(p)
+  let h = 110 + ceil(len(ROLE_ORDER) / 2) * 62
+  p.ui_panel("roles", {at: "center", w: 600, h: h, bg: "#831843EE", radius: 22, layer: 30})
+  p.ui_text("roles_t", "🎭 役割をえらぶ", {parent: "roles", y: 26 / h, size: 21, bold: true})
+  let i = 0
+  for key in ROLE_ORDER do
+    i = i + 1
+    let r = ROLES[key]
+    let col = 0.26
+    if i % 2 == 0 then col = 0.74 end
+    let label = r.name + " — " + r.text
+    if p.role == key then label = "✅ " + label end
+    p.ui_button("role_" + key, label, {parent: "roles", x: col, y: (30 + ceil(i / 2) * 62) / h, w: 280, h: 54, size: 11, bg: "#DB2777"})
+  end
+  p.ui_button("roles_close", "閉じる", {parent: "roles", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+-- MARK: 家
+
+func claim_home(p, n)
+  if p.home != nil or owners[n] != nil then
+    if owners[n] != nil and owners[n] != p.id and quiet_ready(p, "claim", 4) then
+      let o = player_by_id(owners[n])
+      if o != nil then p.message("ここは " + o.name + " の家", 1.5) end
+    end
+    return
+  end
+  if p.family != nil and p.family != p.id then
+    p.message("家族の家があるよ（/home）", 1.5)
+    return
+  end
+  owners[n] = p.id
+  p.home = n
+  p.message("🏠 Home " + n + " があなたの家に！ 親なら家族をさそえる", 3)
+  kit_quest_progress(p, "home", 1)
+  hud(p)
+end
+
+func family_home(p)
+  if p.home != nil then return p.home end
+  if p.family != nil then
+    let head = player_by_id(p.family)
+    if head != nil then return head.home end
+  end
+  return nil
+end
+
+func in_home_of(p, n)
+  if n == nil then return false end
+  let f = block("Home " + n + " Floor")
+  return f != nil and abs(p.x - f.x) < 6.2 and abs(p.z - f.z) < 5.2
+end
+
+-- MARK: 家族
+
+func invite_family(p)
+  if p.role != "parent" then
+    p.message("家族にさそえるのは「親」だけ", 1.5)
+    return
+  end
+  let best = nil
+  for q in players() do
+    if q.id != p.id and ready(q) and distance(p, q) < 8 and q.family != p.id then
+      if best == nil or distance(p, q) < distance(p, best) then best = q end
+    end
+  end
+  if best == nil then
+    p.message("👪 さそいたい人の近く（8m）で押そう", 1.5)
+    return
+  end
+  best.invite_from = p.id
+  best.ui_panel("invite", {at: "center", w: 420, h: 150, bg: "#831843EE", radius: 20, layer: 40})
+  best.ui_text("inv_t", "👪 " + p.name + " の家族にならない？", {parent: "invite", y: 0.3, size: 17, bold: true})
+  best.ui_button("inv_yes", "なる！", {parent: "invite", x: 0.3, y: 0.72, w: 140, h: 44, size: 16, bg: "#16A34A"})
+  best.ui_button("inv_no", "やめとく", {parent: "invite", x: 0.72, y: 0.72, w: 140, h: 44, size: 16, bg: "gray"})
+  p.message("👪 " + best.name + " をさそった", 1.5)
+end
+
+func accept_family(p)
+  p.ui_remove("invite")
+  let head = nil
+  if p.invite_from != nil then head = player_by_id(p.invite_from) end
+  p.invite_from = nil
+  if head == nil then return end
+  p.family = head.id
+  head.family = head.id
+  p.message("👪 " + head.name + " の家族になった！", 2)
+  head.message("👪 " + p.name + " が家族になった！", 2)
+  kit_quest_progress(p, "family", 1)
+  kit_quest_progress(head, "family", 1)
+  add_friend(p, head, 3)
+  hud(p)
+  hud(head)
+end
+
+func family_members(head_id)
+  return filter(players(), func(q) return q.family == head_id end)
+end
+
+-- MARK: 赤ちゃん
+
+func baby_step(p)
+  if p.baby_need == nil and time() > (p.baby_next or 0) then
+    let n = random(BABY_NEEDS)
+    p.baby_need = n.id
+    p.ui_text("baby", n.name + "（家族が近くで🍼 お世話・保育園のマット）", {at: "top", dy: 56, size: 14, bold: true, color: "#FBCFE8"})
+    if p.family != nil then
+      for q in family_members(p.family) do
+        if q.id != p.id then q.message("👶 " + p.name + ": " + n.name, 2) end
+      end
+    end
+  end
+end
+
+func care_baby(helper, baby)
+  if baby.baby_need == nil then
+    helper.message("👶 いまはごきげん", 1)
+    return
+  end
+  baby.baby_need = nil
+  baby.baby_next = time() + random(30, 50)
+  baby.ui_remove("baby")
+  fx_ball(baby.position + {x: 0, y: 1, z: 0}, 1.4, "#F9A8D4", 0.5)
+  baby.message("😊 ごきげん！ +8", 1.2)
+  kit_give(baby, 8)
+  if helper.id != baby.id then
+    kit_give(helper, 15)
+    helper.message("🍼 お世話した！ +15", 1.2)
+    kit_quest_progress(helper, "care", 1)
+    add_friend(helper, baby, 1)
+  end
+end
+
+func care_nearby(p)
+  let best = nil
+  for q in players() do
+    if q.id != p.id and q.role == "baby" and distance(p, q) < 5 and q.baby_need != nil then best = q end
+  end
+  if best == nil then
+    p.message("お世話がひつような赤ちゃんが近くにいない", 1.2)
+    return
+  end
+  care_baby(p, best)
+end
+
+-- MARK: 友だち
+
+func add_friend(a, b, n)
+  if a.friends == nil or b.friends == nil then return end
+  let before_a = a.friends[b.id]
+  a.friends[b.id] = (a.friends[b.id] or 0) + n
+  b.friends[a.id] = (b.friends[a.id] or 0) + n
+  if before_a == nil then
+    kit_quest_progress(a, "friends", 1)
+    kit_quest_progress(b, "friends", 1)
+  end
+  hud(a)
+  hud(b)
+end
+
+func high_five(p)
+  let best = nil
+  for q in players() do
+    if q.id != p.id and ready(q) and distance(p, q) < 5 then
+      if best == nil or distance(p, q) < distance(p, best) then best = q end
+    end
+  end
+  if best == nil then
+    p.message("🙌 近くにだれもいない", 1)
+    return
+  end
+  if not quiet_ready(p, "hf_" + best.id, 20) then
+    p.message("🙌 さっきハイタッチした", 1)
+    return
+  end
+  p.look_at(best)
+  best.look_at(p)
+  p.launch(0, 5, 0)
+  best.launch(0, 5, 0)
+  fx_ball(p.position + (best.position - p.position) * 0.5 + {x: 0, y: 2, z: 0}, 1.2, "#FDE047", 0.4)
+  add_friend(p, best, 1)
+  p.message("🙌 " + best.name + " とハイタッチ！", 1.2)
+  best.message("🙌 " + p.name + " とハイタッチ！", 1.2)
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  family_clock = family_clock + dt
+  if family_clock < 1 then return end
+  family_clock = 0
+  let pd = period()
+  for p in players() do
+    if ready(p) then
+      if p.role == "baby" then baby_step(p) end
+      -- 夜に家でねる
+      if pd != nil and pd.id == "night" and not p.slept and in_home_of(p, family_home(p)) then
+        p.slept = true
+        p.rested_until = time() + 300
+        kit_give(p, 20)
+        p.message("💤 ぐっすり… +20・あしたは元気（少し速く歩ける）", 2.5)
+        kit_quest_progress(p, "sleep", 1)
+      end
+      if pd != nil and pd.id == "homeroom" then p.slept = false end
+      refresh_speed(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim_home(p, split(b.name, " ")[2])
+  elif contains(b.tags, "nursery") and p.role == "baby" and p.baby_need != nil then care_baby(p, p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_roles" then role_panel(p)
+  elif id == "roles_close" then p.ui_remove("roles")
+  elif starts_with(id, "role_") then set_role(p, replace(id, "role_", ""))
+  elif id == "family" then invite_family(p)
+  elif id == "inv_yes" then accept_family(p)
+  elif id == "inv_no" then
+    p.ui_remove("invite")
+    p.invite_from = nil
+  elif id == "care" then care_nearby(p)
+  elif id == "hifive" then high_five(p)
+  end
+end
+
+on chat(p, text)
+  if text == "/home" then
+    let n = family_home(p)
+    if n == nil then p.message("まだ家がない（黄色い看板）", 1.5) else p.teleport(block("Home " + n + " Floor")) end
+  end
+end

@@ -1,14 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 296,
+  "blockCount" : 325,
   "id" : "cherry-lane-rp",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/cherry-lane-rp\/data.absc",
+    "games\/cherry-lane-rp\/common.absc",
+    "games\/cherry-lane-rp\/family.absc",
+    "games\/cherry-lane-rp\/school.absc",
+    "games\/cherry-lane-rp\/style.absc",
+    "games\/cherry-lane-rp\/work.absc",
     "games\/cherry-lane-rp\/main.absc"
   ],
-  "summary" : "おしゃれな街で学校生活や家族ごっこ。役割（生徒・先生・親・赤ちゃん）を選んで、授業のチャイムに合わせて過ごそう。",
+  "summary" : "学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。",
   "tags" : [
     "rp",
     "school",

@@ -1,0 +1,347 @@
+-- school.absc — 学校の1日
+-- 朝の会 → 算数 → 図工 → 昼休み → 音楽 → 理科 → 体育 → 放課後 → 夜（1コマ45びょう）。
+-- 授業は「移動10びょう → 授業30びょう」。チャイムのあと教室のパッドの上にいると授業に出られる。
+--   算数・図工・理科: 3択クイズ / 音楽: ♪が出たらタップ / 体育: 校庭の4つの旗を順に回る
+-- 先生が教室にいると成績1.5倍。1日の終わりに通知表（A〜D）。成績の合計で進級、卒業も。
+
+let period_i = 0
+let period_left = 0
+let school_clock = 0
+let lesson = nil        -- {subject, room, until, teachers}
+let day = 1
+let pe_first = nil
+
+func period()
+  if period_i < 1 then return nil end
+  return SCHEDULE[period_i]
+end
+
+func is_subject(id)
+  return contains(SUBJECTS, id)
+end
+
+func next_period()
+  period_i = period_i + 1
+  if period_i > len(SCHEDULE) then
+    report_cards()
+    day = day + 1
+    period_i = 1
+  end
+  period_left = PERIOD_SECS
+  let pd = period()
+  lesson = nil
+  pe_first = nil
+  announce("🔔 キーンコーン… 「" + pd.name + "」", 3)
+  if pd.id == "homeroom" then
+    world.light = 0.75
+    world.sky_top = "#5AB2FF"
+    world.sky_bottom = "#CDEBFF"
+    new_theme()
+    after(10, func() take_attendance() end)
+  elif pd.id == "night" then
+    world.light = 0.25
+    world.sky_top = "#0B1026"
+    world.sky_bottom = "#312E81"
+  elif pd.id == "after" then
+    world.sky_top = "#FB923C"
+    world.sky_bottom = "#FDE68A"
+  elif is_subject(pd.id) then
+    for p in players() do
+      if ready(p) and (p.role == "student" or p.role == "teacher") then p.message("🏫 " + pd.name + " は教室へ！（10びょうではじまる）", 2.5) end
+    end
+  end
+end
+
+func take_attendance()
+  for p in players() do
+    if ready(p) and p.role == "student" and in_room(p, "Homeroom") then
+      p.attend = (p.attend or 0) + 1
+      kit_give(p, 5)
+      p.message("🙋 出席！ 皆勤で通知表にボーナス", 1.5)
+      kit_quest_progress(p, "attend", 1)
+    end
+  end
+end
+
+-- MARK: 授業
+
+func start_lesson()
+  let pd = period()
+  let room = pd.room
+  let teachers = filter(players(), func(p) return ready(p) and p.role == "teacher" and in_room(p, room) end)
+  lesson = {subject: pd.id, room: room, until: time() + 30, teachers: map(teachers, func(t) return t.id end)}
+  let n = 0
+  for p in players() do
+    if ready(p) and p.role == "student" and in_room(p, room) then
+      n = n + 1
+      p.lesson = {subject: pd.id, i: 0, correct: 0, laps: 0, next_lap: 1}
+      p.day_points = p.day_points or {}
+      if pd.id == "music" then music_start(p)
+      elif pd.id == "pe" then p.message("🏃 校庭の旗を 1→2→3→4 の順に回ろう！", 2.5)
+      else next_question(p)
+      end
+    end
+  end
+  for t in teachers do
+    t.message("📚 授業開始！ 生徒 " + n + " 人", 2)
+    kit_quest_progress(t, "teach", 1)
+  end
+  if n == 0 then
+    for t in teachers do t.message("生徒がいない…（チャイムの後に教室に来てもらおう）", 2) end
+  end
+end
+
+func end_lesson()
+  for p in players() do
+    if p.lesson != nil then
+      let s = p.lesson.subject
+      p.ui_remove("quiz")
+      p.ui_remove("note")
+      p.message("📖 " + SUBJECT_NAME[s] + " おわり！ 今日の " + SUBJECT_NAME[s] + ": " + (p.day_points[s] or 0) + " 点", 2)
+      kit_quest_progress(p, "class", 1)
+      p.lesson = nil
+      hud(p)
+    end
+  end
+  lesson = nil
+end
+
+func teacher_bonus()
+  if lesson == nil then return 1 end
+  if len(lesson.teachers) > 0 then return 1.5 end
+  return 1
+end
+
+func pay_teachers(amount)
+  if lesson == nil then return end
+  for id in lesson.teachers do
+    let t = player_by_id(id)
+    if t != nil then kit_give(t, amount) end
+  end
+end
+
+func add_points(p, subject, n)
+  let gain = n * teacher_bonus()
+  let before = grade_level(p)
+  p.grades[subject] = (p.grades[subject] or 0) + gain
+  p.day_points[subject] = (p.day_points[subject] or 0) + gain
+  p.score = floor(total_grade(p))
+  let now = grade_level(p)
+  if now.name != before.name then
+    announce("🎉 " + p.name + " が「" + now.name + "」に進級！", 3)
+    kit_quest_progress(p, "grade", 1)
+    if now.name == "🎓 卒業生" then
+      kit_badge(p, "grad", "卒業")
+      if not contains(p.outfits, "grad") then append(p.outfits, "grad") end
+      p.message("🎓 卒業おめでとう！ 卒業ガウンがもらえた（ブティック）", 3)
+      kit_give(p, 500)
+    end
+  end
+end
+
+-- MARK: クイズ
+
+func make_question(subject)
+  if subject == "math" then
+    let kind = random(1, 3)
+    let a = random(2, 12)
+    let b = random(2, 12)
+    let q = a + " + " + b + " = ？"
+    let ans = a + b
+    if kind == 2 then
+      q = a + " × " + b + " = ？"
+      ans = a * b
+    elif kind == 3 then
+      q = (a + b) + " − " + b + " = ？"
+      ans = a
+    end
+    let w1 = ans + random(1, 3)
+    let w2 = max(0, ans - random(1, 3))
+    return {q: q, a: "" + ans, w: ["" + w1, "" + w2]}
+  elif subject == "art" then
+    return random(ART_QS)
+  end
+  return random(SCIENCE_QS)
+end
+
+func next_question(p)
+  let l = p.lesson
+  if l == nil then return end
+  l.i = l.i + 1
+  if l.i > QUIZ_COUNT[l.subject] then
+    p.ui_remove("quiz")
+    p.message("✏️ 全問おわり！ " + l.correct + "/" + QUIZ_COUNT[l.subject] + " 正解", 2)
+    if l.correct == QUIZ_COUNT[l.subject] then kit_quest_progress(p, "perfect", 1) end
+    return
+  end
+  let qq = make_question(l.subject)
+  let choices = shuffle([qq.a, qq.w[1], qq.w[2]])
+  l.answer = index_of(choices, qq.a)
+  l.asked = time()
+  let h = 220
+  p.ui_panel("quiz", {at: "center", dy: -40, w: 520, h: h, bg: "#14532DF0", radius: 20, layer: 30})
+  p.ui_text("quiz_n", SUBJECT_NAME[l.subject] + "  第" + l.i + "問", {parent: "quiz", y: 24 / h, size: 14, color: "#BBF7D0"})
+  p.ui_text("quiz_q", qq.q, {parent: "quiz", y: 66 / h, size: 22, bold: true})
+  let i = 0
+  for c in choices do
+    i = i + 1
+    p.ui_button("qa_" + i, c, {parent: "quiz", x: (i - 0.5) / 3, y: 150 / h, w: 150, h: 54, size: 18, bg: "#F59E0B", color: "#111111"})
+  end
+  let my_i = l.i
+  kit_later(p, 9, func()
+    if p.lesson != nil and p.lesson.i == my_i and p.lesson.answer != nil then
+      p.lesson.answer = nil
+      p.message("⏱ 時間切れ", 1)
+      next_question(p)
+    end
+  end)
+end
+
+func answer(p, i)
+  let l = p.lesson
+  if l == nil or l.answer == nil then return end
+  let right = i == l.answer
+  l.answer = nil
+  if right then
+    l.correct = l.correct + 1
+    let pts = 2
+    if l.subject == "science" then pts = 3 end
+    add_points(p, l.subject, pts)
+    p.message("⭕ 正解！", 0.8)
+    p.sound("collect")
+    pay_teachers(4)
+  else
+    p.message("❌ ざんねん", 0.8)
+    p.sound("error")
+  end
+  kit_later(p, 0.8, func() next_question(p) end)
+end
+
+-- MARK: 音楽
+
+func music_start(p)
+  p.message("🎵 ♪ が出たらすぐタップ！", 2)
+  for k in 1 to MUSIC_NOTES do
+    kit_later(p, 2 + k * 3.5 + random() * 1.5, func()
+      if p.lesson == nil or p.lesson.subject != "music" then return end
+      let id = k
+      p.note_id = id
+      p.note_at = time()
+      p.ui_button("note", "♪", {at: "center", dx: random(-200, 200), dy: random(-120, 60), w: 90, h: 90, size: 40, bg: "#A855F7", radius: 45})
+      kit_later(p, 0.9, func()
+        if p.note_id == id then
+          p.note_id = nil
+          p.ui_remove("note")
+        end
+      end)
+    end)
+  end
+end
+
+func tap_note(p)
+  if p.note_id == nil or p.lesson == nil then return end
+  p.note_id = nil
+  p.ui_remove("note")
+  let fast = time() - p.note_at < 0.45
+  if fast then
+    add_points(p, "music", 2)
+    p.message("🎵 パーフェクト！", 0.6)
+  else
+    add_points(p, "music", 1)
+    p.message("🎵 グッド", 0.6)
+  end
+  pay_teachers(2)
+end
+
+-- MARK: 体育
+
+func lap_touch(p, b)
+  let l = p.lesson
+  if l == nil or l.subject != "pe" then return end
+  let n = num(split(b.name, " ")[2])
+  if n != l.next_lap then return end
+  l.next_lap = l.next_lap % 4 + 1
+  if n == 4 then
+    l.laps = l.laps + 1
+    add_points(p, "pe", 2)
+    p.message("🏃 1周！（" + l.laps + "周目）", 1)
+    pay_teachers(3)
+    if l.laps == 2 and pe_first == nil then
+      pe_first = p.id
+      add_points(p, "pe", 3)
+      announce("🥇 " + p.name + " が体育でいちばんに2周！", 2)
+    end
+  end
+end
+
+-- MARK: 通知表
+
+func letter(points)
+  if points >= 26 then return "A" end
+  if points >= 16 then return "B" end
+  if points >= 8 then return "C" end
+  return "D"
+end
+
+func report_cards()
+  for p in players() do
+    if ready(p) and p.role == "student" and p.day_points != nil then
+      let total = 0
+      for s in SUBJECTS do total = total + (p.day_points[s] or 0) end
+      let l = letter(total)
+      let pay = {A: 120, B: 70, C: 35, D: 10}
+      let coins = pay[l]
+      if (p.attend or 0) > 0 then coins = coins + 20 end
+      kit_give(p, coins)
+      p.ui_panel("report", {at: "center", w: 420, h: 250, bg: "#FFFBEBF2", radius: 18, layer: 40})
+      p.ui_text("rp_t", "📄 通知表（" + day + "日目）", {parent: "report", y: 0.12, size: 20, bold: true, color: "#111111"})
+      let i = 0
+      for s in SUBJECTS do
+        i = i + 1
+        p.ui_text("rp_" + s, SUBJECT_NAME[s] + "  " + floor(p.day_points[s] or 0) + " 点", {parent: "report", y: 0.2 + i * 0.1, size: 15, color: "#374151"})
+      end
+      p.ui_text("rp_l", "総合 " + l + "  → 🪙 " + coins, {parent: "report", y: 0.85, size: 20, bold: true, color: "#B91C1C"})
+      kit_later(p, 6, func() p.ui_remove("report") end)
+      if l == "A" then kit_quest_progress(p, "grade_a", 1) end
+      p.day_points = {}
+      p.attend = 0
+    end
+  end
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  school_clock = school_clock + dt
+  if school_clock < 1 then return end
+  school_clock = 0
+  period_left = period_left - 1
+  if period_left <= 0 then next_period() end
+  let pd = period()
+  if pd == nil then return end
+  if is_subject(pd.id) then
+    let into = PERIOD_SECS - period_left
+    if into == 10 and lesson == nil then start_lesson() end
+    if lesson != nil and time() >= lesson.until then end_lesson() end
+  end
+  let status = "🌇 自由時間"
+  if lesson != nil then status = "📖 授業中: " + SUBJECT_NAME[lesson.subject] + "（" + ceil(lesson.until - time()) + "s）"
+  elif is_subject(pd.id) then status = "🏃 移動時間 → " + SUBJECT_NAME[pd.id] + "（" + max(0, period_left - (PERIOD_SECS - 10)) + "s）"
+  end
+  ui_text("clock", day + "日目  " + pd.name + "  のこり " + period_left + "s   " + status, {at: "top", dy: 26, size: 16, bold: true, color: "#FDF2F8"})
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "lap") then lap_touch(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "qa_1" then answer(p, 1)
+  elif id == "qa_2" then answer(p, 2)
+  elif id == "qa_3" then answer(p, 3)
+  elif id == "note" then tap_note(p)
+  elif id == "report_close" then p.ui_remove("report")
+  end
+end

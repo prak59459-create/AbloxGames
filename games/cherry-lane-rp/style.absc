@@ -1,0 +1,71 @@
+-- style.absc — ブティック（服）と「きょうのテーマ」
+-- 服は12種類（買うと何度でも着られる）。毎朝「きょうのテーマ」が決まり、
+-- テーマに合う服で朝の会に出ると、おこづかいボーナス。
+
+let theme = "きちんと"
+
+func new_theme()
+  theme = random(THEMES)
+  announce("👗 きょうのテーマは「" + theme + "」！ 合う服で朝の会に出るとボーナス", 4)
+  after(12, func()
+    for p in players() do
+      if ready(p) and p.outfit != nil and outfit_info(p.outfit).tag == theme and in_room(p, "Homeroom") then
+        kit_give(p, 25)
+        p.message("👗 テーマにぴったり！ +25", 1.5)
+        kit_quest_progress(p, "theme", 1)
+      end
+    end
+  end)
+end
+
+func wardrobe(p)
+  let h = 130 + ceil(len(OUTFITS) / 2) * 48
+  p.ui_panel("wardrobe", {at: "center", w: 560, h: h, bg: "#831843EE", radius: 22, layer: 30})
+  p.ui_text("ward_t", "👗 ブティック（きょうのテーマ: " + theme + "）", {parent: "wardrobe", y: 28 / h, size: 18, bold: true})
+  let i = 0
+  for o in OUTFITS do
+    i = i + 1
+    let label = o.name + "（" + o.tag + "）"
+    if o.price > 0 and not contains(p.outfits, o.id) then label = label + " " + o.price end
+    if o.price < 0 and not contains(p.outfits, o.id) then label = "🔒 卒業で解放" end
+    if p.outfit == o.id then label = "✅ " + label end
+    let col = 0.27
+    if i % 2 == 0 then col = 0.73 end
+    p.ui_button("outfit_" + o.id, label, {parent: "wardrobe", x: col, y: (40 + ceil(i / 2) * 48) / h, w: 250, h: 40, size: 13,
+                                          bg: o.body, color: "#111111"})
+  end
+  p.ui_button("ward_close", "閉じる", {parent: "wardrobe", y: (h - 26) / h, w: 120, h: 34, size: 14, bg: "gray"})
+end
+
+func wear(p, id)
+  let o = outfit_info(id)
+  if not contains(p.outfits, id) then
+    if o.price < 0 then
+      p.message("🎓 卒業するともらえる", 1.5)
+      return
+    end
+    if not kit_pay(p, o.price) then return end
+    append(p.outfits, id)
+    kit_quest_progress(p, "buy_outfit", 1)
+  end
+  p.outfit = id
+  p.color = o.body
+  p.head_color = o.head
+  p.leg_color = o.legs
+  p.hat = o.hat
+  kit_quest_progress(p, "outfit", 1)
+  wardrobe(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "wardrobe") and quiet_ready(p, "ward", 3) and p.role != "stylist" then wardrobe(p) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_wardrobe" then wardrobe(p)
+  elif id == "ward_close" then p.ui_remove("wardrobe")
+  elif starts_with(id, "outfit_") then wear(p, replace(id, "outfit_", ""))
+  end
+end

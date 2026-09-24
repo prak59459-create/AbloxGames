@@ -1,0 +1,311 @@
+-- work.absc — お仕事・お店・乗り物
+-- ☕ カフェ店員: お客さん（NPC）の注文どおりにドリンクを作る。はやいほどチップ。
+-- 💇 美容師: ブティックのお客さんの「こんな感じ」に合う服をえらぶ。
+-- だれでもカフェでドリンクが買える（昼休みは半額）。45びょうごとに役割のおこづかい。
+-- 🚗 カーショップで乗り物を買って、ボタンで乗り降り。
+
+let customers = []
+let work_clock = 0
+let spawn_clock = 0
+
+func workers(role)
+  return filter(players(), func(p) return ready(p) and p.role == role end)
+end
+
+func drink_info(id)
+  for d in DRINKS do
+    if d.id == id then return d end
+  end
+  return nil
+end
+
+func live_customers(shop)
+  customers = filter(customers, func(c) return kit_here(c) end)
+  return filter(customers, func(c) return c.shop == shop end)
+end
+
+func free_seat(prefix, count, shop)
+  for i in 1 to count do
+    let s = block(prefix + " " + i)
+    let taken = false
+    for c in live_customers(shop) do
+      if s != nil and distance(c, s.position) < 1.2 then taken = true end
+    end
+    if s != nil and not taken then return s end
+  end
+  return nil
+end
+
+func spawn_customer(shop)
+  let seat = nil
+  if shop == "cafe" then seat = free_seat("Cafe Seat", 3, shop) else seat = free_seat("Salon Seat", 2, shop) end
+  if seat == nil then return end
+  let c = create_npc({name: random(["ミナ", "ソウタ", "ハナ", "レン", "ユイ", "カイ", "サクラ", "リク"]), position: seat.position + {x: 0, y: 1, z: 0},
+                      color: random(["#FCA5A5", "#93C5FD", "#FDE68A", "#C4B5FD", "#86EFAC"]), head_color: "#F5D0A9", health: 100000, speed: 0,
+                      team: "town"})
+  c.kind = "customer"
+  c.shop = shop
+  c.frozen = true
+  c.born = time()
+  if shop == "cafe" then
+    let d = random(DRINKS)
+    c.order = d.id
+    c.say(d.name + " ください！")
+  else
+    c.order = random(THEMES)
+    c.say("「" + c.order + "」な感じにしてください！")
+  end
+  append(customers, c)
+end
+
+func first_customer(shop)
+  let best = nil
+  for c in live_customers(shop) do
+    if best == nil or c.born < best.born then best = c end
+  end
+  return best
+end
+
+-- MARK: カフェ店員
+
+func make_menu(p)
+  let counter = block("Cafe Counter")
+  if counter == nil or distance(p, counter.position) > 7 then
+    p.message("☕ カフェのカウンターの近くで作ろう", 1.5)
+    return
+  end
+  let c = first_customer("cafe")
+  let h = 220
+  p.ui_panel("make", {at: "center", w: 520, h: h, bg: "#78350FF0", radius: 20, layer: 30})
+  let t = "☕ お客さんがいない"
+  if c != nil then t = "☕ " + c.name + " の注文: " + drink_info(c.order).name end
+  p.ui_text("mk_t", t, {parent: "make", y: 28 / h, size: 17, bold: true, color: "#FEF3C7"})
+  let i = 0
+  for d in DRINKS do
+    i = i + 1
+    let col = 0.28
+    if i % 2 == 0 then col = 0.72 end
+    p.ui_button("mk_" + d.id, d.name, {parent: "make", x: col, y: (40 + ceil(i / 2) * 56) / h, w: 200, h: 46, size: 16, bg: d.color})
+  end
+  p.ui_button("mk_close", "閉じる", {parent: "make", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func serve(p, id)
+  let c = first_customer("cafe")
+  if c == nil then
+    p.message("お客さんがいない", 1)
+    return
+  end
+  if c.order == id then
+    let wait = time() - c.born
+    let tip = max(0, floor((30 - wait) / 3))
+    let pay = CAFE_PAY + tip
+    kit_give(p, pay)
+    c.say("ありがとう！ おいしい！")
+    p.message("☕ 注文どおり！ +" + pay + "（チップ " + tip + "）", 1.5)
+    kit_quest_progress(p, "serve", 1)
+    fx_ball(c.position + {x: 0, y: 1.5, z: 0}, 1, drink_info(id).color, 0.5)
+  else
+    c.say("えっ… ちがうよ〜")
+    p.message("❌ 注文とちがう（" + drink_info(c.order).name + "）", 1.5)
+    kit_give(p, 2)
+  end
+  customers = filter(customers, func(x) return x.id != c.id end)
+  after(1.5, func() gone(c) end)
+  make_menu(p)
+end
+
+-- MARK: 美容師
+
+func style_menu(p)
+  let w = block("Wardrobe")
+  if w == nil or distance(p, w.position) > 8 then
+    p.message("💇 ブティックの中でコーディネートしよう", 1.5)
+    return
+  end
+  let c = first_customer("salon")
+  let h = 250
+  p.ui_panel("styl", {at: "center", w: 540, h: h, bg: "#831843F0", radius: 20, layer: 30})
+  let t = "💇 お客さんがいない"
+  if c != nil then t = "💇 " + c.name + " の希望: 「" + c.order + "」" end
+  p.ui_text("sy_t", t, {parent: "styl", y: 28 / h, size: 17, bold: true, color: "#FCE7F3"})
+  let picks = slice(shuffle(filter(copy(OUTFITS), func(o) return o.price >= 0 end)), 1, 6)
+  let i = 0
+  for o in picks do
+    i = i + 1
+    let col = ((i - 1) % 3) * 0.32 + 0.18
+    p.ui_button("sy_" + o.id, o.name, {parent: "styl", x: col, y: (40 + ceil(i / 3) * 60) / h, w: 160, h: 50, size: 14, bg: o.body,
+                                       color: "#111111"})
+  end
+  p.ui_button("sy_close", "閉じる", {parent: "styl", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func style_customer(p, outfit_id)
+  let c = first_customer("salon")
+  if c == nil then return end
+  let o = outfit_info(outfit_id)
+  c.color = o.body
+  c.leg_color = o.legs
+  c.hat = o.hat
+  if o.tag == c.order then
+    kit_give(p, SALON_PAY)
+    c.say("すてき！ ぴったり！")
+    p.message("💇 大成功！ +" + SALON_PAY, 1.5)
+    kit_quest_progress(p, "style", 1)
+  else
+    c.say("うーん… ちょっとちがうかも")
+    kit_give(p, 4)
+    p.message("💇 「" + c.order + "」じゃなかった…（" + o.name + " は「" + o.tag + "」）", 2)
+  end
+  customers = filter(customers, func(x) return x.id != c.id end)
+  after(2, func() gone(c) end)
+  p.ui_remove("styl")
+end
+
+func work_buttons(p)
+  if p.role == "barista" then
+    p.ui_button("work", "☕ 作る", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 60, size: 17, bg: "#B45309", radius: 16})
+  elif p.role == "stylist" then
+    p.ui_button("work", "💇 コーデ", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 60, size: 17, bg: "#DB2777", radius: 16})
+  end
+end
+
+-- MARK: ドリンクを買う（だれでも）
+
+func cafe_menu(p)
+  let lunch = period() != nil and period().id == "lunch"
+  let h = 200
+  p.ui_panel("cafe", {at: "center", w: 500, h: h, bg: "#92400EF0", radius: 20, layer: 30})
+  let t = "☕ カフェ"
+  if lunch then t = t + "（🍱 昼休みは半額！）" end
+  p.ui_text("cf_t", t, {parent: "cafe", y: 26 / h, size: 18, bold: true, color: "#FEF3C7"})
+  let i = 0
+  for d in DRINKS do
+    i = i + 1
+    let price = d.price
+    if lunch then price = ceil(price / 2) end
+    let col = 0.28
+    if i % 2 == 0 then col = 0.72 end
+    p.ui_button("buy_" + d.id, d.name + " " + price, {parent: "cafe", x: col, y: (30 + ceil(i / 2) * 54) / h, w: 200, h: 44, size: 15, bg: d.color})
+  end
+  p.ui_button("cf_close", "閉じる", {parent: "cafe", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func buy_drink(p, id)
+  let d = drink_info(id)
+  if d == nil then return end
+  let price = d.price
+  if period() != nil and period().id == "lunch" then price = ceil(price / 2) end
+  if not kit_pay(p, price) then return end
+  if id == "latte" then
+    p.coffee_until = time() + 20
+    p.message("☕ 20びょう 速く歩ける！", 1.5)
+  elif id == "cocoa" then
+    p.heal(30)
+    p.message("🍫 ほっとする…", 1.2)
+  else
+    p.message(d.name + " おいしい！", 1.2)
+  end
+  kit_quest_progress(p, "drink", 1)
+  -- いっしょに飲むと友だちに
+  for q in players() do
+    if q.id != p.id and ready(q) and distance(p, q) < 6 and quiet_ready(p, "cafe_friend_" + q.id, 60) then add_friend(p, q, 1) end
+  end
+end
+
+-- MARK: 乗り物
+
+func car_menu(p)
+  let h = 110 + len(CARS) * 52
+  p.ui_panel("cars", {at: "center", w: 440, h: h, bg: "#0C4A6EF0", radius: 20, layer: 30})
+  p.ui_text("car_t", "🚗 カーショップ", {parent: "cars", y: 26 / h, size: 19, bold: true, color: "#E0F2FE"})
+  let i = 0
+  for c in CARS do
+    i = i + 1
+    let label = c.name
+    if contains(p.cars, c.id) then
+      if p.car_name == c.name then label = "✅ " + label else label = label + "（持っている）" end
+    else
+      label = label + "  " + c.price
+    end
+    p.ui_button("car_" + c.id, label, {parent: "cars", y: (26 + i * 52) / h, w: 360, h: 44, size: 15, bg: "#0284C7"})
+  end
+  p.ui_button("cars_close", "閉じる", {parent: "cars", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func pick_car(p, id)
+  for c in CARS do
+    if c.id == id then
+      if not contains(p.cars, id) then
+        if not kit_pay(p, c.price) then return end
+        append(p.cars, id)
+        kit_quest_progress(p, "car", 1)
+      end
+      p.car_name = c.name
+      p.car_speed = c.speed
+      refresh_speed(p)
+      hud(p)
+    end
+  end
+  car_menu(p)
+end
+
+func toggle_drive(p)
+  p.driving = not p.driving
+  if p.driving then p.message(p.car_name + " に乗った", 1) else p.message("おりた", 1) end
+  refresh_speed(p)
+end
+
+-- MARK: 毎びょう
+
+on tick(dt)
+  work_clock = work_clock + dt
+  spawn_clock = spawn_clock + dt
+  if spawn_clock >= 10 then
+    spawn_clock = 0
+    if len(workers("barista")) > 0 and len(live_customers("cafe")) < 3 then spawn_customer("cafe") end
+    if len(workers("stylist")) > 0 and len(live_customers("salon")) < 2 then spawn_customer("salon") end
+    -- 待ちすぎたお客さんは帰る
+    for c in customers do
+      if kit_here(c) and time() - c.born > 50 then
+        c.say("もう帰ろう…")
+        let cc = c
+        after(1, func() gone(cc) end)
+        c.born = time() + 1000
+      end
+    end
+  end
+  if work_clock >= 45 then
+    work_clock = 0
+    for p in players() do
+      if ready(p) then
+        kit_give(p, ROLES[p.role].pay)
+        p.message("💰 おこづかい +" + ROLES[p.role].pay, 1)
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "cafe") and quiet_ready(p, "cafe_pad", 3) then
+    if p.role == "barista" then make_menu(p) else cafe_menu(p) end
+  elif contains(b.tags, "carlot") and quiet_ready(p, "car_pad", 3) then car_menu(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "work" then
+    if p.role == "barista" then make_menu(p) elif p.role == "stylist" then style_menu(p) end
+  elif id == "mk_close" then p.ui_remove("make")
+  elif starts_with(id, "mk_") then serve(p, replace(id, "mk_", ""))
+  elif id == "sy_close" then p.ui_remove("styl")
+  elif starts_with(id, "sy_") then style_customer(p, replace(id, "sy_", ""))
+  elif id == "cf_close" then p.ui_remove("cafe")
+  elif starts_with(id, "buy_") then buy_drink(p, replace(id, "buy_", ""))
+  elif id == "cars_close" then p.ui_remove("cars")
+  elif starts_with(id, "car_") then pick_car(p, replace(id, "car_", ""))
+  elif id == "drive" then toggle_drive(p)
+  end
+end
