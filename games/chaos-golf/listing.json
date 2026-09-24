@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 44,
+  "id" : "chaos-golf",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/chaos-golf\/main.absc"
+  ],
+  "summary" : "へんてこなコースを回るゴルフ対戦。パワーをえらんで打って、少ない打数でカップイン！全6ホール。",
+  "tags" : [
+    "golf",
+    "sports",
+    "party"
+  ],
+  "title" : "Chaos Golf",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/chaos-golf\/world.ablox"
+}

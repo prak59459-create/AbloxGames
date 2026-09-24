@@ -1,0 +1,76 @@
+-- Speed Worlds — 超スピードで5つの世界を走りぬける
+
+kit_setup("Speed Worlds", "最速タイムでゴールへ！", [
+  "とても速く走れる！ジャンプも高い",
+  "紫のポータルで次の世界へワープ（全部で5つ）",
+  "黄色いブーストを踏むと、さらに加速",
+  "緑のパッドはチェックポイント。落ちてもそこから",
+  "最後のゴールでタイムが記録される。自己ベストを更新しよう"
+])
+
+let record = nil
+let record_name = ""
+
+kit_quest("world3", "3つ目の世界に着く", 1, 100)
+kit_quest("finish", "ゴールする", 1, 300)
+kit_quest("fast", "3分以内にゴール", 1, 500)
+
+func show(p)
+  let t = p.started != nil and (time() - p.started) or 0
+  p.ui_text("time", "⏱ " + fixed(t, 1) + " 秒   🌍 " + p.world + " / 5" + (p.best != nil and ("   🏅 自己ベスト " + fixed(p.best, 1)) or ""),
+            {at: "top", dy: 30, size: 18, bold: true})
+end
+
+on start()
+  every(0.5, func()
+    for p in players() do
+      -- いまどの世界にいるか（z の位置で）
+      let w = min(5, max(1, floor((p.z + 20) / 400) + 1))
+      if w > p.world then
+        p.world = w
+        p.message("🌍 世界 " + w + "！", 1.5)
+        if w >= 3 then kit_quest_progress(p, "world3", 1) end
+      end
+      show(p)
+    end
+  end)
+  if record != nil then ui_text("record", "🏆 最速 " + record_name + " " + fixed(record, 1) + "秒", {at: "top_right", dy: 60, size: 15}) end
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.speed = 1.7
+  p.jump = 1.3
+  p.world = 1
+  p.started = time()
+  show(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "boost") and kit_ready(p, "boost", 1) then
+    p.speed = 2.6
+    p.launch(p.look * 12 + {x: 0, y: 4, z: 0})
+    kit_later(p, 2, func() p.speed = 1.7 end)
+  elif contains(b.tags, "finish") and p.started != nil then
+    let t = time() - p.started
+    p.started = nil
+    kit_quest_progress(p, "finish", 1)
+    if t < 180 then kit_quest_progress(p, "fast", 1) end
+    if p.best == nil or t < p.best then p.best = t end
+    p.score = max(p.score, floor(1000 - t))
+    announce("🏁 " + p.name + " ゴール！ " + fixed(t, 1) + " 秒", 4)
+    if record == nil or t < record then
+      record = t
+      record_name = p.name
+      announce("🏆 新記録！ " + p.name + " " + fixed(t, 1) + " 秒", 4)
+      ui_text("record", "🏆 最速 " + record_name + " " + fixed(record, 1) + "秒", {at: "top_right", dy: 60, size: 15})
+    end
+    kit_later(p, 3, func()
+      p.teleport(block("Spawn " + random(1, 8)))
+      p.world = 1
+      p.started = time()
+    end)
+  end
+end

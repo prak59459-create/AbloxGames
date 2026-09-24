@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 29,
+  "id" : "island-drama-show",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/island-drama-show\/main.absc"
+  ],
+  "summary" : "サバイバル番組の出演者になって、毎回ちがうミニゲームで勝ちぬけ！最下位は脱落…最後に残るのはだれだ？",
+  "tags" : [
+    "minigames",
+    "elimination",
+    "party"
+  ],
+  "title" : "Island Drama Show",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/island-drama-show\/world.ablox"
+}

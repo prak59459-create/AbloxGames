@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 97,
+  "id" : "disaster-island",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/disaster-island\/main.absc"
+  ],
+  "summary" : "島に次々とおそいかかる自然災害！洪水、いん石、たつまき、地震、酸性雨…生きのびるたびにポイント。",
+  "tags" : [
+    "survival",
+    "disasters",
+    "classic"
+  ],
+  "title" : "Disaster Island",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/disaster-island\/world.ablox"
+}

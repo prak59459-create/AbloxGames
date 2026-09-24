@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 27,
+  "id" : "shark-attack-bay",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/shark-attack-bay\/main.absc"
+  ],
+  "summary" : "巨大なサメと、ボートに乗った人間の海上バトル。人間はサメを撃退、サメは全員を海に引きずりこめ！",
+  "tags" : [
+    "pvp",
+    "shark",
+    "ocean"
+  ],
+  "title" : "Shark Attack Bay",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/shark-attack-bay\/world.ablox"
+}

@@ -1,0 +1,144 @@
+-- Last Survivor Games — 「だるまさんがころんだ」とガラスの橋
+
+kit_setup("Last Survivor Games", "動くな。まちがえるな。生き残れ", [
+  "第1ゲーム: だるまさんがころんだ。人形が見ている間に動いたら失格",
+  "人形がふり向く前に「…ころんだ！」と画面に出る。止まれ！",
+  "90秒以内に赤い線の先の緑まで行こう",
+  "第2ゲーム: ガラスの橋。左右どちらかが割れる。運を信じて進め",
+  "最後まで残った人がチャンピオン！"
+])
+
+let stage = "wait"
+let watching = false
+let ends_at = 0
+let broken = {}
+
+kit_quest("survive1", "だるまさんがころんだをクリア", 1, 150)
+kit_quest("champion", "ガラスの橋をわたりきる", 1, 400)
+
+func contestants()
+  return filter(players(), func(p) return p.alive and not p.out end)
+end
+
+func eliminate(p, why)
+  if p.out then return end
+  p.out = true
+  p.message("❌ " + why, 2.5)
+  shake(0.2, 0.3)
+  p.kill()
+end
+
+func doll_loop()
+  if stage != "field" then return end
+  watching = false
+  block("Doll Head").color = "#FDE68A"
+  ui_text("doll", "🟢 だるまさんが…", {at: "top", dy: 60, size: 24, bold: true, color: "#22C55E"})
+  after(random(2, 5), func()
+    if stage != "field" then return end
+    ui_text("doll", "🔴 ころんだ！", {at: "top", dy: 60, size: 28, bold: true, color: "#EF4444"})
+    block("Doll Head").color = "#DC2626"
+    after(0.6, func()
+      watching = true
+      after(random(2, 4), func() doll_loop() end)
+    end)
+  end)
+end
+
+func start_field()
+  stage = "field"
+  ends_at = time() + 90
+  for p in players() do
+    p.out = false
+    p.done = false
+    if not p.alive then p.respawn() end
+    p.teleport(block("Spawn " + random(1, 16)))
+  end
+  announce("🎎 第1ゲーム: だるまさんがころんだ", 4)
+  after(4, func() doll_loop() end)
+end
+
+func start_bridge()
+  stage = "bridge"
+  ends_at = time() + 90
+  broken = {}
+  for i in 1 to 10 do
+    let bad = random() < 0.5 and "L" or "R"
+    broken[str(i)] = bad
+    for side in ["L", "R"] do
+      let g = block("Glass " + i + " " + side)
+      g.visible = true
+      g.solid = true
+    end
+  end
+  for p in contestants() do p.teleport(block("Bridge Start")) end
+  announce("🌉 第2ゲーム: ガラスの橋。割れるガラスに注意", 4)
+end
+
+on start()
+  game.respawn_time = -1
+  after(5, func() start_field() end)
+  every(1, func()
+    if stage == "field" or stage == "bridge" then
+      ui_text("clock", "⏱ " + kit_clock(ends_at - time()) + "   残り " + len(contestants()) + " 人", {at: "top", dy: 26, size: 22, bold: true})
+      if time() >= ends_at then
+        for p in contestants() do
+          if not p.done then eliminate(p, "時間切れ") end
+        end
+        if stage == "field" then
+          if len(contestants()) > 0 then after(4, func() start_bridge() end) else kit_finish("全員失格…", 6) end
+          stage = "between"
+        else
+          stage = "over"
+          kit_finish("🌉 橋をわたれた人はいなかった…", 6)
+        end
+      end
+    end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.out = stage != "wait"
+  if p.out then p.message("次のゲームから参加！", 2) end
+end
+
+on tick(dt)
+  if stage == "field" and watching then
+    for p in contestants() do
+      if not p.done and magnitude({x: p.velocity.x, y: 0, z: p.velocity.z}) > 0.6 then eliminate(p, "動いてしまった！") end
+    end
+  end
+  if stage == "bridge" then
+    for p in contestants() do
+      if p.y < 2 then eliminate(p, "落ちてしまった…") end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or p.out then return end
+  if contains(b.tags, "fieldfinish") and stage == "field" and not p.done then
+    p.done = true
+    kit_quest_progress(p, "survive1", 1)
+    p.score = p.score + 1
+    announce("✅ " + p.name + " がゴール！", 2)
+    if len(filter(contestants(), func(q) return not q.done end)) == 0 then
+      stage = "between"
+      after(4, func() start_bridge() end)
+    end
+  elif contains(b.tags, "glass") and stage == "bridge" then
+    let parts = split(b.name, " ")
+    if broken[parts[2]] == parts[3] and b.visible then
+      b.visible = false
+      b.solid = false
+      p.message("💥 パリーン！", 1)
+    end
+  elif contains(b.tags, "bridgefinish") and stage == "bridge" then
+    p.score = p.score + 5
+    kit_quest_progress(p, "champion", 1)
+    kit_badge(p, "survivor", "最後の生存者")
+    stage = "over"
+    kit_finish("🏆 " + p.name + " がガラスの橋をわたりきった！チャンピオン！", 10)
+  end
+end

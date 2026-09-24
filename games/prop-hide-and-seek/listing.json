@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 61,
+  "id" : "prop-hide-and-seek",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/prop-hide-and-seek\/main.absc"
+  ],
+  "summary" : "家具に変身してかくれんぼ！鬼は怪しいものを撃って探す。まちがえると鬼がダメージ。最後まで見つからなければ勝ち。",
+  "tags" : [
+    "hide-and-seek",
+    "props",
+    "party"
+  ],
+  "title" : "Prop Hide & Seek",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/prop-hide-and-seek\/world.ablox"
+}

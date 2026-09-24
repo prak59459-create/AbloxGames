@@ -1,0 +1,135 @@
+-- Shark Attack Bay — サメ vs ボートの人間
+
+kit_setup("Shark Attack Bay", "サメを撃退するか、全員を海へ", [
+  "ラウンドごとに1人がサメになる（1人のときはCPUのサメ）",
+  "人間: 桟橋からボートに乗って、ライフルでサメを撃て",
+  "海に落ちると泳ぎが遅い。サメに気をつけて",
+  "サメ: 海の中ではとても速い。「🦈 かみつく」で近くの人間をおそう",
+  "3分以内にサメをたおせば人間の勝ち、全員やられたらサメの勝ち"
+])
+
+let shark = nil
+let shark_npc = nil
+let live = false
+let ends_at = 0
+
+kit_quest("hunt", "サメをたおす", 1, 200)
+kit_quest("bite", "サメで3人かみつく", 3, 200)
+
+func humans()
+  return filter(players(), func(p) return p.role == "human" and p.alive end)
+end
+
+func start_round()
+  live = true
+  ends_at = time() + 180
+  let list = shuffle(copy(players()))
+  shark = nil
+  if shark_npc != nil and kit_here(shark_npc) then shark_npc.destroy() end
+  shark_npc = nil
+  if len(list) >= 2 then
+    shark = list[1]
+  end
+  for p in players() do
+    if not p.alive then p.respawn() end
+    if shark != nil and p.id == shark.id then
+      p.role = "shark"
+      p.team = "shark"
+      p.color = "#64748B"
+      p.head_color = "#94A3B8"
+      p.size = 2.2
+      p.max_health = 1500
+      p.heal(9999)
+      p.take()
+      p.teleport(block("Shark Den"))
+      p.ui_button("bite", "🦈 かみつく", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 70, size: 18, bg: "#0369A1", radius: 18})
+      p.message("🦈 あなたはサメだ！", 3)
+    else
+      p.role = "human"
+      p.team = "human"
+      p.size = 1
+      p.max_health = 100
+      p.give("rifle")
+      p.ui_remove("bite")
+      p.teleport(block("Spawn " + random(1, 10)))
+    end
+  end
+  if shark == nil then
+    shark_npc = create_npc({name: "巨大ザメ", position: block("Shark Den").position, color: "#64748B", head_color: "#94A3B8",
+                            size: 2.4, health: 1500, speed: 1.3, team: "shark"})
+  end
+  announce("🦈 サメが海にいる…ボートに乗れ！", 3)
+end
+
+func end_round(humans_win)
+  if not live then return end
+  live = false
+  if humans_win then
+    for p in players() do
+      if p.role == "human" then p.score = p.score + 2 end
+    end
+    announce("🎉 サメを撃退した！人間の勝ち", 4)
+  else
+    if shark != nil and kit_here(shark) then shark.score = shark.score + 3 end
+    announce("🦈 全員やられた… サメの勝ち", 4)
+  end
+  after(6, func() start_round() end)
+end
+
+on start()
+  game.respawn_time = -1
+  after(4, func() start_round() end)
+  every(1, func()
+    if not live then return end
+    ui_text("clock", "⏱ " + kit_clock(ends_at - time()) + "   🧍 " + len(humans()), {at: "top", dy: 26, size: 22, bold: true})
+    for p in players() do
+      -- 泳ぎ: 水の中（y が低い）では、人間はおそく、サメは速い
+      let in_water = p.y < -0.5
+      let want = 1
+      if p.role == "shark" then want = in_water and 2.2 or 0.4 end
+      if p.role == "human" and in_water then want = 0.55 end
+      if abs(p.speed - want) > 0.05 then p.speed = want end
+    end
+    if time() >= ends_at then end_round(true) end
+    if len(players()) > 0 and len(humans()) == 0 then end_round(false) end
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.role = "human"
+  p.team = "human"
+  p.give("rifle")
+end
+
+on tick(dt)
+  if shark_npc != nil and kit_here(shark_npc) then
+    let t = kit_nearest(shark_npc, humans())
+    if t != nil then
+      shark_npc.follow(t)
+      if distance(shark_npc, t) < 3 then t.damage(35 * dt, shark_npc) end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "bite" and p.role == "shark" and p.alive and kit_ready(p, "bite", 1.5) then
+    for q in humans() do
+      if distance(p, q) < 4.5 then
+        q.damage(45, p)
+        p.sound("hit")
+        if not q.alive then kit_quest_progress(p, "bite", 1) end
+      end
+    end
+  end
+end
+
+on death(victim, killer)
+  if victim.role == "shark" or (shark_npc != nil and victim.id == shark_npc.id) or victim.name == "巨大ザメ" then
+    if killer != nil then kit_quest_progress(killer, "hunt", 1) end
+    end_round(true)
+  elif victim.role == "human" then
+    victim.message("🦈 やられた…", 2)
+  end
+end

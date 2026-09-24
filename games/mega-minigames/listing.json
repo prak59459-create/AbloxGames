@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 115,
+  "id" : "mega-minigames",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/mega-minigames\/main.absc"
+  ],
+  "summary" : "落ちる床、山の王、色あわせ、玉よけ…次々に出るミニゲームで勝ってポイントを集めよう。",
+  "tags" : [
+    "minigames",
+    "party",
+    "classic"
+  ],
+  "title" : "Mega Minigames",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/mega-minigames\/world.ablox"
+}

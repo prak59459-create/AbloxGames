@@ -1,0 +1,134 @@
+-- Tip Jar Plaza — ブースを出して、チップ（ゲーム内のコイン）をおくり合う
+
+kit_setup("Tip Jar Plaza", "ブースを出して、なかよくチップ", [
+  "緑のパッドにさわると、そのブースがあなたのお店に",
+  "「✏️ 看板」で看板のメッセージを書ける（近くの人に見える）",
+  "遊んでいると1分ごとにチップ（ゲーム内のコイン）がたまる",
+  "ほかの人のブースの近くで「💝 チップ」を押すとプレゼント",
+  "噴水にさわると、ときどき幸運のチップ",
+  "※ 本物のお金はいっさい使いません"
+])
+kit_currency = "チップ"
+
+let booths = {}     -- ブース番号 → {owner, name, sign, raised}
+
+kit_quest("booth", "ブースを出す", 1, 20)
+kit_quest("give", "チップを3回おくる", 3, 60)
+kit_quest("get", "チップを50もらう", 50, 100)
+
+func booth_of(p)
+  for key in keys(booths) do
+    if booths[key].owner == p.id then return key end
+  end
+  return nil
+end
+
+func near_booth(p)
+  for key in keys(booths) do
+    if distance(p, block("Booth " + key + " Counter")) < 7 then return key end
+  end
+  return nil
+end
+
+on start()
+  every(60, func()
+    for p in players() do kit_give(p, 5) end
+  end)
+  every(1, func()
+    for p in players() do
+      let key = near_booth(p)
+      if key != nil and booths[key] != nil then
+        let b = booths[key]
+        p.ui_text("sign", "🪧 " + b.name + " のお店: 「" + b.sign + "」  💝 " + b.raised, {at: "center", dy: -160, size: 18, bold: true})
+        if b.owner != p.id then
+          p.ui_button("tip", "💝 チップ 5", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 60, size: 17, bg: "#DB2777", radius: 16})
+        else
+          p.ui_remove("tip")
+        end
+        p.near = key
+      else
+        p.ui_remove("sign")
+        p.ui_remove("tip")
+        p.near = nil
+      end
+    end
+  end)
+  every(10, func() kit_leaderboard("💝 もらった") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_give(p, 20)
+  p.ui_button("edit", "✏️ 看板", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+end
+
+on leave(p)
+  let key = booth_of(p)
+  if key != nil then
+    remove(booths, key)
+    block("Booth " + key + " Sign").color = "#FFFFFF"
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "booth") then
+    let key = split(b.name, " ")[2]
+    if booths[key] == nil and booth_of(p) == nil then
+      booths[key] = {owner: p.id, name: p.name, sign: "いらっしゃい！", raised: 0}
+      block("Booth " + key + " Sign").color = p.color
+      p.message("🏪 ブース " + key + " があなたのお店に！「✏️ 看板」で書こう", 3)
+      kit_quest_progress(p, "booth", 1)
+    end
+  elif contains(b.tags, "wish") and kit_ready(p, "wish", 20) then
+    if random() < 0.3 then
+      kit_give(p, 10)
+      p.message("⛲ 幸運のチップ +10！", 2)
+    else
+      p.message("⛲ …願いごとをした", 1.5)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "edit" then
+    if booth_of(p) == nil then
+      p.message("まず緑のパッドでブースを出そう", 1.5)
+      return
+    end
+    p.ui_panel("editbox", {at: "center", w: 420, h: 150, bg: "#111827EE", radius: 20, layer: 30})
+    p.ui_text("edit_t", "看板のメッセージ", {parent: "editbox", y: 0.2, size: 18, bold: true})
+    p.ui_input("sign_text", "例: 絵をかきます！", {parent: "editbox", y: 0.55, w: 340})
+    p.ui_button("edit_close", "閉じる", {parent: "editbox", y: 0.85, w: 110, h: 32, size: 13, bg: "gray"})
+  elif id == "edit_close" then
+    p.ui_remove("editbox")
+  elif id == "tip" and p.near != nil then
+    let b = booths[p.near]
+    if b == nil or b.owner == p.id then return end
+    if kit_pay(p, 5) then
+      b.raised = b.raised + 5
+      kit_quest_progress(p, "give", 1)
+      for q in players() do
+        if q.id == b.owner then
+          kit_give(q, 5)
+          q.score = b.raised
+          kit_quest_progress(q, "get", 5)
+          q.message("💝 " + p.name + " からチップ 5！", 2)
+        end
+      end
+      announce("💝 " + p.name + " → " + b.name + " にチップ！", 2)
+    end
+  end
+end
+
+on input(p, id, text)
+  if id == "sign_text" then
+    let key = booth_of(p)
+    if key != nil then
+      booths[key].sign = slice(trim(text), 1, 40)
+      p.ui_remove("editbox")
+      p.message("🪧 看板を書きかえた", 1.5)
+    end
+  end
+end

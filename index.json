@@ -1420,6 +1420,206 @@
       "title" : "+1 Speed Wall Escape",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/plus-one-speed-escape\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 97,
+      "id" : "disaster-island",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/disaster-island\/main.absc"
+      ],
+      "summary" : "島に次々とおそいかかる自然災害！洪水、いん石、たつまき、地震、酸性雨…生きのびるたびにポイント。",
+      "tags" : [
+        "survival",
+        "disasters",
+        "classic"
+      ],
+      "title" : "Disaster Island",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/disaster-island\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 44,
+      "id" : "chaos-golf",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/chaos-golf\/main.absc"
+      ],
+      "summary" : "へんてこなコースを回るゴルフ対戦。パワーをえらんで打って、少ない打数でカップイン！全6ホール。",
+      "tags" : [
+        "golf",
+        "sports",
+        "party"
+      ],
+      "title" : "Chaos Golf",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/chaos-golf\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 103,
+      "id" : "speed-worlds",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/speed-worlds\/main.absc"
+      ],
+      "summary" : "ものすごいスピードで走りぬけるアスレチック。5つの世界をワープでつなぐコースを、最速タイムでクリアしよう。",
+      "tags" : [
+        "obby",
+        "speedrun",
+        "fast"
+      ],
+      "title" : "Speed Worlds",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/speed-worlds\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 29,
+      "id" : "island-drama-show",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/island-drama-show\/main.absc"
+      ],
+      "summary" : "サバイバル番組の出演者になって、毎回ちがうミニゲームで勝ちぬけ！最下位は脱落…最後に残るのはだれだ？",
+      "tags" : [
+        "minigames",
+        "elimination",
+        "party"
+      ],
+      "title" : "Island Drama Show",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/island-drama-show\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 61,
+      "id" : "prop-hide-and-seek",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/prop-hide-and-seek\/main.absc"
+      ],
+      "summary" : "家具に変身してかくれんぼ！鬼は怪しいものを撃って探す。まちがえると鬼がダメージ。最後まで見つからなければ勝ち。",
+      "tags" : [
+        "hide-and-seek",
+        "props",
+        "party"
+      ],
+      "title" : "Prop Hide & Seek",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/prop-hide-and-seek\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 115,
+      "id" : "mega-minigames",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/mega-minigames\/main.absc"
+      ],
+      "summary" : "落ちる床、山の王、色あわせ、玉よけ…次々に出るミニゲームで勝ってポイントを集めよう。",
+      "tags" : [
+        "minigames",
+        "party",
+        "classic"
+      ],
+      "title" : "Mega Minigames",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/mega-minigames\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 19,
+      "id" : "rhythm-battle",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/rhythm-battle\/main.absc"
+      ],
+      "summary" : "落ちてくるノーツに合わせてボタンを押す、対戦リズムゲーム。パーフェクトを決めて相手より高いスコアを！",
+      "tags" : [
+        "rhythm",
+        "music",
+        "1v1"
+      ],
+      "title" : "Rhythm Battle",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/rhythm-battle\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 45,
+      "id" : "last-survivor-games",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/last-survivor-games\/main.absc"
+      ],
+      "summary" : "「だるまさんがころんだ」とガラスの橋。動いたら失格、まちがえたら落ちる。最後まで生き残れ！",
+      "tags" : [
+        "survival",
+        "minigames",
+        "tense"
+      ],
+      "title" : "Last Survivor Games",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/last-survivor-games\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 27,
+      "id" : "shark-attack-bay",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/shark-attack-bay\/main.absc"
+      ],
+      "summary" : "巨大なサメと、ボートに乗った人間の海上バトル。人間はサメを撃退、サメは全員を海に引きずりこめ！",
+      "tags" : [
+        "pvp",
+        "shark",
+        "ocean"
+      ],
+      "title" : "Shark Attack Bay",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/shark-attack-bay\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 89,
+      "id" : "tip-jar-plaza",
+      "maxPlayers" : 16,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/tip-jar-plaza\/main.absc"
+      ],
+      "summary" : "自分のお店ブースを出して、メッセージを書こう。遊んでたまったチップを、気に入ったブースにプレゼント！（ゲーム内のコインだけです）",
+      "tags" : [
+        "social",
+        "chill",
+        "booths"
+      ],
+      "title" : "Tip Jar Plaza",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/tip-jar-plaza\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

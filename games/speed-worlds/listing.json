@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 103,
+  "id" : "speed-worlds",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/speed-worlds\/main.absc"
+  ],
+  "summary" : "ものすごいスピードで走りぬけるアスレチック。5つの世界をワープでつなぐコースを、最速タイムでクリアしよう。",
+  "tags" : [
+    "obby",
+    "speedrun",
+    "fast"
+  ],
+  "title" : "Speed Worlds",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/speed-worlds\/world.ablox"
+}

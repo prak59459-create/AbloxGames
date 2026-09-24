@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 19,
+  "id" : "rhythm-battle",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/rhythm-battle\/main.absc"
+  ],
+  "summary" : "落ちてくるノーツに合わせてボタンを押す、対戦リズムゲーム。パーフェクトを決めて相手より高いスコアを！",
+  "tags" : [
+    "rhythm",
+    "music",
+    "1v1"
+  ],
+  "title" : "Rhythm Battle",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/rhythm-battle\/world.ablox"
+}

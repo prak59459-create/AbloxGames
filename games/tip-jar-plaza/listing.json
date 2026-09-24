@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 89,
+  "id" : "tip-jar-plaza",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/tip-jar-plaza\/main.absc"
+  ],
+  "summary" : "自分のお店ブースを出して、メッセージを書こう。遊んでたまったチップを、気に入ったブースにプレゼント！（ゲーム内のコインだけです）",
+  "tags" : [
+    "social",
+    "chill",
+    "booths"
+  ],
+  "title" : "Tip Jar Plaza",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/tip-jar-plaza\/world.ablox"
+}
