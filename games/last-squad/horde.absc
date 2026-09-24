@@ -1,0 +1,97 @@
+-- horde.absc — ゾンビの大群（NPC）
+-- 20びょうごとにウェーブ。ランナー・タンク・スピッター（遠くから酸）、5ウェーブ目に巨大ゾンビ。
+
+let wave_no = 0
+let horde_clock = 0
+
+func zombie_info(id)
+  for z in ZOMBIES do
+    if z.id == id then return z end
+  end
+  return ZOMBIES[1]
+end
+
+func spawn_zombie(info, hp, boss)
+  if len(npcs()) >= MAX_ZOMBIES then return end
+  let spot = block("Horde Spawn " + random(1, 8))
+  let n = create_npc({name: info.name, position: spot.position + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: info.color,
+                      head_color: info.head, health: hp, speed: info.speed + random() * 0.2, size: info.size, team: "zombie"})
+  n.kind = info.id
+  n.dps = info.dps
+  n.scrap = info.scrap
+  n.boss = boss
+  n.spit_at = time() + 3
+end
+
+func horde()
+  wave_no = wave_no + 1
+  let count = min(30, 4 + wave_no * 3)
+  let base = 60 + wave_no * 12
+  let kinds = filter(ZOMBIES, func(z) return z.from == nil or z.from <= wave_no end)
+  for i in 1 to count do
+    let info = kit_pick(kinds, 1)
+    spawn_zombie(info, base * info.hp, false)
+  end
+  if wave_no == 5 then
+    let boss = {id: "boss", name: BOSS.name, hp: BOSS.hp, dps: BOSS.dps, speed: BOSS.speed, scrap: BOSS.scrap, color: BOSS.color,
+                head: BOSS.head, size: BOSS.size}
+    spawn_zombie(boss, base * BOSS.hp, true)
+    announce("👹 巨大ゾンビがあらわれた！", 4)
+  else
+    announce("🧟 ウェーブ " + wave_no + "（" + count + " 体）", 2)
+  end
+end
+
+func clear_horde()
+  for n in npcs() do kit_gone(n) end
+  wave_no = 0
+end
+
+func human_damage(q, amount, source)
+  let d = amount
+  if active_until(q.armor_until) then d = d * 0.7 end
+  q.damage(d, source)
+end
+
+-- 0.25びょうごと: 近くの人間を追いかける
+func horde_step(dt)
+  let hs = humans()
+  for n in npcs() do
+    if n.alive and n.kind != nil then
+      let t = nil
+      for q in hs do
+        if t == nil or distance(n, q) < distance(n, t) then t = q end
+      end
+      if t != nil then
+        if n.kind == "spitter" then
+          -- 少しはなれて酸をとばす
+          if distance(n, t) > 10 then n.follow(t) else n.stop() end
+          if distance(n, t) < 18 and time() >= n.spit_at then
+            n.spit_at = time() + 3
+            human_damage(t, 14, n)
+            t.message("🤮 酸をかけられた！", 0.8)
+          end
+        else
+          n.follow(t)
+          if distance(n, t) < 2 + n.size * 0.4 then human_damage(t, n.dps * dt, n) end
+        end
+      else
+        n.stop()
+      end
+    end
+  end
+end
+
+on tick(dt)
+  horde_clock = horde_clock + dt
+  if horde_clock < 0.25 then return end
+  let passed = horde_clock
+  horde_clock = 0
+  if phase == "play" then horde_step(passed) end
+  -- 古いバリケード
+  let keep = []
+  for b in barricades do
+    if time() < b.until and still(b.block) then append(keep, b) else kit_gone(b.block) end
+  end
+  barricades = keep
+end

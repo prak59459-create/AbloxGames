@@ -399,6 +399,8 @@ func lastSquad(_ m: MapBuilder) {
     m.pad("Extraction", x: 60, z: 60, y: 0.5, size: 10, color: "#FACC15", tags: ["extract"])
     m.markers("Horde Spawn", points: ring(8, radius: 75), color: "#000000", visible: false, behavior: .none)
     m.markers("Supply", points: [(-30, 20), (30, -25), (-45, -40), (40, 30)], color: "#22C55E", tags: ["supply"], size: 2)
+    m.pad("Class Board", x: 0, z: -9, y: 0.3, size: 2.6, color: "#60A5FA", tags: ["class_board"])
+    m.markers("Drop Spot", points: [(-50, 50), (50, -50), (-55, 0), (0, 55), (20, -55)], color: "#000000", visible: false, behavior: .none)
 }
 
 // MARK: 30 Style Boxing

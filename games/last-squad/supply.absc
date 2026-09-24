@@ -1,0 +1,99 @@
+-- supply.absc — 補給（緑のパッド・💰スクラップで買う）・手りゅう弾・空からの補給箱
+
+let drop = nil
+let drop_next = 0
+
+func supply_menu(p)
+  let h = 140 + len(SHOP) * 46
+  p.ui_panel("sup_box", {at: "center", w: 520, h: h, bg: "#052E16F2", radius: 22, layer: 30})
+  p.ui_text("sup_t", "📦 補給（💰 " + p.scrap + " スクラップ）", {parent: "sup_box", y: 26 / h, size: 19, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for item in SHOP do
+    i = i + 1
+    p.ui_button("buy_" + item.id, item.name + "  💰" + item.price + "  " + item.text, {parent: "sup_box", y: (30 + i * 46) / h, w: 480, h: 38, size: 13, bg: "#166534"})
+  end
+  p.ui_button("sup_close", "閉じる", {parent: "sup_box", y: (h - 24) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func buy(p, id)
+  if p.team != "human" then return end
+  for item in SHOP do
+    if item.id == id then
+      if p.scrap < item.price then
+        p.message("💰 スクラップが足りない", 1.2)
+        p.sound("error")
+        return
+      end
+      p.scrap = p.scrap - item.price
+      if id == "ammo" then
+        p.reload()
+        p.heal(40)
+      elif id == "marksman" then p.give("マークスマン")
+      elif id == "lmg" then p.give("LMG")
+      elif id == "grenade" then
+        p.grenades = (p.grenades or 0) + 2
+        grenade_button(p)
+      elif id == "medkit" then p.heal(999)
+      elif id == "armor" then p.armor_until = time() + 999
+      end
+      p.sound("collect")
+      kit_quest_progress(p, "buy", 1)
+      hud(p)
+      supply_menu(p)
+    end
+  end
+end
+
+func grenade_button(p)
+  if (p.grenades or 0) > 0 and p.team == "human" then
+    p.ui_button("grenade", "💣 " + p.grenades, {at: "bottom_right", dx: -360, dy: -160, w: 90, h: 56, size: 16, bg: "#7F1D1D", radius: 14})
+  else
+    p.ui_remove("grenade")
+  end
+end
+
+func throw_grenade(p)
+  if p.team != "human" or not p.alive or (p.grenades or 0) <= 0 or not kit_ready(p, "grenade", 1.5) then return end
+  p.grenades = p.grenades - 1
+  grenade_button(p)
+  let at = kit_ahead(p, 12)
+  after(1.2, func()
+    if not kit_here(p) then return end
+    for n in npcs() do
+      if n.alive and distance(at, n) < 7 then n.damage(120, p) end
+    end
+    shake(0.3, 0.4)
+  end)
+end
+
+-- 空からの補給箱（強い武器）
+func spawn_drop()
+  let spot = block("Drop Spot " + random(1, 5))
+  if spot == nil then return end
+  drop = create_block({name: "Airdrop", position: spot.position + {x: 0, y: 0.8, z: 0}, size: {x: 1.6, y: 1.6, z: 1.6},
+                       color: "#F59E0B", material: "metal", behavior: "trigger", tags: ["airdrop"]})
+  announce("🪂 空から補給箱が落ちてきた！", 3)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "supply") and p.team == "human" and quiet_ready(p, "supply", 4) then supply_menu(p)
+  elif contains(b.tags, "airdrop") and p.team == "human" and still(b) then
+    kit_gone(b)
+    drop = nil
+    p.give("LMG")
+    p.grenades = (p.grenades or 0) + 3
+    p.armor_until = time() + 999
+    grenade_button(p)
+    announce("🪂 " + p.name + " が補給箱を開けた！（LMG・手りゅう弾・アーマー）", 3)
+    kit_quest_progress(p, "airdrop", 1)
+  end
+end
+
+on button(p, id)
+  if id == "sup_close" then p.ui_remove("sup_box")
+  elif id == "supplies" then supply_menu(p)
+  elif starts_with(id, "buy_") then buy(p, replace(id, "buy_", ""))
+  elif id == "grenade" then throw_grenade(p)
+  end
+end

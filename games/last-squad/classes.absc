@@ -1,0 +1,125 @@
+-- classes.absc — 人間のクラス（準備のあいだにえらぶ）とスキル、プレイヤーのゾンビ
+
+let barricades = []
+
+func class_menu(p)
+  let h = 140 + len(CLASSES) * 52
+  p.ui_panel("cls_box", {at: "center", w: 560, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("cls_t", "🧑 クラスをえらぶ", {parent: "cls_box", y: 26 / h, size: 19, bold: true, color: "#BFDBFE"})
+  let i = 0
+  for c in CLASSES do
+    i = i + 1
+    let label = c.name + "  体力" + c.hp + "  " + c.text
+    let bg = "#1E3A8A"
+    if p.class == c.id then
+      label = "✅ " + label
+      bg = "#0F766E"
+    end
+    p.ui_button("cls_" + c.id, label, {parent: "cls_box", y: (30 + i * 52) / h, w: 520, h: 44, size: 12, bg: bg})
+  end
+  p.ui_button("cls_close", "閉じる", {parent: "cls_box", y: (h - 24) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func make_human(p)
+  let c = class_info(p.class)
+  p.team = "human"
+  p.speed = c.speed
+  p.max_health = c.hp
+  p.heal(999)
+  p.give(c.gun)
+  if p.own_color != nil then
+    p.color = p.own_color
+    p.head_color = p.own_head
+  end
+  p.ui_button("skill", "✨ スキル", {at: "bottom_right", dx: -240, dy: -160, w: 110, h: 56, size: 15, bg: "#1D4ED8", radius: 14})
+  p.ui_remove("leap")
+  p.ui_remove("scream")
+  hud(p)
+end
+
+func make_zombie(p)
+  p.team = "zombie"
+  p.color = "#4D7C0F"
+  p.head_color = "#A3E635"
+  p.max_health = 200
+  p.heal(999)
+  p.speed = 1.25
+  p.give("ゾンビの爪")
+  p.ui_remove("skill")
+  p.ui_button("leap", "🦘 とびかかる", {at: "bottom_right", dx: -240, dy: -160, w: 120, h: 56, size: 14, bg: "#3F6212", radius: 14})
+  p.ui_button("scream", "😱 さけぶ", {at: "bottom_right", dx: -370, dy: -160, w: 110, h: 56, size: 14, bg: "#365314", radius: 14})
+  hud(p)
+end
+
+func skill(p)
+  if not p.alive or p.team != "human" then return end
+  let id = p.class
+  if id == "rifle" then
+    if not kit_ready(p, "skill", 20) then return end
+    p.rapid_until = time() + 6
+    p.message("🔫 弾の雨！ 6びょう ダメージ ×1.5", 1.5)
+  elif id == "heavy" then
+    if not kit_ready(p, "skill", 12) then return end
+    p.launch(p.look.x * 22, 3, p.look.z * 22)
+    kit_later(p, 0.4, func() kit_blast(p, p.position, 5, 40, 10) end)
+  elif id == "medic" then
+    if not kit_ready(p, "skill", 15) then return end
+    for q in humans() do
+      if distance(p, q) < 10 then
+        q.heal(45)
+        if q.id != p.id then kit_quest_progress(p, "heal", 1) end
+      end
+    end
+    p.message("🩺 まわりを回復！", 1)
+  elif id == "engineer" then
+    if not kit_ready(p, "skill", 10) then return end
+    let at = kit_ahead(p, 3)
+    let side = kit_dir(p.yaw + 90)
+    let wall = create_block({name: "Barricade", position: {x: at.x, y: 1.2, z: at.z}, size: {x: 5, y: 2.4, z: 0.6},
+                             color: "#A16207", material: "plastic", rotation: {x: 0, y: p.yaw, z: 0}})
+    append(barricades, {block: wall, until: time() + 40})
+    kit_quest_progress(p, "build", 1)
+  end
+end
+
+-- MARK: プレイヤーのゾンビ
+
+func leap(p)
+  if p.team != "zombie" or not p.alive or not kit_ready(p, "leap", 5) then return end
+  p.launch(p.look.x * 24, 8, p.look.z * 24)
+end
+
+func scream(p)
+  if p.team != "zombie" or not p.alive or not kit_ready(p, "scream", 12) then return end
+  for q in humans() do
+    if distance(p, q) < 12 then
+      q.speed = class_info(q.class).speed * 0.5
+      q.message("😱 ゾンビのさけび！ 足がすくむ", 1.5)
+      kit_later(q, 3, func()
+        if q.team == "human" then q.speed = class_info(q.class).speed end
+      end)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "classes" then class_menu(p)
+  elif id == "cls_close" then p.ui_remove("cls_box")
+  elif starts_with(id, "cls_") then
+    if phase != "prep" and p.team == "human" and p.class_locked then
+      p.message("クラスは準備のあいだだけ変えられる", 1.5)
+      return
+    end
+    p.class = replace(id, "cls_", "")
+    if p.team == "human" then make_human(p) end
+    class_menu(p)
+  elif id == "skill" then skill(p)
+  elif id == "leap" then leap(p)
+  elif id == "scream" then scream(p)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "class_board") and quiet_ready(p, "class_board", 4) then class_menu(p) end
+end

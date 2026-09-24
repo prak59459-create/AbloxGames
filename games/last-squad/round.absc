@@ -1,0 +1,145 @@
+-- round.absc — 準備 → 生きのこり → ヘリで脱出
+-- やられた人間はゾンビになる。人間が全員ゾンビになったらゾンビの勝ち。
+
+let phase = "prep"
+let ends_at = 0
+let heli = false
+let round_clock = 0
+let next_wave = 0
+
+func check_end()
+  if phase != "play" then return end
+  if len(humans()) == 0 and len(players()) > 0 then
+    phase = "over"
+    for p in players() do
+      if ready(p) and p.was_zombie_start then kit_quest_progress(p, "zwin", 1) end
+    end
+    kit_finish("🧟 全員ゾンビになった… ゾンビの勝ち！", 7)
+  end
+end
+
+func begin_play()
+  phase = "play"
+  announce("🧟 ゾンビが来るぞ！", 3)
+  for p in players() do
+    if ready(p) then p.class_locked = true end
+  end
+  if len(players()) >= 3 then
+    let first = random(players())
+    make_zombie(first)
+    first.was_zombie_start = true
+    first.teleport(block("Horde Spawn " + random(1, 8)))
+    first.message("あなたが最初のゾンビだ！", 3)
+  end
+  horde()
+  next_wave = time() + WAVE_EVERY
+  drop_next = time() + 60
+end
+
+func extract()
+  phase = "over"
+  let saved = filter(humans(), func(p) return p.on_pad_at != nil and time() - p.on_pad_at < 1.5 end)
+  for p in saved do
+    p.escapes = (p.escapes or 0) + 1
+    p.score = p.score + 5
+    p.scrap = p.scrap + 50
+    kit_quest_progress(p, "survive", 1)
+    kit_badge(p, "escape", "生還者")
+  end
+  if len(saved) > 0 then
+    kit_finish("🚁 " + len(saved) + " 人が脱出に成功！人間の勝ち", 8)
+  else
+    kit_finish("🚁 ヘリは飛び去った… 脱出できた人はいない", 8)
+  end
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if round_clock < 1 then return end
+  round_clock = 0
+  let left = ends_at - time()
+  if phase == "prep" then
+    ui_text("clock", "🛠 準備 " + ceil(max(0, left - (ROUND_SECS - PREP_SECS))) + " びょう — クラスをえらんで補給へ", {at: "top", dy: 26, size: 20, bold: true})
+    if time() >= ends_at - (ROUND_SECS - PREP_SECS) then begin_play() end
+  elif phase == "play" then
+    let text = "🚁 脱出まで " + kit_clock(left)
+    let color = "#FFFFFF"
+    if heli then
+      text = "🚁 ヘリ到着！ ヘリポートへ！ " + kit_clock(left)
+      color = "#FACC15"
+    end
+    ui_text("clock", text, {at: "top", dy: 26, size: 22, bold: true, color: color})
+    if time() >= next_wave then
+      next_wave = time() + WAVE_EVERY
+      horde()
+    end
+    if time() >= drop_next then
+      drop_next = time() + 70
+      if drop == nil or not still(drop) then spawn_drop() end
+    end
+    if not heli and left <= HELI_AT then
+      heli = true
+      announce("🚁 脱出ヘリが来た！ ヘリポートへ急げ！", 4)
+      let pad = block("Extraction")
+      if pad != nil then pad.color = "#FDE047" end
+    end
+    if left <= 0 then extract() end
+    check_end()
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "extract") then p.on_pad_at = time() end
+end
+
+on hit(victim, attacker, damage)
+  if attacker == nil then return damage end
+  if kit_same_team(victim, attacker) then return 0 end
+  let d = damage
+  if not attacker.is_npc and active_until(attacker.rapid_until) then d = d * 1.5 end
+  if not victim.is_npc and active_until(victim.armor_until) then d = d * 0.7 end
+  return d
+end
+
+on death(victim, killer)
+  if victim.is_npc then
+    if killer != nil and not killer.is_npc and ready(killer) then
+      killer.scrap = killer.scrap + (victim.scrap or 2)
+      killer.round_kills = (killer.round_kills or 0) + 1
+      killer.kills = (killer.kills or 0) + 1
+      kit_quest_progress(killer, "zkill", 1)
+      if victim.boss then
+        announce("🏆 " + killer.name + " が巨大ゾンビをたおした！", 3)
+        kit_quest_progress(killer, "boss", 1)
+      end
+      hud(killer)
+    end
+    return
+  end
+  if victim.team == "human" and phase == "play" then
+    announce("🧟 " + victim.name + " がゾンビになった！", 2)
+    if killer != nil and not killer.is_npc then
+      killer.infects = (killer.infects or 0) + 1
+      kit_quest_progress(killer, "infect", 1)
+      hud(killer)
+    end
+    victim.becomes_zombie = true
+  end
+  check_end()
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  if p.becomes_zombie or p.team == "zombie" then
+    p.becomes_zombie = false
+    make_zombie(p)
+    p.teleport(block("Horde Spawn " + random(1, 8)))
+  else
+    make_human(p)
+  end
+end
+
+on leave(p)
+  after(0.2, func() check_end() end)
+end

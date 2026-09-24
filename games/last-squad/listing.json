@@ -1,11 +1,17 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 48,
+  "blockCount" : 54,
   "id" : "last-squad",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/last-squad\/data.absc",
+    "games\/last-squad\/classes.absc",
+    "games\/last-squad\/common.absc",
+    "games\/last-squad\/horde.absc",
+    "games\/last-squad\/round.absc",
+    "games\/last-squad\/supply.absc",
     "games\/last-squad\/main.absc"
   ],
   "summary" : "人間チームとゾンビの大群のサバイバル。やられた人間はゾンビになる！3分間生きのびて、ヘリで脱出せよ。",

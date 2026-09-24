@@ -1,0 +1,34 @@
+-- data.absc — Last Squad vs Horde の表
+
+-- MARK: 人間のクラス
+let CLASSES = [
+  {id: "rifle", name: "🔫 ライフルマン", hp: 100, speed: 1, gun: "rifle", text: "遠くまで当たる。スキルは弾の雨（連射アップ）"},
+  {id: "heavy", name: "💥 ヘビー", hp: 160, speed: 0.9, gun: "shotgun", text: "体力が多い。スキルはタックル（ふっとばす）"},
+  {id: "medic", name: "🩺 メディック", hp: 90, speed: 1.1, gun: "pistol", text: "スキルで近くの仲間を回復"},
+  {id: "engineer", name: "🔧 エンジニア", hp: 100, speed: 1, gun: "blaster", text: "スキルでバリケードを作る"}
+]
+
+-- MARK: 補給で買える物（💰 スクラップ）
+let SHOP = [
+  {id: "ammo", name: "🔋 弾と回復", price: 10, text: "リロード＋体力40"},
+  {id: "marksman", name: "🎯 マークスマン", price: 40, text: "強い1発（ダメージ70）"},
+  {id: "lmg", name: "🔥 LMG", price: 60, text: "たくさん撃てる機関銃"},
+  {id: "grenade", name: "💣 手りゅう弾 ×2", price: 25, text: "まとめて吹き飛ばす"},
+  {id: "medkit", name: "💊 救急箱", price: 20, text: "体力を全回復"},
+  {id: "armor", name: "🦺 アーマー", price: 45, text: "受けるダメージ -30%（今回だけ）"}
+]
+
+-- MARK: ゾンビ（NPC）{hp: ウェーブの体力 × これ, dps, speed, scrap}
+let ZOMBIES = [
+  {id: "walker", name: "ゾンビ", hp: 1, dps: 18, speed: 0.6, scrap: 2, color: "#4D7C0F", head: "#84CC16", size: 1, weight: 10},
+  {id: "runner", name: "🏃 ランナー", hp: 0.6, dps: 12, speed: 1.1, scrap: 3, color: "#65A30D", head: "#BEF264", size: 0.9, weight: 5, from: 2},
+  {id: "tank", name: "🛡 タンク", hp: 5, dps: 35, speed: 0.4, scrap: 10, color: "#365314", head: "#4D7C0F", size: 1.8, weight: 2, from: 3},
+  {id: "spitter", name: "🤮 スピッター", hp: 0.8, dps: 0, speed: 0.55, scrap: 5, color: "#15803D", head: "#FDE047", size: 1, weight: 2, from: 4}
+]
+let BOSS = {name: "👹 巨大ゾンビ", hp: 40, dps: 60, speed: 0.45, scrap: 60, color: "#1A2E05", head: "#DC2626", size: 3.2}
+
+let ROUND_SECS = 195
+let PREP_SECS = 15
+let HELI_AT = 30        -- のこり30びょうでヘリ
+let WAVE_EVERY = 20
+let MAX_ZOMBIES = 55

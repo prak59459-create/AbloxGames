@@ -1,167 +1,73 @@
 -- Last Squad vs Horde — 人間 vs ゾンビ。やられた人間はゾンビになる
+-- 15びょうの準備（クラスと補給）→ ゾンビのウェーブ → のこり30びょうでヘリ。ヘリポートで脱出。
+--
+-- ファイル:
+--   data.absc     表（クラス4・補給・ゾンビ4＋ボス）
+--   common.absc   武器・小さな道具・画面
+--   classes.absc  クラスとスキル・プレイヤーのゾンビ
+--   horde.absc    ゾンビのウェーブとAI・バリケード
+--   supply.absc   補給・手りゅう弾・補給箱
+--   round.absc    準備・生きのこり・脱出・勝ち負け
+--   main.absc     このファイル
 
 kit_setup("Last Squad vs Horde", "3分生きのびて、ヘリで脱出せよ", [
-  "最初の15秒で緑のパッド（補給）から武器を取ろう",
-  "ゾンビの大群がやってくる。やられた人間はゾンビに！",
-  "ゾンビになったら、人間をつかまえて仲間にしよう",
-  "3分たつとヘリポート（黄色）に脱出ヘリが来る",
-  "ヘリポートに立っていれば脱出成功！",
-  "人間が全員ゾンビになったらゾンビの勝ち"
+  "🛠 最初の15びょうでクラス（ライフル・ヘビー・メディック・エンジニア）をえらぶ",
+  "📦 緑のパッドで補給。ゾンビをたおすと 💰 スクラップ",
+  "🧟 ランナー・タンク・スピッター… 5ウェーブ目に巨大ゾンビ",
+  "✨ クラスごとのスキル。💣 手りゅう弾でまとめて",
+  "🪂 ときどき空から補給箱。強い武器が入っている",
+  "🧟 やられたらゾンビに！ とびかかる・さけぶで人間をつかまえよう",
+  "🚁 のこり30びょうでヘリ。ヘリポート（黄色）に立っていれば脱出"
 ])
-kit_melee("ゾンビの爪", 34, 1.5, 4.5)
-
-let phase = "prep"
-let ends_at = 0
-let heli = false
-let wave_no = 0
 
 kit_quest("survive", "脱出に成功する", 1, 300)
 kit_quest("zkill", "ゾンビを25体たおす", 25, 150)
+kit_quest("boss", "巨大ゾンビをたおす", 1, 300)
 kit_quest("infect", "ゾンビとして3人つかまえる", 3, 150)
-
-func humans()
-  return filter(players(), func(p) return p.team == "human" and p.alive end)
-end
-
-func make_zombie(p)
-  p.team = "zombie"
-  p.color = "#4D7C0F"
-  p.head_color = "#A3E635"
-  p.max_health = 200
-  p.speed = 1.25
-  p.give("ゾンビの爪")
-  p.ui_text("role", "🧟 ゾンビ", {at: "top_left", dy: 34, size: 20, bold: true, color: "#A3E635"})
-end
-
-func make_human(p)
-  p.team = "human"
-  p.speed = 1
-  p.max_health = 100
-  p.give("pistol")
-  p.ui_text("role", "🧑 人間", {at: "top_left", dy: 34, size: 20, bold: true, color: "#93C5FD"})
-end
-
-func horde()
-  wave_no = wave_no + 1
-  let count = min(40, 4 + wave_no * 3)
-  for i in 1 to count do
-    if len(npcs()) < 60 then
-      let spot = block("Horde Spawn " + random(1, 8))
-      create_npc({name: "ゾンビ", position: spot.position + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: "#4D7C0F",
-                  head_color: "#84CC16", health: 60 + wave_no * 10, speed: 0.55 + random() * 0.3, team: "zombie"})
-    end
-  end
-end
-
-func check_end()
-  if phase != "play" then return end
-  if len(humans()) == 0 and len(players()) > 0 then
-    phase = "over"
-    kit_finish("🧟 全員ゾンビになった… ゾンビの勝ち！", 7)
-  end
-end
+kit_quest("zwin", "最初のゾンビとして勝つ", 1, 200)
+kit_quest("heal", "メディックで仲間を10回回復", 10, 100)
+kit_quest("build", "バリケードを5つ作る", 5, 80)
+kit_quest("buy", "補給で3回買う", 3, 60)
+kit_quest("airdrop", "補給箱を開ける", 1, 100)
 
 on start()
   game.respawn_time = 4
-  ends_at = time() + 195
-  announce("15秒で準備！ 補給パッドで武器を取れ", 4)
-  after(15, func()
-    phase = "play"
-    announce("🧟 ゾンビが来るぞ！", 3)
-    if len(players()) >= 3 then
-      let first = random(players())
-      make_zombie(first)
-      first.message("あなたが最初のゾンビだ！", 3)
+  clear_horde()
+  heli = false
+  phase = "prep"
+  ends_at = time() + ROUND_SECS
+  drop = nil
+  announce("🛠 " + PREP_SECS + "びょうで準備！ クラスをえらんで補給へ", 4)
+  for p in players() do
+    if ready(p) then
+      p.class_locked = false
+      p.was_zombie_start = false
+      p.round_kills = 0
+      p.infects = 0
+      p.grenades = 0
+      p.armor_until = 0
+      make_human(p)
+      grenade_button(p)
     end
-    horde()
-  end)
-  every(20, func() if phase == "play" then horde() end end)
-  every(1, func()
-    let left = ends_at - time()
-    ui_text("clock", heli and "🚁 ヘリ到着！ヘリポートへ！" or ("🚁 脱出まで " + kit_clock(left)), {at: "top", dy: 26, size: 22, bold: true,
-            color: heli and "#FACC15" or "#FFFFFF"})
-    if not heli and left <= 30 and phase == "play" then
-      heli = true
-      announce("🚁 脱出ヘリが来た！ヘリポートへ急げ！", 4)
-      block("Extraction").color = "#FDE047"
-    end
-    if left <= 0 and phase == "play" then
-      phase = "over"
-      let saved = filter(humans(), func(p) return p.on_pad_at != nil and time() - p.on_pad_at < 1.5 end)
-      for p in saved do
-        p.score = p.score + 5
-        kit_quest_progress(p, "survive", 1)
-        kit_badge(p, "escape", "生還者")
-      end
-      if len(saved) > 0 then
-        kit_finish("🚁 " + len(saved) + " 人が脱出に成功！人間の勝ち", 8)
-      else
-        kit_finish("🚁 ヘリは飛び去った… 脱出できた人はいない", 8)
-      end
-    end
-    check_end()
-  end)
+  end
+  every(10, func() kit_leaderboard("🧟") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
   kit_camera_button(p)
-  if phase == "play" then make_zombie(p) else make_human(p) end
-end
-
-on leave(p)
-  after(0.2, func() check_end() end)
-end
-
-on tick(dt)
-  for n in npcs() do
-    let t = nil
-    for p in humans() do
-      if t == nil or distance(n, p) < distance(n, t) then t = p end
-    end
-    if t != nil then
-      n.follow(t)
-      if distance(n, t) < 2 then t.damage(18 * dt, n) end
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "supply") and p.team == "human" and kit_ready(p, "supply", 25) then
-    p.give(random(["rifle", "shotgun", "blaster"]))
-    p.heal(50)
-    p.message("📦 補給した！", 1.5)
-  elif contains(b.tags, "extract") then
-    p.on_pad_at = time()
-  end
-end
-
-on hit(victim, attacker, damage)
-  if kit_same_team(victim, attacker) then return 0 end
-  return damage
-end
-
-on death(victim, killer)
-  if victim.is_npc then
-    if killer != nil and not killer.is_npc then kit_quest_progress(killer, "zkill", 1) end
-    return
-  end
-  if victim.team == "human" and phase == "play" then
-    announce("🧟 " + victim.name + " がゾンビになった！", 2)
-    if killer != nil and not killer.is_npc then kit_quest_progress(killer, "infect", 1) end
-    victim.becomes_zombie = true
-  end
-  check_end()
-end
-
-on respawn(p)
-  if p.becomes_zombie or p.team == "zombie" then
-    p.becomes_zombie = false
+  p.class = "rifle"
+  p.scrap = 20
+  p.own_color = p.color
+  p.own_head = p.head_color
+  p.ui_button("classes", "🧑 クラス", {at: "right", dy: -60, w: 130, h: 46, size: 15, bg: "#1E3A8A"})
+  p.ui_button("supplies", "📦 補給", {at: "right", dy: 0, w: 130, h: 46, size: 15, bg: "#166534"})
+  if phase == "play" then
     make_zombie(p)
     p.teleport(block("Horde Spawn " + random(1, 8)))
   else
     make_human(p)
+    class_menu(p)
   end
 end

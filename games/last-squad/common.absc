@@ -1,0 +1,45 @@
+-- common.absc — 小さな道具
+
+kit_melee("ゾンビの爪", 34, 1.5, 4.5)
+weapon("マークスマン", {model: "rifle", damage: 70, rate: 1.2, range: 150, ammo: 6, reload: 2, spread: 0.1})
+weapon("LMG", {model: "blaster", damage: 16, rate: 9, range: 70, ammo: 60, reload: 3, spread: 2.5})
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.class != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func class_info(id)
+  for c in CLASSES do
+    if c.id == id then return c end
+  end
+  return CLASSES[1]
+end
+
+func humans()
+  return filter(players(), func(p) return ready(p) and p.team == "human" and p.alive end)
+end
+
+func hud(p)
+  if not ready(p) then return end
+  if p.team == "zombie" then
+    p.ui_text("role", "🧟 ゾンビ   つかまえた " + (p.infects or 0), {at: "top_left", dy: 34, size: 18, bold: true, color: "#A3E635"})
+  else
+    p.ui_text("role", class_info(p.class).name + "   💰 " + p.scrap + "   🧟 " + (p.round_kills or 0), {at: "top_left", dy: 34, size: 18, bold: true, color: "#93C5FD"})
+  end
+end
