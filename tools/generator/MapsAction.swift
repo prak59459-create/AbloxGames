@@ -470,7 +470,7 @@ func heroAcademy(_ m: MapBuilder) {
     m.markers("Safe Zone", points: [(22, -60), (22, 62)], color: "#22C55E", tags: ["safe"], visible: true, size: 5, behavior: .none)
     m.shop("Shelter", x: 22, z: 74, w: 14, d: 10, color: "#DCFCE7", sign: "#16A34A")
     // Towers, kept clear of everything above.
-    let keepClear: [(Float, Float, Float)] = [(-40, -40, 22), (-75, -72, 18), (40, 40, 18), (40, -40, 14), (-40, 40, 12), (-72, 72, 14),
+    let keepClear: [(Float, Float, Float)] = [(-40, -40, 22), (-75, -72, 18), (40, 46, 22), (40, -40, 14), (-40, 40, 12), (-72, 72, 14),
                                              (72, -72, 16), (22, -68, 14), (22, 68, 14)]
     var r = Seeded("hero")
     var towers = 0

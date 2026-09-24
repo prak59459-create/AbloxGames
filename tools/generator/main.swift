@@ -12,6 +12,7 @@ let arguments = CommandLine.arguments
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let quick = arguments.contains("--quick")
 let verbose = arguments.contains("--verbose")
+let reachOnly = arguments.contains("--reach")
 let only: Int? = arguments.firstIndex(of: "--only").flatMap { i in i + 1 < arguments.count ? Int(arguments[i + 1]) : nil }
 
 func read(_ path: String) -> String? {
@@ -63,6 +64,9 @@ for game in Catalogue.games {
     if let rejection = listing.rejection() { problems.append("listing: \(rejection)") }
     if world.spawnBlocks.isEmpty { problems.append("no spawn pad") }
     if world.blocks.count > GameCatalogue.Limits.maximumBlocks { problems.append("\(world.blocks.count) blocks") }
+    // Pads nobody can walk to are reported, not failed: a few are meant to
+    // be reached only by a script's teleport (an exam hall, a jail cell).
+    let unreachable = Reach.unreachablePads(in: world)
     problems += GameRuntime.check(playable.scripts).map { "check: \($0.description)" }
 
     // The world file carries no scripts: the listing's `.absc` files are the
@@ -73,6 +77,11 @@ for game in Catalogue.games {
         if decoded.blocks.count != listing.blockCount { problems.append("block count mismatch") }
     } else {
         problems.append("world does not decode")
+    }
+
+    if reachOnly {
+        if !unreachable.isEmpty { print("⚠ \(game.number) \(game.id): " + unreachable.joined(separator: ", ")) }
+        continue
     }
 
     var note = ""
@@ -96,6 +105,7 @@ for game in Catalogue.games {
 
     if problems.isEmpty {
         print("✓ \(String(format: "%2d", game.number)) \(game.id) — \(note)")
+        if !unreachable.isEmpty { print("    ⚠ no walking route from a spawn to: " + unreachable.joined(separator: ", ")) }
     } else {
         failures += 1
         print("✗ \(String(format: "%2d", game.number)) \(game.id)")
