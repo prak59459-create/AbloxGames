@@ -1,0 +1,58 @@
+-- index.absc — 図鑑（見つけたスライム）と、見つけた数のごほうび
+
+func check_index_rewards(p)
+  for r in INDEX_REWARDS do
+    let key = "idx" + r.count
+    if (p.found or 0) >= r.count and not contains(p.index_done, key) then
+      append(p.index_done, key)
+      p.index_luck = (p.index_luck or 0) + r.luck
+      let got = earn(p, r.coins)
+      announce("📖 " + p.name + " が図鑑 " + r.count + " しゅるい達成！（運 +" + r.luck + "・🪙" + kit_short(got) + "）", 3)
+    end
+  end
+end
+
+func index_menu(p)
+  let half = ceil(len(SLIMES) / 2)
+  let h = 150 + half * 28
+  p.ui_panel("idx_box", {at: "center", w: 700, h: h, bg: "#052E16F2", radius: 22, layer: 30})
+  p.ui_text("idx_t", "📖 スライム図鑑  " + (p.found or 0) + " / " + len(SLIMES), {parent: "idx_box", y: 26 / h, size: 20, bold: true, color: "#86EFAC"})
+  let i = 0
+  for s in SLIMES do
+    i = i + 1
+    let col = 0.27
+    let row = i
+    if i > half then
+      col = 0.75
+      row = i - half
+    end
+    let n = p.index[s.id] or 0
+    let label = "？？？"
+    let color = "#64748B"
+    if n > 0 then
+      label = s.name + " ×" + n
+      color = s.color
+    end
+    let hint = ""
+    if s.weather != nil then
+      for w in WEATHERS do
+        if w.id == s.weather then hint = " " + w.name + "だけ" end
+      end
+    end
+    p.ui_text("idx" + i, label + "  " + rare_text(s.chance) + hint, {parent: "idx_box", x: col, y: (40 + row * 28) / h, size: 13, color: color})
+  end
+  let next = nil
+  for r in INDEX_REWARDS do
+    if next == nil and (p.found or 0) < r.count then next = r end
+  end
+  let goal_text = "図鑑のごほうびは全部もらった！"
+  if next != nil then goal_text = "つぎのごほうび: " + next.count + " しゅるいで 運 +" + next.luck + "・🪙" + kit_short(next.coins) end
+  p.ui_text("idx_goal", goal_text, {parent: "idx_box", y: (h - 62) / h, size: 14, color: "#FDE68A"})
+  p.ui_button("idx_close", "閉じる", {parent: "idx_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "open_index" then index_menu(p)
+  elif id == "idx_close" then p.ui_remove("idx_box")
+  end
+end

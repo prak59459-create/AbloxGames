@@ -1,0 +1,192 @@
+-- zones.absc — ゾーンと敵とボス
+-- 草原は歩いて行ける。さばく・かざん・空の島は、広場のパッドからコインで開けてワープ。
+-- 敵をたおすとコインとゼリー（お守りの材料）。4分ごとにボスが出て、こうげきした人みんなでごほうびを分ける。
+
+let enemies = []
+let bosses = {}
+let boss_next = 0
+let enemy_clock = 0
+
+func spot_of(zone_id, i)
+  return block(ZONE_BLOCK[zone_id] + " Spot " + i)
+end
+
+func spawn_enemy(zone_id, i)
+  let z = zone_info(zone_id)
+  let spot = spot_of(zone_id, i)
+  if spot == nil then return end
+  let hp = random(z.hp[1], z.hp[2])
+  let n = create_npc({name: "わるいブロブ（" + kit_short(hp) + "）", position: spot.position + {x: 0, y: 1, z: 0}, color: z.color,
+                      head_color: z.head, size: 1 + random() * 0.4, health: hp, speed: 0.5, team: "blobs"})
+  n.zone = zone_id
+  n.spot = i
+  n.boss = false
+  append(enemies, n)
+end
+
+func spawn_boss(zone_id)
+  let z = zone_info(zone_id)
+  let spot = block(ZONE_BLOCK[zone_id] + " Boss Spot 1")
+  if spot == nil then return end
+  let n = create_npc({name: z.boss, position: spot.position + {x: 0, y: 2, z: 0}, color: z.color, head_color: "#FDE047",
+                      size: 3.5, health: z.boss_hp, speed: 0.35, team: "blobs"})
+  n.zone = zone_id
+  n.boss = true
+  n.hits = {}
+  bosses[zone_id] = n
+  append(enemies, n)
+  announce("👑 " + z.name + " に " + z.boss + " があらわれた！（体力 " + kit_short(z.boss_hp) + "）", 4)
+end
+
+func setup_zones()
+  for n in enemies do kit_gone(n) end
+  enemies = []
+  bosses = {}
+  for z in ZONES do
+    for i in 1 to 8 do spawn_enemy(z.id, i) end
+  end
+  boss_next = time() + 60
+end
+
+func reward_kill(victim, killer)
+  let z = zone_info(victim.zone)
+  if victim.boss then
+    let total = 0
+    for pid in keys(victim.hits) do total = total + victim.hits[pid] end
+    let top = nil
+    let top_dmg = 0
+    for p in players() do
+      let dmg = victim.hits[p.id] or 0
+      if dmg > 0 then
+        let share = max(0.1, dmg / max(1, total))
+        let got = earn(p, z.boss_coins * share)
+        p.jelly.boss = (p.jelly.boss or 0) + 1
+        p.message("👑 ボスをたおした！ 🪙" + kit_short(got) + " と " + JELLY_NAME.boss, 3)
+        kit_quest_progress(p, "boss", 1)
+        hud(p)
+        if dmg > top_dmg then
+          top_dmg = dmg
+          top = p
+        end
+      end
+    end
+    if top != nil then announce("👑 " + z.boss + " をたおした！ いちばんがんばったのは " + top.name, 4) end
+    bosses[victim.zone] = nil
+    return
+  end
+  let owner = owner_of(killer)
+  if owner == nil then return end
+  earn(owner, random(z.coins[1], z.coins[2]))
+  owner.jelly[z.jelly] = (owner.jelly[z.jelly] or 0) + 1
+  owner.kills = (owner.kills or 0) + 1
+  kit_quest_progress(owner, "kill", 1)
+  hud(owner)
+end
+
+on death(victim, killer)
+  if not victim.is_npc then return end
+  if victim.zone == nil then return end
+  enemies = filter(enemies, func(n) return n.id != victim.id end)
+  reward_kill(victim, killer)
+  if not victim.boss then
+    let zid = victim.zone
+    let i = victim.spot
+    after(4, func() spawn_enemy(zid, i) end)
+  end
+end
+
+-- 0.5びょうごと: さばく・かざん・空の敵は近づくとおそってくる
+func enemy_ai(dt)
+  for n in enemies do
+    if still(n) and n.alive then
+      let z = zone_info(n.zone)
+      if z.dps > 0 then
+        let target = kit_nearest_player(n)
+        if target != nil and distance(n, target) < 9 then
+          n.follow(target)
+          let dps = z.dps
+          if n.boss then dps = dps * 3 end
+          if distance(n, target) < 2.4 + n.size then target.damage(dps * dt, n) end
+        elif not n.boss and n.spot != nil then
+          let home_spot = spot_of(n.zone, n.spot)
+          if home_spot != nil and distance(n, home_spot) > 6 then n.move_to(home_spot.position + {x: 0, y: 1, z: 0}) end
+        end
+      end
+    end
+  end
+end
+
+on tick(dt)
+  enemy_clock = enemy_clock + dt
+  if enemy_clock < 0.5 then return end
+  let passed = enemy_clock
+  enemy_clock = 0
+  enemy_ai(passed)
+  if time() >= boss_next then
+    boss_next = time() + BOSS_EVERY
+    for z in ZONES do
+      if bosses[z.id] == nil or not still(bosses[z.id]) then spawn_boss(z.id) end
+    end
+  end
+end
+
+-- MARK: ワープとゾーンを開ける
+
+func zone_prompt(p, zid)
+  let z = zone_info(zid)
+  if contains(p.zones, zid) then
+    p.teleport(block(ZONE_BLOCK[zid] + " Spawn"))
+    p.message(z.name + " へワープ！", 1.5)
+    return
+  end
+  let h = 190
+  p.ui_panel("zone_box", {at: "center", w: 460, h: h, bg: "#1E293BF2", radius: 22, layer: 30})
+  p.ui_text("zone_t", z.name + " はまだ開いていない", {parent: "zone_box", y: 34 / h, size: 20, bold: true})
+  p.ui_text("zone_t2", "敵: 体力 " + kit_short(z.hp[1]) + "〜" + kit_short(z.hp[2]) + "  コイン " + kit_short(z.coins[1]) + "〜",
+            {parent: "zone_box", y: 74 / h, size: 14, color: "#CBD5E1"})
+  p.ui_button("zone_buy_" + zid, "🔓 🪙" + kit_short(z.price) + " で開ける", {parent: "zone_box", y: 118 / h, w: 300, h: 42, size: 16, bg: "#16A34A"})
+  p.ui_button("zone_close", "閉じる", {parent: "zone_box", y: (h - 26) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func buy_zone(p, zid)
+  let z = zone_info(zid)
+  if contains(p.zones, zid) then return end
+  if not kit_pay(p, z.price) then return end
+  append(p.zones, zid)
+  p.ui_remove("zone_box")
+  announce("🔓 " + p.name + " が " + z.name + " を開けた！", 3)
+  kit_quest_progress(p, "zone", 1)
+  zone_prompt(p, zid)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "zone_pad") then
+    for z in ZONES do
+      if contains(b.tags, z.id) and quiet_ready(p, "zone_pad", 3) then zone_prompt(p, z.id) end
+    end
+  elif contains(b.tags, "home_pad") then
+    p.teleport(block("Spawn 1"))
+  elif contains(b.tags, "upgrade_shop") then
+    if quiet_ready(p, "shop_pad", 5) then upgrade_menu(p) end
+  elif contains(b.tags, "potion_shop") then
+    if quiet_ready(p, "potion_pad", 5) then potion_menu(p) end
+  elif contains(b.tags, "craft") then
+    if quiet_ready(p, "craft_pad", 5) then craft_menu(p) end
+  elif contains(b.tags, "fuse") then
+    if quiet_ready(p, "fuse_pad", 5) then fuse_menu(p) end
+  elif contains(b.tags, "index_board") then
+    if quiet_ready(p, "index_pad", 5) then index_menu(p) end
+  elif contains(b.tags, "bag_chest") then
+    if quiet_ready(p, "bag_pad", 5) then
+      p.bag_open = true
+      bag_menu(p, 1)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "zone_close" then p.ui_remove("zone_box")
+  elif starts_with(id, "zone_buy_") then buy_zone(p, replace(id, "zone_buy_", ""))
+  end
+end

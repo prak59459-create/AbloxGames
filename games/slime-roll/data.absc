@@ -1,0 +1,110 @@
+-- data.absc — Slime Roll の表
+-- スライム・へんい（キラキラなど）・天気・ゾーンと敵・お店・お守りのレシピ
+
+-- MARK: スライム（chance: 1/なん分の1 / power: 1びょうのこうげき力 / weather: その天気のときだけ出る）
+let SLIMES = [
+  {id: "green", name: "みどりスライム", chance: 2, power: 1, color: "#4ADE80"},
+  {id: "blue", name: "あおスライム", chance: 4, power: 2, color: "#60A5FA"},
+  {id: "red", name: "あかスライム", chance: 8, power: 4, color: "#F87171"},
+  {id: "yellow", name: "きいろスライム", chance: 16, power: 7, color: "#FACC15"},
+  {id: "purple", name: "むらさきスライム", chance: 40, power: 12, color: "#A78BFA"},
+  {id: "pink", name: "ピンクスライム", chance: 75, power: 18, color: "#F9A8D4"},
+  {id: "metal", name: "メタルスライム", chance: 150, power: 30, color: "#CBD5E1"},
+  {id: "fire", name: "ほのおスライム", chance: 300, power: 50, color: "#F97316"},
+  {id: "rain", name: "あめスライム", chance: 500, power: 110, color: "#38BDF8", weather: "rain"},
+  {id: "ice", name: "こおりスライム", chance: 700, power: 90, color: "#A5F3FC"},
+  {id: "wind", name: "かぜスライム", chance: 900, power: 150, color: "#D9F99D", weather: "wind"},
+  {id: "thunder", name: "かみなりスライム", chance: 1500, power: 160, color: "#FDE047"},
+  {id: "shadow", name: "やみスライム", chance: 2500, power: 350, color: "#312E81", weather: "night"},
+  {id: "poison", name: "どくスライム", chance: 3000, power: 260, color: "#84CC16"},
+  {id: "gold", name: "ゴールドスライム", chance: 6000, power: 420, color: "#F59E0B"},
+  {id: "stardust", name: "ほしくずスライム", chance: 12000, power: 1200, color: "#C7D2FE", weather: "stars"},
+  {id: "diamond", name: "ダイヤスライム", chance: 15000, power: 800, color: "#67E8F9"},
+  {id: "rainbow", name: "にじいろスライム", chance: 40000, power: 1600, color: "#F0ABFC"},
+  {id: "bug", name: "バグスライム", chance: 66666, power: 6000, color: "#22C55E", weather: "glitch"},
+  {id: "galaxy", name: "ギャラクシースライム", chance: 100000, power: 3500, color: "#6D28D9"},
+  {id: "king", name: "キングスライム", chance: 300000, power: 8000, color: "#DC2626"},
+  {id: "god", name: "かみさまスライム", chance: 1000000, power: 25000, color: "#FFFFFF"},
+  {id: "infinity", name: "むげんスライム", chance: 10000000, power: 120000, color: "#000000"}
+]
+
+-- MARK: へんい（ロールのたびに少しの確率でつく。フュージョンで「でかい」）
+let MUTATIONS = [
+  {id: "", name: "", odds: 0, power: 1, rare: 1},
+  {id: "shiny", name: "✨キラキラ", odds: 25, power: 3, rare: 10},
+  {id: "golden", name: "🌟ゴールデン", odds: 400, power: 8, rare: 100},
+  {id: "big", name: "🔷でかい", odds: 0, power: 4, rare: 5}
+]
+
+-- MARK: 天気（ときどき変わる。その天気だけのスライムが出る）
+let WEATHERS = [
+  {id: "sunny", name: "☀ 晴れ", luck: 1, weight: 0, top: "#A5F3FC", bottom: "#F0FDFA", light: 0.8},
+  {id: "rain", name: "🌧 雨", luck: 1.1, weight: 30, top: "#64748B", bottom: "#CBD5E1", light: 0.55, secs: 120},
+  {id: "wind", name: "🌪 風", luck: 1.1, weight: 30, top: "#BEF264", bottom: "#ECFCCB", light: 0.75, secs: 120},
+  {id: "night", name: "🌙 夜", luck: 1.25, weight: 25, top: "#0F172A", bottom: "#312E81", light: 0.3, secs: 150},
+  {id: "stars", name: "🌌 星空", luck: 2, weight: 10, top: "#1E1B4B", bottom: "#7C3AED", light: 0.35, secs: 90},
+  {id: "glitch", name: "👾 グリッチ", luck: 3, weight: 5, top: "#052E16", bottom: "#22C55E", light: 0.45, secs: 60}
+]
+
+-- MARK: ゾーンと敵（hp と coins は min〜max のあいだ / jelly: 落とす材料 / dps: 近づくとうけるダメージ）
+let ZONES = [
+  {id: "grass", name: "🌿 草原", price: 0, hp: [30, 120], coins: [5, 20], jelly: "g", dps: 0, color: "#334155", head: "#0F172A",
+   boss: "👑 キングブロブ", boss_hp: 6000, boss_coins: 1500},
+  {id: "desert", name: "🏜 さばく", price: 3000, hp: [1500, 4000], coins: [120, 300], jelly: "s", dps: 3, color: "#B45309", head: "#78350F",
+   boss: "👑 サンドキング", boss_hp: 250000, boss_coins: 30000},
+  {id: "volcano", name: "🌋 かざん", price: 80000, hp: [30000, 80000], coins: [2500, 6000], jelly: "m", dps: 8, color: "#7F1D1D", head: "#F97316",
+   boss: "👑 マグマキング", boss_hp: 5000000, boss_coins: 600000},
+  {id: "sky", name: "☁ 空の島", price: 2000000, hp: [400000, 1000000], coins: [40000, 100000], jelly: "c", dps: 15, color: "#E0F2FE", head: "#7DD3FC",
+   boss: "👑 てんくうキング", boss_hp: 80000000, boss_coins: 12000000}
+]
+let ZONE_BLOCK = {grass: "Grass", desert: "Desert", volcano: "Volcano", sky: "Sky"}
+let JELLY_NAME = {g: "🟢 みどりゼリー", s: "🟡 すなゼリー", m: "🔴 マグマゼリー", c: "⚪ くもゼリー", boss: "👑 ボスのかけら"}
+let BOSS_EVERY = 240
+
+-- MARK: 強化（コイン・レベルが上がるほど高い）
+let UPGRADES = [
+  {id: "luck", name: "🍀 運", max: 12, base: 100, grow: 2.1, text: "運 +0.25"},
+  {id: "speed", name: "⏱ ロールの速さ", max: 8, base: 150, grow: 2.3, text: "ロールの待ち時間 -0.15びょう"},
+  {id: "slots", name: "🐾 ついてくる数", max: 3, base: 800, grow: 12, text: "いっしょに戦うスライム +1"},
+  {id: "bag", name: "🎒 バッグ", max: 6, base: 300, grow: 2.6, text: "バッグ +15"},
+  {id: "multi", name: "🎲 まとめロール", max: 2, base: 20000, grow: 12, text: "1回で引ける数 +1"},
+  {id: "coin", name: "🪙 コインボーナス", max: 8, base: 500, grow: 2.4, text: "コイン +20%"}
+]
+let AUTO_ROLL_PRICE = 1500
+
+-- MARK: ポーション（コイン）
+let POTIONS = [
+  {id: "luck2", name: "🧪 運ポーション", price: 400, secs: 90, luck: 2, text: "90びょう 運×2"},
+  {id: "luck5", name: "🧪 すごい運ポーション", price: 15000, secs: 60, luck: 5, text: "60びょう 運×5"},
+  {id: "haste", name: "⚡ はやロールポーション", price: 2500, secs: 90, luck: 1, text: "90びょう ロールが2倍速"},
+  {id: "heaven", name: "👼 天の薬", price: 250000, secs: 0, luck: 1, text: "次の1回だけ 運×100"}
+]
+
+-- MARK: お守り（クラフト台で作る。2つまでつけられる）
+-- needs: [しゅるい, id, 数]  しゅるい = "jelly"（ゼリー）/ "slime"（スライム）
+let CHARMS = [
+  {id: "clover", name: "🍀 幸運のお守り", text: "運 +0.5", luck: 0.5, speed: 0, coin: 1, power: 1,
+   needs: [["jelly", "g", 25], ["slime", "blue", 3]]},
+  {id: "clock", name: "⏱ はやさのお守り", text: "ロール -0.3びょう", luck: 0, speed: 0.3, coin: 1, power: 1,
+   needs: [["jelly", "g", 30], ["slime", "red", 2]]},
+  {id: "coin", name: "🪙 コインのお守り", text: "コイン ×1.5", luck: 0, speed: 0, coin: 1.5, power: 1,
+   needs: [["jelly", "s", 20], ["slime", "yellow", 2]]},
+  {id: "muscle", name: "💪 ちからのお守り", text: "スライムの力 ×1.5", luck: 0, speed: 0, coin: 1, power: 1.5,
+   needs: [["jelly", "s", 25], ["slime", "purple", 1]]},
+  {id: "star", name: "🌟 星のお守り", text: "運 +2", luck: 2, speed: 0, coin: 1, power: 1,
+   needs: [["jelly", "m", 15], ["slime", "metal", 1], ["slime", "fire", 1]]},
+  {id: "crown", name: "👑 王のお守り", text: "運 +5・力 ×2", luck: 5, speed: 0, coin: 1, power: 2,
+   needs: [["jelly", "boss", 3], ["slime", "ice", 1], ["slime", "thunder", 1]]},
+  {id: "cloud", name: "☁ 雲のお守り", text: "運 +10・コイン ×2", luck: 10, speed: 0.2, coin: 2, power: 1.5,
+   needs: [["jelly", "c", 20], ["jelly", "boss", 5], ["slime", "gold", 1]]}
+]
+
+-- MARK: 図鑑のごほうび（見つけたしゅるいの数）
+let INDEX_REWARDS = [
+  {count: 4, luck: 0.1, coins: 200},
+  {count: 8, luck: 0.2, coins: 2000},
+  {count: 12, luck: 0.3, coins: 20000},
+  {count: 16, luck: 0.5, coins: 200000},
+  {count: 20, luck: 1, coins: 2000000},
+  {count: 23, luck: 3, coins: 50000000}
+]

@@ -1,0 +1,78 @@
+-- buddies.absc — つけているスライムがついてきて、近くの敵を勝手にこうげきする
+
+let buddies = {}      -- プレイヤーのid → NPC のならび
+let fight_clock = 0
+
+func clear_buddies(pid)
+  for n in buddies[pid] or [] do kit_gone(n) end
+  buddies[pid] = []
+end
+
+func refresh_buddies(p)
+  clear_buddies(p.id)
+  let list = []
+  let i = 0
+  for e in equipped_entries(p) do
+    i = i + 1
+    let s = slime_info(e.id)
+    let size = 0.5 + min(1.8, log(s.chance) / 8)
+    if e.mut == "big" then size = size * 1.5 end
+    let color = s.color
+    let head = s.color
+    if e.mut == "golden" then head = "#FDE047" end
+    if e.mut == "shiny" then head = "#FFFFFF" end
+    let n = create_npc({name: entry_name(e), position: p.position + {x: i * 1.5, y: 0.5, z: -1}, color: color,
+                        head_color: head, size: size, health: 1000000000, speed: 1.4, team: "slimes"})
+    n.owner = p.id
+    n.pow = power_of(e)
+    n.follow(p)
+    append(list, n)
+  end
+  buddies[p.id] = list
+end
+
+func owner_of(n)
+  if n == nil or n.owner == nil then return nil end
+  for p in players() do
+    if p.id == n.owner then return p end
+  end
+  return nil
+end
+
+-- 1びょうごと: スライムが16m以内のいちばん近い敵をこうげき
+func fight()
+  for p in players() do
+    if not ready(p) then continue end
+    let mult = power_mult(p)
+    for n in buddies[p.id] or [] do
+      if still(n) then
+        let target = nil
+        let best = 16
+        for b in enemies do
+          if still(b) and b.alive then
+            let d = distance(n, b)
+            if d < best then
+              best = d
+              target = b
+            end
+          end
+        end
+        if target != nil then
+          let dmg = n.pow * mult
+          if target.boss then target.hits[p.id] = (target.hits[p.id] or 0) + dmg end
+          target.damage(dmg, n)
+        elif distance(n, p) > 12 then
+          n.teleport(p.position + {x: 1.5, y: 0.5, z: 0})
+          n.follow(p)
+        end
+      end
+    end
+  end
+end
+
+on tick(dt)
+  fight_clock = fight_clock + dt
+  if fight_clock < 1 then return end
+  fight_clock = 0
+  fight()
+end

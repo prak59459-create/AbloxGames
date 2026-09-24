@@ -1,0 +1,106 @@
+-- shop.absc — 強化のお店（コイン）とポーション屋
+
+func up_info(id)
+  for u in UPGRADES do
+    if u.id == id then return u end
+  end
+  return nil
+end
+
+func up_price(p, u)
+  return floor(u.base * pow(u.grow, up_level(p, u.id)))
+end
+
+func upgrade_menu(p)
+  let rows = len(UPGRADES) + 1
+  let h = 140 + rows * 46
+  p.ui_panel("up_box", {at: "center", w: 600, h: h, bg: "#451A03F2", radius: 22, layer: 30})
+  p.ui_text("up_t", "⬆ 強化（🪙 " + kit_short(kit_money(p)) + "）", {parent: "up_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = up_level(p, u.id)
+    let label = "✅ " + u.name + " MAX"
+    let bg = "#374151"
+    if lv < u.max then
+      label = u.name + " Lv" + lv + "→" + (lv + 1) + "  🪙" + kit_short(up_price(p, u)) + "  " + u.text
+      bg = "#B45309"
+    end
+    p.ui_button("up_" + u.id, label, {parent: "up_box", y: (30 + i * 46) / h, w: 560, h: 40, size: 13, bg: bg})
+  end
+  i = i + 1
+  let auto_label = "🔁 オートロール  🪙" + kit_short(AUTO_ROLL_PRICE) + "  自動でロールしつづける"
+  let auto_bg = "#B45309"
+  if p.auto then
+    auto_label = "✅ オートロール（ロールボタンのとなりでON/OFF）"
+    auto_bg = "#374151"
+  end
+  p.ui_button("up_auto", auto_label, {parent: "up_box", y: (30 + i * 46) / h, w: 560, h: 40, size: 13, bg: auto_bg})
+  p.ui_button("up_close", "閉じる", {parent: "up_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  if id == "auto" then
+    if p.auto or not kit_pay(p, AUTO_ROLL_PRICE) then return end
+    p.auto = true
+    p.auto_on = true
+    auto_button(p)
+    p.sound("goal")
+    upgrade_menu(p)
+    return
+  end
+  let u = up_info(id)
+  if u == nil or up_level(p, id) >= u.max then return end
+  if not kit_pay(p, up_price(p, u)) then return end
+  p.ups[id] = up_level(p, id) + 1
+  p.sound("collect")
+  kit_quest_progress(p, "upgrade", 1)
+  if id == "slots" and p.auto_equip then auto_equip(p) end
+  hud(p)
+  upgrade_menu(p)
+end
+
+-- MARK: ポーション
+
+func potion_menu(p)
+  let h = 140 + len(POTIONS) * 46
+  p.ui_panel("pot_box", {at: "center", w: 560, h: h, bg: "#3B0764F2", radius: 22, layer: 30})
+  p.ui_text("pot_t", "🧪 ポーション屋（🪙 " + kit_short(kit_money(p)) + "）", {parent: "pot_box", y: 26 / h, size: 19, bold: true, color: "#F0ABFC"})
+  let i = 0
+  for pt in POTIONS do
+    i = i + 1
+    let label = pt.name + "  🪙" + kit_short(pt.price) + "  " + pt.text
+    if potion_on(p, pt.id) then label = label + "（のこり " + ceil(p.pots[pt.id] - time()) + "びょう）" end
+    if pt.id == "heaven" and (p.heaven or 0) > 0 then label = label + "（" + p.heaven + "こ待機中）" end
+    p.ui_button("pot_" + pt.id, label, {parent: "pot_box", y: (30 + i * 46) / h, w: 520, h: 40, size: 13, bg: "#7E22CE"})
+  end
+  p.ui_button("pot_close", "閉じる", {parent: "pot_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func buy_potion(p, id)
+  for pt in POTIONS do
+    if pt.id == id then
+      if not kit_pay(p, pt.price) then return end
+      if id == "heaven" then
+        p.heaven = (p.heaven or 0) + 1
+      else
+        -- のみ足すと時間がのびる
+        let from = max(time(), p.pots[id] or 0)
+        p.pots[id] = from + pt.secs
+      end
+      p.sound("collect")
+      p.message(pt.name + " をつかった！", 1.5)
+      kit_quest_progress(p, "potion", 1)
+      hud(p)
+      potion_menu(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "up_close" then p.ui_remove("up_box")
+  elif starts_with(id, "up_") then buy_upgrade(p, replace(id, "up_", ""))
+  elif id == "pot_close" then p.ui_remove("pot_box")
+  elif starts_with(id, "pot_") then buy_potion(p, replace(id, "pot_", ""))
+  end
+end

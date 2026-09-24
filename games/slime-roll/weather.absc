@@ -1,0 +1,45 @@
+-- weather.absc — 天気
+-- ふだんは晴れ。2〜4分ごとに、雨・風・夜・星空・グリッチのどれかになる（しばらくすると晴れにもどる）。
+-- その天気のときだけ出るスライムがいる。レアな天気ほど運も上がる。
+
+let weather = WEATHERS[1]
+let weather_ends = 0
+let weather_next = 0
+let weather_clock = 0
+
+func set_weather(w)
+  weather = w
+  world.sky_top = w.top
+  world.sky_bottom = w.bottom
+  world.light = w.light
+  if w.id == "sunny" then
+    weather_ends = 0
+    weather_next = time() + random(120, 240)
+    announce("☀ 晴れにもどった", 2)
+  else
+    weather_ends = time() + w.secs
+    announce(w.name + " になった！ " + w.name + "だけのスライムが出るかも（運 ×" + w.luck + "）", 4)
+  end
+  for p in players() do hud(p) end
+end
+
+func weather_tick()
+  if weather.id == "sunny" then
+    if time() >= weather_next then
+      let list = filter(WEATHERS, func(w) return w.weight > 0 end)
+      set_weather(kit_pick(list, 1))
+    end
+  elif time() >= weather_ends then
+    set_weather(WEATHERS[1])
+  else
+    ui_text("weather_left", weather.name + " のこり " + kit_clock(weather_ends - time()), {at: "top", dy: 80, size: 14, color: "#FDE68A"})
+  end
+  if weather.id == "sunny" then ui_remove("weather_left") end
+end
+
+on tick(dt)
+  weather_clock = weather_clock + dt
+  if weather_clock < 1 then return end
+  weather_clock = 0
+  weather_tick()
+end

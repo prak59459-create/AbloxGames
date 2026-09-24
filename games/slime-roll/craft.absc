@@ -1,0 +1,110 @@
+-- craft.absc — クラフト台でお守りを作る（ゼリーとスライムを使う）。2つまでつけられる。
+
+func count_slime(p, id)
+  let n = 0
+  for e in p.bag do
+    if e.id == id and not contains(p.equipped, e.uid) then n = n + 1 end
+  end
+  return n
+end
+
+func have_need(p, need)
+  if need[1] == "jelly" then return p.jelly[need[2]] or 0 end
+  return count_slime(p, need[2])
+end
+
+func need_name(need)
+  if need[1] == "jelly" then return JELLY_NAME[need[2]] end
+  return slime_info(need[2]).name
+end
+
+func can_craft(p, c)
+  for need in c.needs do
+    if have_need(p, need) < need[3] then return false end
+  end
+  return true
+end
+
+func craft_menu(p)
+  let h = 150 + len(CHARMS) * 62
+  p.ui_panel("craft_box", {at: "center", w: 640, h: h, bg: "#292524F2", radius: 22, layer: 30})
+  p.ui_text("craft_t", "🔨 クラフト台（お守りは2つまでつけられる）", {parent: "craft_box", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in CHARMS do
+    i = i + 1
+    let y = (26 + i * 62) / h
+    let parts = map(c.needs, func(need) return need_name(need) + " " + have_need(p, need) + "/" + need[3] end)
+    p.ui_text("craft_need" + i, join(parts, "  "), {parent: "craft_box", x: 0.38, y: y + 18 / h, size: 11, color: "#D6D3D1"})
+    let label = "🔨 " + c.name + "（" + c.text + "）"
+    let bg = "#57534E"
+    if contains(p.charms, c.id) then
+      label = c.name + " をつける"
+      bg = "#0F766E"
+      if contains(p.charms_on, c.id) then
+        label = "✅ " + c.name + "（つけている）"
+        bg = "#15803D"
+      end
+    elif can_craft(p, c) then
+      bg = "#B45309"
+    end
+    p.ui_button("craft_" + c.id, label, {parent: "craft_box", x: 0.38, y: y - 10 / h, w: 440, h: 34, size: 13, bg: bg})
+  end
+  p.ui_button("craft_close", "閉じる", {parent: "craft_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func use_slimes(p, id, count)
+  let used = 0
+  -- 弱いものから使う
+  let ranked = sort(copy(p.bag), func(a, b) return power_of(a) < power_of(b) end)
+  let gone_ids = []
+  for e in ranked do
+    if used < count and e.id == id and not contains(p.equipped, e.uid) then
+      used = used + 1
+      append(gone_ids, e.uid)
+    end
+  end
+  p.bag = filter(p.bag, func(e) return not contains(gone_ids, e.uid) end)
+end
+
+func craft(p, id)
+  let c = charm_info(id)
+  if c == nil then return end
+  if contains(p.charms, id) then
+    -- つける・はずす
+    if contains(p.charms_on, id) then
+      p.charms_on = filter(p.charms_on, func(x) return x != id end)
+    elif len(p.charms_on) < 2 then
+      append(p.charms_on, id)
+    else
+      p.message("お守りは2つまで", 1.2)
+    end
+    hud(p)
+    craft_menu(p)
+    return
+  end
+  if not can_craft(p, c) then
+    p.message("材料が足りない", 1.2)
+    p.sound("error")
+    return
+  end
+  for need in c.needs do
+    if need[1] == "jelly" then
+      p.jelly[need[2]] = p.jelly[need[2]] - need[3]
+    else
+      use_slimes(p, need[2], need[3])
+    end
+  end
+  append(p.charms, id)
+  if len(p.charms_on) < 2 then append(p.charms_on, id) end
+  announce("🔨 " + p.name + " が " + c.name + " を作った！", 3)
+  p.sound("goal")
+  kit_quest_progress(p, "craft", 1)
+  hud(p)
+  craft_menu(p)
+end
+
+on button(p, id)
+  if id == "craft_close" then p.ui_remove("craft_box")
+  elif starts_with(id, "craft_") then craft(p, replace(id, "craft_", ""))
+  end
+end

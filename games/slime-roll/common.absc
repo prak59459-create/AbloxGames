@@ -1,0 +1,134 @@
+-- common.absc — どのファイルからも使う計算（運・速さ・コイン・力）
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func slime_info(id)
+  for s in SLIMES do
+    if s.id == id then return s end
+  end
+  return SLIMES[1]
+end
+
+func mut_info(id)
+  for m in MUTATIONS do
+    if m.id == id then return m end
+  end
+  return MUTATIONS[1]
+end
+
+func charm_info(id)
+  for c in CHARMS do
+    if c.id == id then return c end
+  end
+  return nil
+end
+
+func zone_info(id)
+  for z in ZONES do
+    if z.id == id then return z end
+  end
+  return ZONES[1]
+end
+
+-- スライム1ぴき（バッグの中身）: {uid, id, mut}
+func rarity_of(e)
+  return slime_info(e.id).chance * mut_info(e.mut).rare
+end
+
+func power_of(e)
+  return slime_info(e.id).power * mut_info(e.mut).power
+end
+
+func entry_name(e)
+  let m = mut_info(e.mut)
+  if m.name == "" then return slime_info(e.id).name end
+  return m.name + " " + slime_info(e.id).name
+end
+
+func rare_text(n)
+  return "1/" + kit_short(n)
+end
+
+func up_level(p, id)
+  return p.ups[id] or 0
+end
+
+func potion_on(p, id)
+  return p.pots[id] != nil and p.pots[id] > time()
+end
+
+-- MARK: つけているお守りの合計
+
+func charm_add(p, field)
+  let total = 0
+  for id in p.charms_on do total = total + charm_info(id)[field] end
+  return total
+end
+
+func charm_mult(p, field)
+  let total = 1
+  for id in p.charms_on do total = total * charm_info(id)[field] end
+  return total
+end
+
+-- MARK: 運・速さ・コイン・力
+
+func luck(p)
+  let l = 1 + up_level(p, "luck") * 0.25 + (p.index_luck or 0) + charm_add(p, "luck")
+  if potion_on(p, "luck2") then l = l * 2 end
+  if potion_on(p, "luck5") then l = l * 5 end
+  return l * weather.luck
+end
+
+func roll_cd(p)
+  let cd = 1.6 - up_level(p, "speed") * 0.15 - charm_add(p, "speed")
+  if potion_on(p, "haste") then cd = cd / 2 end
+  return max(0.25, cd)
+end
+
+func coin_mult(p)
+  return (1 + up_level(p, "coin") * 0.2) * charm_mult(p, "coin")
+end
+
+func power_mult(p)
+  return charm_mult(p, "power")
+end
+
+func earn(p, amount)
+  let n = floor(amount * coin_mult(p))
+  kit_give(p, n)
+  p.earned = (p.earned or 0) + n
+  return n
+end
+
+-- join がまだの人（ラウンドのはじまりと同時に入った人）は何もしない
+func ready(p)
+  return p.ups != nil
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let text = "🍀 運 ×" + fixed(luck(p), 2) + "   ⏱ " + fixed(roll_cd(p), 2) + "びょう   " + weather.name
+  p.ui_text("hud", text, {at: "top", dy: 30, size: 16, bold: true})
+  let best = "まだなし"
+  if p.best != nil then best = entry_name(p.best) + "（" + rare_text(rarity_of(p.best)) + "）" end
+  p.ui_text("hud2", "⭐ いちばんレア: " + best + "   🎲 " + kit_short(p.rolls) + " 回", {at: "top", dy: 56, size: 14, color: "#E0F2FE"})
+  let jelly = []
+  for k in keys(JELLY_NAME) do
+    if (p.jelly[k] or 0) > 0 then append(jelly, JELLY_NAME[k] + " " + p.jelly[k]) end
+  end
+  if len(jelly) > 0 then
+    p.ui_text("hud_jelly", join(jelly, "  "), {at: "top_left", dy: 34, size: 13})
+  end
+end
+
+-- 待ち時間（メッセージを出さない版）
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end

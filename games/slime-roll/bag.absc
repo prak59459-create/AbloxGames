@@ -1,0 +1,259 @@
+-- bag.absc — バッグ（引いたスライムをしまう）・つける・売る・フュージョン
+-- バッグがいっぱいのときや「自動で売る」より弱いものは、すぐコインに変わる。
+
+let PER_PAGE = 7
+let AUTO_SELL = [0, 10, 100, 1000, 10000]
+
+func bag_cap(p)
+  return 30 + up_level(p, "bag") * 15
+end
+
+func slots(p)
+  return 1 + up_level(p, "slots")
+end
+
+func sell_value(e)
+  return max(1, floor(sqrt(rarity_of(e)) * 2))
+end
+
+func find_entry(p, uid)
+  for e in p.bag do
+    if e.uid == uid then return e end
+  end
+  return nil
+end
+
+func discover(p, e)
+  let first = (p.index[e.id] or 0) == 0
+  p.index[e.id] = (p.index[e.id] or 0) + 1
+  if first then
+    p.found = (p.found or 0) + 1
+    p.score = p.found
+    p.message("📖 新しいスライム！ " + slime_info(e.id).name, 2)
+    kit_quest_progress(p, "species", 1)
+    check_index_rewards(p)
+  end
+  if p.best == nil or rarity_of(e) > rarity_of(p.best) then p.best = e end
+  return first
+end
+
+-- 引いたスライムをバッグへ（入らないときは売る）
+func keep(p, e)
+  let first = discover(p, e)
+  let limit = AUTO_SELL[p.auto_sell]
+  if not first and e.mut == "" and rarity_of(e) < limit then
+    earn(p, sell_value(e))
+    return
+  end
+  if len(p.bag) >= bag_cap(p) then
+    let got = earn(p, sell_value(e))
+    p.message("🎒 バッグがいっぱい！ " + slime_info(e.id).name + " を売った（🪙" + got + "）", 1.2)
+    return
+  end
+  append(p.bag, e)
+  -- あいている枠、または今より強ければ自動でつける
+  if p.auto_equip then auto_equip(p) end
+end
+
+func equipped_entries(p)
+  let list = []
+  for uid in p.equipped do
+    let e = find_entry(p, uid)
+    if e != nil then append(list, e) end
+  end
+  return list
+end
+
+func auto_equip(p)
+  let ranked = sort(copy(p.bag), func(a, b) return power_of(a) > power_of(b) end)
+  let want = map(slice(ranked, 1, slots(p)), func(e) return e.uid end)
+  if join(want, ",") != join(p.equipped, ",") then
+    p.equipped = want
+    refresh_buddies(p)
+  end
+end
+
+func toggle_equip(p, uid)
+  if contains(p.equipped, uid) then
+    p.equipped = filter(p.equipped, func(u) return u != uid end)
+    p.auto_equip = false
+  elif len(p.equipped) < slots(p) then
+    append(p.equipped, uid)
+    p.auto_equip = false
+  else
+    p.message("もうつけられない（🐾 " + slots(p) + " ひきまで）", 1.2)
+    return
+  end
+  refresh_buddies(p)
+end
+
+func sell(p, uid)
+  let e = find_entry(p, uid)
+  if e == nil then return end
+  if contains(p.equipped, uid) then
+    p.message("つけているスライムは売れない", 1)
+    return
+  end
+  p.bag = filter(p.bag, func(x) return x.uid != uid end)
+  let got = earn(p, sell_value(e))
+  p.message("🪙 " + got + " で売った", 1)
+  kit_quest_progress(p, "sell", 1)
+end
+
+-- 弱いものをまとめて売る（つけているものとキラキラ以上はのこす）
+func sell_weak(p)
+  let total = 0
+  let keep_list = []
+  for e in p.bag do
+    if contains(p.equipped, e.uid) or e.mut != "" or rarity_of(e) >= 1000 then
+      append(keep_list, e)
+    else
+      total = total + sell_value(e)
+    end
+  end
+  let sold = len(p.bag) - len(keep_list)
+  p.bag = keep_list
+  let got = earn(p, total)
+  p.message("🧹 " + sold + " ひき売って 🪙" + kit_short(got), 1.5)
+end
+
+-- MARK: バッグの画面
+
+func clear_bag_rows(p)
+  for uid in p.bag_shown or [] do
+    p.ui_remove("eq_" + uid)
+    p.ui_remove("sell_" + uid)
+  end
+  p.bag_shown = []
+end
+
+func bag_menu(p, page)
+  let ranked = sort(copy(p.bag), func(a, b) return power_of(a) > power_of(b) end)
+  let pages = max(1, ceil(len(ranked) / PER_PAGE))
+  page = clamp(page, 1, pages)
+  p.bag_page = page
+  let h = 200 + PER_PAGE * 44
+  clear_bag_rows(p)
+  p.ui_panel("bag_box", {at: "center", w: 640, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("bag_t", "🎒 バッグ " + len(p.bag) + "/" + bag_cap(p) + "   🐾 " + len(p.equipped) + "/" + slots(p) + "   ページ " + page + "/" + pages,
+            {parent: "bag_box", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for e in slice(ranked, (page - 1) * PER_PAGE + 1, page * PER_PAGE) do
+    i = i + 1
+    let y = (40 + i * 44) / h
+    let s = slime_info(e.id)
+    p.ui_text("bag_row" + i, entry_name(e) + "  " + rare_text(rarity_of(e)) + "  ⚔" + kit_short(power_of(e)),
+              {parent: "bag_box", x: 0.36, y: y, size: 14, color: s.color})
+    let label = "つける"
+    let bg = "#2563EB"
+    if contains(p.equipped, e.uid) then
+      label = "✅ はずす"
+      bg = "#16A34A"
+    end
+    p.ui_button("eq_" + e.uid, label, {parent: "bag_box", x: 0.76, y: y, w: 104, h: 36, size: 13, bg: bg})
+    p.ui_button("sell_" + e.uid, "🪙" + kit_short(sell_value(e)), {parent: "bag_box", x: 0.92, y: y, w: 88, h: 36, size: 13, bg: "#B45309"})
+    append(p.bag_shown, e.uid)
+  end
+  if i < PER_PAGE then
+    for k in i + 1 to PER_PAGE do p.ui_remove("bag_row" + k) end
+  end
+  let by = (h - 70) / h
+  p.ui_button("bag_prev", "◀", {parent: "bag_box", x: 0.08, y: by, w: 56, h: 36, size: 16, bg: "#334155"})
+  p.ui_button("bag_next", "▶", {parent: "bag_box", x: 0.18, y: by, w: 56, h: 36, size: 16, bg: "#334155"})
+  let auto_label = "🐾 自動でつける"
+  if p.auto_equip then auto_label = "✅ 自動でつける" end
+  p.ui_button("bag_best", auto_label, {parent: "bag_box", x: 0.4, y: by, w: 170, h: 36, size: 13, bg: "#0F766E"})
+  let limit = AUTO_SELL[p.auto_sell]
+  let sell_label = "自動で売る: なし"
+  if limit > 0 then sell_label = "自動で売る: " + rare_text(limit) + " より下" end
+  p.ui_button("bag_autosell", sell_label, {parent: "bag_box", x: 0.72, y: by, w: 210, h: 36, size: 13, bg: "#7C2D12"})
+  p.ui_button("bag_sellweak", "🧹 弱いのをまとめて売る", {parent: "bag_box", x: 0.3, y: (h - 26) / h, w: 220, h: 34, size: 13, bg: "#92400E"})
+  p.ui_button("bag_close", "閉じる", {parent: "bag_box", x: 0.72, y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func close_bag(p)
+  clear_bag_rows(p)
+  p.ui_remove("bag_box")
+  p.bag_open = false
+end
+
+-- MARK: フュージョン（同じスライム5ひき → でかい1ぴき・力×4）
+
+func fuse_candidates(p)
+  let counts = {}
+  for e in p.bag do
+    if e.mut == "" and not contains(p.equipped, e.uid) then counts[e.id] = (counts[e.id] or 0) + 1 end
+  end
+  return counts
+end
+
+func fuse_menu(p)
+  let counts = fuse_candidates(p)
+  let ready = filter(SLIMES, func(s) return (counts[s.id] or 0) >= 5 end)
+  let rows = max(1, min(8, len(ready)))
+  let h = 150 + rows * 44
+  for s in SLIMES do p.ui_remove("fuse_" + s.id) end
+  p.ui_panel("fuse_box", {at: "center", w: 520, h: h, bg: "#082F49F2", radius: 22, layer: 30})
+  p.ui_text("fuse_t", "🔷 フュージョン（同じスライム5ひき → でかい1ぴき・力×4）", {parent: "fuse_box", y: 26 / h, size: 15, bold: true, color: "#7DD3FC"})
+  if len(ready) == 0 then
+    p.ui_text("fuse_none", "5ひきそろっているスライムがいない（つけているものはのぞく）", {parent: "fuse_box", y: 80 / h, size: 14})
+  else
+    p.ui_remove("fuse_none")
+  end
+  let i = 0
+  for s in slice(ready, 1, 8) do
+    i = i + 1
+    p.ui_button("fuse_" + s.id, s.name + " ×" + counts[s.id] + " → 🔷でかい" + s.name, {parent: "fuse_box", y: (40 + i * 44) / h, w: 480, h: 38, size: 14, bg: "#0369A1"})
+  end
+  p.ui_button("fuse_close", "閉じる", {parent: "fuse_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func fuse(p, id)
+  let used = 0
+  let keep_list = []
+  for e in p.bag do
+    if used < 5 and e.id == id and e.mut == "" and not contains(p.equipped, e.uid) then
+      used = used + 1
+    else
+      append(keep_list, e)
+    end
+  end
+  if used < 5 then return end
+  p.bag = keep_list
+  let e = new_entry(id, "big")
+  append(p.bag, e)
+  discover(p, e)
+  p.message("🔷 でかい" + slime_info(id).name + " ができた！", 2)
+  p.sound("goal")
+  kit_quest_progress(p, "fuse", 1)
+  if p.auto_equip then auto_equip(p) end
+  fuse_menu(p)
+end
+
+on button(p, id)
+  if id == "open_bag" then
+    p.bag_open = true
+    bag_menu(p, 1)
+  elif id == "bag_close" then close_bag(p)
+  elif id == "bag_prev" then bag_menu(p, p.bag_page - 1)
+  elif id == "bag_next" then bag_menu(p, p.bag_page + 1)
+  elif id == "bag_best" then
+    p.auto_equip = not p.auto_equip
+    if p.auto_equip then auto_equip(p) end
+    bag_menu(p, p.bag_page)
+  elif id == "bag_autosell" then
+    p.auto_sell = p.auto_sell % len(AUTO_SELL) + 1
+    bag_menu(p, p.bag_page)
+  elif id == "bag_sellweak" then
+    sell_weak(p)
+    bag_menu(p, 1)
+  elif starts_with(id, "eq_") then
+    toggle_equip(p, replace(id, "eq_", ""))
+    bag_menu(p, p.bag_page)
+  elif starts_with(id, "sell_") then
+    sell(p, replace(id, "sell_", ""))
+    bag_menu(p, p.bag_page)
+  elif id == "fuse_close" then p.ui_remove("fuse_box")
+  elif starts_with(id, "fuse_") then fuse(p, replace(id, "fuse_", ""))
+  end
+end

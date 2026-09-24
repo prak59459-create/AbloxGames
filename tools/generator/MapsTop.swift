@@ -1019,14 +1019,61 @@ func crystalWars(_ m: MapBuilder) {
 
 func slimeRoll(_ m: MapBuilder) {
     m.sky("#A5F3FC", "#F0FDFA", light: 0.8, ground: "#99F6E4")
-    m.ground(120, 120, color: "#5EEAD4")
+    m.ground(300, 300, color: "#5EEAD4")
+    // The hub: the roll altar in the middle, shops around it.
     m.part("Roll Altar", at: (0, 0.5, 0), size: (8, 1, 8), color: "#FFFFFF", shape: .cylinder, material: .metal)
     m.part("Roll Crystal", at: (0, 3, 0), size: (2, 3, 2), color: "#A855F7", shape: .sphere, material: .neon, solid: false)
     m.spawnRing(0, 0, radius: 9, count: 8, color: "#C4B5FD")
-    m.slab("Battle Field", x: 0, y: 0, z: 40, w: 50, h: 0.3, d: 30, color: "#65A30D")
-    m.walls(0, 40, w: 50, d: 30, h: 1.2, y: 0.3, color: "#3F6212", name: "Field Fence")
-    m.markers("Blob Spot", points: grid(4, 2, spacing: 10, cx: 0, cz: 40), y: 0.3, color: "#000000", visible: false, behavior: .none)
-    for p in ring(10, radius: 50) { m.tree(p.0, p.1, height: 4, leaves: "#2DD4BF") }
+    let counters: [(String, Float, Float, String, String)] = [
+        ("Upgrade Shop", 17, 0, "#F59E0B", "upgrade_shop"), ("Potion Shop", -17, 0, "#A855F7", "potion_shop"),
+        ("Craft Table", 12, -12, "#92400E", "craft"), ("Fuse Machine", -12, -12, "#0EA5E9", "fuse"),
+        ("Index Board", 0, -17, "#22C55E", "index_board"), ("Bag Chest", 12, 12, "#78350F", "bag_chest")
+    ]
+    for c in counters {
+        m.pad(c.0, x: c.1, z: c.2, size: 3, color: c.3, tags: [c.4])
+        m.slab("\(c.0) Stand", x: c.1 * 1.18, y: 0, z: c.2 * 1.18, w: 3, h: 1.2, d: 3, color: c.3)
+        m.part("\(c.0) Sign", at: (c.1 * 1.18, 2.4, c.2 * 1.18), size: (2.6, 0.8, 0.2), color: "#FFFFFF", material: .neon, solid: false,
+               rotation: (0, atan2(c.1, c.2) * 180 / .pi, 0))
+    }
+    // Pads that take you to each zone (the grass field is just a walk away).
+    m.pad("Desert Pad", x: -12, z: 12, size: 3, color: "#FBBF24", tags: ["zone_pad", "desert"])
+    m.pad("Volcano Pad", x: -6, z: 16, size: 3, color: "#EF4444", tags: ["zone_pad", "volcano"])
+    m.pad("Sky Pad", x: 6, z: 16, size: 3, color: "#E0F2FE", tags: ["zone_pad", "sky"])
+    for p in ring(12, radius: 30) { m.tree(p.0, p.1, height: 4, leaves: "#2DD4BF") }
+
+    // Zones: grass (walk north), desert (east), volcano (west), sky (a floating island high up).
+    let zones: [(String, Float, Float, Float, String, String)] = [
+        ("Grass", 0, 60, 0, "#65A30D", "#3F6212"), ("Desert", 110, 0, 0, "#FCD34D", "#B45309"),
+        ("Volcano", -110, 0, 0, "#44403C", "#7F1D1D"), ("Sky", 0, -110, 40, "#F0F9FF", "#BAE6FD")
+    ]
+    for z in zones {
+        let y = z.3
+        if y > 0 {
+            m.slab("\(z.0) Field", x: z.1, y: y - 2, z: z.2, w: 56, h: 2, d: 44, color: z.4)
+        } else {
+            m.slab("\(z.0) Field", x: z.1, y: 0, z: z.2, w: 56, h: 0.3, d: 44, color: z.4)
+        }
+        let floorY: Float = y > 0 ? y : 0.3
+        if z.0 == "Grass" {
+            // Open toward the hub, so you can just walk in.
+            m.slab("Grass Fence", x: z.1, y: floorY, z: z.2 + 22, w: 57, h: 1.2, d: 1, color: z.5)
+        } else {
+            m.walls(z.1, z.2, w: 56, d: 44, h: 4, y: floorY, color: z.5, name: "\(z.0) Fence")
+        }
+        m.markers("\(z.0) Spot", points: grid(4, 2, spacing: 11, cx: z.1, cz: z.2), y: floorY, color: "#000000", visible: false, behavior: .none)
+        m.markers("\(z.0) Boss Spot", points: [(z.1, z.2 + 14)], y: floorY, color: "#000000", visible: false, behavior: .none)
+        if z.0 != "Grass" {
+            // Not a real spawn: you only arrive here through the pads.
+            m.part("\(z.0) Spawn", at: (z.1, floorY + 0.1, z.2 - 18), size: (2.4, 0.2, 2.4), color: z.5, shape: .cylinder, material: .neon)
+            m.pad("\(z.0) Home Pad", x: z.1 + 6, z: z.2 - 18, y: floorY, size: 3, color: "#C4B5FD", tags: ["home_pad"])
+        }
+    }
+    m.part("Volcano Mountain", at: (-110, 8, 26), size: (20, 16, 10), color: "#57534E", shape: .cone)
+    m.part("Volcano Lava", at: (-110, 16.5, 26), size: (5, 1, 5), color: "#F97316", shape: .cylinder, material: .neon, solid: false)
+    for i in 0..<5 { m.part("Cactus", at: (90 + Float(i) * 10, 1.5, -18), size: (0.8, 3, 0.8), color: "#15803D", shape: .cylinder) }
+    for p in ring(6, radius: 30, cx: 0, cz: -110) {
+        m.part("Cloud", at: (p.0, 38, p.1), size: (8, 2.5, 5), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false)
+    }
 }
 
 // MARK: 18 Hero Tower Defense

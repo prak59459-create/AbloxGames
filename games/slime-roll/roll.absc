@@ -1,0 +1,115 @@
+-- roll.absc — ロール（運でスライムを引く）
+-- レアなものから順に「運 ÷ なん分の1」の確率でためして、当たったらそれ。
+-- 10回ごとに運×2。まとめロールを強化すると1回で2〜3びき。
+
+let BY_RARITY = sort(copy(SLIMES), func(a, b) return a.chance > b.chance end)
+let uid_counter = 0
+let auto_clock = 0
+
+func roll_one(l)
+  for s in BY_RARITY do
+    if s.weather == nil or s.weather == weather.id then
+      if random() * s.chance < l then return s end
+    end
+  end
+  return SLIMES[1]
+end
+
+func roll_mut()
+  if random() * 400 < 1 then return "golden" end
+  if random() * 25 < 1 then return "shiny" end
+  return ""
+end
+
+func new_entry(id, mut)
+  uid_counter = uid_counter + 1
+  return {uid: "s" + uid_counter, id: id, mut: mut}
+end
+
+func reveal(p, e, bonus)
+  let s = slime_info(e.id)
+  -- くるくる回る演出
+  for k in 1 to 4 do
+    kit_later(p, (k - 1) * 0.08, func()
+      let fake = random(SLIMES)
+      p.ui_text("rolled", "🎲 " + fake.name, {at: "center", dy: -150, size: 22, bold: true, color: "#94A3B8"})
+    end)
+  end
+  kit_later(p, 0.34, func()
+    p.ui_text("rolled", "🎲 " + entry_name(e) + "（" + rare_text(rarity_of(e)) + "）" + bonus,
+              {at: "center", dy: -150, size: 26, bold: true, color: s.color})
+    let r = rarity_of(e)
+    if r >= 1000 then
+      announce("🌟 " + p.name + " が " + entry_name(e) + "（" + rare_text(r) + "）を引いた！", 4)
+      p.fade(s.color, 0.15)
+      kit_later(p, 0.3, func() p.fade(nil, 1) end)
+      sound("goal")
+    else
+      p.sound("collect")
+    end
+    if r >= 100000 then
+      shake(0.6, 1.2)
+      world.sky_top = s.color
+      after(4, func() world.sky_top = weather.top end)
+    end
+  end)
+  kit_later(p, 2, func() p.ui_remove("rolled") end)
+end
+
+func do_roll(p)
+  if p.next_roll != nil and time() < p.next_roll then return end
+  p.next_roll = time() + roll_cd(p)
+  p.rolls = (p.rolls or 0) + 1
+  let l = luck(p)
+  let bonus = ""
+  if p.rolls % 10 == 0 then
+    l = l * 2
+    bonus = "  🔟運×2"
+  end
+  if (p.heaven or 0) > 0 then
+    p.heaven = p.heaven - 1
+    l = l * 100
+    bonus = "  👼運×100"
+  end
+  let best = nil
+  for k in 1 to 1 + up_level(p, "multi") do
+    let s = roll_one(l)
+    let e = new_entry(s.id, roll_mut())
+    keep(p, e)
+    if best == nil or rarity_of(e) > rarity_of(best) then best = e end
+  end
+  reveal(p, best, bonus)
+  kit_quest_progress(p, "roll100", 1)
+  kit_quest_progress(p, "roll1000", 1)
+  if rarity_of(best) >= 1000 then kit_quest_progress(p, "rare", 1) end
+  if rarity_of(best) >= 100000 then kit_badge(p, "mythic", "10万分の1") end
+  hud(p)
+end
+
+func auto_button(p)
+  if not p.auto then return end
+  let label = "🔁 オート OFF"
+  let bg = "#475569"
+  if p.auto_on then
+    label = "🔁 オート ON"
+    bg = "#16A34A"
+  end
+  p.ui_button("auto", label, {at: "bottom", dx: 190, dy: -100, w: 150, h: 54, size: 16, bg: bg, radius: 16})
+end
+
+on tick(dt)
+  auto_clock = auto_clock + dt
+  if auto_clock < 0.2 then return end
+  auto_clock = 0
+  for p in players() do
+    if ready(p) and p.auto and p.auto_on then do_roll(p) end
+  end
+end
+
+on button(p, id)
+  if id == "roll" then do_roll(p)
+  elif id == "auto" then
+    p.auto_on = not p.auto_on
+    auto_button(p)
+  end
+end
