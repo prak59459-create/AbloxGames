@@ -1,0 +1,201 @@
+-- craft.absc — 作業台（黄色いパッド）
+-- 材料で道具・武器・服・置くもの を作る。作業台とたき火はレベルアップできる。
+
+kit_melee("こんぼう", 22, 2, 5)
+kit_melee("木のやり", 38, 1.8, 6.5)
+weapon("クロスボウ", {model: "rifle", damage: 70, rate: 1.2, range: 120, ammo: 6, reload: 2, spread: 0})
+
+let bench_level = 1
+let beds = []
+let fences = []
+let traps = []
+
+func recipe_by_id(id)
+  for r in RECIPES do
+    if r.id == id then return r end
+  end
+  return nil
+end
+
+func craft_menu(p)
+  let list = RECIPES
+  let per = 7
+  let pages = ceil(len(list) / per)
+  let page = p.craft_page or 1
+  if page > pages then page = 1 end
+  p.craft_page = page
+  let shown = slice(list, (page - 1) * per + 1, page * per)
+  let h = 230 + len(shown) * 46
+  p.ui_remove("craft")
+  p.ui_panel("craft", {at: "center", w: 600, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("craft_t", "🔨 作業台 Lv." + bench_level + "（" + page + "/" + pages + "）", {parent: "craft", y: 24 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for r in shown do
+    i = i + 1
+    let label = r.name + "  " + cost_text(r.cost)
+    let bg = "#A16207"
+    if bench_level < r.level then
+      label = "🔒 " + r.name + "（作業台 Lv." + r.level + "）"
+      bg = "#44403C"
+    elif not has_items(p, r.cost) then
+      bg = "#57534E"
+    end
+    if r.kind == "wear" and contains(p.gear, r.id) then
+      label = "✅ " + r.name + "（持っている）"
+      bg = "#365314"
+    end
+    p.ui_button("make_" + r.id, label, {parent: "craft", y: (32 + i * 46) / h, w: 560, h: 40, size: 13, bg: bg})
+  end
+  if bench_level < len(BENCH_COST) then
+    p.ui_button("up_bench", "⬆️ 作業台 Lv." + (bench_level + 1) + "  " + cost_text(BENCH_COST[bench_level + 1]),
+                {parent: "craft", y: (h - 110) / h, w: 560, h: 36, size: 13, bg: "#1D4ED8"})
+  end
+  if fire_level < len(FIRE_COST) then
+    p.ui_button("up_fire", "🔥 たき火 Lv." + (fire_level + 1) + "（明るい範囲＋燃料）  " + cost_text(FIRE_COST[fire_level + 1]),
+                {parent: "craft", y: (h - 70) / h, w: 560, h: 36, size: 13, bg: "#C2410C"})
+  end
+  p.ui_button("craft_next", "次へ ▶", {parent: "craft", x: 0.72, y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "#57534E"})
+  p.ui_button("craft_close", "閉じる", {parent: "craft", x: 0.3, y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func make(p, id)
+  let r = recipe_by_id(id)
+  if r == nil then return end
+  if bench_level < r.level then
+    p.message("🔒 作業台 Lv." + r.level + " が必要", 1.5)
+    return
+  end
+  if r.kind == "wear" and contains(p.gear, id) then return end
+  if not take_items(p, r.cost) then
+    p.message("材料が足りない：" + cost_text(r.cost), 2)
+    return
+  end
+  if r.kind == "tool" then
+    p.axe = max(p.axe or 1, r.power)
+    p.message(r.name + " を作った！（木が早く切れる）", 2)
+  elif r.kind == "weapon" then
+    p.give(r.weapon)
+    p.weapon_name = r.weapon
+    p.message(r.name + " を作った！", 2)
+  elif r.kind == "wear" then
+    append(p.gear, id)
+    p.message(r.name + " を身につけた！", 2)
+    gear_buttons(p)
+  elif r.kind == "use" then
+    append(p.uses, id)
+    p.message(r.name + " を作った（🎒ボタンで使う）", 2)
+    gear_buttons(p)
+  elif r.kind == "place" then
+    place_item(p, id)
+  end
+  p.sound("goal")
+  kit_quest_progress(p, "craft", 1)
+  craft_menu(p)
+end
+
+func place_item(p, id)
+  let ahead = p.position + kit_dir(p.yaw) * 2.5
+  if id == "trap" then
+    let b = create_block({name: "Bear Trap", shape: "cylinder", position: ahead + {x: 0, y: 0.1, z: 0}, size: {x: 1.3, y: 0.15, z: 1.3},
+                          color: "#52525B", material: "metal", behavior: "trigger", tags: ["trap"], solid: false})
+    append(traps, b)
+    p.message("🪤 わなを置いた", 1.5)
+  elif id == "fence" then
+    let b = create_block({name: "Fence", shape: "box", position: ahead + {x: 0, y: 1, z: 0}, size: {x: 3.2, y: 2, z: 0.4},
+                          rotation: {x: 0, y: atan2(kit_dir(p.yaw).x, kit_dir(p.yaw).z) + 90, z: 0}, color: "#92400E", material: "matte"})
+    append(fences, b)
+    p.message("🧱 さくを立てた", 1.5)
+  elif id == "bed" then
+    let b = create_block({name: "Bed", shape: "box", position: ahead + {x: 0, y: 0.3, z: 0}, size: {x: 1.6, y: 0.6, z: 2.6},
+                          color: "#1D4ED8", material: "matte"})
+    append(beds, b)
+    p.message("🛏 ベッドを置いた。そばにいると回復", 1.5)
+  end
+end
+
+func upgrade_bench(p)
+  if bench_level >= len(BENCH_COST) then return end
+  if not take_items(p, BENCH_COST[bench_level + 1]) then
+    p.message("材料が足りない：" + cost_text(BENCH_COST[bench_level + 1]), 2)
+    return
+  end
+  bench_level = bench_level + 1
+  announce("🔨 " + p.name + " が作業台を Lv." + bench_level + " にした！新しいものが作れる", 3)
+  kit_quest_progress(p, "bench", 1)
+  craft_menu(p)
+end
+
+func upgrade_fire(p)
+  if fire_level >= len(FIRE_COST) then return end
+  if not take_items(p, FIRE_COST[fire_level + 1]) then
+    p.message("材料が足りない：" + cost_text(FIRE_COST[fire_level + 1]), 2)
+    return
+  end
+  fire_level = fire_level + 1
+  add_fuel(40)
+  announce("🔥 たき火が Lv." + fire_level + " に！明るい範囲が広がった", 3)
+  kit_quest_progress(p, "firelv", 1)
+  craft_menu(p)
+end
+
+-- MARK: 使うもの（🎒）
+
+func gear_buttons(p)
+  if contains(p.gear, "lantern") then
+    set_btn(p, "shine", "🔦 照らす", {at: "bottom_right", dx: -120, dy: -210, w: 120, h: 52, size: 15, bg: "#CA8A04", radius: 16})
+  end
+  if len(p.uses) > 0 then
+    set_btn(p, "use_item", "🎒 使う（" + len(p.uses) + "）", {at: "bottom_right", dx: -250, dy: -210, w: 130, h: 52, size: 15, bg: "#15803D", radius: 16})
+  else
+    set_btn(p, "use_item", nil, nil)
+  end
+end
+
+func use_item(p)
+  if len(p.uses) == 0 then return end
+  let id = remove(p.uses, 1)
+  if id == "torch" then
+    p.torch_until = time() + 120
+    p.message("🔥 たいまつ（2分 あたたかい）", 2)
+  elif id == "medkit" then
+    p.heal(p.max_health)
+    p.message("🩹 全回復！", 1.5)
+  end
+  gear_buttons(p)
+end
+
+on start()
+  bench_level = 1
+  beds = []
+  fences = []
+  traps = []
+end
+
+on button(p, id)
+  if id == "craft_close" then p.ui_remove("craft")
+  elif id == "craft_next" then
+    p.craft_page = (p.craft_page or 1) + 1
+    craft_menu(p)
+  elif starts_with(id, "make_") then make(p, replace(id, "make_", ""))
+  elif id == "up_bench" then upgrade_bench(p)
+  elif id == "up_fire" then upgrade_fire(p)
+  elif id == "use_item" then use_item(p)
+  end
+end
+
+on touch(p, b)
+  if contains(b.tags, "trap") and p.is_npc and p.mtype != nil then
+    -- 怪物がわなにかかった
+    gone(b)
+    if contains(traps, b) then remove(traps, index_of(traps, b)) end
+    p.frozen = true
+    p.damage(40)
+    after(4, func() if kit_here(p) then p.frozen = false end end)
+    return
+  end
+  if p.is_npc then return end
+  if contains(b.tags, "craft") and cooldown_left(p, "craftpad") <= 0 then
+    start_cooldown(p, "craftpad", 3)
+    craft_menu(p)
+  end
+end

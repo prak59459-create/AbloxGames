@@ -1,11 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 176,
+  "blockCount" : 252,
   "id" : "99-nights-camp",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/99-nights-camp\/data.absc",
+    "games\/99-nights-camp\/classes.absc",
+    "games\/99-nights-camp\/common.absc",
+    "games\/99-nights-camp\/craft.absc",
+    "games\/99-nights-camp\/gather.absc",
+    "games\/99-nights-camp\/kids.absc",
+    "games\/99-nights-camp\/monsters.absc",
+    "games\/99-nights-camp\/survival.absc",
     "games\/99-nights-camp\/main.absc"
   ],
   "summary" : "森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。",

@@ -1,0 +1,237 @@
+-- monsters.absc — 怪物
+-- 夜: オオカミ・アルファウルフ・森の教団がキャンプをおそう（日がたつほど多く、強く）。
+-- 昼: 森の奥にクマ。たおすと肉と毛皮。
+-- 🦌 影のシカ: 夜にうろつく。たおせない。ランタンで照らすと止まる。たき火の光には入れない。
+-- 🌲 森の王: 10日ごとの夜にあらわれる大ボス。
+
+let mon_clock = 0
+let deer = nil
+let king = nil
+
+func monster_count(kind)
+  return len(filter(npcs(), func(n) return n.mtype == kind end))
+end
+
+func spawn_monster(kind, pos)
+  let m = MONSTERS[kind]
+  let scale = 1 + (day - 1) * 0.06
+  let n = create_npc({name: m.name, position: pos + {x: random(-5, 5), y: 1, z: random(-5, 5)}, color: m.color, head_color: m.head,
+                      size: m.size, health: floor(m.hp * scale), speed: m.speed, team: "monster"})
+  n.mtype = kind
+  n.dmg = m.dmg * (1 + (day - 1) * 0.04)
+  n.next_hit = 0
+  n.home = pos
+  return n
+end
+
+func night_monsters()
+  let count = min(26, 2 + day + len(players()))
+  for i in 1 to count do
+    let den = block("Monster Den " + random(1, 6))
+    let kind = "wolf"
+    if day >= 5 and random() < 0.25 then kind = "alpha" end
+    if day >= 8 and random() < 0.3 then kind = "cultist" end
+    spawn_monster(kind, den.position)
+  end
+  -- 影のシカ
+  let den = block("Monster Den " + random(1, 6))
+  deer = create_npc({name: "🦌 影のシカ", position: den.position + {x: 0, y: 1, z: 0}, color: "#111827", head_color: "#DC2626",
+                     size: 2, health: 1000000000, speed: 1.05, team: "monster"})
+  deer.deer = true
+  deer.next_hit = 0
+  deer.stun_until = 0
+  -- 森の王
+  if day % 10 == 0 then
+    let d1 = block("Monster Den 1")
+    king = create_npc({name: "🌲 森の王", position: d1.position + {x: 0, y: 2, z: 0}, color: "#14532D", head_color: "#FACC15",
+                       size: 3.8, health: 1500 + day * 60, speed: 0.7, team: "monster"})
+    king.mtype = "king"
+    king.dmg = 35 + day
+    king.next_hit = 0
+    king.next_slam = time() + 6
+    announce("🌲 森の王があらわれた！みんなで立ち向かえ！", 4)
+  end
+end
+
+func clear_night_monsters()
+  for n in npcs() do
+    if n.mtype == "wolf" or n.mtype == "alpha" or n.mtype == "cultist" or n.deer or n.mtype == "king" then
+      if not n.guard then n.destroy() end
+    end
+  end
+  deer = nil
+  king = nil
+end
+
+func day_bears()
+  let want = min(3, 1 + floor(day / 10))
+  let have = monster_count("bear")
+  if want > have then
+    for i in 1 to want - have do
+      let den = block("Monster Den " + random(1, 6))
+      spawn_monster("bear", den.position)
+    end
+  end
+end
+
+-- いちばん近い、生きているプレイヤー
+func prey(n, sight)
+  let best = nil
+  for p in players() do
+    if p.alive and distance(n, p) < sight and (best == nil or distance(n, p) < distance(n, best)) then best = p end
+  end
+  return best
+end
+
+func hurt(n, p, amount)
+  p.damage(amount, n)
+  p.shake(0.2, 0.2)
+end
+
+func monster_ai(n)
+  let t = prey(n, 60)
+  if n.mtype == "bear" then t = prey(n, 18) end
+  if n.guard then t = prey(n, 22) end
+  if t == nil then
+    if n.home != nil and distance(n, n.home) > 10 then n.move_to(n.home) end
+    return
+  end
+  -- たき火の光の中はあつい
+  let fire = block("Campfire")
+  if fire != nil and distance(n, fire) < light_radius() then
+    n.damage(4)
+    if not kit_here(n) then return end
+  end
+  n.follow(t)
+  if distance(n, t) < 2.2 + (n.size or 1) * 0.5 and time() > n.next_hit then
+    n.next_hit = time() + 1.1
+    hurt(n, t, n.dmg)
+  end
+  if n.mtype == "king" and time() > n.next_slam then
+    n.next_slam = time() + 7
+    let spot = n.position
+    n.say("ゴゴゴ…")
+    let ring = create_block({name: "Slam", shape: "cylinder", position: spot + {x: 0, y: 0.1, z: 0}, size: {x: 16, y: 0.1, z: 16},
+                             color: "#DC2626", material: "neon", solid: false, opacity: 0.4})
+    after(1.2, func()
+      gone(ring)
+      if kit_here(n) then
+        for p in players() do
+          if p.alive and distance(p, spot) < 8 then
+            hurt(n, p, 30)
+            p.launch(0, 12, 0)
+          end
+        end
+      end
+    end)
+  end
+end
+
+func deer_ai()
+  let n = deer
+  if n == nil or not kit_here(n) then return end
+  if time() < n.stun_until then
+    n.stop()
+    return
+  end
+  let fire = block("Campfire")
+  -- 光の中には入らない
+  if fire != nil and distance(n, fire) < light_radius() + 3 then
+    let away = normalize(n.position - fire.position)
+    n.move_to(fire.position + away * (light_radius() + 10))
+    return
+  end
+  let t = nil
+  for p in players() do
+    if p.alive and not near_fire(p) and (t == nil or distance(n, p) < distance(n, t)) then t = p end
+  end
+  if t == nil then return end
+  n.follow(t)
+  if distance(n, t) < 3 and time() > n.next_hit then
+    n.next_hit = time() + 2
+    hurt(n, t, 45)
+    t.message("🦌 影のシカにおそわれた！ランタンで照らそう", 2)
+  end
+end
+
+-- 🔦 ランタンで照らす: 前にいる影のシカを止める
+func shine(p)
+  if not contains(p.gear, "lantern") then return end
+  if cooldown_left(p, "shine") > 0 then return end
+  start_cooldown(p, "shine", 3)
+  let n = deer
+  if n == nil or not kit_here(n) then
+    p.message("🔦 何もいない…", 1)
+    return
+  end
+  let gap = n.position - p.position
+  let d = magnitude(gap)
+  let facing = dot(normalize(gap), p.look)
+  if d < 20 and facing > 0.8 then
+    n.stun_until = time() + 4
+    n.launch(gap.x / d * 12, 4, gap.z / d * 12)
+    p.message("🔦 影のシカがひるんだ！", 1.5)
+    kit_quest_progress(p, "deer", 1)
+  else
+    p.message("🔦 シカの方を向いて照らそう", 1)
+  end
+end
+
+on tick(dt)
+  mon_clock = mon_clock + dt
+  if mon_clock < 0.3 then return end
+  mon_clock = 0
+  for n in npcs() do
+    if kit_here(n) and n.alive and n.mtype != nil then monster_ai(n) end
+  end
+  deer_ai()
+end
+
+on hit(victim, attacker, damage)
+  if attacker == nil then return damage end
+  if not attacker.is_npc and not victim.is_npc then return 0 end
+  if not attacker.is_npc and victim.is_npc then
+    if victim.deer or victim.kid then return 0 end
+    let m = 1
+    if attacker.cls == "hunter" then m = 1.5 end
+    if attacker.aim_until != nil and time() < attacker.aim_until then m = m * 2 end
+    return damage * m
+  end
+  return damage
+end
+
+on death(victim, killer)
+  if not victim.is_npc or victim.mtype == nil then return end
+  if killer == nil or killer.is_npc then return end
+  let loot = MONSTERS[victim.mtype]
+  if victim.mtype == "king" then
+    for p in players() do
+      add_item(p, "scrap", 20)
+      add_item(p, "fur", 5)
+      kit_give(p, 200)
+      kit_quest_progress(p, "king", 1)
+    end
+    announce("🏆 森の王をたおした！みんなに鉄くず20・毛皮5", 4)
+    king = nil
+    return
+  end
+  if loot != nil then
+    for key in keys(loot.loot) do
+      let v = loot.loot[key]
+      let n = floor(v)
+      if v < 1 and random() < v then n = 1 end
+      add_item(killer, key, n)
+    end
+    kit_give(killer, 5)
+    kit_quest_progress(killer, "hunt", 1)
+    if victim.mtype == "bear" then kit_quest_progress(killer, "bear", 1) end
+  end
+end
+
+on start()
+  deer = nil
+  king = nil
+  -- やり直しのときは前のNPCを全部消す
+  for n in npcs() do n.destroy() end
+  after(0.5, func() day_bears() end)
+end

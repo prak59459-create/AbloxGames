@@ -1,0 +1,85 @@
+-- kids.absc — 迷子の子どもたち
+-- 森の4か所に子どもが迷子になっている（オオカミが見はっている）。
+-- 近づくとついてくる → たき火まで連れて帰ると救出！みんなの体力が増え、ごほうび。
+
+let KID_NAMES = ["ルカ", "ミア", "ソラ", "ノア"]
+let kids = []        -- {npc, spot, saved, follower}
+let saved_count = 0
+let kid_clock = 0
+
+func spawn_kids()
+  kids = []
+  saved_count = 0
+  for i in 1 to 4 do
+    let spot = block("Kid Spot " + i)
+    if spot != nil then
+      let n = create_npc({name: "🧒 " + KID_NAMES[i], position: spot.position + {x: 0, y: 1, z: 0}, color: "#FDE68A", head_color: "#F5D0A9",
+                          size: 0.6, health: 1000000000, speed: 1.2, team: "camp"})
+      n.kid = true
+      append(kids, {npc: n, spot: i, saved: false, follower: nil})
+      -- 見はりのオオカミ
+      for k in 1 to 2 do
+        let g = spawn_monster("wolf", spot.position)
+        g.guard = true
+      end
+    end
+  end
+end
+
+func kid_tick()
+  let fire = block("Campfire")
+  for k in kids do
+    let n = k.npc
+    if not k.saved and kit_here(n) then
+      if k.follower == nil then
+        for p in players() do
+          if p.alive and distance(p, n) < 3.5 and k.follower == nil then
+            k.follower = p.id
+            n.follow(p)
+            n.say("たすけに来てくれたの？ついていくね！")
+            p.message("🧒 " + KID_NAMES[k.spot] + " がついてくる！たき火まで連れて帰ろう", 3)
+          end
+        end
+      else
+        let p = player_by_id(k.follower)
+        if p == nil or not p.alive then
+          k.follower = nil
+          n.stop()
+        elif fire != nil and distance(n, fire) < 10 then
+          rescue(k, p)
+        end
+      end
+    end
+  end
+end
+
+func rescue(k, p)
+  k.saved = true
+  saved_count = saved_count + 1
+  k.npc.stop()
+  k.npc.say("ありがとう！")
+  announce("🧒 " + p.name + " が " + KID_NAMES[k.spot] + " を助けた！（" + saved_count + "/4）", 4)
+  sound("goal")
+  kit_quest_progress(p, "rescue", 1)
+  -- みんなの体力が増える
+  for q in players() do
+    q.max_health = q.max_health + 20
+    q.heal(q.max_health)
+    kit_give(q, 50)
+  end
+  if saved_count >= 4 then
+    announce("🎉 迷子を全員助けた！キャンプは希望でいっぱい", 4)
+    for q in players() do kit_quest_progress(q, "allkids", 1) end
+  end
+end
+
+on start()
+  after(1, func() spawn_kids() end)
+end
+
+on tick(dt)
+  kid_clock = kid_clock + dt
+  if kid_clock < 0.5 then return end
+  kid_clock = 0
+  kid_tick()
+end

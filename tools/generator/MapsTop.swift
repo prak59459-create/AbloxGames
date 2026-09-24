@@ -733,6 +733,38 @@ func nightsCamp(_ m: MapBuilder) {
                name: "Tree \(n)")
     }
     m.markers("Monster Den", points: ring(6, radius: 85), color: "#000000", visible: false, behavior: .none)
+
+    // Camp: craft table, cooking pot, a sleeping area.
+    m.pad("Craft Table", x: 0, z: -12, size: 2.4, color: "#FDE68A", tags: ["craft"])
+    m.part("Cooking Pot", at: (4.5, 0.6, 3), size: (1.4, 1.2, 1.4), color: "#374151", shape: .cylinder, material: .metal,
+           behavior: .trigger, tags: ["cook"])
+    // Things to gather: rocks, berry bushes and scrap piles.
+    var g = Seeded("gather")
+    for i in 0..<18 {
+        let a = g.range(0, 2 * .pi), d = g.range(20, 80)
+        m.part("Rock \(i + 1)", at: (cos(a) * d, 0.6, sin(a) * d), size: (g.range(1.4, 2.4), 1.2, g.range(1.4, 2.2)), color: "#78716C",
+               shape: .sphere, material: .matte, tags: ["rock"])
+    }
+    for i in 0..<14 {
+        let a = g.range(0, 2 * .pi), d = g.range(16, 70)
+        m.part("Bush \(i + 1)", at: (cos(a) * d, 0.6, sin(a) * d), size: (1.6, 1.2, 1.6), color: "#166534", shape: .sphere,
+               material: .matte, behavior: .trigger, tags: ["bush"])
+        m.part("Bush \(i + 1) Berries", at: (cos(a) * d, 1.25, sin(a) * d), size: (0.9, 0.3, 0.9), color: "#DC2626", shape: .sphere,
+               solid: false)
+    }
+    for i in 0..<10 {
+        let a = g.range(0, 2 * .pi), d = g.range(35, 88)
+        m.part("Scrap \(i + 1)", at: (cos(a) * d, 0.5, sin(a) * d), size: (1.8, 1, 1.4), color: "#71717A", material: .metal,
+               behavior: .trigger, tags: ["scrap"])
+    }
+    m.markers("Chest Spot", points: (0..<10).map { _ in let a = g.range(0, 2 * .pi); let d = g.range(30, 90); return (cos(a) * d, sin(a) * d) },
+              color: "#000000", visible: false, behavior: .none)
+    // Four lost children, hiding far out in the forest.
+    let kids: [(Float, Float)] = [(70, 60), (-75, 55), (-65, -70), (72, -66)]
+    for (i, k) in kids.enumerated() {
+        m.part("Kid Spot \(i + 1)", at: (k.0, 0.1, k.1), size: (1, 0.2, 1), color: "#000000", shape: .cylinder, solid: false, visible: false)
+        m.part("Kid Hideout \(i + 1)", at: (k.0 + 2.5, 1, k.1), size: (3, 2, 3), color: "#57534E", shape: .cone, material: .matte)
+    }
 }
 
 

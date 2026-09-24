@@ -1,0 +1,214 @@
+-- survival.absc — 昼と夜・たき火・おなか・あたたかさ
+-- 昼は木を切って食べものを集める。夜は怪物が来る。たき火の光の中はあたたかい。
+-- たき火の燃料が0になると光が消える！ おなかが0・あたたかさが0 になると体力が減る。
+-- 夜に全員たおれると 1日目からやり直し。99日生きのびたらクリア！
+
+let day = 1
+let night = false
+let phase_until = 0
+let fuel = 80
+let fire_level = 1
+let surv_clock = 0
+let wiped = false
+
+func max_fuel() return 100 + (fire_level - 1) * 60 end
+func light_radius()
+  if fuel <= 0 then return 0 end
+  return 12 + (fire_level - 1) * 5
+end
+
+func near_fire(p)
+  let fire = block("Campfire")
+  return fire != nil and distance(p, fire) <= light_radius()
+end
+
+func add_fuel(n)
+  fuel = min(max_fuel(), fuel + n)
+  fire_look()
+end
+
+func fire_look()
+  let fire = block("Campfire")
+  if fire == nil then return end
+  let s = 0.6 + (fuel / max_fuel()) * (1.2 + fire_level * 0.5)
+  fire.size = {x: s * 1.5, y: s * 1.4, z: s * 1.5}
+  fire.position = {x: 0, y: s * 0.7, z: 0}
+  if fuel <= 0 then fire.color = "#57534E" else fire.color = "#F97316" end
+end
+
+-- MARK: 昼と夜
+
+func start_night()
+  night = true
+  phase_until = time() + NIGHT_TIME
+  world.sky_top = "#050816"
+  world.sky_bottom = "#101830"
+  world.light = 0.14
+  announce("🌙 " + day + " 日目の夜が来た… たき火の近くへ！", 3)
+  night_monsters()
+end
+
+func start_day()
+  night = false
+  phase_until = time() + DAY_TIME
+  day = day + 1
+  world.sky_top = "#6FB7E8"
+  world.sky_bottom = "#D8EEFF"
+  world.light = 0.75
+  clear_night_monsters()
+  if day > GOAL_DAYS then
+    announce("🏆 " + GOAL_DAYS + " 日を生きのびた！伝説のキャンパーたちだ！", 10)
+    for p in players() do kit_quest_progress(p, "win", 1) end
+    after(10, func() restart_round() end)
+    return
+  end
+  announce("☀️ " + day + " 日目の朝。生きのびた！", 3)
+  for p in players() do
+    if not p.alive then
+      p.respawn()
+      p.message("🌅 朝になって目がさめた", 2)
+    end
+    kit_give(p, 10 + day * 2)
+    p.days = (p.days or 0) + 1
+    kit_quest_progress(p, "day10", 1)
+    kit_quest_progress(p, "day30", 1)
+    p.score = day
+  end
+  day_bears()
+end
+
+-- MARK: 体のようす
+
+func body_tick(p, span)
+  if not p.alive then return end
+  -- おなか
+  p.hunger = max(0, p.hunger - span * 0.25)
+  if p.hunger <= 0 then
+    p.damage(2 * span)
+    if cooldown_left(p, "hungry_msg") <= 0 then
+      start_cooldown(p, "hungry_msg", 8)
+      p.message("🍖 おなかがぺこぺこ！何か食べよう（🍽ボタン）", 2)
+    end
+  end
+  -- あたたかさ
+  let warm = contains(p.gear, "coat") or (p.torch_until != nil and time() < p.torch_until)
+  if near_fire(p) then
+    p.warmth = min(100, p.warmth + span * 10)
+  elif night and not warm then
+    p.warmth = max(0, p.warmth - span * 3)
+  else
+    p.warmth = min(100, p.warmth + span * 4)
+  end
+  if p.warmth <= 0 then
+    p.damage(3 * span)
+    if cooldown_left(p, "cold_msg") <= 0 then
+      start_cooldown(p, "cold_msg", 8)
+      p.message("❄️ こごえる！たき火の近くへ", 2)
+    end
+  end
+  -- ベッドの近くで休むと回復
+  for bed in beds do
+    if distance(p, bed) < 3 and p.health < p.max_health then p.heal(2 * span) end
+  end
+  p.ui_bar("hunger", p.hunger, 100, {at: "top_left", dy: 58, dx: 4, w: 150, h: 8, color: "#F59E0B"})
+  p.ui_bar("warmth", p.warmth, 100, {at: "top_left", dy: 70, dx: 4, w: 150, h: 8, color: "#38BDF8"})
+end
+
+func eat_best(p)
+  let foods = ["stew", "cooked", "berries"]
+  for key in foods do
+    if (p.inv[key] or 0) > 0 then
+      p.inv[key] = p.inv[key] - 1
+      let fill = FOOD[key]
+      if p.cls == "cook" then fill = fill * 1.5 end
+      p.hunger = min(100, p.hunger + fill)
+      if key == "stew" then p.heal(30) end
+      p.message("😋 " + ITEM_NAMES[key] + " を食べた", 1.2)
+      p.sound("collect")
+      kit_quest_progress(p, "eat", 1)
+      inv_line(p)
+      return
+    end
+  end
+  p.message("食べものがありません（ベリーの茂み・肉を焼く）", 1.5)
+end
+
+-- MARK: 全滅
+
+func check_wipe()
+  if wiped or len(players()) == 0 then return end
+  for p in players() do
+    if p.alive then return end
+  end
+  wiped = true
+  announce("💀 全員たおれてしまった… " + day + " 日目まで生きのびた。1日目からやり直し", 6)
+  after(6, func() restart_round() end)
+end
+
+on start()
+  game.respawn_time = -1
+  wiped = false
+  day = 1
+  night = false
+  fuel = 80
+  fire_level = 1
+  phase_until = time() + DAY_TIME
+  fire_look()
+end
+
+on tick(dt)
+  surv_clock = surv_clock + dt
+  if surv_clock < 0.5 then return end
+  let span = surv_clock
+  surv_clock = 0
+  -- 燃料
+  let burn = 0.35
+  if night then burn = 0.9 end
+  if fuel > 0 then
+    fuel = max(0, fuel - burn * span)
+    if fuel <= 0 then announce("🔥 たき火が消えた！木材をくべて！", 3) end
+    fire_look()
+  end
+  let left = phase_until - time()
+  if left <= 0 then
+    if night then start_day() else start_night() end
+  end
+  let label = "☀️ 昼 "
+  if night then label = "🌙 夜 " end
+  ui_text("day", label + day + " 日目  ⏱ " + kit_clock(max(0, left)), {at: "top", dy: 26, size: 22, bold: true})
+  ui_bar("fuel", fuel, max_fuel(), {at: "top", dy: 58, w: 260, h: 14, color: "#F97316"})
+  ui_text("fire", "🔥 たき火 Lv." + fire_level, {at: "top", dy: 76, size: 13, color: "#FED7AA"})
+  for p in players() do body_tick(p, span) end
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  if contains(victim.gear, "charm") and not victim.charm_used then
+    victim.charm_used = true
+    kit_later(victim, 1, func()
+      victim.respawn()
+      victim.message("🍀 お守りのおかげで立ち上がった！", 2.5)
+    end)
+    return
+  end
+  victim.message("たおれた… 朝になれば目がさめる", 3)
+  after(0.3, func()
+    if night then check_wipe() end
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "fire") then
+    let wood = p.inv.wood or 0
+    if wood > 0 then
+      let need = ceil((max_fuel() - fuel) / 8)
+      let n = min(wood, max(1, need))
+      p.inv.wood = wood - n
+      add_fuel(n * 8)
+      p.message("🔥 木材を " + n + " こくべた", 1.2)
+      kit_quest_progress(p, "fuel", n)
+      inv_line(p)
+    end
+  end
+end

@@ -1,0 +1,68 @@
+-- data.absc — 99 Nights Camp の表（職業・材料・作れるもの・食べもの・怪物・宝箱）
+
+let DAY_TIME = 55     -- 昼の長さ（秒）
+let NIGHT_TIME = 45   -- 夜の長さ
+let GOAL_DAYS = 99
+
+-- MARK: 職業（はじめにえらぶ）
+let CLASSES = [
+  {id: "lumber", name: "🪓 木こり", text: "木を切ると木材が2倍", ability: "🌲 まとめ切り（まわりの木を一気に）", cd: 40},
+  {id: "hunter", name: "🏹 ハンター", text: "怪物へのダメージ1.5倍、やりを持って出発", ability: "🎯 ねらい撃ち（10秒 ダメージ2倍）", cd: 45},
+  {id: "medic", name: "🩺 お医者さん", text: "近くの仲間を回復できる", ability: "💊 みんなを回復", cd: 30},
+  {id: "cook", name: "🍳 料理人", text: "食べもので おなかが1.5倍ふくれる", ability: "🍲 その場でシチュー（材料なし）", cd: 60},
+  {id: "scout", name: "🧭 探検家", text: "足が速い（1.2倍）", ability: "🗺 宝箱と迷子の場所がわかる", cd: 35}
+]
+
+-- MARK: 材料と食べもの
+let ITEM_NAMES = {wood: "🪵 木材", stone: "🪨 石", scrap: "⚙️ 鉄くず", berries: "🫐 ベリー", meat: "🥩 生肉",
+                  cooked: "🍖 焼き肉", stew: "🍲 シチュー", fur: "🧶 毛皮"}
+let ITEM_ORDER = ["wood", "stone", "scrap", "berries", "meat", "cooked", "stew", "fur"]
+let FOOD = {berries: 10, cooked: 30, stew: 60}
+
+-- MARK: 作業台（level: 作業台のレベル / cost: 材料 / kind: tool / weapon / place / wear / use）
+let RECIPES = [
+  {id: "stoneaxe", name: "🪓 石のオノ", level: 1, cost: {wood: 10, stone: 5}, kind: "tool", power: 2},
+  {id: "spear", name: "🔱 木のやり", level: 1, cost: {wood: 8, stone: 2}, kind: "weapon", weapon: "木のやり"},
+  {id: "torch", name: "🔥 たいまつ", level: 1, cost: {wood: 4}, kind: "use", text: "2分 あたたかい"},
+  {id: "ironaxe", name: "🪓 鉄のオノ", level: 2, cost: {wood: 5, scrap: 10}, kind: "tool", power: 4},
+  {id: "lantern", name: "🔦 ランタン", level: 2, cost: {scrap: 12}, kind: "wear", text: "影のシカを照らして止められる"},
+  {id: "trap", name: "🪤 わな", level: 2, cost: {scrap: 6, wood: 4}, kind: "place", text: "ふんだ怪物が止まる"},
+  {id: "coat", name: "🧥 毛皮のコート", level: 2, cost: {fur: 6, scrap: 4}, kind: "wear", text: "寒くならない"},
+  {id: "rifle", name: "🔫 ライフル", level: 3, cost: {scrap: 25, wood: 10}, kind: "weapon", weapon: "rifle"},
+  {id: "fence", name: "🧱 木のさく", level: 3, cost: {wood: 12}, kind: "place", text: "怪物をふせぐかべ"},
+  {id: "bed", name: "🛏 ベッド", level: 3, cost: {wood: 20, fur: 2}, kind: "place", text: "近くで休むと体力が回復"},
+  {id: "medkit", name: "🩹 救急箱", level: 4, cost: {scrap: 5, berries: 5}, kind: "use", text: "体力を全回復"},
+  {id: "axe_gold", name: "🪓 金のオノ", level: 4, cost: {scrap: 30, stone: 20}, kind: "tool", power: 7},
+  {id: "crossbow", name: "🏹 クロスボウ", level: 5, cost: {scrap: 40, wood: 20, fur: 5}, kind: "weapon", weapon: "クロスボウ"},
+  {id: "charm", name: "🍀 お守り", level: 5, cost: {scrap: 30, fur: 10}, kind: "wear", text: "1回だけ たおれてもその場で復活"}
+]
+-- 作業台のレベルアップ
+let BENCH_COST = [
+  {},
+  {wood: 30, stone: 15},
+  {wood: 50, stone: 30, scrap: 20},
+  {wood: 80, stone: 50, scrap: 40},
+  {wood: 120, stone: 80, scrap: 80, fur: 10}
+]
+-- たき火のレベルアップ（明るい範囲と燃料の最大が増える）
+let FIRE_COST = [
+  {},
+  {wood: 20, stone: 20},
+  {wood: 40, stone: 40, scrap: 20},
+  {wood: 60, stone: 60, scrap: 40}
+]
+
+-- MARK: 怪物（from: 何日目から / loot: たおすと落とすもの）
+let MONSTERS = {
+  wolf: {name: "オオカミ", color: "#6B7280", head: "#9CA3AF", size: 0.9, hp: 45, dmg: 10, speed: 1.1, from: 1, loot: {meat: 1, fur: 0.5}},
+  alpha: {name: "アルファウルフ", color: "#374151", head: "#F8FAFC", size: 1.3, hp: 140, dmg: 18, speed: 1.15, from: 5, loot: {meat: 2, fur: 2}},
+  cultist: {name: "森の教団", color: "#7F1D1D", head: "#111827", size: 1, hp: 90, dmg: 14, speed: 0.95, from: 8, loot: {scrap: 3}},
+  bear: {name: "クマ", color: "#78350F", head: "#92400E", size: 1.8, hp: 300, dmg: 25, speed: 0.9, from: 3, loot: {meat: 4, fur: 3}}
+}
+
+-- MARK: 宝箱
+let CHESTS = [
+  {name: "木の宝箱", color: "#A16207", weight: 70, loot: {wood: 10, scrap: 3, berries: 4}},
+  {name: "鉄の宝箱", color: "#9CA3AF", weight: 25, loot: {scrap: 10, stone: 8, cooked: 2}},
+  {name: "金の宝箱", color: "#FACC15", weight: 5, loot: {scrap: 25, fur: 5, stew: 2}}
+]

@@ -1,0 +1,89 @@
+-- common.absc — 99 Nights Camp の道具（人さがし・画面・持ち物）
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func set_line(p, id, text, options)
+  if p.lines == nil then p.lines = {} end
+  if p.lines[id] == text then return end
+  p.lines[id] = text
+  if text == nil then p.ui_remove(id) else p.ui_text(id, text, options) end
+end
+
+func set_btn(p, id, label, options)
+  if p.btns == nil then p.btns = {} end
+  if p.btns[id] == label then return end
+  p.btns[id] = label
+  if label == nil then p.ui_remove(id) else p.ui_button(id, label, options) end
+end
+
+func gone(b)
+  if b != nil and b.destroy != nil then b.destroy() end
+end
+
+func cooldown_left(p, key)
+  if p.cool == nil then p.cool = {} end
+  let until = p.cool[key]
+  if until == nil then return 0 end
+  return max(0, until - time())
+end
+
+func start_cooldown(p, key, seconds)
+  if p.cool == nil then p.cool = {} end
+  p.cool[key] = time() + seconds
+end
+
+-- MARK: 持ち物
+
+func add_item(p, key, n)
+  if n <= 0 then return end
+  p.inv[key] = (p.inv[key] or 0) + n
+  inv_line(p)
+end
+
+func has_items(p, cost)
+  for key in keys(cost) do
+    if (p.inv[key] or 0) < cost[key] then return false end
+  end
+  return true
+end
+
+func take_items(p, cost)
+  if not has_items(p, cost) then return false end
+  for key in keys(cost) do p.inv[key] = p.inv[key] - cost[key] end
+  inv_line(p)
+  return true
+end
+
+func cost_text(cost)
+  let parts = []
+  for key in ITEM_ORDER do
+    if cost[key] != nil then append(parts, ITEM_NAMES[key] + "×" + cost[key]) end
+  end
+  return join(parts, " ")
+end
+
+func inv_line(p)
+  let parts = []
+  for key in ITEM_ORDER do
+    let n = p.inv[key] or 0
+    if n > 0 then append(parts, ITEM_NAMES[key] + " " + n) end
+  end
+  let text = "🎒 " + join(parts, "  ")
+  if len(parts) == 0 then text = "🎒 からっぽ（木をタップして切ろう）" end
+  set_line(p, "inv", text, {at: "top_left", dy: 34, size: 14, color: "#FDE68A"})
+end
+
+let ARROWS = ["⬆️", "↗️", "➡️", "↘️", "⬇️", "↙️", "⬅️", "↖️"]
+func arrow_to(p, pos)
+  let bearing = atan2(pos.x - p.x, 0 - (pos.z - p.z))
+  let rel = bearing - p.yaw
+  while rel < -180 do rel = rel + 360 end
+  while rel >= 180 do rel = rel - 360 end
+  return ARROWS[floor(((rel + 360 + 22.5) % 360) / 45) + 1]
+end

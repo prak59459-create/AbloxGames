@@ -1,0 +1,189 @@
+-- gather.absc — 集める
+-- 🌲 木をタップ（近くで）→ 木材。🪨 岩をタップ → 石。🫐 茂みにさわる → ベリー。⚙️ 鉄くずにさわる → 鉄くず。
+-- 🎁 森のどこかに宝箱。🍲 なべ（たき火のそば）で 生肉 → 焼き肉、生肉＋ベリー → シチュー。
+
+let tree_hp = {}       -- "12" → のこり
+let used = {}          -- "Rock 3" → 使った回数
+let chests = []        -- {block, loot, name}
+let gather_clock = 0
+
+func tree_number(name)
+  let parts = split(name, " ")
+  if len(parts) >= 2 and parts[1] == "Tree" then return parts[2] end
+  return nil
+end
+
+func chop(p, b)
+  let n = tree_number(b.name)
+  if n == nil then return end
+  if distance(p, b) > 9 then
+    if cooldown_left(p, "far") <= 0 then
+      start_cooldown(p, "far", 2)
+      p.message("🌲 もっと木に近づこう", 1)
+    end
+    return
+  end
+  if cooldown_left(p, "chop") > 0 then return end
+  start_cooldown(p, "chop", 0.4)
+  let hp = tree_hp[n] or 6
+  hp = hp - (p.axe or 1)
+  p.sound("hit")
+  if hp > 0 then
+    tree_hp[n] = hp
+    return
+  end
+  remove(tree_hp, n)
+  fell_tree(p, n)
+end
+
+func fell_tree(p, n)
+  let top = block("Tree " + n)
+  let trunk = block("Tree " + n + " Trunk")
+  if top == nil or not top.visible then return end
+  top.visible = false
+  top.solid = false
+  if trunk != nil then
+    trunk.visible = false
+    trunk.solid = false
+  end
+  let wood = 4
+  if p.cls == "lumber" then wood = 8 end
+  add_item(p, "wood", wood)
+  p.message("🪵 木材 +" + wood, 1)
+  kit_quest_progress(p, "chop", 1)
+  -- 150秒で生えてくる
+  after(150, func()
+    if top != nil then
+      top.visible = true
+      top.solid = true
+    end
+    if trunk != nil then
+      trunk.visible = true
+      trunk.solid = true
+    end
+  end)
+end
+
+-- 岩・茂み・鉄くず: 何回か取るとしばらく消える
+func harvest_spot(p, b, key, amount, uses, regrow)
+  if not b.visible then return end
+  if cooldown_left(p, "gather") > 0 then return end
+  start_cooldown(p, "gather", 0.6)
+  let count = (used[b.name] or 0) + 1
+  used[b.name] = count
+  add_item(p, key, amount)
+  p.message(ITEM_NAMES[key] + " +" + amount, 0.8)
+  p.sound("collect")
+  if count >= uses then
+    used[b.name] = 0
+    b.visible = false
+    let berries = block(b.name + " Berries")
+    if berries != nil then berries.visible = false end
+    after(regrow, func()
+      b.visible = true
+      if berries != nil then berries.visible = true end
+    end)
+  end
+end
+
+-- MARK: 宝箱
+
+func spawn_chest()
+  if len(chests) >= 4 then return end
+  let spot = block("Chest Spot " + random(1, 10))
+  if spot == nil then return end
+  for c in chests do
+    if distance(c.block, spot) < 2 then return end
+  end
+  let kind = kit_pick(CHESTS, 1)
+  let b = create_block({name: kind.name, shape: "box", position: spot.position + {x: 0, y: 0.5, z: 0}, size: {x: 1.3, y: 0.9, z: 0.9},
+                        color: kind.color, material: "metal", behavior: "trigger", tags: ["chest"]})
+  append(chests, {block: b, loot: kind.loot, name: kind.name})
+end
+
+func open_chest(p, b)
+  for c in copy(chests) do
+    if c.block == b then
+      remove(chests, index_of(chests, c))
+      gone(b)
+      let got = []
+      for key in keys(c.loot) do
+        let n = c.loot[key] + random(0, 2)
+        add_item(p, key, n)
+        append(got, ITEM_NAMES[key] + "×" + n)
+      end
+      p.message("🎁 " + c.name + "！ " + join(got, " "), 3)
+      p.sound("goal")
+      kit_quest_progress(p, "chest", 1)
+      return
+    end
+  end
+end
+
+-- MARK: なべ
+
+func cook_menu(p)
+  p.ui_panel("cook", {at: "center", w: 440, h: 240, bg: "#292524F2", radius: 20, layer: 30})
+  p.ui_text("cook_t", "🍲 なべで料理", {parent: "cook", y: 0.12, size: 20, bold: true, color: "#FED7AA"})
+  p.ui_button("cook_meat", "🍖 焼き肉（生肉1）", {parent: "cook", y: 0.36, w: 320, h: 42, size: 15, bg: "#B45309"})
+  p.ui_button("cook_stew", "🍲 シチュー（生肉1＋ベリー3）", {parent: "cook", y: 0.58, w: 320, h: 42, size: 15, bg: "#9A3412"})
+  p.ui_button("cook_close", "閉じる", {parent: "cook", y: 0.84, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func cook(p, what)
+  if what == "meat" then
+    if not take_items(p, {meat: 1}) then
+      p.message("生肉がない（怪物やクマをたおすと手に入る）", 1.5)
+      return
+    end
+    add_item(p, "cooked", 1)
+  else
+    if not take_items(p, {meat: 1, berries: 3}) then
+      p.message("生肉1とベリー3が必要", 1.5)
+      return
+    end
+    add_item(p, "stew", 1)
+  end
+  p.sound("collect")
+  kit_quest_progress(p, "cook", 1)
+  p.message("🍳 できた！", 1)
+end
+
+on start()
+  tree_hp = {}
+  used = {}
+  chests = []
+  for i in 1 to 3 do spawn_chest() end
+  every(80, func() spawn_chest() end)
+end
+
+on tap(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "tree") then
+    chop(p, b)
+  elif contains(b.tags, "rock") then
+    if distance(p, b) < 9 then harvest_spot(p, b, "stone", 2, 6, 120) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "bush") then
+    harvest_spot(p, b, "berries", 3, 2, 60)
+  elif contains(b.tags, "scrap") then
+    harvest_spot(p, b, "scrap", 2, 4, 150)
+  elif contains(b.tags, "chest") then
+    open_chest(p, b)
+  elif contains(b.tags, "cook") and cooldown_left(p, "cookpad") <= 0 then
+    start_cooldown(p, "cookpad", 3)
+    cook_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "eat" then eat_best(p)
+  elif id == "cook_close" then p.ui_remove("cook")
+  elif id == "cook_meat" then cook(p, "meat")
+  elif id == "cook_stew" then cook(p, "stew")
+  end
+end

@@ -1,0 +1,91 @@
+-- classes.absc — 職業（はじめにえらぶ・⭐ボタンで特技）
+
+func class_info(id)
+  for c in CLASSES do
+    if c.id == id then return c end
+  end
+  return nil
+end
+
+func class_menu(p)
+  let h = 130 + len(CLASSES) * 56
+  p.ui_panel("cls", {at: "center", w: 540, h: h, bg: "#1C1917F2", radius: 22, layer: 50})
+  p.ui_text("cls_t", "職業をえらぼう", {parent: "cls", y: 26 / h, size: 21, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in CLASSES do
+    i = i + 1
+    p.ui_button("cls_" + c.id, c.name + "：" + c.text, {parent: "cls", y: (30 + i * 56) / h, w: 500, h: 46, size: 14, bg: "#57534E"})
+  end
+end
+
+func set_class(p, id)
+  let c = class_info(id)
+  if c == nil then return end
+  p.cls = id
+  p.ui_remove("cls")
+  if id == "hunter" then
+    p.give("木のやり")
+    p.weapon_name = "木のやり"
+  end
+  if id == "scout" then p.speed = 1.2 end
+  p.ui_button("ability", "⭐ " + c.ability, {at: "bottom", dy: -104, w: 280, h: 48, size: 14, bg: "#7C3AED", radius: 16})
+  p.message(c.name + " になった！ " + c.text, 3)
+end
+
+func use_ability(p)
+  let c = class_info(p.cls)
+  if c == nil or not p.alive then return end
+  let left = cooldown_left(p, "ability")
+  if left > 0 then
+    p.message("あと " + ceil(left) + " 秒", 1)
+    return
+  end
+  start_cooldown(p, "ability", c.cd)
+  if p.cls == "lumber" then
+    let n = 0
+    for b in blocks("tree") do
+      if b.visible and distance(p, b) < 10 and tree_number(b.name) != nil and not ends_with(b.name, "Trunk") then
+        fell_tree(p, tree_number(b.name))
+        n = n + 1
+      end
+    end
+    p.message("🌲 " + n + " 本 まとめて切った！", 2)
+  elif p.cls == "hunter" then
+    p.aim_until = time() + 10
+    p.message("🎯 10秒 ダメージ2倍！", 1.5)
+  elif p.cls == "medic" then
+    for q in players() do
+      if q.alive and distance(p, q) < 12 then
+        q.heal(q.max_health)
+        if q.id != p.id then q.message("🩺 " + p.name + " に回復してもらった", 1.5) end
+      end
+    end
+    p.message("💊 まわりのみんなを回復！", 1.5)
+  elif p.cls == "cook" then
+    add_item(p, "stew", 1)
+    p.message("🍲 シチューを作った！", 1.5)
+  elif p.cls == "scout" then
+    let best = nil
+    for c2 in chests do
+      if best == nil or distance(p, c2.block) < distance(p, best) then best = c2.block end
+    end
+    let lines = []
+    if best != nil then append(lines, "🎁 宝箱 " + arrow_to(p, best.position) + " " + floor(distance(p, best)) + "m") end
+    for k in kids do
+      if not k.saved and kit_here(k.npc) then
+        append(lines, "🧒 迷子 " + arrow_to(p, k.npc.position) + " " + floor(distance(p, k.npc)) + "m")
+        break
+      end
+    end
+    if len(lines) == 0 then append(lines, "何も見つからなかった") end
+    p.message(join(lines, "   "), 4)
+  end
+  kit_quest_progress(p, "ability", 1)
+end
+
+on button(p, id)
+  if starts_with(id, "cls_") then set_class(p, replace(id, "cls_", ""))
+  elif id == "ability" then use_ability(p)
+  elif id == "shine" then shine(p)
+  end
+end
