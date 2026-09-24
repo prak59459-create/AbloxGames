@@ -1,0 +1,242 @@
+-- Critter Quest — 草むらでクリッターをつかまえて育てる、ターン制バトルRPG
+
+kit_setup("Critter Quest", "草むらで出会って、つかまえて、育てよう", [
+  "最初の相棒を1ぴき選ぼう",
+  "草むら（色つきの広場）を歩くと、野生のクリッターが飛び出す",
+  "バトル: 技で戦う。弱らせてから「つかまえる」と成功しやすい",
+  "タイプ相性: 🔥ほのお > 🌿くさ > 💧みず > 🔥ほのお、⚡でんき > 💧みず",
+  "赤い建物（センター）で回復。紫のパッドでトレーナーに挑戦！",
+  "仲間は6ひきまで。先頭の子がバトルに出る（「👥 チーム」で入れかえ）"
+])
+
+let species = {
+  pyro: {name: "ヒノコン", type: "fire", hp: 40, atk: 11, color: "#F97316"},
+  aqua: {name: "ミズポン", type: "water", hp: 46, atk: 9, color: "#38BDF8"},
+  leaf: {name: "ハッパル", type: "plant", hp: 50, atk: 8, color: "#22C55E"},
+  volt: {name: "ピリリン", type: "electric", hp: 38, atk: 12, color: "#FACC15"},
+  rock: {name: "ゴロッチ", type: "rock", hp: 60, atk: 8, color: "#78716C"},
+  wing: {name: "ハヤテドリ", type: "normal", hp: 42, atk: 10, color: "#E5E7EB"},
+  magma: {name: "マグマドン", type: "fire", hp: 70, atk: 16, color: "#B91C1C"},
+  dragon: {name: "スカイドラコ", type: "electric", hp: 80, atk: 18, color: "#6366F1"}
+}
+let areas = {
+  "Grass Meadow": [["leaf", 40], ["wing", 40], ["volt", 15], ["pyro", 5]],
+  "Grass Lake": [["aqua", 50], ["wing", 30], ["volt", 20]],
+  "Grass Volcano": [["pyro", 45], ["rock", 40], ["magma", 15]],
+  "Grass Forest": [["leaf", 40], ["rock", 30], ["dragon", 5], ["volt", 25]]
+}
+let type_icon = {fire: "🔥", water: "💧", plant: "🌿", electric: "⚡", rock: "🪨", normal: "⭐"}
+let beats = {fire: "plant", plant: "water", water: "fire", electric: "water", rock: "electric"}
+
+kit_quest("catch3", "3びきつかまえる", 3, 100)
+kit_quest("lv10", "レベル10のクリッターを育てる", 1, 200)
+kit_quest("trainer", "トレーナーに勝つ", 1, 400)
+
+func make(key, level)
+  let s = species[key]
+  let hp = floor(s.hp * (1 + level * 0.12))
+  return {key: key, name: s.name, type: s.type, level: level, hp: hp, max: hp, atk: s.atk * (1 + level * 0.1), xp: 0, color: s.color}
+end
+
+func lead(p)
+  for c in p.critters do
+    if c.hp > 0 then return c end
+  end
+  return nil
+end
+
+func mult(a, b)
+  if beats[a] == b then return 2 end
+  if beats[b] == a then return 0.5 end
+  return 1
+end
+
+func show_team(p)
+  let c = lead(p)
+  if c == nil then
+    p.ui_text("lead", "😵 みんな倒れている…センターで回復しよう", {at: "top", dy: 30, size: 16, color: "#FCA5A5"})
+  else
+    p.ui_text("lead", type_icon[c.type] + " " + c.name + " Lv." + c.level + "  ❤️ " + floor(c.hp) + "/" + c.max + "   👥 " + len(p.critters),
+              {at: "top", dy: 30, size: 17, bold: true})
+  end
+end
+
+func battle_ui(p)
+  let me = lead(p)
+  let foe = p.foe
+  p.ui_panel("battle", {at: "center", w: 560, h: 300, bg: "#0F172AF2", radius: 22, layer: 40})
+  p.ui_text("foe_name", type_icon[foe.type] + " " + (p.trainer_battle and "トレーナーの " or "野生の ") + foe.name + " Lv." + foe.level,
+            {parent: "battle", y: 0.1, size: 20, bold: true, color: foe.color})
+  p.ui_bar("foe_hp", max(0, foe.hp), foe.max, {parent: "battle", y: 0.2, w: 300, h: 12, color: "#F87171"})
+  p.ui_text("me_name", type_icon[me.type] + " " + me.name + " Lv." + me.level, {parent: "battle", y: 0.36, size: 18, bold: true, color: me.color})
+  p.ui_bar("me_hp", max(0, me.hp), me.max, {parent: "battle", y: 0.46, w: 300, h: 12, color: "#4ADE80"})
+  p.ui_button("move_tackle", "たいあたり", {parent: "battle", x: 0.25, y: 0.64, w: 200, h: 46, size: 16, bg: "#64748B"})
+  p.ui_button("move_type", type_icon[me.type] + " わざ", {parent: "battle", x: 0.75, y: 0.64, w: 200, h: 46, size: 16, bg: me.color, color: "#111111"})
+  if not p.trainer_battle then
+    p.ui_button("catch", "🟠 つかまえる", {parent: "battle", x: 0.25, y: 0.84, w: 200, h: 46, size: 16, bg: "#EA580C"})
+  end
+  p.ui_button("run", "🏃 にげる", {parent: "battle", x: 0.75, y: 0.84, w: 200, h: 46, size: 16, bg: "#374151"})
+end
+
+func start_battle(p, foe, trainer)
+  p.in_battle = true
+  p.trainer_battle = trainer
+  p.foe = foe
+  p.frozen = true
+  battle_ui(p)
+end
+
+func end_battle(p, text)
+  p.in_battle = false
+  p.frozen = false
+  p.ui_remove("battle")
+  p.message(text, 2.5)
+  show_team(p)
+end
+
+func gain_xp(p, c, amount)
+  c.xp = c.xp + amount
+  while c.xp >= c.level * 20 do
+    c.xp = c.xp - c.level * 20
+    c.level = c.level + 1
+    c.max = floor(species[c.key].hp * (1 + c.level * 0.12))
+    c.atk = species[c.key].atk * (1 + c.level * 0.1)
+    c.hp = c.max
+    p.message("⬆️ " + c.name + " は Lv." + c.level + " になった！", 2)
+    if c.level >= 10 then kit_quest_progress(p, "lv10", 1) end
+  end
+  p.score = max(p.score, c.level)
+end
+
+func foe_turn(p)
+  let me = lead(p)
+  let foe = p.foe
+  let dmg = foe.atk * (0.8 + random() * 0.4) * mult(foe.type, me.type)
+  me.hp = me.hp - dmg
+  if me.hp <= 0 then
+    me.hp = 0
+    if lead(p) == nil then
+      end_battle(p, "😵 目の前が真っ暗になった… センターで回復しよう")
+      p.teleport(block("Heal Counter"))
+      return
+    end
+    p.message(me.name + " は倒れた！次の子が出る", 1.5)
+  end
+  battle_ui(p)
+end
+
+func attack(p, typed)
+  if not p.in_battle then return end
+  let me = lead(p)
+  let foe = p.foe
+  let power = typed and 1.4 or 1
+  let m = typed and mult(me.type, foe.type) or 1
+  let dmg = me.atk * power * m * (0.85 + random() * 0.3)
+  foe.hp = foe.hp - dmg
+  if m > 1 then p.message("こうかは ばつぐんだ！", 1) elif m < 1 then p.message("いまひとつのようだ…", 1) end
+  if foe.hp <= 0 then
+    gain_xp(p, me, 8 + foe.level * 4)
+    kit_give(p, p.trainer_battle and 300 or 10 + foe.level)
+    if p.trainer_battle then
+      p.trainer_left = p.trainer_left - 1
+      if p.trainer_left > 0 then
+        p.foe = make(random(["magma", "dragon", "rock"]), 8 + (3 - p.trainer_left) * 2)
+        p.message("トレーナーは次のクリッターを出した！", 1.5)
+        battle_ui(p)
+        return
+      end
+      kit_quest_progress(p, "trainer", 1)
+      kit_badge(p, "trainer", "トレーナーに勝利")
+      end_battle(p, "🏆 トレーナーに勝った！")
+    else
+      end_battle(p, "🎉 " + foe.name + " をたおした！")
+    end
+    return
+  end
+  foe_turn(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.critters = []
+  kit_give(p, 50)
+  p.ui_panel("starter", {at: "center", w: 480, h: 170, bg: "#0F172AF0", radius: 22, layer: 30})
+  p.ui_text("starter_t", "最初の相棒をえらぼう", {parent: "starter", y: 0.2, size: 22, bold: true})
+  let i = 0
+  for key in ["pyro", "aqua", "leaf"] do
+    i = i + 1
+    let s = species[key]
+    p.ui_button("starter_" + key, type_icon[s.type] + " " + s.name, {parent: "starter", x: (i - 0.5) / 3, y: 0.65, w: 140, h: 56, size: 17, bg: s.color, color: "#111111"})
+  end
+  p.ui_button("open_team", "👥 チーム", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+end
+
+on touch(p, b)
+  if p.is_npc or p.in_battle or len(p.critters) == 0 then return end
+  if contains(b.tags, "grass") then
+    if lead(p) == nil or random() > 0.18 then return end
+    let table = areas[b.name]
+    let pick = kit_pick(map(table, func(row) return {key: row[1], weight: row[2]} end), 1)
+    let lvl = max(1, lead(p).level + random(-2, 1))
+    start_battle(p, make(pick.key, lvl), false)
+  elif contains(b.tags, "heal") then
+    for c in p.critters do c.hp = c.max end
+    show_team(p)
+    if kit_ready(p, "heal_msg", 3) then p.message("💖 みんな元気になった！", 1.5) end
+  elif contains(b.tags, "trainer") and kit_ready(p, "trainer", 5) and lead(p) != nil then
+    p.trainer_left = 3
+    start_battle(p, make("rock", 8), true)
+    p.message("🧢 トレーナー「いけっ！」", 1.5)
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "starter_") then
+    append(p.critters, make(replace(id, "starter_", ""), 5))
+    p.ui_remove("starter")
+    show_team(p)
+  elif id == "move_tackle" then attack(p, false)
+  elif id == "move_type" then attack(p, true)
+  elif id == "catch" and p.in_battle and not p.trainer_battle then
+    let foe = p.foe
+    let chance = 0.15 + (1 - foe.hp / foe.max) * 0.7
+    if random() < chance then
+      if len(p.critters) < 6 then
+        foe.hp = foe.max
+        append(p.critters, foe)
+        kit_quest_progress(p, "catch3", 1)
+        end_battle(p, "🟠 やった！ " + foe.name + " をつかまえた！")
+      else
+        end_battle(p, "チームがいっぱい（6ひきまで）")
+      end
+    else
+      p.message("おしい！にげられた…", 1)
+      foe_turn(p)
+    end
+  elif id == "run" and p.in_battle then
+    if p.trainer_battle then
+      p.message("トレーナー戦からは逃げられない！", 1.5)
+    else
+      end_battle(p, "🏃 うまくにげた")
+    end
+  elif id == "open_team" and not p.in_battle then
+    let h = 110 + len(p.critters) * 44
+    p.ui_panel("teambox", {at: "center", w: 380, h: h, bg: "#0F172AF0", radius: 22, layer: 30})
+    p.ui_text("team_t", "👥 チーム（押すと先頭に）", {parent: "teambox", y: 26 / h, size: 19, bold: true})
+    let i = 0
+    for c in p.critters do
+      i = i + 1
+      p.ui_button("front_" + i, type_icon[c.type] + " " + c.name + " Lv." + c.level + " ❤️" + floor(c.hp), {parent: "teambox", y: (26 + i * 44) / h, w: 320, h: 38, size: 15, bg: c.color, color: "#111111"})
+    end
+    p.ui_button("team_close", "閉じる", {parent: "teambox", y: (h - 24) / h, w: 120, h: 34, size: 14, bg: "gray"})
+  elif starts_with(id, "front_") then
+    let i = num(replace(id, "front_", ""))
+    let c = remove(p.critters, i)
+    insert(p.critters, 1, c)
+    p.ui_remove("teambox")
+    show_team(p)
+  elif id == "team_close" then
+    p.ui_remove("teambox")
+  end
+end

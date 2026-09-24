@@ -1180,6 +1180,246 @@
       "title" : "Watch The House",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/watch-the-house\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 36,
+      "id" : "aura-roll",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/aura-roll\/main.absc"
+      ],
+      "summary" : "ボタンを押してオーラを引く運だめし。天気が変わると特別なオーラが出やすくなる。1億分の1を引き当てろ！",
+      "tags" : [
+        "rng",
+        "collect",
+        "idle"
+      ],
+      "title" : "Aura Roll",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/aura-roll\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 62,
+      "id" : "raft-to-treasure",
+      "maxPlayers" : 10,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/raft-to-treasure\/main.absc"
+      ],
+      "summary" : "ブロックで橋やいかだを作って、危険な川を下って宝箱をめざす工作ゲーム。遠くまで行くほどゴールドがもらえる。",
+      "tags" : [
+        "build",
+        "adventure",
+        "creative"
+      ],
+      "title" : "Raft to Treasure",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/raft-to-treasure\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 41,
+      "id" : "obby-maker",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/obby-maker\/main.absc"
+      ],
+      "summary" : "自分だけのアスレチックコースを作って公開しよう。足場、溶岩、ジャンプ台、チェックポイント。友だちのコースにも挑戦！",
+      "tags" : [
+        "obby",
+        "build",
+        "creative"
+      ],
+      "title" : "Obby Maker",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/obby-maker\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 89,
+      "id" : "toy-army-tycoon",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/toy-army-tycoon\/main.absc"
+      ],
+      "summary" : "おもちゃの兵隊を買って基地を大きくするタイクーン。定期的におそってくる敵軍から、兵隊とタレットでコアを守れ。",
+      "tags" : [
+        "tycoon",
+        "army",
+        "defense"
+      ],
+      "title" : "Toy Army Tycoon",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/toy-army-tycoon\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 93,
+      "id" : "buzz-meadow",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/buzz-meadow\/main.absc"
+      ],
+      "summary" : "ハチを集めて花畑で花粉を集め、巣でハチミツに変えよう。ハチが増えるほど強くなり、奥の花畑へ行ける。",
+      "tags" : [
+        "simulator",
+        "bees",
+        "collect"
+      ],
+      "title" : "Buzz Meadow",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/buzz-meadow\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 101,
+      "id" : "dungeon-delve",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/dungeon-delve\/main.absc"
+      ],
+      "summary" : "ダンジョンの部屋を次々に攻略するハクスラ。敵をたおしてレアな剣やよろいを手に入れ、最深部のボスをたおせ。",
+      "tags" : [
+        "dungeon",
+        "loot",
+        "coop"
+      ],
+      "title" : "Dungeon Delve",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/dungeon-delve\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 151,
+      "id" : "critter-quest",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/critter-quest\/main.absc"
+      ],
+      "summary" : "草むらでふしぎな生き物「クリッター」に出会ったら、ターン制バトルでつかまえよう。チームを育ててトレーナーに勝て！",
+      "tags" : [
+        "monsters",
+        "rpg",
+        "turn-based"
+      ],
+      "title" : "Critter Quest",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/critter-quest\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 40,
+      "id" : "blade-summon-sim",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/blade-summon-sim\/main.absc"
+      ],
+      "summary" : "武器を召喚すると、まわりをぐるぐる回って勝手に敵をたおしてくれる。コインでガチャを回して、最強の武器軍団を。",
+      "tags" : [
+        "idle",
+        "summon",
+        "collect"
+      ],
+      "title" : "Blade Summon Sim",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/blade-summon-sim\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 28,
+      "id" : "crusher-yard",
+      "maxPlayers" : 10,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/crusher-yard\/main.absc"
+      ],
+      "summary" : "車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。",
+      "tags" : [
+        "simulator",
+        "cars",
+        "satisfying"
+      ],
+      "title" : "Crusher Yard",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/crusher-yard\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 54,
+      "id" : "slime-merge",
+      "maxPlayers" : 10,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/slime-merge\/main.absc"
+      ],
+      "summary" : "草原のスライムをつかまえて、同じレベルどうしを合体！台にのせるとお金を生む。最強スライムを作りだせ。",
+      "tags" : [
+        "merge",
+        "idle",
+        "cute"
+      ],
+      "title" : "Slime Merge",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/slime-merge\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 97,
+      "id" : "mansion-builder-tycoon",
+      "maxPlayers" : 8,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/mansion-builder-tycoon\/main.absc"
+      ],
+      "summary" : "小さな家から大豪邸へ。お金をためて部屋、プール、ガレージ、ヘリポートを順番に建てていくタイクーン。",
+      "tags" : [
+        "tycoon",
+        "build",
+        "rich"
+      ],
+      "title" : "Mansion Builder Tycoon",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/mansion-builder-tycoon\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 69,
+      "id" : "plus-one-speed-escape",
+      "maxPlayers" : 12,
+      "schemaVersion" : 1,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/plus-one-speed-escape\/main.absc"
+      ],
+      "summary" : "1秒ごとにスピードが+1！うしろからせまる巨大なかべから逃げて、どこまで遠くへ行けるか。転生でさらに速く。",
+      "tags" : [
+        "runner",
+        "speed",
+        "idle"
+      ],
+      "title" : "+1 Speed Wall Escape",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/plus-one-speed-escape\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

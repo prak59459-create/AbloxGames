@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 93,
+  "id" : "buzz-meadow",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/buzz-meadow\/main.absc"
+  ],
+  "summary" : "ハチを集めて花畑で花粉を集め、巣でハチミツに変えよう。ハチが増えるほど強くなり、奥の花畑へ行ける。",
+  "tags" : [
+    "simulator",
+    "bees",
+    "collect"
+  ],
+  "title" : "Buzz Meadow",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/buzz-meadow\/world.ablox"
+}

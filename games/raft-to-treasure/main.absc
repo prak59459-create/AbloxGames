@@ -1,0 +1,112 @@
+-- Raft to Treasure — ブロックで橋やいかだを作って、川の先の宝箱へ
+
+kit_setup("Raft to Treasure", "作って、わたって、宝をつかめ", [
+  "下のボタンで材料を選び「🔨 置く」で目の前にブロックを置く",
+  "川の水や岩にふれるとスタートにもどされる！橋をかけて進もう",
+  "緑のパッド（ステージ）に着くたびにゴールド",
+  "いちばん奥の宝箱にたどりつけば大もうけ",
+  "置いたブロックは残るので、みんなで協力して道を作れる"
+])
+kit_currency = "ゴールド"
+
+let materials = [
+  {id: "wood", name: "木の板", price: 3, size: {x: 3, y: 0.4, z: 3}, color: "#A16207", material: "plastic", behavior: "none"},
+  {id: "long", name: "長い板", price: 6, size: {x: 2, y: 0.4, z: 7}, color: "#92400E", material: "plastic", behavior: "none"},
+  {id: "metal", name: "鉄の床", price: 8, size: {x: 4, y: 0.5, z: 4}, color: "#9CA3AF", material: "metal", behavior: "none"},
+  {id: "bounce", name: "ジャンプ台", price: 15, size: {x: 2.4, y: 0.4, z: 2.4}, color: "#22C55E", material: "neon", behavior: "bounce"}
+]
+
+kit_quest("stage3", "ステージ3に着く", 1, 100)
+kit_quest("build", "ブロックを30個置く", 30, 80)
+kit_quest("chest", "宝箱にたどりつく", 1, 500)
+
+func find(id)
+  for m in materials do
+    if m.id == id then return m end
+  end
+  return materials[1]
+end
+
+func show(p)
+  let m = find(p.mat)
+  p.ui_text("mat", "🔨 " + m.name + "（" + m.price + "G）   🏁 最高ステージ " + p.best, {at: "top", dy: 30, size: 17, bold: true})
+end
+
+on start()
+  every(10, func() kit_leaderboard("🏁") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.mat = "wood"
+  p.best = 0
+  p.stage = 0
+  kit_give(p, 60)
+  let i = 0
+  for m in materials do
+    i = i + 1
+    p.ui_button("mat_" + m.id, m.name, {at: "bottom", dx: (i - 2.5) * 110, dy: -96, w: 104, h: 48, size: 15, bg: m.color, radius: 12})
+  end
+  p.ui_button("place", "🔨 置く", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#0EA5E9", radius: 16})
+  p.ui_button("undo", "↩", {at: "bottom_right", dx: -240, dy: -160, w: 70, h: 64, size: 22, bg: "#6B7280", radius: 16})
+  show(p)
+end
+
+on leave(p)
+  for b in blocks("by" + p.id) do b.destroy() end
+end
+
+on button(p, id)
+  if starts_with(id, "mat_") then
+    p.mat = replace(id, "mat_", "")
+    show(p)
+  elif id == "place" and p.alive then
+    let m = find(p.mat)
+    if not kit_pay(p, m.price) then return end
+    let spot = kit_ahead(p, 3)
+    create_block({name: m.name, position: {x: spot.x, y: max(-0.8, p.y - 0.3), z: spot.z}, size: m.size, color: m.color,
+                  material: m.material, behavior: m.behavior, rotation: {x: 0, y: round(p.yaw / 45) * 45, z: 0}, tags: ["built", "by" + p.id]})
+    kit_quest_progress(p, "build", 1)
+  elif id == "undo" then
+    let mine = blocks("by" + p.id)
+    if len(mine) > 0 then
+      mine[len(mine)].destroy()
+      kit_give(p, 1)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "goal") then
+    let n = num(split(b.name, " ")[2])
+    if n > p.stage then
+      p.stage = n
+      let reward = n * 15
+      kit_give(p, reward)
+      p.message("🏁 ステージ " + n + "！ +" + reward + "G", 2)
+      p.sound("checkpoint")
+      if n > p.best then
+        p.best = n
+        p.score = n
+      end
+      if n >= 3 then kit_quest_progress(p, "stage3", 1) end
+      show(p)
+    end
+  elif contains(b.tags, "chest") then
+    if kit_ready(p, "chest", 30) then
+      kit_give(p, 400)
+      p.score = 10
+      kit_quest_progress(p, "chest", 1)
+      kit_badge(p, "treasure", "宝さがし名人")
+      announce("💰 " + p.name + " が宝箱にたどりついた！", 4)
+      p.stage = 0
+      kit_later(p, 3, func() p.teleport(block("Dock")) end)
+    end
+  end
+end
+
+on respawn(p)
+  p.stage = 0
+end

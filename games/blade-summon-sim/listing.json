@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 40,
+  "id" : "blade-summon-sim",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/blade-summon-sim\/main.absc"
+  ],
+  "summary" : "武器を召喚すると、まわりをぐるぐる回って勝手に敵をたおしてくれる。コインでガチャを回して、最強の武器軍団を。",
+  "tags" : [
+    "idle",
+    "summon",
+    "collect"
+  ],
+  "title" : "Blade Summon Sim",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/blade-summon-sim\/world.ablox"
+}

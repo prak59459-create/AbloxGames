@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 28,
+  "id" : "crusher-yard",
+  "maxPlayers" : 10,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/crusher-yard\/main.absc"
+  ],
+  "summary" : "車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。",
+  "tags" : [
+    "simulator",
+    "cars",
+    "satisfying"
+  ],
+  "title" : "Crusher Yard",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/crusher-yard\/world.ablox"
+}

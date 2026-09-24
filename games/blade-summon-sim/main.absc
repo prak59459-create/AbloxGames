@@ -1,0 +1,155 @@
+-- Blade Summon Sim — 召喚した武器がまわりを回って、勝手に敵をたおす
+
+kit_setup("Blade Summon Sim", "召喚して、放置して、強くなれ", [
+  "金色の祭壇にさわると武器ガチャ（コインが必要）",
+  "強い武器3本があなたのまわりを回って、近くの敵を自動でこうげき",
+  "敵をたおすとコイン。奥のエリアほど敵が強くてもうかる",
+  "オレンジのゲートはコインを払うと通れる",
+  "同じ武器が3本そろうと自動で合体して強くなる"
+])
+
+let blades = [
+  {name: "木の剣", power: 1, weight: 40, color: "#A16207"},
+  {name: "鉄の剣", power: 3, weight: 30, color: "#9CA3AF"},
+  {name: "水晶の剣", power: 8, weight: 15, color: "#67E8F9"},
+  {name: "炎の剣", power: 20, weight: 9, color: "#F97316"},
+  {name: "雷の槍", power: 50, weight: 4, color: "#FACC15"},
+  {name: "星の大剣", power: 140, weight: 1.5, color: "#C4B5FD"},
+  {name: "神話の刃", power: 500, weight: 0.4, color: "#F0ABFC"}
+]
+let area_names = ["Training Grounds", "Crystal Cave", "Lava Fields", "Sky Palace"]
+let gate_price = [0, 800, 12000, 200000]
+let summon_price = 50
+let orbit = {}
+
+kit_quest("summon", "10回召喚する", 10, 200)
+kit_quest("area2", "クリスタルの洞窟に入る", 1, 200)
+kit_quest("kills", "敵を50体たおす", 50, 300)
+
+func power(p)
+  let best = sort(p.owned, func(a, b) return a.power > b.power end)
+  let t = 0
+  for b in slice(best, 1, 3) do t = t + b.power end
+  return t
+end
+
+func show(p)
+  p.ui_text("pow", "⚔️ パワー " + kit_short(power(p)) + "   🗡 " + len(p.owned) + " 本", {at: "top", dy: 30, size: 18, bold: true})
+  p.score = floor(power(p))
+end
+
+func rebuild_orbit(p)
+  for b in orbit[p.id] or [] do b.destroy() end
+  let made = []
+  let best = sort(p.owned, func(a, b) return a.power > b.power end)
+  for w in slice(best, 1, 3) do
+    append(made, create_block({name: w.name, position: p.position + {x: 0, y: 2, z: 0}, size: {x: 0.3, y: 1.6, z: 0.3},
+                               color: w.color, material: "neon", solid: false}))
+  end
+  orbit[p.id] = made
+end
+
+func merge(p)
+  for w in blades do
+    let same = filter(p.owned, func(o) return o.name == w.name and not o.merged end)
+    if len(same) >= 3 then
+      for k in 1 to 3 do remove(p.owned, index_of(p.owned, same[k])) end
+      append(p.owned, {name: w.name + "★", power: w.power * 4, color: w.color, merged: true})
+      p.message("✨ " + w.name + " ×3 が合体！", 2)
+    end
+  end
+end
+
+func spawn_enemy(area, k)
+  let spot = block("Enemy " + area + " " + k)
+  let hp = 20 * pow(15, area - 1)
+  let n = create_npc({name: ["ワラ人形", "水晶ゴーレム", "溶岩トカゲ", "天空の騎士"][area], position: spot.position + {x: 0, y: 1, z: 0},
+                      color: ["#CA8A04", "#7C3AED", "#DC2626", "#E0F2FE"][area], health: hp, speed: 0, team: "enemies"})
+  n.frozen = true
+  n.area = area
+  n.slot = k
+  n.reward = floor(hp / 3)
+end
+
+on start()
+  for a in 1 to 4 do
+    for k in 1 to 6 do spawn_enemy(a, k) end
+  end
+  every(1, func()
+    for p in players() do
+      let pw = power(p)
+      if pw > 0 then
+        let target = nil
+        for n in npcs() do
+          if n.team == "enemies" and distance(p, n) < 12 and (target == nil or distance(p, n) < distance(p, target)) then target = n end
+        end
+        if target != nil then target.damage(pw, p) end
+      end
+    end
+  end)
+  every(0.5, func()
+    for p in players() do
+      let list = orbit[p.id] or []
+      let i = 0
+      for b in list do
+        i = i + 1
+        let a = time() * 180 + i * 120
+        b.position = p.position + {x: cos(a) * 2, y: 1.4, z: sin(a) * 2}
+      end
+    end
+  end)
+  every(10, func() kit_leaderboard("⚔️") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.owned = [blades[1]]
+  p.area = 1
+  kit_give(p, 100)
+  rebuild_orbit(p)
+  show(p)
+end
+
+on leave(p)
+  for b in orbit[p.id] or [] do b.destroy() end
+  remove(orbit, p.id)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "altar") and kit_ready(p, "summon", 0.8) then
+    if kit_pay(p, summon_price) then
+      let w = kit_pick(blades, 1)
+      append(p.owned, {name: w.name, power: w.power, color: w.color})
+      p.message("🗡 " + w.name + "（パワー " + w.power + "）", 1.5)
+      if w.weight <= 1.5 then announce("🌟 " + p.name + " が「" + w.name + "」を召喚した！", 3) end
+      kit_quest_progress(p, "summon", 1)
+      merge(p)
+      rebuild_orbit(p)
+      show(p)
+    end
+  elif contains(b.tags, "gate") then
+    let n = num(split(b.name, " ")[3])
+    if p.area >= n then return end
+    if p.area == n - 1 and kit_pay(p, gate_price[n]) then
+      p.area = n
+      p.message("🔓 " + area_names[n] + " へ！", 2)
+      if n == 2 then kit_quest_progress(p, "area2", 1) end
+    else
+      p.message("🔒 " + area_names[n] + " は 💰" + kit_short(gate_price[n]), 1.5)
+      p.teleport(block(area_names[max(1, n - 1)] + " Ground"))
+    end
+  end
+end
+
+on death(victim, killer)
+  if victim.team != "enemies" then return end
+  let a = victim.area
+  let k = victim.slot
+  after(3, func() spawn_enemy(a, k) end)
+  if killer != nil and not killer.is_npc then
+    kit_give(killer, victim.reward)
+    kit_quest_progress(killer, "kills", 1)
+  end
+end

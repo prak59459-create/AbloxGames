@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 89,
+  "id" : "toy-army-tycoon",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/toy-army-tycoon\/main.absc"
+  ],
+  "summary" : "おもちゃの兵隊を買って基地を大きくするタイクーン。定期的におそってくる敵軍から、兵隊とタレットでコアを守れ。",
+  "tags" : [
+    "tycoon",
+    "army",
+    "defense"
+  ],
+  "title" : "Toy Army Tycoon",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/toy-army-tycoon\/world.ablox"
+}

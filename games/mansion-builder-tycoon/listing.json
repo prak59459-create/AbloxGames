@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 97,
+  "id" : "mansion-builder-tycoon",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/mansion-builder-tycoon\/main.absc"
+  ],
+  "summary" : "小さな家から大豪邸へ。お金をためて部屋、プール、ガレージ、ヘリポートを順番に建てていくタイクーン。",
+  "tags" : [
+    "tycoon",
+    "build",
+    "rich"
+  ],
+  "title" : "Mansion Builder Tycoon",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/mansion-builder-tycoon\/world.ablox"
+}

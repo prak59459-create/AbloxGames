@@ -240,13 +240,22 @@ func ridgeport(_ m: MapBuilder) {
 
 /// A tycoon plot: a floor, and "Plot N Buy K" pads with hidden "Plot N Item K"
 /// blocks that appear when bought.
-func tycoonPlot(_ m: MapBuilder, n: Int, x: Float, z: Float, color: String, items: [(String, Float, Float, V, String, BlockShape)]) {
+func tycoonPlot(_ m: MapBuilder, n: Int, x: Float, z: Float, color: String, items: [(String, Float, Float, V, String, BlockShape)],
+                lifts: [Float] = [], padRow: Bool = false) {
     m.slab("Plot \(n) Floor", x: x, y: 0, z: z, w: 30, h: 0.2, d: 30, color: "#E7E5E4", tags: ["plot"])
     m.pad("Plot \(n) Claim", x: x, z: z + 17, size: 2.4, color: color, tags: ["claim"])
     for (k, item) in items.enumerated() {
-        m.part("Plot \(n) Item \(k + 1)", at: (x + item.1, 0.2 + item.3.1 / 2, z + item.2), size: item.3, color: item.4, shape: item.5,
+        let lift = k < lifts.count ? lifts[k] : 0
+        m.part("Plot \(n) Item \(k + 1)", at: (x + item.1, 0.2 + lift + item.3.1 / 2, z + item.2), size: item.3, color: item.4, shape: item.5,
                tags: ["item"], solid: false, visible: false)
-        m.pad("Plot \(n) Buy \(k + 1)", x: x + item.1, z: z + item.2 + item.3.2 / 2 + 1.2, y: 0.2, size: 1.4, color: "#22C55E", tags: ["buy"])
+        if padRow {
+            // One row along the front edge, so items stacked on the same
+            // spot still get a pad each.
+            let px = x - 13 + Float(k) * (26 / Float(max(1, items.count - 1)))
+            m.pad("Plot \(n) Buy \(k + 1)", x: px, z: z + 13.5, y: 0.2, size: 1.4, color: "#22C55E", tags: ["buy"])
+        } else {
+            m.pad("Plot \(n) Buy \(k + 1)", x: x + item.1, z: z + item.2 + item.3.2 / 2 + 1.2, y: 0.2, size: 1.4, color: "#22C55E", tags: ["buy"])
+        }
     }
 }
 

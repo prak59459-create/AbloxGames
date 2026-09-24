@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 41,
+  "id" : "obby-maker",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/obby-maker\/main.absc"
+  ],
+  "summary" : "自分だけのアスレチックコースを作って公開しよう。足場、溶岩、ジャンプ台、チェックポイント。友だちのコースにも挑戦！",
+  "tags" : [
+    "obby",
+    "build",
+    "creative"
+  ],
+  "title" : "Obby Maker",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/obby-maker\/world.ablox"
+}

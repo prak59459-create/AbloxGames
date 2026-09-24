@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 69,
+  "id" : "plus-one-speed-escape",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/plus-one-speed-escape\/main.absc"
+  ],
+  "summary" : "1秒ごとにスピードが+1！うしろからせまる巨大なかべから逃げて、どこまで遠くへ行けるか。転生でさらに速く。",
+  "tags" : [
+    "runner",
+    "speed",
+    "idle"
+  ],
+  "title" : "+1 Speed Wall Escape",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/plus-one-speed-escape\/world.ablox"
+}

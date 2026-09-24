@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 101,
+  "id" : "dungeon-delve",
+  "maxPlayers" : 8,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/dungeon-delve\/main.absc"
+  ],
+  "summary" : "ダンジョンの部屋を次々に攻略するハクスラ。敵をたおしてレアな剣やよろいを手に入れ、最深部のボスをたおせ。",
+  "tags" : [
+    "dungeon",
+    "loot",
+    "coop"
+  ],
+  "title" : "Dungeon Delve",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/dungeon-delve\/world.ablox"
+}

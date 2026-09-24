@@ -1,0 +1,124 @@
+-- Mansion Builder Tycoon — 小さな家から大豪邸へ
+
+kit_setup("Mansion Builder Tycoon", "家賃をかせいで、大豪邸を建てよう", [
+  "色のパッドにさわると、その土地があなたのものに",
+  "前に並んだ緑のパッドを順番に買うと、豪邸が少しずつできていく",
+  "建てるほど家賃収入（毎秒）が増える",
+  "「📈 投資」で家賃の倍率を上げられる",
+  "全部建てたら「豪邸マスター」！"
+])
+
+let items = ["土台", "1階のかべ", "リビング", "キッチン", "2階", "プール", "ガレージ", "噴水", "タワー", "ヘリポート"]
+let prices = [0, 100, 250, 500, 1200, 2500, 5000, 9000, 16000, 30000]
+let rents = [2, 3, 5, 8, 15, 25, 40, 60, 100, 200]
+let owner = {}
+let bought = {}
+
+kit_quest("five", "5つ建てる", 5, 300)
+kit_quest("all", "全部建てる", 10, 3000)
+kit_quest("invest", "3回投資する", 3, 500)
+
+func has(plot, k)
+  return bought[plot + ":" + k] == true
+end
+
+func rent(p)
+  if p.plot == nil then return 0 end
+  let r = 0
+  for k in 1 to len(items) do
+    if has(p.plot, str(k)) then r = r + rents[k] end
+  end
+  return r * p.mult
+end
+
+func show(p)
+  if p.plot == nil then return end
+  p.ui_text("rent", "🏰 家賃 " + kit_short(rent(p)) + "/秒   倍率 ×" + fixed(p.mult, 1), {at: "top", dy: 30, size: 18, bold: true})
+end
+
+func buy(p, plot, k)
+  let n = num(k)
+  if has(plot, k) then return end
+  if n > 1 and not has(plot, str(n - 1)) then
+    p.message("先に「" + items[n - 1] + "」", 1.5)
+    return
+  end
+  if not kit_pay(p, prices[n]) then return end
+  bought[plot + ":" + k] = true
+  let item = block("Plot " + plot + " Item " + k)
+  item.visible = true
+  item.solid = true
+  kit_quest_progress(p, "five", 1)
+  kit_quest_progress(p, "all", 1)
+  p.message("🏗 " + items[n] + " を建てた！", 1.5)
+  if n == len(items) then
+    kit_badge(p, "mansion", "豪邸マスター")
+    announce("🏰 " + p.name + " の大豪邸が完成した！", 4)
+  end
+  show(p)
+end
+
+on start()
+  every(1, func()
+    for p in players() do
+      let r = rent(p)
+      if r > 0 then
+        kit_give(p, r)
+        p.score = p.coins
+      end
+    end
+  end)
+  every(10, func() kit_leaderboard("🏰") end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  p.mult = 1
+  p.invested = 0
+  kit_give(p, 50)
+  p.ui_button("invest", "📈 投資", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#16A34A"})
+end
+
+on leave(p)
+  if p.plot != nil then
+    let plot = p.plot
+    remove(owner, plot)
+    for k in 1 to len(items) do
+      remove(bought, plot + ":" + k)
+      let item = block("Plot " + plot + " Item " + k)
+      item.visible = false
+      item.solid = false
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  let parts = split(b.name, " ")
+  if contains(b.tags, "claim") then
+    let plot = parts[2]
+    if owner[plot] == nil and p.plot == nil then
+      owner[plot] = p.id
+      p.plot = plot
+      buy(p, plot, "1")
+    end
+  elif contains(b.tags, "buy") and p.plot == parts[2] then
+    buy(p, parts[2], parts[4])
+  end
+end
+
+on button(p, id)
+  if id == "invest" then
+    let cost = floor(500 * pow(3, p.invested))
+    if kit_pay(p, cost) then
+      p.invested = p.invested + 1
+      p.mult = p.mult + 0.5
+      kit_quest_progress(p, "invest", 1)
+      p.message("📈 家賃 ×" + fixed(p.mult, 1) + "（次の投資 " + kit_short(floor(500 * pow(3, p.invested))) + "）", 2)
+      show(p)
+    else
+      p.message("投資には " + kit_short(cost), 1.5)
+    end
+  end
+end

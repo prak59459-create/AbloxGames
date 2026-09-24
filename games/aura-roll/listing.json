@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 36,
+  "id" : "aura-roll",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/aura-roll\/main.absc"
+  ],
+  "summary" : "ボタンを押してオーラを引く運だめし。天気が変わると特別なオーラが出やすくなる。1億分の1を引き当てろ！",
+  "tags" : [
+    "rng",
+    "collect",
+    "idle"
+  ],
+  "title" : "Aura Roll",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/aura-roll\/world.ablox"
+}

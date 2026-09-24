@@ -1,0 +1,126 @@
+-- Crusher Yard — 車をつぶして資金をかせぐ
+
+kit_setup("Crusher Yard", "グシャッとつぶして、次の車へ", [
+  "オレンジのパッドで、つぶす車を選ぶ（お金で新しい車を解放）",
+  "緑のパッドにさわると、その機械のベルトに車がのる",
+  "プレス機・シュレッダー・溶岩プールでそれぞれ倍率がちがう",
+  "大きくて高い車ほど、つぶしたときにもうかる",
+  "🛒で機械のパワーアップ（倍率アップ）"
+])
+
+let cars = [
+  {name: "ボロ車", value: 10, price: 0, size: {x: 1.8, y: 1.2, z: 3.6}, color: "#A8A29E"},
+  {name: "セダン", value: 30, price: 150, size: {x: 2, y: 1.4, z: 4.2}, color: "#3B82F6"},
+  {name: "トラック", value: 90, price: 800, size: {x: 2.4, y: 2.2, z: 6}, color: "#DC2626"},
+  {name: "バス", value: 250, price: 3000, size: {x: 2.6, y: 2.8, z: 9}, color: "#FACC15"},
+  {name: "戦車", value: 800, price: 12000, size: {x: 3, y: 2, z: 6}, color: "#4D7C0F"},
+  {name: "ロケット", value: 3000, price: 50000, size: {x: 2, y: 2, z: 10}, color: "#E5E7EB"}
+]
+let machines = {Press: 1, Shredder: 1.4, "Lava Pit": 1.8}
+let busy = {}
+
+kit_shop_add("boost", "機械のパワーアップ（倍率 +50%）", 300, func(p) p.mult = p.mult + 0.5 end)
+kit_shop_add("boost2", "スーパー機械（倍率 ×2）", 5000, func(p) p.mult = p.mult * 2 end)
+
+kit_quest("crush", "20台つぶす", 20, 150)
+kit_quest("unlock", "トラックを解放する", 1, 200)
+kit_quest("all", "3つの機械ぜんぶ使う", 3, 100)
+
+func car_menu(p)
+  let h = 110 + len(cars) * 48
+  p.ui_panel("cars", {at: "center", w: 380, h: h, bg: "#1C1917F0", radius: 22, layer: 30})
+  p.ui_text("cars_t", "🚗 車をえらぶ", {parent: "cars", y: 26 / h, size: 21, bold: true})
+  let i = 0
+  for c in cars do
+    i = i + 1
+    let owned = contains(p.unlocked, c.name)
+    p.ui_button("car_" + i, c.name + "（価値 " + kit_short(c.value) + "）" + (owned and "" or (" 🔒" + kit_short(c.price))),
+                {parent: "cars", y: (26 + i * 48) / h, w: 320, h: 40, size: 15, bg: owned and c.color or "#374151", color: owned and "#111111" or "#FFFFFF"})
+  end
+  p.ui_button("cars_close", "閉じる", {parent: "cars", y: (h - 24) / h, w: 120, h: 34, size: 14, bg: "gray"})
+end
+
+func show(p)
+  p.ui_text("sel", "🚗 " + p.car.name + "   倍率 ×" + fixed(p.mult, 1), {at: "top", dy: 30, size: 17, bold: true})
+end
+
+func crush(p, machine)
+  if busy[machine] then
+    p.message("いま使用中… ちょっと待って", 1)
+    return
+  end
+  busy[machine] = true
+  if p.used == nil then p.used = [] end
+  if not contains(p.used, machine) then
+    append(p.used, machine)
+    kit_quest_progress(p, "all", 1)
+  end
+  let car = p.car
+  let start = block(machine + " Start")
+  let b = create_block({name: "Car", position: start.position + {x: 0, y: car.size.y / 2 - 0.9, z: 0}, size: car.size, color: car.color, material: "metal"})
+  b.move_to(block(machine + " End").position + {x: 0, y: car.size.y / 2 - 0.9, z: 0}, 3)
+  after(3.2, func()
+    if machine == "Press" then
+      let head = block("Press Head")
+      head.move(0, -4, 0, 0.3)
+      after(0.4, func()
+        b.size = {x: car.size.x * 1.2, y: 0.3, z: car.size.z}
+        shake(0.1, 0.3)
+      end)
+      after(1.2, func() head.move(0, 4, 0, 0.8) end)
+    elif machine == "Shredder" then
+      b.color = "#57534E"
+      b.size = car.size * 0.5
+    else
+      b.move(0, -3, 0, 1)
+      b.color = "#F97316"
+    end
+    after(1.5, func()
+      b.destroy()
+      busy[machine] = false
+      if kit_here(p) then
+        let earned = floor(car.value * machines[machine] * p.mult)
+        kit_give(p, earned)
+        p.score = p.score + earned
+        p.message("💥 " + car.name + " をつぶした！ +" + kit_short(earned), 1.5)
+        kit_quest_progress(p, "crush", 1)
+      end
+    end)
+  end)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  p.unlocked = ["ボロ車"]
+  p.car = cars[1]
+  p.mult = 1
+  kit_give(p, 20)
+  show(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "menu") and kit_ready(p, "menu", 3) then
+    car_menu(p)
+  elif contains(b.tags, "load") and kit_ready(p, "load", 2) then
+    crush(p, replace(b.name, " Load", ""))
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "car_") then
+    let c = cars[num(replace(id, "car_", ""))]
+    if not contains(p.unlocked, c.name) then
+      if not kit_pay(p, c.price) then return end
+      append(p.unlocked, c.name)
+      if c.name == "トラック" then kit_quest_progress(p, "unlock", 1) end
+    end
+    p.car = c
+    p.ui_remove("cars")
+    show(p)
+  elif id == "cars_close" then
+    p.ui_remove("cars")
+  end
+end

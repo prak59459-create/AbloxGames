@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 151,
+  "id" : "critter-quest",
+  "maxPlayers" : 12,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/critter-quest\/main.absc"
+  ],
+  "summary" : "草むらでふしぎな生き物「クリッター」に出会ったら、ターン制バトルでつかまえよう。チームを育ててトレーナーに勝て！",
+  "tags" : [
+    "monsters",
+    "rpg",
+    "turn-based"
+  ],
+  "title" : "Critter Quest",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/critter-quest\/world.ablox"
+}

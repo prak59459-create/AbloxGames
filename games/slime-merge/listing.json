@@ -1,0 +1,20 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 54,
+  "id" : "slime-merge",
+  "maxPlayers" : 10,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/slime-merge\/main.absc"
+  ],
+  "summary" : "草原のスライムをつかまえて、同じレベルどうしを合体！台にのせるとお金を生む。最強スライムを作りだせ。",
+  "tags" : [
+    "merge",
+    "idle",
+    "cute"
+  ],
+  "title" : "Slime Merge",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/slime-merge\/world.ablox"
+}
