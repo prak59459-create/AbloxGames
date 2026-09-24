@@ -1,0 +1,290 @@
+-- ambulance.absc — 救急車
+-- 救急要請 → 救急車（ER Bay・赤いパッド）の近くで🚑 → 事故現場へ → けが人の横で🩺（3回）
+-- → けが人がついてくる → 🚑でいっしょに病院へ → 受付の先頭（🔴優先・バイタル測定ずみ）
+-- 救急車は1台。出動中は、ほかの人は出動できない
+
+let calls = []             -- {uid, spot, npc, care, ill, until, by, carrier}
+let call_uid = 0
+let amb_out = nil          -- 出動中のプレイヤー id
+let amb_clock = 0
+let call_clock = 0
+let next_call = 35
+let amb_home = nil
+let light_home = nil
+let SPOT_NAMES = ["公園", "交差点", "工事現場", "住宅街"]
+
+func need_care()
+  return max(1, 3 - upg.ambulance)
+end
+
+func call_by_uid(uid)
+  for c in calls do
+    if c.uid == uid then return c end
+  end
+  return nil
+end
+
+func drop_call(c)
+  calls = filter(calls, func(x) return x.uid != c.uid end)
+end
+
+func park_ambulance(pos)
+  let a = block("Ambulance")
+  let l = block("Ambulance Light")
+  if a == nil or amb_home == nil then return end
+  if pos == nil then
+    a.position = amb_home
+    if l != nil then l.position = light_home end
+  else
+    a.position = {x: pos.x, y: amb_home.y, z: pos.z}
+    if l != nil then l.position = {x: pos.x, y: light_home.y, z: pos.z} end
+  end
+end
+
+func new_call()
+  if len(calls) >= 3 then return nil end
+  let free = []
+  for i in 1 to 4 do
+    let used = false
+    for c in calls do
+      if c.spot == i then used = true end
+    end
+    if not used and block("Accident Spot " + i) != nil then append(free, i) end
+  end
+  if len(free) == 0 then return nil end
+  let spot = random(free)
+  let pos = block("Accident Spot " + spot).position
+  let n = create_npc({name: "けが人", position: pos + {x: 0, y: 1, z: 0}, color: random(["#FCA5A5", "#FDE68A", "#93C5FD", "#D9F99D"]),
+                      head_color: random(["#F5D0A9", "#E0AC69", "#8D5524"]), health: 999999, speed: 0.9})
+  n.frozen = true
+  call_uid = call_uid + 1
+  let c = {uid: call_uid, spot: spot, npc: n, care: 0, ill: ill_by_id(random(ACCIDENT_ILLS)), until: time() + 120, by: nil, carrier: nil}
+  append(calls, c)
+  announce("🚨 救急要請！ " + SPOT_NAMES[spot] + " で事故。救急車（入口の右・赤いパッド）で🚑出動！", 3)
+  for p in staff() do
+    if p.role == "paramedic" then p.sound("error") end
+  end
+  return c
+end
+
+func near_ambulance(p)
+  let er = block("ER Bay")
+  let a = block("Ambulance")
+  return (er != nil and distance(p, er.position) < 9) or (a != nil and distance(p, a.position) < 8)
+end
+
+func amb_button(p)
+  if not ready(p) then return end
+  if not is_staff(p) then
+    p.message("救急車はスタッフのお仕事", 1.2)
+    return
+  end
+  if p.escort != nil then
+    transport(p)
+    return
+  end
+  if p.amb_call != nil then
+    come_back(p, "🚑 病院へもどった")
+    return
+  end
+  if amb_out != nil and amb_out != p.id then
+    let who = player_by_id(amb_out)
+    let name = "だれか"
+    if who != nil then name = who.name end
+    p.message("🚑 救急車は出動中（" + name + "）", 1.5)
+    return
+  end
+  let c = nil
+  for x in calls do
+    if c == nil and x.by == nil and x.carrier == nil then c = x end
+  end
+  if c == nil then
+    p.message("🚨 いまは救急要請がない（要請が来たら知らせるよ）", 1.5)
+    return
+  end
+  if not near_ambulance(p) then
+    p.message("🚑 救急車（入口の右・赤いパッド）の近くで押そう", 1.8)
+    return
+  end
+  amb_out = p.id
+  c.by = p.id
+  p.amb_call = c.uid
+  let pos = block("Accident Spot " + c.spot).position
+  p.fade("#000000", 0.4)
+  p.sound("error")
+  kit_later(p, 0.5, func()
+    p.teleport(pos + {x: 3, y: 1, z: 3})
+    park_ambulance(pos + {x: 7, y: 0, z: 0})
+    p.fade(nil, 0.5)
+    p.message("🩺 けが人の横で🩺を" + need_care() + "回押して手当て", 2.5)
+  end)
+end
+
+-- 🩺: 事故現場のけが人の手当て（手当てしたら true）
+func treat_injured(p)
+  for c in calls do
+    if c.carrier == nil and kit_here(c.npc) and distance(p, c.npc) < 4 then
+      if not quiet_ready(p, "treat", 0.4) then return true end
+      c.care = c.care + 1
+      fx_ball(c.npc.position + {x: 0, y: 1.3, z: 0}, 0.8, "#FB923C", 0.3)
+      if c.care >= need_care() then
+        c.carrier = p.id
+        c.npc.frozen = false
+        c.npc.follow(p)
+        p.escort = c.uid
+        p.message("🩹 手当て完了！ 🚑を押していっしょに病院へ", 2.5)
+        hud(p)
+      else
+        p.message("🩺 手当て中 " + c.care + "/" + need_care(), 0.8)
+      end
+      return true
+    end
+  end
+  return false
+end
+
+func transport(p)
+  let c = call_by_uid(p.escort)
+  if c == nil or not kit_here(c.npc) then
+    p.escort = nil
+    hud(p)
+    return
+  end
+  let n = c.npc
+  if distance(p, n) > 10 then n.teleport(p.position + {x: 1.2, y: 0.5, z: 1.2}) end
+  p.fade("#000000", 0.4)
+  kit_later(p, 0.5, func()
+    let er = block("ER Bay")
+    p.teleport(er.position + {x: -2, y: 1, z: 0})
+    p.fade(nil, 0.5)
+    drop_call(c)
+    p.escort = nil
+    p.amb_call = nil
+    if amb_out == p.id then amb_out = nil end
+    park_ambulance(nil)
+    if kit_here(n) then
+      -- 受付の先頭へ（救急車でバイタルは測ってある）
+      let pt = make_record(c.ill)
+      pt.body = n
+      pt.er = true
+      pt.vitals = true
+      pt.stage = "waiting"
+      helped(pt, p)
+      n.stop()
+      n.teleport(queue_spot(1) + {x: 0, y: 0.5, z: -1.2})
+    end
+    let pay = 50 + upg.ambulance * 25
+    earn(p, "rescue", pay, "🚑 搬送完了！")
+    kit_quest_progress(p, "rescue", 1)
+    day_step("rescue", 1)
+    rate_up(0.1)
+    for q in staff() do
+      if q.id != p.id then q.message("🚑 救急搬送の患者さんが受付に（先に受付してね）", 2) end
+    end
+  end)
+end
+
+func come_back(p, why)
+  let c = call_by_uid(p.amb_call)
+  if c != nil and c.by == p.id then c.by = nil end
+  p.amb_call = nil
+  if amb_out == p.id then amb_out = nil end
+  park_ambulance(nil)
+  p.fade("#000000", 0.4)
+  kit_later(p, 0.5, func()
+    let er = block("ER Bay")
+    p.teleport(er.position + {x: -2, y: 1, z: 0})
+    p.fade(nil, 0.5)
+    p.message(why, 1.5)
+  end)
+end
+
+-- 抜けた・役割を変えた人の救急の仕事をもどす
+func drop_escort(p)
+  if p.escort != nil then
+    let c = call_by_uid(p.escort)
+    if c != nil then
+      c.carrier = nil
+      c.by = nil
+      c.care = 0
+      if kit_here(c.npc) then
+        c.npc.stop()
+        c.npc.frozen = true
+      end
+    end
+    p.escort = nil
+  end
+  if p.amb_call != nil then
+    let c2 = call_by_uid(p.amb_call)
+    if c2 != nil and c2.by == p.id then c2.by = nil end
+    p.amb_call = nil
+  end
+  if amb_out == p.id then
+    amb_out = nil
+    park_ambulance(nil)
+  end
+end
+
+on start()
+  let a = block("Ambulance")
+  let l = block("Ambulance Light")
+  if a != nil then amb_home = a.position end
+  if l != nil then light_home = l.position end
+end
+
+on tick(dt)
+  amb_clock = amb_clock + dt
+  if amb_clock < 0.5 then return end
+  let secs = amb_clock
+  amb_clock = 0
+  call_clock = call_clock + secs
+  if call_clock >= next_call then
+    call_clock = 0
+    next_call = random(45, 75)
+    if len(staff()) > 0 then new_call() end
+  end
+  for c in copy(calls) do
+    if c.by != nil and player_by_id(c.by) == nil then c.by = nil end
+    if not kit_here(c.npc) then
+      drop_call(c)
+    elif c.carrier == nil and time() > c.until then
+      drop_call(c)
+      gone(c.npc)
+      rate_down(0.2)
+      announce("🚨 " + SPOT_NAMES[c.spot] + " の救急要請にまにあわなかった…（ほかの病院が対応）", 3)
+    elif c.carrier != nil then
+      let m = player_by_id(c.carrier)
+      if m == nil or not is_staff(m) then
+        c.carrier = nil
+        c.by = nil
+        c.npc.stop()
+        c.npc.frozen = true
+      elif distance(c.npc, m) > 8 then
+        c.npc.teleport(m.position + {x: 1.2, y: 0.5, z: 1.2})
+      end
+    end
+  end
+  if amb_out != nil and player_by_id(amb_out) == nil then
+    amb_out = nil
+    park_ambulance(nil)
+  end
+  -- 出動中のサイレン
+  let l = block("Ambulance Light")
+  if l != nil then
+    if amb_out != nil and floor(time() * 2) % 2 == 0 then l.color = "#3B82F6" else l.color = "#EF4444" end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "erbay") and quiet_ready(p, "erbay", 2) then
+    if p.escort != nil then transport(p)
+    elif is_staff(p) and len(calls) > 0 and amb_out == nil then p.message("🚨 救急要請あり！ 🚑を押して出動", 1.5)
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "amb" then amb_button(p) end
+end

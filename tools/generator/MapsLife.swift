@@ -37,7 +37,7 @@ let lifeGames: [Game] = [
          summary: "4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！",
          tags: ["school", "rp", "minigames"], maxPlayers: 16, build: academyDays),
     Game(number: 44, id: "willow-hospital", title: "Willow Hospital RP",
-         summary: "病院で医者・看護師・患者になりきる。受付、診察、薬、治療。患者さんを元気にして病院の評判を上げよう。",
+         summary: "病院のお仕事RP。医者・看護師・外科医・薬剤師・救急隊・患者に。トリアージ、バイタル、12の病気の診断、薬の調合、手術、救急車の出動。病院の資金でベッドや設備を強化！",
          tags: ["rp", "hospital", "jobs"], maxPlayers: 12, build: willowHospital),
     Game(number: 45, id: "street-drive-empire", title: "Street Drive Empire",
          summary: "車を買って街を走るドライブゲーム。走った距離でお金がたまり、もっと速い車へ。サーキットでレースにも挑戦！",
@@ -546,22 +546,36 @@ func willowHospital(_ m: MapBuilder) {
     m.day(ground: "#A3E635")
     m.ground(120, 120, color: "#BEF264", name: "Lawn")
     m.slab("Hospital Floor", x: 0, y: 0, z: 0, w: 50, h: 0.2, d: 36, color: "#F8FAFC")
-    m.walls(0, 0, w: 50, d: 36, h: 5, y: 0.2, color: "#E0F2FE", name: "Hospital Wall")
+    // Walls with a five-metre entrance in the front (south) wall.
+    m.slab("Hospital Wall", x: 0, y: 0.2, z: -18, w: 51, h: 5, d: 1, color: "#E0F2FE")
+    m.slab("Hospital Wall", x: -25, y: 0.2, z: 0, w: 1, h: 5, d: 36, color: "#E0F2FE")
+    m.slab("Hospital Wall", x: 25, y: 0.2, z: 0, w: 1, h: 5, d: 36, color: "#E0F2FE")
+    m.slab("Hospital Wall", x: -13.75, y: 0.2, z: 18, w: 23.5, h: 5, d: 1, color: "#E0F2FE")
+    m.slab("Hospital Wall", x: 13.75, y: 0.2, z: 18, w: 23.5, h: 5, d: 1, color: "#E0F2FE")
+    m.slab("Hospital Wall", x: 0, y: 3.2, z: 18, w: 5, h: 2, d: 1, color: "#E0F2FE")
     m.slab("Hospital Roof", x: 0, y: 5.2, z: 0, w: 51, h: 0.4, d: 37, color: "#0EA5E9")
-    m.slab("Entrance", x: 0, y: 0.2, z: 18, w: 5, h: 0.01, d: 1, color: "#F8FAFC")
+    m.part("Hospital Sign", at: (0, 4.6, 18.6), size: (8, 1, 0.2), color: "#EF4444", material: .neon, solid: false)
     m.spawnRing(0, 24, radius: 4, count: 8, color: "#FCA5A5")
     m.pad("Reception", x: 0, z: 12, y: 0.2, size: 3, color: "#22C55E", tags: ["reception"])
     m.pad("Pharmacy", x: -18, z: 10, y: 0.2, size: 3, color: "#A855F7", tags: ["pharmacy"])
     m.pad("Staff Room", x: 18, z: 10, y: 0.2, size: 3, color: "#0EA5E9", tags: ["staff"])
-    for i in 0..<6 {
-        let x = -18 + Float(i % 3) * 18
-        let z: Float = i < 3 ? -6 : -13
+    for i in 0..<9 {
+        let x: Float = [-18, 0, 18, -18, 0, 18, -18, -9, 0][i]
+        let z: Float = i < 3 ? -6 : (i < 6 ? -13 : 2)
         m.slab("Bed \(i + 1) Frame", x: x, y: 0.2, z: z, w: 2.4, h: 0.6, d: 4, color: "#CBD5E1")
         m.pad("Bed \(i + 1)", x: x, z: z, y: 0.8, size: 2, color: "#BFDBFE", tags: ["bed"], shape: .box)
     }
+    // The operating theatre.
+    m.slab("OR Floor", x: 14, y: 0.2, z: 1, w: 10, h: 0.05, d: 8, color: "#A7F3D0")
+    m.slab("OR Table Frame", x: 14, y: 0.25, z: 1, w: 2.4, h: 0.8, d: 4, color: "#94A3B8")
+    m.pad("OR Table", x: 14, z: 1, y: 1.05, size: 2, color: "#34D399", tags: ["or"], shape: .box)
+    m.part("OR Light", at: (14, 4.2, 1), size: (2, 0.3, 2), color: "#FEF9C3", shape: .cylinder, material: .neon, solid: false)
+    // The ambulance bay and places where accidents happen.
     m.slab("Ambulance", x: 30, y: 0, z: 26, w: 3, h: 2.6, d: 6, color: "#FFFFFF")
     m.part("Ambulance Light", at: (30, 2.8, 26), size: (1, 0.3, 0.6), color: "#EF4444", material: .neon)
+    m.pad("ER Bay", x: 30, z: 20, size: 3, color: "#F87171", tags: ["erbay"])
     m.part("Patient Door", at: (0, 0.5, 20), size: (1, 0.1, 1), color: "#000000", visible: false)
+    m.markers("Accident Spot", points: [(-45, 40), (45, -40), (-45, -45), (48, 48)], color: "#000000", visible: false, behavior: .none)
 }
 
 // MARK: 45 Street Drive Empire

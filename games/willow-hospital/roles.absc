@@ -1,0 +1,119 @@
+-- roles.absc — 役割えらびと制服・プレイヤーの患者さん
+-- 医者・看護師・外科医・薬剤師・救急隊はどの仕事も手伝える（自分の役割の仕事は 1.5 倍）
+-- 患者になると病気がひとつ決まる。受付 → ベッド → 治してもらう体験ができる
+
+func role_panel(p)
+  let h = 250
+  p.ui_remove("roles")
+  p.ui_panel("roles", {at: "center", w: 560, h: h, bg: "#0C4A6EF0", radius: 22, layer: 40})
+  p.ui_text("roles_t", "🎭 役割をえらぼう（自分の役割の仕事は ⭐1.5倍）", {parent: "roles", y: 26 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for id in ROLE_ORDER do
+    i = i + 1
+    let r = ROLES[id]
+    let col = (i - 1) % 3
+    let row = floor((i - 1) / 3)
+    let label = r.name
+    if id != "patient" and ready(p) then label = label + " " + ROLES[id].ranks[role_rank(p, id)] end
+    p.ui_button("role_" + id, label, {parent: "roles", x: 0.18 + col * 0.32, y: (80 + row * 70) / h, w: 168, h: 58, size: 13, bg: r.color, color: "#111111"})
+  end
+  p.ui_button("roles_close", "閉じる", {parent: "roles", y: (h - 24) / h, w: 120, h: 36, size: 14, bg: "gray"})
+end
+
+-- 役割をかえる前に、持っている仕事を手放す
+func leave_role(p)
+  drop_medicine(p)
+  drop_escort(p)
+  if p.op != nil then stop_surgery(p) end
+  if p.measure != nil then stop_vitals(p, nil) end
+  p.mix = nil
+  for id in ["triage", "dx", "pharm", "mix", "op", "upg"] do p.ui_remove(id) end
+  let pt = pt_of_player(p)
+  if pt != nil then
+    p.frozen = false
+    drop_patient(pt)
+  end
+end
+
+func set_role(p, id)
+  p.ui_remove("roles")
+  if ROLES[id] == nil then return end
+  if p.role == id then
+    if id == "patient" and pt_of_player(p) == nil then become_patient(p) end
+    return
+  end
+  leave_role(p)
+  p.role = id
+  let r = ROLES[id]
+  p.color = r.color
+  p.leg_color = r.legs
+  if p.own_hat != nil then p.hat = p.own_hat else p.hat = r.hat end
+  kit_quest_progress(p, "role", 1)
+  if id == "patient" then
+    become_patient(p)
+  else
+    p.message(r.name + "「" + rank_name(p) + "」としてお仕事スタート！", 2)
+    role_tips(p, id)
+  end
+  hud(p)
+end
+
+func role_tips(p, id)
+  let tips = {
+    doctor: "🩺 ベッドの横で🩺 → バイタルがそろったら診察。📖 医学書で病気を見分けよう",
+    nurse: "📋 受付（緑）でトリアージ → ベッドで🩺バイタル測定 → 薬をとどける",
+    surgeon: "🔪 手術が必要な患者さんを🩺で手術台へ → 手術台の横で🩺。手順をおぼえて！",
+    pharmacist: "💊 薬局（紫）で処方せんをえらんで調合。在庫がへったら📦仕入れ",
+    paramedic: "🚑 救急要請が来たら救急車（入口の右）で🚑 → けが人を🩺 → 🚑で搬送"
+  }
+  let t = tips[id]
+  if t != nil then kit_later(p, 2.2, func() p.message(t, 4) end) end
+end
+
+-- MARK: プレイヤーの患者さん
+
+func become_patient(p)
+  let ill = random(filter(ILLNESSES, func(x) return x.triage < 3 end))
+  if random() < 0.25 then ill = random(ILLNESSES) end
+  let pt = make_record(ill)
+  pt.pid = p.id
+  p.message("🤒 「" + ill.say + "」… 受付（緑のパッド）へ行こう", 3)
+  hud(p)
+end
+
+func my_patient_line(p)
+  let pt = pt_of_player(p)
+  if pt == nil then return "🤒 元気！（🎭でもう一度患者になれる）" end
+  let s = "🤒「" + pt.ill.say + "」 "
+  if pt.stage == "arriving" then return s + "→ 受付（緑）へ" end
+  if pt.stage == "waiting" then return s + "→ 受付でトリアージ待ち" end
+  if pt.stage == "to_bed" then return s + "→ ベッド " + pt.bed + " へ" end
+  if pt.stage == "bed" then
+    if pt.vitals then return s + "→ 診察待ち（ベッド " + pt.bed + "）" end
+    return s + "→ バイタル測定待ち（ベッド " + pt.bed + "）"
+  end
+  if pt.stage == "needs_med" then return "🤒 " + pt.ill.name + " → お薬待ち" end
+  if pt.stage == "needs_or" then return "🤒 " + pt.ill.name + " → 手術室へ運ばれるのを待つ" end
+  if pt.stage == "in_or" then return "🤒 " + pt.ill.name + " → 手術中…" end
+  return "😴 回復中…"
+end
+
+func patient_cured(p, pt)
+  p.frozen = false
+  kit_give(p, 60)
+  p.score = p.score + 30
+  kit_quest_progress(p, "patient", 1)
+  announce("🎉 " + p.name + " の「" + pt.ill.name + "」が治った！", 2.5)
+  p.message("💐 お大事に！ 次は🎭でスタッフになって、みんなを助けよう", 3)
+  p.role = nil
+  p.color = "#F8FAFC"
+  kit_later(p, 0.2, func() hud(p) end)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_roles" then role_panel(p)
+  elif id == "roles_close" then p.ui_remove("roles")
+  elif starts_with(id, "role_") then set_role(p, replace(id, "role_", ""))
+  end
+end

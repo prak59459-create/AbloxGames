@@ -1,0 +1,224 @@
+-- pharmacy.absc — 薬局: 処方せんをえらぶ → 材料を2つまぜる → ベッドへとどける
+-- 材料には在庫がある（病院の資金で仕入れ）。💊薬品棚 Lv1: 1回で2回分（予備）/ Lv2: 失敗しても材料が減らない
+
+let stock = {herb: 8, syrup: 8, capsule: 8, powder: 8, salt: 8, gel: 8}
+let spare = {}             -- 薬の id → 予備の数
+let STOCK_MAX = 20
+let RESTOCK_COST = 60
+
+func ing_by_id(id)
+  for g in INGREDIENTS do
+    if g.id == id then return g end
+  end
+  return nil
+end
+
+func recipe_text(med)
+  return ing_by_id(med.mix[1]).name + " ＋ " + ing_by_id(med.mix[2]).name
+end
+
+func prescriptions()
+  return filter(patients, func(pt) return pt.stage == "needs_med" and pt.med_by == nil end)
+end
+
+func stock_line()
+  let parts = []
+  for g in INGREDIENTS do append(parts, g.name + stock[g.id]) end
+  return "在庫  " + join(parts, "  ")
+end
+
+func open_pharmacy(p)
+  if not is_staff(p) then
+    p.message("薬局はスタッフのお仕事", 1.2)
+    return
+  end
+  if p.medicine != nil then
+    p.message("💊 先に " + p.medicine.name + " を " + where_is(p.medicine.uid) + " へとどけよう", 1.8)
+    return
+  end
+  let list = slice(prescriptions(), 1, 4)
+  let h = 170 + max(1, len(list)) * 54
+  p.ui_remove("pharm")
+  p.ui_panel("pharm", {at: "center", w: 560, h: h, bg: "#3B0764F0", radius: 20, layer: 30})
+  p.ui_text("ph_t", "💊 薬局 — 処方せん", {parent: "pharm", y: 22 / h, size: 18, bold: true, color: "#E9D5FF"})
+  p.ui_text("ph_s", stock_line(), {parent: "pharm", y: 50 / h, size: 12, color: "#DDD6FE"})
+  if len(list) == 0 then
+    p.ui_text("ph_none", "処方せんはまだない（医者の診察を待とう）", {parent: "pharm", y: 100 / h, size: 15})
+  end
+  let i = 0
+  for pt in list do
+    i = i + 1
+    let med = MEDICINES[pt.ill.med]
+    let label = where_is(pt.uid) + ": " + med.name
+    if (spare[pt.ill.med] or 0) > 0 then label = label + "（予備あり！）" end
+    if pt.vip then label = "⭐ " + label end
+    p.ui_button("rx_" + pt.uid, label, {parent: "pharm", y: (54 + i * 54) / h, w: 420, h: 46, size: 16, bg: "#7C3AED"})
+  end
+  p.ui_button("restock", "📦 仕入れ（資金 " + RESTOCK_COST + "）", {parent: "pharm", x: 0.3, y: (h - 30) / h, w: 220, h: 40, size: 14, bg: "#0F766E"})
+  p.ui_button("pharm_close", "閉じる", {parent: "pharm", x: 0.75, y: (h - 30) / h, w: 120, h: 40, size: 14, bg: "gray"})
+end
+
+func pick_rx(p, uid)
+  p.ui_remove("pharm")
+  let pt = pt_by_uid(uid)
+  if pt == nil or pt.stage != "needs_med" or pt.med_by != nil then
+    p.message("その処方せんはもう終わった", 1)
+    return
+  end
+  let key = pt.ill.med
+  if (spare[key] or 0) > 0 then
+    spare[key] = spare[key] - 1
+    hand_medicine(p, pt, "（予備を使った）")
+    return
+  end
+  p.mix = {uid: uid, med: key, picks: []}
+  mix_panel(p)
+end
+
+func mix_panel(p)
+  let med = MEDICINES[p.mix.med]
+  let h = 250
+  p.ui_panel("mix", {at: "center", w: 560, h: h, bg: "#4C1D95F0", radius: 20, layer: 31})
+  p.ui_text("mix_t", "🧪 " + med.name + " を調合（材料を2つ）", {parent: "mix", y: 24 / h, size: 18, bold: true})
+  let hint = "📖 レシピ: " + recipe_text(med)
+  -- 薬剤師の「調剤主任」から上は、レシピを見なくても作れる（ヒントの代わりに予備のチャンス）
+  if p.role == "pharmacist" and role_rank(p, "pharmacist") >= 3 then hint = hint + "   ⭐ 主任の腕で予備ができやすい" end
+  p.ui_text("mix_h", hint, {parent: "mix", y: 56 / h, size: 14, color: "#FDE68A"})
+  let picked = "入れた材料: "
+  for id in p.mix.picks do picked = picked + ing_by_id(id).name + " " end
+  p.ui_text("mix_p", picked, {parent: "mix", y: 84 / h, size: 13, color: "#DDD6FE"})
+  let i = 0
+  for g in INGREDIENTS do
+    i = i + 1
+    let col = (i - 1) % 3
+    let row = floor((i - 1) / 3)
+    p.ui_button("ing_" + g.id, g.name + " ×" + stock[g.id], {parent: "mix", x: 0.18 + col * 0.32, y: (126 + row * 56) / h, w: 160, h: 46, size: 14, bg: "#6D28D9"})
+  end
+  p.ui_button("mix_close", "やめる", {parent: "mix", x: 0.88, y: (h - 20) / h, w: 90, h: 30, size: 12, bg: "gray"})
+end
+
+func pick_ing(p, id)
+  if p.mix == nil then return end
+  let pt = pt_by_uid(p.mix.uid)
+  if pt == nil or pt.stage != "needs_med" or pt.med_by != nil then
+    p.mix = nil
+    p.ui_remove("mix")
+    p.message("その処方せんはもう終わった", 1)
+    return
+  end
+  if (stock[id] or 0) <= 0 then
+    p.message("📦 " + ing_by_id(id).name + " が在庫切れ！（薬局で仕入れ）", 1.5)
+    return
+  end
+  if contains(p.mix.picks, id) then
+    p.message("同じ材料は1回だけ", 0.8)
+    return
+  end
+  append(p.mix.picks, id)
+  if len(p.mix.picks) < 2 then
+    p.sound("tick")
+    mix_panel(p)
+    return
+  end
+  let med = MEDICINES[p.mix.med]
+  let a = p.mix.picks[1]
+  let b = p.mix.picks[2]
+  let ok = contains(med.mix, a) and contains(med.mix, b)
+  if ok or upg.shelf < 2 then
+    stock[a] = stock[a] - 1
+    stock[b] = stock[b] - 1
+  end
+  if ok then
+    let key = p.mix.med
+    p.mix = nil
+    p.ui_remove("mix")
+    let extra = upg.shelf >= 1
+    if not extra and p.role == "pharmacist" and role_rank(p, "pharmacist") >= 3 and random() < 0.4 then extra = true end
+    if extra then spare[key] = (spare[key] or 0) + 1 end
+    earn(p, "mix", 18, "🧪 調合成功！")
+    kit_quest_progress(p, "mix", 1)
+    hand_medicine(p, pt, "")
+    if extra then p.message("🧪 予備も1つできた（次の同じ処方にすぐ使える）", 2) end
+  else
+    p.mix.picks = []
+    p.message("💥 ボン！ 調合失敗…（" + recipe_text(med) + "）", 2)
+    p.sound("error")
+    mix_panel(p)
+  end
+end
+
+func hand_medicine(p, pt, note)
+  p.ui_remove("mix")
+  p.ui_remove("pharm")
+  p.medicine = {uid: pt.uid, med: pt.ill.med, name: MEDICINES[pt.ill.med].name}
+  pt.med_by = p.id
+  helped(pt, p)
+  p.message("💊 " + p.medicine.name + note + " → " + where_is(pt.uid) + " へとどけよう", 2.5)
+  hud(p)
+end
+
+func give_medicine(p, pt)
+  if p.medicine == nil or p.medicine.uid != pt.uid or pt.stage != "needs_med" then return end
+  let body = pt_body(pt)
+  if body == nil or distance(p, body) > 4.5 then
+    p.message("もっとベッドに近づこう", 1)
+    return
+  end
+  p.medicine = nil
+  pt.stage = "recovering"
+  pt.recover_at = time() + RECOVER_SECS
+  pt.crit = false
+  helped(pt, p)
+  fx_ball(body.position + {x: 0, y: 1.5, z: 0}, 1.2, "#C4B5FD", 0.5)
+  earn(p, "deliver", 15, "💊 お薬をどうぞ")
+  kit_quest_progress(p, "deliver", 1)
+  if pt.pid != nil then body.message("💊 お薬をもらった。すこし休もう…", 2) end
+  hud(p)
+end
+
+-- 持っている薬を手放す（役割を変えた・抜けた）
+func drop_medicine(p)
+  if p.medicine == nil then return end
+  let pt = pt_by_uid(p.medicine.uid)
+  if pt != nil and pt.med_by == p.id then pt.med_by = nil end
+  p.medicine = nil
+  hud(p)
+end
+
+let sample_at = -999
+
+func restock(p)
+  if not spend_funds(RESTOCK_COST) then
+    -- 資金がないときは、たまに製薬会社のサンプルがもらえる（手づまりにならないように）
+    if time() - sample_at > 60 then
+      sample_at = time()
+      for g in INGREDIENTS do stock[g.id] = min(STOCK_MAX, stock[g.id] + 2) end
+      p.message("🎁 資金が足りないので、製薬会社がサンプルをくれた（1分に1回）", 2)
+      if p.mix != nil then mix_panel(p) else open_pharmacy(p) end
+      return
+    end
+    p.message("💴 病院の資金が足りない（" + RESTOCK_COST + " 必要）", 1.5)
+    return
+  end
+  for g in INGREDIENTS do stock[g.id] = min(STOCK_MAX, stock[g.id] + 6) end
+  p.message("📦 材料を仕入れた！", 1.2)
+  p.sound("collect")
+  if p.mix != nil then mix_panel(p) else open_pharmacy(p) end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "pharmacy") and quiet_ready(p, "pharm_pad", 2) and is_staff(p) then open_pharmacy(p) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "rx_") then pick_rx(p, num(replace(id, "rx_", "")))
+  elif starts_with(id, "ing_") then pick_ing(p, replace(id, "ing_", ""))
+  elif id == "restock" then restock(p)
+  elif id == "pharm_close" then p.ui_remove("pharm")
+  elif id == "mix_close" then
+    p.mix = nil
+    p.ui_remove("mix")
+  end
+end

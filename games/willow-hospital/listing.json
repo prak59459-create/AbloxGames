@@ -1,14 +1,23 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 34,
+  "blockCount" : 51,
   "id" : "willow-hospital",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/willow-hospital\/data.absc",
+    "games\/willow-hospital\/ambulance.absc",
+    "games\/willow-hospital\/care.absc",
+    "games\/willow-hospital\/common.absc",
+    "games\/willow-hospital\/hospital.absc",
+    "games\/willow-hospital\/patients.absc",
+    "games\/willow-hospital\/pharmacy.absc",
+    "games\/willow-hospital\/roles.absc",
+    "games\/willow-hospital\/surgery.absc",
     "games\/willow-hospital\/main.absc"
   ],
-  "summary" : "病院で医者・看護師・患者になりきる。受付、診察、薬、治療。患者さんを元気にして病院の評判を上げよう。",
+  "summary" : "病院のお仕事RP。医者・看護師・外科医・薬剤師・救急隊・患者に。トリアージ、バイタル、12の病気の診断、薬の調合、手術、救急車の出動。病院の資金でベッドや設備を強化！",
   "tags" : [
     "rp",
     "hospital",

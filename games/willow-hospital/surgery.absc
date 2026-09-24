@@ -1,0 +1,189 @@
+-- surgery.absc — 手術室
+-- 手術が必要な患者さんを🩺で手術台へ → 手術台の横で🩺 → 手順カードをおぼえて、道具を順番にえらぶ
+-- まちがえると容体 -1（❤️3つ）。0になると大学病院へ転院。外科医の「執刀医」から上は手順カードが見えたまま
+
+let or_patient = nil
+let or_clock = 0
+
+func tool_by_id(id)
+  for t in TOOLS do
+    if t.id == id then return t end
+  end
+  return nil
+end
+
+func steps_text(steps, done)
+  let parts = []
+  let i = 0
+  for id in steps do
+    i = i + 1
+    let t = tool_by_id(id).name
+    if i <= done then t = "✅" end
+    append(parts, t)
+  end
+  return join(parts, " → ")
+end
+
+func move_to_or(p, pt)
+  if or_patient != nil then
+    p.message("🔪 手術室が使用中（ほかの手術が終わるまで待って）", 1.5)
+    return
+  end
+  let t = block("OR Table")
+  let body = pt_body(pt)
+  if t == nil or body == nil then return end
+  free_bed_of(pt)
+  pt.stage = "in_or"
+  or_patient = pt.uid
+  helped(pt, p)
+  body.frozen = false
+  body.teleport(t.position + {x: 0, y: 0.6, z: 0})
+  body.frozen = true
+  if pt.pid != nil then body.message("🔪 手術室に運ばれた。外科医にまかせよう", 2) end
+  earn(p, "surgery", 5, "🛏 手術室へ運んだ")
+  for q in staff() do
+    if q.role == "surgeon" or q.id == p.id then q.message("🔪 手術台に患者さん（" + SURGERIES[pt.ill.op].name + "）。手術台の横で🩺", 2) end
+  end
+end
+
+func start_or(p)
+  let pt = pt_by_uid(or_patient)
+  if pt == nil then
+    or_patient = nil
+    return
+  end
+  if pt.stage == "recovering" then
+    p.message("😴 手術は終わった。回復中…", 1)
+    return
+  end
+  if pt.stage != "in_or" then return end
+  if p.op != nil then
+    op_panel(p)
+    return
+  end
+  for q in players() do
+    if q.op != nil and q.op.uid == pt.uid and q.id != p.id then
+      p.message("🔪 " + q.name + " が手術中", 1.2)
+      return
+    end
+  end
+  let s = SURGERIES[pt.ill.op]
+  p.op = {uid: pt.uid, i: 1, lives: 3, steps: s.steps, name: s.name, hint: p.role == "surgeon" and role_rank(p, "surgeon") >= 3, peek: true}
+  helped(pt, p)
+  -- 最初に手順カードを見せる
+  let h = 170
+  p.ui_panel("op", {at: "center", w: 600, h: h, bg: "#064E3BF2", radius: 20, layer: 30})
+  p.ui_text("op_t", "🔪 " + s.name + " — 手順をおぼえて！", {parent: "op", y: 30 / h, size: 19, bold: true, color: "#A7F3D0"})
+  p.ui_text("op_card", steps_text(s.steps, 0), {parent: "op", y: 86 / h, size: 16, bold: true, color: "#FDE68A"})
+  p.ui_text("op_n", "4びょうでカードがかくれます", {parent: "op", y: 130 / h, size: 13, color: "#D1FAE5"})
+  kit_later(p, 4, func()
+    if p.op != nil and p.op.uid == pt.uid then
+      p.op.peek = false
+      op_panel(p)
+    end
+  end)
+end
+
+func op_panel(p)
+  let op = p.op
+  let h = 300
+  p.ui_remove("op")
+  p.ui_panel("op", {at: "center", w: 600, h: h, bg: "#064E3BF2", radius: 20, layer: 30})
+  let hearts = ""
+  for k in 1 to 3 do
+    if k <= op.lives then hearts = hearts + "❤️" else hearts = hearts + "🖤" end
+  end
+  p.ui_text("op_t", "🔪 " + op.name + "   手順 " + op.i + "/" + len(op.steps) + "   " + hearts, {parent: "op", y: 26 / h, size: 18, bold: true, color: "#A7F3D0"})
+  let card = "つぎの道具は？（おぼえた順番で）"
+  if op.hint or op.peek then card = steps_text(op.steps, op.i - 1) end
+  p.ui_text("op_card", card, {parent: "op", y: 60 / h, size: 14, color: "#FDE68A"})
+  let i = 0
+  for t in TOOLS do
+    i = i + 1
+    let col = (i - 1) % 4
+    let row = floor((i - 1) / 4)
+    p.ui_button("tool_" + t.id, t.name, {parent: "op", x: 0.14 + col * 0.24, y: (116 + row * 62) / h, w: 130, h: 52, size: 15, bg: "#047857"})
+  end
+  p.ui_button("op_stop", "中断", {parent: "op", x: 0.88, y: (h - 22) / h, w: 90, h: 32, size: 13, bg: "gray"})
+end
+
+func pick_tool(p, id)
+  let op = p.op
+  if op == nil or op.peek then return end
+  let pt = pt_by_uid(op.uid)
+  if pt == nil or pt.stage != "in_or" then
+    stop_surgery(p)
+    return
+  end
+  let want = op.steps[op.i]
+  if id == want then
+    op.i = op.i + 1
+    p.sound("tick")
+    let t = block("OR Table")
+    if t != nil then fx_ball(t.position + {x: 0, y: 1.4, z: 0}, 0.6, "#34D399", 0.25) end
+    if op.i > len(op.steps) then surgery_done(p, pt) else op_panel(p) end
+  else
+    op.lives = op.lives - 1
+    pt.mood = pt.mood - 10
+    p.sound("error")
+    if op.lives <= 0 then
+      stop_surgery(p)
+      p.message("💔 手術失敗…", 2)
+      give_up(pt, "手術がうまくいかず、患者さんは大学病院へ転院…")
+      return
+    end
+    p.message("❌ ちがう！ 次は「" + tool_by_id(want).name + "」… 容体が悪化", 2)
+    op_panel(p)
+  end
+end
+
+func surgery_done(p, pt)
+  let op = p.op
+  stop_surgery(p)
+  pt.stage = "recovering"
+  pt.recover_at = time() + RECOVER_SECS
+  pt.crit = false
+  let bonus = 0
+  if op.lives == 3 then bonus = 20 end
+  earn(p, "surgery", 50 + len(op.steps) * 5 + bonus, "🎉 " + op.name + " 成功！")
+  kit_quest_progress(p, "surgery", 1)
+  if pt.ill.op == "heart" then kit_quest_progress(p, "heart", 1) end
+  if op.lives == 3 then kit_badge(p, "perfect_op", "ノーミス手術") end
+  day_step("surgery", 1)
+  announce("🎉 " + p.name + " の「" + op.name + "」が成功！", 3)
+end
+
+func stop_surgery(p)
+  p.op = nil
+  p.ui_remove("op")
+end
+
+on tick(dt)
+  or_clock = or_clock + dt
+  if or_clock < 0.5 then return end
+  or_clock = 0
+  let t = block("OR Table")
+  if t == nil then return end
+  for p in players() do
+    if ready(p) and p.op != nil and distance(p, t.position) > 6 then
+      stop_surgery(p)
+      p.message("🔪 手術台からはなれた（もう一度🩺で最初から）", 1.5)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "or") and is_staff(p) and or_patient != nil and p.op == nil and quiet_ready(p, "or_pad", 3) then
+    p.message("🔪 手術台の横で🩺を押すと手術をはじめる", 1.5)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "tool_") then pick_tool(p, replace(id, "tool_", ""))
+  elif id == "op_stop" then
+    stop_surgery(p)
+    p.message("🔪 手術を中断した（もう一度🩺で最初から）", 1.5)
+  end
+end

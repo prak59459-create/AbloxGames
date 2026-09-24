@@ -1,0 +1,123 @@
+-- data.absc — Willow Hospital の表
+-- 12の病気・薬の材料と調合・手術の手順・6つの役割とランク・病院の設備・イベント
+
+-- 病気: say は患者さんの訴え（同じ訴えの病気がある！）。vitals と clue で見分ける
+-- triage 1=🟢軽症 2=🟡中等症 3=🔴重症。med があれば薬、op があれば手術
+let ILLNESSES = [
+  {id: "cold", name: "かぜ", say: "せきが出て、だるい…", temp: 37.3, pulse: 82, bp: "ふつう",
+   clue: "のどが少し赤い", triage: 1, med: "cold_syrup"},
+  {id: "flu", name: "インフルエンザ", say: "せきが出て、だるい…", temp: 39.4, pulse: 108, bp: "ふつう",
+   clue: "体の節々がいたい・高い熱", triage: 2, med: "antiviral"},
+  {id: "stomach", name: "胃腸炎", say: "おなかがいたい…", temp: 37.8, pulse: 92, bp: "低め",
+   clue: "おなか全体がいたい・はきけ", triage: 2, med: "stomach_med"},
+  {id: "appendix", name: "盲腸", say: "おなかがいたい…", temp: 38.4, pulse: 112, bp: "ふつう",
+   clue: "右下をおすと強くいたむ", triage: 3, op: "appendix"},
+  {id: "fracture", name: "骨折", say: "腕が…動かせない！", temp: 36.7, pulse: 104, bp: "高め",
+   clue: "腕が変な形にまがっている", triage: 3, op: "bone"},
+  {id: "sprain", name: "ねんざ", say: "足をひねっちゃった", temp: 36.5, pulse: 76, bp: "ふつう",
+   clue: "足首がはれているが歩ける", triage: 1, med: "compress"},
+  {id: "allergy", name: "アレルギー", say: "くしゃみが止まらない", temp: 36.6, pulse: 78, bp: "ふつう",
+   clue: "目が赤くてかゆい・花粉の季節", triage: 1, med: "allergy_med"},
+  {id: "asthma", name: "ぜんそく", say: "息が苦しい…", temp: 36.9, pulse: 118, bp: "ふつう",
+   clue: "ゼーゼーという音がする", triage: 2, med: "inhaler"},
+  {id: "heatstroke", name: "熱中症", say: "頭がくらくらする…", temp: 39.1, pulse: 124, bp: "低め",
+   clue: "汗が止まらない・外で運動していた", triage: 2, med: "drip"},
+  {id: "migraine", name: "片頭痛", say: "頭がくらくらする…", temp: 36.6, pulse: 72, bp: "高め",
+   clue: "光がまぶしくてズキズキ", triage: 1, med: "headache_med"},
+  {id: "cut", name: "深い切り傷", say: "手から血が止まらない！", temp: 36.8, pulse: 100, bp: "低め",
+   clue: "深い傷・ぬう必要がある", triage: 3, op: "stitch"},
+  {id: "heart", name: "心臓発作", say: "息が苦しい…胸が！", temp: 36.8, pulse: 132, bp: "高め",
+   clue: "胸をしめつけられるいたみ", triage: 3, op: "heart"}
+]
+-- 救急車で運ばれてくる人の病気（事故のけが）
+let ACCIDENT_ILLS = ["fracture", "cut", "sprain", "heatstroke", "heart"]
+
+let TRIAGE = [
+  {name: "🟢 軽症", color: "#22C55E", patience: 1},
+  {name: "🟡 中等症", color: "#FACC15", patience: 0.8},
+  {name: "🔴 重症", color: "#EF4444", patience: 0.6}
+]
+
+-- 薬の材料（薬局で2つえらぶ）
+let INGREDIENTS = [
+  {id: "herb", name: "🌿 ハーブ"}, {id: "syrup", name: "🍯 シロップ"}, {id: "capsule", name: "💊 カプセル"},
+  {id: "powder", name: "🧂 粉薬"}, {id: "salt", name: "🧊 生理食塩水"}, {id: "gel", name: "🧴 ぬり薬"}
+]
+let MEDICINES = {
+  cold_syrup: {name: "かぜシロップ", mix: ["herb", "syrup"]},
+  antiviral: {name: "抗ウイルス薬", mix: ["capsule", "syrup"]},
+  stomach_med: {name: "胃腸薬", mix: ["herb", "powder"]},
+  compress: {name: "しっぷ", mix: ["gel", "herb"]},
+  allergy_med: {name: "アレルギー薬", mix: ["capsule", "powder"]},
+  inhaler: {name: "吸入薬", mix: ["syrup", "salt"]},
+  drip: {name: "点滴", mix: ["salt", "powder"]},
+  headache_med: {name: "頭痛薬", mix: ["capsule", "gel"]}
+}
+
+-- 手術: 手順どおりに道具をえらぶ（まちがえると容体 -1。3回で転院）
+let TOOLS = [
+  {id: "clean", name: "🧼 消毒"}, {id: "numb", name: "💉 麻酔"}, {id: "scalpel", name: "🔪 メス"},
+  {id: "clamp", name: "🗜 かんし"}, {id: "splint", name: "🦴 ギプス"}, {id: "suture", name: "🧵 縫合"},
+  {id: "shock", name: "⚡ 除細動器"}, {id: "bandage", name: "🩹 包帯"}
+]
+let SURGERIES = {
+  appendix: {name: "盲腸の手術", steps: ["clean", "numb", "scalpel", "clamp", "suture", "bandage"]},
+  bone: {name: "骨をつなぐ手術", steps: ["numb", "clean", "splint", "bandage"]},
+  stitch: {name: "傷をぬう手術", steps: ["clean", "numb", "suture", "bandage"]},
+  heart: {name: "心臓の緊急処置", steps: ["shock", "numb", "clean", "scalpel", "clamp", "suture"]}
+}
+
+-- 役割: 自分の役割の仕事は 1.5 倍（ほかの仕事も手伝える）
+let ROLES = {
+  doctor: {name: "👩‍⚕️ 医者", color: "#FFFFFF", legs: "#1E3A8A", hat: "none",
+           ranks: ["研修医", "医師", "専門医", "部長", "院長"]},
+  nurse: {name: "🧑‍⚕️ 看護師", color: "#F9A8D4", legs: "#F9A8D4", hat: "none",
+          ranks: ["看護学生", "看護師", "主任", "師長", "総師長"]},
+  surgeon: {name: "🔪 外科医", color: "#34D399", legs: "#065F46", hat: "cap",
+            ranks: ["助手", "外科医", "執刀医", "名医", "ゴッドハンド"]},
+  pharmacist: {name: "💊 薬剤師", color: "#C4B5FD", legs: "#4C1D95", hat: "none",
+               ranks: ["見習い", "薬剤師", "調剤主任", "薬局長", "薬の達人"]},
+  paramedic: {name: "🚑 救急隊", color: "#FB923C", legs: "#1F2937", hat: "cap",
+              ranks: ["隊員", "救急救命士", "隊長", "指令長", "伝説の救急隊"]},
+  patient: {name: "🤒 患者", color: "#93C5FD", legs: "#93C5FD", hat: "none", ranks: ["患者"]}
+}
+let ROLE_ORDER = ["doctor", "nurse", "surgeon", "pharmacist", "paramedic", "patient"]
+let RANK_STEPS = [0, 120, 350, 800, 1600]
+
+-- 仕事 → その仕事が得意な役割
+let JOB_ROLE = {triage: "nurse", vitals: "nurse", diagnose: "doctor", mix: "pharmacist", deliver: "nurse",
+                surgery: "surgeon", rescue: "paramedic", stabilize: "doctor"}
+
+-- 病院の設備（病院の資金で買う。スタッフルームの青いパッド）
+let UPGRADES = [
+  {id: "beds", name: "🛏 ベッドを増やす", max: 3, cost: [150, 300, 500], text: "ベッド 7〜9 が使える"},
+  {id: "lobby", name: "🪑 待合室", max: 3, cost: [120, 260, 450], text: "待てる人数と、がまん強さアップ"},
+  {id: "xray", name: "🩻 レントゲン", max: 1, cost: [400], text: "診察の選択肢が3つに"},
+  {id: "shelf", name: "💊 薬品棚", max: 2, cost: [200, 400], text: "調合で2回分できる / 失敗しても材料が減らない"},
+  {id: "ambulance", name: "🚑 救急車", max: 2, cost: [250, 500], text: "手当ての回数が減る・出動のごほうびアップ"},
+  {id: "garden", name: "🌷 中庭と飾り", max: 3, cost: [100, 250, 500], text: "評判が上がりやすい"}
+]
+
+-- 1日（4分）ごとの目標
+let DAY_SECS = 240
+let DAY_GOALS = [
+  {id: "cure", text: "患者さんを {n} 人治す", base: 4},
+  {id: "surgery", text: "手術を {n} 回成功", base: 1},
+  {id: "rescue", text: "救急車で {n} 人運ぶ", base: 1},
+  {id: "triage", text: "トリアージを {n} 回正解", base: 4}
+]
+
+-- ときどき起きるできごと
+let EVENTS = [
+  {id: "flu", name: "🤧 インフルエンザ流行！", text: "かぜとインフルエンザの患者さんが次々に来る（60びょう）"},
+  {id: "vip", name: "⭐ VIPの患者さん！", text: "有名人がご来院。90びょう以内に治すと大きなごほうび"},
+  {id: "blackout", name: "🔌 停電！", text: "暗い病院でもがんばろう（30びょう）。バイタルの測定がゆっくりに"},
+  {id: "crash", name: "🚨 大きな事故！", text: "救急要請が2件同時に"}
+]
+
+let BASE_BEDS = 6
+let BASE_QUEUE = 3
+let ARRIVE_SECS = 16
+let MOOD_DRAIN = 1.1         -- 1びょうに減る機嫌（重いほど早く減る）
+let VITALS_SECS = 1.2        -- 1つのバイタルを測る時間
+let RECOVER_SECS = 6

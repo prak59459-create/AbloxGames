@@ -1,0 +1,210 @@
+-- hospital.absc — 病院の設備（スタッフルーム）・1日の流れと目標・できごと
+-- 設備は病院の資金（みんなのお金）で買う。見た目も病院に増えていく
+
+let hosp_clock = 0
+let event_clock = 0
+let decor = {}             -- 設備 id → 作ったブロックのリスト
+
+func upg_def(id)
+  for u in UPGRADES do
+    if u.id == id then return u end
+  end
+  return nil
+end
+
+func open_upgrades(p)
+  let h = 130 + len(UPGRADES) * 58
+  p.ui_remove("upg")
+  p.ui_panel("upg", {at: "center", w: 600, h: h, bg: "#0C4A6EF2", radius: 20, layer: 32})
+  p.ui_text("upg_t", "🏥 スタッフルーム — 病院の資金 💴 " + kit_short(funds), {parent: "upg", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  p.ui_text("upg_s", "設備はみんなのもの。患者さんを治すと資金がたまる", {parent: "upg", y: 54 / h, size: 12, color: "#BAE6FD"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = upg[u.id]
+    let label = u.name + " Lv" + lv + "/" + u.max
+    let bg = "#0369A1"
+    if lv >= u.max then
+      label = label + "  ✅ 最大"
+      bg = "#475569"
+    else
+      label = label + "  💴" + u.cost[lv + 1] + " — " + u.text
+      if funds < u.cost[lv + 1] then bg = "#334155" end
+    end
+    p.ui_button("buy_" + u.id, label, {parent: "upg", y: (50 + i * 58) / h, w: 560, h: 50, size: 13, bg: bg})
+  end
+  p.ui_button("upg_close", "閉じる", {parent: "upg", y: (h - 26) / h, w: 130, h: 38, size: 14, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  let u = upg_def(id)
+  if u == nil or not is_staff(p) then return end
+  let lv = upg[id]
+  if lv >= u.max then
+    p.message("もう最大！", 1)
+    return
+  end
+  let cost = u.cost[lv + 1]
+  if not spend_funds(cost) then
+    p.message("💴 病院の資金が足りない（あと " + (cost - funds) + "）", 1.5)
+    p.sound("error")
+    return
+  end
+  upg[id] = lv + 1
+  apply_upgrade(id)
+  p.sound("goal")
+  announce("🏥 " + p.name + " が「" + u.name + "」を Lv" + upg[id] + " にした！", 3)
+  kit_quest_progress(p, "upgrade", 1)
+  open_upgrades(p)
+end
+
+func add_decor(id, spec)
+  if decor[id] == nil then decor[id] = [] end
+  let b = create_block(spec)
+  append(decor[id], b)
+  return b
+end
+
+func apply_upgrade(id)
+  if id == "beds" then refresh_beds()
+  elif id == "lobby" then
+    -- 待合室のいす
+    let lv = upg.lobby
+    for k in 1 to 3 do
+      add_decor("lobby", {name: "Lobby Chair", position: {x: -12 + k * 1.6 + (lv - 1) * 5, y: 0.6, z: 15.2}, size: {x: 1.2, y: 0.8, z: 1.2},
+                          color: random(["#38BDF8", "#F472B6", "#FACC15"]), solid: false})
+    end
+  elif id == "xray" then
+    add_decor("xray", {name: "X-Ray", position: {x: -9, y: 1.5, z: -13}, size: {x: 2, y: 2.6, z: 1.2}, color: "#E2E8F0", solid: false})
+    add_decor("xray", {name: "X-Ray Screen", position: {x: -9, y: 2, z: -12.35}, size: {x: 1.6, y: 1.2, z: 0.1}, color: "#38BDF8", material: "neon", solid: false})
+  elif id == "shelf" then
+    add_decor("shelf", {name: "Medicine Shelf", position: {x: -23.4, y: 1.6 + (upg.shelf - 1) * 1.2, z: 10}, size: {x: 0.8, y: 1, z: 5}, color: random(["#C4B5FD", "#A78BFA"]), solid: false})
+  elif id == "ambulance" then
+    let a = block("Ambulance")
+    if a != nil then
+      if upg.ambulance == 1 then a.color = "#FEF3C7" else a.color = "#FDE68A" end
+    end
+  elif id == "garden" then
+    -- 入口の前に花だん
+    let lv = upg.garden
+    for k in 1 to 4 do
+      let side = 1
+      if k % 2 == 0 then side = -1 end
+      add_decor("garden", {name: "Flower", shape: "sphere", position: {x: side * (8 + lv * 3 + floor(k / 3)), y: 0.5, z: 22 + lv},
+                           size: 0.9, color: random(["#F472B6", "#FACC15", "#FB7185", "#C084FC"]), solid: false})
+    end
+  end
+end
+
+-- ベッド 7〜9 は買うまで使えない（灰色）
+func refresh_beds()
+  for i in 7 to 9 do
+    let b = block("Bed " + i)
+    let f = block("Bed " + i + " Frame")
+    let open = i <= bed_count()
+    if b != nil then
+      if open then b.color = "#BFDBFE" else b.color = "#475569" end
+    end
+    if f != nil then
+      if open then f.color = "#CBD5E1" else f.color = "#334155" end
+    end
+  end
+end
+
+-- MARK: 1日の流れ
+
+func new_day_goal()
+  let g = random(DAY_GOALS)
+  let n = g.base + floor((day - 1) / 2)
+  day_goal = {id: g.id, text: replace(g.text, "{n}", str(n)), n: n, done: false}
+  day_prog = 0
+end
+
+func end_day()
+  let pay = 20 + day_cured * 6
+  announce("📅 " + day + "日目おわり！ 治した人 " + day_cured + "・収入 💴" + day_income + "・お給料 +" + pay, 5)
+  for p in staff() do
+    kit_give(p, pay)
+    p.score = p.score + pay
+  end
+  -- 評判はゆっくり3にもどろうとする
+  if rating > 3 then rating = max(3, rating - 0.1) end
+  day = day + 1
+  day_left = DAY_SECS
+  day_cured = 0
+  day_income = 0
+  new_day_goal()
+end
+
+-- MARK: できごと
+
+func start_event(e)
+  let secs = 60
+  if e.id == "vip" then secs = 90 end
+  if e.id == "blackout" then secs = 30 end
+  if e.id == "crash" then secs = 8 end
+  event_now = {id: e.id, name: e.name, until: time() + secs}
+  announce(e.name + " " + e.text, 4)
+  if e.id == "vip" then new_patient(ill_by_id(random(["flu", "fracture", "asthma", "migraine", "appendix"])), true)
+  elif e.id == "blackout" then
+    world.light = 0.3
+    world.sky_top = "#0F172A"
+    world.sky_bottom = "#1E293B"
+  elif e.id == "crash" then
+    new_call()
+    new_call()
+  end
+end
+
+func end_event()
+  if event_now == nil then return end
+  if event_now.id == "blackout" then
+    world.light = 0.75
+    world.sky_top = "#5AB2FF"
+    world.sky_bottom = "#CDEBFF"
+    announce("💡 電気がもどった！", 2)
+  end
+  event_now = nil
+end
+
+on start()
+  new_day_goal()
+  refresh_beds()
+  hospital_hud()
+end
+
+on tick(dt)
+  hosp_clock = hosp_clock + dt
+  if hosp_clock < 1 then return end
+  hosp_clock = 0
+  day_left = day_left - 1
+  if day_left <= 0 then end_day() end
+  if event_now != nil and time() >= event_now.until then end_event() end
+  event_clock = event_clock + 1
+  if event_now == nil and event_clock >= 100 then
+    event_clock = 0
+    if len(staff()) > 0 and random() < 0.55 then start_event(random(EVENTS)) end
+  end
+  hospital_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "staff") and quiet_ready(p, "staff_pad", 2) then
+    if is_staff(p) then
+      p.heal(100)
+      open_upgrades(p)
+    else
+      p.message("スタッフルームはスタッフ専用", 1.2)
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "buy_") then buy_upgrade(p, replace(id, "buy_", ""))
+  elif id == "upg_close" then p.ui_remove("upg")
+  elif id == "upgrades" then
+    if is_staff(p) then open_upgrades(p) else p.message("スタッフ専用", 1) end
+  end
+end

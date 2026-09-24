@@ -1,0 +1,265 @@
+-- care.absc — 🩺ボタン（その場所でできる仕事をする）・バイタル測定・診察・急変・医学書
+-- 🩺 の優先順位: 事故のけが人 → 手術台 → 受付 → 薬局 → 近くの患者さん
+--   患者さん: 急変なら安定させる → バイタルがまだなら測る → 診察 → 薬をとどける / 手術室へ運ぶ
+
+let care_clock = 0
+
+func has_id(list, id)
+  for x in list do
+    if x.id == id then return true end
+  end
+  return false
+end
+
+func near_patient(p, radius)
+  let best = nil
+  let best_d = radius
+  for pt in patients do
+    if pt.stage != "arriving" and pt.stage != "waiting" then
+      let body = pt_body(pt)
+      if body != nil and body.id != p.id then
+        let d = distance(p, body)
+        if d <= best_d then
+          best = pt
+          best_d = d
+        end
+      end
+    end
+  end
+  return best
+end
+
+func care_button(p)
+  if not ready(p) then return end
+  if not is_staff(p) then
+    if p.role == "patient" then p.message(my_patient_line(p), 2) else p.message("🎭 まず役割をえらぼう", 1.5) end
+    return
+  end
+  if treat_injured(p) then return end
+  let ort = block("OR Table")
+  if ort != nil and distance(p, ort.position) < 3.8 and or_patient != nil then
+    start_or(p)
+    return
+  end
+  let rec = block("Reception")
+  if rec != nil and distance(p, rec.position) < 4.5 then
+    open_triage(p)
+    return
+  end
+  let ph = block("Pharmacy")
+  if ph != nil and distance(p, ph.position) < 4 then
+    open_pharmacy(p)
+    return
+  end
+  let pt = near_patient(p, 3.8)
+  if pt == nil then
+    p.message("近くに患者さんがいない（ベッドの横で押そう）", 1.2)
+    return
+  end
+  if pt.crit then stabilize(p, pt)
+  elif pt.stage == "to_bed" then p.message("ベッドに着くまで待ってね", 1)
+  elif pt.stage == "bed" then
+    if not pt.vitals then start_vitals(p, pt) else open_diagnosis(p, pt) end
+  elif pt.stage == "needs_med" then
+    if p.medicine != nil and p.medicine.uid == pt.uid then give_medicine(p, pt)
+    else p.message("💊 薬局（紫）で「" + MEDICINES[pt.ill.med].name + "」を調合してとどけよう", 2) end
+  elif pt.stage == "needs_or" then move_to_or(p, pt)
+  elif pt.stage == "in_or" then p.message("🔪 手術台の横で🩺を押すと手術", 1.5)
+  elif pt.stage == "recovering" then p.message("😴 回復中… もうすぐ退院", 1)
+  end
+end
+
+-- MARK: 急変
+
+func stabilize(p, pt)
+  if not quiet_ready(p, "stab", 0.4) then return end
+  pt.care = pt.care + 1
+  helped(pt, p)
+  let body = pt_body(pt)
+  if body != nil then fx_ball(body.position + {x: 0, y: 1.2, z: 0}, 0.9, "#F87171", 0.3) end
+  if pt.care >= 3 then
+    pt.crit = false
+    pt.mood = max(pt.mood, 65)
+    earn(p, "stabilize", 25, "💓 容体が安定した！")
+    kit_quest_progress(p, "stabilize", 1)
+  else
+    p.message("💓 安定させている… " + pt.care + "/3", 0.7)
+  end
+end
+
+-- MARK: バイタル（体温・脈・血圧を順に測る。はなれると中断）
+
+func vital_secs()
+  let s = VITALS_SECS
+  if event_is("blackout") then s = s * 2 end
+  return s
+end
+
+func start_vitals(p, pt)
+  if p.measure != nil then return end
+  if pt.measurer != nil and pt.measurer != p.id and player_by_id(pt.measurer) != nil then
+    p.message("ほかのスタッフが測っているところ", 1)
+    return
+  end
+  pt.measurer = p.id
+  p.measure = {uid: pt.uid, k: 0, t: time(), shown: []}
+  p.sound("tick")
+  vitals_ui(p, pt)
+end
+
+func vitals_ui(p, pt)
+  let lines = ["🌡 体温 …", "💓 脈 …", "🩸 血圧 …"]
+  if p.measure.k >= 1 then lines[1] = "🌡 体温 " + pt.ill.temp + "℃" end
+  if p.measure.k >= 2 then lines[2] = "💓 脈 " + pt.ill.pulse end
+  if p.measure.k >= 3 then lines[3] = "🩸 血圧 " + pt.ill.bp end
+  p.ui_text("vit", "📋 バイタル測定中（はなれないで）  " + join(lines, "   "), {at: "center", dy: 110, size: 15, bold: true, color: "#BAE6FD"})
+  p.ui_bar("vit_bar", {at: "center", dy: 136, w: 260, h: 12, value: p.measure.k, max: 3, color: "#38BDF8", bg: "#00000099"})
+end
+
+func stop_vitals(p, why)
+  let pt = nil
+  if p.measure != nil then pt = pt_by_uid(p.measure.uid) end
+  if pt != nil and pt.measurer == p.id then pt.measurer = nil end
+  p.measure = nil
+  p.ui_remove("vit")
+  p.ui_remove("vit_bar")
+  if why != nil then p.message(why, 1.2) end
+end
+
+func vitals_step(p)
+  let m = p.measure
+  let pt = pt_by_uid(m.uid)
+  if pt == nil or pt.stage != "bed" then
+    stop_vitals(p, nil)
+    return
+  end
+  let body = pt_body(pt)
+  if body == nil or distance(p, body) > 6 then
+    stop_vitals(p, "📋 はなれたので測定を中断")
+    return
+  end
+  if time() - m.t < vital_secs() then return end
+  m.k = m.k + 1
+  m.t = time()
+  p.sound("tick")
+  vitals_ui(p, pt)
+  if m.k >= 3 then
+    pt.vitals = true
+    helped(pt, p)
+    stop_vitals(p, nil)
+    earn(p, "vitals", 12, "📋 バイタル測定完了")
+    kit_quest_progress(p, "vitals", 1)
+    if p.role == "doctor" then open_diagnosis(p, pt) else p.message("✅ もう一度🩺で診察（医者を呼んでもOK）", 2) end
+    for d in staff() do
+      if d.role == "doctor" and d.id != p.id then d.message("🩺 ベッド " + pt.bed + " のバイタルがそろった", 1.5) end
+    end
+  end
+end
+
+-- MARK: 診察
+
+func dx_options(pt)
+  let count = 4
+  if upg.xray > 0 then count = 3 end
+  let opts = [pt.ill]
+  -- 同じ訴えの病気をまぜる（ここを見分けるのが腕のみせどころ）
+  for x in shuffle(copy(ILLNESSES)) do
+    if x.say == pt.ill.say and x.id != pt.ill.id and len(opts) < count then append(opts, x) end
+  end
+  for x in shuffle(copy(ILLNESSES)) do
+    if len(opts) < count and not has_id(opts, x.id) then append(opts, x) end
+  end
+  return shuffle(opts)
+end
+
+func open_diagnosis(p, pt)
+  if p.dx_wait != nil and time() < p.dx_wait then
+    p.message("🤔 もう少しよく見てから…", 0.8)
+    return
+  end
+  p.dx_uid = pt.uid
+  let h = 300
+  p.ui_panel("dx", {at: "center", w: 540, h: h, bg: "#0C4A6EF0", radius: 20, layer: 30})
+  p.ui_text("dx_t", "🩺 " + where_is(pt.uid) + " の診察", {parent: "dx", y: 22 / h, size: 17, bold: true, color: "#BAE6FD"})
+  p.ui_text("dx_say", "「" + pt.ill.say + "」", {parent: "dx", y: 56 / h, size: 19, bold: true})
+  p.ui_text("dx_v", "🌡 " + pt.ill.temp + "℃   💓 脈 " + pt.ill.pulse + "   🩸 血圧 " + pt.ill.bp, {parent: "dx", y: 90 / h, size: 16, color: "#FDE68A"})
+  p.ui_text("dx_c", "🔎 " + pt.ill.clue, {parent: "dx", y: 118 / h, size: 15, color: "#A7F3D0"})
+  let opts = dx_options(pt)
+  let i = 0
+  for x in opts do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    p.ui_button("dx_" + x.id, x.name, {parent: "dx", x: 0.28 + col * 0.44, y: (166 + row * 58) / h, w: 210, h: 48, size: 17, bg: "#0369A1"})
+  end
+  p.ui_button("dx_close", "あとで", {parent: "dx", x: 0.85, y: (h - 22) / h, w: 90, h: 32, size: 13, bg: "gray"})
+end
+
+func answer_dx(p, id)
+  p.ui_remove("dx")
+  let pt = pt_by_uid(p.dx_uid)
+  p.dx_uid = nil
+  if pt == nil or pt.stage != "bed" then return end
+  helped(pt, p)
+  if id == pt.ill.id then
+    earn(p, "diagnose", 25, "✅ 診断: " + pt.ill.name)
+    kit_quest_progress(p, "diagnose", 1)
+    if pt.ill.op != nil then
+      pt.stage = "needs_or"
+      announce("🔪 " + where_is(pt.uid) + " は「" + pt.ill.name + "」→ 手術が必要！ 🩺で手術室へ運ぼう", 3)
+    else
+      pt.stage = "needs_med"
+      let med = MEDICINES[pt.ill.med]
+      for q in staff() do
+        if q.role == "pharmacist" or q.id == p.id then q.message("💊 処方せん: " + med.name + "（" + where_is(pt.uid) + "）→ 薬局へ", 2) end
+      end
+    end
+  else
+    pt.tries = pt.tries + 1
+    pt.mood = pt.mood - 12
+    rate_down(0.08)
+    p.dx_wait = time() + 3
+    p.message("❌ 誤診…「" + pt.ill.say + "」でも手がかりがちがう。📖 医学書で見くらべよう", 2.5)
+    p.sound("error")
+  end
+end
+
+-- MARK: 医学書
+
+func open_book(p)
+  let h = 96 + len(ILLNESSES) * 25
+  p.ui_panel("book", {at: "center", w: 720, h: h, bg: "#1E293BF2", radius: 18, layer: 44})
+  p.ui_text("book_t", "📖 医学書 — 訴えが同じでも、体温・脈・血圧と手がかりで見分けよう", {parent: "book", y: 22 / h, size: 15, bold: true, color: "#FDE68A"})
+  let i = 0
+  for x in ILLNESSES do
+    i = i + 1
+    let cure = "🔪 手術"
+    if x.med != nil then cure = "💊 " + MEDICINES[x.med].name end
+    let line = TRIAGE[x.triage].name + "  " + x.name + "：🌡" + x.temp + " 💓" + x.pulse + " 🩸" + x.bp + " ・" + x.clue + " → " + cure
+    p.ui_text("book_" + i, line, {parent: "book", y: (30 + i * 25) / h, size: 12, color: "#E2E8F0"})
+  end
+  p.ui_button("book_close", "閉じる", {parent: "book", y: (h - 24) / h, w: 120, h: 34, size: 14, bg: "gray"})
+end
+
+-- MARK: 毎0.2びょう
+
+on tick(dt)
+  care_clock = care_clock + dt
+  if care_clock < 0.2 then return end
+  care_clock = 0
+  for p in players() do
+    if ready(p) and p.measure != nil then vitals_step(p) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "care" then care_button(p)
+  elif id == "book" then open_book(p)
+  elif id == "book_close" then p.ui_remove("book")
+  elif id == "dx_close" then
+    p.ui_remove("dx")
+    p.dx_uid = nil
+  elif starts_with(id, "dx_") then answer_dx(p, replace(id, "dx_", ""))
+  end
+end

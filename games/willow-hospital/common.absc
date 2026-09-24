@@ -1,0 +1,199 @@
+-- common.absc — 小さな道具・役割のランク・お給料・病院の資金と評判・画面
+
+let funds = 120            -- 病院の資金（みんなで使う）
+let rating = 3             -- 病院の評判 1〜5
+let treated = 0
+let upg = {beds: 0, lobby: 0, xray: 0, shelf: 0, ambulance: 0, garden: 0}
+let day = 1
+let day_left = DAY_SECS
+let day_goal = nil         -- {id, text, n, done}
+let day_prog = 0
+let day_cured = 0
+let day_income = 0
+let event_now = nil        -- {id, name, until}
+
+func ready(p)
+  return p.role_pts != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func is_staff(p)
+  return ready(p) and p.role != nil and p.role != "patient"
+end
+
+func staff()
+  return filter(players(), func(p) return is_staff(p) end)
+end
+
+func event_is(id)
+  return event_now != nil and event_now.id == id
+end
+
+-- MARK: ランク
+
+func role_rank(p, role)
+  if not ready(p) or role == nil or role == "patient" then return 1 end
+  let v = p.role_pts[role] or 0
+  let r = 1
+  let i = 0
+  for need in RANK_STEPS do
+    i = i + 1
+    if v >= need then r = i end
+  end
+  return r
+end
+
+func rank_name(p)
+  if p.role == nil then return "" end
+  let r = ROLES[p.role]
+  return r.ranks[min(len(r.ranks), role_rank(p, p.role))]
+end
+
+-- 仕事のごほうび: 自分の役割の仕事なら 1.5 倍。ランクと評判でも増える
+func earn(p, job, amount, why)
+  if not ready(p) then return end
+  let own = p.role != nil and JOB_ROLE[job] == p.role
+  let before = role_rank(p, p.role)
+  let mult = 1 + (before - 1) * 0.12
+  if own then mult = mult * 1.5 end
+  mult = mult * (0.8 + rating * 0.08)
+  let pay = max(1, floor(amount * mult))
+  kit_give(p, pay)
+  p.score = p.score + pay
+  if is_staff(p) then
+    let pts = amount
+    if not own then pts = floor(amount / 2) end
+    p.role_pts[p.role] = (p.role_pts[p.role] or 0) + pts
+    if p.jobs_done == nil then p.jobs_done = {} end
+    if not p.jobs_done[p.role] then
+      p.jobs_done[p.role] = true
+      kit_quest_progress(p, "allroles", 1)
+    end
+  end
+  let mark = ""
+  if own then mark = " ⭐" end
+  p.message(why + " +" + pay + mark, 1.6)
+  p.sound("collect")
+  if role_rank(p, p.role) > before then
+    announce("🎖 " + p.name + " が「" + rank_name(p) + "」に昇進！", 3)
+    kit_quest_progress(p, "rank", 1)
+    kit_give(p, 80)
+    if role_rank(p, p.role) >= 5 then kit_badge(p, "top_" + p.role, ROLES[p.role].name + "のトップ") end
+  end
+  hud(p)
+end
+
+-- MARK: 病院の資金と評判
+
+func add_funds(amount)
+  funds = funds + amount
+  if amount > 0 then day_income = day_income + amount end
+  hospital_hud()
+end
+
+func spend_funds(amount)
+  if funds < amount then return false end
+  funds = funds - amount
+  hospital_hud()
+  return true
+end
+
+func rate_up(amount)
+  rating = min(5, rating + amount * (1 + upg.garden * 0.25))
+  hospital_hud()
+end
+
+func rate_down(amount)
+  rating = max(1, rating - amount)
+  hospital_hud()
+end
+
+-- 1日の目標がすすんだ
+func day_step(id, amount)
+  if day_goal == nil or day_goal.done or day_goal.id != id then return end
+  day_prog = day_prog + amount
+  if day_prog >= day_goal.n then
+    day_goal.done = true
+    add_funds(150)
+    announce("🎯 今日の目標クリア！「" + day_goal.text + "」 病院の資金 +150", 4)
+    for p in staff() do
+      kit_give(p, 40)
+      kit_quest_progress(p, "day", 1)
+    end
+  end
+  hospital_hud()
+end
+
+-- MARK: 画面
+
+func stars()
+  let s = ""
+  for i in 1 to 5 do
+    if i <= round(rating) then s = s + "⭐" else s = s + "☆" end
+  end
+  return s
+end
+
+func hospital_hud()
+  ui_text("hosp", "🏥 " + stars() + "   💴 資金 " + kit_short(funds) + "   治した人 " + treated + "   📅 " + day + "日目 " + kit_clock(day_left),
+          {at: "top", dy: 26, size: 16, bold: true})
+  let line = ""
+  if day_goal != nil then
+    let g = "🎯 " + day_goal.text + "  " + min(day_prog, day_goal.n) + "/" + day_goal.n
+    if day_goal.done then g = "🎯 今日の目標クリア！" end
+    line = g
+  end
+  if event_now != nil then line = line + "   " + event_now.name + " " + max(0, ceil(event_now.until - time())) + "s" end
+  ui_text("hosp2", line, {at: "top", dy: 50, size: 13, color: "#FDE68A"})
+end
+
+func hud(p)
+  if not ready(p) then return end
+  if p.role == nil then
+    p.ui_text("role", "🎭 役割をえらぼう（右の🎭ボタン）", {at: "top_left", dy: 34, size: 15, bold: true})
+    p.ui_remove("carry")
+    return
+  end
+  let r = ROLES[p.role]
+  let line = r.name
+  if p.role != "patient" then
+    let rk = role_rank(p, p.role)
+    line = line + "「" + rank_name(p) + "」"
+    if rk < len(RANK_STEPS) then line = line + "  " + (p.role_pts[p.role] or 0) + "/" + RANK_STEPS[rk + 1] end
+  end
+  p.ui_text("role", line, {at: "top_left", dy: 34, size: 15, bold: true, color: "#E0F2FE"})
+  let carry = ""
+  if p.medicine != nil then carry = "💊 " + p.medicine.name + " → " + where_is(p.medicine.uid) end
+  if p.escort != nil then carry = "🚑 けが人を運んでいる（🚑で病院へ）" end
+  if p.role == "patient" then carry = my_patient_line(p) end
+  if carry != "" then p.ui_text("carry", carry, {at: "top_left", dy: 56, size: 13, color: "#FDE68A"}) else p.ui_remove("carry") end
+end

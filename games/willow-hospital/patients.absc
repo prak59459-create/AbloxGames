@@ -1,0 +1,416 @@
+-- patients.absc — 患者さんの来院・受付のトリアージ・ベッド・機嫌・退院
+-- 流れ: 来院 → 受付（トリアージ） → ベッド → バイタル → 診察 → 薬 or 手術 → 回復 → 退院
+-- 患者さんの記録 {uid, body(NPC), pid(プレイヤー患者), ill, stage, bed, mood, vitals, helpers, vip, crit}
+-- stage: arriving → waiting → to_bed → bed → needs_med / needs_or → in_or → recovering
+
+let patients = []
+let next_uid = 0
+let bed_of = {}            -- "1".."9" → 患者の uid
+let arrive_clock = 0
+let patient_clock = 0
+
+func ill_by_id(id)
+  for x in ILLNESSES do
+    if x.id == id then return x end
+  end
+  return nil
+end
+
+func pt_by_uid(uid)
+  for pt in patients do
+    if pt.uid == uid then return pt end
+  end
+  return nil
+end
+
+func pt_of_player(p)
+  for pt in patients do
+    if pt.pid == p.id then return pt end
+  end
+  return nil
+end
+
+-- 患者さんの体（NPC かプレイヤー）。いなくなっていたら nil
+func pt_body(pt)
+  if pt.pid != nil then return player_by_id(pt.pid) end
+  if kit_here(pt.body) then return pt.body end
+  return nil
+end
+
+func bed_count()
+  return BASE_BEDS + upg.beds
+end
+
+func queue_max()
+  return BASE_QUEUE + upg.lobby * 2
+end
+
+func free_bed()
+  for i in 1 to bed_count() do
+    if bed_of[str(i)] == nil then return i end
+  end
+  return nil
+end
+
+func waiting_list()
+  return filter(patients, func(pt) return pt.stage == "arriving" or pt.stage == "waiting" end)
+end
+
+func where_is(uid)
+  let pt = pt_by_uid(uid)
+  if pt == nil then return "?" end
+  if pt.stage == "in_or" then return "手術室" end
+  if pt.bed != nil then return "ベッド " + pt.bed end
+  return "受付"
+end
+
+func helped(pt, p)
+  if not contains(pt.helpers, p.id) then append(pt.helpers, p.id) end
+end
+
+-- MARK: 来院
+
+func make_record(ill)
+  next_uid = next_uid + 1
+  let pt = {uid: next_uid, body: nil, pid: nil, ill: ill, stage: "arriving", bed: nil, mood: 100, vitals: false,
+            helpers: [], vip: false, crit: false, said: 0, born: time(), tries: 0, care: 0}
+  append(patients, pt)
+  return pt
+end
+
+func pick_illness()
+  if event_is("flu") and random() < 0.7 then return ill_by_id(random(["cold", "flu"])) end
+  -- 評判が低いうちは軽い病気が多い
+  let pool = ILLNESSES
+  if rating < 2.5 then pool = filter(ILLNESSES, func(x) return x.triage < 3 end) end
+  return random(pool)
+end
+
+func new_patient(ill, vip)
+  if len(waiting_list()) >= queue_max() then return nil end
+  let door = block("Patient Door")
+  if door == nil then return nil end
+  let skin = random(["#F5D0A9", "#E0AC69", "#8D5524", "#FFDBAC"])
+  let shirt = random(["#E2E8F0", "#FDE68A", "#A5B4FC", "#FCA5A5", "#86EFAC"])
+  let who = "患者さん"
+  if vip then
+    who = "⭐VIP"
+    shirt = "#FACC15"
+  end
+  let n = create_npc({name: who, position: door.position + {x: random(-2, 2), y: 1, z: 2}, color: shirt,
+                      head_color: skin, health: 999999, speed: 0.7})
+  let pt = make_record(ill or pick_illness())
+  pt.body = n
+  pt.vip = vip == true
+  if pt.vip then pt.vip_until = time() + 90 end
+  n.move_to(queue_spot(len(waiting_list())))
+  return pt
+end
+
+-- 受付の前にならぶ場所
+func queue_spot(k)
+  let r = block("Reception")
+  return r.position + {x: -4 + ((k - 1) % 5) * 2, y: 0, z: 3 + floor((k - 1) / 5) * 1.6}
+end
+
+-- MARK: 受付（トリアージ）
+
+func first_waiting()
+  let best = nil
+  for pt in patients do
+    if pt.stage == "waiting" then
+      -- 救急車で来た人がいちばん先
+      if best == nil or (pt.er and not best.er) then best = pt end
+    end
+  end
+  return best
+end
+
+func open_triage(p)
+  if not is_staff(p) then
+    p.message("受付はスタッフのお仕事（🎭で役割をえらぼう）", 1.5)
+    return
+  end
+  let pt = first_waiting()
+  if pt == nil then
+    if len(waiting_list()) > 0 then p.message("患者さんがまだ受付に向かっているところ", 1.2) else p.message("待っている患者さんはいない", 1) end
+    return
+  end
+  if free_bed() == nil then
+    p.message("🛏 ベッドがいっぱい！ 治療を進めよう（スタッフルームでベッドを増やせる）", 2)
+    return
+  end
+  p.triage_uid = pt.uid
+  p.ui_panel("triage", {at: "center", w: 480, h: 210, bg: "#064E3BF0", radius: 20, layer: 30})
+  let head = "📋 受付 — トリアージ"
+  if pt.vip then head = head + "（⭐VIP）" end
+  if pt.er then head = head + "（🚑 救急搬送）" end
+  p.ui_text("tri_t", head, {parent: "triage", y: 0.14, size: 17, bold: true, color: "#A7F3D0"})
+  p.ui_text("tri_q", "「" + pt.ill.say + "」", {parent: "triage", y: 0.38, size: 20, bold: true})
+  p.ui_text("tri_h", "どのくらい急ぐ？", {parent: "triage", y: 0.56, size: 14, color: "#D1FAE5"})
+  let i = 0
+  for t in TRIAGE do
+    i = i + 1
+    p.ui_button("tri_" + i, t.name, {parent: "triage", x: (i - 0.5) / 3, y: 0.8, w: 130, h: 50, size: 16, bg: t.color, color: "#111111"})
+  end
+end
+
+func answer_triage(p, level)
+  p.ui_remove("triage")
+  let pt = pt_by_uid(p.triage_uid)
+  p.triage_uid = nil
+  if pt == nil or pt.stage != "waiting" then return end
+  let bed = free_bed()
+  if bed == nil then
+    p.message("🛏 ベッドがいっぱい！", 1.2)
+    return
+  end
+  helped(pt, p)
+  if level == pt.ill.triage then
+    earn(p, "triage", 15, "✅ トリアージ正解")
+    kit_quest_progress(p, "triage", 1)
+    day_step("triage", 1)
+  else
+    earn(p, "triage", 5, "📋 受付した（ほんとうは " + TRIAGE[pt.ill.triage].name + "）")
+  end
+  send_to_bed(pt, bed)
+end
+
+func send_to_bed(pt, bed)
+  pt.bed = bed
+  bed_of[str(bed)] = pt.uid
+  pt.stage = "to_bed"
+  pt.moved_at = time()
+  let b = block("Bed " + bed)
+  let body = pt_body(pt)
+  if body == nil or b == nil then return end
+  if pt.pid != nil then
+    body.message("🛏 ベッド " + bed + " へ行こう（青いベッド）", 3)
+    hud(body)
+  else
+    body.move_to(b.position)
+  end
+end
+
+-- ベッドに着いた
+func settle(pt)
+  let b = block("Bed " + pt.bed)
+  let body = pt_body(pt)
+  pt.stage = "bed"
+  if body != nil and b != nil and pt.pid == nil then
+    body.stop()
+    body.teleport(b.position + {x: 0, y: 0.6, z: 0})
+    body.frozen = true
+  end
+  if body != nil and pt.pid != nil then
+    body.message("🛏 ベッドに着いた。スタッフが来るのを待とう", 2)
+    hud(body)
+  end
+  if pt.vitals then return end
+  for p in staff() do
+    if p.role == "nurse" or p.role == "doctor" then p.message("🛏 ベッド " + pt.bed + " に患者さん（" + TRIAGE[pt.ill.triage].name + "）", 1.5) end
+  end
+end
+
+func free_bed_of(pt)
+  if pt.bed != nil and bed_of[str(pt.bed)] == pt.uid then remove(bed_of, str(pt.bed)) end
+  pt.bed = nil
+end
+
+-- MARK: 退院と帰ってしまう人
+
+func drop_patient(pt)
+  free_bed_of(pt)
+  if or_patient == pt.uid then or_patient = nil end
+  for p in players() do
+    if p.medicine != nil and p.medicine.uid == pt.uid then
+      p.medicine = nil
+      p.message("💊 とどける相手がいなくなった…", 1.5)
+      hud(p)
+    end
+    if p.op != nil and p.op.uid == pt.uid then stop_surgery(p) end
+  end
+  patients = filter(patients, func(x) return x.uid != pt.uid end)
+end
+
+func walk_out(pt, words)
+  let body = pt_body(pt)
+  if body == nil then return end
+  if pt.pid != nil then
+    body.frozen = false
+    return
+  end
+  body.frozen = false
+  body.say(words)
+  let door = block("Patient Door")
+  body.teleport(body.position + {x: 0, y: 0.8, z: 0})
+  if door != nil then body.move_to(door.position + {x: 0, y: 0, z: 6}) end
+  let n = body
+  after(7, func() gone(n) end)
+end
+
+func discharge(pt)
+  let body = pt_body(pt)
+  let income = [30, 50, 80][pt.ill.triage]
+  income = floor(income * (0.7 + rating * 0.1))
+  treated = treated + 1
+  day_cured = day_cured + 1
+  add_funds(income)
+  rate_up(0.06 + pt.ill.triage * 0.03)
+  day_step("cure", 1)
+  for id in pt.helpers do
+    let h = player_by_id(id)
+    if h != nil then
+      kit_give(h, 10)
+      h.score = h.score + 10
+      kit_quest_progress(h, "cure", 1)
+    end
+  end
+  if pt.vip then
+    if pt.vip_until != nil and time() <= pt.vip_until then
+      add_funds(200)
+      rate_up(0.3)
+      announce("⭐ VIPの患者さんが大満足！ 病院の資金 +200", 4)
+      for id in pt.helpers do
+        let h = player_by_id(id)
+        if h != nil then
+          kit_give(h, 60)
+          kit_quest_progress(h, "vip", 1)
+        end
+      end
+    else
+      announce("⭐ VIPの患者さんは治ったけど、ちょっと待たされたみたい", 3)
+    end
+  end
+  if pt.pid != nil and body != nil then
+    patient_cured(body, pt)
+  else
+    announce("🎉 " + pt.ill.name + " の患者さんが元気に退院！ 資金 +" + income, 2)
+  end
+  walk_out(pt, random(["すっかり元気！ ありがとう！", "また来ます…いや、来ないように気をつけます！", "先生、看護師さん、ありがとう！"]))
+  drop_patient(pt)
+end
+
+func give_up(pt, why)
+  rate_down(0.25)
+  announce("😠 " + why, 2.5)
+  if pt.pid != nil then
+    let body = pt_body(pt)
+    if body != nil then body.message("😠 待ちくたびれた…", 2) end
+  end
+  walk_out(pt, "もういい！ ほかの病院に行く！")
+  drop_patient(pt)
+end
+
+-- MARK: 毎0.5びょう
+
+func mood_rate(pt)
+  let r = MOOD_DRAIN * TRIAGE[pt.ill.triage].patience
+  r = r * (1 - upg.lobby * 0.12)
+  if pt.stage == "arriving" or pt.stage == "waiting" then return r end
+  if pt.stage == "to_bed" or pt.stage == "bed" then return r * 0.75 end
+  if pt.stage == "needs_med" then return r * 0.5 end
+  if pt.stage == "needs_or" or pt.stage == "in_or" then return r * 0.6 end
+  return 0
+end
+
+func patient_step(dt)
+  let k = 0
+  for pt in copy(patients) do
+    let body = pt_body(pt)
+    if body == nil then
+      drop_patient(pt)
+    else
+      if pt.stage == "arriving" or pt.stage == "waiting" then k = k + 1 end
+      if pt.stage == "arriving" then
+        let r = block("Reception")
+        if distance(body, r.position) < 6.5 or (pt.pid == nil and time() - pt.born > 14) then
+          pt.stage = "waiting"
+          if pt.pid == nil then
+            body.stop()
+            body.teleport(queue_spot(k))
+          else
+            body.message("📋 受付に着いた。スタッフがトリアージしてくれるのを待とう", 2)
+            hud(body)
+          end
+        end
+      elif pt.stage == "to_bed" then
+        let b = block("Bed " + pt.bed)
+        let limit = 10
+        if pt.pid != nil then limit = 9999 end
+        if b != nil and (distance(body, b.position) < 2.6 or time() - pt.moved_at > limit) then settle(pt) end
+      elif pt.stage == "recovering" then
+        if time() >= pt.recover_at then discharge(pt) end
+      end
+      -- 機嫌（プレイヤーの患者さんは待ってくれる）
+      if pt.pid == nil and still_here(pt) then
+        pt.mood = pt.mood - mood_rate(pt) * dt
+        if pt.ill.triage == 3 and pt.mood < 35 and not pt.crit and pt.stage != "recovering" then
+          pt.crit = true
+          pt.care = 0
+          announce("🚨 " + where_is(pt.uid) + " の患者さんが急変！ 近くで🩺を押して安定させて！", 3)
+        end
+        if pt.mood < 55 and pt.said < 1 then
+          pt.said = 1
+          body.say(random(["まだかなあ…", "いたたた…", "だれか来てくれないかな"]))
+        elif pt.mood < 25 and pt.said < 2 then
+          pt.said = 2
+          body.say(random(["もう限界…", "ほかの病院に行こうかな", "いつまで待つの！"]))
+        end
+        if pt.mood <= 0 then
+          if pt.crit then give_up(pt, "急変した患者さんを大きな病院へ転院させた…") else give_up(pt, "患者さんが待ちくたびれて帰ってしまった…") end
+        end
+      end
+      -- VIP の期限
+      if pt.vip and pt.vip_until != nil and time() > pt.vip_until and not pt.vip_late then
+        pt.vip_late = true
+        rate_down(0.3)
+        announce("⭐ VIPの患者さんを待たせすぎた…（評判ダウン）", 3)
+      end
+    end
+  end
+end
+
+-- まだ記録が残っているか（ループの途中で消えることがある）
+func still_here(pt)
+  return pt_by_uid(pt.uid) != nil
+end
+
+func arrival_step(dt)
+  arrive_clock = arrive_clock + dt
+  let every_secs = ARRIVE_SECS - rating * 1.2
+  if event_is("flu") then every_secs = every_secs * 0.5 end
+  if len(staff()) == 0 then every_secs = every_secs * 2 end
+  if arrive_clock >= every_secs then
+    arrive_clock = 0
+    new_patient(nil, false)
+  end
+end
+
+on tick(dt)
+  patient_clock = patient_clock + dt
+  if patient_clock < 0.5 then return end
+  let secs = patient_clock
+  patient_clock = 0
+  arrival_step(secs)
+  patient_step(secs)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "reception") then
+    if quiet_ready(p, "reception", 2) and is_staff(p) then open_triage(p) end
+  elif contains(b.tags, "bed") then
+    let key = replace(b.name, "Bed ", "")
+    let uid = bed_of[key]
+    if uid == nil then return end
+    let pt = pt_by_uid(uid)
+    if pt == nil then return end
+    if p.medicine != nil and p.medicine.uid == uid and quiet_ready(p, "bed_touch", 1) then give_medicine(p, pt) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "tri_") then answer_triage(p, num(replace(id, "tri_", ""))) end
+end
