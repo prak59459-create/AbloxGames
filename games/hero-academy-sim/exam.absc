@@ -41,7 +41,7 @@ func start_exam(p)
   let tier = exam_tier(p)
   let e = EXAMS[tier]
   exam = {pid: p.id, tier: tier, until: time() + e.secs, to_spawn: e.bots, left: e.bots, bigs: e.big}
-  let start = block("Exam Start")
+  let start = block("Exam Start 1")
   if start != nil then p.teleport(start) end
   p.heal(p.max_health)
   p.energy = max_energy(p)
@@ -66,7 +66,7 @@ func end_exam(passed)
   ui_remove("exam")
   if p != nil then
     p.ui_remove("exam_t")
-    let out = block("Exam Exit")
+    let out = block("Exam Exit 1")
     if out != nil and p.alive then p.teleport(out) end
     if passed then
       p.license = tier
