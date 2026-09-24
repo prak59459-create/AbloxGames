@@ -209,6 +209,16 @@ func warriorBrawl(_ m: MapBuilder) {
     }
     m.shop("Armory", x: 40, z: 40, w: 10, d: 8, color: "#7F1D1D", sign: "#FCA5A5")
     m.pad("Armory Counter", x: 40, z: 42, size: 2.5, color: "#EF4444", tags: ["armory"])
+    m.shop("Supply Tent", x: -40, z: 40, w: 10, d: 8, color: "#14532D", sign: "#86EFAC")
+    m.pad("Supply Counter", x: -40, z: 42, size: 2.5, color: "#22C55E", tags: ["supplies"])
+    // A healing fountain in the middle of the courtyard: slow, and you are in the open.
+    m.part("Fountain Basin", at: (0, 0.4, 20), size: (8, 0.8, 8), color: "#9CA3AF", shape: .cylinder)
+    m.part("Fountain Water", at: (0, 0.85, 20), size: (7, 0.1, 7), color: "#38BDF8", shape: .cylinder, material: .glass,
+           behavior: .trigger, tags: ["fountain"], solid: false, opacity: 0.7)
+    m.pillar("Fountain Spire", x: 0, z: 20, y: 0.8, height: 3, radius: 0.5, color: "#E5E7EB")
+    // The pit: a sunken ring for duels.
+    m.slab("Pit Rim", x: 30, y: 0, z: -30, w: 18, h: 0.6, d: 18, color: "#57534E")
+    m.slab("Pit Floor", x: 30, y: 0.6, z: -30, w: 14, h: 0.1, d: 14, color: "#A16207")
     m.spawnRing(0, 0, radius: 45, count: 10, color: "#F87171")
 }
 

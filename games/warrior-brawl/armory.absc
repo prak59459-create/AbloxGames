@@ -1,0 +1,101 @@
+-- armory.absc — 武器庫（赤いパッド）と補給テント（緑のパッド）
+
+func armory(p)
+  let h = 140 + len(WEAPONS) * 42
+  p.ui_panel("arm_box", {at: "center", w: 600, h: h, bg: "#450A0AF2", radius: 22, layer: 30})
+  p.ui_text("arm_t", "⚔ 武器庫（💰 " + kit_money(p) + " クレジット）", {parent: "arm_box", y: 26 / h, size: 19, bold: true, color: "#FECACA"})
+  let i = 0
+  for w in WEAPONS do
+    i = i + 1
+    let m = p.mastery[w.id] or 0
+    let star = ""
+    if m >= 25 then star = " 🎖" end
+    let label = w.name + "  💰" + w.price + "  ダメージ" + w.damage + "・射程" + w.reach + "  重い一撃「" + w.art + "」"
+    let bg = "#7F1D1D"
+    if contains(p.owned, w.id) then
+      label = w.name + star + " を持つ  （" + m + "キル）  「" + w.art + "」" + w.art_text
+      bg = "#0F766E"
+    end
+    if p.main == w.id then
+      label = "✅ " + w.name + star + "（" + m + "キル）"
+      bg = "#374151"
+    end
+    p.ui_button("weap_" + w.id, label, {parent: "arm_box", y: (30 + i * 42) / h, w: 560, h: 36, size: 12, bg: bg})
+  end
+  p.ui_button("arm_close", "閉じる", {parent: "arm_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_weapon(p, id)
+  let w = weapon_info(id)
+  if not contains(p.owned, id) then
+    if not kit_pay(p, w.price) then return end
+    append(p.owned, id)
+    p.sound("goal")
+    kit_quest_progress(p, "buy", 1)
+  end
+  p.main = id
+  if p.alive then p.give(w.name) end
+  heavy_button(p)
+  hud(p)
+  armory(p)
+end
+
+func heavy_button(p)
+  let w = weapon_info(p.main)
+  p.ui_button("heavy", "💥 " + w.art, {at: "bottom_right", dx: -120, dy: -226, w: 196, h: 50, size: 14, bg: "#9A3412", radius: 14})
+end
+
+-- MARK: 補給テント
+
+func supplies(p)
+  let h = 170 + len(ITEMS) * 44
+  p.ui_panel("sup_box", {at: "center", w: 580, h: h, bg: "#052E16F2", radius: 22, layer: 30})
+  p.ui_text("sup_t", "🎒 補給（持っていけるのは2つ）💰 " + kit_money(p), {parent: "sup_box", y: 26 / h, size: 18, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    let label = it.name + " ×" + it.uses + "  💰" + it.price + "  " + it.text
+    let bg = "#166534"
+    if contains(p.loadout, it.id) then
+      label = "✅ " + it.name + "（" + (p.uses[it.id] or 0) + "）  補充 ×" + it.uses + " 💰" + it.price
+      bg = "#15803D"
+    end
+    p.ui_button("sup_" + it.id, label, {parent: "sup_box", y: (30 + i * 44) / h, w: 540, h: 38, size: 13, bg: bg})
+  end
+  p.ui_text("sup_help", "持っていない道具を買うと、いちばん古い道具と入れかわる", {parent: "sup_box", y: (h - 58) / h, size: 12, color: "#D1FAE5"})
+  p.ui_button("sup_close", "閉じる", {parent: "sup_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func buy_item(p, id)
+  let it = item_info(id)
+  if it == nil then return end
+  if not kit_pay(p, it.price) then return end
+  if not contains(p.loadout, id) then
+    if len(p.loadout) >= 2 then p.loadout = slice(p.loadout, 2, 2) end
+    append(p.loadout, id)
+  end
+  p.uses[id] = (p.uses[id] or 0) + it.uses
+  p.sound("collect")
+  item_buttons(p)
+  hud(p)
+  supplies(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "armory") and quiet_ready(p, "armory", 4) then armory(p)
+  elif contains(b.tags, "supplies") and quiet_ready(p, "supplies", 4) then supplies(p)
+  elif contains(b.tags, "fountain") and p.alive and p.health < p.max_health and quiet_ready(p, "fountain", 1) then
+    p.heal(6)
+  end
+end
+
+on button(p, id)
+  if id == "arm_close" then p.ui_remove("arm_box")
+  elif starts_with(id, "weap_") then pick_weapon(p, replace(id, "weap_", ""))
+  elif id == "sup_close" then p.ui_remove("sup_box")
+  elif starts_with(id, "sup_") then buy_item(p, replace(id, "sup_", ""))
+  elif id == "open_armory" then armory(p)
+  elif id == "open_supplies" then supplies(p)
+  end
+end

@@ -1,134 +1,64 @@
--- Warrior Brawl — やり・大剣・刀・爆弾の近接バトル
+-- Warrior Brawl — 10の武器で戦う近接バトル
+-- ふつうのこうげき・重い一撃（武器ごとの技）・はじく・回避。スタミナを考えて戦おう。
+-- キルでクレジット。武器庫で武器、補給テントで道具（2つまで）。5連続キルには賞金がかかる。
+--
+-- ファイル:
+--   data.absc     表（武器10・道具6・スタミナ）
+--   common.absc   武器を作る・スタミナ・画面
+--   combat.absc   はじく・回避・重い一撃・キル・賞金・2倍タイム
+--   items.absc    道具（包帯・救急箱・爆弾・投げナイフ・けむり玉・トラバサミ）
+--   armory.absc   武器庫と補給テント・噴水
+--   main.absc     このファイル
 
 kit_setup("Warrior Brawl", "はじいて、かわして、斬りこめ", [
-  "武器ごとに射程と速さがちがう: 刀は速い、大剣は重い、やりは長い",
-  "「はじく」: 0.4秒だけ攻撃をはね返し、相手をよろめかせる",
-  "「回避」: 横にステップ。「包帯」: 少しずつ回復",
-  "「爆弾」: 前に投げて1.5秒後に爆発（10秒に1回）",
-  "キルでクレジット。武器庫（赤いパッド）で新しい武器を買おう",
-  "連続キルで報酬アップ！"
+  "⚔ ふつうのこうげき + 💥 重い一撃（武器ごとにちがう技・スタミナを使う）",
+  "✨ 「はじく」: 0.4びょうだけ攻撃をはね返し、相手をよろめかせる",
+  "💨 「回避」: 横にステップ。どれも黄色いスタミナを使う",
+  "🎒 道具は2つまで: 包帯・救急箱・爆弾・投げナイフ・けむり玉・トラバサミ",
+  "🔴 武器庫（赤）で武器、🟢 補給テント（緑）で道具。⛲ 噴水で少し回復",
+  "🔥 5連続キルで賞金首に。💰 ときどきクレジット2倍タイム"
 ])
 kit_currency = "クレジット"
-kit_shop_title = "武器庫"
-kit_melee("刀", 24, 2.6, 5.5)
-kit_melee("大剣", 48, 1.1, 6)
-kit_melee("やり", 30, 1.6, 8)
-kit_melee("双剣", 14, 5, 4.5)
-kit_melee("ハンマー", 70, 0.7, 5)
-
-kit_shop_add("greatsword", "大剣（重い一撃）", 150, func(p) equip(p, "大剣") end)
-kit_shop_add("spear", "やり（長い射程）", 150, func(p) equip(p, "やり") end)
-kit_shop_add("dual", "双剣（とても速い）", 250, func(p) equip(p, "双剣") end)
-kit_shop_add("hammer", "ハンマー（超重い）", 400, func(p) equip(p, "ハンマー") end)
-kit_shop_add("bandages", "包帯 ×3", 40, func(p)
-  p.bandages = p.bandages + 3
-  show(p)
-end)
 
 kit_quest("kill3", "3人たおす", 3, 60)
+kit_quest("kill50", "50人たおす", 50, 800)
 kit_quest("parry5", "5回はじき成功", 5, 100)
+kit_quest("art", "重い一撃を20回", 20, 150)
 kit_quest("bomb", "爆弾で2人たおす", 2, 120)
+kit_quest("items", "道具を10回使う", 10, 100)
+kit_quest("buy", "新しい武器を買う", 1, 50)
 kit_quest("streak", "5連続キル", 1, 300)
-
-func equip(p, w)
-  p.main_weapon = w
-  p.give(w)
-  show(p)
-end
-
-func show(p)
-  p.ui_text("gear", "⚔️ " + p.main_weapon + "   🩹 " + p.bandages + "   🔥 " + p.streak + "連続", {at: "top_left", dy: 34, size: 17, bold: true})
-end
 
 on start()
   game.respawn_time = 3
+  double_next = time() + DOUBLE_EVERY
   every(8, func() kit_leaderboard("⚔️ キル") end)
 end
 
 on join(p)
   kit_welcome(p)
-  p.bandages = 2
+  p.owned = ["katana"]
+  p.main = "katana"
+  p.loadout = ["bandage"]
+  p.uses = {bandage: 2}
+  p.mastery = {}
   p.streak = 0
+  p.stamina = STAMINA_MAX
+  p.protect_until = time() + SPAWN_PROTECT
   kit_give(p, 0)
   kit_quest_button(p)
-  equip(p, "刀")
-  let buttons = [["parry", "はじく", "#F59E0B"], ["dodge", "回避", "#0EA5E9"], ["bandage", "包帯", "#16A34A"], ["bomb", "💣", "#7F1D1D"]]
+  kit_camera_button(p)
+  p.give(weapon_info("katana").name)
+  let buttons = [["parry", "はじく", "#F59E0B"], ["dodge", "回避", "#0EA5E9"]]
   let i = 0
   for b in buttons do
     i = i + 1
-    p.ui_button(b[1], b[2], {at: "bottom_right", dx: -120 - ((i - 1) % 2) * 100, dy: -160 - floor((i - 1) / 2) * 66, w: 92, h: 56, size: 16, bg: b[3], radius: 14})
+    p.ui_button(b[1], b[2], {at: "bottom_right", dx: -120 - (i - 1) * 100, dy: -160, w: 92, h: 56, size: 16, bg: b[3], radius: 14})
   end
-end
-
-on button(p, id)
-  if not p.alive then return end
-  if id == "parry" and kit_ready(p, "parry", 1.2) then
-    p.parry_until = time() + 0.4
-  elif id == "dodge" and kit_ready(p, "dodge", 2) then
-    let side = {x: 0 - p.look.z, y: 0, z: p.look.x}
-    if random() < 0.5 then side = side * -1 end
-    p.launch(side * 16 + {x: 0, y: 3, z: 0})
-  elif id == "bandage" then
-    if p.bandages <= 0 then
-      p.message("包帯がない", 1)
-    elif kit_ready(p, "bandage", 6) then
-      p.bandages = p.bandages - 1
-      for k in 1 to 5 do kit_later(p, k * 0.6, func() p.heal(8) end) end
-      show(p)
-    end
-  elif id == "bomb" and kit_ready(p, "bomb", 10) then
-    let spot = kit_ahead(p, 9)
-    let b = create_block({name: "Bomb", shape: "sphere", position: spot + {x: 0, y: 1, z: 0}, size: 0.8, color: "#111111", material: "metal", solid: false})
-    after(0.7, func() b.color = "#EF4444" end)
-    after(1.5, func()
-      kit_gone(b)
-      let before = {}
-      for c in players() do before[c.id] = c.alive end
-      kit_blast(p, spot, 6, 55, 10)
-      for c in players() do
-        if before[c.id] and not c.alive and c.id != p.id then kit_quest_progress(p, "bomb", 1) end
-      end
-      shake(0.25, 0.4)
-    end)
-  end
-end
-
-on hit(victim, attacker, damage)
-  if victim.parry_until != nil and time() < victim.parry_until then
-    -- はじかれた！攻撃した側がよろめく
-    attacker.frozen = true
-    after(1.2, func() if kit_here(attacker) then attacker.frozen = false end end)
-    attacker.message("💫 はじかれた！", 1)
-    victim.message("✨ はじき成功！", 1)
-    victim.sound("bounce")
-    kit_quest_progress(victim, "parry5", 1)
-    return 0
-  end
-  return damage
-end
-
-on death(victim, killer)
-  victim.streak = 0
-  if killer != nil and killer.id != victim.id and not killer.is_npc then
-    killer.streak = killer.streak + 1
-    killer.score = killer.score + 1
-    kit_give(killer, 20 + killer.streak * 10)
-    kit_quest_progress(killer, "kill3", 1)
-    if killer.streak == 5 then
-      kit_quest_progress(killer, "streak", 1)
-      announce("🔥 " + killer.name + " が5連続キル！", 3)
-    end
-    show(killer)
-    if kit_here(victim) and victim.alive == false then victim.launch(random(-8, 8), 12, random(-8, 8)) end
-  end
-end
-
-on respawn(p)
-  p.give(p.main_weapon)
-  show(p)
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "armory") and kit_ready(p, "armory", 3) then kit_open_shop(p) end
+  p.ui_button("open_armory", "⚔ 武器庫", {at: "right", dy: -60, w: 130, h: 46, size: 15, bg: "#7F1D1D"})
+  p.ui_button("open_supplies", "🎒 補給", {at: "right", dy: 0, w: 130, h: 46, size: 15, bg: "#166534"})
+  heavy_button(p)
+  item_buttons(p)
+  stamina_bar(p)
+  hud(p)
 end

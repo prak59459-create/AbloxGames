@@ -1,0 +1,62 @@
+-- common.absc — 小さな道具
+
+for w in WEAPONS do kit_melee(w.name, w.damage, w.rate, w.reach) end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func ready(p)
+  return p.owned != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func weapon_info(id)
+  for w in WEAPONS do
+    if w.id == id then return w end
+  end
+  return WEAPONS[1]
+end
+
+func item_info(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return nil
+end
+
+func foes_of(p)
+  return filter(players(), func(q) return q.id != p.id and q.alive end)
+end
+
+func use_stamina(p, amount)
+  if p.stamina < amount then
+    p.message("😮‍💨 スタミナが足りない", 0.8)
+    return false
+  end
+  p.stamina = p.stamina - amount
+  stamina_bar(p)
+  return true
+end
+
+func stamina_bar(p)
+  p.ui_bar("stamina", {at: "bottom", dy: -24, w: 260, h: 12, value: p.stamina, max: STAMINA_MAX, color: "#FACC15", bg: "#00000099"})
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let items = map(p.loadout, func(id) return item_info(id).name + " " + (p.uses[id] or 0) end)
+  p.ui_text("gear", weapon_info(p.main).name + "   " + join(items, "   ") + "   🔥 " + p.streak + "連続",
+            {at: "top_left", dy: 34, size: 16, bold: true})
+end

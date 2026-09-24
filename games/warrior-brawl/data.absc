@@ -1,0 +1,33 @@
+-- data.absc — Warrior Brawl の表
+-- 武器（10）・道具（6）・連続キル
+
+-- MARK: 武器 {damage, rate: 1びょうに何回, reach, art: 重い一撃の名前, stamina: 重い一撃のスタミナ}
+let WEAPONS = [
+  {id: "katana", name: "🗡 刀", price: 0, damage: 24, rate: 2.6, reach: 5.5, art: "居合い斬り", art_text: "前へ踏みこんで斬る", stamina: 30},
+  {id: "greatsword", name: "⚔ 大剣", price: 150, damage: 48, rate: 1.1, reach: 6, art: "大回転", art_text: "まわりをまとめて斬る", stamina: 40},
+  {id: "spear", name: "🔱 やり", price: 150, damage: 30, rate: 1.6, reach: 8, art: "突進突き", art_text: "遠くまで突っこむ", stamina: 30},
+  {id: "dual", name: "🗡🗡 双剣", price: 250, damage: 14, rate: 5, reach: 4.5, art: "乱れ斬り", art_text: "目の前を何度も斬る", stamina: 35},
+  {id: "hammer", name: "🔨 ハンマー", price: 400, damage: 70, rate: 0.7, reach: 5, art: "地ならし", art_text: "地面をたたいて打ち上げる", stamina: 45},
+  {id: "axe", name: "🪓 おの", price: 300, damage: 40, rate: 1.3, reach: 5, art: "おの投げ", art_text: "前に投げて当てる", stamina: 35},
+  {id: "scythe", name: "🌙 大鎌", price: 500, damage: 36, rate: 1.4, reach: 7, art: "三日月", art_text: "前に広く薙ぎはらう", stamina: 40},
+  {id: "rapier", name: "🤺 レイピア", price: 350, damage: 20, rate: 3.2, reach: 6.5, art: "三段突き", art_text: "すばやく3回突く", stamina: 30},
+  {id: "club", name: "🏏 こん棒", price: 200, damage: 34, rate: 1.5, reach: 5, art: "脳天割り", art_text: "当たった相手をよろめかせる", stamina: 35},
+  {id: "halberd", name: "⚜ ハルバード", price: 700, damage: 44, rate: 1.1, reach: 8.5, art: "旋風", art_text: "長い柄で大きく回す", stamina: 45}
+]
+
+-- MARK: 道具（2つまで持っていける）{uses: 1回の補充で何回}
+let ITEMS = [
+  {id: "bandage", name: "🩹 包帯", price: 40, uses: 3, cd: 6, text: "少しずつ回復"},
+  {id: "medkit", name: "💊 救急箱", price: 120, uses: 1, cd: 15, text: "一気に60回復"},
+  {id: "bomb", name: "💣 爆弾", price: 80, uses: 2, cd: 10, text: "投げて1.5びょうで爆発"},
+  {id: "knives", name: "🔪 投げナイフ", price: 60, uses: 5, cd: 1.2, text: "遠くの相手に小さなダメージ"},
+  {id: "smoke", name: "💨 けむり玉", price: 90, uses: 2, cd: 12, text: "3びょう 見えなくなる"},
+  {id: "trap", name: "🪤 トラバサミ", price: 100, uses: 2, cd: 8, text: "足もとに置く。ふんだ相手が動けない"}
+]
+
+let STAMINA_MAX = 100
+let STAMINA_REGEN = 14      -- 1びょうに
+let PARRY_COST = 15
+let DODGE_COST = 25
+let SPAWN_PROTECT = 3
+let DOUBLE_EVERY = 300      -- 5分ごとにクレジット2倍の時間

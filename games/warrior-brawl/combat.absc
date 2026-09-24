@@ -1,0 +1,188 @@
+-- combat.absc — はじく・回避・重い一撃・スタミナ・キル
+-- 「はじく」は0.4びょうだけ攻撃をはね返し、相手を1.2びょうよろめかせる（スタミナも少しもどる）。
+
+let stamina_clock = 0
+let double_until = 0
+let double_next = 0
+
+func swing_damage(p)
+  return weapon_info(p.main).damage
+end
+
+func strike(p, c, amount)
+  if c == nil or not kit_here(c) or not c.alive or c.id == p.id then return false end
+  if active_until(c.protect_until) then return false end
+  if active_until(c.parry_until) then
+    parried(c, p)
+    return false
+  end
+  c.damage(amount, p)
+  return true
+end
+
+func parried(victim, attacker)
+  attacker.frozen = true
+  kit_later(attacker, 1.2, func() attacker.frozen = false end)
+  attacker.message("💫 はじかれた！", 1)
+  victim.message("✨ はじき成功！", 1)
+  victim.sound("bounce")
+  victim.stamina = min(STAMINA_MAX, victim.stamina + 20)
+  victim.parries = (victim.parries or 0) + 1
+  kit_quest_progress(victim, "parry5", 1)
+end
+
+func in_front(p, range, cone)
+  return filter(foes_of(p), func(c) return distance(p, c) < range and dot(normalize(c.position - p.position), p.look) > cone end)
+end
+
+-- 武器ごとの重い一撃
+func heavy(p)
+  if not p.alive then return end
+  let w = weapon_info(p.main)
+  if not kit_ready(p, "heavy", 4) then return end
+  if not use_stamina(p, w.stamina) then return end
+  let dmg = w.damage * 1.6
+  let id = w.id
+  if id == "katana" then
+    p.launch(p.look.x * 22, 2, p.look.z * 22)
+    kit_later(p, 0.3, func()
+      for c in in_front(p, 5, 0.2) do strike(p, c, dmg) end
+    end)
+  elif id == "greatsword" or id == "halberd" then
+    let reach = 6
+    if id == "halberd" then reach = 8.5 end
+    for c in foes_of(p) do
+      if distance(p, c) < reach then strike(p, c, dmg) end
+    end
+  elif id == "spear" then
+    p.launch(p.look.x * 30, 2, p.look.z * 30)
+    kit_later(p, 0.35, func()
+      for c in in_front(p, 6, 0.3) do strike(p, c, dmg) end
+    end)
+  elif id == "dual" or id == "rapier" then
+    let hits = 5
+    if id == "rapier" then hits = 3 end
+    for k in 1 to hits do
+      kit_later(p, k * 0.15, func()
+        for c in in_front(p, w.reach, 0.5) do strike(p, c, w.damage * 0.8) end
+      end)
+    end
+  elif id == "hammer" then
+    for c in foes_of(p) do
+      if distance(p, c) < 6 and strike(p, c, dmg) and kit_here(c) and c.alive then c.launch(0, 14, 0) end
+    end
+    p.shake(0.3, 0.4)
+  elif id == "axe" then
+    let target = nil
+    for c in in_front(p, 22, 0.8) do
+      if target == nil or distance(p, c) < distance(p, target) then target = c end
+    end
+    if target != nil then strike(p, target, dmg) else p.message("当たらなかった", 0.8) end
+  elif id == "scythe" then
+    for c in in_front(p, 8, 0) do strike(p, c, dmg) end
+  elif id == "club" then
+    for c in in_front(p, 5, 0.4) do
+      if strike(p, c, dmg) and kit_here(c) and c.alive then
+        c.frozen = true
+        kit_later(c, 1.5, func() c.frozen = false end)
+      end
+    end
+  end
+  p.arts = (p.arts or 0) + 1
+  kit_quest_progress(p, "art", 1)
+end
+
+func parry(p)
+  if not p.alive or not kit_ready(p, "parry", 1.2) then return end
+  if not use_stamina(p, PARRY_COST) then return end
+  p.parry_until = time() + 0.4
+end
+
+func dodge(p)
+  if not p.alive or not kit_ready(p, "dodge", 1.5) then return end
+  if not use_stamina(p, DODGE_COST) then return end
+  let side = {x: 0 - p.look.z, y: 0, z: p.look.x}
+  if random() < 0.5 then side = side * -1 end
+  p.launch(side.x * 16, 3, side.z * 16)
+end
+
+-- ふつうのこうげき（武器の弾）
+on hit(victim, attacker, damage)
+  if attacker == nil or attacker.is_npc or victim.is_npc then return damage end
+  if active_until(victim.protect_until) then return 0 end
+  attacker.protect_until = 0
+  if active_until(victim.parry_until) then
+    parried(victim, attacker)
+    return 0
+  end
+  return damage
+end
+
+func credits_for(killer)
+  let n = 20 + killer.streak * 10
+  if time() < double_until then n = n * 2 end
+  return n
+end
+
+on death(victim, killer)
+  if victim.is_npc then return end
+  let bounty = 0
+  if victim.streak >= 5 then bounty = victim.streak * 20 end
+  victim.streak = 0
+  victim.deaths = (victim.deaths or 0) + 1
+  if killer != nil and killer.id != victim.id and not killer.is_npc then
+    killer.streak = killer.streak + 1
+    killer.kills = (killer.kills or 0) + 1
+    killer.best_streak = max(killer.best_streak or 0, killer.streak)
+    killer.score = killer.kills
+    let got = credits_for(killer) + bounty
+    kit_give(killer, got)
+    if bounty > 0 then announce("💰 " + killer.name + " が " + victim.name + " の賞金 " + bounty + " をかくとく！", 3) end
+    chat("⚔ " + killer.name + " → " + victim.name + "（" + weapon_info(killer.main).name + "）")
+    -- 武器の熟練度
+    killer.mastery[killer.main] = (killer.mastery[killer.main] or 0) + 1
+    if killer.mastery[killer.main] == 25 then announce("🎖 " + killer.name + " が " + weapon_info(killer.main).name + " を極めた！", 3) end
+    kit_quest_progress(killer, "kill3", 1)
+    kit_quest_progress(killer, "kill50", 1)
+    if killer.streak == 5 then
+      kit_quest_progress(killer, "streak", 1)
+      announce("🔥 " + killer.name + " が5連続キル！ 賞金がかかった！", 3)
+    end
+    hud(killer)
+    if kit_here(victim) then victim.launch(random(-8, 8), 12, random(-8, 8)) end
+  end
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  p.give(weapon_info(p.main).name)
+  p.stamina = STAMINA_MAX
+  p.protect_until = time() + SPAWN_PROTECT
+  stamina_bar(p)
+  hud(p)
+end
+
+on tick(dt)
+  stamina_clock = stamina_clock + dt
+  if stamina_clock < 0.25 then return end
+  let passed = stamina_clock
+  stamina_clock = 0
+  for p in players() do
+    if ready(p) and p.stamina < STAMINA_MAX then
+      p.stamina = min(STAMINA_MAX, p.stamina + STAMINA_REGEN * passed)
+      stamina_bar(p)
+    end
+  end
+  if time() >= double_next then
+    double_next = time() + DOUBLE_EVERY
+    double_until = time() + 60
+    announce("💰 クレジット2倍タイム！（60びょう）", 4)
+  end
+end
+
+on button(p, id)
+  if id == "parry" then parry(p)
+  elif id == "dodge" then dodge(p)
+  elif id == "heavy" then heavy(p)
+  end
+end

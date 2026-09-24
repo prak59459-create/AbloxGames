@@ -1,0 +1,101 @@
+-- items.absc — 道具（2つまで持っていける。補充は緑のテント）
+
+let traps = []
+let item_clock = 0
+
+func item_buttons(p)
+  for it in ITEMS do p.ui_remove("use_" + it.id) end
+  let i = 0
+  for id in p.loadout do
+    i = i + 1
+    let it = item_info(id)
+    p.ui_button("use_" + id, it.name + " " + (p.uses[id] or 0), {at: "bottom_right", dx: -330 - (i - 1) * 104, dy: -160, w: 98, h: 56, size: 13, bg: "#166534", radius: 14})
+  end
+end
+
+func use_item(p, id)
+  if not p.alive or not contains(p.loadout, id) then return end
+  let it = item_info(id)
+  if (p.uses[id] or 0) <= 0 then
+    p.message(it.name + " がない（緑のテントで補充）", 1.2)
+    return
+  end
+  if not kit_ready(p, "item_" + id, it.cd) then return end
+  p.uses[id] = p.uses[id] - 1
+  if id == "bandage" then
+    for k in 1 to 5 do kit_later(p, k * 0.6, func() p.heal(8) end) end
+  elif id == "medkit" then
+    p.heal(60)
+  elif id == "bomb" then
+    let spot = kit_ahead(p, 9)
+    let b = create_block({name: "Bomb", shape: "sphere", position: spot + {x: 0, y: 1, z: 0}, size: {x: 0.8, y: 0.8, z: 0.8},
+                          color: "#111111", material: "metal", solid: false})
+    after(0.7, func()
+      if still(b) then b.color = "#EF4444" end
+    end)
+    after(1.5, func()
+      kit_gone(b)
+      if not kit_here(p) then return end
+      for c in foes_of(p) do
+        if distance(spot, c) <= 6 and not active_until(c.protect_until) then
+          let was_alive = c.alive
+          c.damage(55, p)
+          if was_alive and kit_here(c) and not c.alive then kit_quest_progress(p, "bomb", 1) end
+          if kit_here(c) and c.alive then c.launch(0, 10, 0) end
+        end
+      end
+      shake(0.25, 0.4)
+    end)
+  elif id == "knives" then
+    let target = nil
+    for c in foes_of(p) do
+      if distance(p, c) < 30 and dot(normalize(c.position - p.position), p.look) > 0.85 then
+        if target == nil or distance(p, c) < distance(p, target) then target = c end
+      end
+    end
+    if target != nil then strike(p, target, 15) else p.message("🔪 はずれた", 0.6) end
+  elif id == "smoke" then
+    p.visible = false
+    kit_later(p, 3, func() p.visible = true end)
+  elif id == "trap" then
+    let spot = p.position
+    let t = create_block({name: "Bear Trap", position: spot + {x: 0, y: 0.1, z: 0}, size: {x: 1.4, y: 0.2, z: 1.4}, color: "#57534E",
+                          material: "metal", solid: false})
+    append(traps, {block: t, owner: p.id, at: spot, until: time() + 45})
+  end
+  kit_quest_progress(p, "items", 1)
+  item_buttons(p)
+  hud(p)
+end
+
+-- トラバサミ: ふんだ相手（置いた人以外）が2びょう動けない
+on tick(dt)
+  item_clock = item_clock + dt
+  if item_clock < 0.2 then return end
+  item_clock = 0
+  let keep = []
+  for t in traps do
+    let sprung = false
+    if time() < t.until and still(t.block) then
+      for c in players() do
+        if not sprung and c.alive and c.id != t.owner and distance(c, t.at) < 1.2 then
+          sprung = true
+          c.frozen = true
+          kit_later(c, 2, func() c.frozen = false end)
+          c.damage(10)
+          c.message("🪤 トラバサミ！", 1.5)
+        end
+      end
+    end
+    if sprung or time() >= t.until or not still(t.block) then
+      kit_gone(t.block)
+    else
+      append(keep, t)
+    end
+  end
+  traps = keep
+end
+
+on button(p, id)
+  if starts_with(id, "use_") then use_item(p, replace(id, "use_", "")) end
+end
