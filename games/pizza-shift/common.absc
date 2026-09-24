@@ -1,0 +1,104 @@
+-- common.absc — 小さな道具・画面
+
+func ready(p)
+  return p.job_xp != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func pizza_info(id)
+  for z in PIZZAS do
+    if z.id == id then return z end
+  end
+  return nil
+end
+
+func topping_info(id)
+  for t in TOPPINGS do
+    if t.id == id then return t end
+  end
+  return nil
+end
+
+func fx_ball(pos, size, color, seconds)
+  let b = create_block({name: "FX", shape: "sphere", position: pos, size: size, color: color, material: "neon", solid: false, opacity: 0.55})
+  after(seconds or 0.5, func() gone(b) end)
+  return b
+end
+
+func rank_of(p)
+  let r = RANKS[1]
+  for x in RANKS do
+    if p.job_xp >= x.need then r = x end
+  end
+  return r
+end
+
+-- 仕事をした: お給料と経験値
+func work(p, kind, why)
+  let w = PAY[kind]
+  let before = rank_of(p)
+  let coins = floor(w.coins * before.pay)
+  kit_give(p, coins)
+  p.job_xp = p.job_xp + w.xp
+  p.day_pay = (p.day_pay or 0) + coins
+  p.score = p.score + coins
+  let now = rank_of(p)
+  if now.name != before.name then
+    announce("🎖 " + p.name + " が「" + now.name + "」に昇進！", 3)
+    kit_quest_progress(p, "rank", 1)
+    if now.name == "店長" then kit_badge(p, "manager", "店長") end
+  end
+  if why != nil then p.message(why + " +" + coins, 1) end
+  hud(p)
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let r = rank_of(p)
+  p.ui_text("hud", "🎖 " + r.name + "（給料×" + r.pay + "）   今日の給料 " + (p.day_pay or 0), {at: "top_left", dy: 34, size: 14, bold: true, color: "#FDE68A"})
+  show_hand(p)
+end
+
+func show_hand(p)
+  let text = "✋ なし"
+  if p.pizza != nil then
+    let stage = {dough: "生地", sauce: "ソース", cheese: "チーズ", topped: "具のせ"}
+    text = "✋ 作りかけ（" + stage[p.pizza.stage] + "）"
+    if p.pizza.stage == "topped" then text = "✋ " + pizza_label(p.pizza) + "（生・オーブンへ）" end
+  elif p.baked != nil then
+    if p.baked == "burnt" then text = "✋ 🔥こげたピザ（すてるしかない）" else text = "✋ 焼けた " + pizza_info(p.baked).name + "（箱の台へ）" end
+  elif p.box != nil then
+    text = "✋ 📦 " + pizza_info(p.box.pizza).name
+    if p.box.house != nil then text = text + "（House " + p.box.house + " へ配達）" else text = text + "（お客さんにわたす）" end
+  elif p.crate then
+    text = "✋ 📦 材料の箱（棚へ）"
+  end
+  p.ui_text("hand", text, {at: "bottom", dy: -24, size: 16, bold: true})
+end
+
+func pizza_label(pz)
+  if pz.recipe == nil then return "🤢 ぐちゃぐちゃピザ" end
+  return pizza_info(pz.recipe).name
+end

@@ -10,7 +10,7 @@ let lifeGames: [Game] = [
          summary: "学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。",
          tags: ["rp", "school", "family"], maxPlayers: 16, build: cherryLane),
     Game(number: 35, id: "pizza-shift", title: "Pizza Shift",
-         summary: "ピザ屋でみんなで働こう。レジで注文を取り、生地・ソース・チーズでピザを作り、オーブンで焼いて、家まで配達！",
+         summary: "ピザ屋でみんなで働こう。レジで注文、レシピどおりに具をのせて、こげる前にオーブンから出して手わたし・配達！ ★評価と店のお金で店を強化、昇進で給料アップ。",
          tags: ["jobs", "coop", "classic"], maxPlayers: 12, build: pizzaShift),
     Game(number: 36, id: "neo-city-life", title: "Neo City Life",
          summary: "未来のハイテク都市でくらすRP。ホバーカー、ジェットパック、ドローン視点。仕事でかせいで、空飛ぶ家を手に入れよう。",
@@ -150,13 +150,19 @@ func pizzaShift(_ m: MapBuilder) {
     m.day(ground: "#65A30D")
     m.ground(160, 160, color: "#84CC16")
     m.road(from: (-80, 20), to: (80, 20), width: 8)
-    // The restaurant.
-    m.slab("Pizza Floor", x: 0, y: 0, z: -8, w: 30, h: 0.2, d: 22, color: "#FEF3C7")
-    m.walls(0, -8, w: 30, d: 22, h: 4.5, y: 0.2, color: "#DC2626", name: "Pizza Wall")
-    m.slab("Pizza Roof", x: 0, y: 4.7, z: -8, w: 31, h: 0.4, d: 23, color: "#7F1D1D")
-    m.slab("Doorway", x: 0, y: 0.2, z: 3, w: 4, h: 0.01, d: 1, color: "#FEF3C7")
-    m.part("Pizza Sign", at: (0, 5.6, 3.3), size: (10, 1.2, 0.3), color: "#FDE047", material: .neon, solid: false)
-    m.spawnRing(0, 12, radius: 4, count: 8, color: "#FCA5A5")
+    // The restaurant: kitchen at the back, the counter in the middle, a
+    // dining room at the front and a doorway on the right of the front wall.
+    m.slab("Pizza Floor", x: 0, y: 0, z: -5.5, w: 30, h: 0.2, d: 27, color: "#FEF3C7")
+    m.slab("Pizza Wall", x: 0, y: 0.2, z: -19, w: 31, h: 4.5, d: 1, color: "#DC2626")
+    m.slab("Pizza Wall", x: -15, y: 0.2, z: -5.5, w: 1, h: 4.5, d: 27, color: "#DC2626")
+    m.slab("Pizza Wall", x: 15, y: 0.2, z: -5.5, w: 1, h: 4.5, d: 27, color: "#DC2626")
+    m.slab("Pizza Wall", x: -4.5, y: 0.2, z: 8, w: 21, h: 4.5, d: 1, color: "#DC2626")
+    m.slab("Pizza Wall", x: 12.5, y: 0.2, z: 8, w: 5, h: 4.5, d: 1, color: "#DC2626")
+    m.slab("Pizza Wall", x: 8, y: 3, z: 8, w: 4, h: 1.7, d: 1, color: "#DC2626")
+    m.slab("Pizza Roof", x: 0, y: 4.7, z: -5.5, w: 31, h: 0.4, d: 28, color: "#7F1D1D")
+    m.part("Pizza Sign", at: (0, 5.6, 8.4), size: (10, 1.2, 0.3), color: "#FDE047", material: .neon, solid: false)
+    m.part("Window", at: (-6, 2.2, 8.52), size: (6, 1.6, 0.05), color: "#9ED8FF", material: .glass, solid: false)
+    m.spawnRing(0, 15, radius: 3.5, count: 8, color: "#FCA5A5")
     // Stations.
     let stations: [(String, Float, Float, String, String)] = [
         ("Register", -8, 0, "#22C55E", "register"), ("Dough Table", -10, -12, "#FDE68A", "dough"),
@@ -170,9 +176,17 @@ func pizzaShift(_ m: MapBuilder) {
     }
     m.slab("Customer Counter", x: -8, y: 0.2, z: 1.8, w: 5, h: 1.1, d: 0.8, color: "#B91C1C")
     m.part("Customer Spot", at: (-8, 0.5, 5), size: (1, 0.1, 1), color: "#FFFFFF", visible: false)
+    m.pad("Manager Office", x: 12, z: -17, y: 0.2, size: 2, color: "#7C3AED", tags: ["station", "office"])
+    m.pad("Break Room", x: 3, z: -17, y: 0.2, size: 2, color: "#0EA5E9", tags: ["station", "locker"])
+    // The dining room.
+    for (i, x) in [Float(1), 6, 11].enumerated() {
+        m.slab("Dining Table \(i + 1)", x: x, y: 0.2, z: 3, w: 2, h: 0.9, d: 2, color: "#FFFFFF")
+    }
+    m.markers("Seat", points: [(1, 5), (6, 5), (11, 5), (1, 0.8), (11, 0.8)], y: 0.2, color: "#000000", visible: false, behavior: .none)
     // The supply truck out back.
     m.slab("Supply Truck", x: -30, y: 0, z: -14, w: 4, h: 3, d: 8, color: "#FFFFFF")
     m.pad("Truck Unload", x: -26, z: -14, size: 2.4, color: "#0EA5E9", tags: ["station", "truck"])
+    m.pad("Scooter Rack", x: 20, z: 12, size: 2.4, color: "#F43F5E", tags: ["station", "scooter"])
     // Houses to deliver to.
     for i in 0..<6 {
         let x = -60 + Float(i) * 24

@@ -1,0 +1,68 @@
+-- data.absc — Pizza Shift の表
+-- ピザ6種・具・店の強化・階級・給料
+
+let TOPPINGS = [
+  {id: "pepperoni", name: "🍖 ペパロニ", color: "#B91C1C"},
+  {id: "veggie", name: "🫑 ピーマン", color: "#16A34A"},
+  {id: "ham", name: "🥓 ハム", color: "#F9A8D4"},
+  {id: "pineapple", name: "🍍 パイン", color: "#FDE047"},
+  {id: "sausage", name: "🌭 ソーセージ", color: "#92400E"},
+  {id: "mushroom", name: "🍄 きのこ", color: "#D6D3D1"}
+]
+
+-- day: 何日目からメニューに出るか
+let PIZZAS = [
+  {id: "cheese", name: "🧀 チーズ", tops: [], price: 30, day: 1},
+  {id: "pepperoni", name: "🍕 ペパロニ", tops: ["pepperoni"], price: 36, day: 1},
+  {id: "veggie", name: "🥦 ベジタブル", tops: ["veggie"], price: 36, day: 1},
+  {id: "hawaiian", name: "🍍 ハワイアン", tops: ["ham", "pineapple"], price: 44, day: 2},
+  {id: "meat", name: "🥩 ミートラバー", tops: ["pepperoni", "sausage"], price: 46, day: 2},
+  {id: "special", name: "⭐ スペシャル", tops: ["pepperoni", "veggie", "mushroom"], price: 55, day: 3}
+]
+
+-- 店の強化（店のお金で買う）
+let UPGRADES = [
+  {id: "oven", name: "🔥 オーブン", text: "焼き時間が短くなる", prices: [300, 800, 1800]},
+  {id: "fridge", name: "🧊 冷蔵庫", text: "材料をたくさん置ける", prices: [250, 700, 1500]},
+  {id: "dining", name: "🪑 客席", text: "お客さんが増え、待ってくれる時間ものびる", prices: [400, 1000, 2200]},
+  {id: "decor", name: "🎨 内装", text: "評価が上がりやすく、チップが増える", prices: [350, 900, 2000]},
+  {id: "scooter", name: "🛵 配達スクーター", text: "配達が速くなる", prices: [300, 800, 1600]}
+]
+let BAKE_SECS = [8, 6.5, 5, 4]
+let STOCK_CAP = [24, 36, 48, 64]
+let CUSTOMER_CAP = [3, 4, 6, 8]
+let PATIENCE = [70, 80, 90, 100]
+let SCOOTER_SPEED = [1.6, 1.9, 2.2, 2.5]
+let BURN_AFTER = 10       -- 焼けてからこの秒数でこげる
+let OVEN_SLOTS = 3
+
+-- 階級（仕事の経験値）
+let RANKS = [
+  {need: 0, name: "見習い", pay: 1},
+  {need: 100, name: "店員", pay: 1.1},
+  {need: 300, name: "ベテラン", pay: 1.25},
+  {need: 700, name: "副店長", pay: 1.4},
+  {need: 1500, name: "店長", pay: 1.6}
+]
+
+-- 1回の仕事のお給料（xp は階級の経験値）
+let PAY = {
+  order: {coins: 6, xp: 4},
+  dough: {coins: 2, xp: 1},
+  top: {coins: 4, xp: 3},
+  bake: {coins: 5, xp: 3},
+  box: {coins: 6, xp: 4},
+  serve: {coins: 10, xp: 6},
+  deliver: {coins: 25, xp: 12},
+  supply: {coins: 8, xp: 5}
+}
+
+let DAY_SECS = 240
+let CLOSED_SECS = 20
+let UNIFORMS = [
+  {name: "赤", body: "#DC2626", hat: "cap"},
+  {name: "黒", body: "#111827", hat: "cap"},
+  {name: "白", body: "#F8FAFC", hat: "none"},
+  {name: "みどり", body: "#16A34A", hat: "cap"},
+  {name: "店長", body: "#7C3AED", hat: "crown"}
+]

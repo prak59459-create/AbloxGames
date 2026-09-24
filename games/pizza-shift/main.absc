@@ -1,240 +1,63 @@
 -- Pizza Shift — みんなでピザ屋を回すお仕事ゲーム
--- レジ → 生地 → ソース → チーズ → トッピング → オーブン → 箱 → お客さん/配達。
+-- レジ → 生地 → ソース → チーズ → 具 → オーブン（こげに注意）→ 箱 → 手わたし / 配達。
+-- 材料はトラックから運ぶ。店の評価（★）とお客さんの数、店のお金で強化、階級で給料アップ。
+--
+-- ファイル:
+--   data.absc     表（ピザ・具・強化・階級・給料）
+--   common.absc   小さな道具・給料・手に持っているもの
+--   shop.absc     営業日・評価・お客さん・配達注文・強化・1日のまとめ
+--   kitchen.absc  持ち場（レジ・キッチン・オーブン・箱・材料・事務所・ロッカー・スクーター）
+--   main.absc     このファイル
 
 kit_setup("Pizza Shift", "チームワークでピザを届けよう", [
-  "🧾 レジ（緑）: お客さんの注文を受ける（注文と同じボタン）",
-  "🍕 キッチン: 生地 → ソース → チーズ → トッピング の順にさわる",
-  "🔥 オーブン: 作ったピザを入れて8秒焼く",
-  "📦 箱の台: 焼けたピザを箱に。お店のお客さんにはすぐ届く",
-  "🚚 配達の注文は、箱を持って指定の家のドアへ",
-  "📦 材料が減ったら、裏のトラック（青）で補充",
-  "仕事をするたびにお給料がもらえます"
+  "🧾 レジ（緑）: お客さんの吹き出しと同じピザを注文に入れる",
+  "🍕 生地 → ソース → チーズ → 具（レシピどおり）の順にさわる",
+  "🔥 オーブン: 入れて焼けたら、こげる前に取り出す（✅の数字がこげるまで）",
+  "📦 箱の台で箱に入れて、店内のお客さんに近づくとわたせる",
+  "🚚 配達（電話の注文）は House の玄関へ。🛵 スクーターが速い",
+  "📦 材料が減ったら、裏のトラック（青）→ 奥の棚へ運ぶ",
+  "🏢 事務所（むらさき）で店のお金を使って強化。★が高いほどお客さんが来る"
 ])
 
-let kinds = ["チーズ", "ペパロニ", "ベジタブル"]
-let stock = {dough: 12, sauce: 12, cheese: 12, topping: 12}
-let queue = []        -- レジで受けた注文 {kind, delivery, house}
-let oven = []         -- {kind, ready_at}
-let ready = []        -- 焼けたピザの種類
-let customers = []    -- 待っているお客さん {npc, kind, delivery, house, ordered}
-let served = 0
+kit_quest("orders", "注文を10受ける", 10, 100)
+kit_quest("bake", "ピザを10枚焼く", 10, 120)
+kit_quest("serve", "店内で5回わたす", 5, 100)
+kit_quest("deliver", "5回配達する", 5, 200)
+kit_quest("supply", "材料を3回運ぶ", 3, 80)
+kit_quest("upgrade", "店を強化する", 1, 150)
+kit_quest("rank", "昇進する", 1, 100)
+kit_quest("days", "3日働く", 3, 300)
+kit_quest("mvp", "1日のMVPになる", 1, 200)
+kit_quest("stars5", "★5の日をむかえる", 1, 400)
 
-kit_quest("orders", "注文を5つ受ける", 5, 60)
-kit_quest("bake", "ピザを5枚焼く", 5, 80)
-kit_quest("deliver", "3回配達する", 3, 120)
-kit_quest("supply", "材料を補充する", 1, 40)
-
-func pay(p, amount, why)
-  kit_give(p, amount)
-  p.score = p.score + amount
-  p.message(why + " +" + amount, 1.2)
-end
-
-func show_board()
-  let q = map(queue, func(o) return o.kind + (o.delivery and "🚚" or "") end)
-  ui_text("board", "🧾 注文: " + (len(q) > 0 and join(q, ", ") or "なし") + "   🔥 オーブン " + len(oven) + "   📦 できあがり " + len(ready),
-          {at: "top", dy: 26, size: 16, bold: true})
-  ui_text("stock", "材料  生地 " + stock.dough + "  ソース " + stock.sauce + "  チーズ " + stock.cheese + "  具 " + stock.topping,
-          {at: "top", dy: 52, size: 14, color: "#FDE68A"})
-end
-
-func show_hand(p)
-  let text = "✋ 手: "
-  if p.pizza != nil then text = text + "作りかけのピザ（" + p.pizza + "）"
-  elif p.box != nil then text = text + "📦 " + p.box.kind + " のピザ（House " + p.box.house + " へ）"
-  else text = text + "なし"
-  end
-  p.ui_text("hand", text, {at: "bottom", dy: -24, size: 16})
-end
-
-func new_customer()
-  if len(customers) >= 4 then return end
-  let delivery = random() < 0.35
-  let house = random(1, 6)
-  let kind = random(kinds)
-  let spot = block("Customer Spot")
-  let n = nil
-  if not delivery then
-    n = create_npc({name: "お客さん（" + kind + "）", position: spot.position + {x: random(-2, 2), y: 1, z: random(0, 3)},
-                    color: random(["#F97316", "#22C55E", "#3B82F6", "#EC4899"]), health: 999999, speed: 0.6})
-  end
-  append(customers, {npc: n, kind: kind, delivery: delivery, house: house, ordered: false})
-  if delivery then announce("☎️ 電話で注文: House " + house + " に " + kind + "！", 3) end
-end
+let worker_clock = 0
 
 on start()
-  after(3, func() new_customer() end)
-  every(18, func() new_customer() end)
-  every(1, func()
-    -- オーブンから焼けたピザを出す
-    let still = []
-    for item in oven do
-      if time() >= item.ready_at then
-        append(ready, item.kind)
-        sound("tick")
-      else
-        append(still, item)
-      end
-    end
-    oven = still
-    show_board()
-  end)
+  for n in npcs() do n.destroy() end
   every(10, func() kit_leaderboard("💰") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  kit_give(p, 0)
-  show_hand(p)
-end
-
-on touch(p, b)
-  if p.is_npc or not contains(b.tags, "station") then return end
-  let kind = b.tags[2]
-  if kind == "register" then
-    if not kit_ready(p, "register", 2) then return end
-    let waiting = filter(customers, func(c) return not c.ordered end)
-    if len(waiting) == 0 then
-      p.message("お客さんはいない", 1)
-      return
-    end
-    p.ui_panel("reg", {at: "center", w: 420, h: 150, bg: "#14532DEE", radius: 20, layer: 30})
-    p.ui_text("reg_t", "ご注文は？（" + (waiting[1].delivery and "配達" or "店内") + "）", {parent: "reg", y: 0.2, size: 20, bold: true})
-    let i = 0
-    for k in kinds do
-      i = i + 1
-      p.ui_button("order_" + k, k, {parent: "reg", x: (i - 0.5) / 3, y: 0.68, w: 120, h: 50, size: 17, bg: "#16A34A"})
-    end
-  elif kind == "dough" then
-    if p.pizza == nil and p.box == nil then
-      if stock.dough <= 0 then
-        p.message("生地がない！トラックで補充", 1.5)
-        return
-      end
-      stock.dough = stock.dough - 1
-      p.pizza = "生地"
-      show_hand(p)
-    end
-  elif kind == "sauce" and p.pizza == "生地" then
-    if stock.sauce <= 0 then return end
-    stock.sauce = stock.sauce - 1
-    p.pizza = "ソース"
-    show_hand(p)
-  elif kind == "cheese" and p.pizza == "ソース" then
-    if stock.cheese <= 0 then return end
-    stock.cheese = stock.cheese - 1
-    p.pizza = "チーズ"
-    show_hand(p)
-  elif kind == "topping" and p.pizza == "チーズ" then
-    p.ui_panel("top", {at: "center", w: 420, h: 150, bg: "#7C2D12EE", radius: 20, layer: 30})
-    p.ui_text("top_t", "トッピングは？", {parent: "top", y: 0.2, size: 20, bold: true})
-    let i = 0
-    for k in kinds do
-      i = i + 1
-      p.ui_button("top_" + k, k, {parent: "top", x: (i - 0.5) / 3, y: 0.68, w: 120, h: 50, size: 17, bg: "#EA580C"})
-    end
-  elif kind == "oven" and p.pizza != nil and contains(kinds, p.pizza) then
-    append(oven, {kind: p.pizza, ready_at: time() + 8})
-    p.pizza = nil
-    pay(p, 8, "🔥 オーブンへ")
-    kit_quest_progress(p, "bake", 1)
-    show_hand(p)
-  elif kind == "box" and len(ready) > 0 and p.box == nil and p.pizza == nil then
-    let pizza = remove(ready, 1)
-    -- お店のお客さんで、この種類を待っている人がいれば渡す
-    for c in customers do
-      if c.ordered and not c.delivery and c.kind == pizza then
-        remove(customers, index_of(customers, c))
-        if c.npc != nil and kit_here(c.npc) then
-          c.npc.say("ありがとう！おいしそう！")
-          let n = c.npc
-          after(2, func() if kit_here(n) then n.destroy() end end)
-        end
-        served = served + 1
-        for q in players() do kit_give(q, 5) end
-        pay(p, 10, "📦 お客さんにわたした")
-        show_board()
-        return
-      end
-    end
-    -- 配達の注文
-    for c in customers do
-      if c.ordered and c.delivery and c.kind == pizza then
-        p.box = {kind: pizza, house: c.house, order: c}
-        show_hand(p)
-        p.message("🚚 House " + c.house + " へ配達！", 2.5)
-        return
-      end
-    end
-    append(ready, pizza)
-    p.message("このピザを待っている注文がない", 1.5)
-  elif kind == "truck" and kit_ready(p, "truck", 5) then
-    stock.dough = min(30, stock.dough + 6)
-    stock.sauce = min(30, stock.sauce + 6)
-    stock.cheese = min(30, stock.cheese + 6)
-    stock.topping = min(30, stock.topping + 6)
-    pay(p, 6, "📦 補充した")
-    kit_quest_progress(p, "supply", 1)
-    show_board()
-  end
+  kit_camera_button(p)
+  p.job_xp = 0
+  p.day_pay = 0
+  p.crate = false
+  p.riding = false
+  kit_show_money(p)
+  p.ui_button("drop", "🗑 手ばなす", {at: "right", dy: 0, w: 150, h: 46, size: 16, bg: "#6B7280"})
+  p.color = "#DC2626"
+  p.hat = "cap"
+  hud(p)
 end
 
 on tick(dt)
-  -- 配達: 箱を持って家のドアの近くへ
+  worker_clock = worker_clock + dt
+  if worker_clock < 0.5 then return end
+  worker_clock = 0
   for p in players() do
-    if p.box != nil then
-      let door = block("House " + p.box.house + " Door")
-      if door != nil and distance(p, door) < 3 then
-        let order = p.box.order
-        p.box = nil
-        if contains(customers, order) then remove(customers, index_of(customers, order)) end
-        served = served + 1
-        pay(p, 25, "🚚 配達完了！")
-        kit_quest_progress(p, "deliver", 1)
-        show_hand(p)
-        show_board()
-      end
-    end
+    if ready(p) and p.box != nil then carry_step(p) end
   end
-end
-
-on button(p, id)
-  if starts_with(id, "order_") then
-    p.ui_remove("reg")
-    let kind = replace(id, "order_", "")
-    let waiting = filter(customers, func(c) return not c.ordered end)
-    if len(waiting) == 0 then return end
-    let c = waiting[1]
-    if c.kind != kind then
-      p.message("「" + c.kind + "」って言ったのに…", 1.5)
-      return
-    end
-    c.ordered = true
-    append(queue, {kind: kind, delivery: c.delivery, house: c.house})
-    pay(p, 6, "🧾 注文を受けた")
-    kit_quest_progress(p, "orders", 1)
-    show_board()
-  elif starts_with(id, "top_") then
-    p.ui_remove("top")
-    if p.pizza != "チーズ" then return end
-    let kind = replace(id, "top_", "")
-    if kind != "チーズ" then
-      if stock.topping <= 0 then
-        p.message("具がない！", 1)
-        return
-      end
-      stock.topping = stock.topping - 1
-    end
-    p.pizza = kind
-    -- 注文の列から1つ消す
-    for o in queue do
-      if o.kind == kind then
-        remove(queue, index_of(queue, o))
-        break
-      end
-    end
-    show_hand(p)
-    show_board()
-  end
+  ui_text("oven", oven_line(), {at: "top", dy: 72, size: 13, color: "#FDBA74"})
 end

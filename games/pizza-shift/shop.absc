@@ -1,0 +1,275 @@
+-- shop.absc — お店（営業日・評価・お金・強化）とお客さん
+-- 1日は4分。お客さん（NPC）が入ってきてレジに並ぶ。待てる時間がすぎると怒って帰る（評価ダウン）。
+-- 電話の配達注文もある。売上は「店のお金」になり、事務所で店を強化できる。
+-- 閉店のあとに1日のまとめ（売上・評価・MVP）とボーナス。
+
+let stock = {dough: 16, sauce: 16, cheese: 16, topping: 16}
+let funds = 0
+let rating = 3
+let upgrades = {oven: 0, fridge: 0, dining: 0, decor: 0, scooter: 0}
+let orders = []       -- {oid, pizza, delivery, house, npc, since, until, taken, made}
+let order_uid = 0
+let day = 1
+let day_left = DAY_SECS
+let open = true
+let day_stats = {served: 0, sales: 0, angry: 0, delivered: 0}
+let shop_clock = 0
+let spawn_clock = 0
+
+func bake_secs()
+  return BAKE_SECS[upgrades.oven + 1]
+end
+
+func stock_cap()
+  return STOCK_CAP[upgrades.fridge + 1]
+end
+
+func menu()
+  return filter(PIZZAS, func(z) return z.day <= day end)
+end
+
+func rating_stars()
+  let s = ""
+  for k in 1 to 5 do
+    if k <= floor(rating + 0.5) then s = s + "★" else s = s + "☆" end
+  end
+  return s
+end
+
+func change_rating(d)
+  if d > 0 then d = d * (1 + upgrades.decor * 0.3) end
+  rating = min(5, max(1, rating + d))
+end
+
+-- MARK: お客さん
+
+func dine_orders()
+  return filter(orders, func(o) return not o.delivery end)
+end
+
+func spawn_customer()
+  let waiting = len(filter(dine_orders(), func(o) return kit_here(o.npc) end))
+  if waiting >= CUSTOMER_CAP[upgrades.dining + 1] then return end
+  let z = random(menu())
+  order_uid = order_uid + 1
+  let n = create_npc({name: random(["タロウ", "ミサキ", "ケン", "アヤ", "ユウト", "ナナ", "リョウ", "モモ"]), position: vec(8, 1, 13),
+                      color: random(["#F97316", "#22C55E", "#3B82F6", "#EC4899", "#A855F7"]), head_color: "#F5D0A9", health: 100000,
+                      speed: 0.8, team: "customers"})
+  n.kind = "customer"
+  n.oid = order_uid
+  n.state = "enter"
+  n.move_to(vec(8, 1, 6))
+  let patience = PATIENCE[upgrades.dining + 1]
+  append(orders, {oid: order_uid, pizza: z.id, delivery: false, house: nil, npc: n, since: time(), until: time() + patience,
+                  taken: false, made: false})
+end
+
+func phone_order()
+  let z = random(menu())
+  order_uid = order_uid + 1
+  let house = random(1, 6)
+  append(orders, {oid: order_uid, pizza: z.id, delivery: true, house: house, npc: nil, since: time(), until: time() + 120,
+                  taken: true, made: false})
+  announce("☎️ 電話で注文: House " + house + " に " + z.name + "！", 3)
+end
+
+-- 並ぶ場所（レジの前から後ろへ）
+func queue_spot(i)
+  return vec(-8 + (i - 1) * 2.2, 1, 5 + (i - 1) * 0.4)
+end
+
+func customer_step()
+  let i = 0
+  for o in dine_orders() do
+    let n = o.npc
+    if kit_here(n) then
+      if n.state == "enter" and distance(n, vec(8, 1, 6)) < 1.6 then n.state = "queue" end
+      if n.state == "queue" then
+        i = i + 1
+        n.move_to(queue_spot(i))
+      end
+    end
+  end
+  -- 食べ終わったら帰る（注文が終わったお客さんも）
+  for n in npcs() do
+    if n.kind == "customer" and kit_here(n) then
+      if n.state == "eat" and time() > n.leave_at then
+        n.state = "leave"
+        n.say("ごちそうさま！")
+        n.move_to(vec(8, 1, 6))
+      elif n.state == "leave" and distance(n, vec(8, 1, 6)) < 1.8 then
+        n.state = "gone"
+        n.move_to(vec(8, 1, 14))
+        let nn = n
+        after(3, func() gone(nn) end)
+      end
+    end
+  end
+  -- 待ちすぎ
+  for o in copy(orders) do
+    if not o.served and time() > o.until then
+      if o.delivery then announce("☎️ House " + o.house + " の注文がキャンセルされた…", 2) end
+      if kit_here(o.npc) then
+        o.npc.say("おそい！ もう帰る！")
+        o.npc.state = "leave"
+        o.npc.move_to(vec(8, 1, 6))
+      end
+      day_stats.angry = day_stats.angry + 1
+      change_rating(-0.3)
+      remove_order(o.oid)
+    end
+  end
+end
+
+func remove_order(oid)
+  orders = filter(orders, func(o) return o.oid != oid end)
+end
+
+func find_order(oid)
+  for o in orders do
+    if o.oid == oid then return o end
+  end
+  return nil
+end
+
+-- お客さんにピザがとどいた
+func order_done(o, p, delivered)
+  let z = pizza_info(o.pizza)
+  let left = max(0, o.until - time())
+  let tip = floor(left / 6 * (1 + upgrades.decor * 0.25) * (rating / 3))
+  funds = funds + z.price
+  day_stats.sales = day_stats.sales + z.price
+  day_stats.served = day_stats.served + 1
+  if delivered then day_stats.delivered = day_stats.delivered + 1 end
+  change_rating(0.12)
+  kit_give(p, tip)
+  if kit_here(o.npc) then
+    o.npc.say("ありがとう！ おいしそう！")
+    let seat = block("Seat " + random(1, 5))
+    o.npc.state = "eat"
+    o.npc.leave_at = time() + 10
+    if seat != nil then o.npc.move_to(seat.position + {x: 0, y: 1, z: 0}) end
+  end
+  o.served = true
+  remove_order(o.oid)
+  return tip
+end
+
+-- MARK: 強化
+
+func buy_upgrade(p, id)
+  for u in UPGRADES do
+    if u.id == id then
+      let lv = upgrades[id]
+      if lv >= len(u.prices) then return end
+      let price = u.prices[lv + 1]
+      if funds < price then
+        p.message("🏪 店のお金が足りない（" + funds + " / " + price + "）", 1.5)
+        return
+      end
+      funds = funds - price
+      upgrades[id] = lv + 1
+      announce("🏪 " + p.name + " が店を強化: " + u.name + " Lv." + (lv + 1) + "！", 3)
+      kit_quest_progress(p, "upgrade", 1)
+    end
+  end
+end
+
+-- MARK: 1日
+
+func close_shop()
+  open = false
+  day_left = CLOSED_SECS
+  let best = nil
+  for p in players() do
+    if ready(p) and (best == nil or (p.day_pay or 0) > (best.day_pay or 0)) then best = p end
+  end
+  let bonus = floor(day_stats.sales * 0.1 * rating / 3)
+  for p in players() do
+    if ready(p) then
+      kit_give(p, bonus)
+      p.ui_panel("summary", {at: "center", w: 440, h: 260, bg: "#7F1D1DF2", radius: 20, layer: 40})
+      p.ui_text("sm_t", "🍕 " + day + "日目 おつかれさま！", {parent: "summary", y: 0.12, size: 20, bold: true, color: "#FDE68A"})
+      p.ui_text("sm_1", "売上 " + day_stats.sales + "   出したピザ " + day_stats.served + "（配達 " + day_stats.delivered + "）", {parent: "summary", y: 0.32, size: 15})
+      p.ui_text("sm_2", "怒って帰ったお客さん " + day_stats.angry + "   評価 " + rating_stars(), {parent: "summary", y: 0.46, size: 15})
+      p.ui_text("sm_3", "みんなにボーナス +" + bonus, {parent: "summary", y: 0.6, size: 17, bold: true, color: "#86EFAC"})
+      if best != nil then p.ui_text("sm_4", "MVP: " + best.name + "（" + (best.day_pay or 0) + "）", {parent: "summary", y: 0.74, size: 15, color: "#FDE68A"}) end
+      p.ui_button("sm_close", "OK", {parent: "summary", y: 0.9, w: 120, h: 36, size: 15, bg: "#16A34A"})
+      kit_later(p, 8, func() p.ui_remove("summary") end)
+      kit_quest_progress(p, "days", 1)
+    end
+  end
+  if best != nil then kit_quest_progress(best, "mvp", 1) end
+  if rating >= 4.5 then
+    for p in players() do
+      if ready(p) then kit_quest_progress(p, "stars5", 1) end
+    end
+  end
+  announce("🌙 閉店！ 明日の準備をしよう（" + CLOSED_SECS + "びょう）", 3)
+  -- 残りの注文はなし
+  for o in orders do
+    if kit_here(o.npc) then gone(o.npc) end
+  end
+  orders = []
+end
+
+func open_shop()
+  day = day + 1
+  open = true
+  day_left = DAY_SECS
+  day_stats = {served: 0, sales: 0, angry: 0, delivered: 0}
+  for p in players() do p.day_pay = 0 end
+  let new_items = filter(PIZZAS, func(z) return z.day == day end)
+  let msg = "☀️ " + day + "日目、開店！"
+  if len(new_items) > 0 then msg = msg + " 新メニュー: " + join(map(new_items, func(z) return z.name end), "・") end
+  announce(msg, 4)
+end
+
+func board()
+  let lines = []
+  for o in orders do
+    if o.taken then
+      let z = pizza_info(o.pizza)
+      let s = z.name
+      if o.delivery then s = s + "🚚" + o.house end
+      if o.made then s = s + "✅" end
+      let left = o.until - time()
+      if left < 20 then s = s + "⚠" end
+      append(lines, s)
+    end
+  end
+  let waiting = len(filter(dine_orders(), func(o) return not o.taken and kit_here(o.npc) end))
+  let head = "🧾 注文: "
+  if len(lines) == 0 then head = head + "なし" else head = head + join(slice(lines, 1, 6), "  ") end
+  if waiting > 0 then head = head + "   🙋 レジ待ち " + waiting end
+  ui_text("board", head, {at: "top", dy: 26, size: 15, bold: true})
+  let st = "材料 生地" + stock.dough + " ソース" + stock.sauce + " チーズ" + stock.cheese + " 具" + stock.topping + "（最大 " + stock_cap() + "）"
+  let clock = "営業中 " + kit_clock(day_left)
+  if not open then clock = "閉店中 " + day_left + "s" end
+  ui_text("shop", "🏪 " + day + "日目 " + clock + "   " + rating_stars() + "   店のお金 " + funds + "   " + st, {at: "top", dy: 50, size: 13, color: "#FDE68A"})
+end
+
+on tick(dt)
+  shop_clock = shop_clock + dt
+  spawn_clock = spawn_clock + dt
+  if shop_clock < 1 then return end
+  shop_clock = 0
+  day_left = day_left - 1
+  if day_left <= 0 then
+    if open then close_shop() else open_shop() end
+  end
+  if open then
+    -- 評価が高いほどお客さんが多い
+    let gap = 16 - rating * 1.6
+    if spawn_clock >= gap then
+      spawn_clock = 0
+      if random() < 0.25 then phone_order() else spawn_customer() end
+    end
+    customer_step()
+  end
+  board()
+end
+
+on button(p, id)
+  if id == "sm_close" then p.ui_remove("summary") end
+end

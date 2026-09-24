@@ -1,0 +1,333 @@
+-- kitchen.absc — 持ち場
+-- 🧾 レジ: 先頭のお客さんの注文をえらぶ（ちがうとお客さんががっかり）
+-- 🍕 生地 → ソース → チーズ → 具（レシピどおりにのせる）→ 🔥 オーブン（3枚まで。焼けたら早く出さないとこげる）
+-- 📦 箱の台: 焼けたピザを注文に合わせて箱に → 店内のお客さんに手わたし / 配達は家の玄関へ
+-- 🚚 トラックで材料の箱を受け取り、奥の棚へ。🛵 スクーターで配達が速い。🏢 事務所で店の強化。
+
+let oven = []     -- {uid, pizza, ready_at, burn_at}
+let oven_uid = 0
+
+-- MARK: レジ
+
+func register_menu(p)
+  let o = nil
+  for x in orders do
+    if o == nil and not x.delivery and not x.taken and kit_here(x.npc) and x.npc.state == "queue" then o = x end
+  end
+  if o == nil then
+    p.message("レジに並んでいるお客さんはいない", 1)
+    return
+  end
+  p.reg_oid = o.oid
+  o.npc.say(pizza_info(o.pizza).name + " をください！")
+  let m = menu()
+  let h = 130 + ceil(len(m) / 3) * 56
+  p.ui_panel("reg", {at: "center", w: 540, h: h, bg: "#14532DEE", radius: 20, layer: 30})
+  p.ui_text("reg_t", "🧾 " + o.npc.name + " の注文は？（吹き出しを見よう）", {parent: "reg", y: 28 / h, size: 17, bold: true})
+  let i = 0
+  for z in m do
+    i = i + 1
+    p.ui_button("order_" + z.id, z.name, {parent: "reg", x: ((i - 1) % 3) * 0.32 + 0.18, y: (30 + ceil(i / 3) * 56) / h, w: 160, h: 46, size: 15, bg: "#16A34A"})
+  end
+  p.ui_button("reg_close", "閉じる", {parent: "reg", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func take_order(p, pizza_id)
+  p.ui_remove("reg")
+  let o = find_order(p.reg_oid)
+  if o == nil or o.taken then return end
+  if o.pizza != pizza_id then
+    o.npc.say("えっ、ちがうよ… " + pizza_info(o.pizza).name + " だよ")
+    change_rating(-0.1)
+    p.message("❌ 注文ちがい", 1.2)
+    return
+  end
+  o.taken = true
+  o.npc.say("おねがいします！")
+  work(p, "order", "🧾 注文を受けた")
+  kit_quest_progress(p, "orders", 1)
+end
+
+-- MARK: 作る
+
+func use_stock(p, key)
+  if stock[key] <= 0 then
+    p.message("📦 材料がない！ トラックから運ぼう", 1.5)
+    return false
+  end
+  stock[key] = stock[key] - 1
+  return true
+end
+
+func topping_menu(p)
+  let h = 250
+  p.ui_panel("tops", {at: "center", w: 560, h: h, bg: "#7C2D12EE", radius: 20, layer: 30})
+  let now = "のせた具: "
+  if len(p.pizza.tops) == 0 then now = now + "なし（チーズピザ）" else now = now + join(map(p.pizza.tops, func(t) return topping_info(t).name end), "・") end
+  p.ui_text("tp_t", now, {parent: "tops", y: 26 / h, size: 15, bold: true})
+  let i = 0
+  for t in TOPPINGS do
+    i = i + 1
+    p.ui_button("tp_" + t.id, t.name, {parent: "tops", x: ((i - 1) % 3) * 0.32 + 0.18, y: (26 + ceil(i / 3) * 54) / h, w: 160, h: 44, size: 15, bg: t.color})
+  end
+  p.ui_button("tp_done", "✅ 完成", {parent: "tops", x: 0.3, y: (h - 34) / h, w: 160, h: 42, size: 16, bg: "#16A34A"})
+  p.ui_button("tp_clear", "やり直す", {parent: "tops", x: 0.72, y: (h - 34) / h, w: 140, h: 42, size: 15, bg: "gray"})
+end
+
+func recipe_for(tops)
+  for z in PIZZAS do
+    if len(z.tops) == len(tops) then
+      let ok = true
+      for t in z.tops do
+        if not contains(tops, t) then ok = false end
+      end
+      if ok then return z.id end
+    end
+  end
+  return nil
+end
+
+func finish_topping(p)
+  p.ui_remove("tops")
+  if p.pizza == nil or p.pizza.stage != "cheese" then return end
+  if len(p.pizza.tops) > 0 and not use_stock(p, "topping") then return end
+  p.pizza.stage = "topped"
+  p.pizza.recipe = recipe_for(p.pizza.tops)
+  if p.pizza.recipe == nil then p.message("🤢 どのレシピにもないピザになった…", 1.5) else work(p, "top", "🍕 " + pizza_info(p.pizza.recipe).name) end
+  show_hand(p)
+end
+
+-- MARK: オーブン
+
+func oven_touch(p)
+  -- 生のピザを入れる
+  if p.pizza != nil and p.pizza.stage == "topped" then
+    if len(oven) >= OVEN_SLOTS then
+      p.message("🔥 オーブンがいっぱい（" + OVEN_SLOTS + "枚）", 1.2)
+      return
+    end
+    let id = p.pizza.recipe
+    if id == nil then id = "mess" end
+    oven_uid = oven_uid + 1
+    append(oven, {uid: oven_uid, pizza: id, ready_at: time() + bake_secs(), burn_at: time() + bake_secs() + BURN_AFTER})
+    p.pizza = nil
+    work(p, "bake", "🔥 オーブンへ（" + bake_secs() + "びょう）")
+    kit_quest_progress(p, "bake", 1)
+    show_hand(p)
+    return
+  end
+  -- 焼けたピザを出す
+  if p.pizza == nil and p.baked == nil and p.box == nil and not p.crate then
+    let pick = nil
+    for x in oven do
+      if pick == nil and time() >= x.ready_at then pick = x end
+    end
+    if pick == nil then
+      if len(oven) > 0 then p.message("🔥 まだ焼けていない", 0.8) end
+      return
+    end
+    oven = filter(oven, func(x) return x.uid != pick.uid end)
+    if time() >= pick.burn_at or pick.pizza == "mess" then
+      p.baked = "burnt"
+      p.message("🔥 こげていた… すてよう（箱の台）", 1.5)
+      change_rating(-0.05)
+    else
+      p.baked = pick.pizza
+      p.message("✨ 焼けた！ " + pizza_info(pick.pizza).name + " → 箱の台へ", 1.5)
+    end
+    show_hand(p)
+  end
+end
+
+func oven_line()
+  if len(oven) == 0 then return "🔥 オーブン: 空" end
+  let parts = []
+  for x in oven do
+    let name = "？"
+    if x.pizza != "mess" then name = pizza_info(x.pizza).name end
+    if time() >= x.burn_at then append(parts, name + "💀") elif time() >= x.ready_at then append(parts, name + "✅" + ceil(x.burn_at - time())) else append(parts, name + "⏳" + ceil(x.ready_at - time())) end
+  end
+  return "🔥 " + join(parts, "  ")
+end
+
+-- MARK: 箱と手わたし
+
+func box_touch(p)
+  if p.baked == nil then return end
+  if p.baked == "burnt" then
+    p.baked = nil
+    p.message("🗑 すてた", 1)
+    show_hand(p)
+    return
+  end
+  -- 同じピザを待っている、まだ作っていない注文（古い順）
+  let target = nil
+  for o in orders do
+    if target == nil and o.taken and not o.made and o.pizza == p.baked then target = o end
+  end
+  if target == nil then
+    p.message("このピザを待っている注文がない（レジで注文を受けよう）", 1.5)
+    return
+  end
+  target.made = true
+  p.box = {pizza: p.baked, oid: target.oid, house: target.house}
+  p.baked = nil
+  work(p, "box", "📦 箱に入れた")
+  if target.delivery then p.message("🚚 House " + target.house + " へ配達！（🛵 スクーターが速い）", 2.5) else p.message("🙋 " + target.npc.name + " にわたそう", 2) end
+  show_hand(p)
+end
+
+func carry_step(p)
+  let o = find_order(p.box.oid)
+  if o == nil then
+    p.message("注文がキャンセルされた…", 1.5)
+    p.box = nil
+    show_hand(p)
+    return
+  end
+  if o.delivery then
+    let door = block("House " + o.house + " Door")
+    if door != nil and distance(p, door.position) < 3.2 then
+      let tip = order_done(o, p, true)
+      p.box = nil
+      work(p, "deliver", "🚚 配達完了！ チップ " + tip)
+      kit_quest_progress(p, "deliver", 1)
+      show_hand(p)
+    end
+  elif kit_here(o.npc) and distance(p, o.npc) < 3.2 then
+    let tip = order_done(o, p, false)
+    p.box = nil
+    work(p, "serve", "🙋 おまちどうさま！ チップ " + tip)
+    kit_quest_progress(p, "serve", 1)
+    show_hand(p)
+  end
+end
+
+-- MARK: 材料
+
+func truck_touch(p)
+  if p.crate or p.pizza != nil or p.box != nil or p.baked != nil then return end
+  p.crate = true
+  p.message("📦 材料の箱を持った。店の奥の棚へ", 1.5)
+  show_hand(p)
+end
+
+func shelf_touch(p)
+  if not p.crate then return end
+  p.crate = false
+  let cap = stock_cap()
+  for k in keys(stock) do stock[k] = min(cap, stock[k] + 6) end
+  work(p, "supply", "📦 補充した")
+  kit_quest_progress(p, "supply", 1)
+  show_hand(p)
+end
+
+-- MARK: 事務所・休憩室・スクーター
+
+func office_menu(p)
+  let h = 110 + len(UPGRADES) * 52
+  p.ui_panel("office", {at: "center", w: 560, h: h, bg: "#4C1D95F0", radius: 20, layer: 30})
+  p.ui_text("of_t", "🏢 事務所（店のお金 " + funds + "）", {parent: "office", y: 26 / h, size: 18, bold: true, color: "#EDE9FE"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = upgrades[u.id]
+    let label = u.name + " Lv." + lv + " — " + u.text
+    if lv >= len(u.prices) then label = label + "（MAX）" else label = label + "  💰" + u.prices[lv + 1] end
+    p.ui_button("up_" + u.id, label, {parent: "office", y: (28 + i * 52) / h, w: 500, h: 44, size: 13, bg: "#6D28D9"})
+  end
+  p.ui_button("of_close", "閉じる", {parent: "office", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func locker_menu(p)
+  let h = 120 + len(UNIFORMS) * 46
+  p.ui_panel("locker", {at: "center", w: 360, h: h, bg: "#0C4A6EF0", radius: 20, layer: 30})
+  p.ui_text("lk_t", "👕 ロッカー（制服）", {parent: "locker", y: 26 / h, size: 18, bold: true})
+  let i = 0
+  for u in UNIFORMS do
+    i = i + 1
+    let label = u.name
+    if u.name == "店長" and rank_of(p).name != "店長" then label = "🔒 店長だけ" end
+    p.ui_button("uni_" + i, label, {parent: "locker", y: (24 + i * 46) / h, w: 260, h: 40, size: 15, bg: u.body, color: "#111111"})
+  end
+  p.ui_button("lk_close", "閉じる", {parent: "locker", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func toggle_scooter(p)
+  p.riding = not p.riding
+  if p.riding then
+    p.speed = SCOOTER_SPEED[upgrades.scooter + 1]
+    p.message("🛵 スクーターに乗った", 1)
+  else
+    p.speed = 1
+    p.message("🛵 おりた", 1)
+  end
+end
+
+-- MARK: さわった
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not contains(b.tags, "station") then return end
+  let kind = b.tags[2]
+  if kind == "register" and quiet_ready(p, "register", 2) then register_menu(p)
+  elif kind == "dough" then
+    if p.pizza == nil and p.baked == nil and p.box == nil and not p.crate and quiet_ready(p, "dough", 1) then
+      if use_stock(p, "dough") then
+        p.pizza = {stage: "dough", tops: [], recipe: nil}
+        work(p, "dough", "🍕 生地をのばした")
+      end
+    end
+  elif kind == "sauce" and p.pizza != nil and p.pizza.stage == "dough" then
+    if use_stock(p, "sauce") then p.pizza.stage = "sauce" end
+    show_hand(p)
+  elif kind == "cheese" and p.pizza != nil and p.pizza.stage == "sauce" then
+    if use_stock(p, "cheese") then p.pizza.stage = "cheese" end
+    show_hand(p)
+  elif kind == "topping" and p.pizza != nil and p.pizza.stage == "cheese" and quiet_ready(p, "tops", 2) then topping_menu(p)
+  elif kind == "oven" and quiet_ready(p, "oven", 1) then oven_touch(p)
+  elif kind == "box" and quiet_ready(p, "box", 1) then box_touch(p)
+  elif kind == "truck" then truck_touch(p)
+  elif kind == "shelf" then shelf_touch(p)
+  elif kind == "office" and quiet_ready(p, "office", 3) then office_menu(p)
+  elif kind == "locker" and quiet_ready(p, "locker", 3) then locker_menu(p)
+  elif kind == "scooter" and quiet_ready(p, "scooter", 2) then toggle_scooter(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "order_") then take_order(p, replace(id, "order_", ""))
+  elif id == "reg_close" then p.ui_remove("reg")
+  elif id == "tp_done" then finish_topping(p)
+  elif id == "tp_clear" then
+    if p.pizza != nil then p.pizza.tops = [] end
+    topping_menu(p)
+  elif starts_with(id, "tp_") then
+    if p.pizza != nil and p.pizza.stage == "cheese" then
+      let t = replace(id, "tp_", "")
+      if not contains(p.pizza.tops, t) and len(p.pizza.tops) < 3 then append(p.pizza.tops, t) end
+      topping_menu(p)
+    end
+  elif starts_with(id, "up_") then
+    buy_upgrade(p, replace(id, "up_", ""))
+    office_menu(p)
+  elif id == "of_close" then p.ui_remove("office")
+  elif starts_with(id, "uni_") then
+    let u = UNIFORMS[num(replace(id, "uni_", ""))]
+    if u.name == "店長" and rank_of(p).name != "店長" then return end
+    p.color = u.body
+    p.hat = u.hat
+  elif id == "lk_close" then p.ui_remove("locker")
+  elif id == "drop" then
+    p.pizza = nil
+    p.baked = nil
+    p.crate = false
+    if p.box != nil then
+      let o = find_order(p.box.oid)
+      if o != nil then o.made = false end
+      p.box = nil
+    end
+    p.message("🗑 手に持っていたものをおいた", 1)
+    show_hand(p)
+  end
+end
