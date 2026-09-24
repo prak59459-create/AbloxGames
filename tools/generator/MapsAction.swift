@@ -365,7 +365,17 @@ func bladeRevolver(_ m: MapBuilder) {
                color: r.pick(["#71717A", "#52525B", "#A1A1AA"]))
     }
     m.slab("Center Hall", x: 0, y: 0, z: 0, w: 18, h: 0.4, d: 18, color: "#3F3F46")
-    m.walls(0, 0, w: 18, d: 18, h: 4, y: 0.4, color: "#18181B", name: "Hall Wall")
+    // Four wall pieces with a doorway in the middle of each side.
+    for side: Float in [-1, 1] {
+        for half: Float in [-1, 1] {
+            m.slab("Hall Wall", x: half * 5.5, y: 0.4, z: side * 9, w: 7, h: 4, d: 0.6, color: "#18181B")
+            m.slab("Hall Wall", x: side * 9, y: 0.4, z: half * 5.5, w: 0.6, h: 4, d: 7, color: "#18181B")
+        }
+    }
+    m.slab("Hall Roof", x: 0, y: 4.4, z: 0, w: 18.6, h: 0.3, d: 18.6, color: "#27272A")
+    m.stairs(-16.1, -6, steps: 8, rise: 0.58, run: 0.8, width: 2, color: "#71717A", name: "Roof Step")
+    m.pad("Skin Crate", x: 38, z: 38, size: 3, color: "#F59E0B", tags: ["crate"])
+    m.pad("Mode Board", x: -38, z: 38, size: 3, color: "#8B5CF6", tags: ["mode_board"])
     m.spawnRing(0, 0, radius: 36, count: 12, color: "#E11D48")
 }
 

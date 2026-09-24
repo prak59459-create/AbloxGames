@@ -1,0 +1,180 @@
+-- match.absc — モード投票 → 試合（5分）→ 結果
+
+kit_melee("ナイフ", 100, 1.4, 5)
+weapon("リボルバー", {model: "pistol", damage: 55, rate: 1.4, range: 90, ammo: 6, reload: 2, spread: 0.4})
+weapon("一撃リボルバー", {model: "pistol", damage: 200, rate: 1, range: 120, ammo: 1, reload: 1.4, spread: 0})
+
+let phase = "vote"
+let mode = MODES[1]
+let votes = {}
+let vote_ends = 0
+let match_ends = 0
+let team_kills = {red: 0, blue: 0}
+let match_clock = 0
+
+func ready(p)
+  return p.skins != nil
+end
+
+func active_until(v)
+  return v != nil and v > time()
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func mode_info(id)
+  for m in MODES do
+    if m.id == id then return m end
+  end
+  return MODES[1]
+end
+
+func gun_name()
+  if mode.id == "oneshot" then return "一撃リボルバー" end
+  return "リボルバー"
+end
+
+func vote_ui(p)
+  let i = 0
+  for m in MODES do
+    i = i + 1
+    let n = 0
+    for pid in keys(votes) do
+      if votes[pid] == m.id then n = n + 1 end
+    end
+    let label = m.name + " " + n
+    if votes[p.id] == m.id then label = "✅ " + label end
+    p.ui_button("mode_" + m.id, label, {at: "center", dx: (i - 2.5) * 175, dy: 120, w: 168, h: 48, size: 13, bg: "#3F3F46"})
+  end
+  p.ui_text("vote_t", "🗳 モードを投票（のこり " + max(0, ceil(vote_ends - time())) + "）", {at: "center", dy: 80, size: 18, bold: true})
+end
+
+func clear_vote(p)
+  for m in MODES do p.ui_remove("mode_" + m.id) end
+  p.ui_remove("vote_t")
+end
+
+func start_vote()
+  phase = "vote"
+  votes = {}
+  vote_ends = time() + VOTE_SECS
+  for p in players() do
+    if ready(p) then vote_ui(p) end
+  end
+end
+
+func start_match()
+  let best = MODES[1]
+  let best_n = 0
+  for m in MODES do
+    let n = 0
+    for pid in keys(votes) do
+      if votes[pid] == m.id then n = n + 1 end
+    end
+    if n > best_n then
+      best = m
+      best_n = n
+    end
+  end
+  mode = best
+  phase = "match"
+  match_ends = time() + MATCH_SECS
+  team_kills = {red: 0, blue: 0}
+  let i = 0
+  for p in shuffle(copy(players())) do
+    if ready(p) then
+      i = i + 1
+      clear_vote(p)
+      p.kills_match = 0
+      p.streak = 0
+      if mode.id == "tdm" then
+        if i % 2 == 0 then p.team = "blue" else p.team = "red" end
+        if p.team == "red" then p.color = "#DC2626" else p.color = "#2563EB" end
+      else
+        p.team = nil
+        if p.own_color != nil then p.color = p.own_color end
+      end
+      if not p.alive then p.respawn() end
+      p.teleport(block("Spawn " + random(1, 12)))
+      p.protect_until = time() + PROTECT_SECS
+      p.give("ナイフ")
+      hud(p)
+    end
+  end
+  game.friendly_fire = false
+  announce(mode.name + " — " + mode.text, 4)
+end
+
+func end_match(message)
+  if phase != "match" then return end
+  phase = "over"
+  let ranked = sort(filter(players(), func(p) return ready(p) end), func(a, b) return (a.kills_match or 0) > (b.kills_match or 0) end)
+  for p in players() do
+    if ready(p) then
+      let earned = 10 + (p.kills_match or 0) * 3
+      let won = false
+      if mode.id == "tdm" then
+        won = p.team != nil and team_kills[p.team] >= team_kills[other_team(p.team)]
+      else
+        won = len(ranked) > 0 and ranked[1].id == p.id
+      end
+      if won then
+        earned = earned + 40
+        p.wins = (p.wins or 0) + 1
+        kit_quest_progress(p, "win", 1)
+      end
+      p.games = (p.games or 0) + 1
+      kit_give(p, earned)
+      p.xp = (p.xp or 0) + earned
+      p.message("🪙 +" + earned, 3)
+      if p.own_color != nil then p.color = p.own_color end
+      p.team = nil
+      hud(p)
+    end
+  end
+  kit_finish(message, 7)
+end
+
+func other_team(t)
+  if t == "red" then return "blue" end
+  return "red"
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let lvl = 1 + floor(sqrt((p.xp or 0) / 40))
+  let score = "💀 " + (p.kills_match or 0) + " / " + mode.goal
+  if mode.id == "tdm" and phase == "match" then score = "🔴 " + team_kills.red + " - " + team_kills.blue + " 🔵 / " + mode.goal end
+  p.ui_text("k", score + "   🔥 " + (p.streak or 0) + "   ⭐Lv" + lvl, {at: "top_left", dy: 34, size: 18, bold: true})
+end
+
+on tick(dt)
+  match_clock = match_clock + dt
+  if match_clock < 1 then return end
+  match_clock = 0
+  if phase == "vote" then
+    for p in players() do
+      if ready(p) then vote_ui(p) end
+    end
+    if time() >= vote_ends then start_match() end
+  elif phase == "match" then
+    let left = max(0, match_ends - time())
+    ui_text("clock", "⏱ " + kit_clock(left), {at: "top", dy: 26, size: 20, bold: true})
+    if left <= 0 then end_match("⏰ 時間切れ！") end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "mode_") and phase == "vote" then
+    votes[p.id] = replace(id, "mode_", "")
+    for q in players() do
+      if ready(q) then vote_ui(q) end
+    end
+  end
+end

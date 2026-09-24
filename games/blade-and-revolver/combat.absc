@@ -1,0 +1,109 @@
+-- combat.absc — 持ちかえ・投げナイフ・ダッシュ・キル・連続キル・賞金首
+
+func throw_knife(p)
+  if phase != "match" or not p.alive or not kit_ready(p, "throw", THROW_CD) then return end
+  let start = p.position + {x: 0, y: 1.5, z: 0} + p.look * 1
+  let hit = raycast(p, p.look, 40)
+  let target = kit_ahead(p, 40) + {x: 0, y: 1.5, z: 0}
+  if hit != nil then target = hit.point end
+  let blade = create_block({name: "Thrown Knife", position: start, size: {x: 0.15, y: 0.15, z: 0.8}, color: p.head_color,
+                            material: "metal", solid: false})
+  let secs = max(0.1, distance(start, target) / 45)
+  blade.move_to(target, secs)
+  after(secs + 0.05, func() kit_gone(blade) end)
+  p.sound("shoot")
+  if hit != nil and hit.player != nil and hit.player.alive then
+    let v = hit.player
+    if active_until(v.protect_until) then return end
+    if mode.id == "tdm" and v.team == p.team then return end
+    kit_later(p, secs, func()
+      if kit_here(v) and v.alive then
+        v.thrown = true
+        v.damage(v.health + 100, p)
+      end
+    end)
+  end
+end
+
+func dash(p)
+  if not p.alive or not kit_ready(p, "dash", DASH_CD) then return end
+  p.launch(p.look.x * 24, 3, p.look.z * 24)
+end
+
+on hit(victim, attacker, damage)
+  if victim.is_npc or attacker == nil then return damage end
+  if active_until(victim.protect_until) then return 0 end
+  attacker.protect_until = 0
+  return damage
+end
+
+on death(victim, killer)
+  if victim.is_npc or phase != "match" then return end
+  let bounty = 0
+  if (victim.streak or 0) >= 5 then bounty = victim.streak * 5 end
+  victim.streak = 0
+  victim.deaths = (victim.deaths or 0) + 1
+  victim.head_color = victim.own_head or victim.head_color
+  hud(victim)
+  if killer == nil or killer.id == victim.id or killer.is_npc then return end
+  killer.kills_match = (killer.kills_match or 0) + 1
+  killer.kills = (killer.kills or 0) + 1
+  killer.streak = (killer.streak or 0) + 1
+  killer.best_streak = max(killer.best_streak or 0, killer.streak)
+  killer.score = killer.kills
+  kit_quest_progress(killer, "k10", 1)
+  kit_quest_progress(killer, "k100", 1)
+  let how = "🔫"
+  if killer.weapon == "ナイフ" then
+    how = "🔪"
+    kit_quest_progress(killer, "melee", 1)
+  end
+  if victim.thrown then
+    victim.thrown = false
+    how = "🎯"
+    kit_quest_progress(killer, "throw", 1)
+    killer.message("🎯 投げナイフ！", 1)
+  end
+  chat(how + " " + killer.name + " → " + victim.name)
+  if bounty > 0 then
+    kit_give(killer, bounty)
+    announce("💰 " + killer.name + " が賞金首 " + victim.name + " をたおした！（🪙" + bounty + "）", 3)
+  end
+  if killer.streak == 3 then kit_quest_progress(killer, "streak", 1) end
+  if killer.streak >= 3 then killer.head_color = "#FACC15" end
+  if killer.streak == 5 then announce("🔥 " + killer.name + " が5連続！ 賞金首になった！", 3) end
+  if killer.streak == 10 then announce("👑 " + killer.name + " が10連続！ 伝説！", 3) end
+  if mode.id == "tdm" and killer.team != nil then
+    team_kills[killer.team] = team_kills[killer.team] + 1
+    for p in players() do hud(p) end
+    if team_kills[killer.team] >= mode.goal then
+      let name = "🔴 赤チーム"
+      if killer.team == "blue" then name = "🔵 青チーム" end
+      end_match("🏆 " + name + " の勝ち！")
+    end
+  else
+    hud(killer)
+    if killer.kills_match >= mode.goal then end_match("🏆 " + killer.name + " の勝ち！") end
+  end
+end
+
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.protect_until = time() + PROTECT_SECS
+  p.teleport(block("Spawn " + random(1, 12)))
+  p.give("ナイフ")
+end
+
+on button(p, id)
+  if not p.alive then return end
+  if id == "knife" then p.give("ナイフ")
+  elif id == "gun" then
+    if mode.id == "knife" then
+      p.message("🔪 ナイフオンリー！", 1)
+    else
+      p.give(gun_name())
+    end
+  elif id == "throw" then throw_knife(p)
+  elif id == "dash" then dash(p)
+  end
+end

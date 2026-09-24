@@ -1,0 +1,27 @@
+-- data.absc — Blade & Revolver の表
+-- モード・連続キル・スキン
+
+let MODES = [
+  {id: "ffa", name: "💀 バトルロイヤル", goal: 20, text: "先に20キルした人の勝ち"},
+  {id: "tdm", name: "🔴🔵 チームデスマッチ", goal: 40, text: "チームで先に40キル"},
+  {id: "knife", name: "🔪 ナイフオンリー", goal: 15, text: "ナイフだけ。先に15キル"},
+  {id: "oneshot", name: "🎯 ワンショット", goal: 15, text: "リボルバーは一撃・1発ずつ。先に15キル"}
+]
+let MATCH_SECS = 300
+let VOTE_SECS = 12
+let PROTECT_SECS = 2
+let THROW_CD = 3
+let DASH_CD = 5
+
+-- MARK: スキン（ガチャで手に入る。ナイフ＝頭、リボルバー＝足の色）
+let SKINS = [
+  {id: "steel", name: "鋼", color: "#9CA3AF", weight: 40},
+  {id: "crimson", name: "紅", color: "#B91C1C", weight: 20},
+  {id: "jade", name: "翡翠", color: "#059669", weight: 15},
+  {id: "royal", name: "ロイヤル", color: "#1D4ED8", weight: 12},
+  {id: "gold", name: "黄金", color: "#F59E0B", weight: 6},
+  {id: "shadow", name: "漆黒", color: "#111827", weight: 4},
+  {id: "prism", name: "プリズム", color: "#F0ABFC", weight: 2},
+  {id: "void", name: "虚空", color: "#312E81", weight: 1}
+]
+let CRATE_PRICE = 100

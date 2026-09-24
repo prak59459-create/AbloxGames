@@ -1,27 +1,34 @@
 -- Blade & Revolver — ナイフとリボルバーのデスマッチ
+-- モード投票（バトルロイヤル・チームデスマッチ・ナイフオンリー・ワンショット）→ 5分の試合。
+-- 投げナイフ・ダッシュ・連続キル・賞金首。スキンはガチャで集める。
+--
+-- ファイル:
+--   data.absc     表（モード・スキン）
+--   match.absc    武器・投票・試合・結果・画面
+--   combat.absc   持ちかえ・投げナイフ・ダッシュ・キル・賞金首
+--   crate.absc    スキンガチャ・成績
+--   main.absc     このファイル
 
-kit_setup("Blade & Revolver", "先に20キルした人の勝ち", [
-  "🔪ナイフ（近くで一撃）と 🔫リボルバー（6発）を切りかえ",
-  "「投げる」でナイフを投げられる（3秒に1回）",
-  "復活してから2秒は無敵",
-  "連続キルで名前が光る！",
-  "20キルで勝利"
+kit_setup("Blade & Revolver", "ナイフとリボルバーで勝ちぬけ", [
+  "🗳 モードを投票: バトルロイヤル・チーム戦・ナイフオンリー・ワンショット",
+  "🔪 ナイフ（近くで一撃）と 🔫 リボルバー（6発）を切りかえ",
+  "🎯 「投げる」でナイフが飛ぶ（3びょうに1回）。💨 ダッシュで一気に近づく",
+  "🛡 復活してから2びょうは無敵",
+  "🔥 5連続キルで賞金首。たおした人は賞金ゲット",
+  "🎁 金色のパッドでスキンガチャ（頭＝ナイフ、足＝リボルバー）"
 ])
-kit_melee("ナイフ", 100, 1.4, 5)
-weapon("リボルバー", {model: "pistol", damage: 55, rate: 1.4, range: 90, ammo: 6, reload: 2, spread: 0.4})
-let goal = 20
-let over = false
 
 kit_quest("k10", "10キル", 10, 100)
+kit_quest("k100", "100キル", 100, 800)
+kit_quest("melee", "ナイフで10キル", 10, 150)
 kit_quest("throw", "投げナイフで3キル", 3, 150)
 kit_quest("streak", "3連続キル", 1, 80)
-
-func hud(p)
-  p.ui_text("k", "💀 " + p.score + " / " + goal + "   🔥 " + p.streak, {at: "top_left", dy: 34, size: 20, bold: true})
-end
+kit_quest("win", "試合に勝つ", 1, 200)
+kit_quest("crate", "スキンガチャを5回", 5, 100)
 
 on start()
   game.respawn_time = 2
+  start_vote()
   every(5, func() kit_leaderboard("💀") end)
 end
 
@@ -29,59 +36,28 @@ on join(p)
   kit_welcome(p)
   kit_quest_button(p)
   kit_camera_button(p)
+  kit_show_money(p)
+  p.skins = ["steel"]
+  p.knife_skin = "steel"
+  p.gun_skin = "steel"
+  p.own_color = p.color
   p.streak = 0
+  p.kills_match = 0
+  wear(p)
   p.give("ナイフ")
   p.ui_button("knife", "🔪", {at: "bottom_right", dx: -120, dy: -160, w: 70, h: 60, size: 24, bg: "#57534E", radius: 14})
   p.ui_button("gun", "🔫", {at: "bottom_right", dx: -200, dy: -160, w: 70, h: 60, size: 24, bg: "#57534E", radius: 14})
-  p.ui_button("throw", "投げる", {at: "bottom_right", dx: -160, dy: -226, w: 110, h: 54, size: 16, bg: "#B91C1C", radius: 14})
+  p.ui_button("throw", "🎯 投げる", {at: "bottom_right", dx: -160, dy: -226, w: 110, h: 54, size: 15, bg: "#B91C1C", radius: 14})
+  p.ui_button("dash", "💨", {at: "bottom_right", dx: -280, dy: -160, w: 70, h: 60, size: 24, bg: "#0369A1", radius: 14})
+  p.ui_button("crates", "🎁", {at: "top_right", dy: 120, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
+  p.ui_button("stats", "📊", {at: "top_right", dy: 180, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
   hud(p)
-end
-
-on button(p, id)
-  if not p.alive then return end
-  if id == "knife" then p.give("ナイフ")
-  elif id == "gun" then p.give("リボルバー")
-  elif id == "throw" and kit_ready(p, "throw", 3) then
-    let hit = raycast(p, p.look, 40)
-    p.sound("shoot")
-    if hit != nil and hit.player != nil and hit.player.alive then
-      if hit.player.protect_until != nil and time() < hit.player.protect_until then return end
-      hit.player.thrown = true
-      hit.player.kill(p)
-    end
+  if phase == "vote" then
+    vote_ui(p)
+  elif phase == "match" and mode.id == "tdm" then
+    let reds = len(filter(players(), func(q) return q.team == "red" end))
+    let blues = len(filter(players(), func(q) return q.team == "blue" end))
+    if reds <= blues then p.team = "red" else p.team = "blue" end
+    if p.team == "red" then p.color = "#DC2626" else p.color = "#2563EB" end
   end
-end
-
-on hit(victim, attacker, damage)
-  if victim.protect_until != nil and time() < victim.protect_until then return 0 end
-  return damage
-end
-
-on death(victim, killer)
-  if over then return end
-  victim.streak = 0
-  hud(victim)
-  if killer == nil or killer.id == victim.id then return end
-  killer.score = killer.score + 1
-  killer.streak = killer.streak + 1
-  kit_quest_progress(killer, "k10", 1)
-  if victim.thrown then
-    victim.thrown = false
-    kit_quest_progress(killer, "throw", 1)
-    killer.message("🎯 投げナイフ！", 1)
-  end
-  if killer.streak == 3 then kit_quest_progress(killer, "streak", 1) end
-  if killer.streak >= 3 then killer.head_color = "#FACC15" end
-  if killer.streak == 5 then announce("🔥 " + killer.name + " が5連続！", 2) end
-  hud(killer)
-  if killer.score >= goal then
-    over = true
-    kit_finish("🏆 " + killer.name + " の勝ち！", 8)
-  end
-end
-
-on respawn(p)
-  p.protect_until = time() + 2
-  p.head_color = "#FDE68A"
-  p.teleport(block("Spawn " + random(1, 12)))
 end

@@ -1,11 +1,15 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 42,
+  "blockCount" : 57,
   "id" : "blade-and-revolver",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/blade-and-revolver\/data.absc",
+    "games\/blade-and-revolver\/combat.absc",
+    "games\/blade-and-revolver\/crate.absc",
+    "games\/blade-and-revolver\/match.absc",
     "games\/blade-and-revolver\/main.absc"
   ],
   "summary" : "ナイフとリボルバーだけのデスマッチ。ナイフは投げることもできる。先に20キルした人の勝ち。",

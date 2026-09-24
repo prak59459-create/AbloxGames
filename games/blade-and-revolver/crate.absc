@@ -1,0 +1,88 @@
+-- crate.absc — スキンのガチャ（ナイフ＝頭の色、リボルバー＝足の色）と成績
+
+func skin_info(id)
+  for s in SKINS do
+    if s.id == id then return s end
+  end
+  return SKINS[1]
+end
+
+func crate_menu(p)
+  let h = 170 + len(p.skins) * 30
+  p.ui_panel("crate_box", {at: "center", w: 480, h: h, bg: "#27272AF2", radius: 22, layer: 30})
+  p.ui_text("crate_t", "🎁 スキンガチャ（🪙 " + kit_money(p) + "）", {parent: "crate_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  p.ui_button("crate_roll", "🎲 ガチャ  🪙" + CRATE_PRICE, {parent: "crate_box", y: 70 / h, w: 240, h: 40, size: 16, bg: "#B45309"})
+  let i = 0
+  for id in p.skins do
+    i = i + 1
+    let s = skin_info(id)
+    let mark = ""
+    if p.knife_skin == id then mark = mark + "🔪" end
+    if p.gun_skin == id then mark = mark + "🔫" end
+    p.ui_button("sk_knife_" + id, "🔪 " + s.name + " " + mark, {parent: "crate_box", x: 0.3, y: (100 + i * 30) / h, w: 190, h: 26, size: 12, bg: s.color})
+    p.ui_button("sk_gun_" + id, "🔫 " + s.name, {parent: "crate_box", x: 0.72, y: (100 + i * 30) / h, w: 170, h: 26, size: 12, bg: s.color})
+  end
+  p.ui_button("crate_close", "閉じる", {parent: "crate_box", y: (h - 22) / h, w: 120, h: 30, size: 14, bg: "gray"})
+end
+
+func roll(p)
+  if not kit_pay(p, CRATE_PRICE) then return end
+  let s = kit_pick(SKINS, 1)
+  if contains(p.skins, s.id) then
+    kit_give(p, 25)
+    p.message("🎁 " + s.name + "（もう持っている → 🪙25）", 1.5)
+  else
+    append(p.skins, s.id)
+    p.message("🎁 新しいスキン: " + s.name + "！", 2)
+    if s.weight <= 2 then announce("🌟 " + p.name + " が「" + s.name + "」を引いた！", 3) end
+  end
+  kit_quest_progress(p, "crate", 1)
+  crate_menu(p)
+end
+
+func wear(p)
+  p.head_color = skin_info(p.knife_skin).color
+  p.own_head = p.head_color
+  p.leg_color = skin_info(p.gun_skin).color
+end
+
+func stats(p)
+  let kd = fixed((p.kills or 0) / max(1, p.deaths or 0), 2)
+  let lines = [
+    "🏆 勝ち " + (p.wins or 0) + " / " + (p.games or 0) + " 試合",
+    "💀 キル " + (p.kills or 0) + "   デス " + (p.deaths or 0) + "   K/D " + kd,
+    "🔥 最高連続 " + (p.best_streak or 0),
+    "🎁 スキン " + len(p.skins) + " / " + len(SKINS)
+  ]
+  let h = 110 + len(lines) * 34
+  p.ui_panel("stats_box", {at: "center", w: 480, h: h, bg: "#111827F2", radius: 22, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の成績", {parent: "stats_box", y: 28 / h, size: 20, bold: true, color: "#FDE68A"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats_box", y: (40 + i * 34) / h, size: 15})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "crate") and quiet_ready(p, "crate", 4) then crate_menu(p) end
+end
+
+on button(p, id)
+  if id == "crates" then crate_menu(p)
+  elif id == "crate_close" then p.ui_remove("crate_box")
+  elif id == "crate_roll" then roll(p)
+  elif starts_with(id, "sk_knife_") then
+    p.knife_skin = replace(id, "sk_knife_", "")
+    wear(p)
+    crate_menu(p)
+  elif starts_with(id, "sk_gun_") then
+    p.gun_skin = replace(id, "sk_gun_", "")
+    wear(p)
+    crate_menu(p)
+  elif id == "stats" then stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  end
+end
