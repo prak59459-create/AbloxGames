@@ -1,0 +1,105 @@
+-- extras.absc — 設計図（まとめて置ける橋）・川の上に浮かぶ金貨
+
+-- 設計図。parts は {x, y, z, mat}（自分の前を +z として）
+let BLUEPRINTS = [
+  {id: "straight", name: "📐 まっすぐ橋", price: 40, unlock: 100, parts: [{x: 0, y: 0, z: 3, mat: "long"}, {x: 0, y: 0, z: 10, mat: "long"}, {x: 0, y: 0, z: 17, mat: "long"}]},
+  {id: "stairs", name: "📐 おりる階段", price: 35, unlock: 120, parts: [{x: 0, y: -1, z: 3, mat: "wood"}, {x: 0, y: -2, z: 6, mat: "wood"}, {x: 0, y: -3, z: 9, mat: "wood"}, {x: 0, y: -4, z: 12, mat: "wood"}]},
+  {id: "fort", name: "📐 鉄の足場", price: 70, unlock: 250, parts: [{x: -2, y: 0, z: 3, mat: "metal"}, {x: 2, y: 0, z: 3, mat: "metal"}, {x: -2, y: 0, z: 7, mat: "metal"}, {x: 2, y: 0, z: 7, mat: "metal"}]},
+  {id: "hop", name: "📐 ジャンプ台の道", price: 60, unlock: 200, parts: [{x: 0, y: 0, z: 3, mat: "bounce"}, {x: 0, y: 1, z: 9, mat: "wood"}, {x: 0, y: 1, z: 12, mat: "wood"}]}
+]
+
+let coin_clock = 0
+
+func blueprint(id)
+  for b in BLUEPRINTS do
+    if b.id == id then return b end
+  end
+  return nil
+end
+
+func blueprint_panel(p)
+  let h = 110 + len(BLUEPRINTS) * 50
+  p.ui_remove("bp")
+  p.ui_panel("bp", {at: "center", w: 480, h: h, bg: "#0C4A6EF2", radius: 20, layer: 30})
+  p.ui_text("bp_t", "📐 設計図（まとめて置ける）   💰 " + kit_money(p), {parent: "bp", y: 26 / h, size: 17, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for b in BLUEPRINTS do
+    i = i + 1
+    let label = b.name + "  " + len(b.parts) + "こ   💰" + b.price
+    if not p.blueprints[b.id] then label = "🔒 " + b.name + "（解放 " + b.unlock + "G）" end
+    p.ui_button("bp_" + b.id, label, {parent: "bp", y: (30 + i * 50) / h, w: 440, h: 42, size: 13, bg: "#0369A1"})
+  end
+  p.ui_button("bp_close", "閉じる", {parent: "bp", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+-- 自分の向きにあわせて、設計図のブロックをまとめて置く
+func place_blueprint(p, id)
+  let b = blueprint(id)
+  if b == nil or not p.alive then return end
+  if not p.blueprints[id] then
+    if kit_pay(p, b.unlock) then
+      p.blueprints[id] = true
+      p.message("🔓 " + b.name + " を解放した", 1.5)
+      blueprint_panel(p)
+    end
+    return
+  end
+  if len(my_blocks(p)) + len(b.parts) > MAX_BLOCKS then
+    p.message("🧱 ブロックの数が上限をこえる", 1.5)
+    return
+  end
+  if not kit_pay(p, b.price) then return end
+  let yaw = round(p.yaw / 90) * 90
+  let fwd = {x: sin(yaw), y: 0, z: cos(yaw)}
+  let right = {x: cos(yaw), y: 0, z: -sin(yaw)}
+  for part in b.parts do
+    let m = material(part.mat)
+    let pos = p.position + fwd * part.z + right * part.x
+    create_block({name: m.name, position: {x: pos.x, y: p.y - 0.3 + part.y + p.lift, z: pos.z}, size: m.size, color: m.color,
+                  material: m.material, behavior: m.behavior, rotation: {x: 0, y: yaw, z: 0}, tags: ["built", "by" + p.id, m.id]})
+  end
+  p.ui_remove("bp")
+  p.sound("collect")
+  kit_quest_progress(p, "blueprint", 1)
+  hud(p)
+end
+
+-- MARK: 浮かぶ金貨（ブロックを積んで取りに行く）
+
+func spawn_coin()
+  if len(blocks("sky_coin")) >= 8 then return end
+  let z = random(20, 380)
+  let base = -1
+  if z > 190 then base = -5 end
+  create_block({name: "Sky Coin", shape: "cylinder", position: {x: random(-16, 16), y: base + random(3, 7), z: z}, size: {x: 1.2, y: 0.2, z: 1.2},
+                color: "#FACC15", material: "neon", solid: false, behavior: "trigger", rotation: {x: 90, y: 0, z: 0}, tags: ["sky_coin"]})
+end
+
+func take_coin(p, b)
+  gone(b)
+  kit_give(p, 25)
+  p.sound("collect")
+  p.message("🪙 空の金貨 +25G", 1)
+  kit_quest_progress(p, "coins", 1)
+end
+
+on tick(dt)
+  coin_clock = coin_clock + dt
+  if coin_clock >= 8 then
+    coin_clock = 0
+    spawn_coin()
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "sky_coin") then take_coin(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "bp_open" then blueprint_panel(p)
+  elif id == "bp_close" then p.ui_remove("bp")
+  elif starts_with(id, "bp_") then place_blueprint(p, replace(id, "bp_", ""))
+  end
+end

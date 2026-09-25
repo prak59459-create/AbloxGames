@@ -1,0 +1,49 @@
+-- common.absc — 小さな道具・画面
+
+let flood_at = 0
+
+func ready(p)
+  return p.unlocked != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func material(id)
+  for m in MATERIALS do
+    if m.id == id then return m end
+  end
+  return MATERIALS[1]
+end
+
+func my_blocks(p)
+  return blocks("by" + p.id)
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let m = material(p.mat)
+  let run = ""
+  if p.run_start > 0 then run = "   ⏱ " + kit_clock(time() - p.run_start) end
+  p.ui_text("mat", "🔨 " + m.name + "（" + m.price + "G）  高さ " + (p.lift >= 0 and "+" or "") + p.lift + "  回転 " + p.turn + "°   🧱 " + len(my_blocks(p)) + "/" + MAX_BLOCKS,
+            {at: "top", dy: 54, size: 14, bold: true})
+  p.ui_text("stage", "🏁 いま " + p.stage + " / " + len(STAGES) + "   最高 " + p.best + run, {at: "top_left", dy: 36, size: 15, bold: true, color: "#FDE68A"})
+end
+
+func flood_hud()
+  let left = max(0, ceil(flood_at - time()))
+  ui_text("flood", "🌊 大洪水まで " + kit_clock(left), {at: "top", dy: 26, size: 16, bold: true, color: left < 30 and "#F87171" or "#BAE6FD"})
+end

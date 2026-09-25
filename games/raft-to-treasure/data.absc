@@ -1,0 +1,38 @@
+-- data.absc — 材料・ステージ・宝箱の中身
+
+-- 材料。unlock: ショップで解放する値段（0 は最初から）/ strong: 丸太にこわされない
+let MATERIALS = [
+  {id: "wood", name: "🪵 木の板", price: 3, unlock: 0, size: {x: 3, y: 0.4, z: 3}, color: "#A16207", material: "plastic", behavior: "none", strong: false},
+  {id: "long", name: "📏 長い板", price: 6, unlock: 0, size: {x: 2, y: 0.4, z: 7}, color: "#92400E", material: "plastic", behavior: "none", strong: false},
+  {id: "rope", name: "🪢 つり橋", price: 8, unlock: 60, size: {x: 1.4, y: 0.3, z: 11}, color: "#D6D3D1", material: "matte", behavior: "none", strong: false},
+  {id: "metal", name: "🔩 鉄の床", price: 10, unlock: 120, size: {x: 4, y: 0.5, z: 4}, color: "#9CA3AF", material: "metal", behavior: "none", strong: true},
+  {id: "glass", name: "🧊 ガラス", price: 7, unlock: 90, size: {x: 3, y: 0.3, z: 5}, color: "#BAE6FD", material: "glass", behavior: "none", strong: false},
+  {id: "bounce", name: "🟢 ジャンプ台", price: 15, unlock: 150, size: {x: 2.4, y: 0.4, z: 2.4}, color: "#22C55E", material: "neon", behavior: "bounce", strong: false},
+  {id: "wall", name: "🧱 かべ", price: 9, unlock: 200, size: {x: 4, y: 3, z: 0.6}, color: "#B91C1C", material: "plastic", behavior: "none", strong: true},
+  {id: "gold", name: "✨ 金の床", price: 30, unlock: 600, size: {x: 5, y: 0.5, z: 5}, color: "#FACC15", material: "metal", behavior: "none", strong: true}
+]
+
+let MAX_BLOCKS = 80
+let FLOOD_EVERY = 480          -- 8分ごとに大洪水（置いたブロックが流される）
+
+-- ステージ（川の島）。y: 高さ（滝のあとは低い）
+let STAGES = [
+  {name: "スタート川", reward: 15},
+  {name: "岩の瀬", reward: 20},
+  {name: "丸太ながれ", reward: 25},
+  {name: "うずしお", reward: 30},
+  {name: "大きな滝", reward: 40},
+  {name: "ワニの沼", reward: 45},
+  {name: "こおりの谷", reward: 50},
+  {name: "嵐の海", reward: 60},
+  {name: "溶岩の川", reward: 80},
+  {name: "宝島の入り江", reward: 100}
+]
+
+-- 宝箱の中身（重み）
+let LOOT = [
+  {id: "gold", name: "💰 ゴールドの山", weight: 60},
+  {id: "big", name: "💎 大きな宝石", weight: 25},
+  {id: "hat", name: "👑 船長の王冠", weight: 10},
+  {id: "legend", name: "🌟 伝説の地図", weight: 5}
+]

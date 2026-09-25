@@ -1,15 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 62,
-  "cover" : "games\/raft-to-treasure\/cover-e56e10d0.png",
+  "blockCount" : 133,
+  "cover" : "games\/raft-to-treasure\/cover-c4e323d2.png",
   "id" : "raft-to-treasure",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/raft-to-treasure\/data.absc",
+    "games\/raft-to-treasure\/build.absc",
+    "games\/raft-to-treasure\/common.absc",
+    "games\/raft-to-treasure\/extras.absc",
+    "games\/raft-to-treasure\/river.absc",
     "games\/raft-to-treasure\/main.absc"
   ],
-  "summary" : "ブロックで橋やいかだを作って、危険な川を下って宝箱をめざす工作ゲーム。遠くまで行くほどゴールドがもらえる。",
+  "summary" : "ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！",
   "tags" : [
     "build",
     "adventure",

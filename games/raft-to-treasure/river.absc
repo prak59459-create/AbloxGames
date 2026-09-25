@@ -1,0 +1,153 @@
+-- river.absc — ステージのゴール・流れてくる丸太・うずしお・ワニ・宝箱・タイム
+
+let river_clock = 0
+let log_dir = 1
+
+func reach_stage(p, b)
+  let n = num(replace(replace(b.name, "Stage ", ""), " Goal", ""))
+  if n == nil or n <= p.stage then return end
+  if p.stage == 0 and p.run_start == 0 then p.run_start = time() end
+  p.stage = n
+  let s = STAGES[n]
+  kit_give(p, s.reward)
+  p.message("🏁 ステージ " + n + "「" + s.name + "」！ +" + s.reward + "G", 2)
+  p.sound("checkpoint")
+  if n > p.best then
+    p.best = n
+    p.score = max(p.score, n)
+  end
+  if n >= 3 then kit_quest_progress(p, "stage3", 1) end
+  if n >= 6 then kit_quest_progress(p, "stage6", 1) end
+  hud(p)
+end
+
+func open_chest(p)
+  if p.stage < len(STAGES) - 1 then
+    if quiet_ready(p, "chest_hint", 3) then p.message("🗝 ステージを順番にこえてこよう", 1) end
+    return
+  end
+  if not quiet_ready(p, "chest", 20) then return end
+  let total = sum(map(LOOT, func(l) return l.weight end))
+  let roll = random(1, total)
+  let acc = 0
+  let got = LOOT[1]
+  for l in LOOT do
+    acc = acc + l.weight
+    if roll <= acc and acc - l.weight < roll then got = l end
+  end
+  let run = time() - p.run_start
+  let gold = 300
+  if got.id == "big" then gold = 700 end
+  if got.id == "legend" then gold = 2000 end
+  if got.id == "hat" then
+    p.hat = "crown"
+    kit_badge(p, "captain", "船長の王冠を手に入れた")
+  end
+  if got.id == "legend" then kit_badge(p, "legend_map", "伝説の地図を見つけた") end
+  kit_give(p, gold)
+  p.score = p.score + 20
+  kit_quest_progress(p, "chest", 1)
+  announce("💰 " + p.name + " が宝箱をあけた！ " + got.name + "（+" + gold + "G）  タイム " + kit_clock(run), 4)
+  if p.best_run == 0 or run < p.best_run then
+    p.best_run = run
+    p.message("⏱ 自己ベスト " + kit_clock(run) + "！", 2)
+  end
+  p.stage = 0
+  p.run_start = 0
+  kit_later(p, 4, func() p.teleport(block("Spawn " + random(1, 10)).position + {x: 0, y: 1, z: 0}) end)
+  hud(p)
+end
+
+-- MARK: 川のあぶないもの
+
+-- 丸太は川を左右に流れ、よわい材料のブロックをこわす
+func logs_step()
+  log_dir = -log_dir
+  for i in 1 to 6 do
+    let l = block("Log " + i)
+    if l != nil then
+      l.move_to({x: 14 * log_dir, y: l.y, z: l.z}, 2.8)
+      for b in blocks("built") do
+        if abs(b.z - l.z) < 2 and not contains(b.tags, "metal") and not contains(b.tags, "wall") and not contains(b.tags, "gold") and abs(b.y - l.y) < 2 then
+          gone(b)
+        end
+      end
+    end
+  end
+end
+
+func whirl_step()
+  for i in 1 to 3 do
+    let w = block("Whirlpool " + i)
+    if w != nil then w.rotate({x: 0, y: 40, z: 0}) end
+  end
+end
+
+func spawn_crocs()
+  for i in 1 to 3 do
+    let spot = block("Croc Spot " + i).position
+    let n = create_npc({name: "🐊 ワニ", position: spot + {x: 0, y: 1, z: 0}, color: "#166534", head_color: "#15803D", size: 0.9,
+                        health: 999999, speed: 0.7, team: "river"})
+    n.croc = true
+    n.home = spot
+  end
+end
+
+func croc_step(secs)
+  for n in npcs() do
+    if n.croc then
+      let target = nil
+      let best_d = 10
+      for p in players() do
+        if ready(p) and p.alive and distance(n, p) < best_d then
+          target = p
+          best_d = distance(n, p)
+        end
+      end
+      if target != nil and distance(target, n.home) < 14 then
+        n.follow(target)
+        if best_d < 2 then
+          target.damage(25 * secs)
+          if quiet_ready(target, "croc", 2) then target.message("🐊 ガブッ！", 0.8) end
+        end
+      else
+        n.move_to(n.home)
+      end
+    end
+  end
+end
+
+on tick(dt)
+  river_clock = river_clock + dt
+  if river_clock < 0.5 then return end
+  let secs = river_clock
+  river_clock = 0
+  croc_step(secs)
+  whirl_step()
+  if floor(time()) % 3 == 0 and quiet_ready_global("logs", 2.9) then logs_step() end
+  if flood_at > 0 and time() >= flood_at then flood() end
+  if flood_at > 0 and flood_at - time() < 30 and flood_at - time() > 29 then announce("🌊 あと30秒で大洪水！", 3) end
+  flood_hud()
+end
+
+let global_cds = {}
+func quiet_ready_global(key, seconds)
+  let last = global_cds[key]
+  if last != nil and time() - last < seconds then return false end
+  global_cds[key] = time()
+  return true
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "goal") then reach_stage(p, b)
+  elif contains(b.tags, "chest") then open_chest(p)
+  end
+end
+
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.stage = 0
+  p.run_start = 0
+  hud(p)
+end

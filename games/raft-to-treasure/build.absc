@@ -1,0 +1,119 @@
+-- build.absc — 材料えらび・置く・高さと回転・取り消し・全部消す・材料の解放・大洪水
+
+func material_bar(p)
+  let i = 0
+  for m in MATERIALS do
+    i = i + 1
+    let label = split(m.name, " ")[1]
+    let bg = m.color
+    if not p.unlocked[m.id] then
+      label = "🔒"
+      bg = "#374151"
+    end
+    if p.mat == m.id then label = "▶" + label end
+    p.ui_button("mat_" + m.id, label, {at: "bottom", dx: (i - 4.5) * 64, dy: -96, w: 58, h: 48, size: 18, bg: bg, radius: 12})
+  end
+end
+
+func select(p, id)
+  let m = material(id)
+  if not p.unlocked[id] then
+    if kit_pay(p, m.unlock) then
+      p.unlocked[id] = true
+      p.sound("collect")
+      p.message("🔓 " + m.name + " を解放した！", 1.5)
+      kit_quest_progress(p, "unlock", 1)
+    else
+      p.message("🔒 " + m.name + " は " + m.unlock + "G で解放", 1.5)
+      return
+    end
+  end
+  p.mat = id
+  material_bar(p)
+  hud(p)
+end
+
+func place(p)
+  if not p.alive then return end
+  if len(my_blocks(p)) >= MAX_BLOCKS then
+    p.message("🧱 置けるのは " + MAX_BLOCKS + " こまで（↩ で取り消し）", 1.5)
+    return
+  end
+  let m = material(p.mat)
+  if not kit_pay(p, m.price) then return end
+  let ahead = p.position + {x: p.look.x, y: 0, z: p.look.z} * 3.2
+  let y = p.y - 0.3 + p.lift
+  if m.id == "wall" then y = y + 1.5 end
+  let yaw = round(p.yaw / 45) * 45 + p.turn
+  create_block({name: m.name, position: {x: ahead.x, y: y, z: ahead.z}, size: m.size, color: m.color, material: m.material,
+                behavior: m.behavior, rotation: {x: 0, y: yaw, z: 0}, tags: ["built", "by" + p.id, m.id]})
+  p.sound("tick")
+  kit_quest_progress(p, "build", 1)
+  hud(p)
+end
+
+func undo(p)
+  let mine = my_blocks(p)
+  if len(mine) == 0 then return end
+  let b = mine[len(mine)]
+  for t in b.tags do
+    let m = material(t)
+    if m.id == t then kit_give(p, floor(m.price / 2)) end
+  end
+  gone(b)
+  hud(p)
+end
+
+func clear_mine(p)
+  let n = 0
+  for b in my_blocks(p) do
+    gone(b)
+    n = n + 1
+  end
+  kit_give(p, n)
+  p.message("🧹 自分のブロックを " + n + " こ片づけた", 1.2)
+  hud(p)
+end
+
+-- 大洪水: 置いたブロックが全部流される（少しお金がもどる）
+func flood()
+  let owners = {}
+  for b in blocks("built") do
+    for t in b.tags do
+      if starts_with(t, "by") then owners[t] = (owners[t] or 0) + 1 end
+    end
+    gone(b)
+  end
+  for p in players() do
+    if ready(p) then
+      let n = owners["by" + p.id] or 0
+      if n > 0 then kit_give(p, n * 2) end
+    end
+  end
+  flood_at = time() + FLOOD_EVERY
+  shake(0.4, 1.5)
+  sound("defeat")
+  announce("🌊 大洪水！ 川の上のものは全部流された（ブロック1こにつき 2G もどった）", 4)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "mat_") then select(p, replace(id, "mat_", ""))
+  elif id == "place" then place(p)
+  elif id == "undo" then undo(p)
+  elif id == "clear" then clear_mine(p)
+  elif id == "up" then
+    p.lift = min(4, p.lift + 1)
+    hud(p)
+  elif id == "down" then
+    p.lift = max(-3, p.lift - 1)
+    hud(p)
+  elif id == "turn" then
+    p.turn = (p.turn + 90) % 180
+    hud(p)
+  end
+end
+
+on leave(p)
+  for b in my_blocks(p) do gone(b) end
+end

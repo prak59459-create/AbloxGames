@@ -7,7 +7,7 @@ let idleGames: [Game] = [
          summary: "ボタンでオーラを引く運だめし。32種のオーラ、8つの天気（その天気だけのオーラ）、素材とオーラでギアをクラフト、旅の商人のポーション、運の塔。10回ごとのボーナスで1億分の1を引き当てろ！",
          tags: ["rng", "collect", "idle"], maxPlayers: 12, build: auraRoll),
     Game(number: 60, id: "raft-to-treasure", title: "Raft to Treasure",
-         summary: "ブロックで橋やいかだを作って、危険な川を下って宝箱をめざす工作ゲーム。遠くまで行くほどゴールドがもらえる。",
+         summary: "ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！",
          tags: ["build", "adventure", "creative"], maxPlayers: 10, build: raftTreasure),
     Game(number: 61, id: "obby-maker", title: "Obby Maker",
          summary: "自分だけのアスレチックコースを作って公開しよう。足場、溶岩、ジャンプ台、チェックポイント。友だちのコースにも挑戦！",
@@ -99,24 +99,69 @@ func auraRoll(_ m: MapBuilder) {
 // MARK: 60 Raft to Treasure
 
 func raftTreasure(_ m: MapBuilder) {
-    m.day(ground: "#65A30D")
-    m.sky("#7DD3FC", "#E0F2FE", light: 0.8, ground: "#1D4ED8", showGround: true)
-    m.slab("Dock", x: 0, y: -1, z: -20, w: 50, h: 1, d: 20, color: "#A16207")
-    m.spawnRing(0, -24, radius: 5, count: 10, color: "#FDE68A")
-    // The river: hazard water between stages.
-    m.part("River", at: (0, -1.8, 150), size: (40, 1, 320), color: "#2563EB", material: .glass, behavior: .hazard, opacity: 0.8)
-    var r = Seeded("raft")
-    for i in 0..<8 {
-        let z = Float(i + 1) * 36
-        m.slab("Stage \(i + 1)", x: r.range(-8, 8), y: -1, z: z, w: 10, h: 1, d: 8, color: i % 2 == 0 ? "#78716C" : "#A8A29E", tags: ["stage"])
-        m.pad("Stage \(i + 1) Goal", x: 0, z: z, y: 0, size: 3, color: "#22C55E", tags: ["goal"])
-        for k in 0..<2 {
-            m.part("Rock \(i + 1)-\(k + 1)", at: (r.range(-15, 15), -0.5, z - r.range(10, 25)), size: (3, 2, 3), color: "#57534E",
-                   shape: .sphere, behavior: .hazard)
-        }
+    // No ground plane: it would sit over the river (which runs below y = 0).
+    m.sky("#7DD3FC", "#E0F2FE", light: 0.8, ground: "#4D7C0F", showGround: false)
+    m.slab("River Bed", x: 0, y: -10, z: 195, w: 44, h: 1, d: 440, color: "#1E3A8A")
+    for x: Float in [-47, 47] {
+        m.slab("Bank", x: x, y: -8, z: 195, w: 46, h: 8, d: 440, color: "#4D7C0F")
     }
-    m.slab("Treasure Island", x: 0, y: -1, z: 320, w: 20, h: 1, d: 16, color: "#FDE68A")
-    m.part("Treasure Chest", at: (0, 0.8, 320), size: (2.4, 1.6, 1.6), color: "#B45309", material: .metal, behavior: .trigger, tags: ["chest"])
+    m.slab("Bank", x: 0, y: -8, z: -40, w: 140, h: 8, d: 24, color: "#4D7C0F")
+    m.part("Cover Focus", at: (0, 0, 34), size: (72, 1, 1), color: "#000000", tags: ["yaw=125"], solid: false, visible: false)
+    // The dock where everyone starts.
+    m.slab("Dock", x: 0, y: -1, z: -18, w: 44, h: 1, d: 20, color: "#A16207")
+    for x in stride(from: Float(-20), through: 20, by: 5) {
+        m.part("Dock Post", at: (x, -1.5, -8.3), size: (0.5, 2, 0.5), color: "#78350F", shape: .cylinder)
+    }
+    m.spawnRing(0, -20, radius: 5, count: 10, color: "#FDE68A")
+    m.shop("Boat Shop", x: -14, z: -24, w: 10, d: 6, color: "#0EA5E9", sign: "#FDE68A", facing: 1)
+    // The river: an upper stretch, a waterfall, and a lower stretch to the island.
+    m.part("River Upper", at: (0, -1.8, 90), size: (44, 1, 200), color: "#38BDF8", material: .glass, behavior: .hazard, opacity: 0.9)
+    m.part("River Lower", at: (0, -5.8, 300), size: (44, 1, 220), color: "#0EA5E9", material: .glass, behavior: .hazard, opacity: 0.9)
+    m.part("Waterfall", at: (0, -3.3, 190.2), size: (44, 4, 0.4), color: "#93C5FD", material: .glass, solid: false, opacity: 0.6)
+    m.part("Lava", at: (0, -5.72, 318), size: (44, 1, 30), color: "#EA580C", material: .neon, behavior: .hazard)
+    m.part("Ice Sheet", at: (0, -5.7, 262), size: (44, 1, 18), color: "#E0F2FE", material: .glass, behavior: .hazard, opacity: 0.9)
+    // Canyon walls on both sides.
+    for x: Float in [-23, 23] {
+        m.slab("Canyon Wall", x: x, y: -7, z: 90, w: 2, h: 10, d: 200, color: "#A8A29E")
+        m.slab("Canyon Wall", x: x, y: -7, z: 300, w: 2, h: 6, d: 220, color: "#78716C")
+    }
+    // Ten islands, the river's stages.
+    var r = Seeded("raft")
+    for i in 0..<10 {
+        let z = Float(i + 1) * 38
+        let lower = i >= 5
+        let y: Float = lower ? -5 : -1
+        let x = r.range(-9, 9)
+        let colors = ["#78716C", "#A8A29E", "#92400E", "#0E7490", "#57534E", "#166534", "#E0F2FE", "#334155", "#7F1D1D", "#FDE68A"]
+        m.slab("Stage \(i + 1) Island", x: x, y: y, z: z, w: 10, h: 1, d: 8, color: colors[i], tags: ["stage"])
+        m.pad("Stage \(i + 1) Goal", x: x, z: z, y: y + 1, size: 3, color: "#22C55E", tags: ["goal"])
+        m.part("Stage \(i + 1) Flag", at: (x + 3.5, y + 3, z + 2.5), size: (0.15, 4, 0.15), color: "#F8FAFC", solid: false)
+        m.part("Stage \(i + 1) Pennant", at: (x + 4.2, y + 4.6, z + 2.5), size: (1.4, 0.8, 0.05), color: "#EF4444", solid: false)
+    }
+    // Stage 2: rocks. Stages 3 and 8: logs. Stage 4: whirlpools. Stage 6: crocodiles.
+    for i in 0..<5 {
+        m.part("Rock", at: (r.range(-17, 17), -1.1, 46 + Float(i) * 5), size: (3, 2, 3), color: "#57534E", shape: .sphere, behavior: .hazard)
+    }
+    let logs: [(Float, Float)] = [(84, -1.1), (92, -1.1), (100, -1.1), (270, -5.1), (278, -5.1), (286, -5.1)]
+    for (i, l) in logs.enumerated() {
+        m.part("Log \(i + 1)", at: (i % 2 == 0 ? -14 : 14, l.1, l.0), size: (1.2, 7, 1.2), color: "#78350F", shape: .cylinder,
+               behavior: .hazard, rotation: (0, 0, 90))
+    }
+    for (i, z) in ([122, 130, 138] as [Float]).enumerated() {
+        m.part("Whirlpool \(i + 1)", at: (r.range(-10, 10), -1.25, z), size: (6, 0.1, 6), color: "#1E3A8A", shape: .cylinder, material: .neon,
+               behavior: .hazard, opacity: 0.8)
+    }
+    for (i, z) in ([200, 208, 216] as [Float]).enumerated() {
+        m.part("Croc Spot \(i + 1)", at: (r.range(-12, 12), -5.2, z), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // Treasure island.
+    m.slab("Treasure Island", x: 0, y: -5, z: 400, w: 24, h: 1, d: 18, color: "#FDE68A")
+    m.part("Treasure Chest", at: (0, -3.2, 403), size: (2.4, 1.6, 1.6), color: "#B45309", material: .metal, behavior: .trigger, tags: ["chest"])
+    m.part("Chest Lid", at: (0, -2.3, 403), size: (2.5, 0.3, 1.7), color: "#FACC15", material: .metal, solid: false)
+    for p in [(-8, 396), (8, 405), (-6, 406)] as [(Float, Float)] { m.tree(p.0, p.1, y: -4, height: 5, leaves: "#16A34A") }
+    for p in [(3, 399), (-3, 399), (5, 404)] as [(Float, Float)] {
+        m.part("Gold Pile", at: (p.0, -3.7, p.1), size: (1.2, 0.6, 1.2), color: "#FACC15", shape: .sphere, material: .neon, solid: false)
+    }
     for p in ring(8, radius: 32, cx: 0, cz: -20) { m.tree(p.0, p.1, y: -1, height: 5) }
 }
 

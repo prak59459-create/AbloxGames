@@ -101,7 +101,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | | # | ゲーム | 内容 |
 |---|---|---|---|
 | <img src="games/aura-roll/cover-ce6b74f4.png" width="200"> | 59 | **Aura Roll** | ボタンでオーラを引く運だめし。32種のオーラ、8つの天気（その天気だけのオーラ）、素材とオーラでギアをクラフト、旅の商人のポーション、運の塔。10回ごとのボーナスで1億分の1を引き当てろ！ |
-| <img src="games/raft-to-treasure/cover-e56e10d0.png" width="200"> | 60 | **Raft to Treasure** | ブロックで橋やいかだを作って、危険な川を下って宝箱をめざす工作ゲーム。遠くまで行くほどゴールドがもらえる。 |
+| <img src="games/raft-to-treasure/cover-c4e323d2.png" width="200"> | 60 | **Raft to Treasure** | ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！ |
 | <img src="games/obby-maker/cover-79f411cf.png" width="200"> | 61 | **Obby Maker** | 自分だけのアスレチックコースを作って公開しよう。足場、溶岩、ジャンプ台、チェックポイント。友だちのコースにも挑戦！ |
 | <img src="games/toy-army-tycoon/cover-40da470f.png" width="200"> | 62 | **Toy Army Tycoon** | おもちゃの兵隊を買って基地を大きくするタイクーン。定期的におそってくる敵軍から、兵隊とタレットでコアを守れ。 |
 | <img src="games/buzz-meadow/cover-406f2e73.png" width="200"> | 63 | **Buzz Meadow** | ハチを集めて花畑で花粉を集め、巣でハチミツに変えよう。ハチが増えるほど強くなり、奥の花畑へ行ける。 |
