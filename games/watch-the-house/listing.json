@@ -1,15 +1,21 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 41,
-  "cover" : "games\/watch-the-house\/cover-fa9ff674.png",
+  "blockCount" : 214,
+  "cover" : "games\/watch-the-house\/cover-f0c517e7.png",
   "id" : "watch-the-house",
   "maxPlayers" : 6,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/watch-the-house\/data.absc",
+    "games\/watch-the-house\/common.absc",
+    "games\/watch-the-house\/creatures.absc",
+    "games\/watch-the-house\/house.absc",
+    "games\/watch-the-house\/nights.absc",
+    "games\/watch-the-house\/visitors.absc",
     "games\/watch-the-house\/main.absc"
   ],
-  "summary" : "ひとけのない家で、窓やドアに近づく何かを見張る。カメラと懐中電灯で追い払い、5夜を乗り切れ。",
+  "summary" : "田中さん一家の家で5日間の留守番。窓にひびを入れにくるものをカメラで探してライトで追い払い、玄関の来客はご近所リストとくらべてニセものを見やぶれ。家のしごと・猫のタマ・停電・スマホ通販も！",
   "tags" : [
     "horror",
     "cameras",

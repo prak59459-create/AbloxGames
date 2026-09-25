@@ -1,0 +1,189 @@
+-- visitors.absc — 玄関の来客: ご近所リストとくらべて、入れるか・ことわるか
+-- ご近所さんは夜1時より前にしか来ない。ニセものは服の色か帽子が少しちがう。
+
+let visitor = nil
+let visitor_clock = 0
+let next_bell = 0
+
+func neighbor_list_panel(p)
+  let h = 130 + len(NEIGHBORS) * 40
+  p.ui_remove("list")
+  p.ui_panel("list", {at: "center", w: 500, h: h, bg: "#FEF3C7F2", radius: 12, layer: 35})
+  p.ui_text("list_t", "📋 ご近所リスト（冷蔵庫にはってある）", {parent: "list", y: 24 / h, size: 16, bold: true, color: "#1C1917"})
+  let i = 0
+  for nb in NEIGHBORS do
+    i = i + 1
+    p.ui_text("list_" + i, nb.name + " — 服: " + nb.shirt_name + "  帽子: " + nb.hat_name, {parent: "list", y: (28 + i * 40) / h, size: 14, color: nb.shirt})
+  end
+  p.ui_text("list_note", "※ ご近所さんは夜1時より前にしか来ません。ちがう人は決して入れないこと", {parent: "list", y: (h - 58) / h, size: 11, color: "#7F1D1D"})
+  p.ui_button("list_close", "閉じる", {parent: "list", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func ring_bell()
+  let real = random() >= night().fake and hours_passed() < 3
+  let nb = random(NEIGHBORS)
+  let shirt = nb.shirt
+  let hat = nb.hat
+  if not real then
+    -- どこかひとつ（ときどきふたつ）ちがう
+    let others = filter(NEIGHBORS, func(x) return x.name != nb.name end)
+    let pick = random(1, 3)
+    if pick == 1 or pick == 3 then shirt = random(others).shirt end
+    if pick == 2 or pick == 3 then
+      let hats = filter(["none", "cap", "crown", "antenna", "halo"], func(h) return h != nb.hat end)
+      hat = random(hats)
+    end
+    -- 1時をすぎたら、見た目が同じでもニセもの
+    if hours_passed() >= 3 and random() < 0.5 then
+      shirt = nb.shirt
+      hat = nb.hat
+    end
+  end
+  let porch = block("Porch").position
+  let n = create_npc({name: nb.name, position: porch + {x: 0, y: 1, z: 1}, color: shirt, head_color: "#F5D0A9", leg_color: "#1F2937",
+                      health: 999999, speed: 0, team: "visitors"})
+  n.hat = hat
+  n.visitor = true
+  n.real = real
+  n.neighbor = nb.name
+  n.arrived_at = time()
+  n.look_at(block("Door Peek").position)
+  if real then n.say(nb.line) elif random() < 0.5 then n.say(random(FAKE_LINES)) else n.say(nb.line) end
+  visitor = n
+  sound("checkpoint")
+  announce("🔔 ピンポーン… 玄関にだれか来た（" + nb.name + " と名のっている）", 3)
+  for p in players() do
+    if ready(p) then decision_buttons(p) end
+  end
+end
+
+func decision_buttons(p)
+  if visitor == nil or not still(visitor) then
+    p.ui_remove("let_in")
+    p.ui_remove("refuse")
+    p.ui_remove("peek")
+    return
+  end
+  p.ui_button("peek", "👁 のぞく", {at: "left", dy: 40, w: 130, h: 46, size: 15, bg: "#334155"})
+  p.ui_button("let_in", "🚪 入れる", {at: "left", dy: 96, w: 130, h: 46, size: 15, bg: "#16A34A"})
+  p.ui_button("refuse", "✋ ことわる", {at: "left", dy: 152, w: 130, h: 46, size: 15, bg: "#B91C1C"})
+end
+
+func can_decide(p)
+  if owned.doorcam then return true end
+  if distance(p, block("Door Peek").position) < 6 then return true end
+  p.message("🚪 玄関のそば（のぞき穴）まで行こう。📹 ドアカメラがあればどこからでも", 1.5)
+  return false
+end
+
+func peek(p)
+  if visitor == nil or not still(visitor) then return end
+  if not owned.doorcam and distance(p, block("Door Peek").position) > 6 then
+    p.message("🚪 のぞき穴は玄関のそば", 1)
+    return
+  end
+  p.camera_look(block("Door Peek").position + {x: 0, y: 1.6, z: 0}, visitor.position + {x: 0, y: 1.5, z: 0})
+  kit_later(p, 4, func() p.camera_reset() end)
+  neighbor_list_panel(p)
+end
+
+func clear_visitor()
+  visitor = nil
+  next_bell = time() + night().visitors
+  for p in players() do
+    if ready(p) then decision_buttons(p) end
+  end
+end
+
+func let_in(p)
+  if visitor == nil or not still(visitor) or not can_decide(p) then return end
+  let v = visitor
+  clear_visitor()
+  if v.real then
+    v.position = block("Entry Hall").position + {x: 0, y: 1, z: 0}
+    v.say("ありがとう！ これ、よかったら")
+    let gift = random(["tape", "coins", "battery"])
+    if gift == "tape" then tape_rolls = tape_rolls + 1 end
+    if gift == "battery" then
+      for q in players() do
+        if ready(q) then q.battery = min(100, q.battery + 25) end
+      end
+    end
+    kit_give(p, 20)
+    kit_quest_progress(p, "neighbor", 1)
+    announce("🙂 " + v.neighbor + " だった。おみやげをもらった！", 2.5)
+    after(5, func() gone(v) end)
+  else
+    -- ニセものを入れてしまった
+    v.position = block("Entry Hall").position + {x: 0, y: 1, z: 0}
+    v.color = "#020617"
+    v.head_color = "#F8FAFC"
+    v.size = 1.9
+    v.name = "ニセモノ"
+    v.say("…アリガトウ")
+    v.watcher = true
+    v.window = "front"
+    v.inside = true
+    v.stun_until = 0
+    v.speed = 0.9 + night_i * 0.08
+    shake(0.6, 1)
+    sound("error")
+    announce("😱 ニセものだった！ 🔦 ライトで追い返せ！", 3)
+  end
+end
+
+func refuse(p)
+  if visitor == nil or not still(visitor) or not can_decide(p) then return end
+  let v = visitor
+  clear_visitor()
+  if v.real then
+    v.say("そうですか… またにします")
+    announce("😅 本物の " + v.neighbor + " だった…", 2)
+  else
+    v.say("…………")
+    kit_give(p, 15)
+    kit_quest_progress(p, "fake", 1)
+    announce("👍 ニセものを見やぶった！", 2)
+    -- ことわられたニセものは、窓のほうへまわる
+    let token = night_token
+    after(3, func()
+      if token == night_token and phase == "night" then spawn_watcher(nil) end
+    end)
+  end
+  after(2, func() gone(v) end)
+end
+
+on tick(dt)
+  visitor_clock = visitor_clock + dt
+  if visitor_clock < 0.5 then return end
+  visitor_clock = 0
+  if phase != "night" then return end
+  if visitor != nil and still(visitor) and time() - visitor.arrived_at > 22 then
+    -- だれも出なかった
+    let v = visitor
+    clear_visitor()
+    if not v.real then
+      let token = night_token
+      after(2, func()
+        if token == night_token and phase == "night" then spawn_watcher(nil) end
+      end)
+    end
+    gone(v)
+  end
+  if visitor == nil and next_bell > 0 and time() >= next_bell then ring_bell() end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "peek" then peek(p)
+  elif id == "let_in" then let_in(p)
+  elif id == "refuse" then refuse(p)
+  elif id == "list" then neighbor_list_panel(p)
+  elif id == "list_close" then p.ui_remove("list")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "fridge_list") and quiet_ready(p, "list", 3) then neighbor_list_panel(p) end
+end

@@ -1,0 +1,208 @@
+-- creatures.absc — 窓に来るもの: 近づく → 窓にひびを入れる → やぶって入ってくる
+-- ライトを窓ごしに当てると逃げていく。ひびはガムテープで直せる。
+
+let creature_clock = 0
+
+func targeted()
+  let list = []
+  for n in npcs() do
+    if n.watcher and n.window != nil then append(list, n.window) end
+  end
+  return list
+end
+
+func spawn_watcher(win)
+  if win == nil then
+    let free = filter(WINDOWS, func(w) return not contains(targeted(), w.id) end)
+    if len(free) == 0 then return nil end
+    win = random(free).id
+  end
+  let far = block("Window " + win + " Far").position
+  let n = create_npc({name: "？？？", position: far + {x: random(-3, 3), y: 1, z: random(-3, 3)}, color: "#020617", head_color: "#F8FAFC",
+                      size: 1.8, health: 999999, speed: 0.45 + night_i * 0.06, team: "things"})
+  n.watcher = true
+  n.window = win
+  n.arrived = false
+  n.inside = false
+  n.crack_t = 0
+  n.stun_until = 0
+  return n
+end
+
+func watcher_count()
+  return len(filter(npcs(), func(n) return n.watcher end))
+end
+
+func show_window(id)
+  let w = block("Window " + id)
+  let k = cracks[id] or 0
+  let colors = ["#1E3A8A", "#475569", "#6B7280", "#111827"]
+  w.color = colors[k + 1]
+  w.solid = k < 3
+  w.opacity = 0.5
+  if k >= 3 then w.opacity = 0.1 end
+  block("Window " + id + " Crack").visible = k >= 1 and k < 3
+end
+
+func watcher_step(n, secs)
+  if time() < n.stun_until then
+    n.stop()
+    return
+  end
+  if n.inside then
+    let target = nil
+    let best_d = 40
+    for p in players() do
+      if ready(p) and p.alive and distance(n, p) < best_d then
+        target = p
+        best_d = distance(n, p)
+      end
+    end
+    if target != nil then
+      n.follow(target)
+      if best_d < 2 then caught(n) end
+    end
+    return
+  end
+  -- 外に出ている人がそばに来たら、つかまえる
+  for p in players() do
+    if ready(p) and p.alive and not in_house(p.position) and distance(n, p) < 2 then
+      caught(n)
+      return
+    end
+  end
+  let out = block("Window " + n.window + " Out").position
+  if not n.arrived then
+    n.move_to(out)
+    if distance(n, out) < 2.2 then
+      n.arrived = true
+      n.look_at(block("Window " + n.window).position)
+      if owned.sensor then announce("📡 センサー: " + window_by_id(n.window).name + " に何か来た！", 2) end
+      cat_hiss(n.window)
+    end
+    return
+  end
+  -- 窓の前: ひびを入れていく
+  let rate = 1
+  if not power_on then rate = 1.5 end
+  n.crack_t = n.crack_t + secs * rate
+  if n.crack_t >= night().crack then
+    n.crack_t = 0
+    cracks[n.window] = min(3, (cracks[n.window] or 0) + 1)
+    show_window(n.window)
+    sound("hit")
+    if cracks[n.window] >= 3 then break_in(n) end
+    night_hud()
+  end
+end
+
+func break_in(n)
+  n.inside = true
+  n.speed = 0.85 + night_i * 0.08
+  n.position = block("Window " + n.window + " In").position + {x: 0, y: 1, z: 0}
+  sound("error")
+  shake(0.5, 0.8)
+  announce("💥 " + window_by_id(n.window).name + " がやぶられた！ 何かが入ってきた！ 🔦 ライトで追い返せ", 3)
+end
+
+-- 追い払われた: 遠くへ去って、しばらくして別のものが来る
+func repel(n, p)
+  n.watcher = false
+  n.window = nil
+  let token = night_token
+  n.speed = 1.4
+  n.move_to(n.position + {x: n.x * 0.8, y: 0, z: n.z * 0.8})
+  after(2.5, func() gone(n) end)
+  after(random(8, 16), func()
+    if token == night_token and phase == "night" then spawn_watcher(nil) end
+  end)
+  kit_give(p, 8)
+  p.score = p.score + 2
+  kit_quest_progress(p, "repel", 1)
+end
+
+-- 🔦 ライト: 窓の前のものや、入ってきたものに当てる
+func flash(p)
+  if not ready(p) or not p.alive or phase != "night" then return end
+  if p.battery < 4 then
+    p.message("🔋 電池がない… 寝室の充電器へ", 1.2)
+    return
+  end
+  if not quiet_ready(p, "flash", 0.8) then return end
+  p.battery = p.battery - 4
+  let reach = 7
+  if owned.bright then reach = 12 end
+  let hit = 0
+  for n in npcs() do
+    if n.watcher and n.window != nil then
+      if n.inside then
+        if distance(n, p) < reach + 3 and facing(p, n.position, 0.8) and n.window == "front" then
+          -- 玄関から入れてしまったニセものは、光で逃げ出していく
+          n.say("ギャッ…！")
+          n.watcher = false
+          n.window = nil
+          after(0.5, func() gone(n) end)
+          hit = hit + 1
+          kit_quest_progress(p, "repel", 1)
+        elif distance(n, p) < reach + 3 and facing(p, n.position, 0.8) then
+          -- 入ってきたものは、ひるんで窓の外へもどる
+          n.inside = false
+          n.arrived = false
+          n.stun_until = time() + 2
+          n.position = block("Window " + n.window + " Far").position + {x: 0, y: 1, z: 0}
+          hit = hit + 1
+          kit_quest_progress(p, "repel", 1)
+        end
+      elif n.arrived then
+        let w = block("Window " + n.window).position
+        if distance(p, w) < reach and facing(p, n.position, 0.75) then
+          repel(n, p)
+          hit = hit + 1
+        end
+      end
+    end
+  end
+  if hit > 0 then p.message("🔦 追い払った！", 1) else p.message("🔦 …", 0.5) end
+  hud(p)
+end
+
+func tape(p, b)
+  let id = replace(b.name, " Tape", "")
+  id = replace(id, "Window ", "")
+  if window_by_id(id) == nil then return end
+  let k = cracks[id] or 0
+  if k <= 0 then return end
+  if tape_rolls <= 0 then
+    if quiet_ready(p, "tape_hint", 3) then p.message("🩹 ガムテープがない（スマホの通販で買える）", 1.5) end
+    return
+  end
+  tape_rolls = tape_rolls - 1
+  cracks[id] = k - 1
+  show_window(id)
+  p.sound("tick")
+  p.message("🩹 " + window_by_id(id).name + " をテープで直した", 1.2)
+  kit_quest_progress(p, "tape", 1)
+  night_hud()
+end
+
+on tick(dt)
+  creature_clock = creature_clock + dt
+  if creature_clock < 0.5 then return end
+  let secs = creature_clock
+  creature_clock = 0
+  if phase != "night" then return end
+  for n in npcs() do
+    if n.watcher and n.window != nil then watcher_step(n, secs) end
+  end
+  if watcher_count() < night().watchers and random() < 0.08 then spawn_watcher(nil) end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "tape_spot") and quiet_ready(p, "tape", 1) then tape(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "flash" then flash(p) end
+end

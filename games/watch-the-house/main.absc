@@ -1,151 +1,64 @@
--- Watch The House — 窓とドアを見張って、5夜を乗り切る
+-- Watch The House — 5日間の留守番。窓に来るもの、玄関の来客、家のしごと。
+--
+-- ファイル:
+--   data.absc       夜ごとの設定・窓・ご近所さん・家のしごと・通販
+--   common.absc     夜の状態・画面
+--   creatures.absc  窓に来るもの・ライト・ガムテープ
+--   house.absc      家のしごと・猫・停電・窓のカメラ・充電・通販
+--   nights.absc     夜の流れ・つかまったとき・朝
+--   visitors.absc   玄関の来客・ご近所リスト・入れる／ことわる
+--   main.absc       このファイル
 
 kit_setup("Watch The House", "近づくものを、見のがすな", [
-  "夜ごとに、何かが窓やドアに近づいてくる",
-  "「📷 カメラ」で外を見て、どこから来るか確かめる",
-  "その窓の近くで「🔦 ライト」を窓に向けると追い払える",
-  "放っておくと窓をやぶって入ってくる！",
-  "入られたら逃げ回ろう。つかまるとその夜は失敗",
-  "5夜（1夜2分）を乗り切ればクリア"
+  "🏠 田中さん一家の留守番。22時から4時まで、5つの夜を守る",
+  "🪟 何かが窓に来てひびを入れる。📷 カメラで探して、窓のそばで 🔦 ライトを当てると逃げる。ひびは 🩹 テープで直せる",
+  "🔔 玄関に来客。👁 のぞいて 📋 ご近所リストとくらべる。服の色・帽子がちがったら ✋ ことわる！",
+  "📝 家のしごと（猫のえさ・かぎ・水やり…）をやるとおこづかいアップ",
+  "⚡ 停電したら物置のブレーカー。🐱 タマが窓に鳴いたら何かいる",
+  "📱 スマホの通販でテープ・強いライト・ドアカメラ・窓センサーを買える"
 ])
 
-let night = 1
-let left = 120
-let openings = ["Kitchen Window", "Bedroom Window", "Living Window", "Bath Window", "Front Door"]
-let creature = nil
-let target = nil
-let arrived_at = 0
-let broken = {}
-let resetting = false
+kit_currency = "おこづかい"
+kit_shop_title = "服"
+kit_shop_add("pajama", "🛌 パジャマ", 40, func(p)
+  p.color = "#93C5FD"
+  p.leg_color = "#93C5FD"
+end)
+kit_shop_add("cap", "🧢 キャップ", 40, func(p) p.hat = "cap" end)
 
-kit_quest("repel", "5回追い払う", 5, 150)
-kit_quest("night2", "2夜を乗り切る", 1, 200)
-
-func show()
-  ui_text("clock", "🌙 " + night + " 夜目   ⏱ " + kit_clock(left), {at: "top", dy: 26, size: 22, bold: true})
-end
-
-func spawn_creature()
-  if creature != nil and kit_here(creature) then creature.destroy() end
-  target = random(openings)
-  let outside = block(target + " Outside")
-  creature = create_npc({name: "？？？", position: outside.position + {x: random(-8, 8), y: 1, z: random(-8, 8)} * 1, color: "#020617",
-                         head_color: "#F8FAFC", size: 1.8, health: 999999, speed: 0.4 + night * 0.08})
-  creature.inside = false
-  creature.move_to(outside)
-  arrived_at = 0
-end
-
-func start_night()
-  left = 120
-  resetting = false
-  broken = {}
-  for o in openings do
-    let b = block(o)
-    b.visible = true
-    b.solid = true
-  end
-  spawn_creature()
-  for p in players() do
-    if not p.alive then p.respawn() end
-    p.camera_reset()
-  end
-  announce("🌙 " + night + " 夜目…", 3)
-end
-
-func fail()
-  if resetting then return end
-  resetting = true
-  shake(1, 1)
-  fade("#000000", 0.3)
-  announce("😱 つかまった… この夜をやり直す", 4)
-  after(1, func() fade(nil, 1) end)
-  after(4, func() start_night() end)
-end
+kit_quest("repel", "窓のものを10回追い払う", 10, 150)
+kit_quest("fake", "ニセものを3回見やぶる", 3, 150)
+kit_quest("neighbor", "本物のご近所さんを入れる", 2, 80)
+kit_quest("chores", "家のしごとを9こやる", 9, 150)
+kit_quest("tape", "窓をテープで直す", 2, 60)
+kit_quest("breaker", "ブレーカーを上げる", 1, 50)
+kit_quest("shop", "通販で買う", 1, 40)
+kit_quest("nights", "5つの夜を守る", 5, 500)
 
 on start()
-  after(3, func() start_night() end)
-  every(1, func()
-    if resetting then return end
-    left = left - 1
-    if left <= 0 then
-      for p in players() do p.score = p.score + night end
-      if night >= 2 then
-        for p in players() do kit_quest_progress(p, "night2", 1) end
-      end
-      night = night + 1
-      if night > 5 then
-        kit_finish("🌅 5夜を乗り切った！", 10)
-        return
-      end
-      announce("🌅 朝が来た", 2)
-      after(3, func() start_night() end)
-      left = 999
-    end
-    show()
-    -- 窓の前に着いたら、少しずつ窓をやぶる
-    if creature != nil and kit_here(creature) and not creature.inside then
-      let outside = block(target + " Outside")
-      if distance(creature, outside) < 2.5 then
-        if arrived_at == 0 then
-          arrived_at = time()
-          sound("tick")
-        elif time() - arrived_at > max(4, 9 - night) then
-          let w = block(target)
-          w.visible = false
-          w.solid = false
-          broken[target] = true
-          creature.inside = true
-          creature.speed = 0.8 + night * 0.1
-          creature.teleport(block("House Floor"))
-          announce("💥 " + target + " がやぶられた！", 2)
-        end
-      end
-    end
-  end)
+  game.respawn_time = 4
+  tape_rolls = 2
+  after(3, func() start_night(1) end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.ui_button("cam", "📷 カメラ", {at: "bottom", dy: -100, w: 150, h: 56, size: 18, bg: "#1D4ED8", radius: 14})
-  p.ui_button("cam_off", "🔙 もどる", {at: "bottom", dy: -160, w: 150, h: 46, size: 16, bg: "#374151", radius: 14})
-  p.ui_button("light", "🔦 ライト", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 64, size: 18, bg: "#CA8A04", radius: 16})
-  show()
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 20)
+  p.battery = 100
+  p.cam_i = 0
+  p.carrying_trash = false
+  p.ui_button("flash", "🔦 ライト", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 64, size: 18, bg: "#CA8A04", radius: 16})
+  p.ui_button("cam", "📷 カメラ", {at: "bottom", dy: -100, w: 150, h: 52, size: 17, bg: "#1D4ED8", radius: 14})
+  p.ui_button("list", "📋 リスト", {at: "right", dy: 180, w: 150, h: 44, size: 15, bg: "#B45309"})
+  p.ui_button("phone", "📱 スマホ", {at: "right", dy: 232, w: 150, h: 44, size: 15, bg: "#0E7490"})
+  decision_buttons(p)
+  hud(p)
 end
 
-on tick(dt)
-  if creature != nil and kit_here(creature) and creature.inside and not resetting then
-    let t = kit_nearest_player(creature)
-    if t != nil then
-      creature.follow(t)
-      if distance(creature, t) < 2 then fail() end
-    end
-  end
-end
-
-on button(p, id)
-  if id == "cam" then
-    p.cam = ((p.cam or 0) % len(openings)) + 1
-    let o = openings[p.cam]
-    p.camera_look(block(o).position + {x: 0, y: 3, z: 0}, block(o + " Outside"))
-    p.message("📷 " + o, 1)
-  elif id == "cam_off" then
-    p.camera_reset()
-  elif id == "light" and p.alive and kit_ready(p, "light", 2) then
-    if creature != nil and kit_here(creature) and not creature.inside then
-      let o = block(target)
-      let dir = normalize(o.position - p.position)
-      if distance(p, o) < 9 and dot(dir, p.look) > 0.75 and distance(creature, o) < 10 then
-        p.message("🔦 追い払った！", 1.5)
-        kit_quest_progress(p, "repel", 1)
-        p.score = p.score + 1
-        creature.destroy()
-        creature = nil
-        after(random(6, 14), func() if not resetting then spawn_creature() end end)
-        return
-      end
-    end
-    p.message("🔦 …", 0.6)
-  end
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.teleport(block("Spawn " + random(1, 6)).position + {x: 0, y: 1, z: 0})
 end

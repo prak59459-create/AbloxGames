@@ -1,0 +1,54 @@
+-- data.absc — 夜ごとの設定・窓・ご近所さん・家のしごと・通販
+
+let HOUR_SECS = 30           -- 22時 → 4時 の6時間
+let HOURS = 6
+let START_HOUR = 22
+
+-- 5つの夜。watchers: 同時に窓に来るものの数 / crack: 窓が1段ひびわれる秒数
+-- visitors: 来客の間隔 / fake: ニセものの割合
+let NIGHTS = [
+  {watchers: 1, crack: 7, visitors: 45, fake: 0.3, outage: false},
+  {watchers: 1, crack: 6, visitors: 40, fake: 0.4, outage: true},
+  {watchers: 2, crack: 6, visitors: 38, fake: 0.45, outage: true},
+  {watchers: 2, crack: 5, visitors: 34, fake: 0.5, outage: true},
+  {watchers: 3, crack: 4.5, visitors: 30, fake: 0.55, outage: true}
+]
+
+-- 窓（名前・場所・のぞくカメラ）
+let WINDOWS = [
+  {id: "kitchen", name: "台所の窓"},
+  {id: "living1", name: "居間の窓（西）"},
+  {id: "living2", name: "居間の窓（南）"},
+  {id: "bedroom", name: "寝室の窓"},
+  {id: "bath", name: "おふろの窓"},
+  {id: "utility", name: "物置の窓"}
+]
+
+-- ご近所さん（冷蔵庫のリスト）。ニセものは、どこかが少しちがう
+let NEIGHBORS = [
+  {name: "佐藤さん", shirt: "#DC2626", shirt_name: "赤", hat: "cap", hat_name: "キャップ", line: "こんばんは、となりの佐藤です。回覧板を持ってきました"},
+  {name: "鈴木さん", shirt: "#2563EB", shirt_name: "青", hat: "none", hat_name: "なし", line: "鈴木です。お砂糖をかしてもらえませんか？"},
+  {name: "高橋さん", shirt: "#16A34A", shirt_name: "緑", hat: "crown", hat_name: "王冠", line: "高橋です！ パーティーの帰りなんです"},
+  {name: "田中さん", shirt: "#FACC15", shirt_name: "黄", hat: "none", hat_name: "なし", line: "田中です。宅配便をあずかっていました"},
+  {name: "伊藤さん", shirt: "#A855F7", shirt_name: "紫", hat: "antenna", hat_name: "アンテナ", line: "伊藤です。ラジオの調子が悪くて…"}
+]
+let FAKE_LINES = ["こんばんは… となりの ものです…", "あけて… ください…", "さむいんです… いれて…", "ごきんじょ です よ…"]
+
+-- 家のしごと（夜ごとに3つ）
+let CHORES = [
+  {id: "cat", name: "🐱 タマにえさをあげる", pad: "Cat Bowl"},
+  {id: "lock", name: "🔒 裏口にかぎをかける", pad: "Back Door Lock"},
+  {id: "plant", name: "🪴 植木に水をやる", pad: "Plant Pot"},
+  {id: "heater", name: "🔥 ヒーターを消す", pad: "Heater Switch"},
+  {id: "mail", name: "📬 郵便受けを見る（外）", pad: "Mailbox"},
+  {id: "trash", name: "🗑 ゴミを外のゴミ箱へ", pad: "Garbage Bin"}
+]
+
+-- スマホの通販（おこづかいで）
+let SHOP = [
+  {id: "battery", name: "🔋 予備バッテリー", price: 40, text: "ライトの電池 +50"},
+  {id: "tape", name: "🩹 ガムテープ ×3", price: 30, text: "ひびの入った窓を直す"},
+  {id: "bright", name: "🔦 強いライト", price: 90, text: "遠くからでも追い払える"},
+  {id: "doorcam", name: "📹 ドアカメラ", price: 80, text: "どこからでも来客を見て、入れる・ことわるを決められる"},
+  {id: "sensor", name: "📡 窓センサー", price: 100, text: "窓に何か来たら、どの窓か教えてくれる"}
+]

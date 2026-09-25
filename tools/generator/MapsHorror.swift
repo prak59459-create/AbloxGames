@@ -40,7 +40,7 @@ let horrorGames: [Game] = [
          summary: "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
          tags: ["tag", "infection", "party"], maxPlayers: 12, build: smileOutbreak),
     Game(number: 58, id: "watch-the-house", title: "Watch The House",
-         summary: "ひとけのない家で、窓やドアに近づく何かを見張る。カメラと懐中電灯で追い払い、5夜を乗り切れ。",
+         summary: "田中さん一家の家で5日間の留守番。窓にひびを入れにくるものをカメラで探してライトで追い払い、玄関の来客はご近所リストとくらべてニセものを見やぶれ。家のしごと・猫のタマ・停電・スマホ通販も！",
          tags: ["horror", "cameras", "hard"], maxPlayers: 6, build: watchHouse),
 ]
 
@@ -1586,20 +1586,111 @@ func smileOutbreak(_ m: MapBuilder) {
 // MARK: 58 Watch The House
 
 func watchHouse(_ m: MapBuilder) {
-    m.night(ground: "#0F172A")
-    m.sky("#020617", "#0F172A", light: 0.18, ground: "#0F172A", sunPitch: -10)
-    m.ground(100, 100, color: "#1E293B", name: "Yard")
-    m.slab("House Floor", x: 0, y: 0, z: 0, w: 24, h: 0.3, d: 18, color: "#57534E")
-    m.walls(0, 0, w: 24, d: 18, h: 4, y: 0.3, color: "#44403C", name: "House Wall")
-    m.slab("House Roof", x: 0, y: 4.3, z: 0, w: 25, h: 0.4, d: 19, color: "#1C1917")
-    m.slab("Inner Wall", x: 0, y: 0.3, z: -3, w: 0.4, h: 3.7, d: 12, color: "#57534E")
-    let openings: [(String, Float, Float, Bool)] = [("Kitchen Window", -8, -9, true), ("Bedroom Window", 8, -9, true),
-                                                    ("Living Window", -12, 3, false), ("Bath Window", 12, 3, false), ("Front Door", 0, 9, true)]
-    for o in openings {
-        m.part(o.0, at: (o.1, 2, o.2), size: o.3 ? (2.6, 2, 0.5) : (0.5, 2, 2.6), color: "#1E3A8A", material: .glass, tags: ["opening"], opacity: 0.5)
-        m.part("\(o.0) Outside", at: (o.1 * 1.25, 0.5, o.2 * 1.25), size: (1, 0.1, 1), color: "#000000", visible: false)
+    m.sky("#020617", "#0F172A", light: 0.2, ground: "#0F172A", sunPitch: -10)
+    m.ground(130, 130, color: "#1E293B", name: "Yard")
+    m.part("Cover Focus", at: (0, 2, 2), size: (52, 1, 1), color: "#000000", tags: ["yaw=205"], solid: false, visible: false)
+    let floorTop: Float = 0.3, top: Float = 4.3
+    m.slab("House Floor", x: 0, y: 0, z: 0, w: 28, h: 0.3, d: 22, color: "#78716C")
+    func wall(alongX: Bool, at fixed: Float, from a: Float, to b: Float, gaps: [(Float, Float, Float, Float)] = [], color: String = "#57534E") {
+        func piece(_ lo: Float, _ hi: Float, _ y0: Float, _ y1: Float) {
+            guard hi - lo > 0.01, y1 - y0 > 0.01 else { return }
+            if alongX { m.slab("House Wall", x: (lo + hi) / 2, y: y0, z: fixed, w: hi - lo, h: y1 - y0, d: 0.4, color: color) }
+            else { m.slab("House Wall", x: fixed, y: y0, z: (lo + hi) / 2, w: 0.4, h: y1 - y0, d: hi - lo, color: color) }
+        }
+        var cursor = a
+        for g in gaps.sorted(by: { $0.0 < $1.0 }) {
+            piece(cursor, g.0 - g.1 / 2, floorTop, top)
+            piece(g.0 - g.1 / 2, g.0 + g.1 / 2, floorTop, g.2)
+            piece(g.0 - g.1 / 2, g.0 + g.1 / 2, g.3, top)
+            cursor = g.0 + g.1 / 2
+        }
+        piece(cursor, b, floorTop, top)
     }
-    m.spawnRing(0, 3, y: 0.3, radius: 2, count: 6, color: "#FDE68A")
-    m.pad("Monitor Desk", x: -4, z: 5, y: 0.3, size: 2, color: "#22D3EE", tags: ["monitor"])
-    for p in ring(8, radius: 40) { m.pine(p.0, p.1, height: 8, leaves: "#052E16") }
+    // (id, side, position along the wall)
+    let windows: [(String, String, Float)] = [("kitchen", "N", -9), ("utility", "N", 5), ("bath", "N", 10.5), ("living2", "S", -9),
+                                              ("living1", "W", 4), ("bedroom", "E", 5)]
+    func gapsOn(_ side: String) -> [(Float, Float, Float, Float)] {
+        windows.filter { $0.1 == side }.map { ($0.2, 2.6, 1.3, 2.9) }
+    }
+    wall(alongX: true, at: -11, from: -14.2, to: 14.2, gaps: gapsOn("N") + [(0, 2.2, floorTop, 2.8)])
+    wall(alongX: true, at: 11, from: -14.2, to: 14.2, gaps: gapsOn("S") + [(0, 2.4, floorTop, 2.9)])
+    wall(alongX: false, at: -14, from: -11, to: 11, gaps: gapsOn("W"))
+    wall(alongX: false, at: 14, from: -11, to: 11, gaps: gapsOn("E"))
+    for w in windows {
+        let n: (Float, Float) = w.1 == "N" ? (0, -1) : w.1 == "S" ? (0, 1) : w.1 == "W" ? (-1, 0) : (1, 0)
+        let c: (Float, Float) = w.1 == "N" ? (w.2, -11) : w.1 == "S" ? (w.2, 11) : w.1 == "W" ? (-14, w.2) : (14, w.2)
+        func at(_ d: Float) -> (Float, Float) { (c.0 + n.0 * d, c.1 + n.1 * d) }
+        let alongX = n.0 == 0
+        m.part("Window \(w.0)", at: (c.0, 2.1, c.1), size: alongX ? (2.6, 1.6, 0.15) : (0.15, 1.6, 2.6), color: "#1E3A8A", material: .glass,
+               tags: ["window"], opacity: 0.5)
+        m.part("Window \(w.0) Crack", at: (c.0 + n.0 * 0.1, 2.1, c.1 + n.1 * 0.1), size: alongX ? (2, 0.08, 0.05) : (0.05, 0.08, 2), color: "#F8FAFC",
+               solid: false, visible: false, rotation: alongX ? (0, 0, 25) : (25, 0, 0))
+        let out = at(2.2), inn = at(-2), far = at(28), tape = at(-1.2)
+        m.part("Window \(w.0) Out", at: (out.0, 0.1, out.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Window \(w.0) In", at: (inn.0, 0.4, inn.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Window \(w.0) Far", at: (far.0, 0.1, far.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.pad("Window \(w.0) Tape", x: tape.0, z: tape.1, y: floorTop, size: 1.2, color: "#A8A29E", tags: ["tape_spot"])
+        let side: (Float, Float) = (n.1, n.0)
+        m.part("Cam \(w.0)", at: (c.0 + n.0 * 7 + side.0 * 3, 4, c.1 + n.1 * 7 + side.1 * 3), size: (0.3, 0.3, 0.3), color: "#EF4444",
+               shape: .sphere, material: .neon, solid: false)
+    }
+    // Rooms: kitchen and living room (west), the hallway (middle), utility, bath and bedroom (east).
+    wall(alongX: false, at: -3, from: -11, to: 11, gaps: [(-6.5, 2.2, floorTop, 3), (2, 2.2, floorTop, 3)], color: "#78716C")
+    wall(alongX: false, at: 3, from: -11, to: 11, gaps: [(-6.5, 2.2, floorTop, 3), (2, 2.2, floorTop, 3)], color: "#78716C")
+    wall(alongX: true, at: -2, from: -14, to: -3, gaps: [(-8, 2.2, floorTop, 3)], color: "#78716C")
+    wall(alongX: true, at: -2, from: 3, to: 14, gaps: [(10, 2.2, floorTop, 3)], color: "#78716C")
+    wall(alongX: false, at: 7, from: -11, to: -2, color: "#78716C")
+    m.slab("House Roof", x: 0, y: top, z: 0, w: 29, h: 0.4, d: 23, color: "#1C1917")
+    m.part("House Roof Top", at: (0, 6, 0), size: (27, 3, 21), color: "#292524", shape: .cone, material: .matte, solid: false)
+    m.part("Back Door", at: (0, 1.55, -11), size: (2.2, 2.5, 0.3), color: "#78350F")
+    m.part("Front Door", at: (0, 1.6, 11), size: (2.4, 2.6, 0.2), color: "#78350F", solid: false, opacity: 0.35)
+    // Kitchen.
+    m.slab("Kitchen Counter", x: -12.6, y: floorTop, z: -8, w: 2, h: 1, d: 5, color: "#D6D3D1")
+    m.slab("Fridge", x: -12.8, y: floorTop, z: -4, w: 1.6, h: 2.4, d: 1.4, color: "#F8FAFC")
+    m.pad("Fridge List", x: -11.4, z: -4, y: floorTop, size: 1.2, color: "#FDE68A", tags: ["fridge_list"])
+    m.pad("Cat Bowl", x: -7, z: -9.6, y: floorTop, size: 1.2, color: "#F97316", tags: ["chore"])
+    m.pad("Trash Bag", x: -4.4, z: -9.6, y: floorTop, size: 1.2, color: "#1F2937", tags: ["chore"])
+    // Hallway and entry.
+    m.pad("Back Door Lock", x: 0, z: -9.6, y: floorTop, size: 1.4, color: "#FACC15", tags: ["chore"])
+    m.part("Door Peek", at: (1.8, 1.6, 10.6), size: (0.4, 0.4, 0.1), color: "#38BDF8", material: .neon, solid: false)
+    m.part("Entry Hall", at: (0, 0.4, 8), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    m.slab("Shoe Rack", x: -2, y: floorTop, z: 9.6, w: 1.4, h: 0.8, d: 0.6, color: "#92400E")
+    // Living room.
+    m.slab("Sofa", x: -9, y: floorTop, z: 7.5, w: 4, h: 0.9, d: 1.4, color: "#7C3AED")
+    m.slab("TV Stand", x: -9, y: floorTop, z: 0, w: 3, h: 0.6, d: 0.6, color: "#44403C")
+    m.part("TV", at: (-9, floorTop + 1.3, -0.1), size: (2.4, 1.3, 0.12), color: "#0F172A")
+    m.pad("Plant Pot", x: -12.6, z: 9.6, y: floorTop, size: 1.2, color: "#16A34A", tags: ["chore"])
+    m.part("Plant", at: (-12.6, 1.4, 9.6), size: (0.9, 1.4, 0.9), color: "#15803D", shape: .cone, solid: false)
+    m.part("Sofa Spot", at: (-7, 0.4, 5.5), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    m.spawnRing(-7, 3.5, y: floorTop, radius: 1.5, count: 6, color: "#FDE68A")
+    // Utility room, bath, bedroom.
+    m.pad("Breaker Box", x: 5, z: -3.6, y: floorTop, size: 1.4, color: "#F97316", tags: ["breaker"])
+    m.slab("Breaker Panel", x: 3.4, y: floorTop, z: -3.6, w: 0.4, h: 2, d: 1.2, color: "#52525B")
+    m.slab("Washing Machine", x: 5.5, y: floorTop, z: -8, w: 1.4, h: 1.2, d: 1.4, color: "#E5E7EB")
+    m.slab("Bathtub", x: 11.5, y: floorTop, z: -8.5, w: 3, h: 0.8, d: 1.6, color: "#F8FAFC")
+    m.slab("Bed", x: 10, y: floorTop, z: 7.5, w: 3, h: 0.7, d: 4, color: "#F1F5F9")
+    m.part("Bed Spot", at: (8, 0.4, 5), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    m.pad("Heater Switch", x: 12.6, z: 0, y: floorTop, size: 1.2, color: "#EF4444", tags: ["chore"])
+    m.pad("Charger", x: 12.6, z: 9.6, y: floorTop, size: 1.2, color: "#22C55E", tags: ["charger"])
+    for (i, p) in ([(-8, -6.5), (-8, 4.5), (0, 0), (9, 4.5), (9, -6.5)] as [(Float, Float)]).enumerated() {
+        m.part("House Light \(i + 1)", at: (p.0, 4.0, p.1), size: (0.6, 0.3, 0.6), color: "#FEF3C7", shape: .sphere, material: .neon, solid: false)
+    }
+    // Outside: porch, path, mailbox, garbage bin, the road, trees.
+    m.slab("Porch", x: 0, y: 0, z: 13, w: 6, h: 0.3, d: 4, color: "#57534E")
+    m.part("Porch Light", at: (-1.8, 3, 11.3), size: (0.4, 0.4, 0.4), color: "#FDBA74", shape: .sphere, material: .neon, solid: false)
+    m.slab("Garden Path", x: 0, y: 0, z: 20, w: 2, h: 0.05, d: 10, color: "#78716C")
+    m.pad("Mailbox", x: 0, z: 26, size: 1.4, color: "#2563EB", tags: ["chore"])
+    m.part("Mailbox Box", at: (0.8, 1.2, 26.5), size: (0.5, 0.5, 0.8), color: "#1D4ED8")
+    m.pad("Garbage Bin", x: 8, z: 18, size: 1.4, color: "#374151", tags: ["chore"])
+    m.part("Bin", at: (9, 0.7, 18.8), size: (1, 1.4, 1), color: "#1F2937", shape: .cylinder)
+    m.road(from: (-65, 34), to: (65, 34), width: 7, name: "Street")
+    m.lamp(-10, 30)
+    m.lamp(20, 30)
+    m.parkedCar("Car", x: 7, z: 24, yaw: 0, color: "#991B1B")
+    for (a, b) in [((-30, -30), (30, -30)), ((-30, -30), (-30, 28)), ((30, -30), (30, 28)), ((-30, 28), (-3, 28)), ((3, 28), (30, 28))]
+        as [((Float, Float), (Float, Float))] {
+        m.fence(from: a, to: b, color: "#57534E")
+    }
+    for p in ring(12, radius: 50) { m.pine(p.0, p.1, height: 9, leaves: "#052E16") }
+    for p in [(-22, -22), (22, -24), (-24, 18), (24, 14)] as [(Float, Float)] { m.pine(p.0, p.1, height: 7, leaves: "#14532D") }
 }

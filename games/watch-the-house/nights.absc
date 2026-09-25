@@ -1,0 +1,104 @@
+-- nights.absc — 夜の流れ: 22時 → 4時。つかまるとその夜をやり直し。5夜目の朝に家族が帰ってくる。
+
+let flow_clock = 0
+
+func start_night(i)
+  night_i = i
+  night_token = night_token + 1
+  phase = "night"
+  night_start = time()
+  power_on = true
+  world.sky_top = "#020617"
+  world.sky_bottom = "#0F172A"
+  world.light = 0.2
+  for n in npcs() do
+    if n.watcher or n.visitor then n.destroy() end
+  end
+  visitor = nil
+  next_bell = time() + 12
+  cracks = {}
+  for w in WINDOWS do show_window(w.id) end
+  for k in 1 to 5 do block("House Light " + k).material = "neon" end
+  pick_chores()
+  spawn_cat()
+  outage_at = 0
+  if night().outage then outage_at = time() + random(50, 140) end
+  for p in players() do
+    if ready(p) then
+      if not p.alive then p.respawn() end
+      close_cams(p)
+      p.carrying_trash = false
+      p.battery = max(p.battery, 60)
+      p.teleport(block("Spawn " + random(1, 6)).position + {x: 0, y: 1, z: 0})
+      decision_buttons(p)
+      hud(p)
+    end
+  end
+  let msg = ["📱 田中さんから: 「5日間、家をたのみます。夜は窓とお客さんに気をつけて」",
+             "📱 「冷蔵庫のご近所リスト、ちゃんと見てね」",
+             "📱 「最近このあたりで、知らない人が家をたずねてくるそうです」",
+             "📱 「タマが窓に向かって鳴いたら、何かいるのかも」",
+             "📱 「明日の朝には帰ります。最後の夜、どうか無事で」"]
+  announce(msg[i] + "  🌙 " + i + " 夜目", 6)
+  spawn_watcher(nil)
+  night_hud()
+end
+
+func caught(n)
+  if phase != "night" then return end
+  phase = "caught"
+  shake(1, 1.2)
+  fade("#000000", 0.3)
+  sound("hurt")
+  announce("😱 つかまった… この夜をやり直す", 4)
+  for p in players() do
+    if ready(p) then close_cams(p) end
+  end
+  after(1.2, func() fade(nil, 1) end)
+  let token = night_token
+  after(5, func()
+    if token == night_token then start_night(night_i) end
+  end)
+end
+
+func morning()
+  phase = "morning"
+  world.sky_top = "#FDBA74"
+  world.sky_bottom = "#FEF3C7"
+  world.light = 0.7
+  for n in npcs() do
+    if n.watcher or n.visitor then n.destroy() end
+  end
+  visitor = nil
+  let done = len(keys(chores_done))
+  for p in players() do
+    if ready(p) then
+      kit_give(p, 40 + night_i * 10 + done * 10)
+      p.score = p.score + 5 + done
+      kit_quest_progress(p, "nights", 1)
+      if done >= 3 then kit_badge(p, "chores_" + night_i, night_i + "夜目のしごとをぜんぶやった") end
+      decision_buttons(p)
+      close_cams(p)
+    end
+  end
+  if night_i >= len(NIGHTS) then
+    phase = "over"
+    for p in players() do
+      if ready(p) then kit_badge(p, "house_sitter", "5日間、家を守りぬいた") end
+    end
+    kit_finish("🌅 田中さん一家が帰ってきた！「ありがとう、家を守ってくれて」 5夜を守りぬいた！", 10)
+    return
+  end
+  announce("🌅 4:00 朝が来た！ しごと " + done + "/3。12秒後に次の夜。📱 スマホで通販もできる", 5)
+  let token = night_token
+  after(12, func()
+    if token == night_token then start_night(night_i + 1) end
+  end)
+end
+
+on tick(dt)
+  flow_clock = flow_clock + dt
+  if flow_clock < 0.5 then return end
+  flow_clock = 0
+  if phase == "night" and hours_passed() >= HOURS then morning() end
+end

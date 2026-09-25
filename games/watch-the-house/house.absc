@@ -1,0 +1,200 @@
+-- house.absc — 家のしごと・猫のタマ・停電とブレーカー・窓のカメラ・充電・スマホの通販
+
+let house_clock = 0
+let cat = nil
+let outage_at = 0
+
+-- MARK: 家のしごと
+
+func pick_chores()
+  chores = slice(shuffle(copy(CHORES)), 1, 3)
+  chores_done = {}
+end
+
+func do_chore(p, id)
+  if chores_done[id] or phase != "night" then return end
+  let wanted = false
+  for c in chores do
+    if c.id == id then wanted = true end
+  end
+  if not wanted then return end
+  if id == "trash" and not p.carrying_trash then
+    if quiet_ready(p, "trash_hint", 3) then p.message("🗑 まず台所のゴミぶくろを持ってこよう", 1.2) end
+    return
+  end
+  if id == "trash" then p.carrying_trash = false end
+  chores_done[id] = true
+  kit_give(p, 12)
+  p.score = p.score + 2
+  p.sound("checkpoint")
+  kit_quest_progress(p, "chores", 1)
+  if id == "cat" and still(cat) then cat.say("ニャー♪") end
+  p.message("✅ しごと完了！", 1)
+  hud(p)
+  night_hud()
+end
+
+func chore_touch(p, b)
+  for c in CHORES do
+    if b.name == c.pad then do_chore(p, c.id) end
+  end
+  if b.name == "Trash Bag" and not p.carrying_trash and not chores_done.trash then
+    p.carrying_trash = true
+    p.message("🗑 ゴミぶくろを持った。外のゴミ箱へ（外は気をつけて）", 1.5)
+    hud(p)
+  end
+end
+
+-- MARK: 猫のタマ
+
+func spawn_cat()
+  gone(cat)
+  cat = create_npc({name: "🐱 タマ", position: block("Cat Bowl").position + {x: 1, y: 1, z: 0}, color: "#F97316", head_color: "#FB923C",
+                    size: 0.45, health: 999999, speed: 0.7, team: "family"})
+  cat.pet = true
+end
+
+func cat_hiss(win)
+  if not still(cat) then return end
+  let w = block("Window " + win).position
+  if distance(cat, w) < 12 then
+    cat.say("シャーッ！")
+    cat.look_at(w)
+  end
+end
+
+func cat_step()
+  if not still(cat) then return end
+  if random() < 0.15 then
+    let spots = ["Cat Bowl", "Sofa Spot", "Bed Spot", "Entry Hall"]
+    cat.move_to(block(random(spots)).position)
+  end
+end
+
+-- MARK: 停電
+
+func blackout()
+  if not power_on then return end
+  power_on = false
+  world.light = 0.08
+  for i in 1 to 5 do block("House Light " + i).material = "plastic" end
+  for p in players() do
+    if ready(p) and p.cam_i > 0 then close_cams(p) end
+  end
+  sound("defeat")
+  announce("⚡ 停電！ 物置のブレーカーを上げよう。暗いと窓がやぶられやすい…", 3)
+  night_hud()
+end
+
+func fix_breaker(p)
+  if power_on then return end
+  power_on = true
+  world.light = 0.2
+  for i in 1 to 5 do block("House Light " + i).material = "neon" end
+  kit_give(p, 10)
+  kit_quest_progress(p, "breaker", 1)
+  announce("💡 " + p.name + " がブレーカーを上げた！", 2)
+  night_hud()
+end
+
+-- MARK: 窓のカメラ
+
+func next_cam(p)
+  if phase != "night" then return end
+  if not power_on then
+    p.message("⚡ 停電でカメラが見られない", 1)
+    return
+  end
+  p.cam_i = (p.cam_i % len(WINDOWS)) + 1
+  let w = WINDOWS[p.cam_i]
+  p.camera_look(block("Cam " + w.id).position, block("Window " + w.id + " Out").position + {x: 0, y: 1, z: 0})
+  p.ui_text("cam_label", "📷 " + w.name + "（" + p.cam_i + "/" + len(WINDOWS) + "）", {at: "top_left", dy: 60, size: 15, bold: true})
+  p.ui_button("cam_off", "🔙 もどる", {at: "bottom", dy: -160, w: 150, h: 46, size: 16, bg: "#374151", radius: 14})
+end
+
+func close_cams(p)
+  p.cam_i = 0
+  p.camera_reset()
+  p.ui_remove("cam_label")
+  p.ui_remove("cam_off")
+end
+
+-- MARK: 充電と通販
+
+func charge(p)
+  if p.battery >= 100 then return end
+  p.battery = min(100, p.battery + 30)
+  p.sound("tick")
+  p.message("🔋 充電… " + floor(p.battery) + "%", 0.8)
+  hud(p)
+end
+
+func shop_panel(p)
+  let h = 110 + len(SHOP) * 48
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 480, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("shop_t", "📱 スマホの通販   💰 " + kit_money(p), {parent: "shop", y: 26 / h, size: 18, bold: true, color: "#7DD3FC"})
+  let i = 0
+  for s in SHOP do
+    i = i + 1
+    let label = s.name + "  " + s.text
+    let bg = "#1D4ED8"
+    if owned[s.id] == true then
+      label = label + "  ✅"
+      bg = "#475569"
+    else
+      label = label + "   💰" + s.price
+    end
+    p.ui_button("buy_" + s.id, label, {parent: "shop", y: (30 + i * 48) / h, w: 440, h: 40, size: 12, bg: bg})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy(p, id)
+  for s in SHOP do
+    if s.id == id and owned[id] != true and kit_pay(p, s.price) then
+      if id == "battery" then p.battery = min(150, p.battery + 50)
+      elif id == "tape" then tape_rolls = tape_rolls + 3
+      else owned[id] = true end
+      p.sound("collect")
+      kit_quest_progress(p, "shop", 1)
+      announce("📦 " + p.name + " が「" + s.name + "」を買った", 2)
+      for q in players() do
+        if ready(q) then decision_buttons(q) end
+      end
+    end
+  end
+  shop_panel(p)
+  hud(p)
+end
+
+on tick(dt)
+  house_clock = house_clock + dt
+  if house_clock < 1 then return end
+  house_clock = 0
+  if phase != "night" then return end
+  cat_step()
+  if outage_at > 0 and time() >= outage_at then
+    outage_at = 0
+    blackout()
+  end
+  night_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "chore") then chore_touch(p, b)
+  elif contains(b.tags, "breaker") then fix_breaker(p)
+  elif contains(b.tags, "charger") and quiet_ready(p, "charge", 1) then charge(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "cam" then next_cam(p)
+  elif id == "cam_off" then close_cams(p)
+  elif id == "phone" then shop_panel(p)
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif starts_with(id, "buy_") then buy(p, replace(id, "buy_", ""))
+  end
+end

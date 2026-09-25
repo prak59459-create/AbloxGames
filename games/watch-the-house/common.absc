@@ -1,0 +1,105 @@
+-- common.absc — 夜の状態・小さな道具・画面
+
+let phase = "wait"         -- wait / night / caught / morning / over
+let night_i = 1
+let night_token = 0
+let night_start = 0
+let power_on = true
+let cracks = {}            -- 窓 id → 0〜3（3でやぶれる）
+let tape_rolls = 0         -- みんなのガムテープ
+let owned = {}             -- 通販で買ったもの（家のもの）
+let chores = []            -- 今夜のしごと
+let chores_done = {}
+
+func ready(p)
+  return p.battery != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func night()
+  return NIGHTS[night_i]
+end
+
+func hours_passed()
+  return floor((time() - night_start) / HOUR_SECS)
+end
+
+func clock_label()
+  let h = (START_HOUR + hours_passed()) % 24
+  return h + ":00"
+end
+
+func window_by_id(id)
+  for w in WINDOWS do
+    if w.id == id then return w end
+  end
+  return nil
+end
+
+func in_house(pos)
+  return abs(pos.x) < 14 and abs(pos.z) < 11 and pos.y < 5
+end
+
+func facing(p, pos, limit)
+  let d = {x: pos.x - p.x, y: 0, z: pos.z - p.z}
+  let l = {x: p.look.x, y: 0, z: p.look.z}
+  if magnitude(d) < 0.01 or magnitude(l) < 0.01 then return true end
+  return dot(normalize(d), normalize(l)) > limit
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let c = "#FDE68A"
+  if p.battery < 20 then c = "#F87171" end
+  let extra = ""
+  if p.carrying_trash then extra = "   🗑 ゴミぶくろ" end
+  p.ui_text("me", "🔦 電池 " + floor(p.battery) + "%   🩹 テープ " + tape_rolls + extra, {at: "top_left", dy: 36, size: 15, bold: true, color: c})
+end
+
+func night_hud()
+  let line = ""
+  if phase == "night" then
+    line = "🌙 " + night_i + " 夜目  🕙 " + clock_label()
+    if not power_on then line = line + "  ⚡ 停電中！（物置のブレーカー）" end
+  elif phase == "morning" then line = "🌅 朝になった"
+  elif phase == "caught" then line = "😱 …"
+  end
+  ui_text("clock", line, {at: "top", dy: 26, size: 19, bold: true})
+  let parts = []
+  for c in chores do
+    let mark = "⬜"
+    if chores_done[c.id] then mark = "✅" end
+    append(parts, mark + c.name)
+  end
+  ui_text("chores", "📝 " + join(parts, "  "), {at: "top", dy: 52, size: 12, color: "#E5E7EB"})
+  let ws = []
+  for w in WINDOWS do
+    let k = cracks[w.id] or 0
+    if k > 0 then append(ws, w.name + "💢" + k) end
+  end
+  if len(ws) > 0 then ui_text("cracks", "🪟 " + join(ws, "  "), {at: "top", dy: 72, size: 12, color: "#FCA5A5"}) else ui_remove("cracks") end
+end
