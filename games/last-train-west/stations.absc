@@ -1,0 +1,183 @@
+-- stations.absc — 駅に着く・発車する・町の木箱・保安官の店・持ち物を使う
+
+let crates_left = 0
+
+func show_town(n, shown)
+  for b in blocks("town" + n) do
+    b.visible = shown
+    b.solid = shown and contains(b.tags, "solid")
+  end
+end
+
+func arrive()
+  phase = "station"
+  let town_n = STATION_TOWN[station_i]
+  let t = TOWNS[town_n]
+  station_until = time() + STATION_SECS
+  night_end()
+  show_town(town_n, true)
+  spawn_crates(town_n)
+  announce("🚉 " + t.name + " に着いた！ " + STATION_SECS + "びょうで物資を集めよう。黄色いパッドは保安官の店", 4)
+  for p in players() do
+    if ready(p) then kit_quest_progress(p, "stations", 1) end
+  end
+end
+
+func depart()
+  let town_n = STATION_TOWN[station_i]
+  show_town(town_n, false)
+  for b in blocks("crate") do gone(b) end
+  station_i = station_i + 1
+  phase = "travel"
+  sound("goal")
+  announce("🚂 ポーーッ！ 発車！", 3)
+  -- 乗りおくれた人は、少しお金を落として列車に飛び乗る
+  for p in players() do
+    if ready(p) and p.alive and not on_train(p) then
+      p.teleport(block("Passenger Car").position + {x: 0, y: 1.5, z: 0})
+      let lost = floor(kit_money(p) / 4)
+      if lost > 0 then
+        p.coins = kit_money(p) - lost
+        kit_show_money(p)
+      end
+      p.message("🏃 ギリギリ飛び乗った！（お金を " + lost + " 落とした）", 2.5)
+    end
+  end
+end
+
+func spawn_crates(town_n)
+  for b in blocks("crate") do gone(b) end
+  for i in 1 to 6 do
+    let spot = block("T" + town_n + " Loot " + i)
+    if spot != nil then
+      create_block({name: "Crate", position: spot.position + {x: random(-2, 2), y: 0.6, z: random(-2, 2)}, size: 1.1, color: "#A16207",
+                    tags: ["crate"], behavior: "trigger", solid: false})
+    end
+  end
+end
+
+func loot_one(p, town_n)
+  let kind = random(TOWNS[town_n].loot)
+  if kind == "coal" then
+    p.coal = min(coal_max(p), p.coal + 2)
+  else
+    p.pack[kind] = (p.pack[kind] or 0) + 1
+  end
+  return kind
+end
+
+func open_crate(p, b)
+  if phase != "station" then return end
+  gone(b)
+  let town_n = STATION_TOWN[station_i]
+  let got = [loot_one(p, town_n)]
+  if p.role == "scavenger" then append(got, loot_one(p, town_n)) end
+  let names = map(got, func(k) return LOOT[k].name end)
+  p.message("📦 " + join(names, "・") + " を見つけた！", 1.8)
+  p.sound("collect")
+  kit_quest_progress(p, "loot", 1)
+  hud(p)
+end
+
+-- MARK: 保安官の店（自分のお金で）
+
+let SHOP = [
+  {id: "pistol", name: "🔫 リボルバー", price: 20},
+  {id: "shotgun", name: "💥 ショットガン", price: 70},
+  {id: "rifle", name: "🎯 ライフル", price: 140},
+  {id: "blaster", name: "⚡ 電気銃", price: 320},
+  {id: "bandage", name: "🩹 包帯", price: 12},
+  {id: "holy", name: "💧 聖水", price: 30},
+  {id: "plank", name: "🪵 板", price: 15}
+]
+
+func sheriff_panel(p)
+  let h = 110 + len(SHOP) * 48
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 420, h: h, bg: "#451A03F2", radius: 20, layer: 30})
+  p.ui_text("shop_t", "⭐ 保安官の店   💰 " + kit_money(p), {parent: "shop", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for it in SHOP do
+    i = i + 1
+    p.ui_button("buy_" + it.id, it.name + "   💰" + it.price, {parent: "shop", y: (30 + i * 48) / h, w: 360, h: 40, size: 15, bg: "#92400E"})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func sheriff_buy(p, id)
+  for it in SHOP do
+    if it.id == id and kit_pay(p, it.price) then
+      if id == "pistol" or id == "shotgun" or id == "rifle" or id == "blaster" then
+        p.give(id)
+        kit_quest_progress(p, "gun", 1)
+      else
+        p.pack[id] = (p.pack[id] or 0) + 1
+      end
+      p.sound("collect")
+      p.message("🛒 " + it.name + " を買った", 1.2)
+      hud(p)
+      sheriff_panel(p)
+    end
+  end
+end
+
+-- MARK: 持ち物を使う
+
+func use_bandage(p)
+  if (p.pack.bandage or 0) <= 0 then
+    p.message("🩹 包帯がない", 0.8)
+    return
+  end
+  p.pack.bandage = p.pack.bandage - 1
+  p.heal(50)
+  p.message("🩹 回復した", 1)
+  hud(p)
+end
+
+func use_holy(p)
+  if (p.pack.holy or 0) <= 0 then
+    p.message("💧 聖水がない", 0.8)
+    return
+  end
+  p.pack.holy = p.pack.holy - 1
+  let hit = 0
+  for n in npcs() do
+    if kit_here(n) and n.monster and distance(p, n) < 9 then
+      n.damage(90)
+      hit = hit + 1
+    end
+  end
+  let splash = create_block({name: "Splash", shape: "sphere", position: p.position + {x: 0, y: 1, z: 0}, size: 9, color: "#7DD3FC",
+                             material: "neon", solid: false, opacity: 0.3})
+  after(0.5, func() gone(splash) end)
+  p.message("💧 聖水！ " + hit + "体に命中", 1.2)
+  kit_quest_progress(p, "holy", 1)
+  hud(p)
+end
+
+func use_ammo(p)
+  if (p.pack.ammo or 0) <= 0 then return end
+  p.pack.ammo = p.pack.ammo - 1
+  p.reload()
+  hud(p)
+end
+
+on tick(dt)
+  if phase == "station" and time() >= station_until then depart() end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "crate") then open_crate(p, b)
+  elif contains(b.tags, "sheriff") and b.visible and quiet_ready(p, "sheriff_pad", 2) then sheriff_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "buy_") then sheriff_buy(p, replace(id, "buy_", ""))
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif id == "bandage" then use_bandage(p)
+  elif id == "holy" then use_holy(p)
+  end
+end

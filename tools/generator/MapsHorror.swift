@@ -16,7 +16,7 @@ let horrorGames: [Game] = [
          summary: "終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！",
          tags: ["horror", "puzzle", "observe"], maxPlayers: 6, build: anomalyHallway),
     Game(number: 50, id: "last-train-west", title: "Last Train West",
-         summary: "荒野を走る最後の列車。石炭をくべて走らせ、駅で物資を集め、夜におそってくる怪物から列車を守りぬけ。",
+         summary: "荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！",
          tags: ["survival", "train", "coop"], maxPlayers: 8, build: lastTrain),
     Game(number: 51, id: "yokai-shrine", title: "Yokai Shrine",
          summary: "夜の神社に散らばった5枚のお札を集めて祭壇へ。仲間のふりをする妖怪に気をつけて…和風ホラー。",
@@ -387,34 +387,108 @@ func anomalyHallway(_ m: MapBuilder) {
 
 func lastTrain(_ m: MapBuilder) {
     m.sunset(ground: "#B45309")
-    m.ground(260, 260, color: "#C2410C", name: "Desert")
-    // The rails, and the train on them.
-    m.part("Rails", at: (0, 0.05, 0), size: (3, 0.1, 260), color: "#57534E", material: .metal, solid: false)
+    m.ground(320, 320, color: "#C2410C", name: "Desert")
+    // The rails, and the train standing on them. The world rolls past it.
+    m.part("Rails", at: (0, 0.05, 0), size: (3, 0.1, 320), color: "#57534E", material: .metal, solid: false)
+    for i in 0..<16 { m.part("Sleeper", at: (0, 0.06, -150 + Float(i) * 20), size: (4.4, 0.08, 0.6), color: "#78350F", solid: false) }
     let cars: [(String, Float, String)] = [("Engine", 18, "#1F2937"), ("Coal Car", 8, "#44403C"), ("Passenger Car", -3, "#7F1D1D"),
                                            ("Cargo Car", -14, "#78350F")]
     for c in cars {
         m.slab(c.0, x: 0, y: 0.6, z: c.1, w: 4, h: 0.4, d: 9.5, color: c.2, tags: ["train"])
         m.slab("\(c.0) Rail L", x: -2, y: 1, z: c.1, w: 0.2, h: 1, d: 9.5, color: "#A8A29E")
-        m.slab("\(c.0) Rail R", x: 2, y: 1, z: c.1, w: 0.2, h: 1, d: 9.5, color: "#A8A29E")
+        if c.0 == "Passenger Car" || c.0 == "Cargo Car" {
+            // A door on the platform side: step down to the station.
+            m.slab("\(c.0) Rail R", x: 2, y: 1, z: c.1 - 3.2, w: 0.2, h: 1, d: 3.1, color: "#A8A29E")
+            m.slab("\(c.0) Rail R", x: 2, y: 1, z: c.1 + 3.2, w: 0.2, h: 1, d: 3.1, color: "#A8A29E")
+            m.slab("\(c.0) Step", x: 3.5, y: 0, z: c.1, w: 3, h: 0.6, d: 2.5, color: "#57534E")
+        } else {
+            m.slab("\(c.0) Rail R", x: 2, y: 1, z: c.1, w: 0.2, h: 1, d: 9.5, color: "#A8A29E")
+        }
+        for dz: Float in [-3.2, 3.2] {
+            for dx: Float in [-1.6, 1.6] {
+                m.part("\(c.0) Wheel", at: (dx, 0.45, c.1 + dz), size: (0.9, 0.3, 0.9), color: "#111827", shape: .cylinder,
+                       solid: false, rotation: (0, 0, 90))
+            }
+        }
     }
     m.slab("Engine Cab", x: 0, y: 1, z: 20, w: 4, h: 3, d: 4, color: "#111827")
-    m.part("Smokestack", at: (0, 3.5, 15), size: (1, 2, 1), color: "#27272A", shape: .cylinder)
-    m.pad("Boiler", x: 0, z: 17, y: 1, size: 1.8, color: "#F97316", tags: ["boiler"])
+    m.slab("Engine Boiler", x: 0, y: 1, z: 15, w: 2.6, h: 2, d: 5, color: "#374151")
+    m.part("Smokestack", at: (0, 3.5, 14), size: (1, 2, 1), color: "#27272A", shape: .cylinder)
+    m.part("Headlamp", at: (0, 2.2, 22.9), size: (0.8, 0.8, 0.2), color: "#FEF9C3", shape: .cylinder, material: .neon, solid: false,
+           rotation: (90, 0, 0))
+    m.pad("Boiler", x: 0, z: 19, y: 1, size: 1.8, color: "#F97316", tags: ["boiler"])
     m.pad("Coal Pile", x: 0, z: 8, y: 1, size: 3, color: "#18181B", tags: ["coal"])
+    m.slab("Passenger Roof", x: 0, y: 3.4, z: -3, w: 4.2, h: 0.3, d: 9.5, color: "#991B1B")
+    m.pad("Upgrade Board", x: -1, z: -6, y: 1, size: 1.6, color: "#FACC15", tags: ["upgrades"])
+    m.pad("Role Board", x: 1, z: -6, y: 1, size: 1.6, color: "#A78BFA", tags: ["roles"])
+    m.pad("Repair Bench", x: 0, z: -12, y: 1, size: 2, color: "#60A5FA", tags: ["repair"])
+    m.pad("Cargo Hold", x: 0, z: -17, y: 1, size: 2, color: "#EAB308", tags: ["cargo"])
+    m.part("Turret", at: (0, 2.2, -14), size: (1.2, 1, 1.2), color: "#334155", material: .metal, visible: false)
+    m.part("Turret Barrel", at: (0, 2.5, -15.2), size: (0.25, 0.25, 1.6), color: "#111827", visible: false)
     m.spawnRing(0, -3, y: 1, radius: 1.2, count: 6, color: "#FDE68A")
-    // The station town, reached by stepping off.
     m.slab("Platform", x: 14, y: 0, z: 0, w: 10, h: 0.6, d: 40, color: "#A8A29E", tags: ["station"])
-    for i in 0..<4 {
-        m.house("Station Shack \(i + 1)", x: 34, z: -30 + Float(i) * 20, w: 10, d: 10, h: 3.4, wall: "#D6B98C", roof: "#57534E",
-                floor: "#A16207", door: false, tags: ["town"], facing: -1)
+    m.stairs(19, -2, y: 0, steps: 1, rise: 0.3, run: 1, width: 4, color: "#A8A29E", name: "Platform Step")
+
+    // The four station towns, built in the same place and shown one at a
+    // time as the train pulls in.
+    func town(_ n: Int, _ build: () -> Void) { m.group("town\(n)", shown: n == 1, build) }
+    town(1) {    // A ghost town: a saloon, shacks and a water tower.
+        m.house("Saloon", x: 40, z: -18, w: 14, d: 10, h: 4, wall: "#B45309", roof: "#451A03", floor: "#78350F", door: false, tags: ["t1"], facing: -1)
+        for i in 0..<3 { m.house("Shack", x: 40, z: 2 + Float(i) * 14, w: 9, d: 9, wall: "#D6B98C", roof: "#57534E", floor: "#A16207", door: false, tags: ["t1"], facing: -1) }
+        m.part("Water Tower", at: (58, 7, 0), size: (5, 4, 5), color: "#78350F", shape: .cylinder)
+        for dx: Float in [-1.8, 1.8] { m.part("Tower Leg", at: (58 + dx, 2.5, 0), size: (0.4, 5, 0.4), color: "#451A03") }
     }
-    m.markers("Loot Spot", points: [(34, -30), (34, -10), (34, 10), (34, 30), (50, 0), (22, 25)], color: "#000000", visible: false, behavior: .none)
-    m.markers("Monster Spawn", points: [(-40, -40), (-40, 40), (60, -60), (60, 60), (-60, 0)], color: "#000000", visible: false, behavior: .none)
+    town(2) {    // A bank town.
+        m.house("Bank", x: 42, z: -14, w: 16, d: 12, h: 5, wall: "#E7E5E4", roof: "#1C1917", floor: "#D6D3D1", door: false, tags: ["t2"], facing: -1)
+        m.part("Vault", at: (46, 1.5, -14), size: (3, 3, 3), color: "#71717A", material: .metal)
+        m.house("Sheriff Office", x: 40, z: 10, w: 10, d: 9, wall: "#A16207", roof: "#292524", floor: "#78350F", door: false, tags: ["t2"], facing: -1)
+        m.house("Hotel", x: 42, z: 28, w: 12, d: 10, h: 4.5, wall: "#FDBA74", roof: "#7C2D12", floor: "#9A3412", door: false, tags: ["t2"], facing: -1)
+    }
+    town(3) {    // A church town with a graveyard.
+        m.house("Church", x: 42, z: -12, w: 12, d: 16, h: 5, wall: "#F5F5F4", roof: "#44403C", floor: "#A8A29E", door: false, tags: ["t3"], facing: -1)
+        m.part("Steeple", at: (42, 8, -12), size: (3, 6, 3), color: "#F5F5F4")
+        m.part("Steeple Top", at: (42, 12, -12), size: (3, 2.5, 3), color: "#44403C", shape: .cone)
+        for i in 0..<8 { m.slab("Tombstone", x: 36 + Float(i % 4) * 4, y: 0, z: 12 + Float(i / 4) * 5, w: 1.2, h: 1.4, d: 0.4, color: "#78716C") }
+        m.house("Parsonage", x: 44, z: 30, w: 9, d: 9, wall: "#E7E5E4", roof: "#57534E", floor: "#A8A29E", door: false, tags: ["t3"], facing: -1)
+    }
+    town(4) {    // A fort.
+        m.slab("Fort Wall", x: 44, y: 0, z: -24, w: 30, h: 4, d: 1, color: "#78350F")
+        m.slab("Fort Wall", x: 44, y: 0, z: 24, w: 30, h: 4, d: 1, color: "#78350F")
+        m.slab("Fort Wall", x: 59, y: 0, z: 0, w: 1, h: 4, d: 48, color: "#78350F")
+        m.slab("Fort Wall", x: 29, y: 0, z: -14, w: 1, h: 4, d: 20, color: "#78350F")
+        m.slab("Fort Wall", x: 29, y: 0, z: 14, w: 1, h: 4, d: 20, color: "#78350F")
+        for p in [(31, -22), (57, -22), (31, 22), (57, 22)] as [(Float, Float)] {
+            m.slab("Watchtower", x: p.0, y: 0, z: p.1, w: 3, h: 7, d: 3, color: "#451A03")
+        }
+        m.house("Barracks", x: 48, z: 0, w: 12, d: 10, wall: "#A16207", roof: "#292524", floor: "#78350F", door: false, tags: ["t4"], facing: -1)
+        m.pad("Fort Flag", x: 40, z: 16, size: 2, color: "#DC2626", tags: ["t4flag"])
+    }
+    for n in 1...4 {
+        town(n) {
+            // The sheriff's stall at the edge of town: a pad under an awning.
+            m.pad("Sheriff \(n)", x: 25, z: -8, size: 2.4, color: "#FACC15", tags: ["sheriff"])
+            for p in [(23.2, -9.8), (26.8, -9.8), (23.2, -6.2), (26.8, -6.2)] as [(Float, Float)] {
+                m.part("Stall Post", at: (p.0, 1.4, p.1), size: (0.25, 2.8, 0.25), color: "#451A03", solid: false)
+            }
+            m.part("Stall Awning", at: (25, 2.9, -8), size: (4.2, 0.2, 4.2), color: "#B91C1C", solid: false)
+        }
+        let spots: [(Float, Float)] = [(32, -24), (34, -6), (34, 8), (33, 22), (50, 36), (52, -30)]
+        m.markers("T\(n) Loot", points: spots, color: "#000000", visible: false, behavior: .none)
+    }
+    // The bridge over the canyon at the end of the line.
+    m.slab("Canyon", x: 0, y: -0.1, z: 60, w: 320, h: 0.12, d: 80, color: "#1C1917", solid: false)
+    m.part("Bridge Girder L", at: (-3, 1.8, 0), size: (0.5, 3.6, 120), color: "#57534E", material: .metal, solid: false, visible: false)
+    m.part("Bridge Girder R", at: (3, 1.8, 0), size: (0.5, 3.6, 120), color: "#57534E", material: .metal, solid: false, visible: false)
+    m.markers("Monster Spawn", points: [(-50, -50), (-50, 50), (70, -70), (70, 70), (-70, 0), (80, 0)], color: "#000000", visible: false, behavior: .none)
     var r = Seeded("west")
-    for _ in 0..<18 {
-        let x = r.range(-120, 120), z = r.range(-120, 120)
-        if abs(x) < 50 { continue }
-        m.part("Cactus", at: (x, 2, z), size: (0.8, 4, 0.8), color: "#15803D", shape: .cylinder)
+    for i in 0..<12 {
+        let side: Float = i % 2 == 0 ? -1 : 1
+        m.part("Passing Cactus \(i + 1)", at: (side * r.range(12, 60), 2, -150 + Float(i) * 25), size: (0.8, 4, 0.8), color: "#15803D",
+               shape: .cylinder, tags: ["scenery"], solid: false)
+    }
+    for i in 0..<6 {
+        m.part("Passing Rock \(i + 1)", at: (r.range(-70, -10), 1, -140 + Float(i) * 50), size: (3, 2, 3), color: "#9A3412",
+               shape: .sphere, tags: ["scenery"], solid: false)
     }
 }
 

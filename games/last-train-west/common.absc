@@ -1,0 +1,86 @@
+-- common.absc — 旅の状態・小さな道具・画面
+
+let phase = "station"      -- station / travel / bridge / over
+let km = 0
+let fuel = 60
+let train_hp = TRAIN_HP
+let station_i = 1          -- いまの（次の）駅の番号
+let station_until = 0
+let night = false
+let bank = 0               -- みんなのお金（金塊をしまうとふえる）
+let upg = {boiler: 0, armor: 0, turret: 0, lamp: 0}
+
+func ready(p)
+  return p.pack != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func train_max()
+  return TRAIN_HP + upg.armor * 40
+end
+
+func on_train(p)
+  return abs(p.x) < 3 and p.z > -19.5 and p.z < 23 and p.y < 6
+end
+
+func coal_max(p)
+  if p.role == "engineer" then return 5 end
+  return 3
+end
+
+func pack_line(p)
+  let parts = []
+  if p.coal > 0 then append(parts, "⚫" + p.coal) end
+  for id in keys(p.pack) do
+    if p.pack[id] > 0 then append(parts, split(LOOT[id].name, " ")[1] + p.pack[id]) end
+  end
+  if len(parts) == 0 then return "からっぽ" end
+  return join(parts, " ")
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let role = "役割なし（紫の掲示板）"
+  if p.role != nil then role = ROLES[p.role].name end
+  p.ui_text("me", role + "   🎒 " + pack_line(p), {at: "top_left", dy: 34, size: 15, bold: true, color: "#FDE68A"})
+end
+
+func trip_hud()
+  let status = ""
+  if phase == "station" then
+    status = "🚉 " + TOWNS[STATION_TOWN[station_i]].name + " に停車中（発車まで " + max(0, ceil(station_until - time())) + "s）"
+  elif phase == "travel" then
+    status = "🚂 走行中  次の駅まで " + fixed(max(0, next_stop_km() - km), 1) + " km"
+    if night then status = status + "  🌙 夜" end
+  elif phase == "bridge" then
+    status = "🌉 大きな橋！ 列車を守れ"
+  end
+  ui_text("trip", "🛤 " + fixed(km, 1) + " / " + TRIP_KM + " km   " + status, {at: "top", dy: 26, size: 16, bold: true})
+  ui_bar("fuel", {at: "top", dy: 52, dx: -140, w: 240, h: 12, value: fuel, max: 100, color: "#F97316", bg: "#00000088"})
+  ui_text("fuel_t", "⛽ 燃料", {at: "top", dy: 48, dx: -300, size: 12})
+  ui_bar("hull", {at: "top", dy: 52, dx: 140, w: 240, h: 12, value: max(0, train_hp), max: train_max(), color: "#22C55E", bg: "#00000088"})
+  ui_text("hull_t", "🚂 耐久", {at: "top", dy: 48, dx: 300, size: 12})
+  ui_text("bank", "💰 みんなのお金 " + bank, {at: "top", dy: 70, size: 13, color: "#FDE68A"})
+end
+
+func next_stop_km()
+  if station_i <= len(STATION_KM) then return STATION_KM[station_i] end
+  return TRIP_KM
+end

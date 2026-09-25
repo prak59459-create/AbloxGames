@@ -1,0 +1,54 @@
+-- data.absc — Last Train West の表
+-- 駅の町・怪物・役割・列車の強化・物資・定数
+
+let TOWNS = [
+  {n: 1, name: "🏚 ゴーストタウン", loot: ["coal", "coal", "gold", "bandage", "plank"]},
+  {n: 2, name: "🏦 銀行の町", loot: ["gold", "gold", "gold", "coal", "plank"]},
+  {n: 3, name: "⛪ 教会の町", loot: ["holy", "bandage", "coal", "plank", "gold"]},
+  {n: 4, name: "🏰 砦", loot: ["ammo", "plank", "plank", "coal", "gold"]}
+]
+-- 何km地点の駅がどの町か（0kmは出発の駅）
+let STATION_KM = [0, 2, 4, 6, 8]
+let STATION_TOWN = [1, 2, 3, 4, 1]
+
+let LOOT = {
+  coal: {name: "⚫ 石炭", text: "ボイラーにくべる"},
+  gold: {name: "🟨 金塊", text: "貨物車にしまうと、みんなのお金になる"},
+  bandage: {name: "🩹 包帯", text: "すぐ回復"},
+  plank: {name: "🪵 板", text: "作業台で列車を直す"},
+  holy: {name: "💧 聖水", text: "近くの怪物に大ダメージ"},
+  ammo: {name: "📦 弾薬箱", text: "銃の弾をいっぱいに"}
+}
+
+-- 怪物: km が進むほど強いのが出る
+let MONSTERS = [
+  {name: "🧟 荒野のゾンビ", color: "#57534E", head: "#A8A29E", hp: 60, speed: 0.75, dps: 8, from: 0},
+  {name: "🐺 コヨーテ", color: "#A16207", head: "#CA8A04", hp: 40, speed: 1.5, dps: 6, from: 0},
+  {name: "💀 ガイコツ", color: "#E7E5E4", head: "#F5F5F4", hp: 70, speed: 0.9, dps: 10, from: 2},
+  {name: "🤠 ならず者", color: "#292524", head: "#D6A77A", hp: 80, speed: 0.9, dps: 0, from: 3, gun: true},
+  {name: "🧛 吸血鬼", color: "#450A0A", head: "#E5E7EB", hp: 110, speed: 1.2, dps: 14, from: 5},
+  {name: "🐗 大イノシシ", color: "#44403C", head: "#78716C", hp: 200, speed: 1.1, dps: 20, from: 7, size: 1.8}
+]
+
+let ROLES = {
+  gunslinger: {name: "🤠 ガンマン", text: "銃のダメージ +50%", color: "#7C2D12"},
+  engineer: {name: "🔧 機関士", text: "石炭を5つ持てる・くべると燃料+30%", color: "#1E3A8A"},
+  doctor: {name: "🩺 医者", text: "近くの仲間を回復できる（🩺ボタン）", color: "#F8FAFC"},
+  scavenger: {name: "⛏ 物あさり", text: "木箱から2つ見つかる", color: "#15803D"}
+}
+let ROLE_ORDER = ["gunslinger", "engineer", "doctor", "scavenger"]
+
+-- 列車の強化（みんなのお金で）
+let UPGRADES = [
+  {id: "boiler", name: "🔥 大きなボイラー", max: 2, cost: [120, 260], text: "燃料の減りが遅い"},
+  {id: "armor", name: "🛡 鉄の装甲", max: 3, cost: [100, 220, 400], text: "列車の耐久 +40"},
+  {id: "turret", name: "🔫 貨物車の砲台", max: 2, cost: [250, 450], text: "近くの怪物を自動で撃つ"},
+  {id: "lamp", name: "💡 大きなライト", max: 1, cost: [90], text: "夜も明るい"}
+]
+
+let TRAIN_HP = 100
+let STATION_SECS = 40
+let TRIP_KM = 10
+let BRIDGE_SECS = 60
+let FUEL_BURN = 1.1        -- 1びょうに減る燃料
+let COAL_FUEL = 12

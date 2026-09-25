@@ -175,7 +175,9 @@ if !validated.rejected.isEmpty {
     failures += validated.rejected.count
     for (id, reason) in validated.rejected { print("✗ index rejects \(id): \(reason)") }
 }
-if only == nil {
+// Written with --only too: every listing above is current (the other games
+// keep their covers), and a new cover's name must reach the index at once.
+if !reachOnly {
     write(index + Data("\n".utf8), to: "index.json")
     writeReadmeList(listings)
 }

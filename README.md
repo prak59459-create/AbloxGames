@@ -85,8 +85,8 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/color-monsters/cover-b59d54d7.png" width="200"> | 46 | **Color Monsters** | 夜のおもちゃ倉庫で5色のモンスターから隠れて、夜ごとの任務（ブロック・ヒューズ・電池・ガス・ロケットの部品）を集めよう。箱やロッカーに隠れ、つかまった仲間は檻から助けて、5夜目にロケットで脱出！ |
 | <img src="games/porkys-house/cover-ffb3d940.png" width="200"> | 47 | **Porky's House** | 毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！ |
 | <img src="games/run-from-faces/cover-79287542.png" width="200"> | 48 | **Run From The Faces** | 5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！ |
-| <img src="games/anomaly-hallway/cover-165c434d.png" width="200"> | 49 | **Anomaly Hallway** | 終わらない病院の廊下。いつもとちがう「異変」があれば引き返し、なければ進む。8回続けて正解すれば出口へ。 |
-| <img src="games/last-train-west/cover-6764638c.png" width="200"> | 50 | **Last Train West** | 荒野を走る最後の列車。石炭をくべて走らせ、駅で物資を集め、夜におそってくる怪物から列車を守りぬけ。 |
+| <img src="games/anomaly-hallway/cover-b5bc7a1e.png" width="200"> | 49 | **Anomaly Hallway** | 終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！ |
+| <img src="games/last-train-west/cover-67fe6da3.png" width="200"> | 50 | **Last Train West** | 荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！ |
 | <img src="games/yokai-shrine/cover-16825c7f.png" width="200"> | 51 | **Yokai Shrine** | 夜の神社に散らばった5枚のお札を集めて祭壇へ。仲間のふりをする妖怪に気をつけて…和風ホラー。 |
 | <img src="games/night-lockdown/cover-8f5ff717.png" width="200"> | 52 | **Night Lockdown** | 昼は町で食料と板を集め、夜は家の窓に板を打ちつけて立てこもる。侵入者から家族を守って3夜を生きのびろ。 |
 | <img src="games/toy-factory-night-shift/cover-b1288b6b.png" width="200"> | 53 | **Toy Factory Night Shift** | おもちゃ工場の夜間警備。カメラで動くおもちゃを見張り、電力を節約しながらドアを閉めて、朝6時まで耐えろ。 |

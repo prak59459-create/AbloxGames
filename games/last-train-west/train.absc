@@ -1,0 +1,232 @@
+-- train.absc — 列車: ボイラーと燃料・走る・耐久と修理・砲台・強化・貨物
+-- 燃料が多いほど速く走る。燃料は石炭置き場（黒）から運んでボイラー（オレンジ）へ。
+
+let train_clock = 0
+let scenery_clock = 0
+let turret_clock = 0
+let over = false
+let fuel_warn_at = -99
+
+-- MARK: 石炭
+
+func take_coal(p)
+  if p.coal >= coal_max(p) then
+    if quiet_ready(p, "coal_full", 2) then p.message("⚫ もう持てない（ボイラーへ）", 1) end
+    return
+  end
+  p.coal = coal_max(p)
+  p.sound("collect")
+  hud(p)
+end
+
+func feed_boiler(p)
+  if p.coal <= 0 then return end
+  let per = COAL_FUEL
+  if p.role == "engineer" then per = per * 1.3 end
+  fuel = min(100, fuel + p.coal * per)
+  kit_quest_progress(p, "coal", p.coal)
+  kit_give(p, p.coal)
+  p.score = p.score + p.coal
+  p.message("🔥 石炭を" + p.coal + "つくべた！", 1)
+  p.coal = 0
+  hud(p)
+  trip_hud()
+end
+
+-- MARK: 走る
+
+func speed_kmps()
+  if phase != "travel" then return 0 end
+  return 0.02 * (0.3 + 0.7 * fuel / 100)
+end
+
+func travel_step(secs)
+  let burn = FUEL_BURN * (1 - upg.boiler * 0.2)
+  fuel = max(0, fuel - burn * secs)
+  km = km + speed_kmps() * secs
+  if fuel <= 0 and time() - fuel_warn_at > 8 then
+    fuel_warn_at = time()
+    announce("⚠️ 燃料切れでのろのろ… 石炭をくべて！", 2)
+  end
+  day_night()
+  if station_i <= len(STATION_KM) and km >= STATION_KM[station_i] then arrive() end
+  if station_i > len(STATION_KM) and km >= TRIP_KM then start_bridge() end
+end
+
+-- 景色が流れていく（燃料が多いほど速く）
+func scenery_step()
+  let shift = 12 + fuel * 0.25
+  for b in blocks("scenery") do
+    if b.z < -150 then
+      b.z = 150 + random(0, 20)
+    else
+      b.move_to({x: b.x, y: b.y, z: b.z - shift}, 1.5)
+    end
+  end
+end
+
+-- MARK: 耐久
+
+func hurt_train(amount)
+  if over then return end
+  train_hp = train_hp - amount
+  if train_hp <= 0 then
+    train_hp = 0
+    game_over("💥 列車がこわされた… " + fixed(km, 1) + " km で旅は終わった")
+  end
+end
+
+func repair(p)
+  let planks = p.pack.plank or 0
+  if planks <= 0 then
+    if quiet_ready(p, "repair_hint", 3) then p.message("🪵 板を持ってくると直せる（町の木箱から）", 1.5) end
+    return
+  end
+  let before = train_hp
+  train_hp = min(train_max(), train_hp + planks * 25)
+  p.pack.plank = 0
+  kit_give(p, 6 * planks)
+  kit_quest_progress(p, "repair", planks)
+  p.message("🔨 列車を直した +" + floor(train_hp - before), 1.5)
+  p.sound("collect")
+  hud(p)
+  trip_hud()
+end
+
+-- MARK: 貨物（金塊）
+
+func stash_gold(p)
+  let bars = p.pack.gold or 0
+  if bars <= 0 then return end
+  bank = bank + bars * 40
+  kit_give(p, bars * 10)
+  p.score = p.score + bars * 5
+  kit_quest_progress(p, "gold", bars)
+  p.pack.gold = 0
+  announce("🟨 " + p.name + " が金塊を" + bars + "本しまった！ みんなのお金 +" + (bars * 40), 2)
+  hud(p)
+  trip_hud()
+end
+
+-- MARK: 強化
+
+func upgrades_panel(p)
+  let h = 120 + len(UPGRADES) * 56
+  p.ui_remove("upg")
+  p.ui_panel("upg", {at: "center", w: 540, h: h, bg: "#292524F2", radius: 20, layer: 30})
+  p.ui_text("upg_t", "🚂 列車の強化   💰 みんなのお金 " + bank, {parent: "upg", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = upg[u.id]
+    let label = u.name + " Lv" + lv + "/" + u.max
+    let bg = "#B45309"
+    if lv >= u.max then
+      label = label + "  ✅"
+      bg = "#44403C"
+    else
+      label = label + "  💰" + u.cost[lv + 1] + " — " + u.text
+      if bank < u.cost[lv + 1] then bg = "#57534E" end
+    end
+    p.ui_button("upg_" + u.id, label, {parent: "upg", y: (30 + i * 56) / h, w: 500, h: 48, size: 14, bg: bg})
+  end
+  p.ui_button("upg_close", "閉じる", {parent: "upg", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  let u = nil
+  for x in UPGRADES do
+    if x.id == id then u = x end
+  end
+  if u == nil then return end
+  let lv = upg[id]
+  if lv >= u.max then return end
+  let cost = u.cost[lv + 1]
+  if bank < cost then
+    p.message("💰 みんなのお金が足りない（金塊を貨物車へ）", 1.5)
+    return
+  end
+  bank = bank - cost
+  upg[id] = lv + 1
+  if id == "armor" then train_hp = train_hp + 40 end
+  if id == "turret" then
+    block("Turret").visible = true
+    block("Turret Barrel").visible = true
+  end
+  if id == "lamp" and night then world.light = 0.5 end
+  announce("🚂 " + p.name + " が「" + u.name + "」を Lv" + upg[id] + " にした！", 3)
+  kit_quest_progress(p, "upgrade", 1)
+  upgrades_panel(p)
+  trip_hud()
+end
+
+-- MARK: 砲台
+
+func turret_step()
+  if upg.turret <= 0 then return end
+  let best = nil
+  let best_d = 32
+  let origin = block("Turret").position
+  for n in npcs() do
+    if kit_here(n) and n.monster then
+      let d = distance(n, origin)
+      if d < best_d then
+        best = n
+        best_d = d
+      end
+    end
+  end
+  if best == nil then return end
+  -- ダメージで倒れると best は消えるので、先に場所をおぼえておく
+  let at = best.position
+  best.look_at(origin)
+  best.damage(12 * upg.turret)
+  let flash = create_block({name: "Tracer", shape: "sphere", position: at + {x: 0, y: 1.2, z: 0}, size: 0.7,
+                            color: "#FDE047", material: "neon", solid: false, opacity: 0.8})
+  after(0.25, func() gone(flash) end)
+end
+
+func game_over(why)
+  if over then return end
+  over = true
+  phase = "over"
+  kit_finish(why, 8)
+end
+
+on tick(dt)
+  train_clock = train_clock + dt
+  scenery_clock = scenery_clock + dt
+  turret_clock = turret_clock + dt
+  if over then return end
+  if train_clock >= 0.5 then
+    let secs = train_clock
+    train_clock = 0
+    if phase == "travel" then travel_step(secs) end
+    trip_hud()
+  end
+  if scenery_clock >= 1.5 and phase == "travel" then
+    scenery_clock = 0
+    scenery_step()
+  end
+  if turret_clock >= 1 then
+    turret_clock = 0
+    if phase == "travel" or phase == "bridge" then turret_step() end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "coal") then take_coal(p)
+  elif contains(b.tags, "boiler") then feed_boiler(p)
+  elif contains(b.tags, "repair") and quiet_ready(p, "repair_pad", 1) then repair(p)
+  elif contains(b.tags, "cargo") and quiet_ready(p, "cargo_pad", 1) then stash_gold(p)
+  elif contains(b.tags, "upgrades") and quiet_ready(p, "upg_pad", 2) then upgrades_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "upg_") and id != "upg_close" then buy_upgrade(p, replace(id, "upg_", ""))
+  elif id == "upg_close" then p.ui_remove("upg")
+  end
+end

@@ -58,6 +58,23 @@ final class MapBuilder {
 
     func block(named name: String) -> BlockData? { blocks.first { $0.name == name } }
 
+    /// Everything built inside `build` gets `tag`, and starts hidden and
+    /// walk-through unless `shown` — scenery a script swaps in and out.
+    /// Blocks that were solid also get "solid", so the script knows which to
+    /// make solid again when it shows them.
+    func group(_ tag: String, shown: Bool, _ build: () -> Void) {
+        let before = blocks.count
+        build()
+        for i in before..<blocks.count {
+            blocks[i].tags.append(tag)
+            if blocks[i].hasCollision { blocks[i].tags.append("solid") }
+            if !shown {
+                blocks[i].isVisible = false
+                blocks[i].hasCollision = false
+            }
+        }
+    }
+
     func setTeleport(from source: UUID, to target: UUID) {
         guard let i = blocks.firstIndex(where: { $0.id == source }) else { return }
         blocks[i].gimmick.teleportTargetID = target

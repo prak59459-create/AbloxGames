@@ -1,0 +1,240 @@
+-- night.absc — 夜の襲撃・怪物の動き・役割・最後の橋
+-- 駅と駅のあいだの後半は夜。怪物が列車と乗客をおそう。
+-- 🤠 ならず者は少しはなれて銃を撃ってくる。
+
+let night_clock = 0
+let spawn_clock = 0
+let bridge_until = 0
+
+-- MARK: 昼と夜
+
+func leg_fraction()
+  let from = 0
+  if station_i >= 2 and station_i - 1 <= len(STATION_KM) then from = STATION_KM[station_i - 1] end
+  let dest = next_stop_km()
+  if dest <= from then return 0 end
+  return (km - from) / (dest - from)
+end
+
+func day_night()
+  let want = leg_fraction() > 0.45
+  if want and not night then night_start()
+  elif not want and night then night_end() end
+end
+
+func night_start()
+  night = true
+  world.sky_top = "#0B1026"
+  world.sky_bottom = "#3B1D4A"
+  world.light = 0.25
+  if upg.lamp > 0 then world.light = 0.5 end
+  announce("🌙 夜だ… 何かが近づいてくる。列車を守れ！", 3)
+  spawn_wave(3 + floor(km * 1.2) + len(players()))
+end
+
+func night_end()
+  if night then
+    world.sky_top = "#FF8A5B"
+    world.sky_bottom = "#FFD29D"
+    world.light = 0.6
+  end
+  night = false
+  for n in npcs() do
+    if kit_here(n) and n.monster then n.destroy() end
+  end
+end
+
+-- MARK: 怪物
+
+func monster_pool()
+  return filter(MONSTERS, func(m) return km >= m.from end)
+end
+
+func spawn_monster(spec)
+  let spot = block("Monster Spawn " + random(1, 6))
+  let n = create_npc({name: spec.name, position: spot.position + {x: random(-6, 6), y: 1, z: random(-6, 6)}, color: spec.color,
+                      head_color: spec.head, size: spec.size or 1, health: spec.hp + km * 10, speed: spec.speed, team: "monster"})
+  n.monster = true
+  n.dps = spec.dps + km * 0.8
+  n.gun = spec.gun == true
+  n.shot_at = 0
+  if n.gun then n.give("pistol") end
+  return n
+end
+
+func spawn_wave(count)
+  let pool = monster_pool()
+  for i in 1 to min(22, count) do spawn_monster(random(pool)) end
+end
+
+func monster_count()
+  return len(filter(npcs(), func(n) return kit_here(n) and n.monster end))
+end
+
+func nearest_rider(n, range)
+  let best = nil
+  let best_d = range
+  for p in players() do
+    if ready(p) and p.alive then
+      let d = distance(n, p)
+      if d < best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func monster_step(n, secs)
+  let target = nearest_rider(n, 24)
+  if n.gun then
+    -- ならず者: 12mくらいで止まって撃つ
+    let aim = target
+    if aim == nil then aim = nearest_rider(n, 60) end
+    if aim != nil then
+      if distance(n, aim) > 14 then n.follow(aim) else n.stop() end
+      n.look_at(aim)
+      if time() - n.shot_at > 1.6 and distance(n, aim) < 30 then
+        n.shot_at = time()
+        n.shoot(aim)
+      end
+    end
+    return
+  end
+  if target != nil then
+    n.follow(target)
+    if distance(n, target) < 2.2 then target.damage(n.dps * secs) end
+    return
+  end
+  -- 近くにだれもいなければ、列車をこわしにくる
+  let z = clamp(n.z, -18, 22)
+  n.move_to({x: 0, y: 1, z: z})
+  if abs(n.x) < 4.5 and n.z > -21 and n.z < 25 then hurt_train(n.dps * secs * 0.5) end
+end
+
+-- MARK: 最後の橋
+
+func start_bridge()
+  phase = "bridge"
+  bridge_until = time() + BRIDGE_SECS
+  night = false
+  night_start()
+  block("Bridge Girder L").visible = true
+  block("Bridge Girder R").visible = true
+  announce("🌉 最後の大きな橋！ " + BRIDGE_SECS + "びょう、列車を守りぬけ！", 5)
+  spawn_wave(8 + len(players()) * 2)
+end
+
+func finish_trip()
+  if over then return end
+  over = true
+  phase = "over"
+  for p in players() do
+    if ready(p) then
+      kit_give(p, 200)
+      p.score = p.score + 20
+      kit_quest_progress(p, "finish", 1)
+      if train_hp >= train_max() * 0.5 then kit_badge(p, "safe_trip", "列車をほとんど傷つけずに終点へ") end
+    end
+  end
+  kit_finish("🏁 橋をわたりきった！ 西の終点に到着！ みんなで生きのびた！", 10)
+end
+
+-- MARK: 役割
+
+func roles_panel(p)
+  let h = 110 + len(ROLE_ORDER) * 56
+  p.ui_remove("roles")
+  p.ui_panel("roles", {at: "center", w: 480, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  p.ui_text("roles_t", "🎭 役割をえらぶ（いつでも変えられる）", {parent: "roles", y: 26 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for id in ROLE_ORDER do
+    i = i + 1
+    let r = ROLES[id]
+    let label = r.name + " — " + r.text
+    if p.role == id then label = "✅ " + label end
+    p.ui_button("role_" + id, label, {parent: "roles", y: (30 + i * 56) / h, w: 440, h: 48, size: 13, bg: "#57534E"})
+  end
+  p.ui_button("roles_close", "閉じる", {parent: "roles", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func pick_role(p, id)
+  if ROLES[id] == nil then return end
+  p.role = id
+  p.color = ROLES[id].color
+  if p.coal > coal_max(p) then p.coal = coal_max(p) end
+  if id == "doctor" then
+    p.ui_button("doc_heal", "🩺 治療", {at: "right", dy: 240, w: 110, h: 46, size: 15, bg: "#0E7490"})
+  else
+    p.ui_remove("doc_heal")
+  end
+  p.ui_remove("roles")
+  p.message(ROLES[id].name + " になった！", 1.5)
+  kit_quest_progress(p, "role", 1)
+  hud(p)
+end
+
+func doctor_heal(p)
+  if p.role != "doctor" or not quiet_ready(p, "doc", 8) then return end
+  let healed = 0
+  for q in players() do
+    if ready(q) and q.alive and distance(p, q) < 8 then
+      q.heal(40)
+      healed = healed + 1
+    end
+  end
+  p.message("🩺 " + healed + "人を治療した", 1.2)
+  if healed > 1 then kit_give(p, 4 * healed) end
+end
+
+on tick(dt)
+  night_clock = night_clock + dt
+  spawn_clock = spawn_clock + dt
+  if over then return end
+  if night_clock >= 0.25 then
+    let secs = night_clock
+    night_clock = 0
+    for n in npcs() do
+      if kit_here(n) and n.monster then monster_step(n, secs) end
+    end
+  end
+  -- 夜のあいだ、ときどき追加
+  if (night or phase == "bridge") and spawn_clock >= 9 then
+    spawn_clock = 0
+    if monster_count() < 10 + len(players()) * 2 then spawn_wave(2 + floor(km / 3)) end
+  end
+  if phase == "bridge" then
+    ui_text("bridge", "🌉 あと " + max(0, ceil(bridge_until - time())) + "s", {at: "center", dy: -120, size: 24, bold: true, color: "#FCA5A5"})
+    if time() >= bridge_until then
+      ui_remove("bridge")
+      finish_trip()
+    end
+  end
+end
+
+on hit(victim, attacker, damage)
+  -- ガンマンの弾は強い
+  if attacker != nil and not attacker.is_npc and attacker.role == "gunslinger" and victim.is_npc then victim.damage(damage * 0.5) end
+end
+
+on death(victim, killer)
+  if victim.is_npc and victim.monster and killer != nil and not killer.is_npc then
+    kit_give(killer, 4 + floor(km))
+    killer.score = killer.score + 2
+    kit_quest_progress(killer, "kills", 1)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "roles") and quiet_ready(p, "role_pad", 2) then roles_panel(p) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "role_") then pick_role(p, replace(id, "role_", ""))
+  elif id == "roles_close" then p.ui_remove("roles")
+  elif id == "doc_heal" then doctor_heal(p)
+  end
+end
