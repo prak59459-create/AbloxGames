@@ -25,7 +25,7 @@ let horrorGames: [Game] = [
          summary: "昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！",
          tags: ["survival", "story", "defend"], maxPlayers: 8, build: nightLockdown),
     Game(number: 53, id: "toy-factory-night-shift", title: "Toy Factory Night Shift",
-         summary: "おもちゃ工場の夜間警備。カメラで動くおもちゃを見張り、電力を節約しながらドアを閉めて、朝6時まで耐えろ。",
+         summary: "おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！",
          tags: ["horror", "cameras", "coop"], maxPlayers: 6, build: toyFactory),
     Game(number: 54, id: "midnight-guard", title: "Midnight Guard",
          summary: "真夜中の施設を見回る警備員。発電機を動かし続け、懐中電灯で怪異を追い払え。",
@@ -914,33 +914,119 @@ func nightLockdown(_ m: MapBuilder) {
 // MARK: 53 Toy Factory Night Shift
 
 func toyFactory(_ m: MapBuilder) {
-    m.indoor(ground: "#111111")
-    m.sky("#000000", "#0B0B0B", light: 0.4, showGround: false)
-    m.ground(80, 70, color: "#27272A", name: "Factory Floor")
-    m.walls(0, 0, w: 80, d: 70, h: 7, color: "#3F3F46", name: "Factory Wall")
-    // The office, with a door on each side.
-    m.slab("Office Floor", x: 0, y: 0, z: -25, w: 12, h: 0.2, d: 10, color: "#57534E")
-    m.slab("Office Back", x: 0, y: 0.2, z: -30, w: 12, h: 4, d: 0.4, color: "#52525B")
-    m.slab("Office Front", x: 0, y: 0.2, z: -20, w: 12, h: 1.2, d: 0.4, color: "#52525B")
-    m.slab("Office Window", x: 0, y: 1.4, z: -20, w: 12, h: 2.8, d: 0.1, color: "#93C5FD", material: .glass, opacity: 0.3)
-    m.part("Left Door", at: (-6, 2.1, -25), size: (0.4, 4, 4), color: "#71717A", material: .metal, visible: false)
-    m.part("Right Door", at: (6, 2.1, -25), size: (0.4, 4, 4), color: "#71717A", material: .metal, visible: false)
-    m.spawnRing(0, -25, y: 0.2, radius: 2, count: 6, color: "#FDE68A")
-    // Camera points and the stations the toys move between.
-    let stations: [(String, Float, Float)] = [("Stage", 0, 25), ("Assembly", -25, 10), ("Storage", 25, 10), ("Hall West", -20, -12),
-                                              ("Hall East", 20, -12), ("Left Door Spot", -8, -25), ("Right Door Spot", 8, -25)]
-    for s in stations {
-        m.part("Station \(s.0)", at: (s.1, 0.2, s.2), size: (2, 0.1, 2), color: "#3F3F46", shape: .cylinder, visible: false)
+    m.sky("#000000", "#0B0B0B", light: 0.35, showGround: false)
+    m.ground(100, 90, color: "#27272A", name: "Factory Floor")
+    m.walls(0, 0, w: 100, d: 90, h: 8, color: "#3F3F46", name: "Factory Wall")
+    m.part("Cover Focus", at: (0, 2, -6), size: (72, 1, 1), color: "#000000", tags: ["yaw=205"], solid: false, visible: false)
+
+    // MARK: The security office (south): two doors, two hall lights, a vent.
+    m.slab("Office Floor", x: 0, y: 0, z: -32, w: 12, h: 0.2, d: 12, color: "#57534E")
+    m.slab("Office Back", x: -3.5, y: 0.2, z: -38, w: 5, h: 4, d: 0.4, color: "#52525B")
+    m.slab("Office Back", x: 3.5, y: 0.2, z: -38, w: 5, h: 4, d: 0.4, color: "#52525B")
+    m.slab("Office Back", x: 0, y: 1.4, z: -38, w: 2, h: 2.8, d: 0.4, color: "#52525B")
+    m.part("Vent Grate", at: (0, 0.8, -38), size: (2, 1.2, 0.2), color: "#18181B", material: .metal)
+    m.part("Vent Seal", at: (0, 0.8, -37.7), size: (2.2, 1.4, 0.15), color: "#9CA3AF", material: .metal, solid: false, visible: false)
+    m.part("Vent Eyes", at: (0, 0.9, -38.15), size: (1, 0.2, 0.05), color: "#EF4444", material: .neon, solid: false, visible: false)
+    for x: Float in [-6, 6] {
+        m.slab("Office Side", x: x, y: 0.2, z: -36, w: 0.4, h: 4, d: 4, color: "#52525B")
+        m.slab("Office Side", x: x, y: 0.2, z: -28, w: 0.4, h: 4, d: 4, color: "#52525B")
+        m.slab("Office Side", x: x, y: 3.4, z: -32, w: 0.4, h: 0.8, d: 4, color: "#52525B")
     }
-    for (i, c) in [("Stage", 0, 20, 12), ("Assembly", -20, 8, 5), ("Storage", 20, 8, 5), ("Hall West", -14, -8, -3),
-                   ("Hall East", 14, -8, -3)].enumerated() {
-        m.part("Cam \(i + 1)", at: (Float(c.1), 5.5, Float(c.2) + Float(c.3)), size: (0.4, 0.4, 0.4), color: "#EF4444",
-               shape: .sphere, material: .neon, solid: false)
+    m.slab("Office Front", x: 0, y: 0.2, z: -26, w: 12.4, h: 1.2, d: 0.4, color: "#52525B")
+    m.slab("Office Window", x: 0, y: 1.4, z: -26, w: 12, h: 2.8, d: 0.1, color: "#93C5FD", material: .glass, opacity: 0.25)
+    m.slab("Office Ceiling", x: 0, y: 4.2, z: -32, w: 12.4, h: 0.3, d: 12.4, color: "#27272A")
+    m.part("Left Door", at: (-6, 1.8, -32), size: (0.5, 3.2, 4), color: "#71717A", material: .metal, solid: false, visible: false)
+    m.part("Right Door", at: (6, 1.8, -32), size: (0.5, 3.2, 4), color: "#71717A", material: .metal, solid: false, visible: false)
+    m.part("Left Light", at: (-7.5, 3.6, -32), size: (0.5, 0.3, 0.5), color: "#3F3F46", shape: .sphere, solid: false)
+    m.part("Right Light", at: (7.5, 3.6, -32), size: (0.5, 0.3, 0.5), color: "#3F3F46", shape: .sphere, solid: false)
+    m.slab("Desk", x: 0, y: 0.2, z: -36.2, w: 6, h: 1, d: 1.4, color: "#78350F")
+    for x: Float in [-1.8, 0, 1.8] {
+        m.part("Monitor", at: (x, 1.7, -36.4), size: (1.4, 0.9, 0.12), color: "#0EA5E9", material: .neon, solid: false)
     }
-    m.slab("Stage Platform", x: 0, y: 0, z: 27, w: 16, h: 0.8, d: 6, color: "#7C2D12")
-    var r = Seeded("toys")
-    for i in 0..<10 {
-        m.slab("Conveyor \(i + 1)", x: r.range(-30, 30), y: 0, z: r.range(-5, 20), w: r.range(4, 8), h: 1, d: 1.6, color: "#52525B")
+    m.part("Desk Fan", at: (2.6, 1.5, -35.9), size: (0.6, 0.6, 0.1), color: "#D4D4D8", shape: .cylinder, solid: false, rotation: (90, 0, 0))
+    m.part("Poster", at: (-4, 2.6, -37.75), size: (1.6, 2, 0.05), color: "#F472B6", solid: false)
+    m.part("Poster", at: (4, 2.6, -37.75), size: (1.6, 2, 0.05), color: "#FACC15", solid: false)
+    m.spawnRing(0, -31, y: 0.2, radius: 1.8, count: 6, color: "#FDE68A")
+
+    // MARK: The two halls leading to the office doors.
+    m.slab("Hall Wall", x: -15, y: 0, z: -29, w: 0.6, h: 5, d: 18, color: "#3F3F46")
+    m.slab("Hall Wall", x: 15, y: 0, z: -29, w: 0.6, h: 5, d: 18, color: "#3F3F46")
+    m.slab("Hall Wall", x: -6, y: 0, z: -19, w: 0.6, h: 5, d: 14, color: "#3F3F46")
+    m.slab("Hall Wall", x: 6, y: 0, z: -19, w: 0.6, h: 5, d: 14, color: "#3F3F46")
+    m.slab("Hall Floor", x: -10.5, y: 0, z: -25, w: 8.4, h: 0.05, d: 26, color: "#1F2937")
+    m.slab("Hall Floor", x: 10.5, y: 0, z: -25, w: 8.4, h: 0.05, d: 26, color: "#1F2937")
+    for z: Float in [-12, -20, -28, -36] {
+        for x: Float in [-10.5, 10.5] { m.part("Hall Stripe", at: (x, 0.06, z), size: (7, 0.02, 0.4), color: "#FACC15", solid: false) }
+    }
+
+    // MARK: The factory: stage, dining, toy box, assembly, storage, alcove, prize corner.
+    m.slab("Stage Platform", x: 0, y: 0, z: 31, w: 18, h: 0.8, d: 7, color: "#7C2D12")
+    m.slab("Stage Curtain", x: 0, y: 0.8, z: 35, w: 18, h: 6, d: 0.3, color: "#991B1B")
+    for x: Float in [-6, 0, 6] {
+        m.part("Stage Light", at: (x, 6.5, 27), size: (0.8, 0.8, 0.8), color: "#FDE68A", shape: .sphere, material: .neon, solid: false)
+    }
+    m.slab("Stage Sign", x: 0, y: 5.5, z: 34.7, w: 10, h: 1.2, d: 0.2, color: "#F472B6")
+    for p in [(-10, 4), (0, 8), (10, 4), (-8, -4), (8, -4)] as [(Float, Float)] {
+        m.slab("Party Table", x: p.0, y: 0, z: p.1, w: 5, h: 0.9, d: 2, color: "#E5E7EB")
+        m.part("Party Hat", at: (p.0 - 1.2, 1.25, p.1), size: (0.5, 0.7, 0.5), color: "#A855F7", shape: .cone, solid: false)
+        m.part("Party Hat", at: (p.0 + 1.2, 1.25, p.1), size: (0.5, 0.7, 0.5), color: "#22C55E", shape: .cone, solid: false)
+    }
+    for (i, p) in ([(-14, 14), (14, 14), (-4, 16), (6, 18)] as [(Float, Float)]).enumerated() {
+        m.part("Balloon", at: (p.0, 4.5, p.1), size: (1, 1.2, 1), color: ["#EF4444", "#3B82F6", "#FACC15", "#22C55E"][i], shape: .sphere, solid: false)
+        m.part("Balloon String", at: (p.0, 2, p.1), size: (0.05, 4, 0.05), color: "#E5E7EB", solid: false)
+    }
+    // Lou's toy box: a booth with a curtain, open to the east.
+    m.slab("Toy Box Wall", x: -38, y: 0, z: 14, w: 0.5, h: 5, d: 8, color: "#7C3AED")
+    m.slab("Toy Box Wall", x: -34, y: 0, z: 18, w: 8, h: 5, d: 0.5, color: "#7C3AED")
+    m.slab("Toy Box Wall", x: -34, y: 0, z: 10, w: 8, h: 5, d: 0.5, color: "#7C3AED")
+    m.part("Toy Box Curtain", at: (-30.2, 2.5, 14), size: (0.2, 5, 7.6), color: "#6D28D9", solid: false, opacity: 0.85)
+    m.slab("Toy Box Sign", x: -30, y: 5, z: 14, w: 0.3, h: 1, d: 5, color: "#FDE68A")
+    // Assembly line (west) and storage (east).
+    for i in 0..<3 {
+        m.slab("Conveyor", x: -32 + Float(i) * 0, y: 0, z: -14 + Float(i) * 5, w: 12, h: 1, d: 1.6, color: "#52525B")
+        for k in 0..<4 {
+            m.part("Toy Part", at: (-36 + Float(k) * 2.6, 1.3, -14 + Float(i) * 5), size: (0.7, 0.6, 0.7), color: ["#F472B6", "#60A5FA", "#FACC15", "#A3E635"][k],
+                   shape: k % 2 == 0 ? .sphere : .box, solid: false)
+        }
+    }
+    for i in 0..<3 {
+        m.slab("Storage Shelf", x: 36, y: 0, z: -16 + Float(i) * 6, w: 8, h: 3, d: 1.2, color: "#78716C")
+        m.part("Box", at: (34, 3.4, -16 + Float(i) * 6), size: (1.4, 0.8, 1), color: "#A16207", solid: false)
+        m.part("Box", at: (38, 3.4, -16 + Float(i) * 6), size: (1.4, 0.8, 1), color: "#B45309", solid: false)
+    }
+    // The alcove (supply closet) where the vent starts.
+    m.slab("Closet Wall", x: 34, y: 0, z: 10, w: 8, h: 5, d: 0.5, color: "#44403C")
+    m.slab("Closet Wall", x: 34, y: 0, z: 22, w: 8, h: 5, d: 0.5, color: "#44403C")
+    m.slab("Closet Wall", x: 38, y: 0, z: 16, w: 0.5, h: 5, d: 12, color: "#44403C")
+    m.part("Vent Opening", at: (37.7, 1, 16), size: (0.2, 1.2, 2), color: "#111827", solid: false)
+    m.slab("Mop Bucket", x: 35, y: 0, z: 20, w: 1, h: 0.8, d: 1, color: "#FACC15")
+    // Prize corner with Jack's music box.
+    m.slab("Prize Counter", x: 22, y: 0, z: 26, w: 8, h: 1.1, d: 1, color: "#16A34A")
+    m.part("Jack Box", at: (22, 0.9, 30), size: (1.8, 1.8, 1.8), color: "#15803D")
+    m.part("Jack Box Lid", at: (22, 1.9, 30), size: (1.9, 0.2, 1.9), color: "#FACC15", solid: false)
+    m.part("Music Box Crank", at: (23.1, 1.1, 30), size: (0.5, 0.15, 0.15), color: "#FDE047", material: .metal, solid: false)
+    for i in 0..<5 {
+        m.part("Prize Plush", at: (18.5 + Float(i) * 1.8, 1.4, 26), size: (0.6, 0.6, 0.6), color: ["#F472B6", "#60A5FA", "#FACC15", "#A3E635", "#F97316"][i],
+               shape: .sphere, solid: false)
+    }
+
+    // MARK: The vent duct, a closed passage outside the east wall.
+    m.slab("Duct Floor", x: 60, y: 0, z: -8, w: 6, h: 0.1, d: 60, color: "#3F3F46")
+    m.slab("Duct Wall", x: 57, y: 0, z: -8, w: 0.4, h: 2.4, d: 60, color: "#52525B")
+    m.slab("Duct Wall", x: 63, y: 0, z: -8, w: 0.4, h: 2.4, d: 60, color: "#52525B")
+
+    // Where the toys stand and walk to, and the cameras that watch them.
+    let stations: [(String, Float, Float, Float)] = [("Stage", 0, 30, 0.8), ("Dining", 0, 0, 0), ("Toy Box", -34, 14, 0),
+        ("Assembly", -28, -6, 0), ("Storage", 28, -8, 0), ("Closet", 33, 16, 0), ("Hall West", -10.5, -16, 0),
+        ("Hall East", 10.5, -16, 0), ("Door L", -8.2, -32, 0), ("Door R", 8.2, -32, 0), ("Prize", 22, 30, 0),
+        ("Vent A", 60, 18, 0.1), ("Vent B", 60, -16, 0.1), ("Vent", 60, -34, 0.1)]
+    for st in stations {
+        m.part("Station \(st.0)", at: (st.1, st.3 + 0.1, st.2), size: (1.5, 0.1, 1.5), color: "#000000", solid: false, visible: false)
+    }
+    let cams: [(Float, Float, Float)] = [(0, 6, 20), (-12, 6, -6), (-24, 5, 6), (-18, 6, 0), (18, 6, 0), (-10.5, 5, -6),
+                                         (10.5, 5, -6), (14, 6, 20), (60, 2.2, -2)]
+    for (i, c) in cams.enumerated() {
+        m.part("Cam \(i + 1)", at: (c.0, c.1, c.2), size: (0.35, 0.35, 0.35), color: "#EF4444", shape: .sphere, material: .neon, solid: false)
     }
 }
 

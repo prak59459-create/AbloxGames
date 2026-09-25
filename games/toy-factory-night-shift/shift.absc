@@ -1,0 +1,77 @@
+-- shift.absc — 夜の流れ: シフト開始 → 12AM〜6AM → シフト終了（→ 次の夜）
+
+let shift_clock = 0
+let next_night_at = 0
+
+func start_night(i)
+  night = i
+  night_token = night_token + 1
+  phase = "shift"
+  shift_start = time()
+  power = 100 + upg.battery * 10
+  music = 100
+  jack_out_at = 0
+  cams_down_until = 0
+  lou_seen_at = 0
+  next_night_at = 0
+  reset_office()
+  make_toys()
+  for p in players() do
+    if ready(p) then
+      if p.cam > 0 then close_tablet(p) end
+      p.camera_reset()
+      p.teleport(block("Spawn " + random(1, 6)).position + {x: 0, y: 1, z: 0})
+    end
+  end
+  let name = i + " 夜目"
+  if i == LAST_NIGHT then name = "ナイトメア（6夜目）" end
+  let tips = ["カメラでおもちゃの場所を見て、ドアの前に来たら閉めよう",
+              "ドアの前は死角。💡 ライトをつけると見える",
+              "3夜目から通気口にも気をつけて（🌀 で閉じる）",
+              "4夜目、ブリキのポチが通気口から来る",
+              "まぼろしが見えたら、すぐにカメラを上げよう",
+              "ナイトメア。みんなで役わりを分けて！"]
+  announce("🌙 " + name + " のシフト開始。 " + tips[min(i, len(tips))], 5)
+  all_buttons()
+end
+
+func night_done()
+  phase = "done"
+  clear_toys()
+  reset_office()
+  world.light = 0.6
+  sound("goal")
+  for p in players() do
+    if ready(p) then
+      if p.cam > 0 then close_tablet(p) end
+      kit_give(p, 40 * night)
+      p.score = p.score + night * 5
+      kit_quest_progress(p, "nights", 1)
+      if power >= 30 then kit_badge(p, "saver_" + night, night + "夜目を電力30%以上のこして") end
+    end
+  end
+  if night == 5 then
+    for p in players() do
+      if ready(p) then kit_badge(p, "five_nights", "5夜を乗りきった") end
+    end
+  end
+  if night >= LAST_NIGHT then
+    phase = "over"
+    for p in players() do
+      if ready(p) then kit_badge(p, "nightmare", "ナイトメアをクリア") end
+    end
+    kit_finish("🕕 6 AM！ ナイトメアをのりきった！ 工場のおもちゃたちは朝の光でねむった…", 10)
+    return
+  end
+  next_night_at = time() + 14
+  announce("🕕 6 AM！ " + night + " 夜目のシフト終了！ 14秒後に次の夜。🛒 警備用品を買っておこう", 5)
+  shift_hud()
+end
+
+on tick(dt)
+  shift_clock = shift_clock + dt
+  if shift_clock < 0.5 then return end
+  shift_clock = 0
+  if phase == "shift" and hour() >= 6 then night_done() end
+  if phase == "done" and next_night_at > 0 and time() >= next_night_at then start_night(night + 1) end
+end

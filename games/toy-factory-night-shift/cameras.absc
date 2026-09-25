@@ -1,0 +1,106 @@
+-- cameras.absc — カメラ: 9台の見まわり・オルゴールのねじ巻き・動いたときのノイズ
+
+func cam_by_id(i)
+  for c in CAMS do
+    if c.id == i then return c end
+  end
+  return CAMS[1]
+end
+
+func open_tablet(p)
+  if phase != "shift" then return end
+  if cams_down() then
+    p.message("📺 カメラが使えない…", 1)
+    return
+  end
+  p.cam = p.last_cam or 1
+  view_cam(p, p.cam)
+  kit_quest_progress(p, "cams", 1)
+end
+
+func close_tablet(p)
+  p.cam = 0
+  p.camera_reset()
+  p.ui_remove("tablet")
+  buttons_hud(p)
+end
+
+func tablet_panel(p)
+  p.ui_remove("tablet")
+  p.ui_panel("tablet", {at: "bottom_right", dx: -190, dy: -290, w: 250, h: 200, bg: "#0F172ACC", radius: 14, layer: 20})
+  for c in CAMS do
+    let col = (c.id - 1) % 3
+    let row = floor((c.id - 1) / 3)
+    let bg = "#334155"
+    if p.cam == c.id then bg = "#16A34A" end
+    p.ui_button("cam_" + c.id, "CAM " + c.id, {parent: "tablet", x: 0.2 + col * 0.3, y: 0.2 + row * 0.27, w: 70, h: 44, size: 13, bg: bg})
+  end
+end
+
+func view_cam(p, i)
+  if cams_down() then
+    close_tablet(p)
+    return
+  end
+  let c = cam_by_id(i)
+  p.cam = i
+  p.last_cam = i
+  p.camera_look(block("Cam " + i).position, station(c.station))
+  let info = "📷 CAM " + i + "  " + c.name
+  if i == 3 then
+    lou_seen_at = time()
+    if upg.hdcam > 0 then info = info + "  （ルー: " + ["かくれている", "のぞいている", "半分出ている", "飛び出しそう！"][lou_stage + 1] + "）" end
+  end
+  if i == 8 then
+    info = info + "  🎵 " + floor(music) + "%"
+    p.ui_button("wind", "🎵 ねじを巻く", {at: "bottom", dy: -110, w: 180, h: 50, size: 16, bg: "#15803D", radius: 14})
+  else
+    p.ui_remove("wind")
+  end
+  p.ui_text("cam_label", info, {at: "top_left", dy: 70, size: 16, bold: true, color: "#F8FAFC"})
+  tablet_panel(p)
+  buttons_hud(p)
+end
+
+func wind_music(p)
+  if p.cam != 8 or phase != "shift" or jack_out_at > 0 then return end
+  if not quiet_ready(p, "wind", 0.25) then return end
+  music = min(100, music + 9)
+  p.sound("tick")
+  kit_quest_progress(p, "wind", 1)
+  p.ui_text("cam_label", "📷 CAM 8  景品コーナー  🎵 " + floor(music) + "%", {at: "top_left", dy: 70, size: 16, bold: true, color: "#F8FAFC"})
+end
+
+-- おもちゃが動いた場所をカメラで見ている人には、ザザッとノイズ
+func static_at(name)
+  for p in players() do
+    if ready(p) and p.cam > 0 and cam_by_id(p.cam).station == name then
+      p.message("📺 ザザッ…", 0.6)
+      p.shake(0.1, 0.2)
+    end
+  end
+end
+
+on tick(dt)
+  for p in players() do
+    if ready(p) and p.cam > 0 then
+      if cams_down() or phase != "shift" then
+        close_tablet(p)
+      elif p.cam == 3 then
+        lou_seen_at = time()
+      end
+    end
+    if ready(p) and p.cam == 0 then p.ui_remove("cam_label") end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "cam" then
+    if p.cam > 0 then close_tablet(p) else open_tablet(p) end
+  elif starts_with(id, "cam_") and p.cam > 0 then
+    let i = num(replace(id, "cam_", ""))
+    if i != nil then view_cam(p, i) end
+  elif id == "wind" then wind_music(p)
+  end
+end

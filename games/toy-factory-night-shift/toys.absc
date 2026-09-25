@@ -1,0 +1,302 @@
+-- toys.absc — おもちゃたちの動き
+--   🧸 ボブ・🐰 リリ・🐔 コッコ  決まった道を歩いてドアの前へ（コッコは3夜目から通気口も）
+--   🦊 ルー    おもちゃ箱で、見られていないと少しずつ出てきて、最後は西の廊下を走ってくる
+--   🐕 ポチ    4夜目から、倉庫から通気口を通ってくる
+--   🎁 ジャック オルゴールが止まると箱から出てくる（止められない）
+--   👻 まぼろし 5夜目から、警備室にあらわれる。すぐにカメラを上げると消える
+
+let move_clock = 0
+let lou_clock = 0
+let phantom_clock = 0
+let phantom = nil
+let phantom_at = 0
+
+func toy_npc(id, pos)
+  let t = TOYS[id]
+  let n = create_npc({name: t.name, position: pos + {x: 0, y: 1, z: 0}, color: t.color, head_color: t.head, leg_color: t.color,
+                      size: t.size, health: 999999, speed: 1.05, team: "toys"})
+  n.toy = id
+  n.leg = 1
+  n.at_door = nil
+  n.route = t.path
+  toys[id] = n
+  return n
+end
+
+func clear_toys()
+  for n in npcs() do
+    if n.toy != nil or n.phantom then n.destroy() end
+  end
+  toys = {}
+  phantom = nil
+end
+
+func make_toys()
+  clear_toys()
+  let stage = station("Stage")
+  toy_npc("bob", stage + {x: 0, y: 0, z: 0})
+  toy_npc("lily", stage + {x: -3, y: 0, z: 0})
+  toy_npc("kokko", stage + {x: 3, y: 0, z: 0})
+  let lou = toy_npc("lou", station("Toy Box"))
+  lou.sprinting = false
+  if ai("dog") > 0 then toy_npc("dog", station("Storage") + {x: 2, y: 0, z: 2}) end
+  let jack = toy_npc("jack", station("Prize"))
+  jack.visible = false
+  jack.speed = 0
+  lou_stage = 0
+end
+
+-- MARK: 歩く
+
+func is_vent(name)
+  return name == "Vent A" or name == "Vent B" or name == "Vent"
+end
+
+func door_side(name)
+  if name == "Door L" then return "L" end
+  if name == "Door R" then return "R" end
+  if name == "Vent" then return "V" end
+  return nil
+end
+
+func goto_leg(n, leg)
+  n.leg = leg
+  let name = n.route[leg]
+  let side = door_side(name)
+  static_at(n.route[max(1, leg - 1)])
+  if is_vent(name) then
+    -- 通気口の中は瞬間移動（ダクトの中）
+    n.position = station(name) + {x: 0, y: 1, z: 0}
+    n.stop()
+  else
+    n.move_to(station(name))
+  end
+  n.at_door = side
+  if side == "L" or side == "R" then
+    n.visible = lights[side]
+    if night <= 2 then
+      for p in players() do
+        if ready(p) and quiet_ready(p, "steps", 8) then p.message("👂 …どこかで足音がした", 1.2) end
+      end
+    end
+  elif side == "V" then
+    block("Vent Eyes").visible = true
+    sound("tick")
+  else
+    n.visible = true
+  end
+  static_at(name)
+end
+
+-- ドアの前で: 閉まっていれば帰る、開いていれば入ってくる
+func at_door_turn(n)
+  let side = n.at_door
+  let shut = false
+  if side == "L" or side == "R" then shut = doors[side] end
+  if side == "V" then shut = vent_sealed end
+  if shut then
+    retreat(n)
+    for p in players() do
+      if ready(p) then kit_quest_progress(p, "block", 1) end
+    end
+    sound("bounce")
+  else
+    caught(n)
+  end
+end
+
+func retreat(n)
+  if n.at_door == "V" then block("Vent Eyes").visible = false end
+  n.at_door = nil
+  n.visible = true
+  if n.toy == "lou" then
+    lou_stage = random(0, 1)
+    n.sprinting = false
+    n.speed = 1.05
+    n.leg = 1
+    n.position = station("Toy Box") + {x: 0, y: 1, z: 0}
+    return
+  end
+  -- 最初からではなく、道の2つ目から
+  n.route = TOYS[n.toy].path
+  n.leg = 2
+  n.position = station(n.route[2]) + {x: random(-2, 2), y: 1, z: random(-2, 2)}
+  n.stop()
+end
+
+func advance(n)
+  if n.at_door != nil then
+    at_door_turn(n)
+    return
+  end
+  -- コッコは3夜目から、物置から通気口へ入ることがある
+  if n.toy == "kokko" and NIGHT_AI[night].vent and n.route[n.leg] == "Closet" and random() < 0.5 then
+    n.route = ["Closet", "Vent A", "Vent B", "Vent"]
+    n.leg = 1
+  end
+  if n.leg < len(n.route) then goto_leg(n, n.leg + 1) end
+end
+
+func toys_step()
+  for id in ["bob", "lily", "kokko", "dog"] do
+    let n = toys[id]
+    if still(n) and random(1, 20) <= ai(id) then advance(n) end
+  end
+end
+
+-- MARK: 🦊 ルー
+
+func lou_step()
+  let lou = toys.lou
+  if not still(lou) or lou.sprinting or ai("lou") <= 0 then return end
+  if lou.at_door != nil then
+    advance(lou)
+    return
+  end
+  -- カメラで見られているあいだは動かない
+  if time() - lou_seen_at < 4 then return end
+  if random(1, 20) > ai("lou") then return end
+  lou_stage = lou_stage + 1
+  let box = station("Toy Box")
+  lou.position = box + {x: lou_stage * 1.2, y: 1, z: 0}
+  static_at("Toy Box")
+  if lou_stage >= 3 then lou_run(lou) end
+end
+
+func lou_run(lou)
+  lou.sprinting = true
+  lou.speed = 2.6
+  lou.leg = 2
+  lou.move_to(station("Hall West"))
+  sound("error")
+  static_at("Hall West")
+  let token = night_token
+  after(2.5, func()
+    if token != night_token or phase != "shift" or not still(lou) then return end
+    goto_leg(lou, 3)
+    after(2.5, func()
+      if token != night_token or phase != "shift" or not still(lou) then return end
+      if doors.L then
+        power = power - 4
+        announce("🦊 ドン！ ドン！ ルーが左のドアをたたいた（電力 -4%）", 2)
+      end
+      at_door_turn(lou)
+    end)
+  end)
+end
+
+-- MARK: 🎁 ジャック
+
+func music_step(secs)
+  if jack_out_at > 0 then
+    if time() - jack_out_at > 6 then caught(toys.jack) end
+    return
+  end
+  let rate = NIGHT_AI[night].music
+  if upg.winder > 0 then rate = rate * 0.6 end
+  music = max(0, music - rate * secs)
+  if music <= 0 then
+    jack_out_at = time()
+    let jack = toys.jack
+    if still(jack) then
+      jack.visible = true
+      jack.speed = 1.6
+      jack.move_to(station("Dining"))
+      jack.say("びっくり〜！")
+    end
+    sound("defeat")
+    announce("🎁 オルゴールが止まった… びっくり箱が開いた！", 3)
+  end
+end
+
+-- MARK: 👻 まぼろし
+
+func phantom_step()
+  if not NIGHT_AI[night].phantom or phantom != nil then return end
+  if random() > 0.35 then return end
+  let spot = block("Spawn " + random(1, 6)).position
+  phantom = create_npc({name: "👻 まぼろしのクマ", position: spot + {x: 0, y: 1, z: 1.5}, color: "#EAB308", head_color: "#FDE047",
+                        size: 1.6, health: 999999, speed: 0, team: "toys"})
+  phantom.phantom = true
+  phantom_at = time()
+  shake(0.2, 0.4)
+end
+
+func phantom_check()
+  if phantom == nil then return end
+  if not still(phantom) then
+    phantom = nil
+    return
+  end
+  if watchers() > 0 then
+    phantom.destroy()
+    phantom = nil
+    for p in players() do
+      if ready(p) and p.cam > 0 then
+        kit_give(p, 5)
+        kit_quest_progress(p, "phantom", 1)
+      end
+    end
+    return
+  end
+  if time() - phantom_at > 4 then
+    phantom.destroy()
+    phantom = nil
+    cams_down_until = time() + 12
+    power = power - 5
+    sound("error")
+    announce("📺 まぼろしを見てしまった… カメラが12秒こわれた（電力 -5%）", 3)
+  end
+end
+
+-- MARK: つかまった
+
+func caught(n)
+  if phase != "shift" then return end
+  phase = "caught"
+  let who = "何か"
+  if n != nil and still(n) then
+    who = n.name
+    n.visible = true
+    n.position = {x: 0, y: 1.2, z: -29}
+    n.look_at({x: 0, y: 1, z: -33})
+    n.size = TOYS[n.toy].size * 1.3
+    n.say("みぃつけた！")
+  end
+  for p in players() do
+    if ready(p) then
+      if p.cam > 0 then close_tablet(p) end
+      p.camera_reset()
+    end
+  end
+  shake(1, 1.2)
+  fade("#7F1D1D", 0.15)
+  sound("hurt")
+  announce("😱 " + who + " につかまった…！ もう一度この夜から", 4)
+  after(1.2, func() fade(nil, 1) end)
+  let token = night_token
+  after(5, func()
+    if token == night_token then start_night(night) end
+  end)
+end
+
+on tick(dt)
+  move_clock = move_clock + dt
+  lou_clock = lou_clock + dt
+  phantom_clock = phantom_clock + dt
+  if phase != "shift" then return end
+  music_step(dt)
+  phantom_check()
+  if move_clock >= MOVE_EVERY then
+    move_clock = 0
+    toys_step()
+  end
+  if lou_clock >= MOVE_EVERY then
+    lou_clock = 0
+    lou_step()
+  end
+  if phantom_clock >= 20 then
+    phantom_clock = 0
+    phantom_step()
+  end
+end

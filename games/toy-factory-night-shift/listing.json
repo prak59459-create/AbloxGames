@@ -1,15 +1,21 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 40,
-  "cover" : "games\/toy-factory-night-shift\/cover-b1288b6b.png",
+  "blockCount" : 151,
+  "cover" : "games\/toy-factory-night-shift\/cover-57a3ef17.png",
   "id" : "toy-factory-night-shift",
   "maxPlayers" : 6,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/toy-factory-night-shift\/data.absc",
+    "games\/toy-factory-night-shift\/cameras.absc",
+    "games\/toy-factory-night-shift\/common.absc",
+    "games\/toy-factory-night-shift\/office.absc",
+    "games\/toy-factory-night-shift\/shift.absc",
+    "games\/toy-factory-night-shift\/toys.absc",
     "games\/toy-factory-night-shift\/main.absc"
   ],
-  "summary" : "おもちゃ工場の夜間警備。カメラで動くおもちゃを見張り、電力を節約しながらドアを閉めて、朝6時まで耐えろ。",
+  "summary" : "おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！",
   "tags" : [
     "horror",
     "cameras",

@@ -1,0 +1,147 @@
+-- common.absc — 夜の状態・小さな道具・電力・画面
+
+let phase = "wait"         -- wait / shift / caught / done / over
+let night = 1
+let night_token = 0
+let shift_start = 0
+let power = 100
+let power_out = false
+let doors = {L: false, R: false}
+let lights = {L: false, R: false}
+let vent_sealed = false
+let music = 100            -- びっくり箱のオルゴール
+let jack_out_at = 0
+let lou_stage = 0          -- 0: かくれている … 3: 飛び出す
+let lou_seen_at = 0        -- だれかがおもちゃ箱のカメラを見た時刻
+let cams_down_until = 0
+let upg = {battery: 0, led: 0, quiet: 0, hdcam: 0, winder: 0}
+let toys = {}              -- id → NPC
+
+func ready(p)
+  return p.cam != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func ai(id)
+  return NIGHT_AI[night][id] or 0
+end
+
+func hour()
+  return min(6, floor((time() - shift_start) / HOUR_SECS))
+end
+
+func station(name)
+  return block("Station " + name).position
+end
+
+func in_office(pos)
+  return abs(pos.x) < 6 and pos.z > -38 and pos.z < -26
+end
+
+func cams_down()
+  return time() < cams_down_until or power_out
+end
+
+-- MARK: 電力
+
+func watchers()
+  return len(filter(players(), func(p) return ready(p) and p.cam > 0 end))
+end
+
+func usage()
+  let u = 1
+  if doors.L then u = u + 1 end
+  if doors.R then u = u + 1 end
+  if lights.L then u = u + 1 end
+  if lights.R then u = u + 1 end
+  if vent_sealed then u = u + 1 end
+  if watchers() > 0 then u = u + 1 end
+  return u
+end
+
+func drain_per_sec()
+  let d = 0.11
+  let door = 0.42
+  if upg.quiet > 0 then door = door * 0.75 end
+  let light = 0.3
+  if upg.led > 0 then light = light * 0.5 end
+  let cam = 0.16
+  if upg.hdcam > 0 then cam = cam * 0.5 end
+  if doors.L then d = d + door end
+  if doors.R then d = d + door end
+  if lights.L then d = d + light end
+  if lights.R then d = d + light end
+  if vent_sealed then d = d + 0.32 end
+  d = d + cam * watchers()
+  return d
+end
+
+-- MARK: 画面
+
+func shift_hud()
+  let h = hour()
+  let label = "12 AM"
+  if h > 0 then label = h + " AM" end
+  if phase == "done" then label = "6 AM" end
+  let name = night + " 夜目"
+  if night == LAST_NIGHT then name = "ナイトメア" end
+  ui_text("clock", "🕛 " + label + "   " + name, {at: "top_right", dx: -70, dy: 26, size: 20, bold: true})
+  let c = "#A7F3D0"
+  if power < 25 then c = "#F87171" end
+  let bars = ""
+  for i in 1 to usage() do bars = bars + "▮" end
+  ui_text("power", "⚡ " + max(0, floor(power)) + "%   使用量 " + bars, {at: "top", dy: 26, size: 18, bold: true, color: c})
+  let warn = ""
+  if music < 30 and phase == "shift" and jack_out_at == 0 then warn = "🎵 オルゴールが止まりそう！（カメラ8でねじを巻く）" end
+  if jack_out_at > 0 then warn = "🎁 びっくり箱が開いた…！" end
+  if cams_down() and not power_out then warn = "📺 カメラ故障中…" end
+  if power_out then warn = "⚡ 停電…" end
+  ui_text("warn", warn, {at: "top", dy: 52, size: 15, bold: true, color: "#FCA5A5"})
+end
+
+func buttons_hud(p)
+  let ld = "⬅️ 左ドア"
+  if doors.L then ld = "⬅️ 左ドア 🔒" end
+  let rd = "右ドア ➡️"
+  if doors.R then rd = "🔒 右ドア ➡️" end
+  let ll = "💡 左ライト"
+  if lights.L then ll = "💡 左ライト ON" end
+  let rl = "右ライト 💡"
+  if lights.R then rl = "ON 右ライト 💡" end
+  let vent = "🌀 通気口"
+  if vent_sealed then vent = "🌀 通気口 🔒" end
+  p.ui_button("door_L", ld, {at: "bottom_left", dx: 20, dy: -150, w: 150, h: 56, size: 16, bg: doors.L and "#B91C1C" or "#475569", radius: 14})
+  p.ui_button("light_L", ll, {at: "bottom_left", dx: 20, dy: -214, w: 150, h: 48, size: 15, bg: lights.L and "#CA8A04" or "#334155", radius: 14})
+  p.ui_button("door_R", rd, {at: "bottom_right", dx: -20, dy: -150, w: 150, h: 56, size: 16, bg: doors.R and "#B91C1C" or "#475569", radius: 14})
+  p.ui_button("light_R", rl, {at: "bottom_right", dx: -20, dy: -214, w: 150, h: 48, size: 15, bg: lights.R and "#CA8A04" or "#334155", radius: 14})
+  if NIGHT_AI[night].vent then
+    p.ui_button("vent", vent, {at: "bottom", dx: -170, dy: -40, w: 140, h: 48, size: 15, bg: vent_sealed and "#B91C1C" or "#334155", radius: 14})
+  else
+    p.ui_remove("vent")
+  end
+  let camlabel = "📷 カメラ"
+  if p.cam > 0 then camlabel = "📷 カメラをおろす" end
+  p.ui_button("cam", camlabel, {at: "bottom", dy: -40, w: 180, h: 56, size: 17, bg: "#1D4ED8", radius: 14})
+end
+
+func all_buttons()
+  for p in players() do
+    if ready(p) then buttons_hud(p) end
+  end
+  shift_hud()
+end

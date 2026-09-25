@@ -1,0 +1,186 @@
+-- office.absc — 警備室: ドア・廊下のライト・通気口・電力と停電・持ち場・警備用品
+
+let office_clock = 0
+let dark_until = 0         -- 停電のあと、暗やみでオルゴールが鳴りおわる時刻
+
+-- MARK: ドアとライト
+
+func set_door(side, closed)
+  if power_out and closed then return end
+  doors[side] = closed
+  let b = block("Left Door")
+  if side == "R" then b = block("Right Door") end
+  b.visible = closed
+  b.solid = closed
+  sound("tick")
+  all_buttons()
+end
+
+func set_light(side, lit)
+  if power_out and lit then return end
+  lights[side] = lit
+  let b = block("Left Light")
+  if side == "R" then b = block("Right Light") end
+  if lit then
+    b.color = "#FEF9C3"
+    b.material = "neon"
+  else
+    b.color = "#3F3F46"
+    b.material = "plastic"
+  end
+  -- ドアの前は死角。ライトをつけたときだけ見える
+  for id in keys(toys) do
+    let n = toys[id]
+    if still(n) and n.at_door == side then n.visible = lit end
+  end
+  if lit then
+    for id in keys(toys) do
+      let n = toys[id]
+      if still(n) and n.at_door == side then
+        sound("error")
+        shake(0.15, 0.3)
+      end
+    end
+  end
+  all_buttons()
+end
+
+func set_vent(sealed)
+  if power_out and sealed then return end
+  vent_sealed = sealed
+  block("Vent Seal").visible = sealed
+  sound("tick")
+  all_buttons()
+end
+
+func reset_office()
+  power_out = false
+  set_door("L", false)
+  set_door("R", false)
+  set_light("L", false)
+  set_light("R", false)
+  set_vent(false)
+  block("Vent Eyes").visible = false
+  world.light = 0.35
+  dark_until = 0
+end
+
+-- MARK: 電力と停電
+
+func blackout()
+  power_out = true
+  power = 0
+  doors.L = false
+  doors.R = false
+  for n in ["Left Door", "Right Door"] do
+    block(n).visible = false
+    block(n).solid = false
+  end
+  lights.L = false
+  lights.R = false
+  vent_sealed = false
+  block("Vent Seal").visible = false
+  world.light = 0.06
+  for p in players() do
+    if ready(p) and p.cam > 0 then close_tablet(p) end
+  end
+  sound("defeat")
+  announce("⚡ 停電…！ 真っ暗な中、どこかでオルゴールが鳴りはじめた…", 4)
+  dark_until = time() + random(9, 17)
+  all_buttons()
+end
+
+func power_step(secs)
+  if power_out then
+    if dark_until > 0 and time() >= dark_until then
+      dark_until = 0
+      let bob = toys.bob
+      if still(bob) then caught(bob) else caught(nil) end
+    end
+    return
+  end
+  power = power - drain_per_sec() * secs
+  if power <= 0 then blackout() end
+end
+
+-- MARK: 持ち場（警備室から出ない）
+
+func keep_in_office(p)
+  if not p.alive or in_office(p.position) then
+    p.away_since = 0
+    return
+  end
+  if p.away_since == 0 or p.away_since == nil then
+    p.away_since = time()
+    p.message("🚷 持ち場をはなれるな！", 1.2)
+  elif time() - p.away_since > 2 then
+    p.away_since = 0
+    p.teleport(block("Spawn " + random(1, 6)).position + {x: 0, y: 1, z: 0})
+  end
+end
+
+-- MARK: 警備用品
+
+func shop_panel(p)
+  let h = 110 + len(UPGRADES) * 50
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 520, h: h, bg: "#111827F2", radius: 20, layer: 40})
+  p.ui_text("shop_t", "🛒 警備用品（警備室みんなのもの）   💰 " + kit_money(p), {parent: "shop", y: 26 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = upg[u.id]
+    let label = u.name + "  " + u.text
+    let bg = "#1D4ED8"
+    if lv >= u.max then
+      label = label + "  ✅"
+      bg = "#374151"
+    else
+      label = label + "   💰" + u.price
+    end
+    p.ui_button("upg_" + u.id, label, {parent: "shop", y: (30 + i * 50) / h, w: 480, h: 42, size: 12, bg: bg})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  for u in UPGRADES do
+    if u.id == id and upg[id] < u.max and kit_pay(p, u.price) then
+      upg[id] = upg[id] + 1
+      p.sound("collect")
+      announce("🛒 " + p.name + " が「" + u.name + "」を買った！", 2)
+      kit_quest_progress(p, "upgrade", 1)
+    end
+  end
+  shop_panel(p)
+end
+
+on tick(dt)
+  office_clock = office_clock + dt
+  if office_clock < 0.5 then return end
+  let secs = office_clock
+  office_clock = 0
+  if phase == "shift" then power_step(secs) end
+  for p in players() do
+    if ready(p) then keep_in_office(p) end
+  end
+  shift_hud()
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if phase != "shift" and (id == "door_L" or id == "door_R" or id == "light_L" or id == "light_R" or id == "vent") then return end
+  if id == "door_L" then
+    set_door("L", not doors.L)
+    kit_quest_progress(p, "doors", 1)
+  elif id == "door_R" then
+    set_door("R", not doors.R)
+    kit_quest_progress(p, "doors", 1)
+  elif id == "light_L" then set_light("L", not lights.L)
+  elif id == "light_R" then set_light("R", not lights.R)
+  elif id == "vent" then set_vent(not vent_sealed)
+  elif id == "shop_open" then shop_panel(p)
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif starts_with(id, "upg_") then buy_upgrade(p, replace(id, "upg_", ""))
+  end
+end

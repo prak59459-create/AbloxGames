@@ -1,162 +1,58 @@
--- Toy Factory Night Shift — カメラで見張って、ドアを閉めて、朝まで耐える
+-- Toy Factory Night Shift — おもちゃ工場の夜間警備。カメラで見張って、ドアを閉めて、朝6時まで耐える。
+--
+-- ファイル:
+--   data.absc     おもちゃ・夜ごとのかしこさ・カメラ・警備用品
+--   common.absc   夜の状態・電力・画面
+--   cameras.absc  9台のカメラ・オルゴールのねじ巻き
+--   office.absc   ドア・ライト・通気口・停電・持ち場・警備用品
+--   shift.absc    夜の流れ（12AM → 6AM）
+--   toys.absc     ボブ・リリ・コッコ・ルー・ポチ・ジャック・まぼろし
+--   main.absc     このファイル
 
-kit_setup("Toy Factory Night Shift", "朝6時まで耐えろ", [
-  "警備室から出ずに、朝6時（2分）まで耐える",
-  "「📷 カメラ」で工場の中を見て、おもちゃの場所を確かめる",
-  "おもちゃがドアの前に来たら、そのドアを閉める！",
-  "ドアを閉めている間とカメラを見ている間は電力が減る",
-  "電力が0になると… 全部開いてしまう",
-  "5夜を乗り切ればクリア。夜ごとにおもちゃがかしこくなる"
+kit_setup("Toy Factory Night Shift", "朝6時まで耐えろ。6夜目はナイトメア", [
+  "🏢 警備室から出ずに、12AM から 6AM まで耐える。電力がなくなると停電…",
+  "📷 カメラ（9台）でおもちゃの場所を見る。ドアの前は死角 → 💡 ライトで確かめて 🚪 ドアを閉める",
+  "🦊 ルーは見られていないとおもちゃ箱から出てくる。ときどきカメラ3を見よう",
+  "🎁 オルゴールが止まるとびっくり箱が開く。カメラ8で 🎵 ねじを巻きつづけて",
+  "🌀 3夜目から通気口にも。👻 まぼろしが見えたらすぐカメラを上げる",
+  "🛒 警備用品で電力やカメラを強くしよう。みんなで役わりを分けると強い！"
 ])
 
-let night = 1
-let hour = 0
-let power = 100
-let left_closed = false
-let right_closed = false
-let toys = []
-let cams = ["Stage", "Assembly", "Storage", "Hall West", "Hall East"]
-let paths = {
-  left: ["Stage", "Assembly", "Hall West", "Left Door Spot"],
-  right: ["Stage", "Storage", "Hall East", "Right Door Spot"]
-}
-let over = false
+kit_currency = "コイン"
+kit_shop_title = "制服"
+kit_shop_add("cap", "🧢 警備員の帽子", 40, func(p)
+  p.hat = "cap"
+  p.color = "#1E3A8A"
+end)
+kit_shop_add("antenna", "📡 アンテナ", 80, func(p) p.hat = "antenna" end)
+kit_shop_add("crown", "👑 夜のボス", 500, func(p) p.hat = "crown" end)
 
-kit_quest("night2", "2夜を乗り切る", 1, 200)
+kit_quest("nights", "夜を3回のりきる", 3, 300)
 kit_quest("block", "ドアで10回追い返す", 10, 150)
-
-func show()
-  let h = hour == 0 and "12" or str(hour)
-  ui_text("clock", "🕛 " + h + " AM   " + night + " 夜目", {at: "top", dy: 26, size: 22, bold: true})
-  ui_text("power", "⚡ 電力 " + floor(power) + "%   " + (left_closed and "⬅️閉" or "⬅️開") + "  " + (right_closed and "閉➡️" or "開➡️"),
-          {at: "top", dy: 58, size: 17, color: power < 20 and "#F87171" or "#FFFFFF"})
-end
-
-func set_door(side, closed)
-  if side == "left" then left_closed = closed else right_closed = closed end
-  let b = block(side == "left" and "Left Door" or "Right Door")
-  b.visible = closed
-  b.solid = closed
-  sound("tick")
-  show()
-end
-
-func make_toys()
-  for n in npcs() do n.destroy() end
-  toys = []
-  let names = [["クマのボブ", "#92400E", "left"], ["ウサギのリリ", "#A855F7", "right"], ["ニワトリのコッコ", "#FACC15", "left"], ["キツネのルー", "#DC2626", "right"]]
-  let count = min(4, 1 + night)
-  for i in 1 to count do
-    let t = names[i]
-    let n = create_npc({name: t[1], position: block("Station Stage").position + {x: (i - 2.5) * 2, y: 1, z: 0}, color: t[2],
-                        head_color: t[2], size: 1.3, health: 999999, speed: 1.2})
-    n.side = t[3]
-    n.leg = 1
-    n.wait = 0
-    append(toys, n)
-  end
-end
-
-func start_night()
-  hour = 0
-  power = 100
-  set_door("left", false)
-  set_door("right", false)
-  make_toys()
-  for p in players() do p.camera_reset() end
-  announce("🌙 " + night + " 夜目のシフト開始", 3)
-  show()
-end
-
-func caught(n)
-  if over then return end
-  shake(1, 1)
-  fade("#7F1D1D", 0.2)
-  announce("😱 " + n.name + " につかまった！もう一度この夜から", 4)
-  after(1, func() fade(nil, 1) end)
-  after(4, func() start_night() end)
-end
+kit_quest("cams", "カメラを20回見る", 20, 60)
+kit_quest("wind", "オルゴールのねじを30回巻く", 30, 80)
+kit_quest("doors", "ドアを20回しめる", 20, 50)
+kit_quest("phantom", "まぼろしを消す", 1, 80)
+kit_quest("upgrade", "警備用品を2つ買う", 2, 100)
 
 on start()
-  after(2, func() start_night() end)
-  every(20, func()
-    hour = hour + 1
-    if hour >= 6 then
-      announce("🕕 6 AM！シフト終了！", 4)
-      for p in players() do p.score = p.score + night end
-      if night >= 2 then
-        for p in players() do kit_quest_progress(p, "night2", 1) end
-      end
-      night = night + 1
-      if night > 5 then
-        over = true
-        kit_finish("🏆 5夜を乗り切った！", 10)
-        return
-      end
-      after(4, func() start_night() end)
-    end
-    show()
-  end)
-  every(1, func()
-    let drain = 0.25
-    if left_closed then drain = drain + 0.6 end
-    if right_closed then drain = drain + 0.6 end
-    for p in players() do
-      if p.cam_index != nil then drain = drain + 0.2 end
-    end
-    power = max(0, power - drain)
-    if power <= 0 and (left_closed or right_closed) then
-      set_door("left", false)
-      set_door("right", false)
-      world.light = 0.1
-      announce("⚡ 停電…", 2)
-    end
-    show()
-    -- おもちゃが動く
-    for n in toys do
-      if kit_here(n) then
-        let path = paths[n.side]
-        if n.leg >= len(path) then
-          n.wait = n.wait + 1
-          let closed = (n.side == "left" and left_closed) or (n.side == "right" and right_closed)
-          if closed and n.wait >= 3 then
-            n.leg = 1
-            n.wait = 0
-            n.teleport(block("Station Stage"))
-            for p in players() do kit_quest_progress(p, "block", 1) end
-          elif not closed and n.wait >= 4 then
-            caught(n)
-            return
-          end
-        elif random() < 0.12 + night * 0.04 then
-          n.leg = n.leg + 1
-          n.move_to(block("Station " + path[n.leg]))
-        end
-      end
-    end
-  end)
+  game.respawn_time = 3
+  after(3, func() start_night(1) end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.ui_button("left_door", "⬅️ 左ドア", {at: "bottom_left", dx: 20, dy: -150, w: 130, h: 60, size: 17, bg: "#475569", radius: 14})
-  p.ui_button("right_door", "右ドア ➡️", {at: "bottom_right", dx: -20, dy: -150, w: 130, h: 60, size: 17, bg: "#475569", radius: 14})
-  p.ui_button("cam", "📷 カメラ", {at: "bottom", dy: -100, w: 150, h: 56, size: 18, bg: "#1D4ED8", radius: 14})
-  p.ui_button("cam_off", "🔙 もどる", {at: "bottom", dy: -160, w: 150, h: 46, size: 16, bg: "#374151", radius: 14})
-  show()
+  kit_shop_button(p)
+  kit_give(p, 20)
+  p.cam = 0
+  p.away_since = 0
+  p.ui_button("shop_open", "🛒 警備用品", {at: "right", dy: 180, w: 150, h: 46, size: 16, bg: "#0E7490"})
+  buttons_hud(p)
+  shift_hud()
 end
 
-on button(p, id)
-  if id == "left_door" then set_door("left", not left_closed)
-  elif id == "right_door" then set_door("right", not right_closed)
-  elif id == "cam" and power > 0 then
-    p.cam_index = ((p.cam_index or 0) % len(cams)) + 1
-    let name = cams[p.cam_index]
-    p.camera_look(block("Cam " + p.cam_index), block("Station " + name))
-    p.message("📷 " + name, 1)
-  elif id == "cam_off" then
-    p.cam_index = nil
-    p.camera_reset()
-  end
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.teleport(block("Spawn " + random(1, 6)).position + {x: 0, y: 1, z: 0})
 end
