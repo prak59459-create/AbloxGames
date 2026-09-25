@@ -1,0 +1,221 @@
+-- field.absc — 第1ゲーム「だるまさんがころんだ」
+--
+-- 人形がかけ声を言い終わるとふり向く。ふり向いている間に動いた人は失格。
+-- 人形の目から見えているかは raycast で調べるので、岩やほかの人のかげにいれば動いても見つからない。
+-- かけ声の速さは毎回ちがい、ときどき「ふり向くふり」もする。
+
+let doll_state = "off"    -- off / chant / fake / watch
+let doll_run = 0          -- 古いタイマーを止めるための番号
+let watch_count = 0
+
+func field_start()
+  doll_run = doll_run + 1
+  doll_state = "off"
+  doll_face(false)
+  let list = alive_cast()
+  let i = 0
+  for c in list do
+    i = i + 1
+    c.done = false
+    c.hid_this = false
+    if c.is_npc then
+      c.lane = FIELD_LANES[(i - 1) % len(FIELD_LANES) + 1] + (random() - 0.5) * 0.6
+      c.teleport({x: c.lane, y: 1, z: FIELD_START_Z})
+      c.stop()
+      c.speed = 0.7 + c.brave * 0.35
+    else
+      c.teleport({x: -20 + random() * 40, y: 1, z: FIELD_START_Z})
+      c.frozen = true
+    end
+  end
+  game_ends = time() + GAMES[1].time + 5
+  let run = doll_run
+  announce("🎎 位置について…", 2)
+  after(3, func() if run == doll_run then announce("よーい…", 1.5) end end)
+  after(5, func()
+    if run != doll_run then return end
+    for c in alive_humans() do c.frozen = false end
+    announce("▶ スタート！", 1.5)
+    chant()
+  end)
+end
+
+-- 人形の顔: 見ているときは目と赤い光、背中を向けているときは髪だけ
+func doll_face(watching)
+  for e in blocks("dolleye") do e.visible = watching end
+  block("Doll Hair").visible = not watching
+  block("Doll Glow").visible = watching
+  if watching then block("Doll Head").color = "#FECACA" else block("Doll Head").color = "#FDE68A" end
+end
+
+func field_left()
+  return max(0, game_ends - time())
+end
+
+func chant()
+  if not playing("field") then return end
+  doll_run = doll_run + 1
+  let run = doll_run
+  doll_state = "chant"
+  doll_face(false)
+  let total = CHANT_SPEEDS[random(1, len(CHANT_SPEEDS))]
+  -- 残り時間が少ないほど速くなる
+  if field_left() < 30 then total = total * 0.75 end
+  let fake = random() < 0.18
+  let per = total / len(CHANT)
+  for k in 1 to len(CHANT) do
+    chant_syllable(run, k, per * (k - 1))
+  end
+  npc_go(run)
+  after(total, func()
+    if run != doll_run then return end
+    if fake then fake_turn() else turn_around() end
+  end)
+end
+
+func chant_syllable(run, k, delay)
+  after(delay, func()
+    if run != doll_run or doll_state != "chant" then return end
+    ui_text("doll", "🟢 " + join(slice(CHANT, 1, k), "") + "…", {at: "top", dy: 64, size: 26, bold: true, color: "#22C55E"})
+    if k == len(CHANT) then sound("tick") end
+  end)
+end
+
+-- ふり向くふり。止まった人はそのまま、つられて止まったNPCもすぐまた歩く
+func fake_turn()
+  let run = doll_run
+  doll_state = "fake"
+  ui_text("doll", "🟡 ころ……？", {at: "top", dy: 64, size: 26, bold: true, color: "#FACC15"})
+  block("Doll Hair").visible = false
+  for n in field_npcs() do
+    if random() < 0.6 then n.stop() end
+  end
+  after(0.7, func()
+    if run != doll_run then return end
+    block("Doll Hair").visible = true
+    chant()
+  end)
+end
+
+func turn_around()
+  let run = doll_run
+  doll_state = "turning"
+  ui_text("doll", "🔴 ころんだ！", {at: "top", dy: 64, size: 30, bold: true, color: "#EF4444"})
+  sound("hurt")
+  doll_face(true)
+  npc_freeze()
+  for p in alive_humans() do p.hid_this = false end
+  after(0.45, func()
+    if run != doll_run then return end
+    doll_state = "watch"
+    watch_count = watch_count + 1
+  end)
+  after(0.45 + 1.6 + random() * 1.8, func()
+    if run != doll_run then return end
+    for p in alive_humans() do
+      if p.hid_this then kit_quest_progress(p, "hidden", 1) end
+    end
+    chant()
+  end)
+end
+
+-- 人形の目からその人が見えるか
+func doll_sees(c)
+  let eye = {x: 0, y: 11.6, z: 173.3}
+  let dir = {x: c.x - eye.x, y: c.y + 1.2 - eye.y, z: c.z - eye.z}
+  let d = magnitude(dir)
+  let hit = raycast(eye, dir, d + 1)
+  if hit == nil then return true end
+  if hit.player != nil then return hit.player.id == c.id end
+  return hit.distance >= d - 0.6
+end
+
+-- MARK: NPC
+
+func field_npcs()
+  return filter(alive_npcs(), func(n) return not n.done end)
+end
+
+func npc_go(run)
+  for n in field_npcs() do
+    npc_walk_later(n, run, random() * 0.7 * (1 - n.brave))
+  end
+end
+
+func npc_walk_later(n, run, delay)
+  after(delay, func()
+    if run != doll_run or doll_state != "chant" then return end
+    if kit_here(n) and not n.out and not n.done then n.move_to({x: n.lane, y: 0, z: FIELD_FINISH_Z + 5}) end
+  end)
+end
+
+-- 止まれるかどうかは性格しだい。止まれなかったNPCは見つかる（せっかちほど失敗しやすい）
+func npc_freeze()
+  for n in field_npcs() do
+    if random() < (1 - n.calm) * 0.3 then
+      npc_caught_later(n, 0.5 + random() * 0.4)
+    else
+      n.stop()
+    end
+  end
+end
+
+func npc_caught_later(n, delay)
+  after(delay, func()
+    if kit_here(n) and not n.out and not n.done and playing("field") then
+      n.say("あっ…")
+      eliminate(n, "動いた")
+    end
+  end)
+end
+
+-- MARK: ゴールと時間切れ
+
+func field_goal(c)
+  c.done = true
+  if c.is_npc then
+    c.move_to({x: c.lane, y: 0, z: FIELD_FINISH_Z + 5 + random() * 3})
+    npc_line(c, "win")
+  else
+    c.message("✅ ゴール！ 生きのこった", 2)
+    c.sound("goal")
+    kit_give(c, 60)
+    kit_quest_progress(c, "field", 1)
+    announce("✅ " + label_of(c) + " がゴール！", 2)
+  end
+  if len(filter(alive_cast(), func(x) return not x.done end)) == 0 then field_end() end
+end
+
+func field_end()
+  if not playing("field") then return end
+  doll_run = doll_run + 1
+  doll_state = "off"
+  ui_remove("doll")
+  for c in alive_cast() do
+    if not c.done then eliminate(c, "時間切れ") end
+  end
+  doll_face(false)
+  game_over()
+end
+
+on tick(dt)
+  if not playing("field") then return end
+  for c in alive_cast() do
+    if playing("field") and not c.done and not c.out and c.z >= FIELD_FINISH_Z then field_goal(c) end
+  end
+  if doll_state == "watch" then
+    for p in alive_humans() do
+      if not p.done and not p.out then
+        let v = p.velocity
+        if sqrt(v.x * v.x + v.z * v.z) > 0.8 or abs(v.y) > 2.5 then
+          if doll_sees(p) then
+            eliminate(p, "動いてしまった！")
+          else
+            p.hid_this = true
+          end
+        end
+      end
+    end
+  end
+  if game_ends > 0 and time() >= game_ends then field_end() end
+end

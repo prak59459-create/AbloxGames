@@ -1,144 +1,114 @@
--- Last Survivor Games — 「だるまさんがころんだ」とガラスの橋
+-- Last Survivor Games — 24人で挑む5つのゲーム。最後の1人になれ
+--
+-- ファイル:
+--   data.absc    ゲーム5つ・人数・賞金・NPCの性格
+--   common.absc  ショーの状態・番号・脱落・賞金の玉・画面
+--   bridge.absc  第4ゲーム ガラスの橋
+--   field.absc   第1ゲーム だるまさんがころんだ
+--   final.absc   第5ゲーム 最後のタイル
+--   huddle.absc  第3ゲーム なかま集め
+--   show.absc    ショーの流れ（寮 → ゲーム → 優勝）
+--   tug.absc     第2ゲーム つなひき
+--   main.absc    このファイル
 
 kit_setup("Last Survivor Games", "動くな。まちがえるな。生き残れ", [
-  "第1ゲーム: だるまさんがころんだ。人形が見ている間に動いたら失格",
-  "人形がふり向く前に「…ころんだ！」と画面に出る。止まれ！",
-  "90秒以内に赤い線の先の緑まで行こう",
-  "第2ゲーム: ガラスの橋。左右どちらかが割れる。運を信じて進め",
-  "最後まで残った人がチャンピオン！"
+  "🎬 寮で待つとショー開幕。人が足りない分はNPCが参加して、いつも24人",
+  "🎎 だるまさんがころんだ: ふり向いたら止まれ。岩や人のかげなら動いてもバレない",
+  "🪢 つなひき: 緑のときに「引く！」で3倍。負けたら床ごと落ちる",
+  "🚪 なかま集め: よばれた人数ぴったりで部屋へ。黄色いランプは「あと1人」",
+  "🌉 ガラスの橋: 前の人をよく見ろ。🟥 最後のタイル: 光ったら逃げろ",
+  "💰 1人脱落するごとに賞金+100。優勝者が全部もらう（出なければ次の回へ持ちこし）"
 ])
+kit_currency = "コイン"
 
-let stage = "wait"
-let watching = false
-let ends_at = 0
-let broken = {}
+kit_quest("field", "だるまさんがころんだをクリア", 1, 150)
+kit_quest("tug", "つなひきで勝つ", 1, 200)
+kit_quest("huddle", "なかま集めを生きのこる", 2, 250)
+kit_quest("bridge", "ガラスの橋をわたりきる", 1, 400)
+kit_quest("final", "最後のタイルまで残る", 1, 400)
+kit_quest("champion", "優勝する", 1, 1000)
+kit_quest("shows", "ショーに5回出る", 5, 300)
+kit_quest("hidden", "かげにかくれて人形をやりすごす", 5, 200)
+kit_quest("nice", "つなひきで「ナイス」30回", 30, 150)
 
-kit_quest("survive1", "だるまさんがころんだをクリア", 1, 150)
-kit_quest("champion", "ガラスの橋をわたりきる", 1, 400)
+kit_shop_title = "寮の売店"
+kit_shop_add("charm", "🍀 お守り（橋の安全な側が1回わかる）", 250, func(p)
+  p.charms = (p.charms or 0) + 1
+  p.message("🍀 お守り ×" + p.charms + "（ガラスの橋で使える）", 2)
+end)
+kit_shop_add("gloves", "🧤 軍手（次のつなひきで力1.5倍）", 200, func(p)
+  p.gloves = (p.gloves or 0) + 1
+  p.message("🧤 軍手 ×" + p.gloves, 2)
+end)
+kit_shop_add("cap", "🧢 キャップ", 150, func(p) p.hat = "cap" end)
+kit_shop_add("halo", "😇 天使の輪", 1200, func(p) p.hat = "halo" end)
+kit_shop_add("mint", "🟩 ミントのジャージ", 400, func(p)
+  p.color = "#34D399"
+  p.leg_color = "#F8FAFC"
+end)
+kit_shop_add("rose", "🌹 ローズのジャージ", 400, func(p)
+  p.color = "#F43F5E"
+  p.leg_color = "#1F2937"
+end)
 
-func contestants()
-  return filter(players(), func(p) return p.alive and not p.out end)
-end
-
-func eliminate(p, why)
-  if p.out then return end
-  p.out = true
-  p.message("❌ " + why, 2.5)
-  shake(0.2, 0.3)
-  p.kill()
-end
-
-func doll_loop()
-  if stage != "field" then return end
-  watching = false
-  block("Doll Head").color = "#FDE68A"
-  ui_text("doll", "🟢 だるまさんが…", {at: "top", dy: 60, size: 24, bold: true, color: "#22C55E"})
-  after(random(2, 5), func()
-    if stage != "field" then return end
-    ui_text("doll", "🔴 ころんだ！", {at: "top", dy: 60, size: 28, bold: true, color: "#EF4444"})
-    block("Doll Head").color = "#DC2626"
-    after(0.6, func()
-      watching = true
-      after(random(2, 4), func() doll_loop() end)
-    end)
-  end)
-end
-
-func start_field()
-  stage = "field"
-  ends_at = time() + 90
-  for p in players() do
-    p.out = false
-    p.done = false
-    if not p.alive then p.respawn() end
-    p.teleport(block("Spawn " + random(1, 16)))
+func open_stats(p)
+  p.ui_remove("stats")
+  p.ui_panel("stats", {at: "center", w: 420, h: 250, bg: "#0F172AF0", radius: 20, layer: 40})
+  p.ui_text("stats_t", "📊 " + p.name + " の記録", {parent: "stats", y: 0.13, size: 20, bold: true, color: "gold"})
+  let best = "まだ"
+  if (p.best_ever or 0) > 0 then best = GAMES[p.best_ever].emoji + " " + GAMES[p.best_ever].name end
+  let lines = [
+    "🎬 出たショー: " + p.shows + " 回",
+    "🏆 優勝: " + p.wins + " 回",
+    "✅ クリアしたゲーム: " + (p.cleared or 0),
+    "🚩 いちばん進んだ: " + best,
+    "🍀 お守り ×" + (p.charms or 0) + "   🧤 軍手 ×" + (p.gloves or 0)
+  ]
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats", y: 0.22 + i * 0.12, size: 15, color: "#E5E7EB"})
   end
-  announce("🎎 第1ゲーム: だるまさんがころんだ", 4)
-  after(4, func() doll_loop() end)
-end
-
-func start_bridge()
-  stage = "bridge"
-  ends_at = time() + 90
-  broken = {}
-  for i in 1 to 10 do
-    let bad = random() < 0.5 and "L" or "R"
-    broken[str(i)] = bad
-    for side in ["L", "R"] do
-      let g = block("Glass " + i + " " + side)
-      g.visible = true
-      g.solid = true
-    end
-  end
-  for p in contestants() do p.teleport(block("Bridge Start")) end
-  announce("🌉 第2ゲーム: ガラスの橋。割れるガラスに注意", 4)
+  p.ui_button("stats_close", "閉じる", {parent: "stats", y: 0.9, w: 120, h: 32, size: 14, bg: "gray"})
 end
 
 on start()
-  game.respawn_time = -1
-  after(5, func() start_field() end)
-  every(1, func()
-    if stage == "field" or stage == "bridge" then
-      ui_text("clock", "⏱ " + kit_clock(ends_at - time()) + "   残り " + len(contestants()) + " 人", {at: "top", dy: 26, size: 22, bold: true})
-      if time() >= ends_at then
-        for p in contestants() do
-          if not p.done then eliminate(p, "時間切れ") end
-        end
-        if stage == "field" then
-          if len(contestants()) > 0 then after(4, func() start_bridge() end) else kit_finish("全員失格…", 6) end
-          stage = "between"
-        else
-          stage = "over"
-          kit_finish("🌉 橋をわたれた人はいなかった…", 6)
-        end
-      end
+  every(10, func() kit_leaderboard("🏆 優勝") end)
+  every(2, func()
+    for p in humans() do
+      if (p.best_game or 0) > (p.best_ever or 0) then p.best_ever = p.best_game end
+      p.score = p.wins
     end
   end)
 end
 
 on join(p)
+  p.wins = 0
+  p.shows = 0
+  p.cleared = 0
+  p.best_ever = 0
   kit_welcome(p)
   kit_quest_button(p)
-  p.out = stage != "wait"
-  if p.out then p.message("次のゲームから参加！", 2) end
+  kit_shop_button(p)
+  p.ui_button("stats_open", "📊 記録", {at: "right", dy: 180, w: 150, h: 50, size: 17, bg: "#0F766E"})
+  kit_give(p, 30)
+  if phase == "lobby" then
+    p.out = false
+    p.teleport(dorm_spot())
+    lobby_buttons(p)
+  else
+    p.out = true
+    let g = game()
+    if phase == "play" and g != nil then p.teleport(gallery_spot(g.arena)) else p.teleport(dorm_spot()) end
+    p.message("🎬 ショーの最中！ 観客席から見て、次の回から参加しよう", 3)
+    spectator_ui(p)
+  end
 end
 
-on tick(dt)
-  if stage == "field" and watching then
-    for p in contestants() do
-      if not p.done and magnitude({x: p.velocity.x, y: 0, z: p.velocity.z}) > 0.6 then eliminate(p, "動いてしまった！") end
-    end
-  end
-  if stage == "bridge" then
-    for p in contestants() do
-      if p.y < 2 then eliminate(p, "落ちてしまった…") end
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc or p.out then return end
-  if contains(b.tags, "fieldfinish") and stage == "field" and not p.done then
-    p.done = true
-    kit_quest_progress(p, "survive1", 1)
-    p.score = p.score + 1
-    announce("✅ " + p.name + " がゴール！", 2)
-    if len(filter(contestants(), func(q) return not q.done end)) == 0 then
-      stage = "between"
-      after(4, func() start_bridge() end)
-    end
-  elif contains(b.tags, "glass") and stage == "bridge" then
-    let parts = split(b.name, " ")
-    if broken[parts[2]] == parts[3] and b.visible then
-      b.visible = false
-      b.solid = false
-      p.message("💥 パリーン！", 1)
-    end
-  elif contains(b.tags, "bridgefinish") and stage == "bridge" then
-    p.score = p.score + 5
-    kit_quest_progress(p, "champion", 1)
-    kit_badge(p, "survivor", "最後の生存者")
-    stage = "over"
-    kit_finish("🏆 " + p.name + " がガラスの橋をわたりきった！チャンピオン！", 10)
+on button(p, id)
+  if id == "stats_open" then
+    open_stats(p)
+  elif id == "stats_close" then
+    p.ui_remove("stats")
   end
 end

@@ -1,0 +1,223 @@
+-- show.absc — ショーの流れ: 寮で待つ → 5つのゲーム（人数が足りないゲームはとばす）→ 優勝 → また寮へ
+
+let break_until = 0
+
+func is_spectator(p)
+  return not in_cast(p) or p.out
+end
+
+func lobby_buttons(p)
+  if phase == "lobby" then
+    p.ui_button("go_now", "▶ すぐ始める", {at: "bottom", dy: -40, w: 200, h: 56, size: 18, bg: "#DB2777", radius: 16})
+  else
+    p.ui_remove("go_now")
+  end
+end
+
+func begin_show()
+  if phase != "lobby" then return end
+  let hs = humans()
+  if len(hs) == 0 then return end
+  show_no = show_no + 1
+  phase = "intro"
+  game_i = 0
+  cast = []
+  used_numbers = {}
+  clear_feed()
+  clear_npcs()
+  pot = carry
+  carry = 0
+  for p in hs do
+    p.out = false
+    p.num = fresh_number()
+    p.lost_at = 0
+    p.ui_remove("spec")
+    p.ui_remove("go_now")
+    append(cast, p)
+    number_ui(p)
+    p.shows = p.shows + 1
+    kit_quest_progress(p, "shows", 1)
+    p.message("あなたの番号は " + tag_of(p) + " — 生きのこれ", 3)
+  end
+  let need = CAST_SIZE - len(cast)
+  if need > 0 then
+    for k in 1 to need do append(cast, make_npc(k)) end
+  end
+  update_orb()
+  sound("goal")
+  announce("🎬 第" + show_no + "回 Last Survivor Games 開幕！ 参加者 " + len(cast) + " 人 — 賞金は脱落者1人につき 💰" + PRIZE_PER_OUT, 5)
+  let show = show_no
+  after(5, func() if show == show_no then next_game() end end)
+end
+
+-- 人数が足りないと成り立たないゲームはとばす
+func skip_game(g)
+  let n = len(alive_cast())
+  if g.id == "tug" or g.id == "huddle" then return n < 4 end
+  if g.id == "final" then return n < 2 end
+  return false
+end
+
+func next_game()
+  if phase == "lobby" or phase == "ending" then return end
+  game_i = game_i + 1
+  while game_i <= len(GAMES) and skip_game(GAMES[game_i]) do game_i = game_i + 1 end
+  if game_i > len(GAMES) or len(alive_cast()) <= 1 then
+    finish_show()
+    return
+  end
+  let g = GAMES[game_i]
+  phase = "play"
+  outs_now = 0
+  game_ends = 0
+  update_orb()
+  for p in humans() do
+    rule_card(p, g)
+    if is_spectator(p) then p.teleport(gallery_spot(g.arena)) end
+  end
+  if g.id == "field" then
+    field_start()
+  elif g.id == "tug" then
+    tug_start()
+  elif g.id == "huddle" then
+    huddle_start()
+  elif g.id == "bridge" then
+    bridge_start()
+  else
+    final_start()
+  end
+  refresh_hud()
+end
+
+-- 各ゲームが終わったらこれをよぶ
+func game_over()
+  if phase != "play" then return end
+  phase = "between"
+  game_ends = 0
+  let g = game()
+  let left = alive_cast()
+  for c in left do
+    if not c.is_npc then
+      c.cleared = (c.cleared or 0) + 1
+      c.best_game = max(c.best_game or 0, game_i)
+      kit_give(c, 20 * game_i)
+    end
+  end
+  update_orb()
+  announce("✅ " + g.emoji + " " + g.name + " 終了 — " + outs_now + " 人脱落。残り " + len(left) + " 人  💰賞金 " + kit_short(pot), 4)
+  let show = show_no
+  after(4, func() if show == show_no and phase == "between" then back_to_dorm() end end)
+end
+
+func back_to_dorm()
+  for c in alive_cast() do
+    c.frozen = false
+    c.teleport(dorm_spot())
+    if c.is_npc then c.stop() end
+  end
+  for p in humans() do
+    if is_spectator(p) then p.teleport(dorm_spot()) end
+  end
+  let show = show_no
+  if len(alive_cast()) <= 1 then
+    after(2, func() if show == show_no then finish_show() end end)
+    return
+  end
+  break_until = time() + BREAK_TIME
+  let upcoming = "つぎのゲーム"
+  let k = game_i + 1
+  while k <= len(GAMES) and skip_game(GAMES[k]) do k = k + 1 end
+  if k <= len(GAMES) then upcoming = GAMES[k].emoji + " " + GAMES[k].name end
+  announce("☕ 休けい " + BREAK_TIME + " 秒 — 次は " + upcoming, 3)
+  after(BREAK_TIME, func() if show == show_no and phase == "between" then next_game() end end)
+end
+
+func finish_show()
+  if phase == "ending" or phase == "lobby" then return end
+  phase = "ending"
+  game_ends = 0
+  ui_remove("doll")
+  ui_remove("huddle_call")
+  ui_remove("huddle_left")
+  let left = alive_cast()
+  let show = show_no
+  let pedestal = block("Crown Pedestal").position + {x: 0, y: 2, z: 0}
+  if len(left) == 1 then
+    let w = left[1]
+    w.frozen = false
+    w.teleport(pedestal)
+    if w.is_npc then
+      w.say("やった…！ 賞金はもらった")
+      announce("🏆 第" + show_no + "回の優勝は " + tag_of(w) + "（NPC）… 賞金 💰" + kit_short(pot) + " は持っていかれた！", 7)
+    else
+      w.wins = w.wins + 1
+      kit_give(w, pot)
+      kit_quest_progress(w, "champion", 1)
+      kit_badge(w, "survivor", "最後の生存者")
+      if w.wins >= 3 then kit_badge(w, "legend", "伝説のサバイバー") end
+      w.hat = "crown"
+      w.message("🏆 優勝！ 賞金 💰" + kit_short(pot), 5)
+      announce("🏆 第" + show_no + "回の優勝は " + label_of(w) + "！ 賞金 💰" + kit_short(pot) + " を獲得！", 8)
+    end
+    sound("goal")
+  else
+    carry = pot
+    announce("💀 生存者なし… 賞金 💰" + kit_short(pot) + " は次の回へ持ちこし！", 6)
+  end
+  for p in humans() do
+    if in_cast(p) then
+      p.message("📊 この回: " + (p.best_game or 0) + " ゲーム目まで進んだ", 3)
+    end
+  end
+  after(9, func() if show == show_no then reset_to_lobby() end end)
+end
+
+func reset_to_lobby()
+  clear_npcs()
+  cast = []
+  game_i = 0
+  phase = "lobby"
+  pot = carry
+  update_orb()
+  clear_feed()
+  for p in humans() do
+    p.out = false
+    p.num = nil
+    p.best_game = 0
+    number_ui(p)
+    p.ui_remove("spec")
+    p.frozen = false
+    p.teleport(dorm_spot())
+    lobby_buttons(p)
+  end
+  lobby_until = time() + LOBBY_WAIT
+end
+
+func show_clock()
+  if phase == "lobby" then
+    if len(humans()) > 0 then
+      if lobby_until == 0 then lobby_until = time() + LOBBY_WAIT end
+      if time() >= lobby_until then begin_show() end
+    else
+      lobby_until = 0
+    end
+  elif phase == "between" then
+    -- 休けい中、寮のNPCはぶらぶら歩く
+    for n in alive_npcs() do
+      if random() < 0.15 then n.move_to(dorm_spot()) end
+    end
+  end
+  refresh_hud()
+end
+
+on start()
+  update_orb()
+  every(1, func() show_clock() end)
+end
+
+on button(p, id)
+  if id == "go_now" and phase == "lobby" then
+    if lobby_until == 0 or lobby_until - time() > 3 then lobby_until = time() + 3 end
+    announce("▶ " + p.name + " がスタートをおした！ 3秒後に開幕", 2)
+  end
+end

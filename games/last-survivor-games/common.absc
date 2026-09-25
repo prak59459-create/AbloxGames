@@ -1,0 +1,218 @@
+-- common.absc — ショーの状態・参加者と番号・脱落・賞金・画面
+
+let phase = "lobby"       -- lobby / intro / play / between / ending
+let game_i = 0            -- いまのゲーム（GAMES の番号）
+let cast = []             -- この回の参加者（プレイヤーとNPC）
+let pot = 0               -- 賞金（ゲーム内コイン）
+let carry = 0             -- 優勝者が出なかった回の持ちこし
+let show_no = 0
+let used_numbers = {}
+let feed = []             -- 左の脱落ログ
+let game_ends = 0         -- いまのゲームが終わる時刻（0 = 時間制限なし）
+let outs_now = 0          -- このゲームで脱落した人数
+let lobby_until = 0
+
+func ready(p)
+  return p.wins != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func game()
+  if game_i < 1 or game_i > len(GAMES) then return nil end
+  return GAMES[game_i]
+end
+
+-- いま、そのゲームの最中か
+func playing(id)
+  let g = game()
+  return phase == "play" and g != nil and g.id == id
+end
+
+-- MARK: 参加者と番号
+
+func pad3(n)
+  if n < 10 then return "00" + n end
+  if n < 100 then return "0" + n end
+  return str(n)
+end
+
+func tag_of(c)
+  return "#" + pad3(c.num or 0)
+end
+
+func label_of(c)
+  if c.is_npc then return tag_of(c) end
+  return tag_of(c) + " " + c.name
+end
+
+func fresh_number()
+  let n = random(1, 999)
+  while used_numbers[str(n)] == true do n = random(1, 999) end
+  used_numbers[str(n)] = true
+  return n
+end
+
+-- まだ残っている参加者
+func alive_cast()
+  return filter(cast, func(c) return kit_here(c) and c.alive and not c.out end)
+end
+
+func alive_humans()
+  return filter(alive_cast(), func(c) return not c.is_npc end)
+end
+
+func alive_npcs()
+  return filter(alive_cast(), func(c) return c.is_npc end)
+end
+
+func humans()
+  return filter(players(), func(p) return ready(p) end)
+end
+
+func in_cast(p)
+  for c in cast do
+    if kit_here(c) and c.id == p.id then return true end
+  end
+  return false
+end
+
+func make_npc(k)
+  let kind = NPC_TYPES[random(1, len(NPC_TYPES))]
+  let num = fresh_number()
+  let spot = dorm_spot()
+  let n = create_npc({name: "#" + pad3(num), position: spot, color: JERSEY, head_color: SKINS[random(1, len(SKINS))], leg_color: "#E5E7EB",
+                      size: 0.9 + random() * 0.2, health: 100, speed: 0.6, team: "cast"})
+  n.num = num
+  n.out = false
+  n.kind = kind.tag
+  n.brave = kind.brave
+  n.calm = kind.calm
+  n.pull = kind.pull
+  return n
+end
+
+func clear_npcs()
+  for n in npcs() do n.destroy() end
+end
+
+func npc_line(n, key)
+  let list = NPC_LINES[key]
+  if kit_here(n) and random() < 0.35 then n.say(list[random(1, len(list))]) end
+end
+
+-- MARK: 場所
+
+func dorm_spot()
+  let s = block("Dorm Spawn " + random(1, 12))
+  return s.position + {x: random() * 2 - 1, y: 1, z: random() * 2 - 1}
+end
+
+func gallery_spot(arena)
+  let g = block(arena + " Gallery")
+  if g == nil then return dorm_spot() end
+  let s = g.size
+  return g.position + {x: (random() - 0.5) * (s.x - 2), y: 1.5, z: (random() - 0.5) * (s.z - 2)}
+end
+
+-- MARK: 脱落
+
+func eliminate(c, why)
+  if c == nil or not kit_here(c) or c.out then return end
+  c.out = true
+  outs_now = outs_now + 1
+  pot = pot + PRIZE_PER_OUT
+  update_orb()
+  push_feed("❌ " + label_of(c) + " " + why)
+  if c.is_npc then
+    c.stop()
+    c.kill()
+  else
+    c.lost_at = game_i
+    c.frozen = false
+    c.message("❌ 脱落… " + why, 3)
+    c.shake(0.35, 0.5)
+    c.sound("defeat")
+    announce("❌ " + label_of(c) + " 脱落（" + why + "）", 2.5)
+    let g = game()
+    if g != nil then
+      c.best_game = max(c.best_game or 0, game_i)
+      kit_later(c, 1.6, func()
+        if c.out and phase != "lobby" then c.teleport(gallery_spot(g.arena)) end
+      end)
+    end
+    spectator_ui(c)
+  end
+  refresh_hud()
+end
+
+func spectator_ui(p)
+  p.ui_text("spec", "👀 観客席から見ています — 次のショーでまた挑戦！", {at: "bottom", dy: -110, size: 15, bold: true, color: "#FCA5A5"})
+end
+
+func push_feed(line)
+  append(feed, line)
+  while len(feed) > 5 do remove(feed, 1) end
+  let i = 0
+  for f in feed do
+    i = i + 1
+    ui_text("feed" + i, f, {at: "top_left", dy: 96 + i * 22, size: 13, color: "#FCA5A5"})
+  end
+end
+
+func clear_feed()
+  feed = []
+  for i in 1 to 5 do ui_remove("feed" + i) end
+end
+
+-- MARK: 賞金の玉
+
+func update_orb()
+  let s = 0.6 + min(4.2, pot / 700)
+  let gold = block("Prize Gold")
+  gold.size = {x: s, y: s, z: s}
+  gold.position = {x: 0, y: 5.2 + s / 2, z: 0}
+  let glow = block("Show Board Glow")
+  if glow != nil then
+    if phase == "play" then glow.color = "#22C55E" elif phase == "lobby" then glow.color = "#EC4899" else glow.color = "#FACC15" end
+  end
+end
+
+-- MARK: 画面
+
+func number_ui(p)
+  if p.num == nil then
+    p.ui_remove("num")
+    return
+  end
+  p.ui_text("num", "🔢 " + tag_of(p), {at: "top_left", dy: 40, size: 20, bold: true, color: "#5EEAD4"})
+end
+
+func refresh_hud()
+  let g = game()
+  let head = "🎬 第" + show_no + "回"
+  if phase == "lobby" then
+    head = "🏠 寮  次のショーまで " + max(0, ceil(lobby_until - time())) + "秒  💰賞金スタート " + kit_short(pot)
+  else
+    if g != nil then head = head + "  " + g.emoji + " " + game_i + "/5 " + g.name end
+    if phase == "play" and game_ends > 0 then head = head + "  ⏱ " + kit_clock(game_ends - time()) end
+    if phase == "between" then head = head + "  ☕ 休けい" end
+    head = head + "  👥 " + len(alive_cast()) + "/" + len(cast) + "  💰 " + kit_short(pot)
+  end
+  ui_text("hud", head, {at: "top", dy: 26, size: 17, bold: true})
+end
+
+-- ゲームの説明カード
+func rule_card(p, g)
+  p.ui_remove("rule")
+  p.ui_panel("rule", {at: "center", dy: -60, w: 560, h: 120, bg: "#000000C8", radius: 18, layer: 20})
+  p.ui_text("rule_t", g.emoji + " 第" + game_i + "ゲーム  " + g.name, {parent: "rule", y: 0.3, size: 24, bold: true, color: "gold"})
+  p.ui_text("rule_b", g.rule, {parent: "rule", y: 0.72, size: 14, color: "#E5E7EB"})
+  kit_later(p, 5, func() p.ui_remove("rule") end)
+end

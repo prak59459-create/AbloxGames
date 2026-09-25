@@ -25,7 +25,7 @@ let miniGames: [Game] = [
          summary: "8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ",
          tags: ["rhythm", "music", "1v1"], maxPlayers: 8, build: rhythmBattle),
     Game(number: 78, id: "last-survivor-games", title: "Last Survivor Games",
-         summary: "「だるまさんがころんだ」とガラスの橋。動いたら失格、まちがえたら落ちる。最後まで生き残れ！",
+         summary: "24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！",
          tags: ["survival", "minigames", "tense"], maxPlayers: 16, build: survivorGames),
     Game(number: 79, id: "shark-attack-bay", title: "Shark Attack Bay",
          summary: "巨大なサメと、ボートに乗った人間の海上バトル。人間はサメを撃退、サメは全員を海に引きずりこめ！",
@@ -520,24 +520,161 @@ func rhythmBattle(_ m: MapBuilder) {
 
 func survivorGames(_ m: MapBuilder) {
     m.day(ground: "#D6D3D1")
-    m.sky("#93C5FD", "#E0F2FE", light: 0.85, showGround: false, fall: -25)
-    // Stop & Go field.
-    m.slab("Field", x: 0, y: -1, z: 0, w: 60, h: 1, d: 120, color: "#E7D8B8")
-    m.spawnRing(0, -52, radius: 8, count: 16, color: "#10B981")
-    m.part("Finish Line", at: (0, 0.03, 52), size: (60, 0.05, 1), color: "#DC2626", material: .neon, solid: false)
-    m.pad("Field Finish", x: 0, z: 56, size: 8, color: "#22C55E", tags: ["fieldfinish"], shape: .box)
-    m.part("Doll", at: (0, 4, 60), size: (3, 8, 3), color: "#F97316", shape: .cylinder)
-    m.part("Doll Head", at: (0, 9, 60), size: (3, 3, 3), color: "#FDE68A", shape: .sphere)
-    // Glass bridge: pairs of panes, one of each breaks.
-    m.slab("Bridge Start", x: 0, y: 9, z: 100, w: 10, h: 1, d: 8, color: "#6B7280")
-    for i in 0..<10 {
-        let z = 108 + Float(i) * 5
-        m.part("Glass \(i + 1) L", at: (-2.2, 9.6, z), size: (3, 0.2, 3), color: "#BAE6FD", material: .glass, tags: ["glass"], opacity: 0.6)
-        m.part("Glass \(i + 1) R", at: (2.2, 9.6, z), size: (3, 0.2, 3), color: "#BAE6FD", material: .glass, tags: ["glass"], opacity: 0.6)
+    m.sky("#93C5FD", "#E0F2FE", light: 0.95, showGround: false, fall: -25)
+    m.part("Cover Focus", at: (0, 5, 150), size: (46, 1, 1), color: "#000000", tags: ["yaw=205"], solid: false, visible: false)
+
+    // The dorm: bunk towers, the prize orb over the middle, the show board.
+    m.ground(48, 40, color: "#E2E8F0", name: "Dorm Floor", material: .plastic)
+    m.walls(0, 0, w: 48, d: 40, h: 12, color: "#CBD5E1", name: "Dorm Wall")
+    for bx: Float in [-18, 18] {
+        for bz: Float in [-12, 0, 12] {
+            for lvl in 0..<5 {
+                let y = Float(lvl) * 2.1
+                m.slab("Bunk", x: bx, y: y + 0.5, z: bz, w: 6, h: 0.3, d: 3.2, color: "#0F766E")
+                m.slab("Mattress", x: bx, y: y + 0.8, z: bz, w: 5.6, h: 0.3, d: 2.8, color: "#F8FAFC", solid: false)
+            }
+            for sx: Float in [-2.9, 2.9] {
+                m.pillar("Bunk Post", x: bx + sx, z: bz - 1.5, height: 10.5, radius: 0.12, color: "#134E4A")
+                m.pillar("Bunk Post", x: bx + sx, z: bz + 1.5, height: 10.5, radius: 0.12, color: "#134E4A")
+            }
+        }
     }
-    m.slab("Bridge End", x: 0, y: 9, z: 160, w: 10, h: 1, d: 8, color: "#6B7280")
-    m.pad("Bridge Finish", x: 0, z: 160, y: 10, size: 6, color: "#22C55E", tags: ["bridgefinish"])
-    m.slab("Spectator Deck", x: 40, y: 12, z: 0, w: 14, h: 1, d: 14, color: "#1F2937")
+    m.part("Prize Chain", at: (0, 11, 0), size: (0.2, 2.2, 0.2), color: "#94A3B8", shape: .cylinder, material: .metal, solid: false)
+    m.part("Prize Orb", at: (0, 7.5, 0), size: (5, 5, 5), color: "#E0F2FE", shape: .sphere, material: .glass, solid: false, opacity: 0.3)
+    m.part("Prize Gold", at: (0, 6.2, 0), size: (0.6, 0.6, 0.6), color: "#FACC15", shape: .sphere, material: .neon, solid: false)
+    m.part("Show Board", at: (0, 6, -19.4), size: (16, 5, 0.3), color: "#0F172A", material: .neon, solid: false)
+    m.part("Show Board Glow", at: (0, 6, -19.2), size: (14, 3.6, 0.1), color: "#EC4899", material: .neon, tags: ["board"], solid: false,
+           opacity: 0.7)
+    m.slab("Crown Pedestal", x: 0, y: 0, z: 13, w: 4, h: 1.2, d: 4, color: "#FACC15", material: .metal)
+    m.spawnRing(0, -4, radius: 6, count: 12, name: "Dorm Spawn", color: "#5EEAD4")
+
+    // Game 1 — the field, the doll and rocks to hide behind.
+    m.slab("Field", x: 0, y: -1, z: 120, w: 60, h: 1, d: 124, color: "#E7D8B8", tags: ["ground"])
+    m.walls(0, 120, w: 60, d: 124, h: 10, color: "#BAE6FD", name: "Field Wall")
+    var sky = Seeded("survivor-clouds")
+    for k in 0..<14 {
+        let side: Float = k % 2 == 0 ? -29.4 : 29.4
+        m.part("Painted Cloud", at: (side, sky.range(5, 8.5), sky.range(66, 176)), size: (0.2, sky.range(1.2, 2), sky.range(4, 7)), color: "#FFFFFF",
+               material: .matte, solid: false)
+    }
+    m.part("Start Line", at: (0, 0.03, 68), size: (58, 0.05, 0.6), color: "#FFFFFF", material: .neon, solid: false)
+    m.part("Finish Line", at: (0, 0.03, 168), size: (58, 0.05, 1), color: "#DC2626", material: .neon, solid: false)
+    m.part("Finish Zone", at: (0, 0.02, 173), size: (58, 0.04, 9), color: "#22C55E", material: .matte, solid: false, opacity: 0.6)
+    for q in [(-18, 94), (14, 100), (-5, 116), (20, 128), (-21, 140), (5, 150)] as [(Float, Float)] {
+        m.slab("Rock", x: q.0, y: 0, z: q.1, w: 3.2, h: 3, d: 2.2, color: "#A8A29E", material: .matte, tags: ["cover"])
+        m.part("Rock Top", at: (q.0, 3.1, q.1), size: (3, 0.9, 2), color: "#78716C", shape: .sphere, material: .matte, solid: false)
+    }
+    m.part("Doll Body", at: (0, 4.5, 176), size: (5, 9, 5), color: "#F97316", shape: .cone)
+    m.part("Doll Collar", at: (0, 8.6, 176), size: (4.2, 0.8, 4.2), color: "#FDE047", shape: .cylinder)
+    m.part("Doll Head", at: (0, 11.2, 176), size: (4.6, 4.6, 4.6), color: "#FDE68A", shape: .sphere)
+    m.part("Doll Hair", at: (0, 11.9, 176.7), size: (4.9, 3.8, 3.8), color: "#111827", shape: .sphere, solid: false)
+    m.part("Doll Eye", at: (-1, 11.6, 173.75), size: (0.7, 0.7, 0.25), color: "#111827", shape: .sphere, tags: ["dolleye"], solid: false, visible: false)
+    m.part("Doll Eye", at: (1, 11.6, 173.75), size: (0.7, 0.7, 0.25), color: "#111827", shape: .sphere, tags: ["dolleye"], solid: false, visible: false)
+    m.part("Doll Glow", at: (0, 11.2, 176), size: (6, 0.25, 6), color: "#EF4444", shape: .cylinder, material: .neon, solid: false,
+           visible: false)
+    for sx: Float in [-1, 1] {
+        m.part("Doll Pigtail", at: (sx * 2.6, 10.6, 176.8), size: (1.2, 2.4, 1.2), color: "#111827", shape: .sphere, solid: false)
+    }
+    m.part("Doll Tree Trunk", at: (0, 6, 181), size: (1.4, 12, 1.4), color: "#78350F", shape: .cylinder)
+    m.part("Doll Tree", at: (0, 14, 181), size: (10, 7, 6), color: "#65A30D", shape: .sphere, material: .matte, solid: false)
+    m.tree(-10, 180, height: 6, leaves: "#4D7C0F")
+    m.tree(10, 180, height: 6, leaves: "#4D7C0F")
+    m.slab("Field Gallery", x: 35, y: 10, z: 120, w: 8, h: 0.6, d: 50, color: "#334155")
+    m.slab("Field Gallery Rail", x: 31.4, y: 10.6, z: 120, w: 0.3, h: 1, d: 50, color: "#94A3B8")
+    for q in [(-26, 172), (26, 172)] as [(Float, Float)] {
+        m.part("Referee", at: (q.0, 1, q.1), size: (1, 2, 1), color: "#1E293B")
+        m.part("Referee Helmet", at: (q.0, 2.4, q.1), size: (1, 0.8, 1), color: "#FACC15", shape: .sphere)
+    }
+
+    // Game 2 — tug of war over a pit. The floors drop out from under the losers.
+    m.slab("Tug Pit", x: 200, y: -1, z: 0, w: 70, h: 1, d: 36, color: "#1F2937", tags: ["ground"])
+    m.walls(200, 0, w: 70, d: 36, h: 22, color: "#475569", name: "Tug Wall")
+    for side: Float in [-1, 1] {
+        let cx = 200 + side * 15
+        for q in [(cx - 7.4, -5.4), (cx + 7.4, -5.4), (cx - 7.4, 5.4), (cx + 7.4, 5.4)] as [(Float, Float)] {
+            m.pillar("Tug Leg", x: q.0, z: q.1, height: 9.4, radius: 0.45, color: "#334155", material: .metal)
+        }
+        m.slab(side < 0 ? "Tug Left Floor" : "Tug Right Floor", x: cx, y: 9.4, z: 0, w: 16, h: 0.6, d: 12,
+               color: side < 0 ? "#DC2626" : "#2563EB", tags: ["tugfloor"])
+        m.part(side < 0 ? "Tug Left Sign" : "Tug Right Sign", at: (cx + side * 7.6, 14, 0), size: (0.3, 3, 8), color: side < 0 ? "#F87171" : "#60A5FA",
+               material: .neon, solid: false)
+    }
+    m.part("Rope", at: (200, 10.9, 0), size: (0.35, 40, 0.35), color: "#D6B98C", shape: .cylinder, material: .matte, solid: false,
+           rotation: (0, 0, 90))
+    m.part("Rope Flag", at: (200, 10.2, 0), size: (0.4, 1.2, 0.8), color: "#FACC15", material: .neon, solid: false)
+    m.part("Tug Center Line", at: (200, 0.02, 0), size: (0.5, 0.05, 30), color: "#FACC15", material: .neon, solid: false)
+    m.slab("Tug Gallery", x: 200, y: 17, z: -15, w: 30, h: 0.6, d: 5, color: "#1E293B")
+    m.slab("Tug Gallery Rail", x: 200, y: 17.6, z: -12.6, w: 30, h: 1, d: 0.3, color: "#94A3B8")
+
+    // Game 3 — the huddle hall: a carousel in the middle, ten rooms round the edge.
+    m.ground(64, 64, color: "#FBCFE8", name: "Huddle Floor", x: -200, z: 0, material: .plastic)
+    m.walls(-200, 0, w: 64, d: 64, h: 9, color: "#F9A8D4", name: "Huddle Wall")
+    m.part("Carousel", at: (-200, 0.3, 0), size: (18, 0.6, 18), color: "#FDE68A", shape: .cylinder, tags: ["carousel"])
+    m.part("Carousel Pole", at: (-200, 3.5, 0), size: (1, 6, 1), color: "#F59E0B", shape: .cylinder, material: .metal)
+    m.part("Carousel Canopy", at: (-200, 7.4, 0), size: (19, 2, 19), color: "#EC4899", shape: .cone, solid: false)
+    for (i, q) in ring(8, radius: 7, cx: -200, cz: 0).enumerated() {
+        m.part("Carousel Horse", at: (q.0, 1.5, q.1), size: (0.6, 1, 1.6), color: ["#F87171", "#60A5FA", "#FDE047", "#86EFAC"][i % 4],
+               tags: ["horse"], solid: false)
+        m.part("Carousel Rod", at: (q.0, 4, q.1), size: (0.12, 6, 0.12), color: "#FBBF24", shape: .cylinder, material: .metal, solid: false)
+    }
+    let roomColors = ["#F472B6", "#A78BFA", "#60A5FA", "#34D399", "#FBBF24"]
+    for (i, rx) in ([-24, -12, 0, 12, 24] as [Float]).enumerated() {
+        for (j, side) in ([-1, 1] as [Float]).enumerated() {
+            let n = j * 5 + i + 1
+            let x = -200 + rx, z = side * 27
+            let color = roomColors[i]
+            m.slab("Room \(n) Floor", x: x, y: 0, z: z, w: 7, h: 0.1, d: 6, color: "#FFF1F2", tags: ["room"])
+            m.slab("Room Wall", x: x - 3.6, y: 0, z: z, w: 0.4, h: 4, d: 6, color: color)
+            m.slab("Room Wall", x: x + 3.6, y: 0, z: z, w: 0.4, h: 4, d: 6, color: color)
+            let front = z - side * 3
+            m.slab("Room Wall", x: x - 2.35, y: 0, z: front, w: 2.7, h: 4, d: 0.4, color: color)
+            m.slab("Room Wall", x: x + 2.35, y: 0, z: front, w: 2.7, h: 4, d: 0.4, color: color)
+            m.slab("Room Wall", x: x, y: 2.8, z: front, w: 2, h: 1.2, d: 0.4, color: color)
+            m.slab("Room Wall", x: x, y: 0, z: z + side * 3, w: 7.6, h: 4, d: 0.4, color: color)
+            m.part("Room \(n) Door", at: (x, 1.4, front), size: (2, 2.8, 0.4), color: "#475569", tags: ["door"], solid: false, visible: false)
+            m.part("Room \(n) Lamp", at: (x, 4.4, front), size: (2.2, 0.6, 0.3), color: "#FFFFFF", material: .neon, tags: ["lamp"], solid: false)
+        }
+    }
+    m.slab("Huddle Gallery", x: -164, y: 9, z: 0, w: 6, h: 0.6, d: 40, color: "#831843")
+
+    // Game 4 — the glass bridge, high over a pit.
+    m.slab("Bridge Pit", x: 0, y: -1, z: -192, w: 40, h: 1, d: 90, color: "#0F172A", tags: ["ground"])
+    m.slab("Bridge Start", x: 0, y: 20, z: -160, w: 12, h: 1, d: 8, color: "#6B7280")
+    m.slab("Bridge Start Base", x: 0, y: 0, z: -160, w: 6, h: 20, d: 6, color: "#374151")
+    for i in 0..<12 {
+        let z = -166 - Float(i) * 4.5
+        m.part("Glass \(i + 1) L", at: (-2, 20.9, z), size: (3, 0.2, 3), color: "#BAE6FD", material: .glass, tags: ["glass"],
+               opacity: 0.6)
+        m.part("Glass \(i + 1) R", at: (2, 20.9, z), size: (3, 0.2, 3), color: "#BAE6FD", material: .glass, tags: ["glass"],
+               opacity: 0.6)
+        m.part("Row \(i + 1) Number", at: (-5.2, 21.8, z), size: (0.2, 0.8, 0.8), color: "#FDE047", material: .neon, solid: false)
+    }
+    for x: Float in [-3.7, -0.3, 0.3, 3.7] {
+        m.part("Bridge Beam", at: (x, 20.6, -191), size: (0.15, 0.3, 54), color: "#475569", material: .metal, solid: false)
+    }
+    m.slab("Bridge End", x: 0, y: 20, z: -223, w: 12, h: 1, d: 8, color: "#6B7280")
+    m.slab("Bridge End Base", x: 0, y: 0, z: -223, w: 6, h: 20, d: 6, color: "#374151")
+    m.pad("Bridge Goal", x: 0, z: -224, y: 21, size: 5, color: "#22C55E", tags: ["bridgegoal"])
+    m.slab("Bridge Gallery", x: 14, y: 24, z: -192, w: 6, h: 0.6, d: 40, color: "#1E293B")
+    m.slab("Bridge Gallery Rail", x: 11.2, y: 24.6, z: -192, w: 0.3, h: 1, d: 40, color: "#94A3B8")
+    for z: Float in [-170, -192, -214] {
+        m.part("Bridge Lamp", at: (-9, 28, z), size: (1.2, 1.2, 1.2), color: "#FEF3C7", shape: .sphere, material: .neon, solid: false)
+        m.part("Bridge Lamp Post", at: (-9, 14, z), size: (0.4, 28, 0.4), color: "#334155", shape: .cylinder, material: .metal)
+    }
+
+    // Game 5 — the last tiles.
+    m.slab("Final Pit", x: 200, y: -1, z: -200, w: 44, h: 1, d: 44, color: "#450A0A", tags: ["ground"])
+    for r in 0..<7 {
+        for c in 0..<7 {
+            let x = 200 + (Float(c) - 3) * 3.8, z = -200 + (Float(r) - 3) * 3.8
+            m.slab("Tile \(r * 7 + c + 1)", x: x, y: 9.7, z: z, w: 3.6, h: 0.6, d: 3.6, color: (r + c) % 2 == 0 ? "#F8FAFC" : "#E2E8F0", tags: ["tile"])
+        }
+    }
+    for q in ring(8, radius: 19, cx: 200, cz: -200, phase: 0.39) {
+        m.pillar("Final Pillar", x: q.0, z: q.1, height: 16, radius: 0.7, color: "#7F1D1D")
+        m.part("Final Torch", at: (q.0, 16.8, q.1), size: (1.4, 1.4, 1.4), color: "#F97316", shape: .sphere, material: .neon, solid: false)
+    }
+    m.slab("Final Gallery", x: 200, y: 16, z: -176, w: 30, h: 0.6, d: 5, color: "#1C1917")
 }
 
 // MARK: 79 Shark Attack Bay

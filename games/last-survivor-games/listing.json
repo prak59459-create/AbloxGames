@@ -1,15 +1,23 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 45,
-  "cover" : "games\/last-survivor-games\/cover-bfb10e51.png",
+  "blockCount" : 421,
+  "cover" : "games\/last-survivor-games\/cover-1060dd5c.png",
   "id" : "last-survivor-games",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/last-survivor-games\/data.absc",
+    "games\/last-survivor-games\/bridge.absc",
+    "games\/last-survivor-games\/common.absc",
+    "games\/last-survivor-games\/field.absc",
+    "games\/last-survivor-games\/final.absc",
+    "games\/last-survivor-games\/huddle.absc",
+    "games\/last-survivor-games\/show.absc",
+    "games\/last-survivor-games\/tug.absc",
     "games\/last-survivor-games\/main.absc"
   ],
-  "summary" : "「だるまさんがころんだ」とガラスの橋。動いたら失格、まちがえたら落ちる。最後まで生き残れ！",
+  "summary" : "24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！",
   "tags" : [
     "survival",
     "minigames",

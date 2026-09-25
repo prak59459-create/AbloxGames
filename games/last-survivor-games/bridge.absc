@@ -1,0 +1,250 @@
+-- bridge.absc — 第4ゲーム「ガラスの橋」
+--
+-- 12列のガラス。各列の左右どちらかは乗ると割れる。NPCは1人ずつ前に出て、
+-- わからない列では迷ってから運まかせで飛ぶ。割れた列・だれかが乗れた列は「わかった列」になり、
+-- うしろの人はそこを安全にわたれる。人はいつ進んでもいい（先に行くほど運だのみ）。
+-- 🍀 お守りを使うと、まだだれも知らない列の安全な側がこっそりわかる。
+-- ガラスはふつうの（乗れる）ブロック。だれがどのガラスに乗ったかは位置で調べる。
+
+let bad = {}              -- 列 → "L" / "R"（割れる方）
+let known = {}            -- 列 → true（安全な方がもうわかった）
+let bridge_on = false
+let bridge_queue = []
+let step_clock = 0
+let bridge_run = 0
+let BRIDGE_Z0 = -166
+let BRIDGE_GAP = 4.5
+
+func row_z(r)
+  return BRIDGE_Z0 - (r - 1) * BRIDGE_GAP
+end
+
+func pane(r, side)
+  return block("Glass " + r + " " + side)
+end
+
+func safe_side(r)
+  if bad[str(r)] == "L" then return "R" end
+  return "L"
+end
+
+func side_name(side)
+  if side == "L" then return "左" end
+  return "右"
+end
+
+func bridge_start()
+  bridge_run = bridge_run + 1
+  bridge_on = false
+  bad = {}
+  known = {}
+  for r in 1 to BRIDGE_ROWS do
+    if random() < 0.5 then bad[str(r)] = "L" else bad[str(r)] = "R" end
+    for side in ["L", "R"] do
+      let g = pane(r, side)
+      g.visible = true
+      g.solid = true
+    end
+  end
+  bridge_queue = shuffle(alive_npcs())
+  let i = 0
+  for c in alive_cast() do
+    i = i + 1
+    c.done = false
+    c.falling = false
+    c.row = 0
+    c.hesitate = random(1, 3)
+    c.teleport({x: -4.5 + random() * 9, y: 22, z: -158 - random() * 4})
+    if c.is_npc then c.stop() end
+  end
+  for p in alive_humans() do
+    p.frozen = true
+    charm_button(p)
+  end
+  let run = bridge_run
+  announce("🌉 前の人をよく見ろ。わかった列は安全だ", 3)
+  after(3, func()
+    if run != bridge_run or not playing("bridge") then return end
+    for p in alive_humans() do p.frozen = false end
+    bridge_on = true
+    game_ends = time() + GAMES[4].time
+    announce("▶ わたれ！", 1.5)
+  end)
+end
+
+func charm_button(p)
+  if (p.charms or 0) > 0 then
+    p.ui_button("charm_use", "🍀 お守り ×" + p.charms, {at: "bottom_right", dx: -40, dy: -150, w: 170, h: 70, size: 18, bg: "#15803D", radius: 18})
+  else
+    p.ui_remove("charm_use")
+  end
+end
+
+func use_charm(p)
+  if not playing("bridge") or p.out or (p.charms or 0) <= 0 then return end
+  for r in 1 to BRIDGE_ROWS do
+    if known[str(r)] != true then
+      p.charms = p.charms - 1
+      p.message("🍀 " + r + " 列目は 「" + side_name(safe_side(r)) + "」 が安全！", 4)
+      p.sound("collect")
+      charm_button(p)
+      return
+    end
+  end
+  p.message("🍀 もう全部の列がわかっている", 1.5)
+end
+
+-- MARK: 割れる
+
+func break_glass(r, side, who)
+  let g = pane(r, side)
+  if not g.visible then return end
+  g.visible = false
+  g.solid = false
+  known[str(r)] = true
+  sound("hurt")
+  shake(0.15, 0.3)
+  let name = "だれか"
+  if who != nil then name = label_of(who) end
+  announce("💥 パリーン！ " + name + " — " + r + " 列目は「" + side_name(safe_side(r)) + "」が安全", 2.5)
+end
+
+func stepped(c, r, side)
+  if bad[str(r)] == side then
+    c.falling = true
+    break_glass(r, side, c)
+  else
+    known[str(r)] = true
+  end
+end
+
+-- MARK: NPC
+
+-- その列に、ほかのNPCがいるか
+func row_taken(r, me)
+  for n in bridge_queue do
+    if kit_here(n) and not n.out and not n.falling and n.id != me.id and n.row == r then return true end
+  end
+  return false
+end
+
+func npc_step()
+  let moved_unknown = false
+  for n in bridge_queue do
+    if kit_here(n) and not n.out and not n.done and not n.falling then
+      let next = n.row + 1
+      if next > BRIDGE_ROWS then
+        n.row = next
+        n.done = true
+        n.teleport({x: -3 + random() * 6, y: 22, z: -222 - random() * 2})
+        npc_line(n, "win")
+      elif not row_taken(next, n) then
+        if known[str(next)] == true then
+          npc_hop(n, next, safe_side(next))
+        elif not moved_unknown then
+          moved_unknown = true
+          if n.hesitate > 0 then
+            n.hesitate = n.hesitate - 1
+            if random() < 0.5 then npc_line(n, "bridge") end
+          else
+            n.hesitate = random(1, 3)
+            let side = "L"
+            if random() < 0.5 then side = "R" end
+            npc_hop(n, next, side)
+          end
+        end
+      end
+    end
+  end
+end
+
+func npc_hop(n, r, side)
+  n.row = r
+  let x = -2
+  if side == "R" then x = 2 end
+  n.teleport({x: x, y: 21.6, z: row_z(r)})
+  n.jump_now()
+  stepped(n, r, side)
+  if n.falling then npc_fall_later(n) end
+end
+
+func npc_fall_later(n)
+  after(2.5, func()
+    if kit_here(n) and not n.out then eliminate(n, "ガラスが割れた") end
+  end)
+end
+
+-- MARK: ゴールと時間切れ
+
+func bridge_goal(c)
+  c.done = true
+  if not c.is_npc then
+    c.message("✅ わたりきった！", 2)
+    c.sound("goal")
+    kit_give(c, 120)
+    kit_quest_progress(c, "bridge", 1)
+    announce("🌉 " + label_of(c) + " がガラスの橋をわたりきった！", 2.5)
+  end
+  if len(filter(alive_cast(), func(x) return not x.done end)) == 0 then bridge_end() end
+end
+
+func bridge_end()
+  if not playing("bridge") or not bridge_on then return end
+  bridge_on = false
+  let run = bridge_run
+  let left = filter(alive_cast(), func(x) return not x.done end)
+  if len(left) > 0 then
+    announce("⏱ 時間切れ！ ガラスが全部割れる…！", 3)
+    for r in 1 to BRIDGE_ROWS do
+      for side in ["L", "R"] do
+        let g = pane(r, side)
+        g.visible = false
+        g.solid = false
+      end
+    end
+    shake(0.3, 0.8)
+  end
+  for p in alive_humans() do p.ui_remove("charm_use") end
+  after(2.5, func()
+    if run != bridge_run then return end
+    for c in alive_cast() do
+      if not c.done then eliminate(c, "時間切れ") end
+    end
+    game_over()
+  end)
+end
+
+-- 人が乗っているガラス（ガラスはふつうのブロックなので、位置で調べる）
+func pane_under(c)
+  if c.y < 20.8 or c.y > 22.8 then return nil end
+  let r = round((BRIDGE_Z0 - c.z) / BRIDGE_GAP) + 1
+  if r < 1 or r > BRIDGE_ROWS or abs(c.z - row_z(r)) > 1.55 or abs(abs(c.x) - 2) > 1.55 then return nil end
+  let side = "R"
+  if c.x < 0 then side = "L" end
+  return {row: r, side: side}
+end
+
+on tick(dt)
+  if not playing("bridge") then return end
+  for c in alive_cast() do
+    if c.y < 14 then
+      eliminate(c, "落ちた")
+    elif bridge_on and not c.done and c.z < -219.5 and c.y > 19 then
+      bridge_goal(c)
+    elif not c.is_npc then
+      let under = pane_under(c)
+      if under != nil then stepped(c, under.row, under.side) end
+    end
+  end
+  if not bridge_on then return end
+  step_clock = step_clock + dt
+  if step_clock >= 1.2 then
+    step_clock = 0
+    npc_step()
+  end
+  if time() >= game_ends then bridge_end() end
+end
+
+on button(p, id)
+  if id == "charm_use" then use_charm(p) end
+end

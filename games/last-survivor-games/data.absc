@@ -1,0 +1,58 @@
+-- data.absc — 5つのゲーム・参加者・賞金・NPCの性格
+
+-- arena: そのゲームの場所（"<arena> Gallery" が観客席）/ time: 制限時間（0 = なし）
+let GAMES = [
+  {id: "field", name: "だるまさんがころんだ", emoji: "🎎", arena: "Field", time: 75,
+   rule: "人形が「ころんだ！」でふり向いたら止まれ。見られている間に動いたら失格。岩や人のかげなら見えない"},
+  {id: "tug", name: "つなひき", emoji: "🪢", arena: "Tug", time: 45,
+   rule: "メーターが緑のときに「引く！」でパワー3倍。負けたチームは床ごと落ちる"},
+  {id: "huddle", name: "なかま集め", emoji: "🚪", arena: "Huddle", time: 0,
+   rule: "よばれた人数ぴったりで部屋に入れ。ランプが黄色なら、あと1人足りない部屋"},
+  {id: "bridge", name: "ガラスの橋", emoji: "🌉", arena: "Bridge", time: 110,
+   rule: "左右どちらかは割れるガラス。前の人をよく見て、安全な道をおぼえろ"},
+  {id: "final", name: "最後のタイル", emoji: "🟥", arena: "Final", time: 0,
+   rule: "黄色→オレンジに光ったタイルは落ちる。最後の1人になるまで立っていろ"}
+]
+
+let CAST_SIZE = 24          -- 1回のショーの参加者。足りない分はNPC
+let PRIZE_PER_OUT = 100     -- 1人脱落するごとに賞金がふえる
+let LOBBY_WAIT = 20         -- 寮で待つ秒数
+let BREAK_TIME = 10         -- ゲームとゲームの間
+
+let JERSEY = "#2563EB"
+let SKINS = ["#FDE68A", "#FCD34D", "#F5D0A9", "#D6A77A", "#A0785A", "#FBCFE8"]
+
+-- 人形のかけ声。1文字ずつ画面に出る
+let CHANT = ["だ", "る", "ま", "さ", "ん", "が", "こ", "ろ", "ん", "だ"]
+-- かけ声の速さ（全部言い終わるまでの秒数）
+let CHANT_SPEEDS = [1.6, 2.2, 2.8, 3.4, 4.2]
+
+-- 岩にぶつからないNPCの通り道（x）
+let FIELD_LANES = [-26.5, -24.5, -15, -13, -11, -9, -1.5, 0, 1.5, 8.5, 10.5, 17, 23, 25, 27]
+let FIELD_START_Z = 64
+let FIELD_FINISH_Z = 168
+
+-- NPCの性格。brave: 前に出る速さ / calm: ちゃんと止まれる / luck: ガラスの橋でのカン / pull: つなひきの力
+let NPC_TYPES = [
+  {tag: "慎重", brave: 0.35, calm: 0.96, pull: 1.8},
+  {tag: "ふつう", brave: 0.55, calm: 0.9, pull: 2.2},
+  {tag: "せっかち", brave: 0.85, calm: 0.8, pull: 2.4},
+  {tag: "力持ち", brave: 0.5, calm: 0.88, pull: 3.2}
+]
+
+-- NPCのひとこと
+let NPC_LINES = {
+  win: ["やった…！", "生きのこった", "ふう…", "次もいける"],
+  scared: ["うそだろ…", "こわい…", "たのむ…", "足がふるえる"],
+  bridge: ["右…いや左…", "神さま…", "いくぞ！", "信じるしか…"]
+}
+
+-- つなひき: メーターがこの値より上で押すと「ナイス！」
+let TUG_SWEET = 72
+let TUG_GOAL = 100
+
+-- ガラスの橋の列の数
+let BRIDGE_ROWS = 12
+
+-- 最後のタイル
+let TILE_COUNT = 49

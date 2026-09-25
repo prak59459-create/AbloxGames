@@ -1,0 +1,242 @@
+-- tug.absc — 第2ゲーム「つなひき」
+--
+-- 赤と青の2チーム。人は「引く！」ボタンを連打。メーターが緑（TUG_SWEET より上）のときに
+-- 押すと力が3倍。NPCは性格ごとの力で引き、ときどき「せーの！」で力が2倍になる。
+-- ロープの印がどちらかの端（TUG_GOAL）まで来るか、時間切れで印がある側の負け。負けたチームの床が消える。
+
+let rope = 0              -- -TUG_GOAL（赤の勝ち）〜 TUG_GOAL（青の勝ち）
+let tug_on = false
+let tug_red = []
+let tug_blue = []
+let pull_red = 0          -- この tick のあいだに引いた力
+let pull_blue = 0
+let surge_side = ""
+let surge_until = 0
+let next_surge = 0
+let tug_ui_clock = 0
+let tug_run = 0
+
+func tug_start()
+  tug_run = tug_run + 1
+  rope = 0
+  tug_on = false
+  pull_red = 0
+  pull_blue = 0
+  surge_side = ""
+  tug_red = []
+  tug_blue = []
+  restore_tug_floors()
+  let list = shuffle(alive_cast())
+  -- 人を先に交互に分けてから、NPCで人数をそろえる
+  for c in list do
+    if not c.is_npc then tug_join(c) end
+  end
+  for c in list do
+    if c.is_npc then tug_join(c) end
+  end
+  line_up(tug_red, -1)
+  line_up(tug_blue, 1)
+  move_rope()
+  for p in alive_humans() do
+    p.frozen = true
+    let mine = "🟥 赤"
+    if p.tug_side == "blue" then mine = "🟦 青" end
+    p.message("あなたは " + mine + " チーム（" + len(tug_red) + " 対 " + len(tug_blue) + "）", 3)
+    p.ui_button("tug_pull", "💪 引く！", {at: "bottom_right", dx: -40, dy: -140, w: 190, h: 110, size: 26, bg: "#DC2626", radius: 24})
+    p.ui_bar("tug_meter", 0, 100, {at: "bottom_right", dx: -40, dy: -270, w: 190, h: 22, color: "#94A3B8", bg: "#00000099"})
+    p.ui_text("tug_meter_t", "緑で押すと3倍！", {at: "bottom_right", dx: -60, dy: -300, size: 13, bold: true, color: "#86EFAC"})
+    if (p.gloves or 0) > 0 then
+      p.gloves = p.gloves - 1
+      p.glove_on = true
+      p.message("🧤 軍手パワー！ このつなひきは力が1.5倍", 2.5)
+    else
+      p.glove_on = false
+    end
+  end
+  let run = tug_run
+  announce("🪢 3…", 1)
+  after(1, func() if run == tug_run then announce("🪢 2…", 1) end end)
+  after(2, func() if run == tug_run then announce("🪢 1…", 1) end end)
+  after(3, func()
+    if run != tug_run or not playing("tug") then return end
+    announce("💪 引けーっ！", 1.5)
+    sound("goal")
+    tug_on = true
+    game_ends = time() + GAMES[2].time
+    next_surge = time() + 3 + random() * 3
+  end)
+end
+
+func tug_join(c)
+  if len(tug_red) <= len(tug_blue) then
+    append(tug_red, c)
+    c.tug_side = "red"
+  else
+    append(tug_blue, c)
+    c.tug_side = "blue"
+  end
+end
+
+-- side: -1 = 赤（左）/ 1 = 青（右）。ロープに近い方から2列に並ぶ
+func line_up(team, side)
+  let i = 0
+  for c in team do
+    i = i + 1
+    let row = floor((i - 1) / 2)
+    let z = -1.1
+    if i % 2 == 0 then z = 1.1 end
+    c.teleport({x: 200 + side * (8.5 + row * 1.3), y: 11, z: z})
+    if c.is_npc then c.stop() end
+  end
+end
+
+func restore_tug_floors()
+  for f in blocks("tugfloor") do
+    f.visible = true
+    f.solid = true
+  end
+end
+
+func tug_meter()
+  return (sin(time() * 300) + 1) * 50
+end
+
+func move_rope()
+  let shift = rope / TUG_GOAL * 6
+  block("Rope").x = 200 + shift
+  block("Rope Flag").x = 200 + shift
+end
+
+-- MARK: 引く
+
+func tug_pull(p)
+  if not tug_on or p.out or not playing("tug") then return end
+  if p.last_pull != nil and time() - p.last_pull < 0.09 then return end
+  p.last_pull = time()
+  let power = 1
+  if tug_meter() >= TUG_SWEET then
+    power = 3
+    kit_quest_progress(p, "nice", 1)
+    if quiet_ready(p, "nice_msg", 0.8) then p.message("🔥 ナイス！", 0.4) end
+  end
+  if p.glove_on then power = power * 1.5 end
+  if p.tug_side == "red" then pull_red = pull_red + power else pull_blue = pull_blue + power end
+end
+
+func npc_pulls(dt)
+  for n in alive_npcs() do
+    let f = n.pull * dt * (0.6 + random() * 0.8)
+    if surge_side == n.tug_side and time() < surge_until then f = f * 2 end
+    if n.tug_side == "red" then pull_red = pull_red + f else pull_blue = pull_blue + f end
+  end
+end
+
+func tug_surge()
+  if random() < 0.5 then surge_side = "red" else surge_side = "blue" end
+  surge_until = time() + 1.6
+  next_surge = time() + 4 + random() * 4
+  let team = tug_red
+  let name = "🟥 赤"
+  if surge_side == "blue" then
+    team = tug_blue
+    name = "🟦 青"
+  end
+  for n in team do
+    if kit_here(n) and n.is_npc and not n.out and random() < 0.4 then n.say("せーの！") end
+  end
+  announce(name + "チーム: 「せーの！」", 1.2)
+end
+
+-- MARK: 決着
+
+func tug_finish(loser)
+  if not tug_on then return end
+  tug_on = false
+  let run = tug_run
+  let lost = tug_red
+  let won = tug_blue
+  let floor_name = "Tug Left Floor"
+  let loser_name = "🟥 赤"
+  let winner_name = "🟦 青"
+  if loser == "blue" then
+    lost = tug_blue
+    won = tug_red
+    floor_name = "Tug Right Floor"
+    loser_name = "🟦 青"
+    winner_name = "🟥 赤"
+  end
+  for p in alive_humans() do
+    p.ui_remove("tug_pull")
+    p.ui_remove("tug_meter")
+    p.ui_remove("tug_meter_t")
+    p.frozen = false
+  end
+  announce("🏁 " + winner_name + "チームの勝ち！ " + loser_name + "チームの床が…！", 3)
+  shake(0.3, 0.6)
+  let f = block(floor_name)
+  f.solid = false
+  f.visible = false
+  for c in lost do
+    if kit_here(c) and c.is_npc and not c.out then npc_line(c, "scared") end
+  end
+  for c in won do
+    if kit_here(c) and not c.out and not c.is_npc then
+      c.message("🏆 勝った！ 生きのこった", 2)
+      kit_give(c, 90)
+      kit_quest_progress(c, "tug", 1)
+    end
+  end
+  after(3.5, func()
+    if run != tug_run then return end
+    for c in lost do
+      if kit_here(c) and not c.out then eliminate(c, "落ちた") end
+    end
+    restore_tug_floors()
+    rope = 0
+    move_rope()
+    game_over()
+  end)
+end
+
+on tick(dt)
+  if not playing("tug") then return end
+  for c in alive_cast() do
+    if c.y < 6 then eliminate(c, "落ちた") end
+  end
+  if not tug_on then return end
+  npc_pulls(dt)
+  if time() >= next_surge then tug_surge() end
+  rope = clamp(rope + (pull_blue - pull_red) * 0.45, -TUG_GOAL, TUG_GOAL)
+  pull_red = 0
+  pull_blue = 0
+  tug_ui_clock = tug_ui_clock + dt
+  if tug_ui_clock >= 0.1 then
+    tug_ui_clock = 0
+    move_rope()
+    let m = tug_meter()
+    let color = "#94A3B8"
+    if m >= TUG_SWEET then color = "#22C55E" end
+    for p in alive_humans() do
+      p.ui_set("tug_meter", {value: m, color: color})
+    end
+  end
+  if rope <= -TUG_GOAL then
+    tug_finish("blue")
+  elif rope >= TUG_GOAL then
+    tug_finish("red")
+  elif time() >= game_ends then
+    if rope < 0 then
+      tug_finish("blue")
+    elif rope > 0 then
+      tug_finish("red")
+    elif random() < 0.5 then
+      tug_finish("red")
+    else
+      tug_finish("blue")
+    end
+  end
+end
+
+on button(p, id)
+  if id == "tug_pull" then tug_pull(p) end
+end

@@ -1,0 +1,205 @@
+-- final.absc — 第5ゲーム「最後のタイル」
+--
+-- 7×7のタイルの上に全員が立つ。数秒ごとに何枚かが 黄 → オレンジ に光って落ちる。
+-- 落ちる枚数はだんだんふえ、間かくは短くなる。最後の1人になるまで続く。
+-- 最後の何人かが同時に落ちたときは、いちばん長く粘った（高いところにいた）人の勝ち。
+
+let tile_state = []       -- タイルごとに "ok" / "warn" / "gone"
+let final_on = false
+let final_wave = 0
+let final_run = 0
+let wave_at = 0
+let TILE_COLORS = ["#F8FAFC", "#E2E8F0"]
+
+func tile(k)
+  return block("Tile " + k)
+end
+
+func tile_of(c)
+  let col = round((c.x - 200) / 3.8) + 3
+  let row = round((c.z + 200) / 3.8) + 3
+  if col < 0 or col > 6 or row < 0 or row > 6 then return 0 end
+  return row * 7 + col + 1
+end
+
+func tile_color(k)
+  let r = floor((k - 1) / 7)
+  let c = (k - 1) % 7
+  return TILE_COLORS[(r + c) % 2 + 1]
+end
+
+func ok_tiles()
+  let list = []
+  for k in 1 to TILE_COUNT do
+    if tile_state[k] == "ok" then append(list, k) end
+  end
+  return list
+end
+
+-- となりの（ななめも入れた）まだ安全なタイル
+func safe_neighbors(k)
+  let list = []
+  let r = floor((k - 1) / 7)
+  let c = (k - 1) % 7
+  for dr in [-1, 0, 1] do
+    for dc in [-1, 0, 1] do
+      let rr = r + dr
+      let cc = c + dc
+      if (dr != 0 or dc != 0) and rr >= 0 and rr <= 6 and cc >= 0 and cc <= 6 then
+        let j = rr * 7 + cc + 1
+        if tile_state[j] == "ok" then append(list, j) end
+      end
+    end
+  end
+  return list
+end
+
+func final_start()
+  final_run = final_run + 1
+  final_on = false
+  final_wave = 0
+  tile_state = []
+  for k in 1 to TILE_COUNT do
+    append(tile_state, "ok")
+    let t = tile(k)
+    t.visible = true
+    t.solid = true
+    t.color = tile_color(k)
+  end
+  let spots = shuffle(ok_tiles())
+  let i = 0
+  for c in alive_cast() do
+    i = i + 1
+    let t = tile(spots[(i - 1) % len(spots) + 1])
+    c.teleport({x: t.x, y: 11.6, z: t.z})
+    if c.is_npc then
+      c.stop()
+      c.speed = 0.7
+    else
+      c.frozen = true
+      kit_quest_progress(c, "final", 1)
+    end
+  end
+  let run = final_run
+  announce("🟥 最後のタイル — 光ったら、となりへ逃げろ", 3)
+  after(3, func()
+    if run != final_run or not playing("final") then return end
+    for p in alive_humans() do p.frozen = false end
+    final_on = true
+    wave_at = time() + 1.5
+    announce("▶ スタート！", 1.2)
+  end)
+end
+
+func final_wave_step()
+  final_wave = final_wave + 1
+  let ok = shuffle(ok_tiles())
+  if len(ok) == 0 then
+    -- タイルがもうない: いちばん高いところにいる人の勝ち
+    wave_at = time() + 999
+    let run = final_run
+    after(2, func() if run == final_run then last_one_by_height() end end)
+    return
+  end
+  let count = min(len(ok), 2 + floor(final_wave / 2))
+  let warn = max(0.9, 1.9 - final_wave * 0.08)
+  let picked = slice(ok, 1, count)
+  for k in picked do warn_tile(k, warn) end
+  wave_at = time() + warn + max(1.2, 2.6 - final_wave * 0.1)
+  npc_dodge()
+end
+
+func warn_tile(k, warn)
+  tile_state[k] = "warn"
+  let t = tile(k)
+  t.color = "#FACC15"
+  let run = final_run
+  after(warn / 2, func() if run == final_run and tile_state[k] == "warn" then t.color = "#F97316" end end)
+  after(warn, func()
+    if run != final_run or tile_state[k] != "warn" then return end
+    tile_state[k] = "gone"
+    t.visible = false
+    t.solid = false
+  end)
+end
+
+-- NPC: 足元が光ったら、性格しだいでとなりへ逃げる。ときどき意味もなく動く
+func npc_dodge()
+  for n in alive_npcs() do
+    let k = tile_of(n)
+    if k > 0 then
+      let near = safe_neighbors(k)
+      if tile_state[k] == "warn" then
+        if len(near) > 0 and random() < n.calm then
+          npc_walk_tile(n, near[random(1, len(near))])
+        else
+          npc_line(n, "scared")
+        end
+      elif len(near) > 0 and random() < 0.2 then
+        npc_walk_tile(n, near[random(1, len(near))])
+      end
+    end
+  end
+end
+
+func npc_walk_tile(n, k)
+  let t = tile(k)
+  n.move_to({x: t.x + (random() - 0.5) * 1.6, y: 10.3, z: t.z + (random() - 0.5) * 1.6})
+end
+
+func last_one_by_height()
+  let alive = alive_cast()
+  if len(alive) == 0 then return end
+  let best = alive[1]
+  for c in alive do
+    if c.y > best.y then best = c end
+  end
+  for c in alive do
+    if c.id != best.id then eliminate(c, "落ちた") end
+  end
+  final_end()
+end
+
+-- タイルの上（か、その下の穴）にいるか。ほかの場所にいる人は場外
+func in_final_area(c)
+  return abs(c.x - 200) < 18 and abs(c.z + 200) < 18
+end
+
+func final_end()
+  if not playing("final") then return end
+  final_on = false
+  final_run = final_run + 1
+  game_over()
+end
+
+on tick(dt)
+  if not playing("final") then return end
+  if final_on then
+    for c in alive_humans() do
+      if not in_final_area(c) then eliminate(c, "場外") end
+    end
+  end
+  let alive = alive_cast()
+  let fallen = filter(alive, func(c) return c.y < 6 end)
+  if len(fallen) > 0 then
+    if len(fallen) == len(alive) then
+      -- 全員いっしょに落ちた: いちばん高いところにいた人だけ残す
+      let best = fallen[1]
+      for c in fallen do
+        if c.y > best.y then best = c end
+      end
+      for c in fallen do
+        if c.id != best.id then eliminate(c, "落ちた") end
+      end
+      announce("😱 同時に落ちた…！ 最後まで粘ったのは " + label_of(best) + "！", 3)
+      final_end()
+      return
+    end
+    for c in fallen do eliminate(c, "落ちた") end
+  end
+  if len(alive_cast()) <= 1 then
+    final_end()
+    return
+  end
+  if final_on and time() >= wave_at then final_wave_step() end
+end

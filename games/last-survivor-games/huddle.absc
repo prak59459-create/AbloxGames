@@ -1,0 +1,261 @@
+-- huddle.absc — 第3ゲーム「なかま集め」
+--
+-- メリーゴーランドの上で待っていると、人数がよばれる。12秒以内に、その人数ぴったりで
+-- まわりの10の部屋のどれかに入る。ドアがしまったとき、部屋の外にいた人と、人数がちがう部屋の人は失格。
+-- 部屋のランプ: 緑 = ぴったり / 黄 = あと1人 / 青 = まだ足りない / 赤 = 多すぎ
+
+let huddle_round = 0
+let huddle_rounds = 1
+let huddle_n = 0
+let huddle_state = "off"   -- off / spin / call / closed
+let huddle_until = 0
+let huddle_run = 0
+let lamp_clock = 0
+let bob_clock = 0
+let bob_up = true
+let ROOMS = 10
+let CALL_TIME = 12
+
+func huddle_start()
+  huddle_run = huddle_run + 1
+  huddle_round = 0
+  huddle_rounds = 1
+  if len(alive_cast()) > 10 then huddle_rounds = 2 end
+  open_doors()
+  let run = huddle_run
+  after(1, func() if run == huddle_run then huddle_spin() end end)
+end
+
+func room_floor(k)
+  return block("Room " + k + " Floor")
+end
+
+func open_doors()
+  for k in 1 to ROOMS do
+    let d = block("Room " + k + " Door")
+    d.visible = false
+    d.solid = false
+    block("Room " + k + " Lamp").color = "#FFFFFF"
+  end
+end
+
+func close_doors()
+  for k in 1 to ROOMS do
+    let d = block("Room " + k + " Door")
+    d.visible = true
+    d.solid = true
+  end
+end
+
+func carousel_spot()
+  let a = random() * 360
+  let r = 2 + random() * 6
+  return {x: -200 + cos(a) * r, y: 1.6, z: sin(a) * r}
+end
+
+func huddle_spin()
+  if not playing("huddle") then return end
+  huddle_round = huddle_round + 1
+  if huddle_round > huddle_rounds or len(alive_cast()) <= 3 then
+    huddle_state = "off"
+    open_doors()
+    game_over()
+    return
+  end
+  huddle_state = "spin"
+  open_doors()
+  for c in alive_cast() do
+    c.teleport(carousel_spot())
+    c.room_goal = 0
+    if c.is_npc then
+      c.stop()
+      c.speed = 0.4
+    end
+  end
+  announce("🎠 ラウンド " + huddle_round + "/" + huddle_rounds + " — メリーゴーランドの上で待て…", 3)
+  let run = huddle_run
+  let wait = 6 + random() * 4
+  huddle_until = time() + wait
+  after(wait, func() if run == huddle_run then huddle_call() end end)
+end
+
+-- 割り切れない人数をよぶ（割り切れると全員助かってしまうので）
+func pick_number(count)
+  let options = []
+  let top = min(5, count)
+  if top >= 2 then
+    for n in 2 to top do
+      if count % n != 0 then append(options, n) end
+    end
+    if len(options) == 0 then
+      for n in 2 to top do append(options, n) end
+    end
+  end
+  if len(options) == 0 then return 2 end
+  return options[random(1, len(options))]
+end
+
+func huddle_call()
+  if not playing("huddle") then return end
+  let n = pick_number(len(alive_cast()))
+  huddle_n = n
+  huddle_state = "call"
+  huddle_until = time() + CALL_TIME
+  sound("goal")
+  announce("📢 「" + n + " 人！」", 3)
+  ui_text("huddle_call", "📢 " + n + " 人で部屋へ！", {at: "top", dy: 64, size: 30, bold: true, color: "#F472B6"})
+  npc_group(n)
+  let run = huddle_run
+  after(CALL_TIME, func() if run == huddle_run then huddle_close() end end)
+end
+
+-- MARK: NPCのグループ分け
+
+func npc_group(n)
+  let rooms = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+  let list = shuffle(alive_npcs())
+  let hs = len(alive_humans())
+  let ri = 1
+  let idx = 1
+  -- 人のために「あと1人」の部屋を人数分つくる
+  if hs > 0 and n >= 2 then
+    for h in 1 to hs do
+      if ri <= ROOMS and idx + n - 2 <= len(list) then
+        for k in 1 to n - 1 do
+          send_npc(list[idx], rooms[ri])
+          idx = idx + 1
+        end
+        ri = ri + 1
+      end
+    end
+  end
+  while ri <= ROOMS and idx + n - 1 <= len(list) do
+    for k in 1 to n do
+      send_npc(list[idx], rooms[ri])
+      idx = idx + 1
+    end
+    ri = ri + 1
+  end
+  -- あまったNPCはあわてて、どこかの部屋へ
+  while idx <= len(list) do
+    send_npc(list[idx], rooms[random(1, ROOMS)])
+    idx = idx + 1
+  end
+end
+
+func send_npc(n, k)
+  -- たまにまちがえる
+  if random() < 0.08 then k = random(1, ROOMS) end
+  n.room_goal = k
+  n.speed = 0.85 + random() * 0.15
+  let f = room_floor(k)
+  let side = 1
+  if f.z < 0 then side = -1 end
+  let door = {x: f.x, y: 0, z: f.z - side * 6}
+  n.move_to(door)
+  let d = distance(n, door)
+  let run = huddle_run
+  let t = d / (5 * n.speed) + 0.3 + random() * 0.5
+  -- ドアの前 → 部屋のまん中 → すみの方へ（ななめに入るとドアのふちに引っかかるので）
+  npc_step_later(n, run, t, {x: f.x, y: 0, z: f.z})
+  npc_step_later(n, run, t + 1.4, {x: f.x + (random() - 0.5) * 4.4, y: 0, z: f.z + (random() - 0.5) * 3.2})
+end
+
+func npc_step_later(n, run, delay, spot)
+  after(delay, func()
+    if run != huddle_run or huddle_state != "call" then return end
+    if kit_here(n) and not n.out then n.move_to(spot) end
+  end)
+end
+
+-- MARK: 数える
+
+func room_of(c)
+  for k in 1 to ROOMS do
+    let f = room_floor(k)
+    if abs(c.x - f.x) < 3.3 and abs(c.z - f.z) < 2.8 then return k end
+  end
+  return 0
+end
+
+func room_counts()
+  let counts = []
+  for k in 1 to ROOMS do append(counts, 0) end
+  for c in alive_cast() do
+    let k = room_of(c)
+    if k > 0 then counts[k] = counts[k] + 1 end
+  end
+  return counts
+end
+
+func paint_lamps()
+  let counts = room_counts()
+  for k in 1 to ROOMS do
+    let n = counts[k]
+    let color = "#FFFFFF"
+    if n == huddle_n then
+      color = "#22C55E"
+    elif n > huddle_n then
+      color = "#EF4444"
+    elif n == huddle_n - 1 then
+      color = "#FACC15"
+    elif n > 0 then
+      color = "#60A5FA"
+    end
+    block("Room " + k + " Lamp").color = color
+  end
+end
+
+func huddle_close()
+  if not playing("huddle") then return end
+  huddle_state = "closed"
+  close_doors()
+  ui_remove("huddle_call")
+  sound("hurt")
+  let counts = room_counts()
+  paint_lamps()
+  for c in alive_cast() do
+    let k = room_of(c)
+    if k == 0 then
+      eliminate(c, "部屋に入れなかった")
+    elif counts[k] != huddle_n then
+      eliminate(c, "人数がちがった（" + counts[k] + "人）")
+    elif not c.is_npc then
+      c.message("✅ ぴったり " + huddle_n + " 人！ 生きのこった", 2)
+      kit_give(c, 70)
+      kit_quest_progress(c, "huddle", 1)
+    else
+      npc_line(c, "win")
+    end
+  end
+  let run = huddle_run
+  after(4, func() if run == huddle_run then huddle_spin() end end)
+end
+
+on tick(dt)
+  if not playing("huddle") then return end
+  if huddle_state == "call" then
+    lamp_clock = lamp_clock + dt
+    if lamp_clock >= 0.25 then
+      lamp_clock = 0
+      paint_lamps()
+      ui_text("huddle_left", "⏱ " + max(0, ceil(huddle_until - time())), {at: "top", dy: 104, size: 22, bold: true})
+    end
+  else
+    ui_remove("huddle_left")
+  end
+  if huddle_state == "spin" then
+    bob_clock = bob_clock + dt
+    if bob_clock >= 0.7 then
+      bob_clock = 0
+      bob_up = not bob_up
+      let dy = -0.4
+      if bob_up then dy = 0.4 end
+      for h in blocks("horse") do h.move(0, dy, 0, 0.7) end
+      -- NPCはメリーゴーランドの上をうろうろ
+      for n in alive_npcs() do
+        if random() < 0.25 then n.move_to(carousel_spot()) end
+      end
+    end
+  end
+end
