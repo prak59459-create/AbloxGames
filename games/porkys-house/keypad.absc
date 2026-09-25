@@ -1,0 +1,74 @@
+-- keypad.absc — 玄関の4けたの暗号
+-- 暗号メモを読んだ人だけが番号を知っている。キーパッド（水色）で入力。
+-- まちがえると大きな音がして、ポーキーが気づく。
+
+func new_code()
+  code = ""
+  for i in 1 to 4 do code = code + random(0, 9) end
+  code_entered = false
+  knowers = []
+end
+
+func open_keypad(p)
+  if code_entered then
+    p.message("🔢 暗号はもう入っている", 1)
+    return
+  end
+  p.typed = ""
+  keypad_panel(p)
+end
+
+func keypad_panel(p)
+  let h = 330
+  p.ui_remove("pad")
+  p.ui_panel("pad", {at: "center", w: 300, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  let shown = p.typed
+  for i in 1 to 4 - len(p.typed) do shown = shown + "_" end
+  p.ui_text("pad_t", "🔢 " + shown, {parent: "pad", y: 30 / h, size: 30, bold: true, color: "#A5F3FC"})
+  let keys_ = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"]
+  let i = 0
+  for k in keys_ do
+    i = i + 1
+    let col = (i - 1) % 3
+    let row = floor((i - 1) / 3)
+    let bg = "#334155"
+    if k == "OK" then bg = "#16A34A" end
+    if k == "C" then bg = "#B91C1C" end
+    p.ui_button("key_" + k, k, {parent: "pad", x: (col + 0.5) / 3, y: (84 + row * 58) / h, w: 72, h: 48, size: 20, bg: bg})
+  end
+  p.ui_button("pad_close", "閉じる", {parent: "pad", y: (h - 20) / h, w: 100, h: 30, size: 12, bg: "gray"})
+end
+
+func press_key(p, k)
+  if p.typed == nil then return end
+  if k == "C" then
+    p.typed = ""
+  elif k == "OK" then
+    if p.typed == code then
+      code_entered = true
+      p.ui_remove("pad")
+      p.message("🔢 ピッ！ 暗号が合った！", 1.8)
+      kit_give(p, 25)
+      kit_quest_progress(p, "code", 1)
+      announce("🔢 " + p.name + " が暗号を入力した！", 2)
+      try_open_exit()
+      all_hud()
+      return
+    end
+    p.typed = ""
+    p.message("❌ ブブー！ ちがう… 大きな音がした！", 1.5)
+    p.sound("error")
+    alert_porky(p)
+  elif len(p.typed) < 4 then
+    p.typed = p.typed + k
+    p.sound("tick")
+  end
+  keypad_panel(p)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "key_") then press_key(p, replace(id, "key_", ""))
+  elif id == "pad_close" then p.ui_remove("pad")
+  end
+end

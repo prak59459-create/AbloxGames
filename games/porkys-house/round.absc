@@ -1,0 +1,186 @@
+-- round.absc — 1章の流れ・クローゼット・幽霊・脱出
+-- 準備（ポーキーは寝ている）→ 追いかけっこ（7分）→ 結果 → 次の章（品物の場所と暗号が変わる）
+
+let round_clock = 0
+
+func start_round()
+  chapter = chapter + 1
+  phase = "prep"
+  close_doors()
+  exit_key_used = false
+  car_parts = []
+  new_code()
+  place_items()
+  sleep_porky()
+  let door = block("Garage Door")
+  if door != nil then
+    door.visible = true
+    door.solid = true
+  end
+  let i = 0
+  for p in players() do
+    if ready(p) then
+      i = i + 1
+      reset_player(p)
+      let s = block("Spawn " + ((i - 1) % 6 + 1))
+      if s != nil then p.teleport(s.position + {x: 0, y: 1.5, z: 0}) end
+    end
+  end
+  announce("🐷 第" + chapter + "章。品物の場所も暗号も新しくなった。" + PREP_SECS + "びょう後にポーキーが目をさます…", 4)
+  after(PREP_SECS, func()
+    phase = "hunt"
+    round_end = time() + ROUND_SECS
+    wake_porky()
+    announce("🐷 ブヒッ！ ポーキーが目をさました！", 3)
+    all_hud()
+  end)
+  all_hud()
+end
+
+func reset_player(p)
+  leave_closet(p, nil)
+  p.max_lives = LIVES
+  if has_perk(p, "charm") then p.max_lives = LIVES + 1 end
+  p.lives = p.max_lives
+  p.item = nil
+  p.ghost = false
+  p.escaped = false
+  p.visible = true
+  p.frozen = false
+  if has_perk(p, "shoes") then p.speed = 1.15 else p.speed = 1 end
+  p.ui_remove("ghost")
+  hud(p)
+end
+
+-- MARK: 脱出
+
+func escape(p, how)
+  if not in_play(p) or phase != "hunt" then return end
+  p.escaped = true
+  leave_closet(p, nil)
+  drop_item(p)
+  p.visible = false
+  p.frozen = true
+  let bonus = 60 + chapter * 20
+  kit_give(p, bonus)
+  p.score = p.score + 10
+  kit_quest_progress(p, "escape", 1)
+  if how == "🚗 車で" then kit_quest_progress(p, "car", 1) else kit_quest_progress(p, "front", 1) end
+  if p.lives == p.max_lives then kit_badge(p, "clean_escape", "一度もつかまらずに脱出") end
+  announce("🎉 " + p.name + " が" + how + "脱出した！ +" + bonus, 3)
+  hud(p)
+  check_round_over()
+end
+
+func check_round_over()
+  if phase != "hunt" then return end
+  let left = filter(players(), func(p) return in_play(p) end)
+  if len(left) > 0 then return end
+  end_round()
+end
+
+func end_round()
+  if phase != "hunt" then return end
+  phase = "done"
+  sleep_porky()
+  let saved = filter(players(), func(p) return ready(p) and p.escaped end)
+  if len(saved) > 0 then
+    announce("🏆 第" + chapter + "章おわり！ 脱出 " + len(saved) + " 人。つぎの章まで " + BREAK_SECS + "びょう", 5)
+  else
+    announce("🐷 第" + chapter + "章… だれも出られなかった。つぎの章まで " + BREAK_SECS + "びょう", 5)
+  end
+  for p in players() do
+    if ready(p) then
+      p.visible = true
+      p.frozen = false
+      if not p.escaped and not p.ghost then kit_give(p, 10) end
+    end
+  end
+  after(BREAK_SECS, func() start_round() end)
+end
+
+-- MARK: 幽霊
+
+func become_ghost(p)
+  p.ghost = true
+  p.item = nil
+  p.visible = false
+  p.speed = 1.3
+  p.ui_button("ghost", "👻 ささやく", {at: "right", dy: 180, w: 150, h: 46, size: 15, bg: "#6D28D9"})
+  p.message("👻 幽霊になった。👻ささやく で品物のありかを仲間に見せられる", 3)
+  hud(p)
+end
+
+func whisper(p)
+  if not p.ghost or phase != "hunt" then return end
+  if not quiet_ready(p, "whisper", 25) then
+    p.message("👻 まだ声が出ない…", 0.8)
+    return
+  end
+  let n = reveal_items(p.position, 0, 5)
+  announce("👻 " + p.name + " の幽霊がささやく… 光の柱に品物がある（" + n + "こ）", 3)
+  kit_quest_progress(p, "whisper", 1)
+end
+
+-- MARK: クローゼット
+
+func enter_closet(p, b)
+  if not hunted(p) or p.closet != nil then return end
+  if porky != nil and kit_here(porky) and porky_state.chase == p.id and distance(p, porky) < 5 then
+    p.message("🚪 見られている！ 間に合わない！", 1)
+    return
+  end
+  p.closet = b.name
+  p.closet_until = time() + CLOSET_SECS
+  p.visible = false
+  p.frozen = true
+  p.ui_button("leave_closet", "🚪 クローゼットから出る", {at: "bottom", dy: -110, w: 240, h: 54, size: 16, bg: "#57534E"})
+  p.message("🚪 クローゼットに隠れた（" + CLOSET_SECS + "びょう）", 1.5)
+  kit_quest_progress(p, "hide", 1)
+  if porky_state.chase == p.id then
+    porky_state.chase = nil
+    porky_state.mode = "patrol"
+    wander()
+  end
+  hud(p)
+end
+
+func leave_closet(p, why)
+  if p.closet == nil then return end
+  p.closet = nil
+  if not p.ghost and not p.escaped then
+    p.visible = true
+    p.frozen = false
+  end
+  p.ui_remove("leave_closet")
+  if why != nil then p.message(why, 1.2) end
+  hud(p)
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if round_clock < 1 then return end
+  round_clock = 0
+  for p in players() do
+    if ready(p) and p.closet != nil and time() > p.closet_until then leave_closet(p, "😮‍💨 せまい… 外に出た") end
+  end
+  if phase == "hunt" and time() >= round_end then
+    announce("⏰ 時計が鳴った… 時間切れ！", 3)
+    end_round()
+  end
+  team_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "closet") and quiet_ready(p, "closet_pad", 3) then enter_closet(p, b)
+  elif contains(b.tags, "escape") and opened["Exit Door"] then escape(p, "玄関から")
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "ghost" then whisper(p)
+  elif id == "leave_closet" then leave_closet(p, "🚪 そっと出た")
+  end
+end

@@ -1,0 +1,165 @@
+-- porky.absc — ブタの怪物ポーキー
+-- 部屋を見回り、見えた人を追う（壁や家具のむこうは見えない）。扉が開くほど速くなる。
+-- ときどき、わなを置いていく。わなにかかると動けなくなって、ポーキーが気づく。
+-- つかまると命が1つ減って寝室へ。命がなくなると幽霊に。
+
+let porky = nil
+let porky_clock = 0
+let trap_clock = 0
+let porky_state = {mode: "sleep", chase: nil, lost_at: 0, goal: nil, stun_until: 0}
+
+func porky_speed()
+  return 0.85 + len(keys(opened)) * 0.07 + chapter * 0.05
+end
+
+func wake_porky()
+  gone(porky)
+  let home = block("Porky Home")
+  porky = create_npc({name: "🐷 ポーキー", position: home.position + {x: 0, y: 1, z: 0}, color: "#F9A8D4", head_color: "#F472B6",
+                      leg_color: "#BE185D", size: 1.45, speed: porky_speed(), health: 999999})
+  porky_state = {mode: "patrol", chase: nil, lost_at: 0, goal: nil, stun_until: 0}
+  wander()
+end
+
+func sleep_porky()
+  gone(porky)
+  porky = nil
+  porky_state.mode = "sleep"
+  for t in blocks("trap") do gone(t) end
+end
+
+func porky_angrier()
+  if porky != nil and kit_here(porky) then porky.speed = porky_speed() end
+end
+
+func wander()
+  if porky == nil or not kit_here(porky) then return end
+  let b = block("Porky Walk " + random(1, 7))
+  if b == nil then return end
+  porky_state.goal = b.position
+  porky.move_to(b.position)
+end
+
+-- 大きな音（キーパッドのまちがい・わな）: その人のところへ向かう
+func alert_porky(p)
+  if porky == nil or not kit_here(porky) or not hunted(p) then return end
+  porky_state.mode = "chase"
+  porky_state.chase = p.id
+  porky_state.lost_at = time()
+  porky.follow(p)
+end
+
+func sees(p)
+  let range = 22
+  if has_perk(p, "quiet") then range = 16 end
+  let d = distance(porky, p)
+  if d > range then return false end
+  let dir = {x: p.x - porky.x, y: p.y + 1 - porky.y - 2.2, z: p.z - porky.z}
+  let hit = raycast(porky, dir, d + 1)
+  if hit == nil then return true end
+  if hit.player != nil and hit.player.id == p.id then return true end
+  return hit.distance > d - 1
+end
+
+func caught(p)
+  if not hunted(p) then return end
+  drop_item(p)
+  p.lives = p.lives - 1
+  p.shake(0.9, 0.6)
+  p.fade("#000000", 0.2)
+  kit_quest_progress(p, "caught", 1)
+  porky_state.stun_until = time() + 4
+  porky.stop()
+  porky_state.mode = "patrol"
+  porky_state.chase = nil
+  if p.lives <= 0 then
+    become_ghost(p)
+    announce("🐷 " + p.name + " がつかまった… 幽霊になった", 3)
+  else
+    announce("🐷 " + p.name + " がつかまった！（のこり ❤️" + p.lives + "）", 2.5)
+    kit_later(p, 0.6, func()
+      let s = block("Spawn 1")
+      if s != nil then p.teleport(s.position + {x: 0, y: 1.5, z: 0}) end
+      p.fade(nil, 0.8)
+    end)
+  end
+  hud(p)
+  check_round_over()
+end
+
+func place_trap()
+  if porky == nil or not kit_here(porky) then return end
+  if len(blocks("trap")) >= 2 + chapter then return end
+  create_block({name: "Trap", shape: "cylinder", position: {x: porky.x, y: porky.y + 0.08, z: porky.z},
+                size: {x: 1.5, y: 0.14, z: 1.5}, color: "#44403C", material: "metal", solid: false,
+                behavior: "trigger", tags: ["trap"]})
+end
+
+func step_on_trap(p, b)
+  if not hunted(p) then return end
+  gone(b)
+  p.frozen = true
+  p.message("🪤 わなにかかった！ 動けない…", 2)
+  p.shake(0.5, 0.4)
+  kit_quest_progress(p, "trap", 1)
+  kit_later(p, 4, func() p.frozen = false end)
+  alert_porky(p)
+end
+
+func porky_step()
+  if porky == nil or not kit_here(porky) then return end
+  if time() < porky_state.stun_until then return end
+  let target = nil
+  let best = 999
+  for p in players() do
+    if hunted(p) and sees(p) then
+      let d = distance(porky, p)
+      if d < best then
+        best = d
+        target = p
+      end
+    end
+  end
+  if target == nil and porky_state.chase != nil and time() - porky_state.lost_at < 3.5 then
+    for p in players() do
+      if p.id == porky_state.chase and hunted(p) then target = p end
+    end
+  end
+  if target != nil then
+    if porky_state.chase != target.id then
+      target.message("🐷 見つかった！ 逃げろ！", 1.5)
+      target.shake(0.3, 0.3)
+    end
+    if sees(target) then porky_state.lost_at = time() end
+    porky_state.mode = "chase"
+    porky_state.chase = target.id
+    porky.follow(target)
+    if distance(porky, target) < 2.4 then caught(target) end
+    return
+  end
+  if porky_state.mode == "chase" then
+    porky_state.mode = "patrol"
+    porky_state.chase = nil
+    wander()
+    return
+  end
+  if porky_state.goal == nil or distance(porky, porky_state.goal) < 2.5 or random() < 0.015 then wander() end
+end
+
+on tick(dt)
+  if phase != "hunt" then return end
+  porky_clock = porky_clock + dt
+  trap_clock = trap_clock + dt
+  if trap_clock >= TRAP_EVERY then
+    trap_clock = 0
+    place_trap()
+  end
+  if porky_clock < 0.25 then return end
+  porky_clock = 0
+  porky_step()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "trap") then step_on_trap(p, b) end
+end

@@ -1,126 +1,79 @@
--- Porky's House — アイテムを探してドアを開け、ブタの怪物から逃げて脱出
+-- Porky's House — 品物を探してドアを開け、ブタの怪物から逃げて脱出するなぞ解きホラー
+-- 毎章ランダムな品物の場所と暗号、5つの扉、玄関（カギ＋暗号）と車（3つの部品）の2つの出口、
+-- 見回って追いかけ、わなを置くポーキー、クローゼット、命と幽霊のささやき、お店の道具。
+--
+-- ファイル:
+--   data.absc      表（品物・扉・部屋・道具）
+--   common.absc    道具・ラウンドの状態・画面
+--   items.absc     品物を置く・拾う・使う・車・懐中電灯
+--   keypad.absc    玄関の暗号
+--   porky.absc     ポーキーとわな
+--   round.absc     章の流れ・クローゼット・幽霊・脱出
+--   main.absc      このファイル
 
 kit_setup("Porky's House", "カギを見つけて、にげ出せ！", [
-  "家のどこかに 🔑赤いカギ・🔑青いカギ・🔨ハンマー・🗝出口のカギ・📝暗号メモ",
-  "アイテムにさわると拾う（1人1つまで持てる。拾いなおすと交換）",
-  "同じ色のドアをタップ → 開く。木の板はハンマーでこわす",
-  "出口のドアには「出口のカギ」と「暗号」の両方が必要",
-  "ブタの怪物に見つかったら逃げろ！つかまると1回休み",
-  "外の緑のパッドにたどりついたら脱出成功！"
+  "🔑 家のどこかに品物がある（毎章ちがう場所）。さわると拾う。持てるのは1つだけ",
+  "✋「使う」で近くの扉に。赤い扉=赤いカギ、青い扉=青いカギ、木の板=ハンマー、車庫の格子=レンチ",
+  "🚪 玄関: 出口のカギ＋暗号（📝暗号メモを読んだ人だけが番号を知っている→水色のキーパッド）",
+  "🚗 車庫の車: 車のカギ・ガソリン缶・バッテリーを入れたら、オレンジのパッドで脱出",
+  "🐷 ポーキーに見つかったら逃げろ！ わなに注意。灰色のパッドはクローゼット。命がなくなると👻幽霊"
 ])
 
-let unlocked = {}
-let code_found = false
-let porky = nil
-let escaped = 0
-let item_icons = {"Red Key": "🔑赤いカギ", "Blue Key": "🔑青いカギ", "Hammer": "🔨ハンマー", "Exit Key": "🗝出口のカギ", "Code Note": "📝暗号メモ"}
-let door_needs = {"Red Door": "Red Key", "Blue Door": "Blue Key", "Wooden Boards": "Hammer", "Exit Door": "Exit Key"}
-
-kit_quest("item", "アイテムを3回使う", 3, 80)
-kit_quest("escape", "脱出する", 1, 300)
-
-func show(p)
-  p.ui_text("hold", "✋ " + (p.item != nil and item_icons[p.item] or "なし"), {at: "top_left", dy: 34, size: 18, bold: true})
+kit_shop_title = "こっそりショップ"
+func add_perk_item(perk)
+  kit_shop_add(perk.id, perk.name + "（" + perk.text + "）", perk.price, func(p)
+    if not contains(p.perks, perk.id) then append(p.perks, perk.id) end
+    if perk.id == "shoes" and not p.ghost then p.speed = 1.15 end
+    p.message("🛒 " + perk.name + "！", 1.5)
+    kit_quest_progress(p, "perk", 1)
+  end)
 end
+for perk in PERKS do add_perk_item(perk) end
+kit_shop_add("hat_cap", "🧢 ぼうし", 30, func(p) p.hat = "cap" end)
+kit_shop_add("hat_crown", "👑 脱出王の冠", 400, func(p) p.hat = "crown" end)
 
-func show_doors()
-  let n = len(keys(unlocked))
-  ui_text("doors", "🚪 開いたドア " + n + " / 4" + (code_found and "   📝 暗号あり" or ""), {at: "top", dy: 26, size: 18, bold: true})
-end
-
-func drop(p)
-  if p.item == nil then return end
-  let it = block(p.item)
-  if it != nil then
-    it.position = p.position + {x: 0, y: 0.7, z: 0}
-    it.visible = true
-  end
-  p.item = nil
-end
+kit_quest("pickup", "品物を5回拾う", 5, 60)
+kit_quest("doors", "扉や車に品物を5回使う", 5, 150)
+kit_quest("note", "暗号メモを見つける", 1, 60)
+kit_quest("code", "暗号を入力する", 1, 100)
+kit_quest("escape", "脱出する", 1, 200)
+kit_quest("front", "玄関から脱出", 1, 150)
+kit_quest("car", "車で脱出", 1, 200)
+kit_quest("hide", "クローゼットに3回隠れる", 3, 60)
+kit_quest("trap", "わなにかかる", 1, 20)
+kit_quest("caught", "ポーキーにつかまる", 1, 20)
+kit_quest("whisper", "幽霊になってささやく", 1, 60)
+kit_quest("perk", "道具を2つ買う", 2, 80)
 
 on start()
-  game.respawn_time = 10
-  show_doors()
-  after(8, func()
-    porky = create_npc({name: "ポーキー", position: block("Porky Home").position + {x: 0, y: 1, z: 0}, color: "#F9A8D4",
-                        head_color: "#F472B6", size: 1.4, health: 999999, speed: 0.95})
-    announce("🐷 …何かが起きた。ブタの怪物がうろついている", 3)
-  end)
+  game.respawn_time = 3
+  after(4, func() start_round() end)
+  every(10, func() kit_leaderboard("🏆") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  show(p)
-end
-
-on tick(dt)
-  if porky == nil or not kit_here(porky) then return end
-  let target = nil
-  for p in players() do
-    if p.alive and not p.escaped and distance(p, porky) < 18 then
-      if target == nil or distance(p, porky) < distance(target, porky) then target = p end
-    end
-  end
-  if target != nil then
-    porky.follow(target)
-    if distance(porky, target) < 2 then
-      drop(target)
-      target.shake(0.8, 0.5)
-      target.kill()
-      target.message("🐷 つかまった！10秒で復活", 2.5)
-      porky.stop()
-      porky.frozen = true
-      after(3, func() if kit_here(porky) then porky.frozen = false end end)
-    end
-  elif random() < 0.03 then
-    porky.move_to({x: random(-20, 20), y: 0.5, z: random(-15, 15)})
-  end
-end
-
-on touch(p, b)
-  if p.is_npc or not p.alive then return end
-  if contains(b.tags, "item") and b.visible then
-    if b.name == "Code Note" then
-      code_found = true
-      b.visible = false
-      announce("📝 " + p.name + " が暗号メモを見つけた！", 2)
-      show_doors()
-      return
-    end
-    drop(p)
-    p.item = b.name
-    b.visible = false
-    p.sound("collect")
-    show(p)
-  elif contains(b.tags, "escape") and not p.escaped then
-    p.escaped = true
-    escaped = escaped + 1
-    p.score = p.score + 5
-    kit_quest_progress(p, "escape", 1)
-    announce("🎉 " + p.name + " が脱出した！", 3)
-    if escaped >= len(players()) then kit_finish("🏆 全員脱出成功！", 8) end
-  end
-end
-
-on tap(p, b)
-  if not contains(b.tags, "lock") or not b.visible or distance(p, b) > 5 then return end
-  let need = door_needs[b.name]
-  if p.item != need then
-    p.message("🔒 " + item_icons[need] + " が必要", 1.5)
-    return
-  end
-  if b.name == "Exit Door" and not code_found then
-    p.message("🔒 暗号もわからないと開かない", 1.5)
-    return
-  end
-  b.visible = false
-  b.solid = false
-  unlocked[b.name] = true
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 20)
+  p.perks = []
+  p.max_lives = LIVES
+  p.lives = LIVES
   p.item = nil
-  show(p)
-  kit_quest_progress(p, "item", 1)
-  sound("teleport")
-  announce("🚪 " + p.name + " が「" + b.name + "」を開けた！", 2)
-  show_doors()
+  p.ghost = false
+  p.escaped = false
+  p.closet = nil
+  p.ui_button("use", "✋ 使う", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 20, bg: "#B45309", radius: 16})
+  p.ui_button("drop", "⬇ 置く", {at: "bottom_right", dx: -250, dy: -160, w: 100, h: 50, size: 15, bg: "#57534E", radius: 14})
+  p.ui_button("light", "🔦", {at: "right", dy: 240, w: 70, h: 50, size: 20, bg: "#1F2937"})
+  -- 途中から来た人は幽霊で見学（章の途中で品物を持ちこめないように）
+  if phase == "hunt" then become_ghost(p) end
+  hud(p)
+  team_hud()
+end
+
+on leave(p)
+  drop_item(p)
+  after(0.5, func() check_round_over() end)
 end

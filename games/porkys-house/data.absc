@@ -1,0 +1,43 @@
+-- data.absc — Porky's House の表
+-- 品物・カギのかかった扉・部屋・お店の道具・定数
+
+-- 品物。start: true のものは最初から入れる部屋にしか置かない（閉じこめ防止）
+let ITEMS = [
+  {id: "red_key", name: "赤いカギ", icon: "🔑", color: "#DC2626", shape: "box", start: true},
+  {id: "blue_key", name: "青いカギ", icon: "🔑", color: "#2563EB", shape: "box", start: true},
+  {id: "hammer", name: "ハンマー", icon: "🔨", color: "#9CA3AF", shape: "cylinder", start: true},
+  {id: "wrench", name: "レンチ", icon: "🔧", color: "#64748B", shape: "cylinder", start: true},
+  {id: "exit_key", name: "出口のカギ", icon: "🗝", color: "#F59E0B", shape: "box", start: false},
+  {id: "code_note", name: "暗号メモ", icon: "📝", color: "#F8FAFC", shape: "box", start: false},
+  {id: "car_key", name: "車のカギ", icon: "🚗", color: "#F97316", shape: "box", start: false},
+  {id: "gas_can", name: "ガソリン缶", icon: "⛽", color: "#B91C1C", shape: "cylinder", start: false},
+  {id: "battery", name: "バッテリー", icon: "🔋", color: "#22C55E", shape: "box", start: false}
+]
+
+-- 扉と、開けるのに使う品物
+let LOCKS = {
+  "Red Door": {item: "red_key", name: "赤い扉"},
+  "Blue Door": {item: "blue_key", name: "青い扉"},
+  "Wooden Boards": {item: "hammer", name: "木の板"},
+  "Garage Grate": {item: "wrench", name: "車庫の格子"},
+  "Exit Door": {item: "exit_key", name: "玄関のドア"}
+}
+
+let START_ROOMS = ["Bedroom", "Living", "Kitchen"]
+let ALL_ROOMS = ["Bedroom", "Living", "Kitchen", "Study", "Foyer", "Bathroom", "Garage"]
+let ROOM_NAMES = {Bedroom: "寝室", Living: "リビング", Kitchen: "キッチン", Study: "書斎", Foyer: "玄関ホール", Bathroom: "お風呂", Garage: "車庫"}
+let CAR_PARTS = ["car_key", "gas_can", "battery"]
+
+let PERKS = [
+  {id: "light", name: "🔦 懐中電灯", price: 60, text: "近くの品物を光らせる"},
+  {id: "shoes", name: "👟 スニーカー", price: 50, text: "少し速く走れる"},
+  {id: "charm", name: "🛡 お守り", price: 80, text: "命が1つふえる"},
+  {id: "quiet", name: "🤫 しのび足", price: 70, text: "ポーキーに見つかりにくい"}
+]
+
+let LIVES = 2
+let ROUND_SECS = 420
+let PREP_SECS = 12
+let BREAK_SECS = 14
+let CLOSET_SECS = 15
+let TRAP_EVERY = 30

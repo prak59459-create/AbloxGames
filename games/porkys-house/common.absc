@@ -1,0 +1,99 @@
+-- common.absc — 小さな道具・ラウンドの状態・画面
+
+let phase = "wait"         -- wait / prep / hunt / done
+let chapter = 0
+let round_end = 0
+let opened = {}            -- 開いた扉の名前 → true
+let code = ""              -- 玄関の4けたの暗号
+let code_entered = false
+let exit_key_used = false
+let car_parts = []         -- 車に入れた品物の id
+let knowers = []           -- 暗号メモを読んだ人の id
+
+func ready(p)
+  return p.lives != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func has_perk(p, id)
+  return contains(p.perks, id)
+end
+
+func item_by_id(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return nil
+end
+
+func item_label(id)
+  let it = item_by_id(id)
+  if it == nil then return "なし" end
+  return it.icon + " " + it.name
+end
+
+-- まだ家の中で動いている人（幽霊・脱出ずみ・隠れている人はのぞく）
+func hunted(p)
+  return ready(p) and p.alive and not p.ghost and not p.escaped and p.closet == nil
+end
+
+func in_play(p)
+  return ready(p) and not p.ghost and not p.escaped
+end
+
+-- MARK: 画面
+
+func team_hud()
+  if phase == "wait" then
+    ui_remove("status")
+    return
+  end
+  let doors = len(keys(opened))
+  let line = "🐷 第" + chapter + "章   🚪 " + doors + "/5"
+  let front = "🗝"
+  if exit_key_used then front = "✅" end
+  let pad = "🔢"
+  if code_entered then pad = "✅" end
+  line = line + "   玄関 " + front + pad + "   🚗 " + len(car_parts) + "/3"
+  if phase == "hunt" then line = line + "   ⏰ " + kit_clock(round_end - time()) end
+  if phase == "prep" then line = line + "   🐷 まもなく目をさます…" end
+  ui_text("status", line, {at: "top", dy: 26, size: 16, bold: true})
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let hearts = ""
+  for i in 1 to p.max_lives do
+    if i <= p.lives then hearts = hearts + "❤️" else hearts = hearts + "🖤" end
+  end
+  let line = "✋ " + item_label(p.item) + "   " + hearts
+  if p.ghost then line = "👻 幽霊（品物は持てない。👻ささやくで仲間を助けよう）" end
+  if p.escaped then line = "🎉 脱出した！" end
+  if p.closet != nil then line = line + "   🚪 クローゼットの中" end
+  p.ui_text("hold", line, {at: "top_left", dy: 34, size: 16, bold: true, color: "#FDE68A"})
+  if contains(knowers, p.id) and not code_entered then
+    p.ui_text("code", "📝 暗号: " + code, {at: "top_left", dy: 58, size: 16, bold: true, color: "#A5F3FC"})
+  else
+    p.ui_remove("code")
+  end
+end
+
+func all_hud()
+  for p in players() do hud(p) end
+  team_hud()
+end

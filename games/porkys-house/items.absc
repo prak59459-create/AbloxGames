@@ -1,0 +1,248 @@
+-- items.absc — 品物を置く・拾う・使う
+-- 1人1つまで。拾いなおすと、持っていた物はその場に落ちる。
+-- 「✋ 使う」で近くの扉・車・キーパッドに使う。
+
+let item_blocks = {}       -- 品物の id → ブロック
+
+func room_spots(room)
+  let out = []
+  let i = 1
+  while block(room + " Spot " + i) != nil do
+    append(out, block(room + " Spot " + i).position)
+    i = i + 1
+  end
+  return out
+end
+
+func make_item(it, at)
+  let b = create_block({name: "Item " + it.id, shape: it.shape, position: at + {x: 0, y: 0.9, z: 0},
+                        size: {x: 0.9, y: 0.35, z: 0.6}, color: it.color, material: "neon", solid: false,
+                        behavior: "trigger", tags: ["item", it.id]})
+  item_blocks[it.id] = b
+  return b
+end
+
+func clear_items()
+  for b in blocks("item") do gone(b) end
+  item_blocks = {}
+end
+
+-- 毎回ちがう場所に。扉のカギは最初から入れる部屋だけ
+func place_items()
+  clear_items()
+  let used = {}
+  for it in ITEMS do
+    let rooms = ALL_ROOMS
+    if it.start then rooms = START_ROOMS end
+    let spots = []
+    for room in shuffle(copy(rooms)) do
+      for s in room_spots(room) do append(spots, s) end
+    end
+    let placed = false
+    for s in spots do
+      let key = floor(s.x) + "," + floor(s.z)
+      if not placed and used[key] == nil then
+        used[key] = true
+        make_item(it, s)
+        placed = true
+      end
+    end
+  end
+end
+
+func drop_item(p)
+  if p.item == nil then return end
+  let it = item_by_id(p.item)
+  p.item = nil
+  if it != nil then make_item(it, {x: p.x, y: p.y - 0.4, z: p.z}) end
+  hud(p)
+end
+
+func pickup(p, b)
+  if p.ghost or p.escaped or not p.alive then return end
+  let id = nil
+  for it in ITEMS do
+    if contains(b.tags, it.id) then id = it.id end
+  end
+  if id == nil then return end
+  if not quiet_ready(p, "pick_" + id, 1.5) then return end
+  gone(b)
+  remove(item_blocks, id)
+  if id == "code_note" then
+    -- メモは読むだけ。暗号をおぼえて、玄関のキーパッドへ
+    if not contains(knowers, p.id) then append(knowers, p.id) end
+    announce("📝 " + p.name + " が暗号メモを見つけた！ 玄関のキーパッド（水色）で入力しよう", 3)
+    kit_give(p, 15)
+    kit_quest_progress(p, "note", 1)
+    hud(p)
+    return
+  end
+  drop_item(p)
+  p.item = id
+  p.sound("collect")
+  p.message(item_label(id) + " を拾った", 1.5)
+  kit_quest_progress(p, "pickup", 1)
+  hud(p)
+end
+
+-- MARK: 使う
+
+func nearest_lock(p)
+  let best = nil
+  let best_d = 4.6
+  for name in keys(LOCKS) do
+    let b = block(name)
+    if b != nil and opened[name] == nil then
+      let d = distance(p, b.position)
+      if d < best_d then
+        best = name
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func use_item(p)
+  if not in_play(p) or not p.alive then return end
+  let pad = block("Keypad")
+  if pad != nil and distance(p, pad.position) < 3 then
+    open_keypad(p)
+    return
+  end
+  let car = block("Car")
+  if car != nil and distance(p, car.position) < 4 then
+    use_on_car(p)
+    return
+  end
+  let name = nearest_lock(p)
+  if name == nil then
+    p.message("✋ 扉・車・キーパッドの近くで押そう", 1.2)
+    return
+  end
+  let lock = LOCKS[name]
+  if p.item != lock.item then
+    p.message("🔒 " + lock.name + "には " + item_label(lock.item) + " が必要", 1.8)
+    p.sound("error")
+    return
+  end
+  p.item = nil
+  if name == "Exit Door" then
+    exit_key_used = true
+    p.message("🗝 玄関のカギを開けた！ あとは暗号", 2)
+    try_open_exit()
+  else
+    open_door(name)
+    announce("🚪 " + p.name + " が「" + lock.name + "」を開けた！", 2)
+  end
+  kit_give(p, 20)
+  p.score = p.score + 3
+  kit_quest_progress(p, "doors", 1)
+  hud(p)
+  team_hud()
+end
+
+func open_door(name)
+  let b = block(name)
+  if b == nil then return end
+  opened[name] = true
+  b.visible = false
+  b.solid = false
+  sound("teleport")
+  porky_angrier()
+end
+
+func close_doors()
+  for name in keys(LOCKS) do
+    let b = block(name)
+    if b != nil then
+      b.visible = true
+      b.solid = true
+    end
+  end
+  opened = {}
+end
+
+func try_open_exit()
+  if exit_key_used and code_entered and opened["Exit Door"] == nil then
+    open_door("Exit Door")
+    announce("🚪✨ 玄関が開いた！ 外の緑のパッドへ走れ！", 4)
+  end
+end
+
+func use_on_car(p)
+  if p.item == nil or not contains(CAR_PARTS, p.item) then
+    let need = filter(CAR_PARTS, func(id) return not contains(car_parts, id) end)
+    if len(need) == 0 then
+      escape(p, "🚗 車で")
+      return
+    end
+    p.message("🚗 車に必要: " + join(map(need, func(id) return item_label(id) end), "・"), 2)
+    return
+  end
+  append(car_parts, p.item)
+  p.message("🚗 " + item_label(p.item) + " を車に入れた（" + len(car_parts) + "/3）", 1.8)
+  p.item = nil
+  kit_give(p, 20)
+  kit_quest_progress(p, "doors", 1)
+  if len(car_parts) >= 3 then
+    announce("🚗💨 車が動く！ 車（オレンジのパッド）に乗って脱出しよう！", 4)
+    let door = block("Garage Door")
+    if door != nil then
+      door.visible = false
+      door.solid = false
+    end
+  end
+  hud(p)
+  team_hud()
+end
+
+-- MARK: 懐中電灯と幽霊のささやき: 品物を少しのあいだ光の柱で見せる
+
+func reveal_items(center, radius, secs)
+  let beams = []
+  for id in keys(item_blocks) do
+    let b = item_blocks[id]
+    if still(b) and (radius <= 0 or distance(center, b.position) < radius) then
+      append(beams, create_block({name: "Glint", shape: "cylinder", position: b.position + {x: 0, y: 6, z: 0},
+                                  size: {x: 0.5, y: 12, z: 0.5}, color: "#FDE68A", material: "neon", solid: false, opacity: 0.5}))
+    end
+  end
+  after(secs, func()
+    for g in beams do gone(g) end
+  end)
+  return len(beams)
+end
+
+func flashlight(p)
+  if not has_perk(p, "light") then
+    p.message("🔦 懐中電灯はお店で買える", 1.2)
+    return
+  end
+  if not quiet_ready(p, "light", 20) then
+    p.message("🔦 電池を休ませている…", 0.8)
+    return
+  end
+  let n = reveal_items(p.position, 16, 4)
+  p.message("🔦 近くの品物: " + n + "こ", 1.5)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "item") then pickup(p, b)
+  elif contains(b.tags, "car") and quiet_ready(p, "car_pad", 2) and len(car_parts) >= 3 and in_play(p) then escape(p, "🚗 車で")
+  end
+end
+
+on tap(p, b)
+  if not ready(p) then return end
+  if contains(b.tags, "lock") and distance(p, b.position) < 5 then use_item(p) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "use" then use_item(p)
+  elif id == "drop" then drop_item(p)
+  elif id == "light" then flashlight(p)
+  end
+end

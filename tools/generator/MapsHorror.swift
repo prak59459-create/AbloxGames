@@ -7,7 +7,7 @@ let horrorGames: [Game] = [
          summary: "夜のおもちゃ倉庫で5色のモンスターから隠れて、夜ごとの任務（ブロック・ヒューズ・電池・ガス・ロケットの部品）を集めよう。箱やロッカーに隠れ、つかまった仲間は檻から助けて、5夜目にロケットで脱出！",
          tags: ["horror", "hide", "coop"], maxPlayers: 8, build: colorMonsters),
     Game(number: 47, id: "porkys-house", title: "Porky's House",
-         summary: "カギやハンマーを探してドアを開け、家から脱出するなぞ解きホラー。見つかったら全力で逃げろ、ブタの怪物が追ってくる！",
+         summary: "毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！",
          tags: ["horror", "puzzle", "escape"], maxPlayers: 8, build: porkysHouse),
     Game(number: 48, id: "run-from-faces", title: "Run From The Faces",
          summary: "巨大な顔がものすごい速さで追いかけてくる！全力で逃げて、つかまった仲間は助け起こそう。3分生きのびたら勝ち。",
@@ -151,36 +151,98 @@ func colorMonsters(_ m: MapBuilder) {
 
 func porkysHouse(_ m: MapBuilder) {
     m.night(ground: "#1C1917")
-    m.ground(90, 90, color: "#292524", name: "Yard")
+    m.ground(110, 90, color: "#292524", name: "Yard")
     m.slab("House Floor", x: 0, y: 0, z: 0, w: 48, h: 0.3, d: 36, color: "#57534E")
-    m.walls(0, 0, w: 48, d: 36, h: 5, y: 0.3, color: "#78716C", name: "Outer Wall")
-    m.slab("House Roof", x: 0, y: 5.3, z: 0, w: 49, h: 0.4, d: 37, color: "#292524")
-    // Rooms, with locked doors between them.
-    for (x, z0, z1) in [(-8, -18, -4), (-8, 2, 18), (8, -18, -6), (8, 0, 18)] {
-        m.slab("Inner Wall", x: Float(x), y: 0.3, z: Float(z0 + z1) / 2, w: 0.5, h: 4.7, d: Float(z1 - z0), color: "#A8A29E")
+    m.slab("House Roof", x: 7, y: 5.3, z: 0, w: 63, h: 0.4, d: 37, color: "#292524")
+    let wall = "#78716C", inner = "#A8A29E", y: Float = 0.3, h: Float = 4.7
+    // Outer walls, with the front door in the north wall and the kitchen's
+    // east side opening into the garage.
+    m.slab("Outer Wall", x: 0, y: y, z: -18, w: 48.6, h: h, d: 0.6, color: wall)
+    m.slab("Outer Wall", x: -24, y: y, z: 0, w: 0.6, h: h, d: 36, color: wall)
+    m.slab("Outer Wall", x: -13.25, y: y, z: 18, w: 21.5, h: h, d: 0.6, color: wall)
+    m.slab("Outer Wall", x: 13.25, y: y, z: 18, w: 21.5, h: h, d: 0.6, color: wall)
+    m.slab("Outer Wall", x: 0, y: 3.1, z: 18, w: 5, h: 1.9, d: 0.6, color: wall)
+    m.slab("Outer Wall", x: 24, y: y, z: 9, w: 0.6, h: h, d: 18, color: wall)
+    m.slab("Outer Wall", x: 24, y: y, z: -15, w: 0.6, h: h, d: 6, color: wall)
+    m.slab("Outer Wall", x: 24, y: y, z: -3, w: 0.6, h: h, d: 6, color: wall)
+    // Inner walls: a doorway in each, some of them locked.
+    func splitWall(alongX: Bool, fixed: Float, from a: Float, to b: Float, gap: Float) {
+        let g0 = gap - 1.6, g1 = gap + 1.6
+        if alongX {
+            m.slab("Inner Wall", x: (a + g0) / 2, y: y, z: fixed, w: g0 - a, h: h, d: 0.5, color: inner)
+            m.slab("Inner Wall", x: (g1 + b) / 2, y: y, z: fixed, w: b - g1, h: h, d: 0.5, color: inner)
+        } else {
+            m.slab("Inner Wall", x: fixed, y: y, z: (a + g0) / 2, w: 0.5, h: h, d: g0 - a, color: inner)
+            m.slab("Inner Wall", x: fixed, y: y, z: (g1 + b) / 2, w: 0.5, h: h, d: b - g1, color: inner)
+        }
     }
-    m.slab("Inner Wall", x: -16, y: 0.3, z: 0, w: 16, h: 4.7, d: 0.5, color: "#A8A29E")
-    m.slab("Inner Wall", x: 16, y: 0.3, z: 0, w: 16, h: 4.7, d: 0.5, color: "#A8A29E")
-    let doors: [(String, Float, Float, Bool, String)] = [("Red Door", -8, -1, true, "#DC2626"), ("Blue Door", 8, -3, true, "#2563EB"),
-                                                         ("Wooden Boards", -4, 0, false, "#92400E"), ("Exit Door", 0, 18, false, "#F59E0B")]
-    for d in doors {
-        let w: Float = d.3 ? 0.4 : 3
-        let depth: Float = d.3 ? 3 : 0.4
-        m.slab(d.0, x: d.1, y: 0.3, z: d.2, w: w, h: 2.8, d: depth, color: d.4, tags: ["lock"])
+    splitWall(alongX: true, fixed: 0, from: -24, to: -8, gap: -16)   // bedroom ↔ study (red door)
+    splitWall(alongX: true, fixed: 0, from: -8, to: 8, gap: 0)       // living ↔ foyer (boards)
+    splitWall(alongX: true, fixed: 0, from: 8, to: 24, gap: 16)      // kitchen ↔ bathroom (blue door)
+    splitWall(alongX: false, fixed: -8, from: -18, to: 0, gap: -9)   // bedroom ↔ living
+    splitWall(alongX: false, fixed: 8, from: -18, to: 0, gap: -9)    // living ↔ kitchen
+    splitWall(alongX: false, fixed: -8, from: 0, to: 18, gap: 9)     // study ↔ foyer
+    splitWall(alongX: false, fixed: 8, from: 0, to: 18, gap: 9)      // foyer ↔ bathroom
+    // The locks.
+    let locks: [(String, Float, Float, Bool, String)] = [
+        ("Red Door", -16, 0, true, "#DC2626"), ("Wooden Boards", 0, 0, true, "#92400E"), ("Blue Door", 16, 0, true, "#2563EB"),
+        ("Garage Grate", 24, -9, false, "#9CA3AF"), ("Exit Door", 0, 18, true, "#F59E0B")
+    ]
+    for l in locks {
+        // Inner doorways are 3.2 m; the front door and the grate fill wider gaps.
+        let span: Float = l.0 == "Exit Door" ? 5.2 : (l.0 == "Garage Grate" ? 6.2 : 3.2)
+        m.slab(l.0, x: l.1, y: y, z: l.2, w: l.3 ? span : 0.4, h: l.0 == "Exit Door" ? 2.9 : 2.8, d: l.3 ? 0.4 : span, color: l.4, tags: ["lock"])
     }
-    m.spawnRing(-18, -10, y: 0.3, radius: 2.5, count: 6, color: "#FDE68A")
-    var r = Seeded("porky")
-    for i in 0..<12 {
-        m.slab("Furniture \(i + 1)", x: r.range(-22, 22), y: 0.3, z: r.range(-16, 16), w: r.range(1, 2.5), h: r.range(0.8, 1.8),
-               d: r.range(1, 2), color: r.pick(["#7F1D1D", "#78350F", "#1E3A8A"]))
+    m.pad("Keypad", x: 3.5, z: 16, y: y, size: 1.6, color: "#22D3EE", tags: ["keypad"])
+
+    // Rooms and their furniture.
+    m.spawnRing(-16, -10, y: y, radius: 2.5, count: 6, color: "#FDE68A")
+    m.slab("Bed", x: -20, y: y, z: -15, w: 4, h: 0.8, d: 2.6, color: "#7F1D1D")
+    m.slab("Sofa", x: 0, y: y, z: -15, w: 6, h: 1, d: 1.6, color: "#1E3A8A")
+    m.slab("Table", x: 0, y: y, z: -8, w: 3, h: 0.9, d: 2, color: "#78350F")
+    m.slab("Counter", x: 20, y: y, z: -15, w: 6, h: 1.1, d: 1.4, color: "#E7E5E4")
+    m.slab("Stove", x: 12, y: y, z: -16, w: 2, h: 1, d: 1.6, color: "#44403C")
+    m.slab("Desk", x: -20, y: y, z: 14, w: 3.5, h: 0.9, d: 1.6, color: "#78350F")
+    m.slab("Bookshelf", x: -12, y: y, z: 17, w: 5, h: 3, d: 0.8, color: "#451A03")
+    m.slab("Bathtub", x: 20, y: y, z: 14, w: 4, h: 0.8, d: 2, color: "#F8FAFC")
+    m.slab("Rug", x: 0, y: y, z: 9, w: 6, h: 0.03, d: 4, color: "#9F1239", solid: false)
+    for (i, c) in [(-22, -4), (12, -3), (-12, 4), (20, 4)].enumerated() {
+        m.slab("Closet \(i + 1) Box", x: Float(c.0), y: y, z: Float(c.1), w: 2.2, h: 3, d: 1.2, color: "#57534E")
+        m.pad("Closet \(i + 1)", x: Float(c.0), z: Float(c.1) + (c.1 < 0 ? -1.6 : 1.6), y: y, size: 1.8, color: "#6B7280", tags: ["closet"])
     }
-    let items: [(String, Float, Float, String)] = [("Red Key", -20, 12, "#DC2626"), ("Blue Key", 20, -14, "#2563EB"),
-                                                   ("Hammer", 18, 12, "#9CA3AF"), ("Exit Key", -18, -15, "#F59E0B"), ("Code Note", 22, 4, "#FFFFFF")]
-    for it in items {
-        m.part(it.0, at: (it.1, 1, it.2), size: (0.8, 0.3, 0.5), color: it.3, material: .neon, behavior: .trigger, tags: ["item"], solid: false)
+    m.part("Clock", at: (-2, 3.4, 17.6), size: (1.6, 1.6, 0.2), color: "#FDE68A", shape: .cylinder, material: .neon,
+           solid: false, rotation: (90, 0, 0))
+
+    // The garage: the other way out.
+    m.slab("Garage Floor", x: 31, y: 0, z: -9, w: 14, h: 0.3, d: 18, color: "#44403C")
+    m.slab("Garage Wall", x: 31, y: y, z: -18, w: 14.6, h: h, d: 0.6, color: wall)
+    m.slab("Garage Wall", x: 31, y: y, z: 0, w: 14.6, h: h, d: 0.6, color: wall)
+    m.slab("Garage Door", x: 38, y: y, z: -9, w: 0.4, h: h, d: 18.6, color: "#57534E")
+    m.parkedCar("Getaway Car", x: 31, z: -9, yaw: 90, color: "#B91C1C")
+    m.pad("Car", x: 31, z: -3.5, y: y, size: 3, color: "#F97316", tags: ["car"])
+
+    // Where the things turn up, room by room. Doors' keys only ever land
+    // in the rooms you start with open, so nothing can lock itself away.
+    let rooms: [(String, [(Float, Float)])] = [
+        ("Bedroom", [(-22, -12), (-12, -16), (-18, -2), (-11, -6)]),
+        ("Living", [(-5, -12), (5, -4), (0, -16.5), (-5, -2)]),
+        ("Kitchen", [(20, -12), (12, -7), (22, -3), (15, -16.5)]),
+        ("Study", [(-22, 10), (-12, 13), (-18, 3), (-10, 8)]),
+        ("Foyer", [(-5, 12), (5, 6), (-4, 3)]),
+        ("Bathroom", [(22, 10), (12, 14), (18, 3)]),
+        ("Garage", [(27, -15), (35, -3), (27, -3)])
+    ]
+    for room in rooms {
+        m.markers("\(room.0) Spot", points: room.1, y: y, color: "#000000", visible: false, behavior: .none)
     }
-    m.part("Porky Home", at: (15, 1, 10), size: (1, 0.1, 1), color: "#000000", visible: false)
+    m.markers("Porky Walk", points: [(0, -9), (-16, -9), (16, -9), (-16, 9), (0, 9), (16, 9), (31, -9)], y: y,
+              color: "#000000", visible: false, behavior: .none)
+    m.part("Porky Home", at: (0, 1, -9), size: (1, 0.1, 1), color: "#000000", visible: false)
     m.pad("Escape", x: 0, z: 24, size: 5, color: "#22C55E", tags: ["escape"])
+    m.slab("Porch", x: 0, y: 0, z: 21, w: 8, h: 0.2, d: 5, color: "#78350F")
+    for i in 0..<6 { m.pine(-40 + Float(i) * 16, 36, height: 8) }
+    m.lamp(-5, 22)
+    m.lamp(5, 22)
 }
 
 // MARK: 48 Run From The Faces
