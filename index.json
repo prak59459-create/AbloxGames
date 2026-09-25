@@ -1751,16 +1751,20 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 151,
-      "cover" : "games\/critter-quest\/cover-55e8081e.png",
+      "blockCount" : 398,
+      "cover" : "games\/critter-quest\/cover-c2226af0.png",
       "id" : "critter-quest",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/critter-quest\/data.absc",
+        "games\/critter-quest\/battle.absc",
+        "games\/critter-quest\/critters.absc",
+        "games\/critter-quest\/world.absc",
         "games\/critter-quest\/main.absc"
       ],
-      "summary" : "草むらでふしぎな生き物「クリッター」に出会ったら、ターン制バトルでつかまえよう。チームを育ててトレーナーに勝て！",
+      "summary" : "草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！",
       "tags" : [
         "monsters",
         "rpg",

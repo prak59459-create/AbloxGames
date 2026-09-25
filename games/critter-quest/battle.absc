@@ -1,0 +1,534 @@
+-- battle.absc — ターン制バトル: 技・タイプ相性・状態異常・能力の上げ下げ・つかまえる・入れかえ・にげる・トレーナー戦
+
+-- MARK: はじまりとおわり
+
+-- kind: "wild" / "trainer" / "legend"。team: あいてのクリッターのリスト
+func begin_battle(p, kind, team, trainer)
+  gone(p.buddy)
+  p.buddy = nil
+  p.in_battle = true
+  p.frozen = true
+  p.battle = {kind: kind, team: team, i: 1, trainer: trainer, log: [], must_swap: false, used: [], turn: 0}
+  for c in p.party do
+    c.atk_st = 0
+    c.def_st = 0
+  end
+  let foe = team[1]
+  dex_mark(p, foe.sid, false)
+  -- 見た目: 前にあいて、横に自分の子。カメラは横から
+  let fwd = kit_dir(p.yaw)
+  let right = {x: 0 - fwd.z, y: 0, z: fwd.x}
+  p.battle.spot = p.position
+  p.battle.fwd = fwd
+  p.battle.right = right
+  show_foe_npc(p)
+  show_my_npc(p)
+  p.camera_look(p.position - fwd * 3 + right * 4 + {x: 0, y: 3.5, z: 0}, p.position + fwd * 3 + {x: 0, y: 1, z: 0})
+  if kind == "wild" then say_log(p, "あっ！ 野生の " + foe.name + " が飛び出してきた！")
+  elif kind == "legend" then say_log(p, "⚡ 伝説のクリッター " + foe.name + " があらわれた！")
+  else say_log(p, "🧢 " + trainer.name + "「" + trainer.intro + "」") end
+  append(p.battle.used, lead(p))
+  battle_ui(p)
+end
+
+func show_foe_npc(p)
+  gone(p.battle.foe_npc)
+  let foe = p.battle.team[p.battle.i]
+  let s = species_of(foe.sid)
+  let n = create_npc({name: foe.name + " Lv." + foe.level, position: p.battle.spot + p.battle.fwd * 5 + {x: 0, y: 0.5, z: 0}, color: s.color, head_color: s.head,
+                      size: s.size, health: 999999, speed: 0, team: "critter"})
+  n.yaw = p.yaw + 180
+  p.battle.foe_npc = n
+end
+
+func show_my_npc(p)
+  gone(p.battle.my_npc)
+  let c = lead(p)
+  if c == nil then return end
+  let s = species_of(c.sid)
+  let n = create_npc({name: c.name, position: p.battle.spot + p.battle.fwd * 1.6 + p.battle.right * 1.6 + {x: 0, y: 0.5, z: 0}, color: s.color,
+                      head_color: s.head, size: s.size, health: 999999, speed: 0, team: "critter"})
+  n.yaw = p.yaw
+  p.battle.my_npc = n
+end
+
+func end_battle(p, text)
+  if p.battle != nil then
+    gone(p.battle.foe_npc)
+    gone(p.battle.my_npc)
+  end
+  for c in p.party do
+    c.atk_st = 0
+    c.def_st = 0
+  end
+  p.battle = nil
+  p.in_battle = false
+  p.frozen = false
+  p.camera_reset()
+  p.ui_remove("battle")
+  p.ui_remove("swap")
+  p.ui_remove("bagp")
+  p.message(text, 3)
+  refresh_buddy(p)
+  hud(p)
+end
+
+-- MARK: 画面
+
+func say_log(p, text)
+  append(p.battle.log, text)
+  if len(p.battle.log) > 4 then remove(p.battle.log, 1) end
+end
+
+func status_tag(c)
+  if c.status == nil then return "" end
+  return "  " + STATUS[c.status].icon + STATUS[c.status].name
+end
+
+func battle_ui(p)
+  let b = p.battle
+  if b == nil then return end
+  let foe = b.team[b.i]
+  let me = lead(p)
+  let h = 420
+  p.ui_panel("battle", {at: "bottom", dy: -10, w: 620, h: h, bg: "#0F172AEE", radius: 22, layer: 40})
+  let who = "野生の "
+  if b.kind == "trainer" then who = "あいての " elif b.kind == "legend" then who = "伝説の " end
+  let dots = ""
+  if b.kind == "trainer" then
+    for c in b.team do
+      if c.hp > 0 then dots = dots + "●" else dots = dots + "○" end
+    end
+    dots = "  " + dots
+  end
+  p.ui_text("b_foe", who + type_icon(foe.type) + " " + foe.name + " Lv." + foe.level + status_tag(foe) + dots, {parent: "battle", y: 22 / h, size: 17, bold: true, color: species_of(foe.sid).color})
+  p.ui_bar("b_foe_hp", max(0, foe.hp), foe.max, {parent: "battle", y: 46 / h, w: 320, h: 12, color: "#F87171", bg: "#334155"})
+  if me != nil then
+    p.ui_text("b_me", type_icon(me.type) + " " + me.name + " Lv." + me.level + "  ❤️ " + me.hp + "/" + me.max + status_tag(me), {parent: "battle", y: 78 / h, size: 16, bold: true, color: species_of(me.sid).color})
+    p.ui_bar("b_me_hp", max(0, me.hp), me.max, {parent: "battle", y: 100 / h, w: 320, h: 12, color: "#4ADE80", bg: "#334155"})
+    p.ui_bar("b_me_xp", me.xp, xp_need(me.level), {parent: "battle", y: 114 / h, w: 320, h: 5, color: "#60A5FA", bg: "#1E293B"})
+  end
+  for i in 1 to 4 do
+    let line = ""
+    if i <= len(b.log) then line = b.log[i] end
+    p.ui_text("b_log" + i, line, {parent: "battle", y: (132 + i * 24) / h, size: 14, color: "#E2E8F0"})
+  end
+  for i in 1 to 4 do
+    if me != nil and i <= len(me.moves) and not b.must_swap then
+      let mv = MOVES[me.moves[i]]
+      let eff = ""
+      if mv.power > 0 then
+        let e = effectiveness(mv.type, foe.type)
+        if e > 1 then eff = " ◎" elif e < 1 then eff = " △" end
+      end
+      let col = (i - 1) % 2
+      let row = floor((i - 1) / 2)
+      p.ui_button("mv_" + i, type_icon(mv.type) + " " + mv.name + eff, {parent: "battle", x: 0.26 + col * 0.48, y: (272 + row * 50) / h, w: 280, h: 42, size: 15, bg: "#1E40AF"})
+    else
+      p.ui_remove("mv_" + i)
+    end
+  end
+  p.ui_button("b_bag", "🎒 どうぐ", {parent: "battle", x: 0.2, y: (h - 30) / h, w: 170, h: 40, size: 14, bg: "#A16207"})
+  p.ui_button("b_swap", "🔁 いれかえ", {parent: "battle", x: 0.5, y: (h - 30) / h, w: 170, h: 40, size: 14, bg: "#0E7490"})
+  p.ui_button("b_run", "🏃 にげる", {parent: "battle", x: 0.8, y: (h - 30) / h, w: 170, h: 40, size: 14, bg: "#475569"})
+end
+
+func swap_panel(p, forced)
+  let h = 110 + len(p.party) * 46
+  p.ui_remove("swap")
+  p.ui_panel("swap", {at: "center", w: 440, h: h, bg: "#0F172AF5", radius: 22, layer: 50})
+  let title = "🔁 だれと入れかえる？"
+  if forced then title = "😵 次にだれを出す？" end
+  p.ui_text("swap_t", title, {parent: "swap", y: 24 / h, size: 17, bold: true})
+  let i = 0
+  for c in p.party do
+    i = i + 1
+    let tag = "  ❤️" + c.hp + "/" + c.max
+    if c.hp <= 0 then tag = "  😵 気絶" end
+    p.ui_button("sw_" + i, type_icon(c.type) + " " + c.name + " Lv." + c.level + tag, {parent: "swap", y: (30 + i * 46) / h, w: 390, h: 40, size: 14,
+                bg: species_of(c.sid).color, color: "#111111"})
+  end
+  if not forced then p.ui_button("swap_close", "もどる", {parent: "swap", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"}) end
+end
+
+func hop(n)
+  if still(n) then n.launch(0, 4, 0) end
+end
+
+-- MARK: 技
+
+func stage_mult(st)
+  if st >= 0 then return (2 + st) / 2 end
+  return 2 / (2 - st)
+end
+
+func apply_status(p, c, st)
+  c.status = st
+  if st == "sleep" then c.sleep_n = random(1, 3) end
+  say_log(p, c.name + " は " + STATUS[st].name + " になった！")
+end
+
+-- user が target に技を使う
+func do_move(p, user, target, mid, mine)
+  let b = p.battle
+  let mv = MOVES[mid]
+  let who = user.name
+  if not mine then
+    if b.kind == "trainer" then who = "あいての " + user.name else who = "野生の " + user.name end
+  end
+  if user.status == "sleep" then
+    user.sleep_n = user.sleep_n - 1
+    if user.sleep_n <= 0 then
+      user.status = nil
+      say_log(p, who + " は目をさました！")
+    else
+      say_log(p, who + " はぐうぐうねむっている…")
+      return
+    end
+  end
+  if user.status == "freeze" then
+    if random() < 0.3 then
+      user.status = nil
+      say_log(p, who + " のこおりがとけた！")
+    else
+      say_log(p, who + " はこおって動けない！")
+      return
+    end
+  end
+  if user.status == "para" and random() < 0.25 then
+    say_log(p, who + " はしびれて動けない！")
+    return
+  end
+  say_log(p, who + " の " + mv.name + "！")
+  let unpc = b.my_npc
+  let tnpc = b.foe_npc
+  if not mine then
+    unpc = b.foe_npc
+    tnpc = b.my_npc
+  end
+  if still(unpc) then unpc.say(mv.name) end
+  if random() * 100 >= mv.acc then
+    say_log(p, "しかし はずれた！")
+    return
+  end
+  if mv.power > 0 then
+    let eff = effectiveness(mv.type, target.type)
+    let stab = 1
+    if mv.type == user.type then stab = 1.5 end
+    let crit = random() < 0.0625
+    let a = user.atk * stage_mult(user.atk_st or 0)
+    if user.status == "burn" then a = a * 0.75 end
+    let d = target.def * stage_mult(target.def_st or 0)
+    let dmg = ((2 * user.level / 5 + 2) * mv.power * a / d / 50 + 2) * stab * eff * (0.85 + random() * 0.15)
+    if crit then dmg = dmg * 1.5 end
+    dmg = max(1, floor(dmg))
+    target.hp = max(0, target.hp - dmg)
+    hop(tnpc)
+    if crit then say_log(p, "きゅうしょに あたった！") end
+    if eff > 1 then say_log(p, "こうかは ばつぐんだ！") elif eff < 1 then say_log(p, "こうかは いまひとつのようだ…") end
+    if mv.effect == "drain" then
+      user.hp = min(user.max, user.hp + max(1, floor(dmg / 2)))
+      say_log(p, user.name + " は体力をすいとった！")
+    elif mv.chance != nil and target.hp > 0 and random() < mv.chance then
+      if mv.effect == "def_down" then
+        target.def_st = max(-3, (target.def_st or 0) - 1)
+        say_log(p, target.name + " のぼうぎょが下がった！")
+      elif target.status == nil then
+        apply_status(p, target, mv.effect)
+      end
+    end
+    return
+  end
+  -- へんか技
+  let e = mv.effect
+  if e == "atk_up" then
+    user.atk_st = min(3, (user.atk_st or 0) + 1)
+    say_log(p, user.name + " のこうげきが上がった！")
+  elif e == "def_up" then
+    user.def_st = min(3, (user.def_st or 0) + 1)
+    say_log(p, user.name + " のぼうぎょが上がった！")
+  elif e == "atk_down" then
+    target.atk_st = max(-3, (target.atk_st or 0) - 1)
+    say_log(p, target.name + " のこうげきが下がった！")
+  elif e == "def_down" then
+    target.def_st = max(-3, (target.def_st or 0) - 1)
+    say_log(p, target.name + " のぼうぎょが下がった！")
+  elif e == "heal" then
+    user.hp = min(user.max, user.hp + floor(user.max / 2))
+    say_log(p, user.name + " は体力を回復した！")
+  elif target.status == nil then
+    apply_status(p, target, e)
+  else
+    say_log(p, "しかし うまくきまらなかった！")
+  end
+end
+
+-- あいての技えらび（トレーナーは少しかしこい）
+func foe_pick(foe, me, smart)
+  let best = foe.moves[1]
+  let best_score = -1
+  for mid in foe.moves do
+    let mv = MOVES[mid]
+    let score = random() * 30
+    if mv.power > 0 then
+      let stab = 1
+      if mv.type == foe.type then stab = 1.5 end
+      score = score + mv.power * effectiveness(mv.type, me.type) * stab * mv.acc / 100
+    else
+      score = score + 25
+      if smart then score = score + 10 end
+      let st = contains(["burn", "para", "sleep", "freeze"], mv.effect)
+      if st and me.status != nil then score = 0 end
+      if mv.effect == "heal" and foe.hp > foe.max * 0.5 then score = 0 end
+    end
+    if score > best_score then
+      best = mid
+      best_score = score
+    end
+  end
+  return best
+end
+
+-- MARK: ターン
+
+func speed_of(c)
+  let s = c.spd
+  if c.status == "para" then s = s / 2 end
+  return s
+end
+
+-- my_move: 自分の技（nil なら自分は技を使わない＝どうぐ・入れかえのあと）
+func run_turn(p, my_move)
+  let b = p.battle
+  b.turn = b.turn + 1
+  let me = lead(p)
+  let foe = b.team[b.i]
+  let foe_move = foe_pick(foe, me, b.kind != "wild")
+  let me_first = true
+  if my_move != nil then
+    let mq = MOVES[my_move].first == true
+    let fq = MOVES[foe_move].first == true
+    if mq != fq then me_first = mq
+    elif speed_of(foe) > speed_of(me) then me_first = false
+    elif speed_of(foe) == speed_of(me) then me_first = random() < 0.5 end
+  else
+    me_first = true
+  end
+  if me_first then
+    if my_move != nil then do_move(p, me, foe, my_move, true) end
+    if foe.hp > 0 and me.hp > 0 then do_move(p, foe, me, foe_move, false) end
+  else
+    do_move(p, foe, me, foe_move, false)
+    if me.hp > 0 and my_move != nil then do_move(p, me, foe, my_move, true) end
+  end
+  -- やけど
+  for c in [me, foe] do
+    if c.hp > 0 and c.status == "burn" then
+      c.hp = max(0, c.hp - max(1, floor(c.max / 16)))
+      say_log(p, c.name + " はやけどのダメージをうけた")
+    end
+  end
+  after_turn(p)
+end
+
+func after_turn(p)
+  let b = p.battle
+  let foe = b.team[b.i]
+  let me = lead(p)
+  if foe.hp <= 0 then
+    foe_fainted(p)
+    return
+  end
+  if me == nil then
+    lose(p)
+    return
+  end
+  -- 先頭が気絶したら、次の子をえらぶ
+  let first = p.party[1]
+  if first.hp <= 0 and b.my_down != true then
+    b.my_down = true
+    say_log(p, first.name + " はたおれた！")
+    b.must_swap = true
+    battle_ui(p)
+    swap_panel(p, true)
+    return
+  end
+  battle_ui(p)
+end
+
+func foe_fainted(p)
+  let b = p.battle
+  let foe = b.team[b.i]
+  say_log(p, foe.name + " はたおれた！")
+  gone(b.foe_npc)
+  -- 経験値: 戦った子に全部、ほかの元気な子に3割
+  let s = species_of(foe.sid)
+  let base = floor((s.hp + s.atk + s.def + s.spd) / 4 * foe.level / 6)
+  if b.kind != "wild" then base = floor(base * 1.5) end
+  let me = lead(p)
+  for c in p.party do
+    if c.hp > 0 then
+      let share = 0.3
+      if c == me or contains(b.used, c) then share = 1 end
+      give_xp(p, c, max(1, floor(base * share)))
+    end
+  end
+  say_log(p, me.name + " たちは経験値をもらった")
+  if b.i < len(b.team) then
+    b.i = b.i + 1
+    let nxt = b.team[b.i]
+    dex_mark(p, nxt.sid, false)
+    say_log(p, b.trainer.name + " は " + nxt.name + " をくりだした！")
+    show_foe_npc(p)
+    battle_ui(p)
+    return
+  end
+  win(p)
+end
+
+func win(p)
+  let b = p.battle
+  p.wins = p.wins + 1
+  kit_quest_progress(p, "wins", 1)
+  if b.kind == "trainer" then
+    let t = b.trainer
+    let first = p.beaten[t.id] == nil
+    let prize = t.reward
+    if not first then prize = floor(prize / 2) end
+    kit_give(p, prize)
+    p.beaten[t.id] = true
+    if first and t.badge != nil then
+      if t.id == "champion" then
+        kit_quest_progress(p, "champion", 1)
+        kit_badge(p, "champion", "チャンピオンに勝った")
+        announce("👑 " + p.name + " が新しいチャンピオンになった！", 5)
+        p.hat = "crown"
+      else
+        append(p.badges, t.id)
+        kit_quest_progress(p, "badges", 1)
+        kit_badge(p, t.id, t.badge + " を手に入れた")
+        announce("🏅 " + p.name + " が " + t.badge + " を手に入れた！", 4)
+      end
+    end
+    end_battle(p, "🏆 " + t.name + " に勝った！ 💰+" + prize)
+  else
+    let foe = b.team[b.i]
+    let prize = 10 + foe.level * 3
+    kit_give(p, prize)
+    end_battle(p, "🎉 " + foe.name + " をたおした！ 💰+" + prize)
+  end
+end
+
+func lose(p)
+  let lost = floor(kit_money(p) * 0.1)
+  if lost > 0 then kit_pay(p, lost) end
+  heal_all(p)
+  end_battle(p, "😵 目の前がまっくらになった… センターで回復した（💰-" + lost + "）")
+  p.teleport(block("Heal Counter").position + {x: 0, y: 1, z: 2})
+end
+
+-- MARK: プレイヤーの行動
+
+func act_move(p, i)
+  let b = p.battle
+  if b == nil or b.must_swap then return end
+  let me = lead(p)
+  if me == nil or i > len(me.moves) then return end
+  run_turn(p, me.moves[i])
+end
+
+func act_swap(p, i)
+  let b = p.battle
+  if b == nil then return end
+  let c = p.party[i]
+  if c == nil then return end
+  if c.hp <= 0 then
+    p.message("😵 気絶している", 1)
+    return
+  end
+  if i == 1 and not b.must_swap then
+    p.ui_remove("swap")
+    return
+  end
+  remove(p.party, i)
+  insert(p.party, 1, c)
+  p.ui_remove("swap")
+  if not contains(b.used, c) then append(b.used, c) end
+  show_my_npc(p)
+  say_log(p, "いけっ！ " + c.name + "！")
+  if b.must_swap then
+    b.must_swap = false
+    b.my_down = false
+    battle_ui(p)
+    return
+  end
+  -- 入れかえはターンを使う
+  run_turn(p, nil)
+end
+
+func act_run(p)
+  let b = p.battle
+  if b == nil or b.must_swap then return end
+  if b.kind != "wild" then
+    say_log(p, "トレーナー戦や伝説のバトルからはにげられない！")
+    battle_ui(p)
+    return
+  end
+  let me = lead(p)
+  let foe = b.team[b.i]
+  if speed_of(me) >= speed_of(foe) or random() < 0.6 then
+    end_battle(p, "🏃 うまくにげきれた！")
+  else
+    say_log(p, "にげられない！")
+    run_turn(p, nil)
+  end
+end
+
+func try_catch(p, item)
+  let b = p.battle
+  if b.kind == "trainer" then
+    say_log(p, "人のクリッターはつかまえられない！")
+    battle_ui(p)
+    return
+  end
+  p.items[item.id] = p.items[item.id] - 1
+  let foe = b.team[b.i]
+  let s = species_of(foe.sid)
+  let bonus = 1
+  if foe.status == "sleep" or foe.status == "freeze" then bonus = 2 elif foe.status != nil then bonus = 1.5 end
+  let chance = s.catch / 255 * item.ball * (1 - 0.66 * foe.hp / foe.max) * bonus * 1.6
+  chance = min(1, max(0.01, chance))
+  say_log(p, item.name + " をなげた！")
+  let shakes = 0
+  for k in 1 to 3 do
+    if random() < pow(chance, 0.33) then shakes = shakes + 1 end
+  end
+  if shakes == 3 or random() < chance then
+    foe.status = nil
+    foe.atk_st = 0
+    foe.def_st = 0
+    gone(b.foe_npc)
+    add_critter(p, foe)
+    p.catches = p.catches + 1
+    kit_quest_progress(p, "catch5", 1)
+    if s.legend then
+      kit_badge(p, "legend", "伝説のクリッターをつかまえた")
+      announce("🌟 " + p.name + " が伝説の " + foe.name + " をつかまえた！", 5)
+    end
+    end_battle(p, "🟠 やった！ " + foe.name + " をつかまえた！")
+    return
+  end
+  let lines = ["ああっ！ 出てきてしまった！", "…ゆれた！ ああっ、おしい！", "…ゆれた …ゆれた！ ざんねん！"]
+  say_log(p, lines[min(3, shakes + 1)])
+  run_turn(p, nil)
+end
+
+func add_critter(p, c)
+  dex_mark(p, c.sid, true)
+  if len(p.party) < PARTY_MAX then
+    append(p.party, c)
+  else
+    append(p.box, c)
+    p.message("📦 チームがいっぱいなので、あずかりボックスへ送った", 2.5)
+  end
+end

@@ -1,0 +1,311 @@
+-- world.absc — 草むらの出会い・トレーナー・センター（回復とあずかりボックス）・ショップ・研究所・伝説のほこら
+
+let walk_clock = 0
+
+-- MARK: 草むら
+
+func area_at(p)
+  for id in keys(AREAS) do
+    let g = block("Grass " + id)
+    if g != nil and abs(p.x - g.x) < g.size.x / 2 and abs(p.z - g.z) < g.size.z / 2 and p.y < 6 then return id end
+  end
+  return nil
+end
+
+func wild_critter(area_id)
+  let a = AREAS[area_id]
+  let rows = map(a.table, func(row) return {sid: row[1], weight: row[2]} end)
+  let pick = kit_pick(rows, 1)
+  return make_critter(pick.sid, random(a.lv[1], a.lv[2]))
+end
+
+func walk_step(p)
+  if p.in_battle or lead(p) == nil or p.starter_open then return end
+  let here = p.position
+  let moved = 0
+  if p.last_pos != nil then moved = flat_dist(here, p.last_pos) end
+  p.last_pos = here
+  let id = area_at(p)
+  if id != p.area then
+    p.area = id
+    if id != nil then p.message(AREAS[id].name + "（Lv." + AREAS[id].lv[1] + "〜" + AREAS[id].lv[2] + "）", 1.5) end
+  end
+  if id == nil or moved < 0.6 then return end
+  if p.repel_until != nil and time() < p.repel_until then return end
+  if random() < 0.09 then begin_battle(p, "wild", [wild_critter(id)], nil) end
+end
+
+func flat_dist(a, b)
+  let dx = a.x - b.x
+  let dz = a.z - b.z
+  return sqrt(dx * dx + dz * dz)
+end
+
+-- MARK: トレーナー
+
+func trainer_by_id(id)
+  for t in TRAINERS do
+    if t.id == id then return t end
+  end
+  return nil
+end
+
+func spawn_trainers()
+  for t in TRAINERS do
+    let spot = block("Trainer " + t.id)
+    if spot != nil then
+      let leader = t.badge != nil
+      let n = create_npc({name: t.name, position: spot.position + {x: 0, y: 1, z: 0}, color: leader and "#7C3AED" or "#2563EB", head_color: "#FDE68A",
+                          size: leader and 1.2 or 1, health: 999999, speed: 0, team: "trainer"})
+      if leader then n.hat = "crown" else n.hat = "cap" end
+      if t.id == "champion" then n.color = "#B91C1C" end
+    end
+  end
+end
+
+func badge_count(p)
+  return len(p.badges)
+end
+
+func challenge(p, t)
+  if p.in_battle or lead(p) == nil then return end
+  if badge_count(p) < t.need then
+    p.message("🧢 " + t.name + "「バッジを " + t.need + " こ集めてから来な！」（いま " + badge_count(p) + " こ）", 3)
+    return
+  end
+  let team = map(t.team, func(row) return make_critter(row[1], row[2]) end)
+  if p.beaten[t.id] then p.message("🔁 再戦！（賞金は半分）", 1.5) end
+  begin_battle(p, "trainer", team, t)
+end
+
+-- MARK: 伝説のほこら
+
+func shrine(p)
+  if p.in_battle then return end
+  if p.beaten["champion"] == nil then
+    p.message("⛩ ふしぎな力で進めない…（チャンピオンに勝つと？）", 2.5)
+    return
+  end
+  if p.caught["skydraco"] then
+    p.message("⛩ しずかな風がふいている", 1.5)
+    return
+  end
+  begin_battle(p, "legend", [make_critter("skydraco", 40)], nil)
+end
+
+-- MARK: センター・ショップ・研究所
+
+func heal_center(p)
+  heal_all(p)
+  hud(p)
+  p.sound("collect")
+  p.message("💖 おあずかりしたクリッターは、みんな元気になりましたよ！", 2)
+end
+
+func shop_panel(p)
+  let h = 120 + len(ITEMS) * 46
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 540, h: h, bg: "#1E3A8AF2", radius: 22, layer: 30})
+  p.ui_text("shop_t", "🏪 フレンドリーショップ   💰 " + kit_short(kit_money(p)), {parent: "shop", y: 24 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for it in ITEMS do
+    i = i + 1
+    p.ui_button("buy_" + it.id, it.name + "（" + (p.items[it.id] or 0) + "）  💰" + it.price + " — " + it.text, {parent: "shop", y: (30 + i * 46) / h, w: 500, h: 40, size: 13, bg: "#2563EB"})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 24) / h, w: 120, h: 32, size: 13, bg: "gray"})
+end
+
+func buy(p, id)
+  let it = item_by_id(id)
+  if it == nil then return end
+  if kit_pay(p, it.price) then
+    p.items[id] = (p.items[id] or 0) + 1
+    p.sound("collect")
+  end
+  shop_panel(p)
+end
+
+-- MARK: どうぐ（バトル中も外でも）
+
+func bag_panel(p)
+  let list = filter(ITEMS, func(it) return (p.items[it.id] or 0) > 0 end)
+  let h = 110 + max(1, len(list)) * 46
+  p.ui_remove("bagp")
+  p.ui_panel("bagp", {at: "center", w: 460, h: h, bg: "#422006F5", radius: 22, layer: 50})
+  p.ui_text("bagp_t", "🎒 どうぐ", {parent: "bagp", y: 24 / h, size: 17, bold: true, color: "#FDE68A"})
+  if len(list) == 0 then p.ui_text("bagp_e", "何もない（ショップで買えるよ）", {parent: "bagp", y: 70 / h, size: 13, color: "#D6D3D1"}) end
+  let i = 0
+  for it in list do
+    i = i + 1
+    p.ui_button("use_" + it.id, it.name + " ×" + p.items[it.id], {parent: "bagp", y: (30 + i * 46) / h, w: 400, h: 40, size: 14, bg: "#A16207"})
+  end
+  p.ui_button("bagp_close", "もどる", {parent: "bagp", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+-- どうぐを使う相手（回復は一番へっている子、げんきのかけらは気絶した子、アメは先頭）
+func item_target(p, it)
+  if it.revive then
+    for c in p.party do
+      if c.hp <= 0 then return c end
+    end
+    return nil
+  end
+  if it.candy then return p.party[1] end
+  let best = nil
+  for c in p.party do
+    if c.hp > 0 and c.hp < c.max and (best == nil or c.hp / c.max < best.hp / best.max) then best = c end
+  end
+  return best
+end
+
+func use_item(p, id)
+  let it = item_by_id(id)
+  if it == nil or (p.items[id] or 0) <= 0 then return end
+  p.ui_remove("bagp")
+  if it.ball != nil then
+    if not p.in_battle then
+      p.message("ボールはバトルの時に使おう", 1.2)
+      return
+    end
+    try_catch(p, it)
+    return
+  end
+  let c = item_target(p, it)
+  if c == nil then
+    p.message("使える相手がいない", 1.2)
+    return
+  end
+  p.items[id] = p.items[id] - 1
+  if it.revive then
+    c.hp = floor(c.max / 2)
+    c.status = nil
+    p.message("💎 " + c.name + " が元気をとりもどした！", 1.5)
+  elif it.candy then
+    give_xp(p, c, xp_need(c.level) - c.xp)
+  elif it.heal == -1 then
+    c.hp = c.max
+    c.status = nil
+    p.message("💊 " + c.name + " は全回復した！", 1.5)
+  else
+    c.hp = min(c.max, c.hp + it.heal)
+    p.message("🧪 " + c.name + " のHPが回復した", 1.5)
+  end
+  if p.in_battle then
+    say_log(p, it.name + " を使った！")
+    run_turn(p, nil)
+  else
+    hud(p)
+  end
+end
+
+-- MARK: チームとあずかりボックス
+
+func team_panel(p)
+  let h = 110 + len(p.party) * 46
+  p.ui_remove("teambox")
+  p.ui_panel("teambox", {at: "center", w: 480, h: h, bg: "#0F172AF0", radius: 22, layer: 30})
+  p.ui_text("team_t", "👥 チーム（おすと先頭に）", {parent: "teambox", y: 24 / h, size: 17, bold: true})
+  let i = 0
+  for c in p.party do
+    i = i + 1
+    let mv = join(map(c.moves, func(m) return MOVES[m].name end), "・")
+    p.ui_button("front_" + i, type_icon(c.type) + " " + c.name + " Lv." + c.level + " ❤️" + c.hp + "/" + c.max + status_tag(c) + "  " + mv,
+                {parent: "teambox", y: (30 + i * 46) / h, w: 450, h: 40, size: 12, bg: species_of(c.sid).color, color: "#111111"})
+  end
+  p.ui_button("team_close", "閉じる", {parent: "teambox", y: (h - 22) / h, w: 120, h: 30, size: 13, bg: "gray"})
+end
+
+func pc_panel(p)
+  let shown = []
+  if len(p.box) > 0 then shown = slice(p.box, max(1, len(p.box) - 7), len(p.box)) end
+  let rows = max(len(p.party), len(shown), 1)
+  let h = 130 + rows * 44
+  p.ui_remove("pc")
+  p.ui_panel("pc", {at: "center", w: 640, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("pc_t", "💻 あずかりボックス（チーム " + len(p.party) + "/" + PARTY_MAX + "・ボックス " + len(p.box) + "）", {parent: "pc", y: 24 / h, size: 16, bold: true, color: "#93C5FD"})
+  p.ui_text("pc_l", "チーム（おすとあずける）", {parent: "pc", x: 0.26, y: 54 / h, size: 12, color: "#CBD5E1"})
+  p.ui_text("pc_r", "ボックス（おすとつれていく）", {parent: "pc", x: 0.74, y: 54 / h, size: 12, color: "#CBD5E1"})
+  let i = 0
+  for c in p.party do
+    i = i + 1
+    p.ui_button("dep_" + i, c.name + " Lv." + c.level, {parent: "pc", x: 0.26, y: (50 + i * 44) / h, w: 290, h: 38, size: 13, bg: species_of(c.sid).color, color: "#111111"})
+  end
+  let base = len(p.box) - len(shown)
+  let k = 0
+  for c in shown do
+    k = k + 1
+    p.ui_button("wd_" + (base + k), c.name + " Lv." + c.level, {parent: "pc", x: 0.74, y: (50 + k * 44) / h, w: 290, h: 38, size: 13, bg: species_of(c.sid).color, color: "#111111"})
+  end
+  p.ui_button("pc_close", "閉じる", {parent: "pc", y: (h - 24) / h, w: 120, h: 32, size: 13, bg: "gray"})
+end
+
+func deposit(p, i)
+  if len(p.party) <= 1 then
+    p.message("チームには1ぴきは必要", 1.2)
+    return
+  end
+  let c = p.party[i]
+  if c == nil then return end
+  remove(p.party, i)
+  append(p.box, c)
+  refresh_buddy(p)
+  pc_panel(p)
+end
+
+func withdraw(p, i)
+  if len(p.party) >= PARTY_MAX then
+    p.message("チームがいっぱい（6ひきまで）", 1.2)
+    return
+  end
+  let c = p.box[i]
+  if c == nil then return end
+  remove(p.box, i)
+  c.hp = c.max
+  append(p.party, c)
+  pc_panel(p)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  let c = lead(p)
+  if c == nil then
+    p.ui_text("lead", "😵 みんなたおれている… センターで回復しよう", {at: "top", dy: 30, size: 16, color: "#FCA5A5"})
+  else
+    p.ui_text("lead", type_icon(c.type) + " " + c.name + " Lv." + c.level + "  ❤️ " + c.hp + "/" + c.max + status_tag(c) + "   👥 " + alive_count(p.party) + "/" + len(p.party),
+              {at: "top", dy: 30, size: 16, bold: true})
+  end
+  let badges = ""
+  for t in TRAINERS do
+    if t.badge != nil and contains(p.badges, t.id) then badges = badges + slice(t.badge, 1, 1) end
+  end
+  if p.beaten["champion"] then badges = badges + "👑" end
+  if badges == "" then badges = "—" end
+  p.ui_text("badges", "🏅 " + badges + "   📖 " + len(keys(p.caught)) + "/" + len(SPECIES) + "   🟠" + (p.items["ball"] or 0), {at: "top_left", dy: 36, size: 14, color: "#FDE68A"})
+end
+
+on start()
+  spawn_trainers()
+end
+
+on tick(dt)
+  walk_clock = walk_clock + dt
+  if walk_clock < 0.5 then return end
+  walk_clock = 0
+  for p in players() do
+    if ready(p) and p.alive then walk_step(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or p.in_battle then return end
+  if contains(b.tags, "heal") and quiet_ready(p, "heal", 3) then heal_center(p)
+  elif contains(b.tags, "pc") and quiet_ready(p, "pc", 2) then pc_panel(p)
+  elif contains(b.tags, "mart") and quiet_ready(p, "mart", 2) then shop_panel(p)
+  elif contains(b.tags, "lab") and quiet_ready(p, "lab", 2) then dex_panel(p)
+  elif contains(b.tags, "shrine") and quiet_ready(p, "shrine", 4) then shrine(p)
+  elif contains(b.tags, "trainer") and quiet_ready(p, "trainer", 4) then
+    let t = trainer_by_id(replace(replace(b.name, "Trainer ", ""), " Pad", ""))
+    if t != nil then challenge(p, t) end
+  end
+end

@@ -1,0 +1,149 @@
+-- data.absc — クリッター（24種）・タイプ相性・技・道具・草むら・トレーナー
+
+-- タイプ。beats: こうかばつぐんの相手
+let TYPES = {
+  normal: {icon: "⭐", name: "ノーマル", beats: []},
+  fire: {icon: "🔥", name: "ほのお", beats: ["plant", "ice"]},
+  water: {icon: "💧", name: "みず", beats: ["fire", "rock"]},
+  plant: {icon: "🌿", name: "くさ", beats: ["water", "rock"]},
+  electric: {icon: "⚡", name: "でんき", beats: ["water", "wind"]},
+  rock: {icon: "🪨", name: "いわ", beats: ["fire", "wind", "ice"]},
+  wind: {icon: "🌪", name: "かぜ", beats: ["plant"]},
+  ice: {icon: "❄️", name: "こおり", beats: ["plant", "wind"]},
+  ghost: {icon: "👻", name: "ゴースト", beats: ["ghost"]}
+}
+
+-- 技。power: 0 なら変化技 / acc: 命中 / effect: burn para sleep freeze drain heal atk_up def_down atk_down / chance: 追加効果の確率
+let MOVES = {
+  tackle: {name: "たいあたり", type: "normal", power: 40, acc: 100},
+  quick: {name: "でんこうせっか", type: "normal", power: 35, acc: 100, first: true},
+  growl: {name: "なきごえ", type: "normal", power: 0, acc: 100, effect: "atk_down"},
+  focus: {name: "きあいだめ", type: "normal", power: 0, acc: 100, effect: "atk_up"},
+  recover: {name: "じこさいせい", type: "normal", power: 0, acc: 100, effect: "heal"},
+  ember: {name: "ひのこ", type: "fire", power: 40, acc: 100, effect: "burn", chance: 0.1},
+  flame: {name: "かえんほうしゃ", type: "fire", power: 80, acc: 100, effect: "burn", chance: 0.1},
+  blaze: {name: "だいもんじ", type: "fire", power: 110, acc: 85, effect: "burn", chance: 0.3},
+  bubble: {name: "みずでっぽう", type: "water", power: 40, acc: 100},
+  surf: {name: "なみのり", type: "water", power: 85, acc: 100},
+  hydro: {name: "ハイドロポンプ", type: "water", power: 110, acc: 80},
+  leaf: {name: "はっぱカッター", type: "plant", power: 45, acc: 95},
+  drain: {name: "すいとる", type: "plant", power: 40, acc: 100, effect: "drain"},
+  spore: {name: "ねむりごな", type: "plant", power: 0, acc: 75, effect: "sleep"},
+  solar: {name: "ソーラービーム", type: "plant", power: 110, acc: 90},
+  spark: {name: "でんきショック", type: "electric", power: 40, acc: 100, effect: "para", chance: 0.1},
+  bolt: {name: "10まんボルト", type: "electric", power: 85, acc: 100, effect: "para", chance: 0.1},
+  thunder: {name: "かみなり", type: "electric", power: 110, acc: 75, effect: "para", chance: 0.3},
+  zap: {name: "でんじは", type: "electric", power: 0, acc: 90, effect: "para"},
+  pebble: {name: "いしつぶて", type: "rock", power: 45, acc: 95},
+  slide: {name: "いわなだれ", type: "rock", power: 80, acc: 90},
+  harden: {name: "かたくなる", type: "rock", power: 0, acc: 100, effect: "def_up"},
+  gust: {name: "かぜおこし", type: "wind", power: 40, acc: 100},
+  wing: {name: "つばさでうつ", type: "wind", power: 60, acc: 100},
+  hurricane: {name: "ぼうふう", type: "wind", power: 110, acc: 75},
+  snow: {name: "こなゆき", type: "ice", power: 40, acc: 100, effect: "freeze", chance: 0.1},
+  icebeam: {name: "れいとうビーム", type: "ice", power: 85, acc: 100, effect: "freeze", chance: 0.1},
+  blizzard: {name: "ふぶき", type: "ice", power: 110, acc: 75, effect: "freeze", chance: 0.2},
+  lick: {name: "したでなめる", type: "ghost", power: 35, acc: 100, effect: "para", chance: 0.3},
+  shadow: {name: "シャドーボール", type: "ghost", power: 80, acc: 100, effect: "def_down", chance: 0.2},
+  hex: {name: "あやしいひかり", type: "ghost", power: 0, acc: 85, effect: "sleep"}
+}
+
+-- クリッター。hp atk def spd: 種族の強さ / evo: 進化先 / evo_lv: 進化するレベル / catch: つかまえやすさ（0〜255）/ learn: [レベル, 技]
+let SPECIES = [
+  {id: "hinokon", name: "ヒノコン", type: "fire", hp: 45, atk: 55, def: 42, spd: 60, color: "#F97316", head: "#FDBA74", size: 0.8, catch: 45, evo: "homuracon", evo_lv: 16,
+   learn: [[1, "tackle"], [1, "growl"], [5, "ember"], [12, "quick"], [20, "flame"], [36, "blaze"]]},
+  {id: "homuracon", name: "ホムラコン", type: "fire", hp: 60, atk: 72, def: 58, spd: 78, color: "#EA580C", head: "#FDBA74", size: 1.1, catch: 45, evo: "emblaze", evo_lv: 32,
+   learn: [[1, "tackle"], [1, "ember"], [20, "flame"], [36, "blaze"]]},
+  {id: "emblaze", name: "エンブレイズ", type: "fire", hp: 78, atk: 96, def: 76, spd: 96, color: "#B91C1C", head: "#FACC15", size: 1.5, catch: 45,
+   learn: [[1, "flame"], [36, "blaze"]]},
+  {id: "mizupon", name: "ミズポン", type: "water", hp: 50, atk: 48, def: 60, spd: 50, color: "#38BDF8", head: "#BAE6FD", size: 0.8, catch: 45, evo: "namipon", evo_lv: 16,
+   learn: [[1, "tackle"], [1, "growl"], [5, "bubble"], [12, "harden"], [20, "surf"], [36, "hydro"]]},
+  {id: "namipon", name: "ナミポン", type: "water", hp: 66, atk: 64, def: 78, spd: 64, color: "#0EA5E9", head: "#BAE6FD", size: 1.1, catch: 45, evo: "tidalon", evo_lv: 32,
+   learn: [[1, "tackle"], [1, "bubble"], [20, "surf"], [36, "hydro"]]},
+  {id: "tidalon", name: "タイダロン", type: "water", hp: 86, atk: 84, def: 100, spd: 80, color: "#1D4ED8", head: "#7DD3FC", size: 1.5, catch: 45,
+   learn: [[1, "surf"], [36, "hydro"]]},
+  {id: "happaru", name: "ハッパル", type: "plant", hp: 55, atk: 50, def: 52, spd: 48, color: "#22C55E", head: "#BBF7D0", size: 0.8, catch: 45, evo: "morihappa", evo_lv: 16,
+   learn: [[1, "tackle"], [1, "growl"], [5, "leaf"], [10, "drain"], [14, "spore"], [26, "solar"]]},
+  {id: "morihappa", name: "モリハッパ", type: "plant", hp: 72, atk: 66, def: 70, spd: 60, color: "#16A34A", head: "#BBF7D0", size: 1.1, catch: 45, evo: "junglar", evo_lv: 32,
+   learn: [[1, "leaf"], [1, "drain"], [26, "solar"]]},
+  {id: "junglar", name: "ジャングラー", type: "plant", hp: 92, atk: 88, def: 90, spd: 76, color: "#166534", head: "#86EFAC", size: 1.5, catch: 45,
+   learn: [[1, "solar"], [1, "drain"]]},
+  {id: "piririn", name: "ピリリン", type: "electric", hp: 38, atk: 52, def: 36, spd: 80, color: "#FACC15", head: "#FEF08A", size: 0.7, catch: 190, evo: "biribirion", evo_lv: 20,
+   learn: [[1, "spark"], [1, "quick"], [9, "zap"], [22, "bolt"], [34, "thunder"]]},
+  {id: "biribirion", name: "ビリビリオン", type: "electric", hp: 62, atk: 80, def: 56, spd: 104, color: "#EAB308", head: "#FEF08A", size: 1.2, catch: 75,
+   learn: [[1, "spark"], [1, "zap"], [22, "bolt"], [34, "thunder"]]},
+  {id: "gorocchi", name: "ゴロッチ", type: "rock", hp: 55, atk: 60, def: 80, spd: 25, color: "#78716C", head: "#A8A29E", size: 0.9, catch: 190, evo: "gorogante", evo_lv: 22,
+   learn: [[1, "tackle"], [1, "harden"], [8, "pebble"], [24, "slide"]]},
+  {id: "gorogante", name: "ゴロガンテ", type: "rock", hp: 85, atk: 90, def: 115, spd: 35, color: "#57534E", head: "#A8A29E", size: 1.6, catch: 60,
+   learn: [[1, "pebble"], [1, "harden"], [24, "slide"]]},
+  {id: "hayatedori", name: "ハヤテドリ", type: "wind", hp: 42, atk: 48, def: 40, spd: 70, color: "#E5E7EB", head: "#FDE68A", size: 0.7, catch: 200, evo: "tsumujidori", evo_lv: 18,
+   learn: [[1, "gust"], [1, "quick"], [15, "wing"], [34, "hurricane"]]},
+  {id: "tsumujidori", name: "ツムジドリ", type: "wind", hp: 70, atk: 76, def: 64, spd: 100, color: "#CBD5E1", head: "#FDE68A", size: 1.3, catch: 70,
+   learn: [[1, "gust"], [1, "wing"], [34, "hurricane"]]},
+  {id: "yukiwan", name: "ユキワン", type: "ice", hp: 52, atk: 56, def: 50, spd: 62, color: "#E0F2FE", head: "#BAE6FD", size: 0.8, catch: 120, evo: "hyougawolf", evo_lv: 24,
+   learn: [[1, "snow"], [1, "tackle"], [16, "quick"], [26, "icebeam"], [38, "blizzard"]]},
+  {id: "hyougawolf", name: "ヒョウガウルフ", type: "ice", hp: 80, atk: 92, def: 72, spd: 94, color: "#7DD3FC", head: "#E0F2FE", size: 1.4, catch: 50,
+   learn: [[1, "snow"], [1, "quick"], [26, "icebeam"], [38, "blizzard"]]},
+  {id: "obakepo", name: "オバケポ", type: "ghost", hp: 40, atk: 58, def: 40, spd: 72, color: "#A78BFA", head: "#EDE9FE", size: 0.8, catch: 120, evo: "yominokage", evo_lv: 26,
+   learn: [[1, "lick"], [1, "hex"], [18, "shadow"], [30, "recover"]]},
+  {id: "yominokage", name: "ヨミノカゲ", type: "ghost", hp: 70, atk: 94, def: 66, spd: 100, color: "#6D28D9", head: "#C4B5FD", size: 1.4, catch: 45,
+   learn: [[1, "lick"], [1, "hex"], [18, "shadow"], [30, "recover"]]},
+  {id: "kinokon", name: "キノコン", type: "plant", hp: 60, atk: 55, def: 60, spd: 30, color: "#DC2626", head: "#FEF3C7", size: 0.8, catch: 190,
+   learn: [[1, "tackle"], [1, "spore"], [8, "drain"], [20, "leaf"], [30, "solar"]]},
+  {id: "magumadon", name: "マグマドン", type: "fire", hp: 80, atk: 85, def: 70, spd: 45, color: "#991B1B", head: "#F97316", size: 1.4, catch: 60,
+   learn: [[1, "ember"], [1, "harden"], [22, "flame"], [34, "blaze"]]},
+  {id: "kuragerin", name: "クラゲリン", type: "water", hp: 50, atk: 45, def: 50, spd: 65, color: "#F0ABFC", head: "#E0F2FE", size: 0.8, catch: 190,
+   learn: [[1, "bubble"], [1, "zap"], [20, "surf"], [32, "recover"]]},
+  {id: "hotarun", name: "ホタルン", type: "electric", hp: 45, atk: 50, def: 45, spd: 75, color: "#A3E635", head: "#FEF08A", size: 0.6, catch: 190,
+   learn: [[1, "spark"], [1, "gust"], [18, "zap"], [28, "bolt"]]},
+  {id: "skydraco", name: "スカイドラコ", type: "wind", hp: 100, atk: 110, def: 95, spd: 105, color: "#6366F1", head: "#E0E7FF", size: 2.2, catch: 5, legend: true,
+   learn: [[1, "hurricane"], [1, "thunder"], [1, "recover"], [1, "slide"]]}
+]
+
+-- 草むら。lv: 出てくるレベル / table: [種族, 重み]
+let AREAS = {
+  meadow: {name: "🌾 はじまりの草原", lv: [2, 6], table: [["hayatedori", 40], ["kinokon", 30], ["piririn", 15], ["hotarun", 15]]},
+  lake: {name: "💧 しずかな湖", lv: [5, 10], table: [["kuragerin", 40], ["hayatedori", 25], ["piririn", 20], ["mizupon", 5], ["hotarun", 10]]},
+  forest: {name: "🌲 まよいの森", lv: [9, 14], table: [["kinokon", 30], ["hotarun", 25], ["obakepo", 20], ["happaru", 5], ["piririn", 20]]},
+  volcano: {name: "🌋 けむり火山", lv: [13, 19], table: [["gorocchi", 40], ["magumadon", 25], ["hinokon", 5], ["hayatedori", 30]]},
+  snow: {name: "❄️ こおりの原", lv: [18, 24], table: [["yukiwan", 45], ["gorocchi", 30], ["tsumujidori", 15], ["kuragerin", 10]]},
+  ruins: {name: "🏚 月夜の遺跡", lv: [23, 30], table: [["obakepo", 35], ["yominokage", 10], ["biribirion", 20], ["hyougawolf", 15], ["gorogante", 20]]}
+}
+
+-- トレーナー。need: 必要なバッジの数 / badge: 勝つともらえるバッジ
+let TRAINERS = [
+  {id: "t1", name: "たんぱんこぞう ケン", intro: "目があったらバトルだ！", team: [["hayatedori", 4], ["kinokon", 5]], reward: 120, need: 0},
+  {id: "leader1", name: "リーダー ミドリ", intro: "森のちからを見せてあげる！", team: [["kinokon", 9], ["happaru", 11], ["morihappa", 13]], reward: 600, need: 0,
+   badge: "🌿 リーフバッジ"},
+  {id: "t2", name: "つりびと ハル", intro: "湖の主はオレのクリッターさ", team: [["kuragerin", 12], ["mizupon", 13], ["kuragerin", 14]], reward: 300, need: 1},
+  {id: "leader2", name: "リーダー ナギサ", intro: "波にのまれないでね", team: [["kuragerin", 16], ["namipon", 18], ["namipon", 20]], reward: 1200, need: 1,
+   badge: "💧 ウェーブバッジ"},
+  {id: "t3", name: "やまおとこ ガンジ", intro: "岩のようにかたいぞ！", team: [["gorocchi", 18], ["gorocchi", 19], ["magumadon", 20]], reward: 500, need: 2},
+  {id: "leader3", name: "リーダー カエン", intro: "燃えあがれ、オレの魂！", team: [["magumadon", 22], ["homuracon", 24], ["magumadon", 26]], reward: 2000, need: 2,
+   badge: "🔥 フレイムバッジ"},
+  {id: "t4", name: "スキーヤー ユキ", intro: "すべりこみでバトル！", team: [["yukiwan", 24], ["tsumujidori", 25], ["yukiwan", 26]], reward: 800, need: 3},
+  {id: "leader4", name: "リーダー シラユキ", intro: "こおりつくほど、きれいに勝つわ", team: [["yukiwan", 28], ["hyougawolf", 30], ["hyougawolf", 32]], reward: 3000, need: 3,
+   badge: "❄️ アイスバッジ"},
+  {id: "champion", name: "チャンピオン ソウマ", intro: "よくここまで来た。全力でいくぞ！", team: [["biribirion", 34], ["gorogante", 35], ["yominokage", 36], ["tsumujidori", 36], ["emblaze", 38]],
+   reward: 10000, need: 4, badge: "👑 チャンピオン"}
+]
+
+-- 道具。ball: つかまえやすさの倍率 / heal: 回復量（-1 = 全回復）/ revive: 気絶から復活
+let ITEMS = [
+  {id: "ball", name: "🟠 キャプチャーボール", price: 50, ball: 1, text: "クリッターをつかまえる"},
+  {id: "super", name: "🔵 スーパーボール", price: 150, ball: 1.8, text: "つかまえやすい"},
+  {id: "gold", name: "🟡 ゴールドボール", price: 500, ball: 3, text: "とてもつかまえやすい"},
+  {id: "potion", name: "🧪 キズぐすり", price: 60, heal: 30, text: "HPを30回復"},
+  {id: "hyper", name: "💊 すごいキズぐすり", price: 250, heal: -1, text: "HPを全回復"},
+  {id: "revive", name: "💎 げんきのかけら", price: 400, revive: true, text: "気絶した子を半分回復"},
+  {id: "candy", name: "🍬 ふしぎなアメ", price: 1500, candy: true, text: "レベルが1上がる"}
+]
+
+let STATUS = {
+  burn: {icon: "🔥", name: "やけど"},
+  para: {icon: "⚡", name: "まひ"},
+  sleep: {icon: "💤", name: "ねむり"},
+  freeze: {icon: "🧊", name: "こおり"}
+}
+
+let PARTY_MAX = 6

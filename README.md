@@ -106,7 +106,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/toy-army-tycoon/cover-9029982e.png" width="200"> | 62 | **Toy Army Tycoon** | おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！ |
 | <img src="games/buzz-meadow/cover-8b3182b5.png" width="200"> | 63 | **Buzz Meadow** | ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！ |
 | <img src="games/dungeon-delve/cover-75429a92.png" width="200"> | 64 | **Dungeon Delve** | 4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！ |
-| <img src="games/critter-quest/cover-55e8081e.png" width="200"> | 65 | **Critter Quest** | 草むらでふしぎな生き物「クリッター」に出会ったら、ターン制バトルでつかまえよう。チームを育ててトレーナーに勝て！ |
+| <img src="games/critter-quest/cover-c2226af0.png" width="200"> | 65 | **Critter Quest** | 草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！ |
 | <img src="games/blade-summon-sim/cover-0d8cf5e4.png" width="200"> | 66 | **Blade Summon Sim** | 武器を召喚すると、まわりをぐるぐる回って勝手に敵をたおしてくれる。コインでガチャを回して、最強の武器軍団を。 |
 | <img src="games/crusher-yard/cover-ff3e3424.png" width="200"> | 67 | **Crusher Yard** | 車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。 |
 | <img src="games/slime-merge/cover-eeb5414a.png" width="200"> | 68 | **Slime Merge** | 草原のスライムをつかまえて、同じレベルどうしを合体！台にのせるとお金を生む。最強スライムを作りだせ。 |

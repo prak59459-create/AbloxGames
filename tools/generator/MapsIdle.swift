@@ -22,7 +22,7 @@ let idleGames: [Game] = [
          summary: "4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！",
          tags: ["dungeon", "loot", "coop"], maxPlayers: 8, build: dungeonDelve),
     Game(number: 65, id: "critter-quest", title: "Critter Quest",
-         summary: "草むらでふしぎな生き物「クリッター」に出会ったら、ターン制バトルでつかまえよう。チームを育ててトレーナーに勝て！",
+         summary: "草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！",
          tags: ["monsters", "rpg", "turn-based"], maxPlayers: 12, build: critterQuest),
     Game(number: 66, id: "blade-summon-sim", title: "Blade Summon Sim",
          summary: "武器を召喚すると、まわりをぐるぐる回って勝手に敵をたおしてくれる。コインでガチャを回して、最強の武器軍団を。",
@@ -584,23 +584,97 @@ func dungeonDelve(_ m: MapBuilder) {
 
 func critterQuest(_ m: MapBuilder) {
     m.day(ground: "#4D7C0F")
-    m.ground(220, 220, color: "#65A30D", name: "Route")
-    m.road(from: (0, -100), to: (0, 100), width: 6, name: "Route Path")
+    m.ground(170, 300, color: "#65A30D", name: "Route", z: 30)
+    m.part("Cover Focus", at: (0, 2, 4), size: (150, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
+    m.road(from: (0, -78), to: (0, 144), width: 6, name: "Route Path", dashed: false, color: "#D6B98C")
+    var r = Seeded("critters")
+    // The town: spawns, the Critter Center (healing and the storage box), the shop and the professor's lab.
+    m.slab("Town Square", x: 0, y: 0, z: -86, w: 60, h: 0.06, d: 30, color: "#E7E5E4")
     m.spawnRing(0, -80, radius: 4, count: 8, color: "#F87171")
-    m.shop("Critter Center", x: 12, z: -80, w: 12, d: 10, color: "#F87171", sign: "#FFFFFF", facing: -1)
-    m.pad("Heal Counter", x: 12, z: -82, size: 2.4, color: "#FDA4AF", tags: ["heal"])
-    let grass: [(String, Float, Float, String)] = [("Grass Meadow", -30, -40, "#16A34A"), ("Grass Lake", 30, -10, "#0891B2"),
-                                                   ("Grass Volcano", -30, 30, "#B45309"), ("Grass Forest", 30, 60, "#14532D")]
+    m.part("Town Fountain", at: (0, 0.5, -80), size: (2.4, 1, 2.4), color: "#93C5FD", shape: .cylinder, material: .glass)
+    m.shop("Critter Center", x: 17, z: -90, w: 12, d: 8, color: "#F87171", sign: "#FFFFFF")
+    m.pad("Heal Counter", x: 14.5, z: -87.6, size: 2.2, color: "#FDA4AF", tags: ["heal"])
+    m.pad("PC Pad", x: 19.5, z: -87.6, size: 2.2, color: "#93C5FD", tags: ["pc"])
+    m.part("PC Screen", at: (19.5, 1.8, -89.6), size: (1.4, 1, 0.2), color: "#38BDF8", material: .neon, solid: false)
+    m.shop("Critter Mart", x: -17, z: -90, w: 10, d: 8, color: "#3B82F6", sign: "#FFFFFF")
+    m.pad("Mart Counter", x: -17, z: -87.6, size: 2.2, color: "#93C5FD", tags: ["mart"])
+    m.house("Lab", x: 0, z: -100, w: 12, d: 7, wall: "#F8FAFC", roof: "#475569", floor: "#E5E7EB")
+    m.pad("Lab Desk", x: 0, z: -98.6, size: 2.2, color: "#A5B4FC", tags: ["lab"])
+    for dx: Float in [-26, 26] { m.lamp(dx, -76, glow: "#FDE68A") }
+    // Six patches of tall grass up the route, each its own kind of critter.
+    let grass: [(String, Float, Float, String, String)] = [("meadow", -24, -50, "#16A34A", "#4ADE80"), ("lake", 24, -20, "#0E7490", "#22D3EE"),
+                                                          ("forest", -24, 12, "#14532D", "#15803D"), ("volcano", 24, 44, "#9A3412", "#EA580C"),
+                                                          ("snow", -24, 76, "#E0F2FE", "#F8FAFC"), ("ruins", 24, 108, "#4C1D95", "#A78BFA")]
     for g in grass {
-        m.pad(g.0, x: g.1, z: g.2, size: 26, color: g.3, tags: ["grass"], shape: .box)
-        var r = Seeded(g.0)
-        for _ in 0..<14 {
-            m.part("Tall Grass", at: (g.1 + r.range(-11, 11), 0.5, g.2 + r.range(-11, 11)), size: (1, 1, 1), color: g.3, shape: .cone, solid: false)
+        m.part("Grass \(g.0)", at: (g.1, 0.03, g.2), size: (26, 0.06, 22), color: g.3, material: .matte, solid: false)
+        for _ in 0..<22 {
+            let gx = g.1 + r.range(-12, 12), gz = g.2 + r.range(-10, 10)
+            m.part("Tall Grass", at: (gx, 0.55, gz), size: (0.9, 1.1, 0.9), color: r.unit() < 0.5 ? g.3 : g.4, shape: .cone, material: .matte, solid: false)
+        }
+        m.part("Grass Sign", at: (g.1 > 0 ? g.1 - 14 : g.1 + 14, 1.2, g.2 - 9), size: (0.2, 2.4, 0.2), color: "#78350F", solid: false)
+        m.part("Grass Sign Board", at: (g.1 > 0 ? g.1 - 14 : g.1 + 14, 2.2, g.2 - 9), size: (1.6, 0.9, 0.12), color: g.4, solid: false)
+    }
+    // Scenery for each patch.
+    m.water(24, -37, w: 22, d: 8, y: 0.06, name: "Lake")
+    for q in [(18, -37), (27, -36), (31, -38)] as [(Float, Float)] {
+        m.part("Lily Pad", at: (q.0, 0.1, q.1), size: (1.4, 0.05, 1.4), color: "#16A34A", shape: .cylinder, solid: false)
+    }
+    for pz in stride(from: Float(2), through: 22, by: 5) { m.pine(-40, pz, height: 6) }
+    for px in stride(from: Float(-34), through: -14, by: 5) { m.pine(px, 26, height: 5) }
+    m.part("Volcano", at: (28, 7, 70), size: (20, 14, 16), color: "#57534E", shape: .cone, material: .matte)
+    m.part("Volcano Lava", at: (28, 13.6, 70), size: (4, 1, 3.2), color: "#F97316", shape: .cylinder, material: .neon, solid: false)
+    for q in [(-38, 70), (-36, 82), (-12, 88), (-10, 66)] as [(Float, Float)] {
+        m.pine(q.0, q.1, height: 5, leaves: "#E0F2FE")
+    }
+    for q in [(12, 100), (36, 102), (14, 118), (34, 116), (24, 121)] as [(Float, Float)] {
+        let h = r.range(2, 5)
+        m.part("Ruin Pillar", at: (q.0, h / 2, q.1), size: (1.2, h, 1.2), color: "#A8A29E", material: .matte)
+    }
+    // Trainers by the road: each stands by a pad that starts the battle.
+    let trainers: [(String, Float, Float)] = [("t1", -6, -62), ("t2", 6, -2), ("t3", -6, 30), ("t4", 6, 62)]
+    for t in trainers {
+        m.part("Trainer \(t.0)", at: (t.1, 0.1, t.2), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+        m.pad("Trainer \(t.0) Pad", x: t.1 > 0 ? t.1 - 2.6 : t.1 + 2.6, z: t.2, size: 2, color: "#FB923C", tags: ["trainer"])
+    }
+    // Four leaders' gyms, each open toward the road.
+    let gyms: [(String, Float, Float, String, String)] = [("leader1", -54, -44, "#16A34A", "#BBF7D0"), ("leader2", 54, -14, "#0284C7", "#BAE6FD"),
+                                                         ("leader3", 54, 50, "#DC2626", "#FECACA"), ("leader4", -54, 84, "#7DD3FC", "#F0F9FF")]
+    for g in gyms {
+        let toward: Float = g.1 < 0 ? 1 : -1
+        m.slab("Gym Floor", x: g.1, y: 0, z: g.2, w: 18, h: 0.3, d: 18, color: g.4)
+        m.part("Gym Ring", at: (g.1, 0.32, g.2), size: (10, 0.04, 10), color: g.3, shape: .cylinder, solid: false)
+        m.slab("Gym Wall", x: g.1 - toward * 9, y: 0, z: g.2, w: 1, h: 4, d: 18, color: g.3)
+        for sz: Float in [-9, 9] { m.slab("Gym Wall", x: g.1, y: 0, z: g.2 + sz, w: 18, h: 4, d: 1, color: g.3) }
+        for sz: Float in [-6, 6] { m.slab("Gym Wall", x: g.1 + toward * 9, y: 0, z: g.2 + sz, w: 1, h: 4, d: 6, color: g.3) }
+        m.part("Gym Emblem", at: (g.1 - toward * 9.6, 5, g.2), size: (0.4, 2.4, 2.4), color: g.3, shape: .cylinder, material: .neon, solid: false,
+               rotation: (0, 0, 90))
+        m.part("Trainer \(g.0)", at: (g.1 - toward * 5, 0.4, g.2), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+        m.pad("Trainer \(g.0) Pad", x: g.1 - toward * 2.2, z: g.2, y: 0.3, size: 2.4, color: "#FACC15", tags: ["trainer"])
+    }
+    // The champion's hall at the end of the route.
+    m.slab("Champion Stage", x: 0, y: 0, z: 134, w: 22, h: 0.6, d: 16, color: "#FDE68A")
+    for q in [(-10, 127), (10, 127), (-10, 141), (10, 141)] as [(Float, Float)] {
+        m.pillar("Champion Pillar", x: q.0, z: q.1, y: 0.6, height: 6, radius: 0.7, color: "#F8FAFC")
+        m.part("Champion Flame", at: (q.0, 7.2, q.1), size: (0.9, 1.2, 0.9), color: "#F59E0B", shape: .cone, material: .neon, solid: false)
+    }
+    m.part("Trainer champion", at: (0, 0.7, 139), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+    m.pad("Trainer champion Pad", x: 0, z: 135.5, y: 0.6, size: 2.6, color: "#F43F5E", tags: ["trainer"])
+    // The sky shrine on the hill behind it.
+    for i in 0..<10 {
+        m.slab("Shrine Step", x: 0, y: 0, z: 146.5 + Float(i), w: 5, h: 0.5 * Float(i + 1), d: 1, color: "#A8A29E")
+    }
+    m.slab("Shrine Hill", x: 0, y: 0, z: 160, w: 18, h: 5, d: 18, color: "#57534E", material: .matte)
+    for dx: Float in [-2.6, 2.6] { m.slab("Torii Pillar", x: dx, y: 5, z: 154, w: 0.6, h: 4.5, d: 0.6, color: "#DC2626") }
+    m.slab("Torii Beam", x: 0, y: 9.3, z: 154, w: 7.4, h: 0.6, d: 0.8, color: "#DC2626")
+    m.pad("Shrine Pad", x: 0, z: 161, y: 5, size: 3, color: "#818CF8", tags: ["shrine"])
+    m.part("Shrine Orb", at: (0, 7.6, 164), size: (1.4, 1.4, 1.4), color: "#A5B4FC", shape: .sphere, material: .neon, solid: false)
+    // Trees along both edges of the route.
+    for tz in stride(from: Float(-110), through: 170, by: 16) {
+        for sx: Float in [-1, 1] {
+            let tx = sx * (74 + r.range(-4, 4))
+            m.tree(tx, tz + r.range(-4, 4), height: r.range(4, 6))
         }
     }
-    m.slab("Arena", x: 0, y: 0, z: 90, w: 24, h: 0.4, d: 18, color: "#CBD5E1")
-    m.pad("Trainer Challenge", x: 0, z: 84, y: 0.4, size: 3, color: "#7C3AED", tags: ["trainer"])
-    for p in ring(12, radius: 95) { m.tree(p.0, p.1, height: 5) }
 }
 
 // MARK: 66 Blade Summon Sim

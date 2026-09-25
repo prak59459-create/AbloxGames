@@ -1,0 +1,212 @@
+-- critters.absc — クリッターを作る・能力・経験値・技を覚える・進化・図鑑・連れ歩き
+
+func ready(p)
+  return p.party != nil and len(p.party) > 0
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func species_of(id)
+  for s in SPECIES do
+    if s.id == id then return s end
+  end
+  return SPECIES[1]
+end
+
+func item_by_id(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return nil
+end
+
+func type_icon(t)
+  return TYPES[t].icon
+end
+
+-- こうかの倍率
+func effectiveness(move_type, target_type)
+  if contains(TYPES[move_type].beats, target_type) then return 2 end
+  if contains(TYPES[target_type].beats, move_type) then return 0.5 end
+  if move_type == target_type and move_type != "normal" and move_type != "ghost" then return 0.5 end
+  return 1
+end
+
+-- MARK: 能力
+
+func stat_of(base, level)
+  return floor(base * 2 * level / 100 + 5)
+end
+
+func hp_of(base, level)
+  return floor(base * 2 * level / 100 + level + 10)
+end
+
+func recalc(c)
+  let s = species_of(c.sid)
+  let old_max = c.max or 0
+  c.max = hp_of(s.hp, c.level)
+  c.atk = stat_of(s.atk, c.level)
+  c.def = stat_of(s.def, c.level)
+  c.spd = stat_of(s.spd, c.level)
+  c.hp = min(c.max, c.hp + max(0, c.max - old_max))
+  c.name = s.name
+  c.type = s.type
+end
+
+func xp_need(level)
+  return floor(pow(level, 2.2) + 10)
+end
+
+-- そのレベルまでに覚える技（新しい4つ）
+func moves_for(sid, level)
+  let list = []
+  for row in species_of(sid).learn do
+    if row[1] <= level and not contains(list, row[2]) then append(list, row[2]) end
+  end
+  if len(list) > 4 then list = slice(list, len(list) - 3, len(list)) end
+  return list
+end
+
+func make_critter(sid, level)
+  let c = {sid: sid, level: level, xp: 0, hp: 0, status: nil, moves: moves_for(sid, level)}
+  recalc(c)
+  c.hp = c.max
+  return c
+end
+
+func alive_count(list)
+  return len(filter(list, func(c) return c.hp > 0 end))
+end
+
+func lead(p)
+  for c in p.party do
+    if c.hp > 0 then return c end
+  end
+  return nil
+end
+
+func heal_all(p)
+  for c in p.party do
+    c.hp = c.max
+    c.status = nil
+  end
+end
+
+-- MARK: 経験値・技・進化
+
+func learn(p, c, move_id)
+  if contains(c.moves, move_id) then return end
+  if len(c.moves) >= 4 then remove(c.moves, 1) end
+  append(c.moves, move_id)
+  p.message("✨ " + c.name + " は " + MOVES[move_id].name + " をおぼえた！", 2)
+end
+
+func level_up(p, c)
+  c.level = c.level + 1
+  let before = c.max
+  recalc(c)
+  c.hp = min(c.max, c.hp + (c.max - before))
+  p.message("⬆️ " + c.name + " は Lv." + c.level + " になった！", 2)
+  for row in species_of(c.sid).learn do
+    if row[1] == c.level then learn(p, c, row[2]) end
+  end
+  let s = species_of(c.sid)
+  if s.evo != nil and c.level >= s.evo_lv then evolve(p, c, s.evo) end
+  if c.level >= 20 then kit_quest_progress(p, "lv20", 1) end
+  if c.level >= 40 then kit_badge(p, "lv40", "Lv.40 のクリッターを育てた") end
+  p.score = max(p.score, c.level)
+end
+
+func evolve(p, c, into)
+  let old = c.name
+  c.sid = into
+  recalc(c)
+  for row in species_of(into).learn do
+    if row[1] <= c.level and not contains(c.moves, row[2]) and len(c.moves) < 4 then append(c.moves, row[2]) end
+  end
+  announce("🌟 " + p.name + " の " + old + " が " + c.name + " に進化した！", 4)
+  p.sound("goal")
+  dex_mark(p, into, true)
+  kit_quest_progress(p, "evolve", 1)
+  refresh_buddy(p)
+end
+
+func give_xp(p, c, amount)
+  if c.level >= 60 then return end
+  c.xp = c.xp + amount
+  while c.xp >= xp_need(c.level) and c.level < 60 do
+    c.xp = c.xp - xp_need(c.level)
+    level_up(p, c)
+  end
+end
+
+-- MARK: 図鑑
+
+func dex_mark(p, sid, caught)
+  if p.seen[sid] == nil then p.seen[sid] = true end
+  if caught and p.caught[sid] == nil then
+    p.caught[sid] = true
+    let n = len(keys(p.caught))
+    kit_quest_progress(p, "dex10", 1)
+    kit_quest_progress(p, "dex20", 1)
+    if n == len(SPECIES) then
+      kit_badge(p, "dex_all", "図鑑をかんせいさせた")
+      announce("📖 " + p.name + " が図鑑を完成させた！", 5)
+    end
+  end
+end
+
+func dex_panel(p)
+  let h = 470
+  p.ui_remove("dex")
+  p.ui_panel("dex", {at: "center", w: 600, h: h, bg: "#0F172AF2", radius: 22, layer: 30})
+  p.ui_text("dex_t", "📖 図鑑  見た " + len(keys(p.seen)) + " / つかまえた " + len(keys(p.caught)) + " / " + len(SPECIES), {parent: "dex", y: 24 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in SPECIES do
+    i = i + 1
+    let col = (i - 1) % 3
+    let row = floor((i - 1) / 3)
+    let label = "？？？"
+    let color = "#475569"
+    if p.caught[s.id] then
+      label = "🟠 " + type_icon(s.type) + s.name
+      color = s.color
+    elif p.seen[s.id] then
+      label = "👀 " + type_icon(s.type) + s.name
+      color = "#94A3B8"
+    end
+    p.ui_text("dex_" + i, label, {parent: "dex", x: 0.2 + col * 0.3, y: (60 + row * 42) / h, size: 13, color: color})
+  end
+  p.ui_button("dex_close", "閉じる", {parent: "dex", y: (h - 24) / h, w: 120, h: 32, size: 13, bg: "gray"})
+end
+
+-- MARK: 連れ歩き（先頭の子がうしろをついてくる）
+
+func refresh_buddy(p)
+  gone(p.buddy)
+  p.buddy = nil
+  if p.in_battle then return end
+  let c = lead(p)
+  if c == nil then return end
+  let s = species_of(c.sid)
+  let b = create_npc({name: c.name, position: p.position + {x: 1.5, y: 0.5, z: 1.5}, color: s.color, head_color: s.head, size: s.size * 0.7,
+                      health: 999999, speed: 1.4, team: "buddy"})
+  b.follow(p)
+  b.buddy_of = p.id
+  p.buddy = b
+end
