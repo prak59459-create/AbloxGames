@@ -1,0 +1,137 @@
+-- tools.absc — 隠れる人: そっくり変身・回す・固定・挑発 / 鬼: 懐中電灯・探知機
+
+let follow_clock = 0
+
+-- 近くの家具とそっくりになる
+func copy_nearest(p)
+  if p.role != "hider" or not p.alive then return end
+  let best = nil
+  let best_d = 5
+  for b in blocks("decor") do
+    let d = distance(p, b)
+    if d < best_d then
+      best = b
+      best_d = d
+    end
+  end
+  if best == nil then
+    p.message("近くに家具がない（5m以内）", 1.2)
+    return
+  end
+  let old = disguises[p.id]
+  if old != nil then gone(old.b) end
+  p.visible = false
+  let b = create_block({name: best.name, shape: best.shape, position: p.position + {x: 0, y: best.size.y / 2, z: 0}, size: best.size, color: best.color,
+                        material: best.material, rotation: best.rotation, solid: false, tags: ["disguise"]})
+  disguises[p.id] = {b: b, size: best.size}
+  p.message("🎭 「" + best.name + "」に変身！", 1.2)
+  p.sound("collect")
+  kit_quest_progress(p, "disguise", 1)
+end
+
+func spin(p)
+  let d = disguises[p.id]
+  if d == nil or not still(d.b) then return end
+  d.b.rotate(0, 45, 0)
+end
+
+-- 固定: その場から動かない（家具らしく見える）
+func toggle_lock(p)
+  if p.role != "hider" then return end
+  p.locked = not p.locked
+  p.frozen = p.locked
+  if p.locked then p.message("🔒 固定！ 動かないよ", 1) else p.message("🔓 固定をはずした", 1) end
+end
+
+-- 挑発: 音を出してポイント。でも鬼に場所がばれる
+func taunt(p)
+  if p.role != "hider" or phase != "seek" then return end
+  if not quiet_ready(p, "taunt", 12) then
+    p.message("📢 まだ使えない", 0.8)
+    return
+  end
+  p.pts = p.pts + 2
+  kit_quest_progress(p, "taunt", 1)
+  p.sound("goal")
+  let pos = p.position
+  let mark = create_block({name: "Taunt", shape: "sphere", position: pos + {x: 0, y: 3, z: 0}, size: {x: 1.2, y: 1.2, z: 1.2}, color: "#F472B6", material: "neon", solid: false})
+  after(2, func() gone(mark) end)
+  for s in seekers() do s.message("📢 どこかで音がした…！（ピンクの光）", 1.5) end
+  p.message("📢 挑発！ +2ポイント（でも場所がばれたかも）", 1.5)
+end
+
+-- 懐中電灯: 前の方にいる変身を光らせる
+func flashlight(p)
+  if p.role != "seeker" or phase != "seek" then return end
+  if not quiet_ready(p, "flash", 12) then
+    p.message("🔦 電池を充電中…", 0.8)
+    return
+  end
+  let lit = 0
+  for h in hiders() do
+    let d = disguises[h.id]
+    if d != nil and still(d.b) then
+      let gap = h.position - p.position
+      let dist = magnitude(gap)
+      if dist < 10 and dist > 0.1 then
+        let n = normalize(gap)
+        if n.x * p.look.x + n.z * p.look.z > 0.8 then
+          lit = lit + 1
+          blink(d.b)
+        end
+      end
+    end
+  end
+  if lit > 0 then p.message("🔦 何かが光った！", 1.2) else p.message("🔦 何も見つからない…", 1) end
+end
+
+func blink(b)
+  let c = b.color
+  b.color = "#FDE047"
+  after(0.4, func()
+    if still(b) then b.color = c end
+  end)
+end
+
+-- 探知機: いちばん近い隠れる人までのきょり
+func radar(p)
+  if p.role != "seeker" or phase != "seek" then return end
+  if not quiet_ready(p, "radar", 20) then
+    p.message("📡 充電中…", 0.8)
+    return
+  end
+  let best = 999
+  for h in hiders() do best = min(best, distance(p, h)) end
+  let word = "❄️ つめたい（遠い）"
+  if best < 8 then word = "🔥🔥 あつい！ すぐ近く！"
+  elif best < 18 then word = "🔥 あたたかい"
+  elif best < 35 then word = "🌤 ふつう" end
+  p.message("📡 " + word + "（" + floor(best) + "m）", 2.5)
+end
+
+on tick(dt)
+  follow_clock = follow_clock + dt
+  if follow_clock < 0.1 then return end
+  follow_clock = 0
+  -- 変身した家具は持ち主についていく
+  for id in keys(disguises) do
+    let d = disguises[id]
+    for p in players() do
+      if p.id == id and p.alive and still(d.b) then
+        let target = p.position + {x: 0, y: d.size.y / 2, z: 0}
+        if distance(d.b, target) > 0.25 then d.b.move_to(target, 0.1) end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "copy" then copy_nearest(p)
+  elif id == "spin" then spin(p)
+  elif id == "lock" then toggle_lock(p)
+  elif id == "taunt" then taunt(p)
+  elif id == "flash" then flashlight(p)
+  elif id == "radar" then radar(p)
+  end
+end

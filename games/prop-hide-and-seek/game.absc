@@ -1,0 +1,223 @@
+-- game.absc — ラウンド: 役わけ → 隠れる時間 → さがす時間 → 結果。見つかった人は鬼になる
+
+let phase = "wait"       -- wait / hide / seek / over
+let ends_at = 0
+let round_n = 0
+let disguises = {}       -- プレイヤーid → {b, size}
+
+weapon("さがしビーム", {model: "blaster", damage: 0, rate: 3, range: 60, ammo: 30, reload: 1.2, spread: 0.5})
+
+func ready(p)
+  return p.pts != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func hiders()
+  return filter(players(), func(p) return ready(p) and p.role == "hider" and p.alive end)
+end
+
+func seekers()
+  return filter(players(), func(p) return ready(p) and p.role == "seeker" end)
+end
+
+func clear_disguise(p)
+  let d = disguises[p.id]
+  if d != nil then gone(d.b) end
+  remove(disguises, p.id)
+  p.visible = true
+  p.frozen = phase == "hide" and p.role == "seeker"
+  p.locked = false
+end
+
+func hider_buttons(p)
+  p.ui_button("copy", "🎭 そっくり変身", {at: "bottom", dx: -150, dy: -96, w: 150, h: 48, size: 15, bg: "#7C3AED", radius: 12})
+  p.ui_button("spin", "↻ 回す", {at: "bottom", dx: 0, dy: -96, w: 100, h: 48, size: 15, bg: "#475569", radius: 12})
+  p.ui_button("lock", "🔒 固定", {at: "bottom", dx: 110, dy: -96, w: 100, h: 48, size: 15, bg: "#0E7490", radius: 12})
+  p.ui_button("taunt", "📢 挑発", {at: "bottom", dx: 220, dy: -96, w: 100, h: 48, size: 15, bg: "#DB2777", radius: 12})
+end
+
+func seeker_buttons(p)
+  p.ui_button("flash", "🔦 懐中電灯", {at: "bottom", dx: -60, dy: -96, w: 140, h: 48, size: 15, bg: "#CA8A04", radius: 12})
+  p.ui_button("radar", "📡 探知機", {at: "bottom", dx: 90, dy: -96, w: 140, h: 48, size: 15, bg: "#0369A1", radius: 12})
+end
+
+func clear_buttons(p)
+  for id in ["copy", "spin", "lock", "taunt", "flash", "radar"] do p.ui_remove(id) end
+end
+
+func make_seeker(p, caged)
+  p.role = "seeker"
+  clear_disguise(p)
+  clear_buttons(p)
+  p.give("さがしビーム")
+  p.color = "#B91C1C"
+  p.health = p.max_health
+  seeker_buttons(p)
+  if caged then
+    p.teleport(block("Seeker Cage").position + {x: random(-3, 3), y: 1, z: random(-3, 3)})
+    p.frozen = true
+    p.fade("#000000", 0.5)
+  end
+end
+
+func make_hider(p)
+  p.role = "hider"
+  p.take()
+  p.color = p.own_color
+  clear_buttons(p)
+  hider_buttons(p)
+  p.frozen = false
+  p.teleport(block("Spawn " + random(1, 10)).position + {x: 0, y: 1, z: 0})
+end
+
+func start_round()
+  let list = shuffle(filter(players(), func(p) return ready(p) end))
+  if len(list) < 2 then
+    phase = "wait"
+    ends_at = time() + 5
+    return
+  end
+  round_n = round_n + 1
+  let count = 1
+  if len(list) >= 6 then count = 2 end
+  if len(list) >= 10 then count = 3 end
+  let i = 0
+  for p in list do
+    i = i + 1
+    if not p.alive then p.respawn() end
+    p.found = 0
+    p.survived = 0
+    p.was = ""
+    if i <= count then
+      make_seeker(p, true)
+      p.was = "seeker"
+      p.message("👀 あなたは鬼！ 30秒待ってから、家具にかくれた人をさがそう", 4)
+    else
+      make_hider(p)
+      p.was = "hider"
+      p.message("🙈 隠れる人！ 家具の近くで「🎭 そっくり変身」", 4)
+    end
+  end
+  phase = "hide"
+  ends_at = time() + 30
+  announce("🎬 ラウンド " + round_n + "！ 鬼は " + count + " 人", 3)
+end
+
+func start_seek()
+  phase = "seek"
+  ends_at = time() + 150
+  for p in seekers() do
+    p.frozen = false
+    p.fade(nil, 0.5)
+    p.teleport(block("Spawn " + random(1, 10)).position + {x: 0, y: 1, z: 0})
+  end
+  for p in hiders() do
+    if disguises[p.id] == nil then p.message("⚠️ まだ変身していない！ いそいで", 2) end
+  end
+  announce("👀 鬼が動き出した！", 3)
+end
+
+-- 見つかった！ → 鬼の仲間になる
+func found(victim, seeker)
+  if victim.role != "hider" then return end
+  seeker.found = seeker.found + 1
+  seeker.pts = seeker.pts + 3
+  kit_give(seeker, 15)
+  kit_quest_progress(seeker, "find", 1)
+  announce("👀 " + seeker.name + " が " + victim.name + " を見つけた！ " + victim.name + " も鬼に", 3)
+  victim.message("😱 見つかった！ こんどは鬼になってさがそう", 3)
+  make_seeker(victim, false)
+  victim.pts = victim.pts + floor(victim.survived / 15)
+end
+
+func end_round(hiders_win)
+  if phase == "over" then return end
+  phase = "over"
+  ends_at = time() + 8
+  let alive = hiders()
+  for p in players() do clear_buttons(p) end
+  if hiders_win then
+    for p in alive do
+      p.pts = p.pts + 5 + floor(p.survived / 15)
+      kit_give(p, 40)
+      p.wins = p.wins + 1
+      kit_quest_progress(p, "hide", 1)
+      if p.survived >= 150 then kit_badge(p, "ghost", "一度も見つからなかった") end
+    end
+    announce("🙈 隠れる人の勝ち！ 生きのこり: " + join(map(alive, func(p) return p.name end), "、"), 5)
+  else
+    for p in seekers() do
+      if p.was == "seeker" then
+        p.pts = p.pts + 5
+        kit_give(p, 30)
+        p.wins = p.wins + 1
+      end
+    end
+    announce("👀 鬼の勝ち！ 全員見つけた", 5)
+  end
+  for p in players() do
+    if ready(p) then p.score = p.pts end
+  end
+end
+
+on start()
+  game.respawn_time = 3
+  ends_at = time() + 8
+  every(1, func()
+    if phase == "wait" and time() >= ends_at then start_round()
+    elif phase == "hide" and time() >= ends_at then start_seek()
+    elif phase == "seek" then
+      for p in hiders() do p.survived = p.survived + 1 end
+      if time() >= ends_at then end_round(true)
+      elif len(hiders()) == 0 then end_round(false) end
+    elif phase == "over" and time() >= ends_at then
+      for p in players() do clear_disguise(p) end
+      start_round()
+    end
+    let text = ""
+    if phase == "hide" then text = "🙈 隠れる時間 " + kit_clock(max(0, ends_at - time())) + "   隠れる人 " + len(hiders())
+    elif phase == "seek" then text = "👀 さがす時間 " + kit_clock(max(0, ends_at - time())) + "   のこり " + len(hiders()) + " 人   鬼 " + len(seekers())
+    elif phase == "wait" then text = "⏳ 2人以上で始まるよ"
+    else text = "🏁 ラウンドおわり" end
+    ui_text("clock", text, {at: "top", dy: 26, size: 18, bold: true})
+  end)
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  if p.role == "seeker" and phase == "seek" then p.teleport(block("Spawn " + random(1, 10)).position + {x: 0, y: 1, z: 0}) end
+end
+
+-- 家具の中の人（見えないけど当たる）に当たったら、見つけた！
+on hit(victim, attacker, damage)
+  if attacker == nil or not ready(attacker) or not ready(victim) then return 0 end
+  if attacker.role == "seeker" and victim.role == "hider" and phase == "seek" then found(victim, attacker) end
+  return 0
+end
+
+-- ふつうの家具を撃つとハズレ（鬼が少しダメージ）
+on hit_block(p, b)
+  if ready(p) and p.role == "seeker" and phase == "seek" and contains(b.tags, "decor") then
+    p.damage(4)
+    if quiet_ready(p, "miss", 1) then p.message("ハズレ！（-4）", 0.8) end
+  end
+end
+
+on leave(p)
+  clear_disguise(p)
+end

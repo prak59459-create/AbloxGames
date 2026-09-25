@@ -121,7 +121,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/chaos-golf/cover-480692cc.png" width="200"> | 72 | **Chaos Golf** | ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！ |
 | <img src="games/speed-worlds/cover-210e034f.png" width="200"> | 73 | **Speed Worlds** | 8つのワールド（草原・氷・溶岩・宇宙・おかし・砂漠・雲・ネオン）を超スピードで走るスピードラン。金銀銅メダル、自分のベスト走りの👻ゴースト、レース大会、シューズ・ブーツ・グライダー！ |
 | <img src="games/island-drama-show/cover-0db6bdd0.png" width="200"> | 74 | **Island Drama Show** | 無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！ |
-| <img src="games/prop-hide-and-seek/cover-325ffdc9.png" width="200"> | 75 | **Prop Hide & Seek** | 家具に変身してかくれんぼ！鬼は怪しいものを撃って探す。まちがえると鬼がダメージ。最後まで見つからなければ勝ち。 |
+| <img src="games/prop-hide-and-seek/cover-c35150d0.png" width="200"> | 75 | **Prop Hide & Seek** | 家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！ |
 | <img src="games/mega-minigames/cover-78e7b27a.png" width="200"> | 76 | **Mega Minigames** | 落ちる床、山の王、色あわせ、玉よけ…次々に出るミニゲームで勝ってポイントを集めよう。 |
 | <img src="games/rhythm-battle/cover-15974b21.png" width="200"> | 77 | **Rhythm Battle** | 落ちてくるノーツに合わせてボタンを押す、対戦リズムゲーム。パーフェクトを決めて相手より高いスコアを！ |
 | <img src="games/last-survivor-games/cover-bfb10e51.png" width="200"> | 78 | **Last Survivor Games** | 「だるまさんがころんだ」とガラスの橋。動いたら失格、まちがえたら落ちる。最後まで生き残れ！ |

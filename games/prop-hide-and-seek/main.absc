@@ -1,181 +1,58 @@
--- Prop Hide & Seek — 家具に変身してかくれんぼ
+-- Prop Hide & Seek — 家具になりきってかくれんぼ。見つかった人は鬼の仲間に
+--
+-- ファイル:
+--   game.absc   ラウンドの流れ・役わけ・見つけた・結果
+--   tools.absc  そっくり変身・回す・固定・挑発・懐中電灯・探知機
+--   main.absc   このファイル
 
 kit_setup("Prop Hide & Seek", "家具になりきって、見つかるな！", [
-  "ラウンドの始めに、鬼（1〜2人）と隠れる人に分かれる",
-  "隠れる人: 下のボタンで家具に変身。30秒で隠れよう（鬼は待機）",
-  "鬼: ブラスターで怪しい家具を撃つ。当たりなら見つけた！",
-  "ただし、ふつうの家具を撃つと鬼がダメージ",
-  "2分30秒、最後まで見つからなければ隠れる人の勝ち"
+  "🙈 隠れる人: 家具の近くで「🎭 そっくり変身」。「↻」で向きを合わせて「🔒 固定」",
+  "📢 挑発でポイント。でも鬼に音が聞こえちゃう",
+  "👀 鬼: 30秒待ってから、ビームで怪しい家具を撃つ。ふつうの家具を撃つとダメージ",
+  "🔦 懐中電灯で前の方の変身が光る。📡 探知機で近いか遠いかわかる",
+  "見つかった人は鬼の仲間になる。2分30秒、最後まで残れば隠れる人の勝ち",
+  "リビング・キッチン・寝室・子ども部屋・ろうか・ガレージ・庭、部屋ごとに家具がちがう"
 ])
-weapon("さがしビーム", {model: "blaster", damage: 0, rate: 3, range: 60, ammo: 30, reload: 1.5, spread: 0.5})
-
-let props = [
-  {id: "box", name: "📦 箱", size: {x: 1.4, y: 1.4, z: 1.4}, color: "#A16207", shape: "box"},
-  {id: "barrel", name: "🛢 たる", size: {x: 1.2, y: 1.6, z: 1.2}, color: "#7C2D12", shape: "cylinder"},
-  {id: "plant", name: "🪴 植木", size: {x: 1, y: 1.8, z: 1}, color: "#16A34A", shape: "cone"},
-  {id: "chair", name: "🪑 いす", size: {x: 1, y: 1.2, z: 1}, color: "#1E3A8A", shape: "box"},
-  {id: "lamp", name: "💡 ランプ", size: {x: 0.6, y: 1.8, z: 0.6}, color: "#FDE68A", shape: "cylinder"},
-  {id: "ball", name: "⚽ ボール", size: {x: 1, y: 1, z: 1}, color: "#EF4444", shape: "sphere"}
-]
-let phase = "wait"
-let ends_at = 0
-let disguises = {}   -- プレイヤーid → 家具ブロック
+kit_currency = "コイン"
 
 kit_quest("hide", "最後まで見つからない", 1, 200)
-kit_quest("find", "鬼で3人見つける", 3, 200)
+kit_quest("find", "鬼で5人見つける", 5, 300)
+kit_quest("disguise", "10回変身する", 10, 100)
+kit_quest("taunt", "挑発を5回", 5, 150)
 
-func hiders()
-  return filter(players(), func(p) return p.role == "hider" and p.alive end)
-end
-
-func clear_disguise(p)
-  let b = disguises[p.id]
-  if b != nil then b.destroy() end
-  remove(disguises, p.id)
-  p.visible = true
-end
-
-func become(p, prop)
-  clear_disguise(p)
-  p.visible = false
-  disguises[p.id] = create_block({name: "Prop " + p.name, shape: prop.shape, position: p.position + {x: 0, y: prop.size.y / 2, z: 0},
-                                  size: prop.size, color: prop.color, solid: false, tags: ["disguise", p.id]})
-  p.message("変身！ " + prop.name, 1)
-end
-
-func start_round()
-  let list = shuffle(copy(players()))
-  if len(list) < 2 then
-    ui_text("status", "あと1人以上で始まります", {at: "top", dy: 26, size: 18})
-    after(5, func() start_round() end)
-    return
-  end
-  ui_remove("status")
-  let seekers = len(list) >= 6 and 2 or 1
-  let i = 0
-  for p in list do
-    i = i + 1
-    if not p.alive then p.respawn() end
-    clear_disguise(p)
-    if i <= seekers then
-      p.role = "seeker"
-      p.give("さがしビーム")
-      p.teleport(block("Seeker Cage"))
-      p.frozen = true
-      p.fade("#000000", 0.5)
-      p.message("👀 あなたは鬼！30秒待ってね", 3)
-    else
-      p.role = "hider"
-      p.take()
-      p.message("🙈 隠れよう！家具に変身して", 3)
-      let j = 0
-      for prop in props do
-        j = j + 1
-        p.ui_button("prop_" + prop.id, prop.name, {at: "bottom", dx: (j - 3.5) * 92, dy: -96, w: 86, h: 46, size: 14, bg: "#475569", radius: 12})
-      end
-    end
-  end
-  phase = "hide"
-  ends_at = time() + 30
-  after(30, func()
-    phase = "seek"
-    ends_at = time() + 150
-    for p in players() do
-      if p.role == "seeker" then
-        p.frozen = false
-        p.fade(nil, 0.5)
-        p.teleport(block("Spawn " + random(1, 10)))
-      end
-    end
-    announce("👀 鬼が動き出した！", 3)
-  end)
-end
-
-func end_round(hiders_win)
-  if phase == "over" then return end
-  phase = "over"
-  for p in players() do
-    for prop in props do p.ui_remove("prop_" + prop.id) end
-  end
-  if hiders_win then
-    for p in hiders() do
-      p.score = p.score + 2
-      kit_quest_progress(p, "hide", 1)
-    end
-    announce("🙈 隠れる人の勝ち！", 4)
-  else
-    for p in players() do
-      if p.role == "seeker" then p.score = p.score + 2 end
-    end
-    announce("👀 鬼の勝ち！全員見つけた", 4)
-  end
-  after(6, func()
-    for p in players() do clear_disguise(p) end
-    start_round()
-  end)
-end
+kit_shop_title = "衣装"
+kit_shop_add("cap", "🧢 キャップ", 100, func(p) p.hat = "cap" end)
+kit_shop_add("antenna", "📡 アンテナ", 200, func(p) p.hat = "antenna" end)
+kit_shop_add("halo", "😇 天使の輪", 500, func(p) p.hat = "halo" end)
+kit_shop_add("green", "🟢 みどりの服", 150, func(p)
+  p.own_color = "#16A34A"
+  if p.role != "seeker" then p.color = p.own_color end
+end)
+kit_shop_add("purple", "🟣 むらさきの服", 150, func(p)
+  p.own_color = "#7C3AED"
+  if p.role != "seeker" then p.color = p.own_color end
+end)
 
 on start()
-  game.respawn_time = -1
-  after(4, func() start_round() end)
-  every(1, func()
-    if phase == "hide" or phase == "seek" then
-      ui_text("clock", (phase == "hide" and "🙈 隠れる時間 " or "👀 さがす時間 ") + kit_clock(ends_at - time()) + "   残り " + len(hiders()) + " 人",
-              {at: "top", dy: 26, size: 20, bold: true})
-      if phase == "seek" and time() >= ends_at then end_round(true) end
-      if phase == "seek" and len(hiders()) == 0 then end_round(false) end
-    end
-  end)
+  every(10, func() kit_leaderboard("⭐") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_shop_button(p)
+  p.pts = 0
+  p.wins = 0
   p.role = "watcher"
-end
-
-on leave(p)
-  clear_disguise(p)
-end
-
-on tick(dt)
-  -- 家具は持ち主についていく（止まっているとバレにくい）
-  for key in keys(disguises) do
-    let b = disguises[key]
-    for p in players() do
-      if p.id == key and p.alive then
-        let target = p.position + {x: 0, y: b.size.y / 2, z: 0}
-        if distance(b, target) > 0.3 then b.position = target end
-      end
-    end
-  end
-end
-
-on button(p, id)
-  if starts_with(id, "prop_") and p.role == "hider" and p.alive then
-    let key = replace(id, "prop_", "")
-    for prop in props do
-      if prop.id == key then become(p, prop) end
-    end
-  end
-end
-
--- 家具の中の人（見えないけど当たる）に当たったら、見つけた！
-on hit(victim, attacker, damage)
-  if attacker.role == "seeker" and victim.role == "hider" and phase == "seek" then
-    clear_disguise(victim)
-    victim.kill(attacker)
-    victim.message("😱 見つかった！", 2)
-    kit_quest_progress(attacker, "find", 1)
-    announce("👀 " + attacker.name + " が " + victim.name + " を見つけた！", 2)
-  end
-  return 0
-end
-
--- ふつうの家具を撃つとハズレ
-on hit_block(p, b)
-  if p.role == "seeker" and phase == "seek" and contains(b.tags, "decor") then
-    p.damage(5)
-    p.message("ハズレ！（-5）", 0.8)
+  p.found = 0
+  p.survived = 0
+  p.own_color = p.color
+  kit_give(p, 20)
+  if phase == "hide" then
+    make_hider(p)
+    p.message("🙈 まだ間に合う！ 家具に変身して隠れよう", 3)
+  elif phase == "seek" then
+    make_seeker(p, false)
+    p.message("👀 途中参加は鬼から！", 3)
   end
 end

@@ -16,7 +16,7 @@ let miniGames: [Game] = [
          summary: "無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！",
          tags: ["minigames", "elimination", "party"], maxPlayers: 12, build: dramaShow),
     Game(number: 75, id: "prop-hide-and-seek", title: "Prop Hide & Seek",
-         summary: "家具に変身してかくれんぼ！鬼は怪しいものを撃って探す。まちがえると鬼がダメージ。最後まで見つからなければ勝ち。",
+         summary: "家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！",
          tags: ["hide-and-seek", "props", "party"], maxPlayers: 12, build: propHunt),
     Game(number: 76, id: "mega-minigames", title: "Mega Minigames",
          summary: "落ちる床、山の王、色あわせ、玉よけ…次々に出るミニゲームで勝ってポイントを集めよう。",
@@ -355,24 +355,74 @@ func dramaShow(_ m: MapBuilder) {
 // MARK: 75 Prop Hide & Seek
 
 func propHunt(_ m: MapBuilder) {
-    m.indoor()
-    m.sky("#F5F5F4", "#E7E5E4", light: 0.8, showGround: false)
-    m.ground(80, 70, color: "#D6D3D1", name: "House Floor")
-    m.walls(0, 0, w: 80, d: 70, h: 7, color: "#A8A29E", name: "House Wall")
-    for (x, z0, z1) in [(-15, -35, -8), (-15, 2, 35), (15, -35, -12), (15, -2, 35)] {
-        m.slab("Room Wall", x: Float(x), y: 0, z: Float(z0 + z1) / 2, w: 0.5, h: 4, d: Float(z1 - z0), color: "#E7E5E4")
-    }
+    m.sky("#93C5FD", "#E0F2FE", light: 0.85, ground: "#65A30D")
+    m.part("Cover Focus", at: (0, 2, 0), size: (84, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
     var r = Seeded("props")
-    let props: [(String, V, String, BlockShape)] = [("Box", (1.4, 1.4, 1.4), "#A16207", .box), ("Barrel", (1.2, 1.6, 1.2), "#7C2D12", .cylinder),
-                                                    ("Plant", (1, 1.8, 1), "#16A34A", .cone), ("Chair", (1, 1.2, 1), "#1E3A8A", .box),
-                                                    ("Lamp", (0.6, 1.8, 0.6), "#FDE68A", .cylinder), ("Ball", (1, 1, 1), "#EF4444", .sphere)]
-    for i in 0..<40 {
-        let p = r.pick(props)
-        m.part("\(p.0) \(i + 1)", at: (r.range(-36, 36), p.1.1 / 2, r.range(-31, 31)), size: p.1, color: p.2, shape: p.3, tags: ["decor"])
+    // The house: 80 × 64, split into rooms with doorways.
+    m.ground(160, 150, color: "#65A30D", name: "Garden Grass")
+    m.slab("House Floor", x: 0, y: 0, z: 0, w: 80, h: 0.1, d: 64, color: "#D6D3D1")
+    // Outer walls with a doorway front and back.
+    for sz: Float in [-32, 32] {
+        for sx: Float in [-1, 1] { m.slab("House Wall", x: sx * 21.75, y: 0, z: sz, w: 37.5, h: 6, d: 0.6, color: "#FEF3C7") }
+        m.slab("House Wall", x: 0, y: 3.2, z: sz, w: 6, h: 2.8, d: 0.6, color: "#FEF3C7")
     }
-    m.slab("Seeker Room", x: 0, y: 0, z: -40, w: 16, h: 0.2, d: 8, color: "#1F2937")
-    m.part("Seeker Cage", at: (0, 2, -40), size: (1, 0.1, 1), color: "#000000", visible: false)
-    m.spawnRing(0, 0, radius: 6, count: 10, color: "#FBBF24")
+    for sx: Float in [-40, 40] { m.slab("House Wall", x: sx, y: 0, z: 0, w: 0.6, h: 6, d: 64.6, color: "#FEF3C7") }
+    let inner: [(Float, Float, Float, Float)] = [(-14, -32, -14, -4), (-14, 4, -14, 32), (14, -32, 14, -4), (14, 4, 14, 32),
+                                                 (-40, 0, -24, 0), (-18, 0, -14, 0), (14, 0, 18, 0), (24, 0, 40, 0)]
+    for w in inner {
+        let dx = w.2 - w.0, dz = w.3 - w.1
+        m.slab("Room Wall", x: (w.0 + w.2) / 2, y: 0, z: (w.1 + w.3) / 2, w: dx == 0 ? 0.5 : dx, h: 4, d: dz == 0 ? 0.5 : dz, color: "#F5F5F4")
+    }
+    let rooms: [(String, Float, Float, String, [(String, V, String, BlockShape)])] = [
+        ("Living", -27, 16, "#FDE68A", [("Sofa", (4, 1.2, 1.6), "#7C3AED", .box), ("TV", (2.6, 1.6, 0.3), "#111827", .box), ("Lamp", (0.6, 1.8, 0.6), "#FDE68A", .cylinder),
+                                          ("Plant", (1, 1.8, 1), "#16A34A", .cone), ("Bookshelf", (2.4, 2.6, 0.8), "#78350F", .box), ("Armchair", (1.6, 1.2, 1.6), "#DB2777", .box)]),
+        ("Kitchen", 27, 16, "#E0F2FE", [("Fridge", (1.4, 2.6, 1.2), "#E5E7EB", .box), ("Stove", (1.4, 1, 1.2), "#374151", .box), ("Barrel", (1.2, 1.6, 1.2), "#7C2D12", .cylinder),
+                                         ("Pot", (0.9, 0.7, 0.9), "#9CA3AF", .cylinder), ("Chair", (1, 1.2, 1), "#1E3A8A", .box), ("Watermelon", (1.1, 0.9, 1.1), "#16A34A", .sphere)]),
+        ("Bedroom", -27, -16, "#FBCFE8", [("Bed", (2.4, 0.9, 4), "#60A5FA", .box), ("Wardrobe", (2, 3, 1), "#92400E", .box), ("Lamp", (0.6, 1.8, 0.6), "#FDE68A", .cylinder),
+                                           ("Teddy", (0.9, 1.1, 0.8), "#A16207", .sphere), ("Box", (1.4, 1.4, 1.4), "#A16207", .box), ("Laundry", (1.1, 1.2, 1.1), "#F8FAFC", .cylinder)]),
+        ("Kids", 27, -16, "#BBF7D0", [("Ball", (1, 1, 1), "#EF4444", .sphere), ("Toy Block", (1, 1, 1), "#3B82F6", .box), ("Toy Rocket", (0.8, 2, 0.8), "#F97316", .cone),
+                                       ("Teddy", (0.9, 1.1, 0.8), "#A16207", .sphere), ("Toy Block", (1, 1, 1), "#FACC15", .box), ("Drum", (1.2, 0.8, 1.2), "#DC2626", .cylinder)]),
+        ("Hall", 0, 0, "#E7E5E4", [("Plant", (1, 1.8, 1), "#16A34A", .cone), ("Umbrella Stand", (0.6, 1.2, 0.6), "#1F2937", .cylinder), ("Box", (1.4, 1.4, 1.4), "#A16207", .box),
+                                    ("Clock", (0.8, 2.4, 0.6), "#78350F", .box)])
+    ]
+    for room in rooms {
+        m.slab("\(room.0) Rug", x: room.1, y: 0.1, z: room.2, w: room.0 == "Hall" ? 8 : 16, h: 0.04, d: room.0 == "Hall" ? 40 : 18, color: room.3)
+        let count = room.0 == "Hall" ? 8 : 16
+        for _ in 0..<count {
+            let pr = r.pick(room.4)
+            let hx: Float = room.0 == "Hall" ? 5 : 11
+            let hz: Float = room.0 == "Hall" ? 26 : 12
+            let x = room.1 + r.range(-hx, hx), z = room.2 + r.range(-hz, hz)
+            m.part(pr.0, at: (x, 0.14 + pr.1.1 / 2, z), size: pr.1, color: pr.2, shape: pr.3, tags: ["decor"], rotation: (0, r.pick([0, 90, 45]), 0))
+        }
+    }
+    // The garden in front and the garage behind.
+    let garden: [(String, V, String, BlockShape)] = [("Bush", (1.6, 1.2, 1.6), "#15803D", .sphere), ("Flower Pot", (0.8, 0.8, 0.8), "#B45309", .cylinder),
+                                                     ("Gnome", (0.6, 1, 0.6), "#DC2626", .cone), ("Rock", (1.4, 0.9, 1.2), "#78716C", .sphere),
+                                                     ("Wheelbarrow", (1, 0.8, 1.8), "#16A34A", .box)]
+    for _ in 0..<18 {
+        let pr = r.pick(garden)
+        m.part(pr.0, at: (r.range(-38, 38), pr.1.1 / 2, r.range(36, 52)), size: pr.1, color: pr.2, shape: pr.3, tags: ["decor"])
+    }
+    for q in [(-30, 58), (-10, 60), (12, 57), (32, 60)] as [(Float, Float)] { m.tree(q.0, q.1, height: 5) }
+    m.slab("Garage Floor", x: 0, y: 0, z: -48, w: 30, h: 0.1, d: 24, color: "#57534E")
+    for sx: Float in [-1, 1] { m.slab("Garage Wall", x: sx * 9, y: 0, z: -36.5, w: 12, h: 5, d: 0.5, color: "#A8A29E") }
+    m.slab("Garage Wall", x: 0, y: 0, z: -60, w: 30, h: 5, d: 0.5, color: "#A8A29E")
+    for sx: Float in [-15, 15] { m.slab("Garage Wall", x: sx, y: 0, z: -48, w: 0.5, h: 5, d: 24, color: "#A8A29E") }
+    m.slab("Garage Path", x: 0, y: 0, z: -34.2, w: 6, h: 0.1, d: 4, color: "#A8A29E")
+    let garage: [(String, V, String, BlockShape)] = [("Tyre", (1.2, 0.5, 1.2), "#111827", .cylinder), ("Toolbox", (1.2, 0.8, 0.6), "#DC2626", .box),
+                                                     ("Barrel", (1.2, 1.6, 1.2), "#1D4ED8", .cylinder), ("Box", (1.4, 1.4, 1.4), "#A16207", .box), ("Cone", (0.6, 1, 0.6), "#F97316", .cone)]
+    for _ in 0..<14 {
+        let pr = r.pick(garage)
+        m.part(pr.0, at: (r.range(-13, 13), 0.1 + pr.1.1 / 2, r.range(-58, -38)), size: pr.1, color: pr.2, shape: pr.3, tags: ["decor"])
+    }
+    m.parkedCar("Garage Car", x: 6, z: -48, color: "#2563EB")
+    m.slab("Front Step", x: 0, y: 0, z: 34, w: 6, h: 0.3, d: 3, color: "#A8A29E")
+    // The seekers' waiting room, away from everything.
+    m.slab("Seeker Room", x: 0, y: -1, z: -95, w: 12, h: 1, d: 12, color: "#1F2937")
+    m.walls(0, -95, w: 12, d: 12, h: 4, color: "#111827", name: "Seeker Room Wall")
+    m.part("Seeker Cage", at: (0, 0.1, -95), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    m.spawnRing(0, 20, radius: 4, count: 10, color: "#FBBF24")
 }
 
 // MARK: 76 Mega Minigames
