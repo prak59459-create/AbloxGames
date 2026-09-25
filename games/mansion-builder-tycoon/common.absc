@@ -1,0 +1,87 @@
+-- common.absc — 小さな道具・家賃とごうか度・画面
+
+let estates = {}         -- "1"〜"6" → {owner, built}
+let ESTATE_COUNT = 6
+
+func ready(p)
+  return p.ups != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func find(list, id)
+  for x in list do
+    if x.id == id then return x end
+  end
+  return nil
+end
+
+func lvl(p, id)
+  return p.ups[id] or 0
+end
+
+func rent_of(k)
+  return max(1, floor(ITEMS[k].price / RENT_DIV))
+end
+
+-- 毎秒の家賃
+func rent(p)
+  if p.built == 0 then return 0 end
+  let r = 0
+  for k in 1 to p.built do r = r + rent_of(k) end
+  return r * (1 + lvl(p, "invest") * 0.25) * (1 + p.sold * 0.5)
+end
+
+func luxury(p)
+  let l = 0
+  if p.built == 0 then return 0 end
+  for k in 1 to p.built do l = l + ITEMS[k].lux end
+  if p.paint != "cream" then l = l + 10 end
+  return l
+end
+
+-- 郵便受けにためられる量
+func mailbox_cap(p)
+  return rent(p) * (60 + lvl(p, "mailbox") * 60)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  if p.plot == nil then
+    p.ui_text("rent", "🏡 道ぞいの色のパッドで土地をもらおう", {at: "top", dy: 30, size: 16, bold: true})
+    return
+  end
+  p.ui_text("rent", "🏰 家賃 " + kit_short(rent(p)) + "/秒   📬 " + kit_short(p.mail) + " / " + kit_short(mailbox_cap(p)) + "   ✨ ごうか度 " + luxury(p),
+            {at: "top", dy: 30, size: 16, bold: true})
+  let next_text = "🏆 豪邸かんせい！ 不動産屋で売ると転生できる"
+  if p.built < len(ITEMS) then
+    let it = ITEMS[p.built + 1]
+    next_text = "🏗 次: " + it.name + "  💰" + kit_short(it.price) + "（緑のパッド・🏗ボタン）  " + (p.built) + "/" + len(ITEMS)
+  end
+  p.ui_text("next", next_text, {at: "top", dy: 54, size: 14, color: "#FDE68A"})
+  p.ui_bar("mailbar", {at: "top", dy: 74, w: 220, h: 8, value: p.mail, max: max(1, mailbox_cap(p)), color: "#60A5FA", bg: "#00000066"})
+  p.score = luxury(p)
+end

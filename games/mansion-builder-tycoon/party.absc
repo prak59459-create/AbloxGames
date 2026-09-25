@@ -1,0 +1,111 @@
+-- party.absc — パーティー（ゲストが来てチップ）・豪邸コンテスト（ごうか度のランキング）
+
+let party_clock = 0
+let contest_next = 0
+let GUEST_NAMES = ["セレブのマダム", "映画スター", "王子さま", "ロックスター", "大富豪", "サッカー選手", "有名シェフ", "宇宙飛行士"]
+let GUEST_COLORS = ["#F472B6", "#FACC15", "#60A5FA", "#A78BFA", "#34D399", "#FB923C", "#F8FAFC", "#E5E7EB"]
+
+func party_price(p)
+  return floor(max(200, rent(p) * 60))
+end
+
+func start_party(p)
+  if p.plot == nil or p.built < PARTY_NEED then
+    p.message("🎉 パーティーはリビングを建ててから（" + PARTY_NEED + "つめのパーツ）", 2)
+    return
+  end
+  if p.party_until != nil and time() < p.party_until then
+    p.message("🎉 もうパーティー中！", 1)
+    return
+  end
+  let price = party_price(p)
+  if not kit_pay(p, price) then return end
+  p.party_until = time() + PARTY_TIME
+  let count = min(8, 2 + floor(luxury(p) / 60))
+  let spot = block("Plot " + p.plot + " Party").position
+  let guests = []
+  for i in 1 to count do
+    let g = create_npc({name: "🥂 " + random(GUEST_NAMES), position: spot + {x: random(-6, 6), y: 0.5, z: random(-4, 4)}, color: random(GUEST_COLORS),
+                        head_color: "#FDE68A", size: 1, health: 999999, speed: 0.6, team: "guests"})
+    g.guest_of = p.id
+    if random() < 0.25 then g.hat = "crown" end
+    append(guests, g)
+  end
+  p.guests = guests
+  p.tips = 0
+  p.message("🎉 パーティー開始！ ゲスト " + count + " 人。ごうかなほどチップがたくさん（" + PARTY_TIME + "秒）", 3)
+  p.sound("goal")
+  kit_quest_progress(p, "party", 1)
+end
+
+func party_step(p)
+  if p.party_until == nil then return end
+  if time() >= p.party_until then
+    for g in p.guests or [] do gone(g) end
+    p.guests = []
+    p.party_until = nil
+    p.message("🎉 パーティーおしまい！ チップ合計 +" + kit_short(p.tips), 2.5)
+    return
+  end
+  let spot = block("Plot " + p.plot + " Party").position
+  for g in p.guests or [] do
+    if still(g) then
+      if random() < 0.4 then g.move_to(spot + {x: random(-9, 9), y: 0, z: random(-7, 7)}) end
+      if random() < 0.25 then
+        let tip = floor(rent(p) * (0.3 + luxury(p) / 800))
+        kit_give(p, tip)
+        p.tips = p.tips + tip
+        g.say(random(["すてきなお家！", "プールさいこう！", "また来たい！", "チップどうぞ 💰", "ごうかだね！", "なんて広いの！"]))
+      end
+    end
+  end
+end
+
+-- MARK: 豪邸コンテスト
+
+func contest()
+  let list = filter(players(), func(p) return ready(p) and p.plot != nil and p.built > 0 end)
+  if len(list) == 0 then return end
+  let ranked = sort(list, func(a, b) return luxury(a) > luxury(b) end)
+  let prizes = [5, 3, 2]
+  let lines = []
+  for i in 1 to min(3, len(ranked)) do
+    let p = ranked[i]
+    let prize = floor(max(500, rent(p) * 60 * prizes[i] / 5))
+    kit_give(p, prize)
+    append(lines, i + "位 " + p.name + "（✨" + luxury(p) + "）")
+    p.message("🏆 豪邸コンテスト " + i + "位！ 賞金 +" + kit_short(prize), 3)
+    if i == 1 then
+      kit_quest_progress(p, "contest", 1)
+      kit_badge(p, "contest", "豪邸コンテストで優勝")
+    end
+  end
+  announce("🏆 豪邸コンテスト結果: " + join(lines, "  "), 6)
+end
+
+on start()
+  contest_next = time() + CONTEST_EVERY
+end
+
+on tick(dt)
+  party_clock = party_clock + dt
+  if party_clock < 1 then return end
+  party_clock = 0
+  for p in players() do
+    if ready(p) then party_step(p) end
+  end
+  if time() >= contest_next then
+    contest_next = time() + CONTEST_EVERY
+    contest()
+  end
+  if contest_next - time() < 30 and contest_next - time() > 29 then announce("🏆 30秒後に豪邸コンテスト！ ごうか度が高い人が勝ち", 3) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "party" then start_party(p) end
+end
+
+on leave(p)
+  for g in p.guests or [] do gone(g) end
+end

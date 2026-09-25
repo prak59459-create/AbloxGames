@@ -34,7 +34,7 @@ let idleGames: [Game] = [
          summary: "スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！",
          tags: ["merge", "idle", "cute"], maxPlayers: 10, build: slimeMerge),
     Game(number: 69, id: "mansion-builder-tycoon", title: "Mansion Builder Tycoon",
-         summary: "小さな家から大豪邸へ。お金をためて部屋、プール、ガレージ、ヘリポートを順番に建てていくタイクーン。",
+         summary: "土台から26段階で大豪邸が立ち上がるタイクーン。家賃は郵便受けに、執事で自動回収、投資、壁と屋根のペンキ、パーティーのゲストのチップ、豪邸コンテスト、完成したら売って転生！",
          tags: ["tycoon", "build", "rich"], maxPlayers: 8, build: mansionTycoon),
     Game(number: 70, id: "plus-one-speed-escape", title: "+1 Speed Wall Escape",
          summary: "1秒ごとにスピードが+1！うしろからせまる巨大なかべから逃げて、どこまで遠くへ行けるか。転生でさらに速く。",
@@ -909,20 +909,113 @@ func slimeMerge(_ m: MapBuilder) {
 
 // MARK: 69 Mansion Builder Tycoon
 
+/// One piece of a mansion part: offset from the plot centre (front toward +z), size, colour, shape, material, whether it is solid, a tag
+/// ("wall" or "roof" so the script can paint it) and a rotation.
+typealias MansionPiece = (V, V, String, BlockShape, MaterialKind, Bool, String, V)
+
+func mp(_ at: V, _ size: V, _ color: String, _ shape: BlockShape = .box, _ material: MaterialKind = .plastic, solid: Bool = true,
+        tag: String = "", rot: V = (0, 0, 0)) -> MansionPiece {
+    (at, size, color, shape, material, solid, tag, rot)
+}
+
+/// The twenty-six parts of a mansion, bought in this order (the script names them).
+func mansionParts() -> [[MansionPiece]] {
+    let cream = "#FEF3C7", glass = "#BAE6FD", wood = "#B45309", white = "#F8FAFC"
+    var stairs: [MansionPiece] = []
+    for k in 0..<8 { stairs.append(mp((-10.5, 0.6 + 0.25 * Float(k + 1), 4 - Float(k)), (2, 0.5 * Float(k + 1), 1), "#A16207")) }
+    return [
+        [mp((0, 0.3, -2), (26, 0.6, 18), "#D6D3D1")],
+        [mp((0, 0.65, -2), (24, 0.1, 16), wood, solid: false)],
+        [mp((0, 2.6, -10), (24, 4, 0.5), cream, tag: "wall"), mp((-12, 2.6, -2), (0.5, 4, 16), cream, tag: "wall"),
+         mp((12, 2.6, -2), (0.5, 4, 16), cream, tag: "wall"), mp((-7.5, 2.6, 6), (9, 4, 0.5), cream, tag: "wall"),
+         mp((7.5, 2.6, 6), (9, 4, 0.5), cream, tag: "wall"), mp((0, 4.1, 6), (6, 1, 0.5), cream, tag: "wall")],
+        [mp((0, 0.3, 7.6), (5, 0.6, 2.2), "#A8A29E"), mp((-2, 3.1, 6.5), (0.4, 0.4, 0.4), "#FDE68A", .sphere, .neon, solid: false),
+         mp((2, 3.1, 6.5), (0.4, 0.4, 0.4), "#FDE68A", .sphere, .neon, solid: false), mp((0, 2.1, 6.05), (2.6, 3, 0.1), "#78350F", solid: false)],
+        [mp((-7.5, 2.8, 6.3), (4, 2, 0.1), glass, .box, .glass, solid: false), mp((7.5, 2.8, 6.3), (4, 2, 0.1), glass, .box, .glass, solid: false),
+         mp((-12.3, 2.8, -2), (0.1, 2, 5), glass, .box, .glass, solid: false), mp((12.3, 2.8, -2), (0.1, 2, 5), glass, .box, .glass, solid: false)],
+        [mp((-6, 1.1, 1.5), (5, 1, 1.6), "#7C3AED"), mp((-6, 0.72, -1), (6, 0.04, 4), "#F472B6", solid: false), mp((-6, 2.2, -4.5), (3.5, 2, 0.2), "#111827")],
+        [mp((7, 1.1, -8.8), (8, 1, 1.4), white), mp((10.8, 1.9, -8.8), (1.4, 2.6, 1.4), "#E5E7EB"), mp((4.2, 1.7, -8.8), (1.4, 0.1, 1.2), "#1F2937", solid: false)],
+        [mp((6, 1.4, 1), (4, 0.2, 2.4), wood), mp((4.6, 1, -0.6), (0.8, 0.8, 0.8), "#92400E"), mp((7.4, 1, -0.6), (0.8, 0.8, 0.8), "#92400E"),
+         mp((4.6, 1, 2.6), (0.8, 0.8, 0.8), "#92400E"), mp((7.4, 1, 2.6), (0.8, 0.8, 0.8), "#92400E")],
+        stairs,
+        [mp((1.5, 4.7, -2), (21, 0.2, 16), wood)],
+        [mp((0, 6.6, -10), (24, 3.6, 0.5), cream, tag: "wall"), mp((-12, 6.6, -2), (0.5, 3.6, 16), cream, tag: "wall"),
+         mp((12, 6.6, -2), (0.5, 3.6, 16), cream, tag: "wall"), mp((-6.5, 6.6, 6), (11, 3.6, 0.5), cream, tag: "wall"),
+         mp((6.5, 6.6, 6), (11, 3.6, 0.5), cream, tag: "wall"), mp((0, 6.6, 6.3), (3, 2, 0.1), glass, .box, .glass, solid: false)],
+        [mp((6, 5.2, -6), (3, 0.8, 4.4), "#60A5FA"), mp((6, 5.7, -7.8), (2.6, 0.4, 0.8), white), mp((9, 5.6, -8.5), (0.6, 1.4, 0.6), "#FDE68A", .cylinder, .neon)],
+        [mp((-5, 5.2, -7.5), (3.6, 0.8, 1.8), white), mp((-5, 5.62, -7.5), (3, 0.05, 1.3), "#7DD3FC", .box, .glass, solid: false),
+         mp((-8, 6.6, -9.7), (1.6, 1.4, 0.1), glass, .box, .glass, solid: false)],
+        [mp((0, 4.7, 8.2), (10, 0.2, 4), "#A8A29E"), mp((0, 5.3, 10.1), (10, 0.8, 0.2), white), mp((-5, 5.3, 8.2), (0.2, 0.8, 4), white),
+         mp((5, 5.3, 8.2), (0.2, 0.8, 4), white)],
+        [mp((-6.2, 10.1, -2), (13.4, 0.4, 17.6), "#B91C1C", tag: "roof", rot: (0, 0, 24)), mp((6.2, 10.1, -2), (13.4, 0.4, 17.6), "#B91C1C", tag: "roof", rot: (0, 0, -24)),
+         mp((0, 8.5, -2), (24.5, 0.3, 16.5), "#7F1D1D", tag: "roof")],
+        [mp((-9, 0.6, 17.5), (8, 1.2, 1.2), "#15803D"), mp((9, 0.6, 17.5), (8, 1.2, 1.2), "#15803D"), mp((-9, 0.35, 15.8), (8, 0.5, 1.4), "#F472B6", solid: false),
+         mp((9, 0.35, 15.8), (8, 0.5, 1.4), "#FDE047", solid: false)],
+        [mp((-17, 2, 16), (0.6, 4, 0.6), "#78350F", .cylinder), mp((-17, 4.8, 16), (3, 3, 3), "#16A34A", .sphere, .matte, solid: false),
+         mp((17, 2, 16), (0.6, 4, 0.6), "#78350F", .cylinder), mp((17, 4.8, 16), (3, 3, 3), "#16A34A", .sphere, .matte, solid: false)],
+        [mp((0, 0.05, -16), (18, 0.1, 9), wood, solid: false), mp((0, 0.14, -16), (13, 0.12, 5.5), "#38BDF8", .box, .glass, solid: false),
+         mp((-8, 0.5, -19), (1, 0.4, 2), white), mp((-6, 0.5, -19), (1, 0.4, 2), white)],
+        [mp((8.5, 1.8, -16), (1, 3.6, 1), "#F97316", .cylinder), mp((6.3, 1.6, -16), (4.4, 0.2, 1.2), "#FB923C", solid: false, rot: (0, 0, 35))],
+        [mp((16.5, 1.6, 0), (6, 3.2, 9), "#9CA3AF"), mp((16.5, 1.4, 4.55), (4.6, 2.6, 0.1), "#E5E7EB", solid: false), mp((16.5, 0.7, 8), (2, 1, 3.6), "#DC2626")],
+        [mp((0, 0.4, 13), (4, 0.8, 4), "#E7E5E4", .cylinder), mp((0, 0.82, 13), (3.4, 0.05, 3.4), "#38BDF8", .cylinder, .glass, solid: false),
+         mp((0, 1.8, 13), (0.5, 2, 0.5), "#E7E5E4", .cylinder), mp((0, 3, 13), (1, 0.8, 1), "#7DD3FC", .sphere, .glass, solid: false)],
+        [mp((-12, 1, 19.6), (16, 2, 0.4), "#1F2937"), mp((12, 1, 19.6), (16, 2, 0.4), "#1F2937"), mp((-3.8, 1.5, 19.6), (1, 3, 1), "#57534E"),
+         mp((3.8, 1.5, 19.6), (1, 3, 1), "#57534E"), mp((-3.8, 3.3, 19.6), (0.8, 0.8, 0.8), "#FACC15", .sphere, .metal), mp((3.8, 3.3, 19.6), (0.8, 0.8, 0.8), "#FACC15", .sphere, .metal)],
+        [mp((-10, 7, -8), (3.4, 14, 3.4), cream, .cylinder, tag: "wall"), mp((-10, 15.5, -8), (4.4, 3, 4.4), "#B91C1C", .cone, tag: "roof")],
+        [mp((14, 3, -16), (8, 0.4, 8), "#1F2937", .cylinder), mp((14, 1.4, -16), (1, 2.8, 1), "#57534E", .cylinder), mp((14, 3.22, -16), (3, 0.05, 0.6), "#FACC15", solid: false),
+         mp((14, 4.2, -16), (2, 1.4, 3.6), "#2563EB", .sphere), mp((14, 5.2, -16), (6, 0.1, 0.4), "#111827", solid: false)],
+        [mp((-15, 1.2, -15), (5, 2.4, 5), white, .cylinder), mp((-15, 3, -15), (4.6, 3.6, 4.6), "#A5B4FC", .sphere, .glass, solid: false),
+         mp((-14, 3.6, -15), (0.5, 0.5, 2.6), "#475569", .cylinder, solid: false, rot: (60, 0, 0))],
+        [mp((10, 0.6, 11), (2, 1.2, 2), "#57534E"), mp((10, 2.6, 11), (1, 2.8, 1), "#FACC15", .box, .metal), mp((10, 4.4, 11), (1, 1, 1), "#FACC15", .sphere, .metal)]
+    ]
+}
+
 func mansionTycoon(_ m: MapBuilder) {
     m.day(ground: "#65A30D")
-    m.ground(240, 240, color: "#84CC16", name: "Estate")
-    m.spawnRing(0, 0, radius: 5, count: 8, color: "#FACC15")
-    let items: [(String, Float, Float, V, String, BlockShape)] = [
-        ("Foundation", 0, 0, (20, 0.4, 16), "#D6D3D1", .box), ("Ground Floor Walls", 0, -7.8, (20, 3.6, 0.4), "#FEF3C7", .box),
-        ("Living Room", -5, -2, (8, 0.1, 8), "#B45309", .box), ("Kitchen", 5, -2, (8, 0.1, 8), "#E5E7EB", .box),
-        ("Second Floor", 0, 0, (20, 0.4, 16), "#FDE68A", .box), ("Pool", 0, 12, (12, 0.3, 6), "#38BDF8", .box),
-        ("Garage", -12, 0, (6, 3, 10), "#9CA3AF", .box), ("Fountain", 12, 12, (3, 2, 3), "#93C5FD", .sphere),
-        ("Tower", 10, -6, (3, 12, 3), "#FDE68A", .cylinder), ("Helipad", 0, 0, (8, 0.2, 8), "#1F2937", .cylinder)
-    ]
-    for (i, p) in [(-70, -70), (70, -70), (-70, 70), (70, 70)].enumerated() {
-        tycoonPlot(m, n: i + 1, x: Float(p.0), z: Float(p.1), color: ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"][i], items: items,
-                   lifts: [0, 0.4, 0.4, 0.4, 4, 0, 0, 0, 0, 4.4], padRow: true)
+    m.ground(260, 200, color: "#84CC16", name: "Estate")
+    m.part("Cover Focus", at: (0, 3, 79), size: (30, 1, 1), color: "#000000", tags: ["yaw=205"], solid: false, visible: false)
+    // A street through the middle with the spawns, the realtor and the contest stage.
+    m.road(from: (-125, 0), to: (125, 0), width: 10, name: "Street")
+    m.spawnRing(0, 0, radius: 4, count: 8, color: "#FACC15")
+    m.pad("Realtor Pad", x: 10, z: 6, size: 2.4, color: "#16A34A", tags: ["realtor"])
+    m.slab("Realtor Sign", x: 10, y: 0, z: 8.5, w: 3, h: 2.4, d: 0.3, color: "#15803D")
+    m.slab("Contest Stage", x: -12, y: 0, z: 7, w: 8, h: 0.5, d: 4, color: "#FDE68A")
+    m.part("Contest Trophy", at: (-12, 1.6, 7.6), size: (1, 1.6, 1), color: "#FACC15", shape: .cone, material: .metal, solid: false)
+    for x in stride(from: Float(-120), through: 120, by: 20) {
+        for sz: Float in [-6.5, 6.5] { m.lamp(x, sz, glow: "#FDE68A") }
+    }
+    // Six estates, three on each side of the street, all facing it.
+    let parts = mansionParts()
+    let colors = ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B", "#A855F7", "#EC4899"]
+    let estates: [(Float, Float, Float)] = [(-80, -34, 1), (0, -34, 1), (80, -34, 1), (-80, 34, -1), (0, 34, -1), (80, 34, -1)]
+    for (i, e) in estates.enumerated() {
+        let n = i + 1
+        let f = e.2   // +1: the front faces +z, −1: it faces −z
+        m.slab("Plot \(n) Floor", x: e.0, y: 0, z: e.1, w: 44, h: 0.06, d: 44, color: "#A3E635")
+        m.slab("Plot \(n) Drive", x: e.0, y: 0.06, z: e.1 + f * 20, w: 6, h: 0.04, d: 6, color: "#D6D3D1")
+        m.pad("Plot \(n) Claim", x: e.0 - 6, z: e.1 + f * 21, size: 2.4, color: colors[i], tags: ["claim"])
+        m.pad("Plot \(n) Build", x: e.0, z: e.1 + f * 21, size: 3, color: "#22C55E", tags: ["build"])
+        m.pad("Plot \(n) Mailbox", x: e.0 + 6, z: e.1 + f * 21, size: 2.2, color: "#60A5FA", tags: ["mailbox"])
+        m.part("Plot \(n) Mailbox Post", at: (e.0 + 7.6, 0.8, e.1 + f * 21), size: (0.8, 1.6, 0.6), color: "#1D4ED8", solid: false)
+        for (k, pieces) in parts.enumerated() {
+            m.group("p\(n)i\(k + 1)", shown: false) {
+                for pc in pieces {
+                    var tags: [String] = []
+                    if !pc.6.isEmpty { tags.append("p\(n)\(pc.6)") }
+                    m.part("Plot \(n) Item \(k + 1)", at: (e.0 + pc.0.0, pc.0.1, e.1 + f * pc.0.2), size: pc.1, color: pc.2, shape: pc.3, material: pc.4,
+                           tags: tags, solid: pc.5, rotation: (pc.7.0 * f, pc.7.1, pc.7.2))
+                }
+            }
+        }
+        m.part("Plot \(n) Party", at: (e.0, 0.8, e.1 - f * 2), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // A finished mansion on show behind the north row, half size.
+    m.slab("Showcase Lawn", x: 0, y: 0, z: 80, w: 26, h: 0.08, d: 24, color: "#4ADE80")
+    for pieces in parts {
+        for pc in pieces {
+            m.part("Showcase Mansion", at: (pc.0.0 * 0.5, pc.0.1 * 0.5, 80 - pc.0.2 * 0.5), size: (pc.1.0 * 0.5, pc.1.1 * 0.5, pc.1.2 * 0.5), color: pc.2, shape: pc.3,
+                   material: pc.4, solid: false, rotation: (-pc.7.0, pc.7.1, pc.7.2))
+        }
     }
 }
 

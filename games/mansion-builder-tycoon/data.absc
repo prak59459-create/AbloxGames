@@ -1,0 +1,54 @@
+-- data.absc — 豪邸の26パーツ・ペンキの色・強化
+
+-- 建てる順番。price: 値段 / rent: 家賃（毎秒）/ lux: ごうか度 / party: パーティーに必要
+let ITEMS = [
+  {name: "土台", price: 0, lux: 1},
+  {name: "1階の床", price: 60, lux: 2},
+  {name: "1階のかべ", price: 120, lux: 3},
+  {name: "玄関", price: 200, lux: 4},
+  {name: "窓", price: 320, lux: 4},
+  {name: "リビング", price: 500, lux: 6},
+  {name: "キッチン", price: 800, lux: 6},
+  {name: "ダイニング", price: 1200, lux: 7},
+  {name: "階段", price: 1800, lux: 5},
+  {name: "2階の床", price: 2700, lux: 6},
+  {name: "2階のかべ", price: 4000, lux: 8},
+  {name: "ベッドルーム", price: 6000, lux: 10},
+  {name: "バスルーム", price: 9000, lux: 10},
+  {name: "バルコニー", price: 13000, lux: 12},
+  {name: "屋根", price: 19000, lux: 14},
+  {name: "庭", price: 28000, lux: 15},
+  {name: "木", price: 40000, lux: 15},
+  {name: "プール", price: 58000, lux: 22},
+  {name: "すべり台", price: 85000, lux: 20},
+  {name: "ガレージとスポーツカー", price: 120000, lux: 26},
+  {name: "噴水", price: 170000, lux: 26},
+  {name: "門とフェンス", price: 250000, lux: 28},
+  {name: "塔", price: 360000, lux: 34},
+  {name: "ヘリポートとヘリ", price: 520000, lux: 40},
+  {name: "天文台", price: 750000, lux: 45},
+  {name: "黄金の像", price: 1100000, lux: 60}
+]
+
+let PAINTS = [
+  {id: "cream", name: "クリーム", wall: "#FEF3C7", roof: "#B91C1C"},
+  {id: "white", name: "まっしろ", wall: "#F8FAFC", roof: "#1E3A8A"},
+  {id: "pink", name: "ピンク", wall: "#FBCFE8", roof: "#9D174D"},
+  {id: "mint", name: "ミント", wall: "#BBF7D0", roof: "#166534"},
+  {id: "sky", name: "そら色", wall: "#BAE6FD", roof: "#1D4ED8"},
+  {id: "gold", name: "ゴールド", wall: "#FDE68A", roof: "#78350F"},
+  {id: "night", name: "ナイト", wall: "#334155", roof: "#0F172A"}
+]
+let PAINT_PRICE = 1000
+
+-- 強化。invest: 家賃 +25% / mailbox: 郵便受けに入る量 / butler: 自動で集める
+let UPGRADES = [
+  {id: "invest", name: "📈 投資", text: "家賃 +25%", max: 12, base: 400, grow: 2.2},
+  {id: "mailbox", name: "📬 大きな郵便受け", text: "ためられる時間 +60秒", max: 8, base: 300, grow: 2.3},
+  {id: "butler", name: "🤵 執事", text: "家賃を自動で集める", max: 1, base: 5000, grow: 1}
+]
+
+let RENT_DIV = 100         -- 家賃 = 値段 ÷ これ
+let PARTY_NEED = 6         -- パーティーはリビングから
+let PARTY_TIME = 60
+let CONTEST_EVERY = 240

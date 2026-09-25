@@ -1,0 +1,187 @@
+-- build.absc — 土地をもらう・次のパーツを建てる（下からせり上がる）・ペンキ・豪邸を売る（転生）
+
+func item_blocks(n, k)
+  return blocks("p" + n + "i" + k)
+end
+
+func claim(p, n)
+  if p.plot != nil then
+    if p.plot != n and quiet_ready(p, "plot_msg", 3) then p.message("あなたの土地は " + p.plot + " ばん", 1.5) end
+    return
+  end
+  let e = estates[n]
+  if e.owner != nil then
+    if quiet_ready(p, "plot_msg", 3) then p.message("ここはほかの人の土地", 1.2) end
+    return
+  end
+  e.owner = p.id
+  p.plot = n
+  block("Plot " + n + " Claim").color = "#FFFFFF"
+  p.message("🏡 土地 " + n + " があなたのもの！ 緑のパッドで豪邸を建てていこう", 3)
+  p.sound("goal")
+  -- 転生したあとでも、同じところから（土台はタダ）
+  if p.built == 0 then build_next(p) else rebuild_all(p) end
+  paint(p, p.paint)
+  hud(p)
+end
+
+-- パーツを出す。rise: 下からせり上がる
+func show_item(n, k, rise)
+  for b in item_blocks(n, k) do
+    let target = b.position
+    b.visible = true
+    if contains(b.tags, "solid") then b.solid = true end
+    if rise then
+      b.position = target - {x: 0, y: 4, z: 0}
+      b.move_to(target, 0.7)
+    end
+  end
+end
+
+func hide_item(n, k)
+  for b in item_blocks(n, k) do
+    b.visible = false
+    b.solid = false
+  end
+end
+
+func rebuild_all(p)
+  if p.built == 0 then return end
+  for k in 1 to p.built do show_item(p.plot, k, false) end
+end
+
+func build_next(p)
+  if p.plot == nil then
+    p.message("先に道ぞいの色のパッドで土地をもらおう", 1.5)
+    return
+  end
+  if p.built >= len(ITEMS) then
+    p.message("🏆 もう全部建てた！ 不動産屋（道の緑のパッド）で売ると転生", 2)
+    return
+  end
+  let k = p.built + 1
+  let it = ITEMS[k]
+  if not kit_pay(p, it.price) then return end
+  p.built = k
+  show_item(p.plot, k, true)
+  p.sound("goal")
+  kit_quest_progress(p, "build5", 1)
+  kit_quest_progress(p, "build26", 1)
+  p.message("🏗 " + it.name + " を建てた！ 家賃 +" + kit_short(rent_of(k)) + "/秒", 2)
+  if k == PARTY_NEED then p.message("🎉 リビングができた！ 「🎉 パーティー」でゲストをよべる", 3) end
+  if k == len(ITEMS) then
+    kit_badge(p, "mansion", "豪邸マスター")
+    announce("🏰 " + p.name + " の大豪邸が完成した！", 5)
+  end
+  paint(p, p.paint)
+  hud(p)
+end
+
+-- MARK: ペンキ
+
+func paint(p, id)
+  if p.plot == nil then return end
+  let c = find(PAINTS, id)
+  if c == nil then return end
+  for b in blocks("p" + p.plot + "wall") do b.color = c.wall end
+  for b in blocks("p" + p.plot + "roof") do b.color = c.roof end
+end
+
+func paint_panel(p)
+  let h = 110 + len(PAINTS) * 42
+  p.ui_remove("paint")
+  p.ui_panel("paint", {at: "center", w: 460, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  p.ui_text("paint_t", "🎨 ペンキ（" + kit_short(PAINT_PRICE) + " コイン）", {parent: "paint", y: 22 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in PAINTS do
+    i = i + 1
+    let label = c.name
+    if p.paint == c.id then label = "✅ " + label end
+    p.ui_button("paint_" + c.id, label, {parent: "paint", y: (30 + i * 42) / h, w: 400, h: 36, size: 14, bg: c.roof, color: "#FFFFFF"})
+  end
+  p.ui_button("paint_close", "閉じる", {parent: "paint", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func buy_paint(p, id)
+  if p.paint == id then return end
+  if kit_pay(p, PAINT_PRICE) then
+    p.paint = id
+    paint(p, id)
+    p.sound("collect")
+    kit_quest_progress(p, "paint", 1)
+    hud(p)
+  end
+  paint_panel(p)
+end
+
+-- MARK: 売る（転生）
+
+func sell_price(p)
+  let t = 0
+  for it in ITEMS do t = t + it.price end
+  return floor(t * 0.5 * (1 + p.sold))
+end
+
+func realtor_panel(p)
+  let h = 210
+  p.ui_remove("realtor")
+  p.ui_panel("realtor", {at: "center", w: 520, h: h, bg: "#14532DF2", radius: 20, layer: 30})
+  p.ui_text("realtor_t", "🏷 不動産屋（売った回数 " + p.sold + "）", {parent: "realtor", y: 26 / h, size: 18, bold: true, color: "#BBF7D0"})
+  p.ui_text("realtor_h", "完成した豪邸を売ると、建物はなくなるけど家賃がずっと +50%", {parent: "realtor", y: 62 / h, size: 13, color: "#DCFCE7"})
+  let label = "🔒 26パーツ全部建てたら売れる（いま " + p.built + "）"
+  if p.built >= len(ITEMS) then label = "🏷 豪邸を売る  💰+" + kit_short(sell_price(p)) end
+  p.ui_button("sell_house", label, {parent: "realtor", y: 112 / h, w: 460, h: 46, size: 15, bg: "#16A34A"})
+  p.ui_button("realtor_close", "閉じる", {parent: "realtor", y: (h - 22) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func sell_house(p)
+  if p.built < len(ITEMS) or p.plot == nil then return end
+  let c = sell_price(p)
+  kit_give(p, c)
+  for k in 1 to len(ITEMS) do hide_item(p.plot, k) end
+  p.built = 0
+  p.sold = p.sold + 1
+  p.mail = 0
+  p.ups["invest"] = 0
+  kit_quest_progress(p, "sell", 1)
+  kit_badge(p, "sold" + min(p.sold, 3), "豪邸を " + p.sold + " 回売った")
+  if p.sold >= 3 then p.hat = "crown" end
+  announce("🏷 " + p.name + " が豪邸を売った！ 💰" + kit_short(c) + "（家賃 ×" + fixed(1 + p.sold * 0.5, 1) + "）", 4)
+  build_next(p)
+  realtor_panel(p)
+  hud(p)
+end
+
+on start()
+  for n in 1 to ESTATE_COUNT do estates["" + n] = {owner: nil} end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim(p, replace(replace(b.name, "Plot ", ""), " Claim", ""))
+  elif contains(b.tags, "build") and quiet_ready(p, "build", 1) then
+    let n = replace(replace(b.name, "Plot ", ""), " Build", "")
+    if n == p.plot then build_next(p) elif quiet_ready(p, "plot_msg", 3) then p.message("自分の土地のパッドを使おう", 1.2) end
+  elif contains(b.tags, "realtor") and quiet_ready(p, "realtor", 2) then realtor_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "build" then build_next(p)
+  elif id == "open_paint" then paint_panel(p)
+  elif starts_with(id, "paint_") and id != "paint_close" then buy_paint(p, replace(id, "paint_", ""))
+  elif id == "paint_close" then p.ui_remove("paint")
+  elif id == "sell_house" then sell_house(p)
+  elif id == "realtor_close" then p.ui_remove("realtor")
+  end
+end
+
+on leave(p)
+  if p.plot == nil then return end
+  for k in 1 to len(ITEMS) do hide_item(p.plot, k) end
+  estates[p.plot] = {owner: nil}
+  block("Plot " + p.plot + " Claim").color = "#FACC15"
+  for b in blocks("p" + p.plot + "wall") do b.color = "#FEF3C7" end
+  for b in blocks("p" + p.plot + "roof") do b.color = "#B91C1C" end
+end

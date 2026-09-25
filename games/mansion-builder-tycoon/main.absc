@@ -1,124 +1,54 @@
--- Mansion Builder Tycoon — 小さな家から大豪邸へ
+-- Mansion Builder Tycoon — 土台から26段階で、自分だけの大豪邸を建てよう
+--
+-- ファイル:
+--   data.absc    26パーツ・ペンキ・強化
+--   common.absc  家賃・ごうか度・画面
+--   build.absc   土地・建てる・ペンキ・売る（転生）
+--   money.absc   郵便受け・執事・強化
+--   party.absc   パーティー・豪邸コンテスト
+--   main.absc    このファイル
 
-kit_setup("Mansion Builder Tycoon", "家賃をかせいで、大豪邸を建てよう", [
-  "色のパッドにさわると、その土地があなたのものに",
-  "前に並んだ緑のパッドを順番に買うと、豪邸が少しずつできていく",
-  "建てるほど家賃収入（毎秒）が増える",
-  "「📈 投資」で家賃の倍率を上げられる",
-  "全部建てたら「豪邸マスター」！"
+kit_setup("Mansion Builder Tycoon", "小さな土台から、大豪邸へ", [
+  "🏡 道ぞいの色のパッドで土地をもらう（入るとあいている土地を自動でもらえる）",
+  "🏗 緑のパッド（または🏗ボタン）で次のパーツを建てる。全部で26パーツ",
+  "📬 家賃は郵便受け（青いパッド）にたまる。いっぱいになる前に集めよう。🤵執事がいると自動",
+  "📈 強化で投資（家賃アップ）と大きな郵便受け",
+  "🎨 ペンキでかべと屋根の色を変えられる",
+  "🎉 リビングができたらパーティー！ ゲストがチップをくれる",
+  "🏆 4分ごとに豪邸コンテスト。ごうか度が高いと賞金",
+  "🏷 完成したら不動産屋で売って転生。家賃がずっと +50%"
 ])
+kit_currency = "コイン"
 
-let items = ["土台", "1階のかべ", "リビング", "キッチン", "2階", "プール", "ガレージ", "噴水", "タワー", "ヘリポート"]
-let prices = [0, 100, 250, 500, 1200, 2500, 5000, 9000, 16000, 30000]
-let rents = [2, 3, 5, 8, 15, 25, 40, 60, 100, 200]
-let owner = {}
-let bought = {}
-
-kit_quest("five", "5つ建てる", 5, 300)
-kit_quest("all", "全部建てる", 10, 3000)
-kit_quest("invest", "3回投資する", 3, 500)
-
-func has(plot, k)
-  return bought[plot + ":" + k] == true
-end
-
-func rent(p)
-  if p.plot == nil then return 0 end
-  let r = 0
-  for k in 1 to len(items) do
-    if has(p.plot, str(k)) then r = r + rents[k] end
-  end
-  return r * p.mult
-end
-
-func show(p)
-  if p.plot == nil then return end
-  p.ui_text("rent", "🏰 家賃 " + kit_short(rent(p)) + "/秒   倍率 ×" + fixed(p.mult, 1), {at: "top", dy: 30, size: 18, bold: true})
-end
-
-func buy(p, plot, k)
-  let n = num(k)
-  if has(plot, k) then return end
-  if n > 1 and not has(plot, str(n - 1)) then
-    p.message("先に「" + items[n - 1] + "」", 1.5)
-    return
-  end
-  if not kit_pay(p, prices[n]) then return end
-  bought[plot + ":" + k] = true
-  let item = block("Plot " + plot + " Item " + k)
-  item.visible = true
-  item.solid = true
-  kit_quest_progress(p, "five", 1)
-  kit_quest_progress(p, "all", 1)
-  p.message("🏗 " + items[n] + " を建てた！", 1.5)
-  if n == len(items) then
-    kit_badge(p, "mansion", "豪邸マスター")
-    announce("🏰 " + p.name + " の大豪邸が完成した！", 4)
-  end
-  show(p)
-end
+kit_quest("build5", "パーツを5つ建てる", 5, 150)
+kit_quest("build26", "26パーツ全部建てる", 26, 50000)
+kit_quest("collect", "家賃を20回集める", 20, 500)
+kit_quest("upgrade", "5回強化する", 5, 2000)
+kit_quest("paint", "ペンキで色をかえる", 1, 500)
+kit_quest("party", "パーティーを3回ひらく", 3, 3000)
+kit_quest("contest", "豪邸コンテストで優勝", 1, 10000)
+kit_quest("sell", "豪邸を売る", 1, 100000)
 
 on start()
-  every(1, func()
-    for p in players() do
-      let r = rent(p)
-      if r > 0 then
-        kit_give(p, r)
-        p.score = p.coins
-      end
-    end
-  end)
-  every(10, func() kit_leaderboard("🏰") end)
+  every(10, func() kit_leaderboard("✨") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.mult = 1
-  p.invested = 0
+  p.ups = {}
+  p.built = 0
+  p.mail = 0
+  p.sold = 0
+  p.earned = 0
+  p.paint = "cream"
   kit_give(p, 50)
-  p.ui_button("invest", "📈 投資", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#16A34A"})
-end
-
-on leave(p)
-  if p.plot != nil then
-    let plot = p.plot
-    remove(owner, plot)
-    for k in 1 to len(items) do
-      remove(bought, plot + ":" + k)
-      let item = block("Plot " + plot + " Item " + k)
-      item.visible = false
-      item.solid = false
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  let parts = split(b.name, " ")
-  if contains(b.tags, "claim") then
-    let plot = parts[2]
-    if owner[plot] == nil and p.plot == nil then
-      owner[plot] = p.id
-      p.plot = plot
-      buy(p, plot, "1")
-    end
-  elif contains(b.tags, "buy") and p.plot == parts[2] then
-    buy(p, parts[2], parts[4])
-  end
-end
-
-on button(p, id)
-  if id == "invest" then
-    let cost = floor(500 * pow(3, p.invested))
-    if kit_pay(p, cost) then
-      p.invested = p.invested + 1
-      p.mult = p.mult + 0.5
-      kit_quest_progress(p, "invest", 1)
-      p.message("📈 家賃 ×" + fixed(p.mult, 1) + "（次の投資 " + kit_short(floor(500 * pow(3, p.invested))) + "）", 2)
-      show(p)
-    else
-      p.message("投資には " + kit_short(cost), 1.5)
-    end
+  p.ui_button("build", "🏗 建てる", {at: "bottom_right", dx: -110, dy: -170, w: 150, h: 60, size: 18, bg: "#16A34A", radius: 16})
+  p.ui_button("party", "🎉 パーティー", {at: "right", dy: -60, w: 150, h: 44, size: 14, bg: "#DB2777"})
+  p.ui_button("open_ups", "🔧 強化", {at: "right", dy: -10, w: 150, h: 44, size: 15, bg: "#2563EB"})
+  p.ui_button("open_paint", "🎨 ペンキ", {at: "right", dy: 40, w: 150, h: 44, size: 15, bg: "#A16207"})
+  hud(p)
+  for n in 1 to ESTATE_COUNT do
+    if p.plot == nil and estates["" + n].owner == nil then claim(p, "" + n) end
   end
 end

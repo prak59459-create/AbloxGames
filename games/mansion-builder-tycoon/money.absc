@@ -1,0 +1,100 @@
+-- money.absc — 家賃は郵便受けにたまる・集める・執事・強化（投資・郵便受け）
+
+let money_clock = 0
+
+func collect(p)
+  if p.mail <= 0 then
+    if quiet_ready(p, "empty_mail", 2) then p.message("📬 まだ空っぽ", 1) end
+    return
+  end
+  let c = floor(p.mail)
+  kit_give(p, c)
+  p.earned = p.earned + c
+  p.mail = 0
+  p.sound("collect")
+  p.message("📬 家賃を集めた +" + kit_short(c), 1.2)
+  kit_quest_progress(p, "collect", 1)
+  hud(p)
+end
+
+func rent_step(p)
+  if p.plot == nil then return end
+  let cap = mailbox_cap(p)
+  let before = p.mail
+  p.mail = min(cap, p.mail + rent(p))
+  if lvl(p, "butler") > 0 and p.mail > 0 then
+    kit_give(p, floor(p.mail))
+    p.earned = p.earned + floor(p.mail)
+    p.mail = 0
+  elif p.mail >= cap and before < cap then
+    p.message("📬 郵便受けがいっぱい！ 集めに行こう（強化で大きくできる）", 2)
+  end
+end
+
+-- MARK: 強化
+
+func up_price(p, u)
+  return floor(u.base * pow(u.grow, lvl(p, u.id)))
+end
+
+func upgrade_panel(p)
+  let h = 110 + len(UPGRADES) * 48
+  p.ui_remove("ups")
+  p.ui_panel("ups", {at: "center", w: 520, h: h, bg: "#1E3A8AF2", radius: 20, layer: 30})
+  p.ui_text("ups_t", "🔧 強化   💰 " + kit_short(kit_money(p)), {parent: "ups", y: 22 / h, size: 17, bold: true, color: "#BFDBFE"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let l = lvl(p, u.id)
+    let label = u.name + " Lv" + l + "/" + u.max + "（" + u.text + "）  💰" + kit_short(up_price(p, u))
+    if l >= u.max then label = u.name + " MAX" end
+    p.ui_button("up_" + u.id, label, {parent: "ups", y: (30 + i * 48) / h, w: 480, h: 42, size: 13, bg: "#2563EB"})
+  end
+  p.ui_button("ups_close", "閉じる", {parent: "ups", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func buy_up(p, id)
+  let u = find(UPGRADES, id)
+  if u == nil or lvl(p, id) >= u.max then return end
+  if kit_pay(p, up_price(p, u)) then
+    p.ups[id] = lvl(p, id) + 1
+    p.sound("goal")
+    kit_quest_progress(p, "upgrade", 1)
+    if id == "butler" then p.message("🤵 執事がやとわれた！ 家賃は自動で入る", 2.5) end
+    hud(p)
+  end
+  upgrade_panel(p)
+end
+
+on tick(dt)
+  money_clock = money_clock + dt
+  if money_clock < 1 then return end
+  money_clock = 0
+  for p in players() do
+    if ready(p) then
+      rent_step(p)
+      hud(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "mailbox") then
+    let n = replace(replace(b.name, "Plot ", ""), " Mailbox", "")
+    if n == p.plot then collect(p) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_ups" then upgrade_panel(p)
+  elif starts_with(id, "up_") then buy_up(p, replace(id, "up_", ""))
+  elif id == "ups_close" then p.ui_remove("ups")
+  elif id == "collect" then
+    -- 郵便受けのそばにいるときだけ
+    if p.plot == nil then return end
+    let mb = block("Plot " + p.plot + " Mailbox")
+    if mb != nil and distance(p, mb) < 8 then collect(p) else p.message("📬 郵便受けのそばで集めよう", 1.2) end
+  end
+end

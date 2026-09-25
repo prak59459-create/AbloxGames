@@ -1854,16 +1854,21 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 97,
-      "cover" : "games\/mansion-builder-tycoon\/cover-5099ed93.png",
+      "blockCount" : 825,
+      "cover" : "games\/mansion-builder-tycoon\/cover-2c87ceb3.png",
       "id" : "mansion-builder-tycoon",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/mansion-builder-tycoon\/data.absc",
+        "games\/mansion-builder-tycoon\/build.absc",
+        "games\/mansion-builder-tycoon\/common.absc",
+        "games\/mansion-builder-tycoon\/money.absc",
+        "games\/mansion-builder-tycoon\/party.absc",
         "games\/mansion-builder-tycoon\/main.absc"
       ],
-      "summary" : "小さな家から大豪邸へ。お金をためて部屋、プール、ガレージ、ヘリポートを順番に建てていくタイクーン。",
+      "summary" : "土台から26段階で大豪邸が立ち上がるタイクーン。家賃は郵便受けに、執事で自動回収、投資、壁と屋根のペンキ、パーティーのゲストのチップ、豪邸コンテスト、完成したら売って転生！",
       "tags" : [
         "tycoon",
         "build",
