@@ -1,112 +1,40 @@
 -- Anomaly Hallway — 異変があれば引き返し、なければ進む
+-- 32の異変（目立つ・よく見るとわかる・小さい）、歩いてくるおじさん、せまってくる異変、
+-- 異変図鑑、ふつうの廊下のチェックリスト、最速記録、裏モード。
+--
+-- ファイル:
+--   common.absc     状態・道具・画面
+--   anomalies.absc  32の異変
+--   loop.absc       1周の流れ・出口・図鑑・チェックリスト
+--   man.absc        歩いてくるおじさん
+--   main.absc       このファイル
 
 kit_setup("Anomaly Hallway", "異変を見のがすな", [
-  "この廊下をよーく覚えておこう（ドア・ポスター・ベンチ・植物・時計…）",
-  "異変がなければ、奥の緑のパッドへ進む",
-  "異変があったら、うしろの赤いパッドへ引き返す",
-  "正解すると出口の番号が1つ進む。まちがえると0にもどる",
-  "8番まで進めば脱出！みんなで相談しよう"
+  "この廊下をよーく覚えよう（📋 チェックリストで確認できる）",
+  "異変がなければ、奥の緑のパッドへ進む。異変があったら、うしろの赤いパッドへ引き返す",
+  "正解すると出口の番号が1つ進む。まちがえると0にもどる。8番まで進めば脱出！",
+  "🚶 おじさんがむこうから歩いてくる。おじさんにも異変があるかも",
+  "⚠️ せまってくる異変もある。気づいたらすぐ引き返せ！ 📖 見つけた異変は図鑑に"
 ])
 
-let count = 0
-let current = nil
-let loops = 0
-let best = 0
-let deciding = false
-
--- 異変: apply でおかしくして、revert で元にもどす
-let anomalies = [
-  {name: "ドアの色", apply: func() block("Door A").color = "#DC2626" end, revert: func() block("Door A").color = "#60A5FA" end},
-  {name: "ポスターがない", apply: func() block("Poster").visible = false end, revert: func() block("Poster").visible = true end},
-  {name: "大きなベンチ", apply: func() block("Bench").size = {x: 1.2, y: 1.6, z: 5} end, revert: func() block("Bench").size = {x: 1.2, y: 0.7, z: 3} end},
-  {name: "紫の植物", apply: func() block("Plant").color = "#7E22CE" end, revert: func() block("Plant").color = "#16A34A" end},
-  {name: "赤い出口サイン", apply: func() block("Exit Sign").color = "#DC2626" end, revert: func() block("Exit Sign").color = "#22C55E" end},
-  {name: "消えた明かり", apply: func() block("Ceiling Lamp 3").visible = false end, revert: func() block("Ceiling Lamp 3").visible = true end},
-  {name: "暗い廊下", apply: func() world.light = 0.15 end, revert: func() world.light = 0.6 end},
-  {name: "消火器がない", apply: func() block("Fire Extinguisher").visible = false end, revert: func() block("Fire Extinguisher").visible = true end},
-  {name: "ドアの位置", apply: func() block("Door B").z = 12 end, revert: func() block("Door B").z = 6 end},
-  {name: "時計が大きい", apply: func() block("Clock").size = {x: 0.05, y: 1.6, z: 1.6} end, revert: func() block("Clock").size = {x: 0.05, y: 0.7, z: 0.7} end},
-  {name: "だれか立っている", apply: func()
-      create_npc({name: "…", position: block("Anomaly Spot").position, color: "#111111", head_color: "#111111", health: 999999, speed: 0})
-    end, revert: func()
-      for n in npcs() do n.destroy() end
-    end},
-  {name: "天井が低い", apply: func() block("Hall Ceiling").y = 3.2 end, revert: func() block("Hall Ceiling").y = 4.15 end},
-  {name: "赤いもの", apply: func()
-      create_block({name: "Red Thing", shape: "sphere", position: {x: random(-2, 2), y: 0.4, z: random(-15, 15)}, size: 0.8, color: "#991B1B", tags: ["redthing"]})
-    end, revert: func()
-      for b in blocks("redthing") do b.destroy() end
-    end}
-]
-
-kit_quest("right5", "5回連続で正解", 1, 150)
+kit_quest("right5", "5番まで進む", 1, 150)
 kit_quest("escape", "8番出口から脱出", 1, 500)
-
-func show()
-  ui_text("exit", "🚪 出口 " + count + " / 8", {at: "top", dy: 26, size: 24, bold: true, color: count >= 6 and "#22C55E" or "#FFFFFF"})
-end
-
-func next_loop()
-  if current != nil then current.revert() end
-  current = nil
-  loops = loops + 1
-  -- 最初はいつもふつう。そのあとは半分くらいで異変
-  if loops > 1 and random() < 0.55 then
-    current = random(anomalies)
-    current.apply()
-  end
-  for p in players() do
-    p.teleport(block("Spawn " + random(1, 4)))
-    p.look_at(block("Exit Sign"))
-  end
-  show()
-  deciding = false
-end
-
-func decide(p, went_forward)
-  if deciding then return end
-  deciding = true
-  let had = current != nil
-  let right = (went_forward and not had) or (not went_forward and had)
-  if right then
-    count = count + 1
-    sound("checkpoint")
-    announce(had and ("⭕ 正解！異変は「" + current.name + "」でした") or "⭕ 正解！異変はなかった", 2.5)
-    for q in players() do q.score = max(q.score, count) end
-    if count >= 5 then
-      for q in players() do kit_quest_progress(q, "right5", 1) end
-    end
-    if count >= 8 then
-      for q in players() do kit_quest_progress(q, "escape", 1) end
-      kit_finish("🎉 8番出口から脱出した！", 10)
-      return
-    end
-  else
-    count = 0
-    sound("error")
-    shake(0.3, 0.5)
-    announce(had and ("❌ 異変を見のがした…（" + current.name + "）") or "❌ 異変はなかったのに…", 3)
-  end
-  fade("#000000", 0.4)
-  after(1.2, func()
-    next_loop()
-    fade(nil, 0.8)
-  end)
-end
+kit_quest("hard", "裏の8番出口から脱出", 1, 1000)
+kit_quest("dex", "異変を10種類見つける", 10, 300)
+kit_quest("dex20", "異変を20種類見つける", 20, 600)
 
 on start()
+  run_start = time()
   after(1, func() next_loop() end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_camera_button(p)
+  p.found = []
+  p.ui_button("checklist", "📋 チェック", {at: "right", dy: -60, w: 150, h: 46, size: 16, bg: "#0E7490"})
+  p.ui_button("dex", "📖 図鑑", {at: "right", dy: 0, w: 150, h: 46, size: 16, bg: "#6D28D9"})
   show()
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "forward") then decide(p, true)
-  elif contains(b.tags, "back") then decide(p, false)
-  end
+  show_me(p)
 end

@@ -1,0 +1,157 @@
+-- anomalies.absc — 32の異変
+-- level 1: 目立つ / 2: よく見るとわかる / 3: 小さい（裏モードと後半だけ）
+-- danger: せまってくる異変。引き返すのがおそいと失敗
+
+let anom_blocks = []       -- 異変で作ったブロック（もとにもどすとき消す）
+let flicker_timer = nil
+let wave = nil             -- {block, t0, secs}
+
+func tint(name, color)
+  let b = block(name)
+  if b != nil then b.color = color end
+end
+
+func show_block(name, shown)
+  let b = block(name)
+  if b != nil then b.visible = shown end
+end
+
+func add_anom_block(spec)
+  let b = create_block(spec)
+  append(anom_blocks, b)
+  return b
+end
+
+func clear_anom_blocks()
+  for b in anom_blocks do gone(b) end
+  anom_blocks = []
+end
+
+func lamps(color)
+  for i in 1 to 6 do tint("Ceiling Lamp " + i, color) end
+end
+
+func start_wave()
+  let b = add_anom_block({name: "Red Wave", position: {x: 0, y: 1.8, z: 31}, size: {x: 7.6, y: 3.6, z: 1}, color: "#B91C1C",
+                          material: "neon", solid: false, opacity: 0.75})
+  b.move_to({x: 0, y: 1.8, z: -31}, 16)
+  wave = {t0: time(), secs: 16}
+end
+
+-- 波がいまどこにいるか（動いているあいだ、ブロックの位置は行き先になっているので計算で）
+func wave_z()
+  if wave == nil then return 99 end
+  let t = min(1, (time() - wave.t0) / wave.secs)
+  return 31 - 62 * t
+end
+
+let ANOMALIES = [
+  -- 目立つ異変
+  {name: "赤いドア", level: 1, apply: func() tint("Door A", "#DC2626") end, revert: func() tint("Door A", "#60A5FA") end},
+  {name: "ポスターがない", level: 1, apply: func() show_block("Poster 1", false) end, revert: func() show_block("Poster 1", true) end},
+  {name: "大きなベンチ", level: 1, apply: func() block("Bench").size = {x: 1.2, y: 1.6, z: 5} end,
+   revert: func() block("Bench").size = {x: 1.2, y: 0.7, z: 3} end},
+  {name: "黒い人が立っている", level: 1, apply: func()
+      let n = create_npc({name: "…", position: block("Anomaly Spot").position, color: "#0A0A0A", head_color: "#0A0A0A",
+                          leg_color: "#0A0A0A", health: 999999, speed: 0})
+      n.frozen = true
+      append(anom_blocks, n)
+    end, revert: func() clear_anom_blocks() end},
+  {name: "暗い廊下", level: 1, apply: func() world.light = 0.15 end, revert: func() world.light = 0.6 end},
+  {name: "天井が低い", level: 1, apply: func() block("Hall Ceiling").y = 3.35 end, revert: func() block("Hall Ceiling").y = 4.15 end},
+  {name: "床の赤いボール", level: 1, apply: func()
+      add_anom_block({name: "Red Ball", shape: "sphere", position: {x: random(-2, 2), y: 0.4, z: random(-12, 18)}, size: 0.8,
+                      color: "#991B1B"})
+    end, revert: func() clear_anom_blocks() end},
+  {name: "天井の明かりが赤い", level: 1, apply: func() lamps("#EF4444") end, revert: func() lamps("#F8FAFC") end},
+  {name: "自販機がない", level: 1, apply: func()
+      show_block("Vending Machine", false)
+      show_block("Vending Light", false)
+    end, revert: func()
+      show_block("Vending Machine", true)
+      show_block("Vending Light", true)
+    end},
+  {name: "おじさんが走ってくる", level: 1, danger: true, apply: func()
+      let n = first_man()
+      if n != nil then
+        n.mode = "run"
+        n.speed = 2.3
+      end
+    end, revert: func() reset_man() end},
+  {name: "赤い波がせまる", level: 1, danger: true, apply: func() start_wave() end, revert: func()
+      wave = nil
+      clear_anom_blocks()
+    end},
+
+  -- よく見るとわかる異変
+  {name: "紫の植物", level: 2, apply: func() tint("Plant", "#7E22CE") end, revert: func() tint("Plant", "#16A34A") end},
+  {name: "赤い出口サイン", level: 2, apply: func() tint("Exit Sign", "#DC2626") end, revert: func() tint("Exit Sign", "#22C55E") end},
+  {name: "明かりが1つ消えている", level: 2, apply: func() show_block("Ceiling Lamp 3", false) end,
+   revert: func() show_block("Ceiling Lamp 3", true) end},
+  {name: "消火器がない", level: 2, apply: func() show_block("Fire Extinguisher", false) end,
+   revert: func() show_block("Fire Extinguisher", true) end},
+  {name: "ドアの位置がちがう", level: 2, apply: func() block("Door B").z = 12 end, revert: func() block("Door B").z = 6 end},
+  {name: "時計が大きい", level: 2, apply: func() block("Clock").size = {x: 0.05, y: 1.6, z: 1.6} end,
+   revert: func() block("Clock").size = {x: 0.05, y: 0.7, z: 0.7} end},
+  {name: "おじさんが大きい", level: 2, apply: func()
+      let n = first_man()
+      if n != nil then n.size = 1.7 end
+    end, revert: func() reset_man() end},
+  {name: "おじさんがこっちを見る", level: 2, apply: func()
+      let n = first_man()
+      if n != nil then n.mode = "stare" end
+    end, revert: func() reset_man() end},
+  {name: "おじさんが2人", level: 2, apply: func() make_man(1.6) end, revert: func() reset_man() end},
+  {name: "おじさんがいない", level: 2, apply: func() clear_men() end, revert: func() reset_man() end},
+  {name: "ゴミ箱が倒れている", level: 2, apply: func()
+      let b = block("Trash Can")
+      b.rotation = {x: 0, y: 0, z: 90}
+      b.y = 0.35
+    end, revert: func()
+      let b = block("Trash Can")
+      b.rotation = {x: 0, y: 0, z: 0}
+      b.y = 0.45
+    end},
+  {name: "明かりがチカチカ", level: 2, apply: func()
+      flicker_timer = every(0.35, func()
+        let b = block("Ceiling Lamp 2")
+        if b != nil then b.visible = not b.visible end
+      end)
+    end, revert: func()
+      if flicker_timer != nil then cancel(flicker_timer) end
+      flicker_timer = nil
+      show_block("Ceiling Lamp 2", true)
+    end},
+  {name: "ドアがもう1つ", level: 2, apply: func()
+      add_anom_block({name: "Door C", position: {x: -3.8, y: 1.3, z: 14}, size: {x: 0.2, y: 2.6, z: 1.6}, color: "#60A5FA", solid: false})
+    end, revert: func() clear_anom_blocks() end},
+  {name: "壁の手形", level: 2, apply: func()
+      for k in 1 to 3 do
+        add_anom_block({name: "Hand", position: {x: -3.78, y: 1.2 + k * 0.4, z: -6 + k * 1.1}, size: {x: 0.05, y: 0.3, z: 0.25},
+                        color: "#7F1D1D", solid: false})
+      end
+    end, revert: func() clear_anom_blocks() end},
+
+  -- 小さな異変
+  {name: "ポスターの色が少しちがう", level: 3, apply: func() tint("Poster 2", "#818CF8") end, revert: func() tint("Poster 2", "#38BDF8") end},
+  {name: "自販機の明かりが消えている", level: 3, apply: func() tint("Vending Light", "#44403C") end,
+   revert: func() tint("Vending Light", "#FEF9C3") end},
+  {name: "ドアノブがない", level: 3, apply: func() show_block("Door A Knob", false) end, revert: func() show_block("Door A Knob", true) end},
+  {name: "壁がほんのりピンク", level: 3, apply: func() tint("Hall Wall L", "#F9D7DE") end, revert: func() tint("Hall Wall L", "#E5E7EB") end},
+  {name: "ポスターが横に長い", level: 3, apply: func() block("Poster 3").size = {x: 0.05, y: 0.9, z: 2.2} end,
+   revert: func() block("Poster 3").size = {x: 0.05, y: 0.9, z: 1.4} end},
+  {name: "防犯カメラがこっちを向く", level: 3, apply: func() block("Camera").rotation = {x: 20, y: 60, z: 0} end,
+   revert: func() block("Camera").rotation = {x: 0, y: 0, z: 0} end},
+  {name: "床の線が1本多い", level: 3, apply: func()
+      add_anom_block({name: "Extra Stripe", position: {x: 0, y: 0.01, z: 1}, size: {x: 7.6, y: 0.02, z: 0.3}, color: "#9CA3AF", solid: false})
+    end, revert: func() clear_anom_blocks() end}
+]
+
+-- この周回に出せる異変（最近出たものは避ける）
+func anomaly_pool()
+  let max_level = 2
+  if hard or count >= 5 then max_level = 3 end
+  let pool = filter(ANOMALIES, func(a) return a.level <= max_level and not contains(recent, a.name) end)
+  if len(pool) == 0 then pool = ANOMALIES end
+  return pool
+end

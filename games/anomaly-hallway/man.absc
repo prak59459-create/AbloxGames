@@ -1,0 +1,64 @@
+-- man.absc — 毎回むこうから歩いてくる、おじさん
+-- ふつうはゆっくり歩いて、すれちがって、うしろへ去っていく。
+-- 異変のときは、止まって見てくる・大きい・顔が赤い・いない・2人・走ってくる。
+
+let men = []
+let man_clock = 0
+
+func make_man(offset)
+  let start = block("Man Start").position
+  let n = create_npc({name: "おじさん", position: start + {x: offset, y: 1, z: 0}, color: "#374151", head_color: "#F5D0A9",
+                      leg_color: "#1F2937", speed: 0.32, health: 999999})
+  n.mode = "walk"
+  append(men, n)
+  n.move_to(block("Man End").position + {x: offset, y: 0, z: 0})
+  return n
+end
+
+func clear_men()
+  for n in men do gone(n) end
+  men = []
+end
+
+func reset_man()
+  clear_men()
+  make_man(0)
+end
+
+func first_man()
+  for n in men do
+    if kit_here(n) then return n end
+  end
+  return nil
+end
+
+-- 走ってくるおじさん: さわられたら失敗
+func man_step()
+  for n in men do
+    if kit_here(n) and n.mode == "run" then
+      let p = nearest_player(n.position)
+      if p != nil then
+        n.follow(p)
+        if distance(n, p) < 1.8 then
+          n.mode = "done"
+          caught_by_anomaly("🏃 おじさんにつかまった…")
+        end
+      end
+    end
+    if kit_here(n) and n.mode == "stare" then
+      let p = nearest_player(n.position)
+      if p != nil and distance(n, p) < 14 then
+        n.stop()
+        n.frozen = true
+        n.look_at(p)
+      end
+    end
+  end
+end
+
+on tick(dt)
+  man_clock = man_clock + dt
+  if man_clock < 0.2 then return end
+  man_clock = 0
+  man_step()
+end

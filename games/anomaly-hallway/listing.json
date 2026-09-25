@@ -1,15 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 25,
-  "cover" : "games\/anomaly-hallway\/cover-165c434d.png",
+  "blockCount" : 47,
+  "cover" : "games\/anomaly-hallway\/cover-b5bc7a1e.png",
   "id" : "anomaly-hallway",
   "maxPlayers" : 6,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/anomaly-hallway\/anomalies.absc",
+    "games\/anomaly-hallway\/common.absc",
+    "games\/anomaly-hallway\/loop.absc",
+    "games\/anomaly-hallway\/man.absc",
     "games\/anomaly-hallway\/main.absc"
   ],
-  "summary" : "終わらない病院の廊下。いつもとちがう「異変」があれば引き返し、なければ進む。8回続けて正解すれば出口へ。",
+  "summary" : "終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！",
   "tags" : [
     "horror",
     "puzzle",

@@ -13,7 +13,7 @@ let horrorGames: [Game] = [
          summary: "5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！",
          tags: ["chase", "coop", "funny"], maxPlayers: 12, build: runFaces),
     Game(number: 49, id: "anomaly-hallway", title: "Anomaly Hallway",
-         summary: "終わらない病院の廊下。いつもとちがう「異変」があれば引き返し、なければ進む。8回続けて正解すれば出口へ。",
+         summary: "終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！",
          tags: ["horror", "puzzle", "observe"], maxPlayers: 6, build: anomalyHallway),
     Game(number: 50, id: "last-train-west", title: "Last Train West",
          summary: "荒野を走る最後の列車。石炭をくべて走らせ、駅で物資を集め、夜におそってくる怪物から列車を守りぬけ。",
@@ -342,26 +342,45 @@ func runFaces(_ m: MapBuilder) {
 func anomalyHallway(_ m: MapBuilder) {
     m.indoor(ground: "#000000")
     m.sky("#000000", "#0A0A0A", light: 0.6, showGround: false)
-    m.slab("Hall Floor", x: 0, y: -0.3, z: 0, w: 8, h: 0.3, d: 60, color: "#D1D5DB")
-    m.slab("Hall Wall L", x: -4, y: 0, z: 0, w: 0.4, h: 4, d: 60, color: "#E5E7EB")
-    m.slab("Hall Wall R", x: 4, y: 0, z: 0, w: 0.4, h: 4, d: 60, color: "#E5E7EB")
-    m.slab("Hall Ceiling", x: 0, y: 4, z: 0, w: 8.4, h: 0.3, d: 60, color: "#9CA3AF")
+    // A long white station corridor. Everything in it is the same every
+    // loop — unless something is not.
+    m.slab("Hall Floor", x: 0, y: -0.3, z: 0, w: 8, h: 0.3, d: 64, color: "#D1D5DB")
+    for i in 0..<8 {
+        m.part("Floor Stripe \(i + 1)", at: (0, 0.01, -28 + Float(i) * 8), size: (7.6, 0.02, 0.3), color: "#9CA3AF", solid: false)
+    }
+    m.slab("Hall Wall L", x: -4, y: 0, z: 0, w: 0.4, h: 4, d: 64, color: "#E5E7EB")
+    m.slab("Hall Wall R", x: 4, y: 0, z: 0, w: 0.4, h: 4, d: 64, color: "#E5E7EB")
+    m.slab("Hall Ceiling", x: 0, y: 4, z: 0, w: 8.4, h: 0.3, d: 64, color: "#9CA3AF")
+    m.slab("Hall End", x: 0, y: 0, z: 32.2, w: 8.4, h: 4, d: 0.4, color: "#E5E7EB")
+    m.slab("Hall Start", x: 0, y: 0, z: -32.2, w: 8.4, h: 4, d: 0.4, color: "#E5E7EB")
+    m.part("Handrail L", at: (-3.7, 1, 0), size: (0.1, 0.1, 56), color: "#94A3B8", material: .metal, solid: false)
+    m.part("Handrail R", at: (3.7, 1, 0), size: (0.1, 0.1, 56), color: "#94A3B8", material: .metal, solid: false)
     for i in 0..<6 {
         m.part("Ceiling Lamp \(i + 1)", at: (0, 3.8, -25 + Float(i) * 10), size: (2.4, 0.15, 0.6), color: "#F8FAFC", material: .neon, solid: false)
     }
-    // The hallway's fixtures: the same every loop, unless one is an anomaly.
+    // The fixtures.
     m.part("Door A", at: (-3.8, 1.3, -12), size: (0.2, 2.6, 1.6), color: "#60A5FA", solid: false)
     m.part("Door B", at: (3.8, 1.3, 6), size: (0.2, 2.6, 1.6), color: "#60A5FA", solid: false)
-    m.part("Poster", at: (-3.78, 2, 10), size: (0.05, 1.2, 0.9), color: "#F472B6", solid: false)
+    m.part("Door A Knob", at: (-3.65, 1.2, -11.5), size: (0.1, 0.12, 0.12), color: "#FACC15", shape: .sphere, solid: false)
+    m.part("Poster 1", at: (-3.78, 2, 10), size: (0.05, 1.2, 0.9), color: "#F472B6", solid: false)
+    m.part("Poster 2", at: (3.78, 2, -18), size: (0.05, 1.2, 0.9), color: "#38BDF8", solid: false)
+    m.part("Poster 3", at: (-3.78, 2, 22), size: (0.05, 0.9, 1.4), color: "#FDE68A", solid: false)
     m.part("Bench", at: (3, 0.35, -2), size: (1.2, 0.7, 3), color: "#78716C")
     m.part("Plant", at: (-3, 0.8, 20), size: (0.9, 1.6, 0.9), color: "#16A34A", shape: .cone)
-    m.part("Exit Sign", at: (0, 3.2, 28), size: (1.6, 0.5, 0.1), color: "#22C55E", material: .neon, solid: false)
+    m.part("Plant Pot", at: (-3, 0.2, 20), size: (0.8, 0.4, 0.8), color: "#92400E", shape: .cylinder)
+    m.part("Exit Sign", at: (0, 3.2, 30), size: (1.6, 0.5, 0.1), color: "#22C55E", material: .neon, solid: false)
     m.part("Fire Extinguisher", at: (3.7, 0.6, 16), size: (0.3, 0.8, 0.3), color: "#DC2626", shape: .cylinder)
     m.part("Clock", at: (-3.78, 2.8, -20), size: (0.05, 0.7, 0.7), color: "#FFFFFF", shape: .cylinder, solid: false, rotation: (0, 0, 90))
-    m.part("Anomaly Spot", at: (0, 1, 0), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
-    m.spawnRing(0, -26, radius: 1.5, count: 4, color: "#FDE68A")
-    m.pad("Go Forward", x: 0, z: 29, size: 3, color: "#22C55E", tags: ["forward"], shape: .box)
-    m.pad("Go Back", x: 0, z: -29.5, size: 2, color: "#EF4444", tags: ["back"], shape: .box)
+    m.part("Vending Machine", at: (3.3, 1.1, 24), size: (1, 2.2, 1.6), color: "#DC2626")
+    m.part("Vending Light", at: (2.78, 1.5, 24), size: (0.05, 1, 1.2), color: "#FEF9C3", material: .neon, solid: false)
+    m.part("Trash Can", at: (-3.3, 0.45, 2), size: (0.7, 0.9, 0.7), color: "#475569", shape: .cylinder)
+    m.part("Camera", at: (3.6, 3.6, -26), size: (0.3, 0.3, 0.6), color: "#111827", solid: false)
+    m.part("Anomaly Spot", at: (0, 1, 4), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
+    m.part("Man Start", at: (0, 0.5, 28), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
+    m.part("Man End", at: (-2.6, 0.5, -30), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
+    m.spawnRing(0, -27, radius: 1.5, count: 4, color: "#FDE68A")
+    m.pad("Go Forward", x: 0, z: 30.5, size: 3, color: "#22C55E", tags: ["forward"], shape: .box)
+    m.pad("Go Back", x: 0, z: -30.8, size: 2, color: "#EF4444", tags: ["back"], shape: .box)
 }
 
 // MARK: 50 Last Train West

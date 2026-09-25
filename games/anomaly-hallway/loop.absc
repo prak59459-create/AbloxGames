@@ -1,0 +1,211 @@
+-- loop.absc — 1周の流れ・進む/引き返す・出口・図鑑・チェックリスト
+
+let loop_clock = 0
+
+func next_loop()
+  if current != nil then current.revert() end
+  current = nil
+  clear_anom_blocks()
+  reset_man()
+  world.light = 0.6
+  loops = loops + 1
+  -- 最初の1周はいつもふつう。そのあとは半分くらいで異変（裏モードは少し多め）
+  let chance = 0.5
+  if hard then chance = 0.6 end
+  if loops > 1 and random() < chance then
+    current = random(anomaly_pool())
+    append(recent, current.name)
+    if len(recent) > 6 then remove(recent, 1) end
+    current.apply()
+  end
+  let i = 0
+  for p in players() do
+    if ready(p) then
+      i = i + 1
+      p.teleport(block("Spawn " + ((i - 1) % 4 + 1)).position + {x: 0, y: 1, z: 0})
+      p.look_at(block("Exit Sign"))
+    end
+  end
+  show()
+  deciding = false
+end
+
+func succeed(p, went_forward)
+  let had = current != nil
+  count = count + 1
+  sound("checkpoint")
+  if had then
+    announce("⭕ 正解！ 異変は「" + current.name + "」でした（" + count + "/8）", 3)
+    for q in players() do
+      if ready(q) and not contains(q.found, current.name) then
+        append(q.found, current.name)
+        kit_quest_progress(q, "dex", 1)
+        kit_quest_progress(q, "dex20", 1)
+        if len(q.found) >= len(ANOMALIES) then kit_badge(q, "dex_all", "異変図鑑コンプリート") end
+        show_me(q)
+      end
+    end
+  else
+    announce("⭕ 正解！ 異変はなかった（" + count + "/8）", 2.5)
+  end
+  for q in players() do
+    if ready(q) then
+      q.score = max(q.score, count)
+      kit_give(q, 5 + count)
+    end
+  end
+  if count >= 5 then
+    for q in players() do kit_quest_progress(q, "right5", 1) end
+  end
+  if count >= 8 then
+    escape_hall()
+    return
+  end
+  transition()
+end
+
+func fail(why)
+  count = 0
+  run_start = time()
+  sound("error")
+  shake(0.4, 0.5)
+  announce(why + " … 0番にもどる", 3)
+  transition()
+end
+
+func decide(p, went_forward)
+  if deciding then return end
+  deciding = true
+  let had = current != nil
+  if (went_forward and not had) or (not went_forward and had) then
+    succeed(p, went_forward)
+  elif had then
+    fail("❌ 異変を見のがした（" + current.name + "）")
+  else
+    fail("❌ 異変はなかったのに…")
+  end
+end
+
+-- せまってくる異変につかまった
+func caught_by_anomaly(why)
+  if deciding then return end
+  deciding = true
+  fail(why)
+end
+
+func transition()
+  fade("#000000", 0.4)
+  after(1.2, func()
+    next_loop()
+    fade(nil, 0.8)
+  end)
+end
+
+func escape_hall()
+  let t = time() - run_start
+  let label = "8番出口"
+  if hard then label = "裏の8番出口" end
+  announce("🎉 " + label + "から脱出！ " + kit_clock(t), 6)
+  for q in players() do
+    if ready(q) then
+      kit_give(q, 150)
+      q.score = q.score + 8
+      kit_quest_progress(q, "escape", 1)
+      if hard then
+        kit_quest_progress(q, "hard", 1)
+        kit_badge(q, "hard_escape", "裏の8番出口を脱出")
+      end
+    end
+  end
+  if hard then
+    if best_hard == nil or t < best_hard then best_hard = t end
+  else
+    if best_time == nil or t < best_time then best_time = t end
+  end
+  if not hard then
+    after(4, func() announce("🌑 裏の8番出口が開いた… 小さな異変もまざる", 4) end)
+  end
+  hard = not hard
+  count = 0
+  run_start = time()
+  after(6, func() transition() end)
+end
+
+-- MARK: 図鑑とチェックリスト
+
+func open_dex(p)
+  let n = len(ANOMALIES)
+  let rows = ceil(n / 2)
+  let h = 90 + rows * 22
+  p.ui_remove("dexbox")
+  p.ui_panel("dexbox", {at: "center", w: 620, h: h, bg: "#111827F2", radius: 18, layer: 44})
+  p.ui_text("dex_t", "📖 異変図鑑 " + len(p.found) + " / " + n, {parent: "dexbox", y: 24 / h, size: 17, bold: true, color: "#C4B5FD"})
+  let i = 0
+  for a in ANOMALIES do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    let text = "？？？"
+    let color = "#6B7280"
+    if contains(p.found, a.name) then
+      text = ["⭐", "⭐⭐", "⭐⭐⭐"][a.level] + " " + a.name
+      color = "#E5E7EB"
+    end
+    p.ui_text("dex_" + i, text, {parent: "dexbox", x: 0.27 + col * 0.46, y: (52 + row * 22) / h, size: 12, color: color})
+  end
+  p.ui_button("dex_close", "閉じる", {parent: "dexbox", y: (h - 18) / h, w: 110, h: 28, size: 12, bg: "gray"})
+end
+
+func open_checklist(p)
+  let lines = [
+    "🚪 青いドア 2つ（左に1つ・右に1つ）",
+    "🖼 ポスター 3枚（ピンク・水色・黄色）",
+    "🪑 ベンチ・🪴 植物・🧯 消火器・🗑 ゴミ箱",
+    "🕐 時計・🥤 自販機・📹 防犯カメラ",
+    "💡 天井の明かり 6つ・床の線 8本",
+    "🟩 奥の出口サイン（緑）",
+    "🚶 むこうから歩いてくるおじさん 1人"
+  ]
+  let h = 80 + len(lines) * 26
+  p.ui_remove("check")
+  p.ui_panel("check", {at: "center", w: 460, h: h, bg: "#0F172AF2", radius: 18, layer: 44})
+  p.ui_text("check_t", "📋 ふつうの廊下", {parent: "check", y: 22 / h, size: 16, bold: true, color: "#A5F3FC"})
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("check_" + i, line, {parent: "check", y: (30 + i * 26) / h, size: 13})
+  end
+  p.ui_button("check_close", "閉じる", {parent: "check", y: (h - 18) / h, w: 110, h: 28, size: 12, bg: "gray"})
+end
+
+on tick(dt)
+  loop_clock = loop_clock + dt
+  if loop_clock < 0.2 then return end
+  loop_clock = 0
+  -- 赤い波: 追いつかれたら失敗
+  if wave != nil and not deciding then
+    let z = wave_z()
+    for p in players() do
+      if ready(p) and p.z > z - 0.8 then
+        caught_by_anomaly("🌊 赤い波にのまれた…")
+        return
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "forward") then decide(p, true)
+  elif contains(b.tags, "back") then decide(p, false)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "dex" then open_dex(p)
+  elif id == "dex_close" then p.ui_remove("dexbox")
+  elif id == "checklist" then open_checklist(p)
+  elif id == "check_close" then p.ui_remove("check")
+  end
+end

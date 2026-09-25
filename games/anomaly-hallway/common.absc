@@ -1,0 +1,63 @@
+-- common.absc — 状態・小さな道具・画面
+
+let count = 0              -- いまの出口の番号（0〜8）
+let loops = 0
+let current = nil          -- この周回の異変（なければ nil）
+let deciding = false
+let hard = false           -- 裏モード（小さな異変もまざる）
+let run_start = 0
+let best_time = nil
+let best_hard = nil
+let recent = []            -- 最近出た異変（くり返さないように）
+
+func ready(p)
+  return p.found != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func nearest_player(pos)
+  let best = nil
+  let best_d = 9999
+  for p in players() do
+    if ready(p) then
+      let d = distance(p, pos)
+      if d < best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func show()
+  let color = "#FFFFFF"
+  if count >= 6 then color = "#22C55E" end
+  let mode = "8番出口"
+  if hard then mode = "🌑 裏の8番出口" end
+  ui_text("exit", "🚪 " + mode + "   " + count + " / 8", {at: "top", dy: 26, size: 22, bold: true, color: color})
+  let rec = ""
+  if best_time != nil then rec = "🏆 最速 " + kit_clock(best_time) end
+  if best_hard != nil then rec = rec + "   🌑 " + kit_clock(best_hard) end
+  if rec != "" then ui_text("record", rec, {at: "top", dy: 52, size: 13, color: "#FDE68A"}) end
+end
+
+func show_me(p)
+  if not ready(p) then return end
+  p.ui_text("dex", "📖 異変図鑑 " + len(p.found) + " / " + len(ANOMALIES), {at: "top_left", dy: 34, size: 14, bold: true, color: "#C4B5FD"})
+end
