@@ -1,0 +1,186 @@
+-- loot.absc — 武器を作る・装備する・バッグ（8こまで）・売る
+
+-- 職業に合った武器をひとつ作る。ilvl: 強さの目安 / luck: レアの出やすさ / floor_rarity: これより下は出ない
+func make_item(p, ilvl, luck, floor_rarity)
+  let c = class_of(p)
+  let kind = kind_by_id(random(c.kinds))
+  let r = kit_pick(RARITIES, luck)
+  if floor_rarity != nil and rarity_index(r.id) < floor_rarity then r = RARITIES[floor_rarity] end
+  let pool = shuffle(map(AFFIXES, func(a) return a.id end))
+  let affixes = []
+  if r.affixes > 0 then affixes = slice(pool, 1, r.affixes) end
+  let base = 10 + ilvl * 3.2
+  let power = floor(base * r.mult * kind.mult * (0.9 + random() * 0.2))
+  return {kind: kind.id, rarity: r.id, power: max(1, power), plus: 0, affixes: affixes, ilvl: ilvl, cls: c.id}
+end
+
+func item_power(it)
+  return floor(it.power * (1 + it.plus * 0.1))
+end
+
+-- くらべるための点数（1秒あたりの強さ＋特性）
+func item_score(it)
+  return item_power(it) * kind_by_id(it.kind).rate * (1 + len(it.affixes) * 0.08)
+end
+
+func item_name(it)
+  let prefix = ""
+  if len(it.affixes) > 0 then prefix = affix_by_id(it.affixes[1]).name end
+  let s = rarity_by_id(it.rarity).name + prefix + kind_by_id(it.kind).name
+  if it.plus > 0 then s = s + " +" + it.plus end
+  return s
+end
+
+func item_label(it)
+  return item_name(it) + "（攻" + item_power(it) + "）"
+end
+
+func item_details(it)
+  let parts = []
+  for id in it.affixes do append(parts, affix_by_id(id).text) end
+  if len(parts) == 0 then return "特性なし" end
+  return join(parts, " / ")
+end
+
+func item_price(it)
+  return floor(8 + it.ilvl * 3 * rarity_by_id(it.rarity).mult + it.plus * 20)
+end
+
+func equip(p, it)
+  p.gear = it
+  let k = kind_by_id(it.kind)
+  -- 武器の名前はレア度＋種類だけ（数がふえすぎないように）。渡したあとで同じ名前を作り直しても、持っている武器は変わらない
+  let wname = rarity_by_id(it.rarity).name + k.name
+  weapon(wname, {model: k.model, damage: item_power(it), rate: k.rate, range: k.range, ammo: 1000, reload: 0, spread: k.spread})
+  p.give(wname)
+  apply_stats(p)
+  hud(p)
+end
+
+-- 手に入れた。今より強くて職業に合えば装備、それ以外はバッグへ
+func gain_item(p, it)
+  if it.cls == p.cls and (p.gear == nil or item_score(it) > item_score(p.gear)) then
+    if p.gear != nil and p.gear.cls == p.cls then stash(p, p.gear) end
+    equip(p, it)
+    p.message("✨ " + item_label(it) + " を装備した！", 2.5)
+  else
+    stash(p, it)
+    p.message("🎒 " + item_label(it) + " をバッグへ", 1.5)
+  end
+  p.found = p.found + 1
+  if it.rarity == "legend" or it.rarity == "myth" then
+    kit_quest_progress(p, "legend", 1)
+    kit_badge(p, "legend", "伝説の武器を手に入れた")
+  end
+  if it.rarity == "myth" then
+    announce("🌟 " + p.name + " が " + item_name(it) + "（神話）を手に入れた！", 4)
+    kit_badge(p, "myth", "神話の武器を手に入れた")
+  end
+  p.sound("collect")
+end
+
+-- バッグに入れる。いっぱいなら一番弱いものを売る
+func stash(p, it)
+  append(p.bag, it)
+  if len(p.bag) > BAG_SIZE then
+    let worst = 1
+    for i in 1 to len(p.bag) do
+      if item_score(p.bag[i]) < item_score(p.bag[worst]) then worst = i end
+    end
+    let sold = remove(p.bag, worst)
+    let price = item_price(sold)
+    kit_give(p, price)
+    p.message("💰 バッグがいっぱい。" + item_name(sold) + " を " + price + " で売った", 2)
+  end
+end
+
+-- 職業を変えたとき: バッグからその職業で一番強い武器を出す
+func best_for_class(p)
+  let best = nil
+  let best_i = 0
+  if len(p.bag) == 0 then return nil end
+  for i in 1 to len(p.bag) do
+    let it = p.bag[i]
+    if it.cls == p.cls and (best == nil or item_score(it) > item_score(best)) then
+      best = it
+      best_i = i
+    end
+  end
+  if best != nil then remove(p.bag, best_i) end
+  return best
+end
+
+-- MARK: バッグの画面
+
+func bag_panel(p)
+  let h = 130 + max(1, len(p.bag)) * 44
+  p.ui_remove("bag")
+  p.ui_panel("bag", {at: "center", w: 560, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  let now = "なし"
+  if p.gear != nil then now = item_label(p.gear) + " — " + item_details(p.gear) end
+  p.ui_text("bag_t", "🎒 バッグ（" + len(p.bag) + "/" + BAG_SIZE + "）  💰 " + kit_short(kit_money(p)), {parent: "bag", y: 22 / h, size: 17, bold: true, color: "#FDE68A"})
+  p.ui_text("bag_now", "装備中: " + now, {parent: "bag", y: 50 / h, size: 12, color: "#E7E5E4"})
+  if len(p.bag) == 0 then
+    p.ui_text("bag_empty", "（まだ何もない。敵や宝箱から武器が出るよ）", {parent: "bag", y: 90 / h, size: 13, color: "#A8A29E"})
+  end
+  for i in 1 to max(1, len(p.bag)) do
+    let it = p.bag[i]
+    if it == nil then break end
+    let r = rarity_by_id(it.rarity)
+    let mine = ""
+    if it.cls != p.cls then mine = "（" + class_by_id_name(it.cls) + "用）" end
+    p.ui_button("bag_eq_" + i, item_label(it) + mine, {parent: "bag", x: 0.38, y: (60 + i * 44) / h, w: 380, h: 38, size: 12, bg: "#292524", color: r.color})
+    p.ui_button("bag_sell_" + i, "売る " + item_price(it), {parent: "bag", x: 0.86, y: (60 + i * 44) / h, w: 110, h: 38, size: 12, bg: "#92400E"})
+  end
+  p.ui_button("bag_sellall", "💰 ほかの職業用を全部売る", {parent: "bag", x: 0.3, y: (h - 24) / h, w: 250, h: 32, size: 12, bg: "#B45309"})
+  p.ui_button("bag_close", "閉じる", {parent: "bag", x: 0.8, y: (h - 24) / h, w: 120, h: 32, size: 13, bg: "gray"})
+end
+
+func class_by_id_name(id)
+  return (find_by_id(CLASSES, id) or CLASSES[1]).name
+end
+
+func bag_equip(p, i)
+  let it = p.bag[i]
+  if it == nil then return end
+  if it.cls != p.cls then
+    p.message("この武器は " + class_by_id_name(it.cls) + " 用", 1.5)
+    return
+  end
+  remove(p.bag, i)
+  if p.gear != nil then append(p.bag, p.gear) end
+  equip(p, it)
+  p.message("⚔️ " + item_label(it) + " を装備", 1.5)
+  bag_panel(p)
+end
+
+func bag_sell(p, i)
+  let it = p.bag[i]
+  if it == nil then return end
+  remove(p.bag, i)
+  kit_give(p, item_price(it))
+  p.sound("collect")
+  bag_panel(p)
+end
+
+func bag_sell_others(p)
+  let keep = []
+  let total = 0
+  for it in p.bag do
+    if it.cls == p.cls then append(keep, it) else total = total + item_price(it) end
+  end
+  p.bag = keep
+  if total > 0 then kit_give(p, total) end
+  p.message("💰 +" + total, 1.2)
+  bag_panel(p)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "bag" then bag_panel(p)
+  elif id == "bag_close" then p.ui_remove("bag")
+  elif id == "bag_sellall" then bag_sell_others(p)
+  elif starts_with(id, "bag_eq_") then bag_equip(p, num(replace(id, "bag_eq_", "")))
+  elif starts_with(id, "bag_sell_") then bag_sell(p, num(replace(id, "bag_sell_", "")))
+  end
+end

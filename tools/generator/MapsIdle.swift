@@ -19,7 +19,7 @@ let idleGames: [Game] = [
          summary: "ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！",
          tags: ["simulator", "bees", "collect"], maxPlayers: 12, build: buzzMeadow),
     Game(number: 64, id: "dungeon-delve", title: "Dungeon Delve",
-         summary: "ダンジョンの部屋を次々に攻略するハクスラ。敵をたおしてレアな剣やよろいを手に入れ、最深部のボスをたおせ。",
+         summary: "4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！",
          tags: ["dungeon", "loot", "coop"], maxPlayers: 8, build: dungeonDelve),
     Game(number: 65, id: "critter-quest", title: "Critter Quest",
          summary: "草むらでふしぎな生き物「クリッター」に出会ったら、ターン制バトルでつかまえよう。チームを育ててトレーナーに勝て！",
@@ -456,29 +456,128 @@ func buzzMeadow(_ m: MapBuilder) {
 
 // MARK: 64 Dungeon Delve
 
-func dungeonDelve(_ m: MapBuilder) {
-    m.indoor(ground: "#000000")
-    m.sky("#0C0A09", "#1C1917", light: 0.45, showGround: false, fall: -30)
-    m.slab("Lobby", x: 0, y: -1, z: -30, w: 26, h: 1, d: 20, color: "#57534E")
-    m.walls(0, -30, w: 26, d: 20, h: 5, color: "#44403C", name: "Lobby Wall")
-    m.spawnRing(0, -32, radius: 4, count: 8, color: "#FDE68A")
-    m.pad("Dungeon Gate", x: 0, z: -21, size: 3, color: "#7C3AED", tags: ["gate"])
-    m.shop("Blacksmith", x: -8, z: -36, w: 8, d: 6, color: "#57534E", sign: "#F97316")
-    m.pad("Blacksmith Anvil", x: -8, z: -34, size: 2, color: "#F97316", tags: ["smith"])
-    // Rooms in a line, each closed by a door.
-    for n in 1...6 {
-        let z = Float(n) * 30
-        let boss = n == 6
-        m.slab("Room \(n) Floor", x: 0, y: -1, z: z, w: boss ? 34 : 24, h: 1, d: 24, color: boss ? "#450A0A" : "#44403C")
-        m.walls(0, z, w: boss ? 34 : 24, d: 24, h: 6, color: boss ? "#7F1D1D" : "#57534E", name: "Room \(n) Wall")
-        m.slab("Room \(n) Door", x: 0, y: 0, z: z + 12, w: 4, h: 4, d: 1, color: "#78350F", tags: ["rdoor"])
-        if n < 6 { m.slab("Hall \(n)", x: 0, y: -1, z: z + 15, w: 4, h: 1, d: 6, color: "#57534E") }
-        m.part("Room \(n) Center", at: (0, 0.5, z), size: (1, 0.1, 1), color: "#000000", visible: false)
-        for p in ring(4, radius: 7, cx: 0, cz: z, phase: 0.5) {
-            m.part("Torch", at: (p.0, 3, p.1), size: (0.4, 0.4, 0.4), color: "#F97316", shape: .sphere, material: .neon, solid: false)
+/// Four walls round a dungeon room, with a 4 m doorway in the middle of each
+/// side named in `open` ("N" is +z, "S" −z, "E" +x, "W" −x).
+func dungeonWalls(_ m: MapBuilder, cx: Float, cz: Float, size s: Float, open: String, color: String) {
+    let h: Float = 5
+    let half = s / 2
+    let seg = half + 0.5 - 2
+    for side in ["N", "S", "E", "W"] {
+        let alongX = side == "N" || side == "S"
+        let sign: Float = side == "N" || side == "E" ? 1 : -1
+        let wx: Float = alongX ? cx : cx + sign * half
+        let wz: Float = alongX ? cz + sign * half : cz
+        if open.contains(side) {
+            for k: Float in [-1, 1] {
+                let off = k * (2 + seg / 2)
+                m.slab("Dungeon Wall", x: alongX ? wx + off : wx, y: 0, z: alongX ? wz : wz + off, w: alongX ? seg : 1, h: h, d: alongX ? 1 : seg,
+                       color: color, tags: ["dwall"])
+            }
+            m.slab("Dungeon Wall", x: wx, y: 4, z: wz, w: alongX ? 4 : 1, h: 1, d: alongX ? 1 : 4, color: color, tags: ["dwall"])
+        } else {
+            m.slab("Dungeon Wall", x: wx, y: 0, z: wz, w: alongX ? s + 1 : 1, h: h, d: alongX ? 1 : s + 1, color: color, tags: ["dwall"])
         }
     }
-    m.slab("Room 0 Hall", x: 0, y: -1, z: 10, w: 4, h: 1, d: 20, color: "#57534E")
+}
+
+func dungeonDelve(_ m: MapBuilder) {
+    m.indoor(ground: "#000000")
+    m.sky("#1C1917", "#44403C", light: 0.75, showGround: false, fall: -30)
+    m.part("Cover Focus", at: (6, 0, 72), size: (104, 1, 1), color: "#000000", tags: ["yaw=215"], solid: false, visible: false)
+    var r = Seeded("dungeon")
+    // The camp: spawns round a fire, the class altars, the smith, the merchant, the records board and the gate.
+    let lz: Float = -34
+    m.slab("Camp Floor", x: 0, y: -1, z: lz, w: 44, h: 1, d: 30, color: "#57534E")
+    m.walls(0, lz, w: 44, d: 30, h: 5, color: "#44403C", name: "Camp Wall")
+    m.spawnRing(0, lz - 4, radius: 4, count: 8, color: "#FDE68A")
+    m.part("Campfire Logs", at: (0, 0.2, lz - 4), size: (1.6, 0.4, 1.6), color: "#78350F", shape: .cylinder)
+    m.part("Campfire", at: (0, 0.9, lz - 4), size: (1, 1.2, 1), color: "#F97316", shape: .cone, material: .neon, solid: false)
+    let classes: [(String, String, String)] = [("warrior", "#B91C1C", "#9CA3AF"), ("ranger", "#15803D", "#A16207"),
+                                               ("mage", "#6D28D9", "#C4B5FD"), ("cleric", "#F8FAFC", "#FACC15")]
+    for (i, c) in classes.enumerated() {
+        let cz: Float = lz - 10.5 + Float(i) * 7
+        m.pad("Class \(c.0)", x: -16.5, z: cz, size: 2.6, color: c.1, tags: ["class"])
+        m.part("Class Statue Base", at: (-20, 0.3, cz), size: (2, 0.6, 2), color: "#78716C", shape: .cylinder)
+        m.part("Class Statue", at: (-20, 1.7, cz), size: (1, 2.2, 0.8), color: c.1)
+        m.part("Class Statue Head", at: (-20, 3.2, cz), size: (0.8, 0.8, 0.8), color: "#FDE68A", shape: .sphere, solid: false)
+        m.part("Class Statue Tool", at: (-19.3, 2.2, cz + 0.6), size: (0.2, 2, 0.2), color: c.2, material: .metal, solid: false, rotation: (20, 0, 0))
+    }
+    // The smith: a forge with a glowing mouth, an anvil and the pad.
+    m.slab("Forge", x: 18, y: 0, z: lz - 8, w: 5, h: 3.2, d: 3, color: "#292524")
+    m.part("Forge Fire", at: (18, 1.2, lz - 6.45), size: (2.4, 1.2, 0.1), color: "#F97316", material: .neon, solid: false)
+    m.part("Forge Chimney", at: (18, 4.4, lz - 8.5), size: (1.2, 2.4, 1.2), color: "#44403C", shape: .cylinder)
+    m.part("Anvil", at: (15, 0.6, lz - 4), size: (1.6, 1.2, 0.8), color: "#4B5563", material: .metal)
+    m.pad("Smith Anvil", x: 15, z: lz - 1.8, size: 2.6, color: "#F97316", tags: ["smith"])
+    // The merchant's stall.
+    m.slab("Stall Counter", x: 17, y: 0, z: lz + 5, w: 5, h: 1.1, d: 1.2, color: "#92400E")
+    for dx: Float in [-2.3, 2.3] { m.part("Stall Pole", at: (17 + dx, 1.8, lz + 6), size: (0.2, 3.6, 0.2), color: "#A16207", solid: false) }
+    m.slab("Stall Awning", x: 17, y: 3.6, z: lz + 5.6, w: 5.6, h: 0.2, d: 2.6, color: "#DC2626")
+    for (k, c) in ["#EF4444", "#3B82F6", "#22C55E"].enumerated() {
+        m.part("Stall Potion", at: (15.6 + Float(k) * 1.4, 1.45, lz + 5), size: (0.4, 0.6, 0.4), color: c, shape: .cylinder, material: .glass, solid: false)
+    }
+    m.pad("Merchant Pad", x: 17, z: lz + 2.8, size: 2.6, color: "#FACC15", tags: ["shop"])
+    // Training dummies and the records board.
+    m.markers("Dummy Spot", points: [(6, lz + 10), (10, lz + 10)], color: "#000000", visible: false, behavior: .none)
+    m.part("Board", at: (-10, 2.6, lz + 14.4), size: (6, 2.6, 0.2), color: "#1E3A8A", material: .neon, solid: false)
+    m.part("Board Frame", at: (-10, 2.6, lz + 14.55), size: (6.6, 3.2, 0.1), color: "#78350F", solid: false)
+    m.pad("Board Pad", x: -10, z: lz + 12, size: 2.6, color: "#60A5FA", tags: ["board"])
+    // The gate: a stone arch with a purple portal in the north wall.
+    for dx: Float in [-3, 3] { m.slab("Gate Pillar", x: dx, y: 0, z: lz + 14.2, w: 1.4, h: 6, d: 1.4, color: "#78716C") }
+    m.slab("Gate Arch", x: 0, y: 6, z: lz + 14.2, w: 7.4, h: 1.2, d: 1.4, color: "#78716C")
+    m.part("Gate Portal", at: (0, 3, lz + 14.2), size: (4.6, 6, 0.3), color: "#7C3AED", material: .neon, solid: false, opacity: 0.8)
+    m.pad("Dungeon Gate", x: 0, z: lz + 11.5, size: 3.6, color: "#A855F7", tags: ["gate"])
+    for p in [(-20.8, lz - 13.8), (20.8, lz - 13.8), (-20.8, lz + 13.8), (20.8, lz + 13.8)] as [(Float, Float)] {
+        m.part("Camp Torch", at: (p.0, 3.2, p.1), size: (0.5, 0.5, 0.5), color: "#F97316", shape: .sphere, material: .neon, solid: false)
+    }
+    // The dungeon: eight rooms snaking north, each closed off from the next by a door.
+    let rooms: [(Float, Float, Float, String)] = [(0, 20, 24, "N"), (0, 50, 24, "SE"), (32, 50, 24, "WN"), (32, 80, 24, "SW"),
+                                                   (0, 80, 24, "EW"), (-32, 80, 24, "EN"), (-32, 112, 24, "SE"), (2, 112, 36, "W")]
+    for (i, rm) in rooms.enumerated() {
+        let n = i + 1
+        let boss = n == 8
+        m.slab("Room \(n) Floor", x: rm.0, y: -1, z: rm.1, w: rm.2, h: 1, d: rm.2, color: boss ? "#57534E" : "#78716C", tags: ["dfloor"])
+        dungeonWalls(m, cx: rm.0, cz: rm.1, size: rm.2, open: rm.3, color: "#44403C")
+        m.part("Room \(n) Center", at: (rm.0, 0.5, rm.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Room Rune", at: (rm.0, 0.02, rm.1), size: (boss ? 12 : 7, 0.04, boss ? 12 : 7), color: "#F97316", shape: .cylinder, material: .neon,
+               tags: ["torch"], solid: false, opacity: 0.35)
+        let pd: Float = boss ? 12 : rm.2 / 2 - 5
+        let posts: [(Float, Float)] = boss ? ring(6, radius: 12, cx: rm.0, cz: rm.1, phase: 0.52) :
+            [(rm.0 - pd, rm.1 - pd), (rm.0 + pd, rm.1 - pd), (rm.0 - pd, rm.1 + pd), (rm.0 + pd, rm.1 + pd)]
+        for p in posts {
+            m.slab("Dungeon Pillar", x: p.0, y: 0, z: p.1, w: 1.4, h: 5, d: 1.4, color: "#44403C", tags: ["dwall"])
+            m.part("Dungeon Torch", at: (p.0, 5.4, p.1), size: (0.6, 0.6, 0.6), color: "#F97316", shape: .sphere, material: .neon, tags: ["torch"], solid: false)
+        }
+        // Rubble and bones.
+        for _ in 0..<(boss ? 6 : 3) {
+            let hx = rm.0 + r.range(-rm.2 / 2 + 2, rm.2 / 2 - 2), hz = rm.1 + r.range(-rm.2 / 2 + 2, rm.2 / 2 - 2)
+            if abs(hx - rm.0) < 3 && abs(hz - rm.1) < 3 { continue }
+            if r.unit() < 0.5 {
+                m.part("Rubble", at: (hx, 0.25, hz), size: (1.2, 0.5, 1), color: "#78716C", shape: .sphere, material: .matte, solid: false)
+            } else {
+                m.part("Bones", at: (hx, 0.1, hz), size: (0.9, 0.12, 0.2), color: "#E7E5E4", shape: .cylinder, solid: false, rotation: (0, r.range(0, 180), 90))
+            }
+        }
+    }
+    // The throne at the back of the boss hall.
+    m.slab("Throne Dais", x: 2, y: 0, z: 125, w: 10, h: 0.6, d: 5, color: "#7F1D1D")
+    m.slab("Throne", x: 2, y: 0.6, z: 126.5, w: 3, h: 1, d: 2, color: "#78350F")
+    m.slab("Throne Back", x: 2, y: 0.6, z: 127.6, w: 3, h: 4, d: 0.5, color: "#78350F")
+    m.part("Throne Gem", at: (2, 4.2, 127.3), size: (0.8, 0.8, 0.2), color: "#FACC15", shape: .sphere, material: .neon, solid: false)
+    // Corridors, each with the door that opens when its room is cleared.
+    let halls: [(Float, Float, Float, Float)] = [(0, 32, 0, 38), (12, 50, 20, 50), (32, 62, 32, 68), (20, 80, 12, 80),
+                                                  (-12, 80, -20, 80), (-32, 92, -32, 100), (-20, 112, -16, 112)]
+    for (i, h) in halls.enumerated() {
+        let n = i + 1
+        let alongZ = h.0 == h.2
+        let mx = (h.0 + h.2) / 2, mz = (h.1 + h.3) / 2
+        let len = abs(h.2 - h.0) + abs(h.3 - h.1)
+        m.slab("Hall \(n) Floor", x: mx, y: -1, z: mz, w: alongZ ? 4 : len + 1, h: 1, d: alongZ ? len + 1 : 4, color: "#57534E", tags: ["dfloor"])
+        for k: Float in [-1, 1] {
+            m.slab("Dungeon Wall", x: alongZ ? mx + k * 2.5 : mx, y: 0, z: alongZ ? mz : mz + k * 2.5, w: alongZ ? 1 : len, h: 5, d: alongZ ? len : 1,
+                   color: "#44403C", tags: ["dwall"])
+        }
+        m.slab("Room \(n) Door", x: mx, y: 0, z: mz, w: alongZ ? 4 : 0.8, h: 4, d: alongZ ? 0.8 : 4, color: "#78350F", tags: ["rdoor"])
+    }
 }
 
 // MARK: 65 Critter Quest

@@ -1,0 +1,60 @@
+-- combat.absc — 当たったときのダメージ（クリティカル・特性・遺物）と、敵の攻撃
+
+weapon("foe_bolt", {model: "blaster", damage: 8, rate: 1, range: 40, ammo: 1000, reload: 0, spread: 2})
+weapon("boss_bolt", {model: "blaster", damage: 15, rate: 3, range: 60, ammo: 1000, reload: 0, spread: 3})
+
+-- 近くのべつの敵に雷
+func chain_spark(p, from, dmg)
+  let best = nil
+  let best_d = 8
+  for n in foes() do
+    if n.id != from.id and distance(n, from) < best_d then
+      best = n
+      best_d = distance(n, from)
+    end
+  end
+  if best != nil then
+    best.damage(dmg, p)
+    best.say("⚡")
+  end
+end
+
+-- プレイヤーの攻撃が敵に当たった
+func player_hits(victim, p, damage)
+  let d = damage * dmg_mult(p)
+  let crit = random() < crit_chance(p)
+  if crit then d = d * 2 end
+  if victim.dummy then
+    victim.say((crit and "💥" or "") + floor(d))
+    return d
+  end
+  if crit then victim.say("💥" + floor(d)) end
+  if has_affix(p, "fire") or has_relic(p, "ember") then burn(victim, p, d * 0.25) end
+  if has_affix(p, "frost") then chill(victim, 2) end
+  let steal = 0
+  if has_affix(p, "vamp") then steal = steal + 0.04 end
+  if has_relic(p, "fang") then steal = steal + 0.05 end
+  if steal > 0 and p.alive then p.heal(d * steal) end
+  let spark = 0
+  if has_affix(p, "spark") then spark = spark + 0.1 end
+  if has_relic(p, "storm") then spark = spark + 0.15 end
+  if spark > 0 and random() < spark then chain_spark(p, victim, d * 0.6) end
+  return d
+end
+
+-- 敵の弾がプレイヤーに当たった
+func foe_hits(p, n, damage)
+  if p.dodge_until != nil and time() < p.dodge_until then return 0 end
+  let base = n.dmg or damage
+  let d = base * (1 - armor_of(p))
+  if has_relic(p, "thorns") and n.alive and n.foe != nil then n.damage(d * 0.5, p) end
+  return d
+end
+
+on hit(victim, attacker, damage)
+  if attacker == nil then return damage end
+  if not attacker.is_npc and victim.is_npc then return player_hits(victim, attacker, damage) end
+  if attacker.is_npc and not victim.is_npc then return foe_hits(victim, attacker, damage) end
+  if not attacker.is_npc and not victim.is_npc then return 0 end
+  return damage
+end

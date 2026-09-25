@@ -1,0 +1,223 @@
+-- enemies.absc — 敵を出す・動かす（8つの動き方）・やけどとおそい・たおしたときのごほうび
+
+let foe_clock = 0
+
+func spawn_foe(kind, pos, room, elite)
+  let e = ENEMIES[kind]
+  if e == nil then return nil end
+  if len(npcs()) >= 60 then return nil end
+  let s = depth_scale()
+  let hp = e.hp * s * party_scale()
+  let name = e.name
+  let size = e.size
+  if elite then
+    hp = hp * 4
+    name = "⭐" + e.name
+    size = size * 1.35
+  end
+  let n = create_npc({name: name, position: pos, color: e.color, head_color: e.head, size: size, health: hp, speed: e.speed, team: "monster"})
+  n.foe = kind
+  n.room = room
+  n.style = e.style
+  n.dmg = e.dmg * s * (elite and 1.6 or 1)
+  n.base_speed = e.speed
+  n.elite = elite
+  n.act_at = time() + 1 + random()
+  if elite then n.hat = "crown" end
+  if e.style == "ranged" then n.give("foe_bolt") end
+  return n
+end
+
+-- その部屋のまわりのどこか
+func room_spot(room, margin)
+  let c = block("Room " + room + " Center").position
+  let half = block("Room " + room + " Floor").size.x / 2 - margin
+  return {x: c.x + random(0 - floor(half), floor(half)), y: 1, z: c.z + random(0 - floor(half), floor(half))}
+end
+
+-- 近くのプレイヤー（冒険中で生きている人）
+func foe_target(n, sight)
+  let best = nil
+  let best_d = sight
+  for p in players() do
+    if p.in_run and p.alive and distance(n, p) < best_d then
+      best = p
+      best_d = distance(n, p)
+    end
+  end
+  return best
+end
+
+func reach_of(n)
+  return 1.7 + n.size * 0.5
+end
+
+-- やけど・おそいの時間切れ
+func foe_status(n, secs)
+  if n.burn_until != nil then
+    if time() < n.burn_until then
+      n.damage(n.burn_dps * secs, player_by_id(n.burn_src))
+    else
+      n.burn_until = nil
+    end
+  end
+  if not still(n) or not n.alive then return false end
+  if n.slow_until != nil and time() >= n.slow_until then
+    n.slow_until = nil
+    n.speed = n.base_speed
+  end
+  return true
+end
+
+func foe_step(n, secs)
+  if not foe_status(n, secs) then return end
+  if n.boss then
+    boss_step(n, secs)
+    return
+  end
+  let t = foe_target(n, 28)
+  if t == nil then
+    n.stop()
+    return
+  end
+  let d = distance(n, t)
+  let style = n.style
+  if style == "ranged" then
+    if d < 6 then
+      let away = normalize(n.position - t.position)
+      n.move_to(n.position + away * 5)
+    elif d < 24 then
+      n.stop()
+      if time() >= n.act_at then
+        n.shoot(t)
+        n.act_at = time() + 1.5 + random() * 0.8
+      end
+    else
+      n.follow(t)
+    end
+  elif style == "healer" then
+    if d < 8 then
+      n.move_to(n.position + normalize(n.position - t.position) * 4)
+    elif d > 14 then
+      n.follow(t)
+    else
+      n.stop()
+    end
+    if time() >= n.act_at then
+      n.act_at = time() + 4
+      let healed = 0
+      for f in foes() do
+        if f.id != n.id and distance(f, n) < 10 and f.health < f.max_health then
+          f.heal(f.max_health * 0.25)
+          healed = healed + 1
+        end
+      end
+      if healed > 0 then n.say("💚") end
+    end
+  elif style == "ghost" then
+    n.follow(t)
+    if time() >= n.act_at then
+      n.act_at = time() + 5 + random() * 2
+      n.position = t.position + {x: random(-3, 3), y: 0.5, z: random(-3, 3)}
+      n.say("👻")
+    end
+    if d < reach_of(n) then hurt(t, n.dmg * secs, n) end
+  elif style == "bomb" then
+    if n.fuse_at != nil then
+      if time() >= n.fuse_at then
+        flash(n.position, 3.8, "#F97316", 0.3)
+        for p in players() do
+          if p.in_run and p.alive and distance(p, n) < 3.8 then hurt(p, n.dmg, n) end
+        end
+        n.destroy()
+      end
+      return
+    end
+    n.follow(t)
+    if d < 2.8 then
+      n.fuse_at = time() + 0.9
+      n.speed = 0
+      n.say("💥!")
+      flash(n.position, 3.8, "#EF4444", 0.9)
+    end
+  else
+    -- melee / fast / tank / split
+    n.follow(t)
+    if d < reach_of(n) then
+      hurt(t, n.dmg * secs, n)
+      if style == "tank" and time() >= n.act_at then
+        n.act_at = time() + 3
+        let push = normalize(t.position - n.position)
+        t.launch(push.x * 12, 5, push.z * 12)
+        hurt(t, n.dmg * 0.6, n)
+      end
+    end
+  end
+end
+
+-- MARK: たおしたとき
+
+func foe_reward(victim, killer)
+  let e = ENEMIES[victim.foe]
+  let xp = 0
+  let gold = 0
+  if victim.boss then
+    xp = 400 * depth_scale()
+    gold = 250 * depth_scale()
+  elif e != nil then
+    xp = e.xp * depth_scale()
+    gold = e.gold * depth_scale()
+    if victim.elite then
+      xp = xp * 4
+      gold = gold * 5
+    end
+  end
+  -- 経験値とゴールドは冒険中のみんなで
+  for q in run_players() do
+    kit_xp(q, floor(xp))
+    kit_give(q, floor(gold * gold_mult(q)))
+  end
+  if killer != nil and not killer.is_npc then
+    killer.slain = killer.slain + 1
+    killer.score = killer.score + (victim.elite and 5 or 1)
+    kit_quest_progress(killer, "kill", 1)
+    if victim.elite then kit_quest_progress(killer, "elite", 1) end
+    let chance = 0.08
+    if victim.elite then chance = 0.6 end
+    if victim.foe == "mimic" then chance = 1 end
+    if random() < chance then
+      let luck = 1
+      if victim.elite or victim.foe == "mimic" then luck = 1.6 end
+      gain_item(killer, make_item(killer, depth * 3 + max(1, victim.room), luck, nil))
+    end
+  end
+end
+
+-- スライムは2つに分かれる
+func split_slime(victim)
+  if victim.style != "split" or victim.mini then return end
+  for i in 1 to 2 do
+    let s = spawn_foe(victim.foe, victim.position + {x: random(-1, 1), y: 0.5, z: random(-1, 1)}, victim.room, false)
+    if s != nil then
+      s.mini = true
+      s.size = 0.6
+      s.max_health = s.max_health * 0.35
+      s.name = "ちびスライム"
+    end
+  end
+end
+
+on tick(dt)
+  foe_clock = foe_clock + dt
+  if foe_clock < 0.2 then return end
+  let secs = foe_clock
+  foe_clock = 0
+  for n in foes() do foe_step(n, secs) end
+end
+
+on death(victim, killer)
+  if not victim.is_npc or victim.foe == nil then return end
+  foe_reward(victim, killer)
+  split_slime(victim)
+  for p in run_players() do hud(p) end
+end

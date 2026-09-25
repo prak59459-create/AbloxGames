@@ -1,0 +1,241 @@
+-- classes.absc — 職業えらび・スキル（2つずつ）・ポーションと爆弾
+
+let skill_clock = 0
+
+func choose_class(p, id)
+  if p.in_run then
+    p.message("冒険中は職業を変えられない", 1.5)
+    return
+  end
+  let c = find_by_id(CLASSES, id)
+  if c == nil or p.cls == id then return end
+  if p.gear != nil then stash(p, p.gear) end
+  p.gear = nil
+  p.cls = id
+  p.color = c.color
+  p.head_color = c.head
+  p.hat = c.hat
+  p.sk1_at = 0
+  p.sk2_at = 0
+  let best = best_for_class(p)
+  if best == nil then best = make_item(p, depth * 2, 1, 1) end
+  equip(p, best)
+  p.heal(p.max_health)
+  p.message(c.name + " になった！ " + c.desc, 4)
+  p.sound("goal")
+  skill_buttons(p)
+  hud(p)
+end
+
+-- MARK: スキルのボタン（待ち時間も表示）
+
+func skill_label(p, slot)
+  let c = class_of(p)
+  let sk = c.skill1
+  let at = p.sk1_at
+  if slot == 2 then
+    sk = c.skill2
+    at = p.sk2_at
+  end
+  let left = ceil(at - time())
+  if left > 0 then return slice(sk.name, 1, 1) + " " + left + "s" end
+  return sk.name
+end
+
+func skill_buttons(p)
+  let l1 = skill_label(p, 1)
+  let l2 = skill_label(p, 2)
+  if l1 != p.sk1_label then
+    p.sk1_label = l1
+    p.ui_button("sk1", l1, {at: "bottom_right", dx: -110, dy: -170, w: 150, h: 56, size: 15, bg: class_of(p).color, radius: 14})
+  end
+  if l2 != p.sk2_label then
+    p.sk2_label = l2
+    p.ui_button("sk2", l2, {at: "bottom_right", dx: -270, dy: -170, w: 150, h: 56, size: 15, bg: "#334155", radius: 14})
+  end
+end
+
+-- MARK: スキルの中身
+
+-- 1秒あたりの武器の強さ。スキルのダメージもこれで伸びる
+func weapon_dps(p)
+  if p.gear == nil then return 10 end
+  return item_power(p.gear) * kind_by_id(p.gear.kind).rate
+end
+
+-- center のまわりの敵にダメージ。当たった敵のリストを返す
+func aoe(p, center, radius, dmg)
+  let hit = []
+  for n in foes() do
+    if distance(center, n) <= radius then append(hit, n) end
+  end
+  for n in hit do
+    if n.alive then n.damage(dmg, p) end
+  end
+  return hit
+end
+
+func flash(pos, radius, color, secs)
+  let b = create_block({name: "Flash", shape: "cylinder", position: {x: pos.x, y: 0.08, z: pos.z}, size: {x: radius * 2, y: 0.1, z: radius * 2},
+                        color: color, material: "neon", opacity: 0.55, solid: false})
+  after(secs, func() gone(b) end)
+end
+
+func burn(n, p, dps)
+  if not n.alive then return end
+  n.burn_until = time() + 3
+  n.burn_dps = dps
+  n.burn_src = p.id
+end
+
+func chill(n, secs)
+  if not n.alive or n.boss then return end
+  n.slow_until = time() + secs
+  n.speed = n.base_speed * 0.45
+end
+
+func use_skill(p, slot)
+  if not p.alive then return end
+  let c = class_of(p)
+  let sk = c.skill1
+  if slot == 2 then sk = c.skill2 end
+  let at = p.sk1_at
+  if slot == 2 then at = p.sk2_at end
+  if time() < at then
+    p.message("あと " + ceil(at - time()) + " 秒", 0.8)
+    return
+  end
+  let ready_at = time() + sk.cd * cd_mult(p)
+  if slot == 1 then p.sk1_at = ready_at else p.sk2_at = ready_at end
+  let power = (15 + weapon_dps(p) * 1.4) * dmg_mult(p)
+  if sk.id == "whirl" then
+    let hit = aoe(p, p.position, 5.5, power * 1.3)
+    flash(p.position, 5.5, "#FCA5A5", 0.4)
+    for n in hit do
+      if n.alive and not n.boss then n.launch(0, 5, 0) end
+    end
+    p.message("🌀 回転斬り！ " + len(hit) + "体", 1)
+  elif sk.id == "guard" then
+    p.guard_until = time() + 5
+    -- 近くの敵を引きつける
+    for n in foes() do
+      if distance(n, p) < 12 and not n.boss then n.follow(p) end
+    end
+    p.message("🛡 鉄壁！ 5秒ダメージ大きく減る", 1.5)
+  elif sk.id == "rain" then
+    let center = kit_ahead(p, 12)
+    flash(center, 5, "#93C5FD", 1.5)
+    for i in 0 to 2 do
+      after(i * 0.5, func()
+        if still(p) then aoe(p, center, 5, power * 0.7) end
+      end)
+    end
+    p.message("🌧 矢の雨！", 1)
+  elif sk.id == "dash" then
+    p.dodge_until = time() + 0.8
+    p.launch(p.look.x * 24, 4, p.look.z * 24)
+    p.message("💨", 0.6)
+  elif sk.id == "fireball" then
+    let center = kit_ahead(p, 9)
+    flash(center, 4, "#F97316", 0.5)
+    let hit = aoe(p, center, 4, power * 1.8)
+    for n in hit do burn(n, p, power * 0.25) end
+    p.message("🔥 ファイアボール！ " + len(hit) + "体", 1)
+  elif sk.id == "nova" then
+    flash(p.position, 8, "#7DD3FC", 0.6)
+    let hit = aoe(p, p.position, 8, power * 0.8)
+    for n in hit do chill(n, 4) end
+    p.message("❄️ フロストノヴァ！ " + len(hit) + "体", 1)
+  elif sk.id == "heal" then
+    flash(p.position, 14, "#86EFAC", 0.6)
+    let healed = 0
+    for q in players() do
+      if q.alive and distance(q, p) < 14 then
+        q.heal(q.max_health * 0.35 + p.level * 2)
+        healed = healed + 1
+      end
+    end
+    p.message("💚 ヒール！ " + healed + "人", 1)
+    kit_quest_progress(p, "heal", healed)
+  elif sk.id == "holy" then
+    flash(p.position, 6, "#FDE68A", 0.8)
+    aoe(p, p.position, 6, power * 1.2)
+    let back = 0
+    for q in players() do
+      if q.in_run and not q.alive and q.id != p.id then
+        let spot = p.position + {x: random(-2, 2), y: 1, z: random(-2, 2)}
+        q.revive_pos = spot
+        q.respawn()
+        q.teleport(spot)
+        q.message("🌟 " + p.name + " が生きかえらせてくれた！", 2)
+        back = back + 1
+      end
+    end
+    p.message("🌟 聖なる光！" + (back > 0 and (" " + back + "人復活") or ""), 1.5)
+  end
+  skill_buttons(p)
+end
+
+-- MARK: ポーションと爆弾
+
+func drink(p)
+  if not p.alive then return end
+  if p.potions <= 0 then
+    p.message("🧪 ポーションがない（お店で買えるよ）", 1.2)
+    return
+  end
+  if not quiet_ready(p, "potion", 1) then return end
+  p.potions = p.potions - 1
+  p.heal(p.max_health * 0.6)
+  p.sound("collect")
+  p.message("🧪 ごくごく… 回復！", 1)
+  hud(p)
+end
+
+func throw_bomb(p)
+  if not p.alive then return end
+  if p.bombs <= 0 then
+    p.message("💣 爆弾がない（お店で買えるよ）", 1.2)
+    return
+  end
+  if not quiet_ready(p, "bomb", 1) then return end
+  p.bombs = p.bombs - 1
+  let center = kit_ahead(p, 8)
+  flash(center, 4.5, "#FACC15", 0.9)
+  after(0.8, func()
+    if still(p) then
+      let hit = aoe(p, center, 4.5, (60 + weapon_dps(p) * 2) * depth_scale())
+      flash(center, 4.5, "#EF4444", 0.3)
+    end
+  end)
+  hud(p)
+end
+
+func action_buttons(p)
+  p.ui_button("potion", "🧪", {at: "bottom_right", dx: -110, dy: -240, w: 70, h: 56, size: 22, bg: "#15803D", radius: 14})
+  p.ui_button("bombbtn", "💣", {at: "bottom_right", dx: -190, dy: -240, w: 70, h: 56, size: 22, bg: "#7C2D12", radius: 14})
+  p.ui_button("bag", "🎒", {at: "bottom_right", dx: -270, dy: -240, w: 70, h: 56, size: 22, bg: "#44403C", radius: 14})
+end
+
+on tick(dt)
+  skill_clock = skill_clock + dt
+  if skill_clock < 0.5 then return end
+  skill_clock = 0
+  for p in players() do
+    if ready(p) then skill_buttons(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "class") and quiet_ready(p, "class", 1.5) then choose_class(p, replace(b.name, "Class ", "")) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "sk1" then use_skill(p, 1)
+  elif id == "sk2" then use_skill(p, 2)
+  elif id == "potion" then drink(p)
+  elif id == "bombbtn" then throw_bomb(p)
+  end
+end

@@ -1,0 +1,176 @@
+-- common.absc — みんなで使う状態・小さな道具・強さの計算・画面
+
+let depth = 1              -- 地下何階（ボスをたおすと深くなる）
+let best_depth = 1
+let run_active = false
+
+func ready(p)
+  return p.cls != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func find_by_id(list, id)
+  for x in list do
+    if x.id == id then return x end
+  end
+  return nil
+end
+
+func class_of(p)
+  return find_by_id(CLASSES, p.cls) or CLASSES[1]
+end
+
+func kind_by_id(id)
+  return find_by_id(KINDS, id) or KINDS[1]
+end
+
+func rarity_by_id(id)
+  return find_by_id(RARITIES, id) or RARITIES[1]
+end
+
+func rarity_index(id)
+  for i in 1 to len(RARITIES) do
+    if RARITIES[i].id == id then return i end
+  end
+  return 1
+end
+
+func affix_by_id(id)
+  return find_by_id(AFFIXES, id) or AFFIXES[1]
+end
+
+func relic_by_id(id)
+  return find_by_id(RELICS, id) or RELICS[1]
+end
+
+func theme_now()
+  return THEMES[(depth - 1) % len(THEMES) + 1]
+end
+
+-- 深い階ほど敵が強い
+func depth_scale()
+  return 1 + (depth - 1) * 0.45
+end
+
+func run_players()
+  return filter(players(), func(p) return p.in_run == true end)
+end
+
+-- 人数が多いほど敵のHPも多い
+func party_scale()
+  return 1 + max(0, len(run_players()) - 1) * 0.5
+end
+
+func flat_distance(a, b)
+  let dx = a.x - b.x
+  let dz = a.z - b.z
+  return sqrt(dx * dx + dz * dz)
+end
+
+func foes()
+  return filter(npcs(), func(n) return n.foe != nil and n.alive end)
+end
+
+-- MARK: 強さ
+
+func has_relic(p, id)
+  return p.relics != nil and contains(p.relics, id)
+end
+
+func has_affix(p, id)
+  return p.gear != nil and contains(p.gear.affixes, id)
+end
+
+func dmg_mult(p)
+  let m = 1 + (p.level - 1) * 0.04
+  if has_relic(p, "whetstone") then m = m * 1.2 end
+  return m
+end
+
+func crit_chance(p)
+  let c = 0.05
+  if has_affix(p, "crit") then c = c + 0.1 end
+  if has_relic(p, "clover") then c = c + 0.12 end
+  return c
+end
+
+func armor_of(p)
+  let a = class_of(p).armor + p.armor_lv * 0.035
+  if has_relic(p, "shell") then a = a + 0.15 end
+  if p.guard_until != nil and time() < p.guard_until then a = a + 0.6 end
+  return min(0.85, a)
+end
+
+func gold_mult(p)
+  let g = 1
+  if has_affix(p, "gold") then g = g + 0.25 end
+  if has_relic(p, "tooth") then g = g + 0.4 end
+  return g
+end
+
+func cd_mult(p)
+  if has_relic(p, "hourglass") then return 0.7 end
+  return 1
+end
+
+func apply_stats(p)
+  let c = class_of(p)
+  let hp = c.hp + (p.level - 1) * 10 + p.armor_lv * 12
+  if has_relic(p, "heart") then hp = hp + 50 end
+  if has_affix(p, "tough") then hp = hp + 30 end
+  let was_full = p.health >= p.max_health
+  p.max_health = hp
+  if was_full then p.heal(hp) end
+  let sp = c.speed
+  if has_relic(p, "feather") then sp = sp * 1.2 end
+  if has_affix(p, "swift") then sp = sp * 1.12 end
+  p.speed = sp
+end
+
+-- 敵からのダメージ（よろい・鉄壁・ダッシュ・いばら）
+func hurt(p, amount, src)
+  if not p.alive or amount <= 0 then return end
+  if p.dodge_until != nil and time() < p.dodge_until then return end
+  let a = amount * (1 - armor_of(p))
+  let attacker = nil
+  if still(src) then attacker = src end
+  p.damage(a, attacker)
+  if has_relic(p, "thorns") and attacker != nil and attacker.alive and attacker.foe != nil then attacker.damage(a * 0.5, p) end
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let c = class_of(p)
+  p.ui_text("cls", c.name + "   🛡 よろい Lv" + p.armor_lv, {at: "top_left", dy: 72, size: 14, bold: true, color: c.color})
+  if p.gear != nil then
+    p.ui_text("gear", "⚔️ " + item_label(p.gear), {at: "top_left", dy: 94, size: 14, bold: true, color: rarity_by_id(p.gear.rarity).color})
+  end
+  let relics = ""
+  for id in p.relics do relics = relics + slice(relic_by_id(id).name, 1, 1) end
+  if relics == "" then relics = "—" end
+  p.ui_text("items", "🧪" + p.potions + "  💣" + p.bombs + "  🪽" + p.revives + "   遺物 " + relics, {at: "top_left", dy: 116, size: 14, color: "#FDE68A"})
+end

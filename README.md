@@ -105,7 +105,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/obby-maker/cover-a54d06e8.png" width="200"> | 61 | **Obby Maker** | 自分だけのアスレチックコースを作って公開しよう。17種のパーツ（動く床・回る溶岩バー・ワープ・コインも）、グリッドと回転、テストでクリアして公開、タイムといいね。お手本コースやみんなのコースに挑戦！ |
 | <img src="games/toy-army-tycoon/cover-9029982e.png" width="200"> | 62 | **Toy Army Tycoon** | おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！ |
 | <img src="games/buzz-meadow/cover-8b3182b5.png" width="200"> | 63 | **Buzz Meadow** | ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！ |
-| <img src="games/dungeon-delve/cover-62f71b1e.png" width="200"> | 64 | **Dungeon Delve** | ダンジョンの部屋を次々に攻略するハクスラ。敵をたおしてレアな剣やよろいを手に入れ、最深部のボスをたおせ。 |
+| <img src="games/dungeon-delve/cover-75429a92.png" width="200"> | 64 | **Dungeon Delve** | 4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！ |
 | <img src="games/critter-quest/cover-55e8081e.png" width="200"> | 65 | **Critter Quest** | 草むらでふしぎな生き物「クリッター」に出会ったら、ターン制バトルでつかまえよう。チームを育ててトレーナーに勝て！ |
 | <img src="games/blade-summon-sim/cover-0d8cf5e4.png" width="200"> | 66 | **Blade Summon Sim** | 武器を召喚すると、まわりをぐるぐる回って勝手に敵をたおしてくれる。コインでガチャを回して、最強の武器軍団を。 |
 | <img src="games/crusher-yard/cover-ff3e3424.png" width="200"> | 67 | **Crusher Yard** | 車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。 |

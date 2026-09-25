@@ -1,0 +1,492 @@
+-- dungeon.absc — 冒険の流れ: ゲート → 8つの部屋（戦い・強敵・宝物庫・祭壇・ワナ・休けい所）→ ボス → キャンプ
+
+let run_plan = []
+let cleared = 0          -- クリアした部屋の数
+let current = 0          -- いま戦っている部屋（0 = なし）
+let room_kind = ""
+let room_busy = false
+let trap_until = 0
+let trap_next = 0
+let countdown = 0
+let ending = false
+let props = []           -- この冒険で作ったブロック
+let chest_lids = {}      -- 宝箱の id → ふた
+
+func door(n)
+  return block("Room " + n + " Door")
+end
+
+func close_doors()
+  for k in 1 to ROOMS - 1 do
+    let d = door(k)
+    if d != nil then
+      d.visible = true
+      d.solid = true
+    end
+  end
+end
+
+func open_door(n)
+  let d = door(n)
+  if d != nil and d.visible then
+    d.visible = false
+    d.solid = false
+  end
+end
+
+func paint_theme()
+  let t = theme_now()
+  for b in blocks("dfloor") do b.color = t.floor end
+  for b in blocks("dwall") do b.color = t.wall end
+  for b in blocks("torch") do b.color = t.torch end
+end
+
+func clear_props()
+  for b in props do gone(b) end
+  props = []
+  chest_lids = {}
+end
+
+func clear_foes()
+  for n in npcs() do
+    if n.foe != nil then n.destroy() end
+  end
+  boss = nil
+end
+
+func inside_room(p, k)
+  let f = block("Room " + k + " Floor")
+  if f == nil then return false end
+  let half = f.size.x / 2 - 1
+  return abs(p.x - f.x) < half and abs(p.z - f.z) < half
+end
+
+-- プレイヤーから少しはなれた、部屋の中のどこか
+func free_spot(k)
+  let spot = room_spot(k, 3)
+  for i in 1 to 8 do
+    let near = false
+    for p in players() do
+      if p.in_run and flat_distance(p.position, spot) < 6 then near = true end
+    end
+    if not near then return spot end
+    spot = room_spot(k, 3)
+  end
+  return spot
+end
+
+func safe_spot()
+  let k = max(1, cleared)
+  let c = block("Room " + k + " Center").position
+  return c + {x: random(-3, 3), y: 1, z: random(-3, 3)}
+end
+
+-- MARK: 出発と帰還
+
+func gate_touch(p)
+  if run_active then
+    if not p.in_run and not ending then
+      enter_run(p)
+      p.message("⚔️ 仲間のところへ！", 1.5)
+    end
+    return
+  end
+  if countdown > 0 then return end
+  countdown = 6
+  announce("⚔️ " + p.name + " がゲートを開いた！ 6秒後にキャンプのみんなで出発", 3)
+  sound("tick")
+end
+
+func start_run()
+  countdown = 0
+  ending = false
+  run_active = true
+  cleared = 0
+  current = 0
+  room_busy = false
+  run_plan = map(ROOM_PLAN, func(opts) return random(opts) end)
+  clear_props()
+  clear_foes()
+  clear_hazards()
+  close_doors()
+  paint_theme()
+  announce("⚔️ 地下 " + depth + " 階「" + theme_now().name + "」へ！", 4)
+  for p in players() do
+    if ready(p) then enter_run(p) end
+  end
+end
+
+func enter_run(p)
+  p.in_run = true
+  p.relics = []
+  p.offer = nil
+  p.ui_remove("bag")
+  p.ui_remove("smith")
+  p.ui_remove("shop")
+  p.ui_remove("board")
+  apply_stats(p)
+  p.ui_button("retreat", "🏳 キャンプへ", {at: "top_right", dy: 70, w: 130, h: 36, size: 13, bg: "#57534E"})
+  if p.alive then
+    p.heal(p.max_health)
+    p.teleport(safe_spot())
+  end
+  hud(p)
+end
+
+func leave_run(p)
+  p.in_run = false
+  p.relics = []
+  p.offer = nil
+  p.ui_remove("shrine")
+  p.ui_remove("retreat")
+  apply_stats(p)
+  if p.alive then
+    p.teleport(block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0})
+    p.heal(p.max_health)
+  end
+  hud(p)
+end
+
+func end_run(why)
+  run_active = false
+  ending = false
+  current = 0
+  room_busy = false
+  clear_props()
+  clear_foes()
+  clear_hazards()
+  close_doors()
+  for p in players() do
+    if p.in_run then leave_run(p) end
+  end
+end
+
+func win_run()
+  ending = true
+  let b = BOSSES[theme_now().boss]
+  announce("🏆 地下 " + depth + " 階クリア！ " + b.name + " をたおした！ みんなにレア以上の武器", 5)
+  sound("goal")
+  for p in run_players() do
+    gain_item(p, make_item(p, depth * 3 + 9, 2, 3))
+    kit_quest_progress(p, "clear", 1)
+    kit_quest_progress(p, "deep", 1)
+    kit_badge(p, "boss_" + theme_now().boss, b.name + " をたおした")
+    p.floors = p.floors + 1
+    p.best_floor = max(p.best_floor, depth)
+    p.score = p.score + 20 * depth
+    if depth >= 4 then kit_badge(p, "deep4", "地下4階をクリア") end
+    if depth >= 8 then
+      kit_badge(p, "deep8", "地下8階をクリア")
+      p.hat = "crown"
+    end
+    hud(p)
+  end
+  depth = depth + 1
+  best_depth = max(best_depth, depth)
+  after(8, func() end_run("win") end)
+end
+
+func wipe_check()
+  if not run_active or ending then return end
+  let rp = run_players()
+  if len(rp) == 0 then
+    end_run("empty")
+    return
+  end
+  for p in rp do
+    if p.alive or p.reviving then return end
+  end
+  ending = true
+  announce("💀 全滅… キャンプにもどる（地下 " + depth + " 階からやり直し）", 4)
+  after(3, func() end_run("wipe") end)
+end
+
+-- MARK: 部屋
+
+func activate(k)
+  current = k
+  room_kind = run_plan[k]
+  room_busy = true
+  let rt = ROOM_TYPES[room_kind]
+  for p in run_players() do p.message(rt.name + " — " + rt.hint, 3) end
+  let party = len(run_players())
+  let t = theme_now()
+  if room_kind == "fight" then
+    for i in 1 to 3 + k + party do spawn_foe(random(t.mobs), free_spot(k), k, false) end
+  elif room_kind == "elite" then
+    spawn_foe(random(t.mobs), free_spot(k), k, true)
+    if party >= 3 or k >= 7 then spawn_foe(random(t.mobs), free_spot(k), k, true) end
+    for i in 1 to 2 + party do spawn_foe(random(t.mobs), free_spot(k), k, false) end
+  elif room_kind == "treasure" then
+    make_chests(k)
+  elif room_kind == "shrine" then
+    make_shrine(k)
+  elif room_kind == "trap" then
+    trap_until = time() + 16
+    trap_next = time() + 1.5
+    for i in 1 to 1 + party do spawn_foe(random(t.mobs), free_spot(k), k, false) end
+  elif room_kind == "camp" then
+    make_camp(k)
+  elif room_kind == "boss" then
+    spawn_boss(k)
+  end
+end
+
+func clear_room(k)
+  cleared = k
+  current = 0
+  room_busy = false
+  if room_kind == "boss" then
+    win_run()
+    return
+  end
+  open_door(k)
+  let bonus = floor(10 * k * depth_scale())
+  for p in run_players() do
+    kit_give(p, floor(bonus * gold_mult(p)))
+    if p.alive then p.heal(p.max_health * 0.15) end
+    if room_kind == "fight" or room_kind == "elite" or room_kind == "trap" then
+      p.message("✅ 部屋クリア！ 🚪 扉が開いた  💰+" + bonus, 2.5)
+    end
+    hud(p)
+  end
+  sound("collect")
+end
+
+func room_check()
+  if not run_active or ending then return end
+  let k = cleared + 1
+  if current == 0 and k <= ROOMS then
+    for p in run_players() do
+      if p.alive and inside_room(p, k) then
+        activate(k)
+        return
+      end
+    end
+  end
+  if current > 0 and room_busy then
+    if room_kind == "trap" then trap_step() end
+    let left = len(filter(foes(), func(n) return n.room == current end))
+    if left == 0 and (room_kind != "trap" or time() >= trap_until) then clear_room(current) end
+  end
+end
+
+-- MARK: ワナ
+
+func trap_step()
+  if time() >= trap_until or time() < trap_next then return end
+  trap_next = time() + 1.8
+  let k = current
+  let c = block("Room " + k + " Center").position
+  let dmg = 18 * depth_scale()
+  let pattern = random(1, 3)
+  if pattern == 1 then
+    for i in 1 to 5 do telegraph(room_spot(k, 2), 2.4, 1.1, dmg, nil, "#F59E0B") end
+  elif pattern == 2 then
+    let lz = c.z + random(-8, 8)
+    for i in -4 to 4 do telegraph({x: c.x + i * 2.5, y: 0, z: lz}, 1.4, 1.2, dmg, nil, "#F59E0B") end
+  else
+    for p in run_players() do
+      if p.alive and inside_room(p, k) then telegraph(p.position, 2.6, 1.2, dmg, nil, "#F59E0B") end
+    end
+  end
+end
+
+-- MARK: 宝物庫
+
+func make_chests(k)
+  for i in 1 to 3 + random(0, 2) do
+    let spot = free_spot(k)
+    let b = create_block({name: "Chest", position: {x: spot.x, y: 0.5, z: spot.z}, size: {x: 1.6, y: 1, z: 1.1}, color: "#92400E",
+                          behavior: "trigger", solid: false, tags: ["chest"]})
+    let lid = create_block({name: "Chest Lid", position: {x: spot.x, y: 1.1, z: spot.z}, size: {x: 1.7, y: 0.25, z: 1.2}, color: "#FACC15",
+                            material: "metal", solid: false})
+    chest_lids[b.id] = lid
+    append(props, b)
+    append(props, lid)
+  end
+end
+
+func open_chest(p, b)
+  let lid = chest_lids[b.id]
+  if lid == nil then return end
+  remove(chest_lids, b.id)
+  let pos = b.position
+  gone(b)
+  gone(lid)
+  kit_quest_progress(p, "chest", 1)
+  if random() < 0.15 then
+    spawn_foe("mimic", pos + {x: 0, y: 1, z: 0}, max(1, cleared), false)
+    p.message("😱 ミミックだ！ たおすと良い武器を落とす", 2)
+    return
+  end
+  let gold = floor((30 + random(0, 30)) * depth_scale())
+  kit_give(p, floor(gold * gold_mult(p)))
+  p.sound("collect")
+  if random() < 0.45 then
+    gain_item(p, make_item(p, depth * 3 + cleared + 1, 1.4, 2))
+  elif random() < 0.5 then
+    p.potions = min(5, p.potions + 1)
+    p.message("💰 +" + gold + "  🧪 ポーションも入ってた！", 1.5)
+  else
+    p.message("💰 宝箱！ +" + gold, 1.5)
+  end
+  hud(p)
+end
+
+-- MARK: 祭壇
+
+func make_shrine(k)
+  let c = block("Room " + k + " Center").position
+  append(props, create_block({name: "Altar", position: c + {x: 0, y: 0.6, z: 0}, size: {x: 2.4, y: 1.2, z: 1.6}, color: "#E7E5E4"}))
+  append(props, create_block({name: "Altar Orb", shape: "sphere", position: c + {x: 0, y: 1.8, z: 0}, size: {x: 1, y: 1, z: 1}, color: "#A855F7",
+                              material: "neon", solid: false}))
+  for p in run_players() do shrine_offer(p) end
+end
+
+func shrine_offer(p)
+  let pool = filter(RELICS, func(r) return not has_relic(p, r.id) end)
+  shuffle(pool)
+  let pick = slice(pool, 1, min(3, len(pool)))
+  if len(pick) == 0 then return end
+  p.offer = map(pick, func(r) return r.id end)
+  let h = 110 + len(pick) * 58
+  p.ui_remove("shrine")
+  p.ui_panel("shrine", {at: "center", w: 520, h: h, bg: "#2E1065F2", radius: 20, layer: 30})
+  p.ui_text("shrine_t", "✨ 祭壇の祝福 — ひとつ選ぼう（この冒険のあいだ）", {parent: "shrine", y: 26 / h, size: 16, bold: true, color: "#F0ABFC"})
+  for i in 1 to len(pick) do
+    let r = pick[i]
+    p.ui_button("relic_" + i, r.name + " — " + r.text, {parent: "shrine", y: (34 + i * 58) / h, w: 470, h: 50, size: 14, bg: "#6D28D9"})
+  end
+end
+
+func take_relic(p, i)
+  if p.offer == nil or i < 1 or i > len(p.offer) then return end
+  let id = p.offer[i]
+  append(p.relics, id)
+  p.offer = nil
+  p.ui_remove("shrine")
+  apply_stats(p)
+  kit_quest_progress(p, "relic", 1)
+  p.message("✨ " + relic_by_id(id).name + "：" + relic_by_id(id).text, 2.5)
+  p.sound("goal")
+  hud(p)
+end
+
+-- MARK: 休けい所
+
+func make_camp(k)
+  let c = block("Room " + k + " Center").position
+  append(props, create_block({name: "Camp Logs", shape: "cylinder", position: c + {x: 0, y: 0.2, z: 0}, size: {x: 1.6, y: 0.4, z: 1.6}, color: "#78350F"}))
+  append(props, create_block({name: "Camp Fire", shape: "cone", position: c + {x: 0, y: 0.9, z: 0}, size: {x: 1, y: 1.2, z: 1}, color: "#F97316",
+                              material: "neon", solid: false}))
+  append(props, create_block({name: "Camp Shop", shape: "cylinder", position: c + {x: 4, y: 0.1, z: 0}, size: {x: 2.6, y: 0.2, z: 2.6}, color: "#FACC15",
+                              material: "neon", behavior: "trigger", solid: false, tags: ["shop"]}))
+  for p in run_players() do
+    if p.alive then p.heal(p.max_health) end
+    p.message("🔥 休けい所。HP全回復！ 黄色い円でお買いもの", 2.5)
+  end
+end
+
+-- MARK: 画面
+
+func room_hud()
+  if not run_active then
+    if countdown > 0 then
+      ui_text("roomhud", "⚔️ まもなく出発… " + countdown, {at: "top", dy: 30, size: 18, bold: true, color: "#F0ABFC"})
+    else
+      ui_text("roomhud", "🏕 キャンプ — 次は地下 " + depth + " 階「" + theme_now().name + "」 紫のゲートへ", {at: "top", dy: 30, size: 15, bold: true, color: "#FDE68A"})
+    end
+    return
+  end
+  let k = current
+  if k == 0 then k = min(ROOMS, cleared + 1) end
+  let dots = ""
+  for i in 1 to ROOMS do
+    if i <= cleared then dots = dots + "●"
+    elif i == k then dots = dots + "◉"
+    elif i == ROOMS then dots = dots + "👑"
+    else dots = dots + "○" end
+  end
+  let extra = ""
+  if ending then extra = ""
+  elif current == 0 then extra = " — 扉の先へ進もう"
+  else
+    let left = len(filter(foes(), func(n) return n.room == current end))
+    if left > 0 then extra = " — のこり " + left + " 体" end
+    if room_kind == "trap" and time() < trap_until then extra = extra + "  ⏱" + ceil(trap_until - time()) end
+  end
+  let rt = ROOM_TYPES[run_plan[k]]
+  ui_text("roomhud", "地下 " + depth + " 階 " + theme_now().name + "  " + dots + "  " + rt.name + extra, {at: "top", dy: 30, size: 15, bold: true, color: "#FDE68A"})
+end
+
+on start()
+  every(0.5, func()
+    room_check()
+    wipe_check()
+    room_hud()
+  end)
+  every(1, func()
+    if countdown > 0 then
+      countdown = countdown - 1
+      if countdown == 0 then start_run() end
+    end
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "gate") and quiet_ready(p, "gate", 1) then gate_touch(p)
+  elif contains(b.tags, "chest") then open_chest(p, b)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "relic_") then take_relic(p, num(replace(id, "relic_", "")))
+  elif id == "retreat" and p.in_run then
+    leave_run(p)
+    p.message("🏕 キャンプにもどった（遺物はなくなる）", 2)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc or not victim.in_run then return end
+  let spot = victim.position
+  if has_relic(victim, "phoenix") then
+    remove(victim.relics, index_of(victim.relics, "phoenix"))
+    revive_soon(victim, spot, "🔥 不死鳥の羽で復活！")
+  elif victim.revives > 0 then
+    victim.revives = victim.revives - 1
+    revive_soon(victim, spot, "🪽 復活の羽で復活！")
+  else
+    victim.message("💫 たおれた… 6秒後に復活（僧侶の聖なる光ならすぐ）", 3)
+  end
+end
+
+func revive_soon(p, spot, text)
+  p.reviving = true
+  after(1, func()
+    if still(p) and not p.alive and p.in_run then
+      p.revive_pos = spot + {x: 0, y: 1, z: 0}
+      p.respawn()
+      p.teleport(spot + {x: 0, y: 1, z: 0})
+      p.message(text, 2)
+    end
+    if still(p) then p.reviving = nil end
+  end)
+end
+
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.reviving = nil
+  apply_stats(p)
+  if p.revive_pos != nil then
+    let s = p.revive_pos
+    p.revive_pos = nil
+    p.teleport(s)
+  elif run_active and p.in_run then
+    p.teleport(safe_spot())
+  end
+  hud(p)
+end

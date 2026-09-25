@@ -1,0 +1,174 @@
+-- camp.absc — キャンプ: 鍛冶屋（武器の強化・よろい・特性のつけ直し）・お店・記録の板・練習用のかかし
+
+-- MARK: 鍛冶屋
+
+func upgrade_cost(it)
+  return floor(40 * pow(it.plus + 1, 1.6) * (1 + it.ilvl / 20))
+end
+
+func armor_cost(lv)
+  return floor(60 * pow(lv + 1, 1.7))
+end
+
+func reroll_cost(it)
+  return floor(120 * rarity_by_id(it.rarity).mult * (1 + it.ilvl / 15))
+end
+
+func smith_panel(p)
+  let h = 330
+  p.ui_remove("smith")
+  p.ui_panel("smith", {at: "center", w: 540, h: h, bg: "#431407F2", radius: 20, layer: 30})
+  p.ui_text("smith_t", "⚒ 鍛冶屋   💰 " + kit_short(kit_money(p)), {parent: "smith", y: 24 / h, size: 18, bold: true, color: "#FDBA74"})
+  let it = p.gear
+  if it != nil then
+    p.ui_text("smith_now", item_label(it) + " — " + item_details(it), {parent: "smith", y: 56 / h, size: 12, color: rarity_by_id(it.rarity).color})
+    let up = "⚔️ 最大まで強化ずみ（+" + MAX_PLUS + "）"
+    if it.plus < MAX_PLUS then up = "⚔️ 強化 +" + it.plus + " → +" + (it.plus + 1) + "（攻 +10%）  💰" + kit_short(upgrade_cost(it)) end
+    p.ui_button("smith_up", up, {parent: "smith", y: 100 / h, w: 480, h: 46, size: 14, bg: "#C2410C"})
+    let rr = "🎲 特性のつけ直し（レア以上）"
+    if rarity_by_id(it.rarity).affixes > 0 then rr = "🎲 特性をつけ直す  💰" + kit_short(reroll_cost(it)) end
+    p.ui_button("smith_reroll", rr, {parent: "smith", y: 214 / h, w: 480, h: 46, size: 14, bg: "#7C2D12"})
+  end
+  let ar = "🛡 よろいは最大（Lv" + MAX_ARMOR + "）"
+  if p.armor_lv < MAX_ARMOR then ar = "🛡 よろい Lv" + p.armor_lv + " → " + (p.armor_lv + 1) + "（HP+12・かたさ+3.5%）  💰" + kit_short(armor_cost(p.armor_lv)) end
+  p.ui_button("smith_armor", ar, {parent: "smith", y: 157 / h, w: 480, h: 46, size: 14, bg: "#57534E"})
+  p.ui_button("smith_close", "閉じる", {parent: "smith", y: (h - 26) / h, w: 120, h: 34, size: 13, bg: "gray"})
+end
+
+func smith_upgrade(p)
+  let it = p.gear
+  if it == nil or it.plus >= MAX_PLUS then return end
+  if kit_pay(p, upgrade_cost(it)) then
+    it.plus = it.plus + 1
+    equip(p, it)
+    p.sound("goal")
+    p.message("⚒ カーン！ " + item_label(it), 1.5)
+    kit_quest_progress(p, "upgrade", 1)
+    if it.plus == MAX_PLUS then kit_badge(p, "plus10", "武器を+10まで強化") end
+  end
+  smith_panel(p)
+end
+
+func smith_armor(p)
+  if p.armor_lv >= MAX_ARMOR then return end
+  if kit_pay(p, armor_cost(p.armor_lv)) then
+    p.armor_lv = p.armor_lv + 1
+    apply_stats(p)
+    p.heal(p.max_health)
+    p.sound("goal")
+    hud(p)
+  end
+  smith_panel(p)
+end
+
+func smith_reroll(p)
+  let it = p.gear
+  if it == nil then return end
+  let count = rarity_by_id(it.rarity).affixes
+  if count == 0 then
+    p.message("レア以上の武器だけ", 1.2)
+    return
+  end
+  if kit_pay(p, reroll_cost(it)) then
+    let pool = shuffle(map(AFFIXES, func(a) return a.id end))
+    it.affixes = slice(pool, 1, count)
+    equip(p, it)
+    p.message("🎲 " + item_details(it), 2)
+  end
+  smith_panel(p)
+end
+
+-- MARK: お店
+
+func shop_panel(p)
+  let h = 130 + len(SHOP) * 54
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 520, h: h, bg: "#422006F2", radius: 20, layer: 30})
+  p.ui_text("shop_t", "🛒 お店   💰 " + kit_short(kit_money(p)) + "   🧪" + p.potions + " 💣" + p.bombs + " 🪽" + p.revives,
+            {parent: "shop", y: 24 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in SHOP do
+    i = i + 1
+    p.ui_button("buy_" + s.id, s.name + "  💰" + s.price + " — " + s.text, {parent: "shop", y: (36 + i * 54) / h, w: 470, h: 46, size: 13, bg: "#A16207"})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 24) / h, w: 120, h: 32, size: 13, bg: "gray"})
+end
+
+func buy(p, id)
+  let s = find_by_id(SHOP, id)
+  if s == nil then return end
+  if id == "potion" and p.potions >= 5 then p.message("🧪 5こまで", 1)
+  elif id == "bomb" and p.bombs >= 5 then p.message("💣 5こまで", 1)
+  elif id == "revive" and p.revives >= 2 then p.message("🪽 2こまで", 1)
+  elif kit_pay(p, s.price) then
+    if id == "potion" then p.potions = p.potions + 1
+    elif id == "bomb" then p.bombs = p.bombs + 1
+    else p.revives = p.revives + 1 end
+    p.sound("collect")
+    hud(p)
+  end
+  shop_panel(p)
+end
+
+-- MARK: 記録の板
+
+func board_panel(p)
+  let h = 330
+  p.ui_remove("board")
+  p.ui_panel("board", {at: "center", w: 520, h: h, bg: "#172554F2", radius: 20, layer: 30})
+  p.ui_text("board_t", "📜 冒険の記録", {parent: "board", y: 24 / h, size: 18, bold: true, color: "#93C5FD"})
+  let lines = [
+    "次の階: 地下 " + depth + " 階（" + theme_now().name + "）  いちばん深く: 地下 " + best_depth + " 階",
+    p.name + "  " + class_of(p).name + " Lv." + p.level,
+    "クリアした階: " + p.floors + "   いちばん深く: 地下 " + p.best_floor + " 階",
+    "たおした敵: " + p.slain + "   見つけた武器: " + p.found,
+    "テーマは4つ: ⛏坑道 → 💀墓地 → 🌋マグマ → ❄️氷 →（くり返すほど強い）",
+    "ボス: 👑ゴブリン王・💀骨の王・🌋マグマの巨人・❄️氷のリッチ"
+  ]
+  for i in 1 to len(lines) do
+    p.ui_text("board_" + i, lines[i], {parent: "board", y: (30 + i * 38) / h, size: 13, color: "#E0E7FF"})
+  end
+  p.ui_button("board_close", "閉じる", {parent: "board", y: (h - 24) / h, w: 120, h: 32, size: 13, bg: "gray"})
+end
+
+-- MARK: かかし（当たったダメージが見える）
+
+func spawn_dummies()
+  for i in 1 to 2 do
+    let spot = block("Dummy Spot " + i)
+    if spot != nil then
+      let d = create_npc({name: "🎯 かかし", position: spot.position + {x: 0, y: 1, z: 0}, color: "#A16207", head_color: "#FDE68A", size: 1.2,
+                          health: 1000000, speed: 0, team: "monster"})
+      d.dummy = true
+    end
+  end
+end
+
+on start()
+  spawn_dummies()
+  every(5, func()
+    for n in npcs() do
+      if n.dummy then n.heal(1000000) end
+    end
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "smith") and quiet_ready(p, "smith", 2) then smith_panel(p)
+  elif contains(b.tags, "shop") and quiet_ready(p, "shop", 2) then shop_panel(p)
+  elif contains(b.tags, "board") and quiet_ready(p, "board", 2) then board_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "smith_up" then smith_upgrade(p)
+  elif id == "smith_armor" then smith_armor(p)
+  elif id == "smith_reroll" then smith_reroll(p)
+  elif id == "smith_close" then p.ui_remove("smith")
+  elif starts_with(id, "buy_") then buy(p, replace(id, "buy_", ""))
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif id == "board_close" then p.ui_remove("board")
+  end
+end

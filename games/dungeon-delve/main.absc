@@ -1,115 +1,48 @@
--- Dungeon Delve — 部屋を攻略して、レア装備を集めるハクスラ
+-- Dungeon Delve — 4つの職業で挑む協力ハクスラ。部屋をこえて、ボスをたおして、もっと深い階へ。
+--
+-- ファイル:
+--   data.absc     職業・武器・レア度・特性・敵・ボス・テーマ・遺物・お店・部屋の種類
+--   common.absc   みんなで使う状態・強さの計算・画面
+--   boss.absc     ボスの技・赤い円の予告・溶岩だまり・HPバー
+--   camp.absc     鍛冶屋・お店・記録の板・かかし
+--   classes.absc  職業えらび・スキル・ポーションと爆弾
+--   combat.absc   当たったときのダメージ（クリティカル・特性・遺物）
+--   dungeon.absc  冒険の流れと8つの部屋
+--   enemies.absc  敵の動き（8種類）とごほうび
+--   loot.absc     武器・装備・バッグ
+--   main.absc     このファイル
 
-kit_setup("Dungeon Delve", "敵をたおして、最強の装備を", [
-  "紫のゲートにさわると、みんなでダンジョンへ",
-  "部屋の敵を全部たおすと、次の扉が開く",
-  "敵はときどき武器を落とす。強ければ自動で装備",
-  "「🔥 ファイア」「💚 ヒール」の魔法も使える",
-  "6番目の部屋にボス！たおすと難易度が上がる",
-  "ロビーの鍛冶屋（オレンジ）で武器を強化"
+kit_setup("Dungeon Delve", "部屋をこえて、もっと深く", [
+  "🏕 キャンプの祭壇で職業をえらぶ（⚔️戦士・🏹狩人・🔮魔法使い・✨僧侶）",
+  "🟣 紫のゲートにのると、キャンプのみんなでダンジョンへ",
+  "🚪 部屋は8つ。戦い・⭐強敵・💰宝物庫・✨祭壇（遺物）・⚠️ワナ・🔥休けい所、最後は👑ボス",
+  "🔴 赤い円はボスの技の予告。すぐにげよう！",
+  "⚔️ 敵や宝箱から武器。🎒バッグで装備と売るのができる",
+  "⚒ 鍛冶屋で武器を+10まで強化、よろいもレベルアップ",
+  "🧪 ポーション・💣 爆弾・🪽 復活の羽はお店で",
+  "🎯 かかしをたたくとダメージが見える"
 ])
 kit_currency = "ゴールド"
 
-let rarities = [
-  {name: "ふつうの", mult: 1, weight: 50, color: "#E5E7EB"},
-  {name: "良い", mult: 1.3, weight: 28, color: "#4ADE80"},
-  {name: "レアな", mult: 1.7, weight: 14, color: "#60A5FA"},
-  {name: "伝説の", mult: 2.4, weight: 6, color: "#A855F7"},
-  {name: "神話の", mult: 3.5, weight: 2, color: "#F59E0B"}
-]
-let kinds = [{name: "剣", model: "pistol", range: 6, rate: 2.2}, {name: "大剣", model: "pistol", range: 6.5, rate: 1.2},
-             {name: "弓", model: "rifle", range: 60, rate: 1.4}, {name: "杖", model: "blaster", range: 40, rate: 3}]
-let tier = 1
-let in_dungeon = false
-let room = 0
-let started = {}
-let loot_id = 0
-
 kit_quest("clear", "ダンジョンを1回クリア", 1, 300)
-kit_quest("kill", "敵を30体たおす", 30, 150)
-kit_quest("legend", "伝説以上の武器を手に入れる", 1, 250)
+kit_quest("deep", "ボスを4回たおす", 4, 1500)
+kit_quest("kill", "敵を100体たおす", 100, 400)
+kit_quest("elite", "強敵を5体たおす", 5, 300)
+kit_quest("legend", "伝説以上の武器を手に入れる", 1, 400)
+kit_quest("chest", "宝箱を10こあける", 10, 250)
+kit_quest("relic", "遺物を5つ選ぶ", 5, 250)
+kit_quest("heal", "仲間を20回回復する（僧侶）", 20, 250)
+kit_quest("upgrade", "武器を5回強化する", 5, 300)
 
 kit_on_level = func(p)
-  p.max_health = 100 + p.level * 15
-  p.heal(999)
-end
-
-func make_weapon(p, power)
-  let r = kit_pick(rarities, 1)
-  let k = random(kinds)
-  loot_id = loot_id + 1
-  let dmg = floor(power * r.mult * (k.name == "大剣" and 1.8 or 1))
-  -- 武器の名前は「レア度＋種類」だけ（数が増えすぎないように）。
-  -- 渡したあとで同じ名前を作り直しても、持っている武器は変わらない。
-  let name = r.name + k.name
-  weapon(name, {model: k.model, damage: dmg, rate: k.rate, range: k.range, ammo: 1000, reload: 0, spread: k.model == "pistol" and 3 or 1})
-  return {name: name, label: name + " +" + dmg, damage: dmg * k.rate, rarity: r}
-end
-
-func equip(p, w)
-  p.gear = w
-  p.give(w.name)
-  p.ui_text("gear", "⚔️ " + w.label, {at: "top_left", dy: 70, size: 16, bold: true, color: w.rarity.color})
-end
-
-func spawn_room(n)
-  if started[str(n)] then return end
-  started[str(n)] = true
-  let center = block("Room " + n + " Center")
-  if n == 6 then
-    let b = create_npc({name: "ダンジョンの主", position: center.position + {x: 0, y: 2, z: 0}, color: "#450A0A", head_color: "#FACC15",
-                        size: 3.2, health: 3000 * tier, speed: 0.7, team: "monster"})
-    b.boss = true
-    b.give("shotgun")
-    announce("👑 ダンジョンの主があらわれた！", 3)
-  else
-    for i in 1 to 3 + n + tier do
-      let m = create_npc({name: random(["ゴブリン", "スケルトン", "スライム", "オーク"]), position: center.position + {x: random(-8, 8), y: 1, z: random(-8, 8)},
-                          color: random(["#15803D", "#E5E7EB", "#22D3EE", "#7C2D12"]), head_color: "#111111",
-                          health: 40 + n * 15 * tier, speed: 0.7, team: "monster"})
-      if random() < 0.3 then m.give("blaster") end
-    end
-  end
-end
-
-func open_door(n)
-  let d = block("Room " + n + " Door")
-  if d != nil and d.visible then
-    d.visible = false
-    d.solid = false
-    announce("🚪 扉が開いた！", 1.5)
-  end
-end
-
-func reset_dungeon()
-  in_dungeon = false
-  room = 0
-  started = {}
-  for n in npcs() do n.destroy() end
-  for k in 1 to 6 do
-    let d = block("Room " + k + " Door")
-    d.visible = true
-    d.solid = true
-  end
+  apply_stats(p)
+  p.heal(p.max_health)
+  hud(p)
 end
 
 on start()
   game.respawn_time = 6
-  every(1, func()
-    if not in_dungeon then return end
-    -- 部屋に入った人がいれば敵を出す
-    for k in 1 to 6 do
-      let c = block("Room " + k + " Center")
-      for p in players() do
-        if distance(p, c) < 10 then
-          spawn_room(k)
-          room = max(room, k)
-        end
-      end
-    end
-    let alive = len(filter(npcs(), func(n) return n.team == "monster" end))
-    if alive == 0 and room > 0 and started[str(room)] then open_door(room) end
-  end)
+  every(10, func() kit_leaderboard("⚔️") end)
 end
 
 on join(p)
@@ -118,80 +51,21 @@ on join(p)
   p.level = 1
   p.xp = 0
   kit_show_level(p)
-  kit_give(p, 20)
-  equip(p, make_weapon(p, 12))
-  p.ui_button("fire", "🔥 ファイア", {at: "bottom_right", dx: -120, dy: -160, w: 110, h: 56, size: 16, bg: "#EA580C", radius: 14})
-  p.ui_button("healspell", "💚 ヒール", {at: "bottom_right", dx: -236, dy: -160, w: 110, h: 56, size: 16, bg: "#16A34A", radius: 14})
-end
-
-on tick(dt)
-  for n in npcs() do
-    if n.team == "monster" then
-      let t = kit_chase(n, 20, n.boss and 25 or 8, dt)
-      if t != nil and random() < 0.03 and n.weapon != nil then n.shoot(t) end
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "gate") and not in_dungeon then
-    in_dungeon = true
-    announce("⚔️ ダンジョン（難易度 " + tier + "）へ出発！", 3)
-    for q in players() do q.teleport(block("Room 1 Center")) end
-  elif contains(b.tags, "smith") and kit_ready(p, "smith", 2) then
-    let cost = 50 * tier
-    if kit_pay(p, cost) then
-      let w = make_weapon(p, p.gear.damage / 1.5 + 5)
-      if w.damage > p.gear.damage then
-        equip(p, w)
-        p.message("⚒ 強化成功！", 2)
-      else
-        p.message("⚒ うまくいかなかった…", 1.5)
-      end
-    end
-  end
-end
-
-on button(p, id)
-  if not p.alive then return end
-  if id == "fire" and kit_ready(p, "fire", 4) then
-    kit_blast(p, kit_ahead(p, 7), 4, 30 + p.level * 6, 3)
-  elif id == "healspell" and kit_ready(p, "heal", 12) then
-    for q in players() do
-      if distance(p, q) < 10 then q.heal(40 + p.level * 4) end
-    end
-    p.message("💚 まわりを回復", 1)
-  end
-end
-
-on death(victim, killer)
-  if not victim.is_npc then return end
-  if killer == nil or killer.is_npc then return end
-  kit_xp(killer, victim.boss and 400 or 20)
-  kit_give(killer, victim.boss and 300 or 8)
-  kit_quest_progress(killer, "kill", 1)
-  if random() < (victim.boss and 1 or 0.18) then
-    let w = make_weapon(killer, 10 + tier * 8 + room * 3)
-    if w.rarity.weight <= 6 then kit_quest_progress(killer, "legend", 1) end
-    if w.damage > killer.gear.damage then
-      equip(killer, w)
-      killer.message("✨ " + w.label + " を装備した！", 2.5)
-    else
-      kit_give(killer, 10)
-      killer.message("🪙 " + w.label + "（売って +10）", 1.5)
-    end
-  end
-  if victim.boss then
-    tier = tier + 1
-    for p in players() do
-      kit_quest_progress(p, "clear", 1)
-      p.score = p.score + 5
-    end
-    announce("🏆 ダンジョンクリア！ 次は難易度 " + tier, 5)
-    after(6, func()
-      reset_dungeon()
-      for p in players() do p.teleport(block("Spawn " + random(1, 8))) end
-    end)
-  end
+  p.armor_lv = 0
+  p.bag = []
+  p.relics = []
+  p.potions = 2
+  p.bombs = 1
+  p.revives = 0
+  p.slain = 0
+  p.found = 0
+  p.floors = 0
+  p.best_floor = 0
+  p.in_run = false
+  kit_give(p, 50)
+  choose_class(p, "warrior")
+  action_buttons(p)
+  hud(p)
+  p.message("🏕 左の祭壇で職業をえらんで、紫のゲートへ！", 3)
+  if run_active then p.message("⚔️ いま冒険中。紫のゲートにのると仲間のところへ行ける", 3) end
 end

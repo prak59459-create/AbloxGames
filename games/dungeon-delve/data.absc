@@ -1,0 +1,131 @@
+-- data.absc — 職業・武器・レア度・特性・敵・ボス・テーマ・遺物・お店・部屋の種類
+
+-- 職業。hp: 最初のHP / armor: 受けるダメージを減らす割合 / kinds: 使える武器
+let CLASSES = [
+  {id: "warrior", name: "⚔️ 戦士", hp: 160, speed: 1, armor: 0.1, color: "#B91C1C", head: "#FCD34D", hat: "none", kinds: ["sword", "axe"],
+   skill1: {id: "whirl", name: "🌀 回転斬り", cd: 6}, skill2: {id: "guard", name: "🛡 鉄壁", cd: 14},
+   desc: "HPが高くてかたい。回転斬りでまわりの敵をまとめて、鉄壁で5秒ダメージを大きく減らす"},
+  {id: "ranger", name: "🏹 狩人", hp: 115, speed: 1.15, armor: 0, color: "#15803D", head: "#FDE68A", hat: "cap", kinds: ["bow", "crossbow"],
+   skill1: {id: "rain", name: "🌧 矢の雨", cd: 9}, skill2: {id: "dash", name: "💨 ダッシュ", cd: 5},
+   desc: "遠くから撃てて足が速い。矢の雨で前の広い範囲に3回、ダッシュ中は攻撃をよける"},
+  {id: "mage", name: "🔮 魔法使い", hp: 100, speed: 1, armor: 0, color: "#6D28D9", head: "#FDE68A", hat: "antenna", kinds: ["staff", "orb"],
+   skill1: {id: "fireball", name: "🔥 ファイアボール", cd: 5}, skill2: {id: "nova", name: "❄️ フロストノヴァ", cd: 12},
+   desc: "魔法の火力がいちばん。ファイアボールは燃やし、フロストノヴァはまわりの敵をおそくする"},
+  {id: "cleric", name: "✨ 僧侶", hp: 130, speed: 1, armor: 0.05, color: "#F8FAFC", head: "#FDE68A", hat: "halo", kinds: ["mace", "hammer"],
+   skill1: {id: "heal", name: "💚 ヒール", cd: 10}, skill2: {id: "holy", name: "🌟 聖なる光", cd: 18},
+   desc: "みんなを回復。聖なる光はたおれた仲間を生きかえらせて、まわりの敵をこらしめる"}
+]
+
+-- 武器の種類。model: 見た目と撃ち方 / mult: 1発の強さ / rate: 1秒に何回
+let KINDS = [
+  {id: "sword", name: "剣", model: "pistol", range: 6, rate: 2.2, spread: 3, mult: 1},
+  {id: "axe", name: "おの", model: "pistol", range: 6.5, rate: 1.3, spread: 3, mult: 1.8},
+  {id: "bow", name: "弓", model: "rifle", range: 60, rate: 1.5, spread: 0.4, mult: 1.2},
+  {id: "crossbow", name: "クロスボウ", model: "rifle", range: 70, rate: 0.9, spread: 0.2, mult: 2},
+  {id: "staff", name: "杖", model: "blaster", range: 35, rate: 2.5, spread: 1, mult: 0.85},
+  {id: "orb", name: "オーブ", model: "blaster", range: 26, rate: 3.6, spread: 1.5, mult: 0.62},
+  {id: "mace", name: "メイス", model: "pistol", range: 6, rate: 1.8, spread: 3, mult: 1.25},
+  {id: "hammer", name: "ハンマー", model: "pistol", range: 7, rate: 1, spread: 4, mult: 2.2}
+]
+
+-- レア度。affixes: つく特性の数
+let RARITIES = [
+  {id: "common", name: "ふつうの", mult: 1, weight: 50, color: "#E5E7EB", affixes: 0},
+  {id: "good", name: "良い", mult: 1.25, weight: 28, color: "#4ADE80", affixes: 0},
+  {id: "rare", name: "レアな", mult: 1.6, weight: 14, color: "#60A5FA", affixes: 1},
+  {id: "legend", name: "伝説の", mult: 2.2, weight: 6, color: "#A855F7", affixes: 2},
+  {id: "myth", name: "神話の", mult: 3, weight: 2, color: "#F59E0B", affixes: 3}
+]
+
+-- 武器につく特性
+let AFFIXES = [
+  {id: "crit", name: "するどい", text: "クリティカル +10%"},
+  {id: "vamp", name: "吸血の", text: "与えたダメージの4%回復"},
+  {id: "fire", name: "炎の", text: "当てると燃やす"},
+  {id: "frost", name: "氷の", text: "当てるとおそくする"},
+  {id: "swift", name: "風の", text: "足が速くなる"},
+  {id: "tough", name: "がんじょうな", text: "HP +30"},
+  {id: "spark", name: "雷の", text: "ときどき近くの敵にも雷"},
+  {id: "gold", name: "金の", text: "ゴールド +25%"}
+]
+
+-- 敵。style: melee（近づいてなぐる）fast tank ranged healer ghost bomb split
+let ENEMIES = {
+  goblin: {name: "ゴブリン", color: "#15803D", head: "#4ADE80", size: 0.9, hp: 45, speed: 0.75, dmg: 9, style: "melee", xp: 12, gold: 4},
+  bat: {name: "コウモリ", color: "#27272A", head: "#7F1D1D", size: 0.6, hp: 22, speed: 1.2, dmg: 5, style: "fast", xp: 6, gold: 2},
+  slime: {name: "スライム", color: "#22D3EE", head: "#0E7490", size: 1.1, hp: 60, speed: 0.55, dmg: 7, style: "split", xp: 10, gold: 3},
+  shaman: {name: "ゴブリンまじない師", color: "#7C3AED", head: "#4ADE80", size: 0.9, hp: 40, speed: 0.6, dmg: 6, style: "healer", xp: 18, gold: 6},
+  skeleton: {name: "スケルトン", color: "#E5E7EB", head: "#F8FAFC", size: 1, hp: 55, speed: 0.7, dmg: 10, style: "melee", xp: 12, gold: 4},
+  archer: {name: "骨の弓兵", color: "#D6D3D1", head: "#F8FAFC", size: 1, hp: 40, speed: 0.6, dmg: 8, style: "ranged", xp: 14, gold: 5},
+  zombie: {name: "ゾンビ", color: "#4D7C0F", head: "#84CC16", size: 1.1, hp: 110, speed: 0.45, dmg: 14, style: "tank", xp: 16, gold: 5},
+  ghost: {name: "ゴースト", color: "#E0F2FE", head: "#BAE6FD", size: 1, hp: 50, speed: 0.8, dmg: 9, style: "ghost", xp: 16, gold: 6},
+  imp: {name: "インプ", color: "#DC2626", head: "#F97316", size: 0.8, hp: 40, speed: 0.9, dmg: 8, style: "ranged", xp: 14, gold: 5},
+  magma: {name: "マグマスライム", color: "#EA580C", head: "#FACC15", size: 1, hp: 50, speed: 0.7, dmg: 30, style: "bomb", xp: 14, gold: 5},
+  golem: {name: "岩のゴーレム", color: "#57534E", head: "#F97316", size: 1.6, hp: 220, speed: 0.4, dmg: 20, style: "tank", xp: 30, gold: 10},
+  wolf: {name: "こおりオオカミ", color: "#CBD5E1", head: "#E0F2FE", size: 0.9, hp: 50, speed: 1.1, dmg: 10, style: "fast", xp: 12, gold: 4},
+  yeti: {name: "イエティ", color: "#F8FAFC", head: "#BAE6FD", size: 1.7, hp: 240, speed: 0.45, dmg: 22, style: "tank", xp: 32, gold: 10},
+  wisp: {name: "氷の精", color: "#7DD3FC", head: "#E0F2FE", size: 0.8, hp: 45, speed: 0.7, dmg: 8, style: "ranged", xp: 14, gold: 5},
+  mimic: {name: "ミミック", color: "#92400E", head: "#FACC15", size: 1.3, hp: 180, speed: 0.8, dmg: 16, style: "melee", xp: 40, gold: 40}
+}
+
+-- テーマ（階ごとに変わる）。mobs: 出てくる敵 / boss: その階のボス
+let THEMES = [
+  {id: "mines", name: "⛏ ゴブリンの坑道", floor: "#78716C", wall: "#44403C", torch: "#F97316", mobs: ["goblin", "goblin", "bat", "slime", "shaman"], boss: "goblin_king"},
+  {id: "crypt", name: "💀 地下墓地", floor: "#3F3F46", wall: "#27272A", torch: "#A78BFA", mobs: ["skeleton", "skeleton", "archer", "zombie", "ghost"], boss: "bone_lord"},
+  {id: "magma", name: "🌋 マグマの深層", floor: "#451A03", wall: "#7C2D12", torch: "#FACC15", mobs: ["imp", "imp", "magma", "golem", "bat"], boss: "magma_titan"},
+  {id: "ice", name: "❄️ 氷の宮殿", floor: "#BAE6FD", wall: "#7DD3FC", torch: "#E0F2FE", mobs: ["wolf", "wolf", "wisp", "yeti", "ghost"], boss: "frost_lich"}
+]
+
+-- ボス。moves: 順番に使う技
+let BOSSES = {
+  goblin_king: {name: "👑 ゴブリン王", color: "#166534", head: "#4ADE80", size: 3, hp: 1800, speed: 0.7, dmg: 18, hat: "crown",
+                moves: ["slam", "summon", "charge", "slam"], minion: "goblin"},
+  bone_lord: {name: "💀 骨の王", color: "#E7E5E4", head: "#F8FAFC", size: 3.2, hp: 2200, speed: 0.6, dmg: 20, hat: "crown",
+              moves: ["volley", "summon", "nova", "volley"], minion: "skeleton"},
+  magma_titan: {name: "🌋 マグマの巨人", color: "#7C2D12", head: "#F97316", size: 3.6, hp: 2800, speed: 0.5, dmg: 26, hat: "none",
+                moves: ["lava", "slam", "charge", "lava"], minion: "magma"},
+  frost_lich: {name: "❄️ 氷のリッチ", color: "#1E3A8A", head: "#BAE6FD", size: 3, hp: 2500, speed: 0.6, dmg: 22, hat: "halo",
+               moves: ["blink", "nova", "volley", "summon"], minion: "wisp"}
+}
+
+-- 遺物（祭壇でひとつ選ぶ。その冒険のあいだだけ）
+let RELICS = [
+  {id: "whetstone", name: "🪨 砥石", text: "攻撃力 +20%"},
+  {id: "clover", name: "🍀 四つ葉", text: "クリティカル +12%"},
+  {id: "fang", name: "🦷 吸血鬼の牙", text: "与えたダメージの5%回復"},
+  {id: "heart", name: "❤️ 鉄の心臓", text: "最大HP +50"},
+  {id: "feather", name: "🪶 風の羽", text: "足の速さ +20%"},
+  {id: "phoenix", name: "🔥 不死鳥の羽", text: "1回だけ、たおれてもその場で復活"},
+  {id: "thorns", name: "🌵 いばらの鎧", text: "受けたダメージの半分を敵に返す"},
+  {id: "tooth", name: "🦴 金の歯", text: "ゴールド +40%"},
+  {id: "hourglass", name: "⏳ 砂時計", text: "スキルの待ち時間 -30%"},
+  {id: "shell", name: "🐢 こうら", text: "受けるダメージ -15%"},
+  {id: "storm", name: "⚡ 嵐のつぼ", text: "攻撃の15%で雷がとびちる"},
+  {id: "ember", name: "🕯 残り火", text: "攻撃で燃やす"}
+]
+
+-- お店（キャンプと休けい所）
+let SHOP = [
+  {id: "potion", name: "🧪 回復ポーション", price: 40, text: "HPを60%回復"},
+  {id: "bomb", name: "💣 爆弾", price: 60, text: "前に投げて大ダメージ"},
+  {id: "revive", name: "🪽 復活の羽", price: 150, text: "たおれた時、1回だけ自動で復活"}
+]
+
+-- 部屋の種類
+let ROOM_TYPES = {
+  fight: {name: "⚔️ 戦いの部屋", hint: "敵を全部たおそう"},
+  elite: {name: "⭐ 強敵の部屋", hint: "強い敵がいる。力を合わせて"},
+  treasure: {name: "💰 宝物庫", hint: "宝箱をあけよう（ミミックに注意）"},
+  shrine: {name: "✨ 祭壇", hint: "遺物をひとつ選ぼう"},
+  trap: {name: "⚠️ ワナの部屋", hint: "赤い床からにげて生きのこれ"},
+  camp: {name: "🔥 休けい所", hint: "HP全回復。お店もあるよ"},
+  boss: {name: "👑 ボスの間", hint: "ボスをたおせ！"}
+}
+
+-- 1〜8番目の部屋に出る種類（この中から選ばれる）
+let ROOM_PLAN = [["fight"], ["fight", "trap"], ["treasure", "shrine"], ["fight", "elite"], ["camp", "shrine"], ["trap", "fight"], ["elite"], ["boss"]]
+
+let ROOMS = 8
+let BAG_SIZE = 8
+let MAX_PLUS = 10
+let MAX_ARMOR = 12

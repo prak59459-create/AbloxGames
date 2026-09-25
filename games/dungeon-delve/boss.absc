@@ -1,0 +1,206 @@
+-- boss.absc — ボス（4体）・予告つきの技（赤い円）・溶岩だまり・ボスのHPバー
+
+let boss = nil
+let warnings = []      -- {b, at, pos, radius, dmg, src, spikes}
+let pools = []         -- {b, until, pos, radius, dps}
+let hazard_clock = 0
+
+-- 赤い円で予告して、delay 秒後に円の中の人にダメージ
+func telegraph(pos, radius, delay, dmg, src, color)
+  let b = create_block({name: "Warning", shape: "cylinder", position: {x: pos.x, y: 0.07, z: pos.z}, size: {x: radius * 2, y: 0.08, z: radius * 2},
+                        color: color or "#EF4444", material: "neon", opacity: 0.45, solid: false})
+  append(warnings, {b: b, at: time() + delay, pos: {x: pos.x, y: pos.y, z: pos.z}, radius: radius, dmg: dmg, src: src, spikes: color == "#F59E0B"})
+end
+
+func spike_burst(pos, radius)
+  let made = []
+  for i in 1 to 4 do
+    let s = create_block({name: "Spike", shape: "cone", position: {x: pos.x + random(-1, 1) * radius * 0.4, y: 0.6, z: pos.z + random(-1, 1) * radius * 0.4},
+                          size: {x: 0.6, y: 1.2, z: 0.6}, color: "#A8A29E", material: "metal", solid: false})
+    append(made, s)
+  end
+  after(0.7, func()
+    for s in made do gone(s) end
+  end)
+end
+
+func pop_warning(b)
+  if not still(b) then return end
+  b.color = "#FDE68A"
+  b.opacity = 0.8
+  after(0.25, func() gone(b) end)
+end
+
+func warnings_step()
+  let keep = []
+  for w in warnings do
+    if time() >= w.at then
+      let src = nil
+      if still(w.src) and w.src.alive then src = w.src end
+      for p in players() do
+        if p.in_run and p.alive and flat_distance(p.position, w.pos) <= w.radius then hurt(p, w.dmg, src) end
+      end
+      if w.spikes then spike_burst(w.pos, w.radius) end
+      pop_warning(w.b)
+    else
+      append(keep, w)
+    end
+  end
+  warnings = keep
+end
+
+func pools_step(secs)
+  let keep = []
+  for q in pools do
+    if time() >= q.until then
+      gone(q.b)
+    else
+      for p in players() do
+        if p.in_run and p.alive and flat_distance(p.position, q.pos) <= q.radius then hurt(p, q.dps * secs, nil) end
+      end
+      append(keep, q)
+    end
+  end
+  pools = keep
+end
+
+func lava_pool(pos, radius, secs, dps)
+  let b = create_block({name: "Lava Pool", shape: "cylinder", position: {x: pos.x, y: 0.06, z: pos.z}, size: {x: radius * 2, y: 0.1, z: radius * 2},
+                        color: "#EA580C", material: "neon", opacity: 0.85, solid: false})
+  append(pools, {b: b, until: time() + secs, pos: {x: pos.x, y: pos.y, z: pos.z}, radius: radius, dps: dps})
+end
+
+-- 予告のあとに溶岩だまり（ループの中から呼ぶので関数に分ける）
+func lava_later(spot, n)
+  let dmg = n.dmg
+  telegraph(spot, 3, 1.2, dmg * 1.2, n, nil)
+  after(1.2, func() lava_pool(spot, 3, 6, dmg * 0.8) end)
+end
+
+func clear_hazards()
+  for w in warnings do gone(w.b) end
+  for q in pools do gone(q.b) end
+  warnings = []
+  pools = []
+end
+
+-- MARK: ボス
+
+func spawn_boss(room)
+  let t = theme_now()
+  let b = BOSSES[t.boss]
+  let c = block("Room " + room + " Center").position
+  let hp = b.hp * depth_scale() * party_scale()
+  boss = create_npc({name: b.name, position: c + {x: 0, y: 2, z: 6}, color: b.color, head_color: b.head, size: b.size, health: hp, speed: b.speed, team: "monster"})
+  boss.foe = t.boss
+  boss.boss = true
+  boss.room = room
+  boss.dmg = b.dmg * depth_scale()
+  boss.base_speed = b.speed
+  boss.move_i = 0
+  boss.act_at = time() + 4
+  boss.enraged = false
+  if b.hat != "none" then boss.hat = b.hat end
+  boss.give("boss_bolt")
+  announce(b.name + " があらわれた！ 赤い円からにげろ！", 4)
+  sound("goal")
+end
+
+func boss_minions(n, count)
+  let b = BOSSES[n.foe]
+  let alive = len(foes())
+  for i in 1 to count do
+    if alive + i <= 14 then
+      spawn_foe(b.minion, n.position + {x: random(-6, 6), y: 1, z: random(-6, 6)}, n.room, false)
+    end
+  end
+end
+
+func boss_move(n, move)
+  let targets = filter(players(), func(p) return p.in_run and p.alive and distance(p, n) < 40 end)
+  if len(targets) == 0 then return end
+  if move == "slam" then
+    n.say("ドーン！")
+    for p in targets do telegraph(p.position, 3.5, 1.3, n.dmg * 2.2, n, nil) end
+  elif move == "summon" then
+    n.say("来い、手下ども！")
+    boss_minions(n, n.enraged and 4 or 3)
+  elif move == "charge" then
+    let t = random(targets)
+    n.say("うおおお！")
+    n.charging_until = time() + 1.8
+    n.speed = n.base_speed * 3.2
+    n.follow(t)
+  elif move == "volley" then
+    n.say("くらえ！")
+    for i in 0 to 2 do
+      after(i * 0.5, func()
+        if still(n) and n.alive then
+          for p in targets do
+            if still(p) and p.alive then n.shoot(p) end
+          end
+        end
+      end)
+    end
+  elif move == "nova" then
+    n.say("しずまれ…")
+    telegraph(n.position, 9, 1.6, n.dmg * 2.5, n, "#60A5FA")
+  elif move == "lava" then
+    n.say("燃えろ！")
+    for p in targets do lava_later(p.position + {x: random(-2, 2), y: 0, z: random(-2, 2)}, n) end
+  elif move == "blink" then
+    let c = block("Room " + n.room + " Center").position
+    n.position = c + {x: random(-12, 12), y: 1, z: random(-12, 12)}
+    n.say("こっちだ")
+    telegraph(n.position, 5, 1.1, n.dmg * 1.6, n, "#60A5FA")
+  end
+end
+
+func boss_step(n, secs)
+  let b = BOSSES[n.foe]
+  let t = foe_target(n, 45)
+  if t != nil then
+    if n.charging_until == nil then n.follow(t) end
+    let reach = reach_of(n)
+    if distance(n, t) < reach then
+      let mult = 1
+      if n.charging_until != nil then mult = 2.5 end
+      hurt(t, n.dmg * mult * secs, n)
+    end
+  end
+  if n.charging_until != nil and time() >= n.charging_until then
+    n.charging_until = nil
+    n.speed = n.base_speed * (n.enraged and 1.4 or 1)
+  end
+  if not n.enraged and n.health < n.max_health * 0.5 then
+    n.enraged = true
+    n.speed = n.base_speed * 1.4
+    announce("😡 " + b.name + " が本気になった！", 3)
+    boss_minions(n, 3)
+  end
+  if time() >= n.act_at then
+    n.move_i = n.move_i + 1
+    boss_move(n, b.moves[(n.move_i - 1) % len(b.moves) + 1])
+    n.act_at = time() + (n.enraged and 4 or 6)
+  end
+end
+
+func boss_bar()
+  if still(boss) and boss.alive then
+    ui_bar("bossbar", boss.health, boss.max_health, {at: "top", dy: 84, w: 420, h: 16, color: "#DC2626", bg: "#00000099"})
+    ui_text("bossname", boss.name + "  " + kit_short(ceil(boss.health)) + " / " + kit_short(ceil(boss.max_health)), {at: "top", dy: 104, size: 14, bold: true, color: "#FCA5A5"})
+  else
+    ui_remove("bossbar")
+    ui_remove("bossname")
+  end
+end
+
+on tick(dt)
+  hazard_clock = hazard_clock + dt
+  if hazard_clock < 0.1 then return end
+  let secs = hazard_clock
+  hazard_clock = 0
+  warnings_step()
+  pools_step(secs)
+  boss_bar()
+end

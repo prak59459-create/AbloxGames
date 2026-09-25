@@ -1721,16 +1721,25 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 101,
-      "cover" : "games\/dungeon-delve\/cover-62f71b1e.png",
+      "blockCount" : 272,
+      "cover" : "games\/dungeon-delve\/cover-75429a92.png",
       "id" : "dungeon-delve",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/dungeon-delve\/data.absc",
+        "games\/dungeon-delve\/boss.absc",
+        "games\/dungeon-delve\/camp.absc",
+        "games\/dungeon-delve\/classes.absc",
+        "games\/dungeon-delve\/combat.absc",
+        "games\/dungeon-delve\/common.absc",
+        "games\/dungeon-delve\/dungeon.absc",
+        "games\/dungeon-delve\/enemies.absc",
+        "games\/dungeon-delve\/loot.absc",
         "games\/dungeon-delve\/main.absc"
       ],
-      "summary" : "ダンジョンの部屋を次々に攻略するハクスラ。敵をたおしてレアな剣やよろいを手に入れ、最深部のボスをたおせ。",
+      "summary" : "4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！",
       "tags" : [
         "dungeon",
         "loot",
