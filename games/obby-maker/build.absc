@@ -1,0 +1,191 @@
+-- build.absc — 土地をもらう・パーツを置く／消す／複製・グリッド・回転・高さ・コース名
+
+func claim(p, b)
+  if p.plot != nil then return end
+  let n = replace(replace(b.name, "Build ", ""), " Claim", "")
+  if courses[n] != nil then
+    if quiet_ready(p, "taken", 3) then p.message("この土地はもう使われている", 1) end
+    return
+  end
+  courses[n] = {owner: p.id, owner_name: p.name, name: p.name + "の" + random(COURSE_NAMES), verified: false, likes: 0, plays: 0, clears: 0,
+                best: 0, best_name: ""}
+  p.plot = n
+  p.message("🗺 コース " + n + " があなたの土地に！ パーツを置いてゴールまで作ろう", 3)
+  p.sound("checkpoint")
+  hud(p)
+end
+
+func tool_panel(p)
+  let h = 110 + ceil(len(PARTS) / 2) * 40
+  p.ui_remove("tools")
+  p.ui_panel("tools", {at: "left", dx: 16, w: 380, h: h, bg: "#0F172AEE", radius: 20, layer: 20})
+  p.ui_text("tools_t", "🧩 パーツ   🪙 " + kit_money(p), {parent: "tools", y: 24 / h, size: 18, bold: true})
+  let i = 0
+  for pt in PARTS do
+    let col = i % 2
+    let row = floor(i / 2)
+    i = i + 1
+    let label = pt.name
+    if not p.unlocked[pt.id] then label = "🔒 " + pt.name + " " + pt.unlock end
+    if p.part == pt.id then label = "▶ " + label end
+    p.ui_button("part_" + pt.id, label, {parent: "tools", x: 0.27 + col * 0.46, y: (50 + row * 40) / h, w: 170, h: 34, size: 12, bg: pt.color, color: "#111111"})
+  end
+  p.ui_button("tools_close", "閉じる", {parent: "tools", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func pick_part(p, id)
+  let pt = part(id)
+  if not p.unlocked[id] then
+    if kit_pay(p, pt.unlock) then
+      p.unlocked[id] = true
+      p.message("🔓 " + pt.name + " を解放した", 1.5)
+      kit_quest_progress(p, "unlock", 1)
+    else
+      p.message("🔒 " + pt.name + " は " + pt.unlock + " コイン", 1.2)
+      return
+    end
+  end
+  p.part = id
+  tool_panel(p)
+  hud(p)
+end
+
+func snap(v)
+  return round(v)
+end
+
+func can_build(p)
+  if p.plot == nil then
+    p.message("まず白いパッドで土地を手に入れよう", 1.5)
+    return false
+  end
+  if distance(p, block("Build " + p.plot + " Start").position) > PLOT_RANGE then
+    p.message("自分のコースからはなれすぎ", 1.5)
+    return false
+  end
+  if len(course_parts(p.plot)) >= MAX_PARTS then
+    p.message("パーツは " + MAX_PARTS + " こまで", 1.5)
+    return false
+  end
+  return true
+end
+
+func place(p)
+  if not p.alive or not can_build(p) then return end
+  let pt = part(p.part)
+  let spot = p.position + {x: p.look.x, y: 0, z: p.look.z} * 3.2
+  let pos = {x: spot.x, y: p.y - 0.4 + p.lift, z: spot.z}
+  if p.snap then pos = {x: snap(pos.x), y: snap(pos.y * 2) / 2, z: snap(pos.z)} end
+  let yaw = round(p.yaw / 45) * 45 + p.turn
+  let tags = ["obby", "plot" + p.plot, pt.id]
+  if pt.id == "finish" then append(tags, "finish") end
+  let b = create_block({name: pt.name, shape: pt.shape, position: pos, size: pt.size, color: pt.color, behavior: pt.behavior,
+                        rotation: {x: 0, y: yaw, z: 0}, tags: tags})
+  if pt.kind == "mover" then movers[b.id] = {origin: pos, dx: sin(yaw) * 5, dz: cos(yaw) * 5, secs: 2.2}
+  elif pt.kind == "spinner" then append(spinners, b)
+  end
+  p.last_part = p.part
+  kit_quest_progress(p, "build", 1)
+  -- 作り直したら、もう一度テストが必要
+  if courses[p.plot].verified and pt.id != "coin" then
+    courses[p.plot].verified = false
+    p.message("✏️ コースを変えたので、もう一度 🧪 テストでクリアすると公開される", 2)
+  end
+  hud(p)
+end
+
+-- 見ている先（4m以内）の自分のパーツを消す
+func delete_aimed(p)
+  if p.plot == nil then return end
+  let best = nil
+  let best_d = 4.5
+  let aim = p.position + {x: p.look.x, y: 0, z: p.look.z} * 2.5
+  for b in course_parts(p.plot) do
+    let d = distance(aim, b.position)
+    if d < best_d then
+      best = b
+      best_d = d
+    end
+  end
+  if best == nil then
+    p.message("🗑 近くに自分のパーツがない", 1)
+    return
+  end
+  movers[best.id] = nil
+  spinners = filter(spinners, func(s) return still(s) and s.id != best.id end)
+  gone(best)
+  p.sound("tick")
+  hud(p)
+end
+
+func undo(p)
+  if p.plot == nil then return end
+  let mine = course_parts(p.plot)
+  if len(mine) == 0 then return end
+  let b = mine[len(mine)]
+  movers[b.id] = nil
+  gone(b)
+  hud(p)
+end
+
+func clear_course(p)
+  if p.plot == nil then return end
+  for b in course_parts(p.plot) do gone(b) end
+  courses[p.plot].verified = false
+  p.message("🧹 コースをまっさらにした", 1.5)
+  hud(p)
+end
+
+func name_course(p, text)
+  if p.plot == nil then return end
+  let t = trim(text)
+  if len(t) == 0 then return end
+  courses[p.plot].name = slice(t, 1, 16)
+  p.message("🏷 コースの名前:「" + courses[p.plot].name + "」", 1.5)
+  hud(p)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_tools" then tool_panel(p)
+  elif id == "tools_close" then p.ui_remove("tools")
+  elif starts_with(id, "part_") then pick_part(p, replace(id, "part_", ""))
+  elif id == "place" then place(p)
+  elif id == "delete" then delete_aimed(p)
+  elif id == "undo" then undo(p)
+  elif id == "clear_course" then clear_course(p)
+  elif id == "snap" then
+    p.snap = not p.snap
+    hud(p)
+  elif id == "turn" then
+    p.turn = (p.turn + 90) % 360
+    hud(p)
+  elif id == "up" then
+    p.lift = min(6, p.lift + 1)
+    hud(p)
+  elif id == "down" then
+    p.lift = max(-6, p.lift - 1)
+    hud(p)
+  elif id == "rename" then
+    p.ui_input("name_in", {at: "center", w: 320, h: 50, text: "コースの名前を入力"})
+  end
+end
+
+on input(p, id, text)
+  if id == "name_in" then
+    name_course(p, text)
+    p.ui_remove("name_in")
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim(p, b) end
+end
+
+on leave(p)
+  if p.plot != nil then
+    for b in course_parts(p.plot) do gone(b) end
+    courses[p.plot] = nil
+  end
+end

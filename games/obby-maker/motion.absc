@@ -1,0 +1,80 @@
+-- motion.absc — 動く床・回る溶岩バー・加速パッド・ワープ・コイン
+
+let motion_clock = 0
+let mover_flip = false
+
+func movers_step()
+  mover_flip = not mover_flip
+  for id in keys(movers) do
+    let m = movers[id]
+    let b = nil
+    for x in blocks("mover") do
+      if x.id == id then b = x end
+    end
+    if b == nil then
+      movers[id] = nil
+    else
+      let o = m.origin
+      if mover_flip then b.move_to({x: o.x + m.dx, y: o.y, z: o.z + m.dz}, m.secs) else b.move_to(o, m.secs) end
+    end
+  end
+end
+
+func spinners_step()
+  spinners = filter(spinners, func(s) return still(s) end)
+  for s in spinners do s.rotate({x: 0, y: 30, z: 0}) end
+end
+
+func speed_pad(p)
+  if not quiet_ready(p, "speed", 1) then return end
+  p.speed = 1.7
+  p.message("💨 加速！", 0.6)
+  kit_later(p, 2.5, func() p.speed = 1 end)
+end
+
+-- ワープ入口 → 同じコースのワープ出口へ
+func warp(p, b)
+  let n = plot_of(b)
+  if n == nil or not quiet_ready(p, "warp", 1.5) then return end
+  let exits = filter(course_parts(n), func(x) return contains(x.tags, "tp_b") end)
+  if len(exits) == 0 then
+    p.message("🌀 出口がまだない", 1)
+    return
+  end
+  p.teleport(exits[len(exits)].position + {x: 0, y: 1, z: 0})
+  p.sound("teleport")
+end
+
+-- コイン: 1回の挑戦で1まいずつ。作った人にも少し
+func take_coin(p, b)
+  let n = plot_of(b)
+  if n == nil or p.playing != n or p.coins_taken[b.id] then return end
+  p.coins_taken[b.id] = true
+  kit_give(p, 3)
+  p.sound("collect")
+  kit_quest_progress(p, "coin", 1)
+  let c = courses[n]
+  if c != nil and c.owner != p.id then
+    let owner = player_by_id(c.owner)
+    if owner != nil then kit_give(owner, 1) end
+  end
+end
+
+on tick(dt)
+  motion_clock = motion_clock + dt
+  if motion_clock < 0.5 then return end
+  motion_clock = 0
+  spinners_step()
+  if floor(time() * 2) % 5 == 0 then movers_step() end
+  for p in players() do
+    if ready(p) and p.run_start > 0 then hud(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "speed") then speed_pad(p)
+  elif contains(b.tags, "tp_a") then warp(p, b)
+  elif contains(b.tags, "coin") then take_coin(p, b)
+  end
+end

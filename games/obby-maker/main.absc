@@ -1,156 +1,68 @@
--- Obby Maker — 自分のアスレチックを作って、みんなに遊んでもらう
+-- Obby Maker — 自分のアスレチックコースを作って公開し、みんなのコースに挑戦する。
+--
+-- ファイル:
+--   data.absc     パーツ・区画
+--   common.absc   コースの記録・画面
+--   build.absc    土地・置く・消す・グリッド・回転・高さ・名前
+--   courses.absc  テストして公開・コースえらび・タイム・いいね
+--   motion.absc   動く床・回る溶岩バー・加速・ワープ・コイン
+--   main.absc     このファイル
 
 kit_setup("Obby Maker", "作って、遊んで、いいねをもらおう", [
-  "白いパッドにさわると、その先の土地があなたのコースに",
-  "下のボタンでパーツを選んで「🔨 置く」（目の前・足もとの高さ）",
-  "⬆️⬇️ で置く高さを変えられる",
-  "🏁 ゴールを置いたら完成。みんなのコースで遊べるようになる",
-  "「▶ 遊ぶ」でだれかのコースへ。クリアすると作った人にいいね！"
+  "🗺 白いパッドにさわると、その先の土地があなたのコースに",
+  "🧩 パーツをえらんで 🔨 置く。⬆⬇ 高さ・↻ 回転・📐 グリッド・🗑 見ている先を消す・↩ もどす",
+  "🔒 動く床・回る溶岩バー・加速パッド・ワープ・コインはコインで解放",
+  "🏁 ゴールを置いたら 🧪 テスト。自分でクリアできたら公開される！",
+  "▶ 遊ぶ でみんなのコースへ。クリアしたら 👍。作った人にもコインが入る"
 ])
 
-let parts = [
-  {id: "block", name: "足場", size: {x: 3, y: 0.6, z: 3}, color: "#60A5FA", behavior: "none", shape: "box"},
-  {id: "small", name: "小さい足場", size: {x: 1.4, y: 0.5, z: 1.4}, color: "#A78BFA", behavior: "none", shape: "box"},
-  {id: "lava", name: "溶岩", size: {x: 3, y: 0.3, z: 3}, color: "#EF4444", behavior: "hazard", shape: "box"},
-  {id: "bounce", name: "ジャンプ台", size: {x: 2.4, y: 0.4, z: 2.4}, color: "#22C55E", behavior: "bounce", shape: "cylinder"},
-  {id: "blink", name: "消える床", size: {x: 2.4, y: 0.4, z: 2.4}, color: "#FDE047", behavior: "disappear", shape: "box"},
-  {id: "check", name: "チェックポイント", size: {x: 2, y: 0.3, z: 2}, color: "#4ADE80", behavior: "checkpoint", shape: "cylinder"},
-  {id: "wall", name: "かべ", size: {x: 3, y: 3, z: 0.5}, color: "#94A3B8", behavior: "none", shape: "box"},
-  {id: "finish", name: "🏁 ゴール", size: {x: 3, y: 0.4, z: 3}, color: "#FFFFFF", behavior: "trigger", shape: "box"}
-]
-let plots = {}       -- 区画 → プレイヤーid
-let likes = {}       -- 区画 → いいね数
-let finished = {}    -- 区画 → ゴールがあるか
+kit_currency = "コイン"
+kit_shop_title = "服"
+kit_shop_add("cap", "🧢 ビルダー帽", 40, func(p) p.hat = "cap" end)
+kit_shop_add("crown", "👑 コース王", 300, func(p) p.hat = "crown" end)
 
-kit_quest("build", "パーツを25個置く", 25, 60)
-kit_quest("publish", "ゴールを置いてコースを完成させる", 1, 100)
-kit_quest("play", "ほかの人のコースを2つクリア", 2, 150)
+kit_quest("build", "パーツを40こ置く", 40, 80)
+kit_quest("publish", "コースを公開する", 1, 150)
+kit_quest("play", "ほかの人のコースを3つクリア", 3, 150)
+kit_quest("likes", "いいねを3つもらう", 3, 200)
+kit_quest("unlock", "パーツを2つ解放", 2, 80)
+kit_quest("coin", "コースのコインを10まい", 10, 80)
 
-func find(id)
-  for pt in parts do
-    if pt.id == id then return pt end
-  end
-  return parts[1]
-end
-
-func show(p)
-  let pt = find(p.part)
-  p.ui_text("tool", "🔨 " + pt.name + "   高さ " + (p.lift >= 0 and "+" or "") + p.lift + (p.plot != nil and ("   🗺 コース " + p.plot + " 👍" + (likes[p.plot] or 0)) or ""),
-            {at: "top", dy: 30, size: 17, bold: true})
-end
-
-func tool_panel(p)
-  let h = 100 + len(parts) * 40
-  p.ui_panel("tools", {at: "left", dx: 16, w: 220, h: h, bg: "#0F172AEE", radius: 20, layer: 20})
-  p.ui_text("tools_t", "パーツ", {parent: "tools", y: 24 / h, size: 19, bold: true})
-  let i = 0
-  for pt in parts do
-    i = i + 1
-    p.ui_button("part_" + pt.id, pt.name, {parent: "tools", y: (24 + i * 40) / h, w: 180, h: 34, size: 14, bg: pt.color, color: "#111111"})
-  end
-  p.ui_button("tools_close", "閉じる", {parent: "tools", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+on start()
+  -- 最初から遊べるお手本コース
+  courses["9"] = {owner: "", owner_name: "Ablox", name: "お手本コース", verified: true, likes: 0, plays: 0, clears: 0, best: 0, best_name: ""}
+  every(10, func() kit_leaderboard("👍") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 40)
+  p.unlocked = {}
+  for pt in PARTS do
+    if pt.unlock == 0 then p.unlocked[pt.id] = true end
+  end
   p.part = "block"
   p.lift = 0
-  p.ui_button("open_tools", "🧩 パーツ", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#7C3AED"})
+  p.turn = 0
+  p.snap = false
+  p.liked = {}
+  p.coins_taken = {}
+  p.run_start = 0
+  p.ui_button("open_tools", "🧩 パーツ", {at: "right", dy: -170, w: 150, h: 46, size: 16, bg: "#7C3AED"})
+  p.ui_button("test", "🧪 テスト", {at: "right", dy: -118, w: 150, h: 46, size: 16, bg: "#0E7490"})
+  p.ui_button("play", "▶ 遊ぶ", {at: "right", dy: -66, w: 150, h: 46, size: 16, bg: "#16A34A"})
+  p.ui_button("hub", "🏠 もどる", {at: "right", dy: -14, w: 150, h: 46, size: 15, bg: "#475569"})
+  p.ui_button("rename", "🏷 名前", {at: "right", dy: 180, w: 150, h: 40, size: 14, bg: "#334155"})
+  p.ui_button("clear_course", "🧹 まっさら", {at: "right", dy: 226, w: 150, h: 40, size: 14, bg: "#7F1D1D"})
   p.ui_button("place", "🔨 置く", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#0EA5E9", radius: 16})
-  p.ui_button("up", "⬆️", {at: "bottom_right", dx: -240, dy: -190, w: 60, h: 44, size: 18, bg: "#475569", radius: 12})
-  p.ui_button("down", "⬇️", {at: "bottom_right", dx: -240, dy: -140, w: 60, h: 44, size: 18, bg: "#475569", radius: 12})
-  p.ui_button("undo", "↩ もどす", {at: "right", dy: -60, w: 150, h: 50, size: 16, bg: "#6B7280"})
-  p.ui_button("play", "▶ 遊ぶ", {at: "right", dy: 0, w: 150, h: 50, size: 17, bg: "#16A34A"})
-  show(p)
-end
-
-on leave(p)
-  if p.plot != nil then
-    remove(plots, p.plot)
-    remove(finished, p.plot)
-    for b in blocks("plot" + p.plot) do b.destroy() end
-  end
-end
-
-on button(p, id)
-  if id == "open_tools" then tool_panel(p)
-  elif id == "tools_close" then p.ui_remove("tools")
-  elif starts_with(id, "part_") then
-    p.part = replace(id, "part_", "")
-    show(p)
-  elif id == "up" then
-    p.lift = min(4, p.lift + 1)
-    show(p)
-  elif id == "down" then
-    p.lift = max(-4, p.lift - 1)
-    show(p)
-  elif id == "place" then
-    if p.plot == nil then
-      p.message("まず白いパッドで土地を手に入れよう", 1.5)
-      return
-    end
-    let start = block("Build " + p.plot + " Start")
-    if distance(p, start) > 120 then
-      p.message("自分のコースからはなれすぎ", 1.5)
-      return
-    end
-    let pt = find(p.part)
-    let spot = kit_ahead(p, 3)
-    let tags = ["obby", "plot" + p.plot]
-    if pt.id == "finish" then append(tags, "finish") end
-    create_block({name: pt.name, shape: pt.shape, position: {x: spot.x, y: p.y - 0.4 + p.lift, z: spot.z}, size: pt.size,
-                  color: pt.color, behavior: pt.behavior, rotation: {x: 0, y: round(p.yaw / 15) * 15, z: 0}, tags: tags})
-    kit_quest_progress(p, "build", 1)
-    if pt.id == "finish" and finished[p.plot] == nil then
-      finished[p.plot] = true
-      kit_quest_progress(p, "publish", 1)
-      announce("🗺 " + p.name + " のコースが完成！「▶ 遊ぶ」で挑戦しよう", 4)
-    end
-  elif id == "undo" and p.plot != nil then
-    let mine = blocks("plot" + p.plot)
-    if len(mine) > 0 then mine[len(mine)].destroy() end
-  elif id == "play" then
-    let list = filter(keys(finished), func(k) return k != p.plot end)
-    if len(list) == 0 then
-      p.message("まだ完成したコースがない。自分で作ってみよう！", 2)
-      return
-    end
-    let k = random(list)
-    p.playing = k
-    p.teleport(block("Build " + k + " Start"))
-    p.message("▶ コース " + k + " に挑戦！", 2)
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "claim") then
-    let n = split(b.name, " ")[2]
-    if plots[n] == nil and p.plot == nil then
-      plots[n] = p.id
-      p.plot = n
-      p.message("🗺 コース " + n + " があなたの土地に！", 2.5)
-      show(p)
-    end
-  elif contains(b.tags, "finish") then
-    let n = nil
-    for t in b.tags do
-      if starts_with(t, "plot") then n = replace(t, "plot", "") end
-    end
-    if n != nil and n != p.plot and kit_ready(p, "finish_" + n, 20) then
-      likes[n] = (likes[n] or 0) + 1
-      p.score = p.score + 1
-      kit_give(p, 20)
-      kit_quest_progress(p, "play", 1)
-      announce("🏁 " + p.name + " がコース " + n + " をクリア！（👍 " + likes[n] + "）", 3)
-      for q in players() do
-        if q.plot == n then
-          q.score = q.score + 2
-          show(q)
-        end
-      end
-      kit_later(p, 2, func() p.teleport(block("Hub")) end)
-    end
-  end
+  p.ui_button("delete", "🗑", {at: "bottom_right", dx: -236, dy: -160, w: 66, h: 64, size: 22, bg: "#B91C1C", radius: 16})
+  p.ui_button("undo", "↩", {at: "bottom_right", dx: -306, dy: -160, w: 60, h: 64, size: 22, bg: "#6B7280", radius: 16})
+  p.ui_button("up", "⬆", {at: "bottom_right", dx: -120, dy: -236, w: 56, h: 50, size: 20, bg: "#334155", radius: 12})
+  p.ui_button("down", "⬇", {at: "bottom_right", dx: -182, dy: -236, w: 56, h: 50, size: 20, bg: "#334155", radius: 12})
+  p.ui_button("turn", "↻", {at: "bottom_right", dx: -244, dy: -236, w: 56, h: 50, size: 20, bg: "#334155", radius: 12})
+  p.ui_button("snap", "📐", {at: "bottom_right", dx: -306, dy: -236, w: 56, h: 50, size: 20, bg: "#334155", radius: 12})
+  hud(p)
 end

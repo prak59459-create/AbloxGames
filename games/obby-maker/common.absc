@@ -1,0 +1,83 @@
+-- common.absc — コースの記録・小さな道具・画面
+
+let courses = {}           -- 区画番号（文字） → {owner, owner_name, name, verified, likes, plays, clears, best, best_name}
+let movers = {}            -- ブロック id → {origin, axis, dist, secs}
+let spinners = []          -- 回るブロック
+
+func ready(p)
+  return p.unlocked != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func part(id)
+  for pt in PARTS do
+    if pt.id == id then return pt end
+  end
+  return PARTS[1]
+end
+
+func plot_of(b)
+  for t in b.tags do
+    if starts_with(t, "plot") then return replace(t, "plot", "") end
+  end
+  return nil
+end
+
+func part_of(b)
+  for t in b.tags do
+    for pt in PARTS do
+      if pt.id == t then return pt end
+    end
+  end
+  return nil
+end
+
+func course_parts(n)
+  return blocks("plot" + n)
+end
+
+func clear_rate(c)
+  if c.plays == 0 then return "-" end
+  return floor(c.clears * 100 / c.plays) + "%"
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let pt = part(p.part)
+  let line = "🔨 " + pt.name + "  高さ " + (p.lift >= 0 and "+" or "") + p.lift + "  回転 " + p.turn + "°"
+  if p.snap then line = line + "  📐グリッド" end
+  if p.plot != nil then
+    let c = courses[p.plot]
+    let status = "✏️ 作りかけ"
+    if c.verified then status = "✅ 公開中" end
+    line = line + "   🗺 「" + c.name + "」" + status + " 🧱" + len(course_parts(p.plot)) + "/" + MAX_PARTS + " 👍" + c.likes
+  end
+  p.ui_text("tool", line, {at: "top", dy: 30, size: 15, bold: true})
+  if p.playing != nil and p.run_start > 0 then
+    p.ui_text("run", "⏱ " + fixed(time() - p.run_start, 1) + "s  コース「" + courses[p.playing].name + "」", {at: "top", dy: 54, size: 14, color: "#FDE68A"})
+  else
+    p.ui_remove("run")
+  end
+end

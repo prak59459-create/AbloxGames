@@ -1,15 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 41,
-  "cover" : "games\/obby-maker\/cover-79f411cf.png",
+  "blockCount" : 79,
+  "cover" : "games\/obby-maker\/cover-a54d06e8.png",
   "id" : "obby-maker",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/obby-maker\/data.absc",
+    "games\/obby-maker\/build.absc",
+    "games\/obby-maker\/common.absc",
+    "games\/obby-maker\/courses.absc",
+    "games\/obby-maker\/motion.absc",
     "games\/obby-maker\/main.absc"
   ],
-  "summary" : "自分だけのアスレチックコースを作って公開しよう。足場、溶岩、ジャンプ台、チェックポイント。友だちのコースにも挑戦！",
+  "summary" : "自分だけのアスレチックコースを作って公開しよう。17種のパーツ（動く床・回る溶岩バー・ワープ・コインも）、グリッドと回転、テストでクリアして公開、タイムといいね。お手本コースやみんなのコースに挑戦！",
   "tags" : [
     "obby",
     "build",

@@ -1,0 +1,27 @@
+-- data.absc — パーツ・区画・ショップ
+
+-- パーツ。unlock: コインで解放（0 は最初から）/ kind: 動き（mover: 行き来する / spinner: 回る / speed / tp_a / tp_b / coin）
+let PARTS = [
+  {id: "block", name: "足場", size: {x: 3, y: 0.6, z: 3}, color: "#60A5FA", behavior: "none", shape: "box", unlock: 0},
+  {id: "small", name: "小さい足場", size: {x: 1.4, y: 0.5, z: 1.4}, color: "#A78BFA", behavior: "none", shape: "box", unlock: 0},
+  {id: "beam", name: "細い橋", size: {x: 0.8, y: 0.4, z: 8}, color: "#F472B6", behavior: "none", shape: "box", unlock: 0},
+  {id: "step", name: "階段", size: {x: 3, y: 0.5, z: 1.2}, color: "#FDBA74", behavior: "none", shape: "box", unlock: 0},
+  {id: "lava", name: "溶岩", size: {x: 3, y: 0.3, z: 3}, color: "#EF4444", behavior: "hazard", shape: "box", unlock: 0},
+  {id: "bounce", name: "ジャンプ台", size: {x: 2.4, y: 0.4, z: 2.4}, color: "#22C55E", behavior: "bounce", shape: "cylinder", unlock: 0},
+  {id: "blink", name: "消える床", size: {x: 2.4, y: 0.4, z: 2.4}, color: "#FDE047", behavior: "disappear", shape: "box", unlock: 0},
+  {id: "check", name: "チェックポイント", size: {x: 2, y: 0.3, z: 2}, color: "#4ADE80", behavior: "checkpoint", shape: "cylinder", unlock: 0},
+  {id: "wall", name: "かべ", size: {x: 3, y: 3, z: 0.5}, color: "#94A3B8", behavior: "none", shape: "box", unlock: 0},
+  {id: "pillar", name: "柱", size: {x: 1, y: 4, z: 1}, color: "#CBD5E1", behavior: "none", shape: "cylinder", unlock: 40},
+  {id: "mover", name: "↔ 動く床", size: {x: 2.6, y: 0.5, z: 2.6}, color: "#38BDF8", behavior: "none", shape: "box", unlock: 80, kind: "mover"},
+  {id: "spinner", name: "🔄 回る溶岩バー", size: {x: 7, y: 0.4, z: 0.6}, color: "#DC2626", behavior: "hazard", shape: "box", unlock: 100, kind: "spinner"},
+  {id: "speed", name: "💨 加速パッド", size: {x: 2.4, y: 0.2, z: 2.4}, color: "#06B6D4", behavior: "trigger", shape: "box", unlock: 60, kind: "speed"},
+  {id: "tp_a", name: "🌀 ワープ入口", size: {x: 2, y: 0.2, z: 2}, color: "#8B5CF6", behavior: "trigger", shape: "cylinder", unlock: 120, kind: "tp_a"},
+  {id: "tp_b", name: "🌀 ワープ出口", size: {x: 2, y: 0.2, z: 2}, color: "#C4B5FD", behavior: "none", shape: "cylinder", unlock: 120, kind: "tp_b"},
+  {id: "coin", name: "🪙 コイン", size: {x: 1, y: 1, z: 0.2}, color: "#FACC15", behavior: "trigger", shape: "cylinder", unlock: 30, kind: "coin"},
+  {id: "finish", name: "🏁 ゴール", size: {x: 3, y: 0.4, z: 3}, color: "#FFFFFF", behavior: "trigger", shape: "box", unlock: 0}
+]
+
+let PLOTS = 8
+let MAX_PARTS = 150
+let PLOT_RANGE = 70          -- 自分のスタートからこの距離までに置ける
+let COURSE_NAMES = ["はじめてのコース", "空中さんぽ", "溶岩地獄", "ジャンプ天国", "ふしぎな塔", "きえる道", "スピード勝負", "ワープ迷路"]

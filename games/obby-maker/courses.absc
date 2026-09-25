@@ -1,0 +1,147 @@
+-- courses.absc — テストして公開・コースえらび・タイム・いいね・作った人へのごほうび
+
+func has_finish(n)
+  return len(filter(course_parts(n), func(b) return contains(b.tags, "finish") end)) > 0
+end
+
+-- 🧪 テスト: 自分のコースをスタートから遊ぶ。ゴールすると公開される
+func test_course(p)
+  if p.plot == nil then
+    p.message("まず土地を手に入れよう", 1)
+    return
+  end
+  if not has_finish(p.plot) then
+    p.message("🏁 ゴールを置いてからテストしよう", 1.5)
+    return
+  end
+  p.playing = p.plot
+  p.testing = true
+  p.run_start = time()
+  p.coins_taken = {}
+  p.teleport(block("Build " + p.plot + " Start").position + {x: 0, y: 1, z: 0})
+  p.message("🧪 テスト開始！ 自分でゴールできたら公開される", 2)
+  hud(p)
+end
+
+func browse_panel(p)
+  let list = filter(keys(courses), func(n) return courses[n].verified and n != p.plot end)
+  let h = 110 + max(1, len(list)) * 48
+  p.ui_remove("browse")
+  p.ui_panel("browse", {at: "center", w: 540, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("browse_t", "▶ 公開中のコース（" + len(list) + "）", {parent: "browse", y: 26 / h, size: 18, bold: true, color: "#86EFAC"})
+  if len(list) == 0 then
+    p.ui_text("browse_none", "まだ公開されたコースがない。自分で作ってみよう！", {parent: "browse", y: 74 / h, size: 14})
+  end
+  let i = 0
+  for n in sort(list, func(a, b) return courses[a].likes > courses[b].likes end) do
+    i = i + 1
+    let c = courses[n]
+    let best = ""
+    if c.best > 0 then best = "  ⏱" + fixed(c.best, 1) + "s" end
+    p.ui_button("go_" + n, "「" + c.name + "」by " + c.owner_name + "  👍" + c.likes + "  ▶" + c.plays + "  クリア率 " + clear_rate(c) + best,
+                {parent: "browse", y: (30 + i * 48) / h, w: 500, h: 42, size: 12, bg: "#166534"})
+  end
+  p.ui_button("browse_close", "閉じる", {parent: "browse", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func play_course(p, n)
+  let c = courses[n]
+  if c == nil or not c.verified then return end
+  p.ui_remove("browse")
+  p.playing = n
+  p.testing = false
+  p.run_start = time()
+  p.coins_taken = {}
+  c.plays = c.plays + 1
+  p.teleport(block("Build " + n + " Start").position + {x: 0, y: 1, z: 0})
+  p.message("▶ 「" + c.name + "」に挑戦！", 2)
+  let owner = player_by_id(c.owner)
+  if owner != nil then kit_give(owner, 2) end
+  hud(p)
+end
+
+func finish_touch(p, b)
+  let n = plot_of(b)
+  if n == nil or p.playing != n then return end
+  if not quiet_ready(p, "finish_" + n, 3) then return end
+  let c = courses[n]
+  let t = time() - p.run_start
+  p.run_start = 0
+  if p.testing then
+    p.testing = false
+    p.playing = nil
+    c.verified = true
+    kit_quest_progress(p, "publish", 1)
+    announce("🗺 " + p.name + " のコース「" + c.name + "」が公開された！ ▶ 遊ぶ から挑戦しよう", 4)
+    kit_later(p, 2, func() p.teleport(block("Hub").position + {x: 0, y: 1, z: 0}) end)
+    hud(p)
+    return
+  end
+  c.clears = c.clears + 1
+  kit_give(p, 20)
+  p.score = p.score + 2
+  kit_quest_progress(p, "play", 1)
+  let record = ""
+  if c.best == 0 or t < c.best then
+    c.best = t
+    c.best_name = p.name
+    record = "  🏆 コースレコード！"
+  end
+  announce("🏁 " + p.name + " が「" + c.name + "」をクリア！ ⏱ " + fixed(t, 1) + "s" + record, 3)
+  let owner = player_by_id(c.owner)
+  if owner != nil then
+    kit_give(owner, 10)
+    owner.score = owner.score + 1
+  end
+  p.last_cleared = n
+  if not p.liked[n] then
+    p.ui_button("like", "👍 いいね！", {at: "center", dy: 80, w: 180, h: 56, size: 20, bg: "#DB2777", radius: 18})
+    kit_later(p, 8, func() p.ui_remove("like") end)
+  end
+  p.playing = nil
+  kit_later(p, 2, func() p.teleport(block("Hub").position + {x: 0, y: 1, z: 0}) end)
+  hud(p)
+end
+
+func like(p)
+  let n = p.last_cleared
+  if n == nil or courses[n] == nil or p.liked[n] then return end
+  p.liked[n] = true
+  let c = courses[n]
+  c.likes = c.likes + 1
+  p.ui_remove("like")
+  p.message("👍 いいねした！", 1)
+  let owner = player_by_id(c.owner)
+  if owner != nil then
+    kit_give(owner, 15)
+    kit_quest_progress(owner, "likes", 1)
+    owner.message("👍 " + p.name + " があなたのコースにいいね！", 2)
+    if c.likes >= 3 then kit_badge(owner, "popular", "人気コースの作者") end
+    hud(owner)
+  end
+end
+
+func leave_course(p)
+  if p.playing == nil then return end
+  p.playing = nil
+  p.testing = false
+  p.run_start = 0
+  p.teleport(block("Hub").position + {x: 0, y: 1, z: 0})
+  hud(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "finish") then finish_touch(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "test" then test_course(p)
+  elif id == "play" then browse_panel(p)
+  elif id == "browse_close" then p.ui_remove("browse")
+  elif starts_with(id, "go_") then play_course(p, replace(id, "go_", ""))
+  elif id == "like" then like(p)
+  elif id == "hub" then leave_course(p)
+  end
+end

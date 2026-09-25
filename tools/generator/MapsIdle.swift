@@ -10,7 +10,7 @@ let idleGames: [Game] = [
          summary: "ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！",
          tags: ["build", "adventure", "creative"], maxPlayers: 10, build: raftTreasure),
     Game(number: 61, id: "obby-maker", title: "Obby Maker",
-         summary: "自分だけのアスレチックコースを作って公開しよう。足場、溶岩、ジャンプ台、チェックポイント。友だちのコースにも挑戦！",
+         summary: "自分だけのアスレチックコースを作って公開しよう。17種のパーツ（動く床・回る溶岩バー・ワープ・コインも）、グリッドと回転、テストでクリアして公開、タイムといいね。お手本コースやみんなのコースに挑戦！",
          tags: ["obby", "build", "creative"], maxPlayers: 8, build: obbyMaker),
     Game(number: 62, id: "toy-army-tycoon", title: "Toy Army Tycoon",
          summary: "おもちゃの兵隊を買って基地を大きくするタイクーン。定期的におそってくる敵軍から、兵隊とタレットでコアを守れ。",
@@ -169,17 +169,46 @@ func raftTreasure(_ m: MapBuilder) {
 
 func obbyMaker(_ m: MapBuilder) {
     m.sky("#38BDF8", "#E0F2FE", light: 0.8, showGround: false, fall: -30)
+    m.part("Cover Focus", at: (0, 2, -40), size: (110, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
     m.slab("Hub", x: 0, y: -1, z: 0, w: 26, h: 1, d: 26, color: "#E5E7EB")
+    m.part("Hub Ring", at: (0, 0.02, 0), size: (18, 0.04, 18), color: "#F472B6", shape: .cylinder, solid: false)
     m.spawnRing(0, 0, radius: 5, count: 8, color: "#F472B6")
+    m.part("Showcase Board", at: (0, 4, -12.5), size: (12, 4, 0.3), color: "#7C3AED", material: .neon, solid: false)
+    m.part("Showcase Frame", at: (0, 4, -12.8), size: (13, 5, 0.2), color: "#1E1B4B", solid: false)
+    let colors = ["#F87171", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F472B6", "#22D3EE", "#FB923C"]
     for i in 0..<8 {
         let a = Float(i) / 8 * 2 * .pi
         let x = cos(a) * 60, z = sin(a) * 60
-        m.slab("Build \(i + 1) Start", x: x, y: -1, z: z, w: 8, h: 1, d: 8, color: ["#F87171", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F472B6", "#22D3EE", "#FB923C"][i],
-               tags: ["plotstart"])
+        m.slab("Build \(i + 1) Start", x: x, y: -1, z: z, w: 8, h: 1, d: 8, color: colors[i], tags: ["plotstart"])
+        m.part("Build \(i + 1) Beacon", at: (x, 6, z), size: (0.4, 12, 0.4), color: colors[i], material: .neon, solid: false, opacity: 0.5)
         m.pad("Build \(i + 1) Claim", x: x * 0.8, z: z * 0.8, y: -0.4, size: 2, color: "#FFFFFF", tags: ["claim"])
         m.slab("Bridge \(i + 1)", x: x * 0.55, y: -1, z: z * 0.55, w: 3, h: 0.6, d: 3, color: "#D1D5DB")
         m.slab("Bridge \(i + 1)b", x: x * 0.35, y: -1, z: z * 0.35, w: 3, h: 0.6, d: 3, color: "#D1D5DB")
+        m.slab("Bridge \(i + 1)c", x: x * 0.68, y: -1, z: z * 0.68, w: 3, h: 0.6, d: 3, color: "#D1D5DB")
     }
+    // The sample course (plot 9), out past the showcase: steps, a bounce, a beam, lava with a safe line, a checkpoint and the goal.
+    let z0: Float = -110
+    m.slab("Build 9 Start", x: 0, y: -1, z: z0, w: 8, h: 1, d: 8, color: "#E5E7EB", tags: ["plotstart"])
+    let steps: [(Float, Float, Float, String)] = [(0, 0, -7, "block"), (2, 0.8, -11, "block"), (-1, 1.6, -15, "small"), (1, 2.4, -18.5, "small"),
+                                                   (0, 2.4, -23, "block")]
+    for s in steps {
+        let big = s.3 == "block"
+        m.slab("Sample \(s.3)", x: s.0, y: s.1, z: z0 + s.2, w: big ? 3 : 1.4, h: 0.6, d: big ? 3 : 1.4, color: big ? "#60A5FA" : "#A78BFA",
+               tags: ["obby", "plot9", s.3])
+    }
+    m.part("Sample Bounce", at: (0, 3.2, z0 - 27), size: (2.4, 0.4, 2.4), color: "#22C55E", shape: .cylinder, behavior: .bounce, tags: ["obby", "plot9", "bounce"])
+    m.slab("Sample Landing", x: 0, y: 6, z: z0 - 33, w: 4, h: 0.6, d: 4, color: "#60A5FA", tags: ["obby", "plot9", "block"])
+    m.slab("Sample Beam", x: 0, y: 6, z: z0 - 40, w: 0.8, h: 0.4, d: 10, color: "#F472B6", tags: ["obby", "plot9", "beam"])
+    m.part("Sample Check", at: (0, 6.2, z0 - 46), size: (2, 0.3, 2), color: "#4ADE80", shape: .cylinder, behavior: .checkpoint, tags: ["obby", "plot9", "check"])
+    m.slab("Sample Floor", x: 0, y: 5.6, z: z0 - 46, w: 4, h: 0.5, d: 4, color: "#60A5FA", tags: ["obby", "plot9", "block"])
+    m.slab("Sample Lava", x: 0, y: 5.6, z: z0 - 53, w: 6, h: 0.3, d: 8, color: "#EF4444", behavior: .hazard, tags: ["obby", "plot9", "lava"])
+    for k in 0..<3 {
+        m.slab("Sample Stone", x: -2 + Float(k) * 2, y: 5.9, z: z0 - 50.5 - Float(k) * 2.5, w: 1.2, h: 0.4, d: 1.2, color: "#A78BFA",
+               tags: ["obby", "plot9", "small"])
+    }
+    m.slab("Sample Goal Floor", x: 0, y: 5.6, z: z0 - 60, w: 5, h: 0.5, d: 5, color: "#E5E7EB", tags: ["obby", "plot9", "block"])
+    m.part("Sample Goal", at: (0, 6.3, z0 - 60), size: (3, 0.4, 3), color: "#FFFFFF", behavior: .trigger, tags: ["obby", "plot9", "finish"])
+    m.part("Sample Goal Arch", at: (0, 9, z0 - 61.8), size: (6, 0.6, 0.6), color: "#FACC15", material: .neon, solid: false)
 }
 
 // MARK: 62 Toy Army Tycoon
