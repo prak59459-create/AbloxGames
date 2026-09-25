@@ -16,7 +16,7 @@ let idleGames: [Game] = [
          summary: "おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！",
          tags: ["tycoon", "army", "defense"], maxPlayers: 8, build: toyArmy),
     Game(number: 63, id: "buzz-meadow", title: "Buzz Meadow",
-         summary: "ハチを集めて花畑で花粉を集め、巣でハチミツに変えよう。ハチが増えるほど強くなり、奥の花畑へ行ける。",
+         summary: "ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！",
          tags: ["simulator", "bees", "collect"], maxPlayers: 12, build: buzzMeadow),
     Game(number: 64, id: "dungeon-delve", title: "Dungeon Delve",
          summary: "ダンジョンの部屋を次々に攻略するハクスラ。敵をたおしてレアな剣やよろいを手に入れ、最深部のボスをたおせ。",
@@ -265,29 +265,193 @@ func toyArmy(_ m: MapBuilder) {
 
 // MARK: 63 Buzz Meadow
 
-func buzzMeadow(_ m: MapBuilder) {
-    m.day(ground: "#65A30D")
-    m.ground(220, 220, color: "#84CC16", name: "Meadow")
-    m.spawnRing(0, 0, radius: 5, count: 10, color: "#FACC15")
-    // Hives, one per player.
-    for (i, p) in ring(8, radius: 16).enumerated() {
-        m.part("Hive \(i + 1)", at: (p.0, 2, p.1), size: (2.6, 4, 2.6), color: "#F59E0B", shape: .cylinder, material: .matte)
-        m.pad("Hive \(i + 1) Pad", x: p.0 * 1.2, z: p.1 * 1.2, size: 2.4, color: "#FDE047", tags: ["hive"])
+/// One flower field: the coloured patch "Field `id`" the script measures, a
+/// border, an arch on the hub side with one light per five bees it needs, and
+/// twenty-five flowers of the field's kind.
+func beeField(_ m: MapBuilder, id: String, x: Float, z: Float, y: Float = 0, soil: String, border: String, need: Int,
+              kind: String, r: inout Seeded) {
+    let half: Float = 11
+    m.part("Field \(id)", at: (x, y + 0.04, z), size: (22, 0.08, 22), color: soil, material: .matte, solid: false)
+    for s: Float in [-1, 1] {
+        m.part("Field Edge", at: (x, y + 0.08, z + s * half), size: (22.6, 0.16, 0.6), color: border, solid: false)
+        m.part("Field Edge", at: (x + s * half, y + 0.08, z), size: (0.6, 0.16, 22.6), color: border, solid: false)
     }
-    let fields: [(String, String, Float, Float, Int)] = [("Sunflower Field", "#FACC15", 0, 45, 0), ("Clover Field", "#4ADE80", -45, 30, 5),
-                                                        ("Blue Flower Field", "#60A5FA", 45, 30, 5), ("Mushroom Field", "#EF4444", -60, -30, 10),
-                                                        ("Pine Tree Forest", "#166534", 60, -30, 15), ("Rose Field", "#F43F5E", 0, -70, 20),
-                                                        ("Mountain Top Field", "#E0E7FF", 0, 90, 30)]
-    for f in fields {
-        m.pad(f.0, x: f.2, z: f.3, size: 22, color: f.1, tags: ["field", "need\(f.4)"], shape: .box)
-        for (k, q) in grid(4, 4, spacing: 5, cx: f.2, cz: f.3).enumerated() where k % 3 == 0 {
-            m.part("Flower", at: (q.0, 0.5, q.1), size: (0.9, 0.9, 0.9), color: "#FFFFFF", shape: .sphere, solid: false)
+    let gz: Float = z - half - 0.6
+    for s: Float in [-1, 1] {
+        m.part("Field Arch Post", at: (x + s * 3.2, y + 2, gz), size: (0.4, 4, 0.4), color: border)
+    }
+    m.part("Field Arch", at: (x, y + 4.2, gz), size: (7.2, 0.6, 0.5), color: border, solid: false)
+    let lights = need / 5
+    for k in 0..<lights {
+        let lx: Float = x + (Float(k) - Float(lights - 1) / 2) * 1.1
+        m.part("Field Need Light", at: (lx, y + 4.2, gz - 0.35), size: (0.5, 0.5, 0.2), color: "#FDE047", shape: .sphere, material: .neon, solid: false)
+    }
+    for gx in 0..<5 {
+        for gzi in 0..<5 {
+            let fx: Float = x + Float(gx - 2) * 4 + r.range(-1, 1)
+            let fz: Float = z + Float(gzi - 2) * 4 + r.range(-1, 1)
+            let alt = (gx + gzi) % 2 == 0
+            switch kind {
+            case "sunflower":
+                m.part("Flower Stem", at: (fx, y + 0.8, fz), size: (0.15, 1.6, 0.15), color: "#15803D", shape: .cylinder, solid: false)
+                m.part("Sunflower", at: (fx, y + 1.7, fz), size: (1.2, 0.18, 1.2), color: "#FACC15", shape: .cylinder, solid: false, rotation: (-60, 0, 0))
+                m.part("Sunflower Seeds", at: (fx, y + 1.72, fz - 0.06), size: (0.55, 0.2, 0.55), color: "#78350F", shape: .cylinder, solid: false,
+                       rotation: (-60, 0, 0))
+            case "clover":
+                m.part("Clover", at: (fx, y + 0.25, fz), size: (1.3, 0.45, 1.3), color: alt ? "#16A34A" : "#22C55E", shape: .sphere, material: .matte, solid: false)
+                m.part("Clover Bloom", at: (fx + 0.2, y + 0.6, fz), size: (0.45, 0.45, 0.45), color: alt ? "#FFFFFF" : "#FBCFE8", shape: .sphere, solid: false)
+            case "blueflower":
+                m.part("Flower Stem", at: (fx, y + 0.5, fz), size: (0.12, 1, 0.12), color: "#15803D", shape: .cylinder, solid: false)
+                m.part("Blue Flower", at: (fx, y + 1.1, fz), size: (0.8, 0.5, 0.8), color: alt ? "#3B82F6" : "#93C5FD", shape: .sphere, solid: false)
+            case "mushroom":
+                m.part("Mushroom Stem", at: (fx, y + 0.4, fz), size: (0.4, 0.8, 0.4), color: "#FEF3C7", shape: .cylinder, solid: false)
+                m.part("Mushroom Cap", at: (fx, y + 0.9, fz), size: (1.4, 0.7, 1.4), color: alt ? "#DC2626" : "#EF4444", shape: .sphere, solid: false)
+                m.part("Mushroom Spot", at: (fx + 0.3, y + 1.2, fz - 0.2), size: (0.25, 0.1, 0.25), color: "#FFFFFF", shape: .sphere, solid: false)
+            case "pine":
+                m.part("Pine Sapling", at: (fx, y + 0.8, fz), size: (0.9, 1.6, 0.9), color: alt ? "#166534" : "#15803D", shape: .cone, material: .matte, solid: false)
+                m.part("Pine Bloom", at: (fx, y + 0.2, fz + 0.6), size: (0.35, 0.35, 0.35), color: "#60A5FA", shape: .sphere, solid: false)
+            case "rose":
+                m.part("Rose Bush", at: (fx, y + 0.35, fz), size: (1.2, 0.7, 1.2), color: "#166534", shape: .sphere, material: .matte, solid: false)
+                m.part("Rose", at: (fx, y + 0.8, fz), size: (0.55, 0.5, 0.55), color: alt ? "#E11D48" : "#FB7185", shape: .sphere, solid: false)
+            case "cactus":
+                m.part("Cactus", at: (fx, y + 0.8, fz), size: (0.55, 1.6, 0.55), color: "#4D7C0F", shape: .cylinder, material: .matte, solid: false)
+                m.part("Cactus Arm", at: (fx + 0.4, y + 1, fz), size: (0.35, 0.8, 0.35), color: "#4D7C0F", shape: .cylinder, material: .matte, solid: false)
+                m.part("Cactus Flower", at: (fx, y + 1.7, fz), size: (0.4, 0.3, 0.4), color: alt ? "#F472B6" : "#FDE047", shape: .sphere, solid: false)
+            default:
+                m.part("Flower Stem", at: (fx, y + 0.45, fz), size: (0.12, 0.9, 0.12), color: "#15803D", shape: .cylinder, solid: false)
+                m.part("Mountain Flower", at: (fx, y + 1, fz), size: (0.7, 0.45, 0.7), color: alt ? "#F5F3FF" : "#C4B5FD", shape: .sphere, material: .neon,
+                       solid: false)
+            }
         }
     }
-    m.shop("Bee Shop", x: 30, z: 0, w: 10, d: 8, color: "#EAB308", sign: "#111827")
-    m.pad("Bee Shop Counter", x: 30, z: 2, size: 2.4, color: "#FACC15", tags: ["beeshop"])
-    m.pad("Bear", x: -30, z: 0, size: 2.4, color: "#92400E", tags: ["bear"])
-    m.part("Bear Statue", at: (-30, 1.8, -3), size: (2, 3.6, 2), color: "#78350F", shape: .sphere)
+}
+
+func buzzMeadow(_ m: MapBuilder) {
+    m.day(ground: "#65A30D")
+    m.ground(240, 260, color: "#84CC16", name: "Meadow", z: 50)
+    m.part("Cover Focus", at: (0, 3, 58), size: (118, 1, 1), color: "#000000", tags: ["yaw=160"], solid: false, visible: false)
+    // The hub: a honey fountain in a ring of spawns.
+    m.part("Fountain Basin", at: (0, 0.4, 0), size: (4.4, 0.8, 4.4), color: "#E7E5E4", shape: .cylinder)
+    m.part("Fountain Honey", at: (0, 0.82, 0), size: (3.8, 0.06, 3.8), color: "#FBBF24", shape: .cylinder, material: .glass, solid: false)
+    m.part("Fountain Column", at: (0, 1.6, 0), size: (0.6, 1.6, 0.6), color: "#E7E5E4", shape: .cylinder)
+    m.part("Fountain Drop", at: (0, 2.9, 0), size: (1.2, 1.5, 1.2), color: "#F59E0B", shape: .sphere, material: .neon, solid: false)
+    m.spawnRing(0, 0, radius: 5.5, count: 10, color: "#FACC15")
+    // Paths: hub to the first row, then a grid between the fields.
+    let dirt = "#D6B98C"
+    m.part("Path", at: (0, 0.02, 13.5), size: (4, 0.04, 19), color: dirt, material: .matte, solid: false)
+    for pz: Float in [23, 53, 83] {
+        m.part("Path", at: (0, 0.02, pz), size: (64, 0.04, 3), color: dirt, material: .matte, solid: false)
+    }
+    m.part("Path", at: (0, 0.02, 111), size: (34, 0.04, 3), color: dirt, material: .matte, solid: false)
+    for px: Float in [-15, 15] {
+        m.part("Path", at: (px, 0.02, 67), size: (3, 0.04, 88), color: dirt, material: .matte, solid: false)
+    }
+    for pz: Float in [8, 18] {
+        for px: Float in [-3.2, 3.2] { m.lamp(px, pz, glow: "#FDE68A") }
+    }
+    // Eight hives in a row behind the spawn; the pad in front of each is where pollen turns into honey.
+    let hiveColors = ["#F59E0B", "#FBBF24", "#EAB308", "#F97316", "#FACC15", "#D97706", "#FCD34D", "#FB923C"]
+    for i in 0..<8 {
+        let hx: Float = -21 + Float(i) * 6
+        let hz: Float = -20
+        m.slab("Hive Stand", x: hx, y: 0, z: hz, w: 3.6, h: 0.6, d: 3.6, color: "#78350F")
+        m.part("Hive \(i + 1)", at: (hx, 2.1, hz), size: (3.2, 2.6, 3.2), color: hiveColors[i], shape: .cylinder, material: .matte)
+        m.part("Hive Top", at: (hx, 4, hz), size: (2.5, 1.2, 2.5), color: hiveColors[i], shape: .cylinder, material: .matte)
+        m.part("Hive Cap", at: (hx, 4.8, hz), size: (1.7, 0.9, 1.7), color: "#FDE68A", shape: .sphere, material: .matte, solid: false)
+        for by: Float in [1.5, 2.7] {
+            m.part("Hive Band", at: (hx, by, hz), size: (3.3, 0.16, 3.3), color: "#92400E", shape: .cylinder, solid: false)
+        }
+        m.part("Hive Door", at: (hx, 1.8, hz + 1.6), size: (0.9, 0.1, 0.9), color: "#1C1917", shape: .cylinder, solid: false, rotation: (90, 0, 0))
+        m.part("Hive Drip", at: (hx - 0.9, 3.1, hz + 1.45), size: (0.35, 0.7, 0.35), color: "#F59E0B", shape: .sphere, material: .glass, solid: false)
+        m.pad("Hive \(i + 1) Pad", x: hx, z: hz + 4.2, size: 2.8, color: "#FDE047", tags: ["hive"])
+    }
+    // The egg shop and the gear shop either side of the hub.
+    m.shop("Egg Shop", x: -27, z: 2, color: "#FEF3C7", sign: "#F59E0B")
+    m.pad("Egg Counter", x: -27, z: 3.8, size: 2.4, color: "#FDE68A", tags: ["eggs"])
+    let eggs: [(Float, String, MaterialKind)] = [(-1.4, "#FFFBEB", .plastic), (0, "#CBD5E1", .metal), (1.4, "#FACC15", .metal)]
+    for e in eggs {
+        m.part("Egg Display", at: (-27 + e.0, 1.55, 1), size: (0.7, 0.95, 0.7), color: e.1, shape: .sphere, material: e.2, solid: false)
+    }
+    m.shop("Gear Shop", x: 27, z: 2, color: "#BFDBFE", sign: "#2563EB")
+    m.pad("Gear Counter", x: 27, z: 3.8, size: 2.4, color: "#93C5FD", tags: ["gearshop"])
+    m.part("Gear Rake", at: (25.8, 1.9, 1), size: (0.12, 1.6, 0.12), color: "#A16207", shape: .cylinder, solid: false, rotation: (0, 0, 20))
+    m.part("Gear Bag", at: (27.6, 1.5, 1), size: (0.9, 0.8, 0.6), color: "#0E7490", shape: .sphere, solid: false)
+    m.part("Gear Jar", at: (28.8, 1.55, 1), size: (0.5, 0.9, 0.5), color: "#E0F2FE", shape: .cylinder, material: .glass, solid: false)
+    // The bear who hands out quests, beside a honey pot.
+    let bx: Float = -12, bz: Float = 13
+    m.part("Bear Body", at: (bx, 1.4, bz), size: (2.6, 2.8, 2.2), color: "#92400E", shape: .sphere, material: .matte)
+    m.part("Bear Belly", at: (bx, 1.3, bz - 1), size: (1.5, 1.7, 0.4), color: "#FDE68A", shape: .sphere, solid: false)
+    m.part("Bear Head", at: (bx, 3.3, bz - 0.2), size: (1.8, 1.7, 1.7), color: "#92400E", shape: .sphere, material: .matte, solid: false)
+    for s: Float in [-1, 1] {
+        m.part("Bear Ear", at: (bx + s * 0.7, 4.1, bz - 0.2), size: (0.6, 0.6, 0.35), color: "#78350F", shape: .sphere, solid: false)
+        m.part("Bear Eye", at: (bx + s * 0.35, 3.6, bz - 1), size: (0.2, 0.2, 0.1), color: "#111111", shape: .sphere, solid: false)
+    }
+    m.part("Bear Snout", at: (bx, 3.1, bz - 1.05), size: (0.7, 0.5, 0.4), color: "#FDE68A", shape: .sphere, solid: false)
+    m.part("Bear Nose", at: (bx, 3.25, bz - 1.25), size: (0.25, 0.18, 0.12), color: "#111111", shape: .sphere, solid: false)
+    m.part("Honey Pot", at: (bx + 2.2, 0.6, bz - 0.4), size: (1.2, 1.2, 1.2), color: "#B45309", shape: .cylinder)
+    m.part("Honey Pot Top", at: (bx + 2.2, 1.25, bz - 0.4), size: (1, 0.1, 1), color: "#FBBF24", shape: .cylinder, material: .glass, solid: false)
+    m.pad("Bear Pad", x: bx, z: bz - 3, size: 2.6, color: "#FDBA74", tags: ["bear"])
+    // The fields: three rows out from the hub, and the mountain field on a plateau at the back.
+    var r = Seeded("bees")
+    beeField(m, id: "sunflower", x: 0, z: 38, soil: "#A3E635", border: "#FACC15", need: 0, kind: "sunflower", r: &r)
+    beeField(m, id: "clover", x: -30, z: 38, soil: "#4ADE80", border: "#16A34A", need: 5, kind: "clover", r: &r)
+    beeField(m, id: "blueflower", x: 30, z: 38, soil: "#7DD3FC", border: "#2563EB", need: 5, kind: "blueflower", r: &r)
+    beeField(m, id: "pine", x: -30, z: 68, soil: "#3F6212", border: "#1E3A8A", need: 15, kind: "pine", r: &r)
+    beeField(m, id: "mushroom", x: 0, z: 68, soil: "#A16207", border: "#DC2626", need: 10, kind: "mushroom", r: &r)
+    beeField(m, id: "rose", x: 30, z: 68, soil: "#65A30D", border: "#E11D48", need: 15, kind: "rose", r: &r)
+    beeField(m, id: "cactus", x: 0, z: 98, soil: "#FDE68A", border: "#D97706", need: 20, kind: "cactus", r: &r)
+    for pz in stride(from: Float(58), through: 78, by: 5) { m.pine(-45, pz, height: 6) }
+    // The mountain: a plateau up a staircase, with a snowy peak behind.
+    m.slab("Mountain", x: 0, y: 0, z: 139, w: 30, h: 6, d: 28, color: "#A8A29E", material: .matte)
+    for i in 0..<12 {
+        m.slab("Mountain Step", x: 0, y: 0, z: 113.5 + Float(i), w: 6, h: 0.5 * Float(i + 1), d: 1, color: i % 2 == 0 ? "#D6D3D1" : "#E7E5E4")
+    }
+    beeField(m, id: "mountain", x: 0, z: 139, y: 6, soil: "#E0E7FF", border: "#A78BFA", need: 25, kind: "mountain", r: &r)
+    m.part("Peak", at: (0, 14, 168), size: (48, 28, 26), color: "#78716C", shape: .cone, material: .matte)
+    m.part("Peak Snow", at: (0, 24.5, 168), size: (18, 8, 10), color: "#F8FAFC", shape: .cone, material: .matte, solid: false)
+    for p in [(-14, 126), (14, 127), (-14, 151), (13, 152)] as [(Float, Float)] {
+        m.rock(p.0, p.1, y: 6, size: 2.2, color: "#D6D3D1", name: "Snow Rock")
+    }
+    // The king beetle's cave: a rocky mound west of the cactus field, open on the east side.
+    let cv: (Float, Float) = (-34, 98)
+    m.slab("Cave Floor", x: cv.0, y: 0, z: cv.1, w: 16, h: 0.2, d: 16, color: "#292524")
+    let rock = "#57534E"
+    m.slab("Cave Wall", x: cv.0, y: 0, z: cv.1 - 8.5, w: 18, h: 7, d: 1, color: rock)
+    m.slab("Cave Wall", x: cv.0, y: 0, z: cv.1 + 8.5, w: 18, h: 7, d: 1, color: rock)
+    m.slab("Cave Wall", x: cv.0 - 8.5, y: 0, z: cv.1, w: 1, h: 7, d: 16, color: rock)
+    for s: Float in [-1, 1] {
+        m.slab("Cave Wall", x: cv.0 + 8.5, y: 0, z: cv.1 + s * 5.5, w: 1, h: 7, d: 5, color: rock)
+    }
+    m.slab("Cave Wall", x: cv.0 + 8.5, y: 4.6, z: cv.1, w: 1, h: 2.4, d: 6, color: rock)
+    m.slab("Cave Roof", x: cv.0, y: 7, z: cv.1, w: 19, h: 1, d: 19, color: "#44403C")
+    let mound: [(Float, Float, Float)] = [(-10, -9, 8), (0, -10, 9), (10, -9, 7), (-10, 9, 8), (0, 10, 9), (10, 9, 7), (-11, 0, 9), (0, 0, 10)]
+    for q in mound {
+        m.part("Cave Rock", at: (cv.0 + q.0, q.2 * 0.45, cv.1 + q.1), size: (q.2, q.2 * 0.9, q.2), color: "#78716C", shape: .sphere, material: .matte)
+    }
+    m.part("Cave Sign", at: (cv.0 + 9.2, 5.8, cv.1), size: (0.2, 0.8, 5), color: "#DC2626", material: .neon, solid: false)
+    for q in [(-6, -6), (6, -6), (-6, 6), (6, 6)] as [(Float, Float)] {
+        m.part("Cave Crystal", at: (cv.0 + q.0, 1, cv.1 + q.1), size: (0.8, 2, 0.8), color: "#A78BFA", shape: .cone, material: .neon, solid: false)
+    }
+    // A pond east of the cactus field.
+    m.water(34, 98, w: 18, d: 14, y: 0.06, name: "Pond")
+    for q in [(29, 95), (37, 101), (39, 94)] as [(Float, Float)] {
+        m.part("Lily Pad", at: (q.0, 0.1, q.1), size: (1.6, 0.05, 1.6), color: "#16A34A", shape: .cylinder, solid: false)
+    }
+    for q in [(25, 92), (43, 104), (26, 105)] as [(Float, Float)] { m.rock(q.0, q.1, size: 1.8) }
+    // Trees round the edge, and a few wild bees in the air.
+    for tz in stride(from: Float(-40), through: 150, by: 14) {
+        for s: Float in [-1, 1] {
+            m.tree(s * (56 + r.range(-3, 3)), tz + r.range(-3, 3), height: r.range(4, 6), leaves: r.pick(["#15803D", "#16A34A", "#65A30D"]))
+        }
+    }
+    for tx in stride(from: Float(-42), through: 42, by: 14) {
+        m.tree(tx + r.range(-2, 2), -42 + r.range(-2, 2), height: r.range(4, 6), leaves: r.pick(["#15803D", "#16A34A", "#65A30D"]))
+    }
+    for k in 0..<10 {
+        let wx: Float = r.range(-40, 40), wz: Float = r.range(10, 100), wy: Float = r.range(2.5, 4.5)
+        m.part("Wild Bee", at: (wx, wy, wz), size: (0.5, 0.45, 0.7), color: k % 2 == 0 ? "#FACC15" : "#F59E0B", shape: .sphere, solid: false)
+        m.part("Wild Bee Wing", at: (wx, wy + 0.3, wz), size: (0.8, 0.05, 0.35), color: "#E0F2FE", material: .glass, solid: false, opacity: 0.7)
+    }
 }
 
 // MARK: 64 Dungeon Delve

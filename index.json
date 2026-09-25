@@ -1694,16 +1694,22 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 93,
-      "cover" : "games\/buzz-meadow\/cover-406f2e73.png",
+      "blockCount" : 856,
+      "cover" : "games\/buzz-meadow\/cover-8b3182b5.png",
       "id" : "buzz-meadow",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/buzz-meadow\/data.absc",
+        "games\/buzz-meadow\/bears.absc",
+        "games\/buzz-meadow\/common.absc",
+        "games\/buzz-meadow\/fields.absc",
+        "games\/buzz-meadow\/hive.absc",
+        "games\/buzz-meadow\/mobs.absc",
         "games\/buzz-meadow\/main.absc"
       ],
-      "summary" : "ハチを集めて花畑で花粉を集め、巣でハチミツに変えよう。ハチが増えるほど強くなり、奥の花畑へ行ける。",
+      "summary" : "ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！",
       "tags" : [
         "simulator",
         "bees",

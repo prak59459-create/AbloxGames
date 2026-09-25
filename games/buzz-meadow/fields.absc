@@ -1,0 +1,145 @@
+-- fields.absc — 花畑で花粉を集める・トークン・道具屋とバッグ屋
+
+let field_clock = 0
+
+func field_at(p)
+  for f in FIELDS do
+    let b = block("Field " + f.id)
+    if b != nil and abs(p.x - b.x) < b.size.x / 2 and abs(p.z - b.z) < b.size.z / 2 and p.y < 12 then return f end
+  end
+  return nil
+end
+
+func gather_step(p)
+  let f = field_at(p)
+  if f == nil then return end
+  if len(p.bees) < f.need then
+    if quiet_ready(p, "locked", 3) then p.message("🔒 " + f.name + " はハチ " + f.need + " ひきから", 1.5) end
+    return
+  end
+  let cap = bag_of(p).cap
+  if p.pollen >= cap then
+    if quiet_ready(p, "full", 4) then p.message("👜 バッグがいっぱい！ 巣にもどろう", 1.5) end
+    return
+  end
+  let gain = gather_amount(p, f)
+  p.pollen = min(cap, p.pollen + gain)
+  kit_quest_progress(p, "pollen", gain)
+  bear_progress(p, "pollen", gain)
+  bear_progress(p, "field:" + f.id, gain)
+  -- ときどきトークンが落ちる
+  if random() < 0.06 then drop_token(p.position) end
+end
+
+func drop_token(pos)
+  if len(blocks("token")) >= 12 then return end
+  let total = sum(map(TOKENS, func(t) return t.weight end))
+  let roll = random() * total
+  let acc = 0
+  let pick = TOKENS[1]
+  for t in TOKENS do
+    acc = acc + t.weight
+    if roll <= acc and acc - t.weight < roll then pick = t end
+  end
+  let b = create_block({name: pick.id, shape: "cylinder", position: pos + {x: random(-4, 4), y: 0.8, z: random(-4, 4)}, size: {x: 1, y: 0.2, z: 1},
+                        color: pick.color, material: "neon", solid: false, behavior: "trigger", rotation: {x: 90, y: 0, z: 0}, tags: ["token", pick.id]})
+  after(15, func() gone(b) end)
+end
+
+func take_token(p, b)
+  let id = b.name
+  gone(b)
+  if id == "honey" then
+    let g = 20 + swarm_power(p) * 5
+    kit_give(p, g)
+    p.message("🍯 +" + g, 0.8)
+  elif id == "boost" then
+    p.boost_until = time() + 20
+    p.message("⚡ ブースト！ 20秒 花粉 ×2", 1.2)
+  elif id == "haste" then
+    p.haste_until = time() + 15
+    p.speed = 1.3
+    kit_later(p, 15, func() p.speed = 1 end)
+    p.message("💨 はやい！", 1)
+  elif id == "treat" then
+    p.treats = p.treats + 1
+    p.message("🍓 おやつ +1", 1)
+  end
+  p.sound("collect")
+  kit_quest_progress(p, "token", 1)
+  hud(p)
+end
+
+-- MARK: 道具屋
+
+func gear_panel(p)
+  let h = 120 + (len(TOOLS) + len(BAGS)) * 40
+  p.ui_remove("gear")
+  p.ui_panel("gear", {at: "center", w: 480, h: h, bg: "#1E3A8AF2", radius: 20, layer: 30})
+  p.ui_text("gear_t", "🧰 道具とバッグ   🍯 " + kit_short(kit_money(p)), {parent: "gear", y: 24 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for t in TOOLS do
+    i = i + 1
+    let label = t.name + "  ×" + t.mult + "   🍯" + kit_short(t.price)
+    if p.tool == t.id then label = "✅ " + t.name + "（使っている）" end
+    p.ui_button("tool_" + t.id, label, {parent: "gear", y: (24 + i * 40) / h, w: 440, h: 34, size: 13, bg: "#2563EB"})
+  end
+  for b in BAGS do
+    i = i + 1
+    let label = b.name + "  " + kit_short(b.cap) + " 入る   🍯" + kit_short(b.price)
+    if p.bag == b.id then label = "✅ " + b.name + "（使っている）" end
+    p.ui_button("bagbuy_" + b.id, label, {parent: "gear", y: (24 + i * 40) / h, w: 440, h: 34, size: 13, bg: "#0E7490"})
+  end
+  p.ui_button("gear_close", "閉じる", {parent: "gear", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func buy_tool(p, id)
+  for t in TOOLS do
+    if t.id == id and p.tool != id and kit_pay(p, t.price) then
+      p.tool = id
+      p.sound("collect")
+      kit_quest_progress(p, "gear", 1)
+    end
+  end
+  gear_panel(p)
+  hud(p)
+end
+
+func buy_bag(p, id)
+  for b in BAGS do
+    if b.id == id and p.bag != id and kit_pay(p, b.price) then
+      p.bag = id
+      p.sound("collect")
+      kit_quest_progress(p, "gear", 1)
+    end
+  end
+  gear_panel(p)
+  hud(p)
+end
+
+on tick(dt)
+  field_clock = field_clock + dt
+  if field_clock < 0.5 then return end
+  field_clock = 0
+  for p in players() do
+    if ready(p) and p.alive then
+      gather_step(p)
+      hud(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "token") then take_token(p, b)
+  elif contains(b.tags, "gearshop") and quiet_ready(p, "gear", 2) then gear_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "tool_") then buy_tool(p, replace(id, "tool_", ""))
+  elif starts_with(id, "bagbuy_") then buy_bag(p, replace(id, "bagbuy_", ""))
+  elif id == "gear_close" then p.ui_remove("gear")
+  end
+end

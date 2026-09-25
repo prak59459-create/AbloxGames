@@ -1,0 +1,99 @@
+-- mobs.absc — 花畑の虫（てんとう虫・カブトムシ・クモ）と、洞くつのカブトムシの王。ハチが自動でたたかう。
+
+let mob_clock = 0
+let spawn_clock = 0
+let king = nil
+let king_next = 0
+
+let MOBS = {
+  ladybug: {name: "🐞 てんとう虫", color: "#DC2626", head: "#111111", size: 0.8, hp: 60, speed: 0.6, dps: 3, reward: 25, fields: ["sunflower", "clover", "mushroom"]},
+  beetle: {name: "🪲 カブトムシ", color: "#44403C", head: "#1C1917", size: 1.1, hp: 180, speed: 0.55, dps: 7, reward: 80, fields: ["blueflower", "pine", "clover"]},
+  spider: {name: "🕷 クモ", color: "#1C1917", head: "#7F1D1D", size: 1.4, hp: 500, speed: 0.8, dps: 14, reward: 250, fields: ["rose", "cactus", "mountain"]}
+}
+
+func spawn_mob(kind)
+  let m = MOBS[kind]
+  let f = block("Field " + random(m.fields))
+  if f == nil then return end
+  let n = create_npc({name: m.name, position: f.position + {x: random(-8, 8), y: 1, z: random(-8, 8)}, color: m.color, head_color: m.head,
+                      size: m.size, health: m.hp, speed: m.speed, team: "bugs"})
+  n.mob = kind
+  n.home = f.position
+end
+
+func spawn_king()
+  let cave = block("Cave Floor").position
+  king = create_npc({name: "👑 カブトムシの王", position: cave + {x: 0, y: 1, z: 0}, color: "#1E1B4B", head_color: "#FACC15", size: 3,
+                     health: 5000, speed: 0.5, team: "bugs"})
+  king.mob = "king"
+  king.home = cave
+  king.hat = "crown"
+  announce("👑 洞くつにカブトムシの王があらわれた！（ハチ15ひき以上で挑もう）", 4)
+end
+
+func mob_step(n, secs)
+  let dps = 30
+  if n.mob != "king" then dps = MOBS[n.mob].dps end
+  let target = nil
+  let best_d = 14
+  for p in players() do
+    if ready(p) and p.alive and distance(n, p) < best_d then
+      target = p
+      best_d = distance(n, p)
+    end
+  end
+  if target != nil and distance(target, n.home) < 30 then
+    n.follow(target)
+    if best_d < 2.2 + n.size * 0.3 then target.damage(dps * secs, n) end
+    -- ハチが反撃
+    let hit = swarm_power(target) * 3 * secs
+    n.damage(hit, target)
+  else
+    n.move_to(n.home + {x: random(-6, 6), y: 0, z: random(-6, 6)})
+  end
+end
+
+on tick(dt)
+  mob_clock = mob_clock + dt
+  spawn_clock = spawn_clock + dt
+  if mob_clock >= 0.5 then
+    let secs = mob_clock
+    mob_clock = 0
+    for n in npcs() do
+      if n.mob != nil then mob_step(n, secs) end
+    end
+  end
+  if spawn_clock >= 7 then
+    spawn_clock = 0
+    let count = len(filter(npcs(), func(n) return n.mob != nil and n.mob != "king" end))
+    if count < 10 then spawn_mob(random(["ladybug", "ladybug", "ladybug", "beetle", "beetle", "spider"])) end
+    if (king == nil or not still(king)) and time() >= king_next then spawn_king() end
+  end
+end
+
+on death(victim, killer)
+  if not victim.is_npc or victim.mob == nil then return end
+  let reward = 2000
+  if victim.mob != "king" then reward = MOBS[victim.mob].reward end
+  if killer != nil and not killer.is_npc then
+    kit_give(killer, reward)
+    killer.score = killer.score + 3
+    kit_quest_progress(killer, "bugs", 1)
+    bear_progress(killer, "bugs", 1)
+    if random() < 0.3 then
+      killer.treats = killer.treats + 1
+      killer.message("🍓 おやつを落とした", 1)
+    end
+    if victim.mob == "king" then
+      killer.jelly = killer.jelly + 2
+      kit_badge(killer, "king_beetle", "カブトムシの王をたおした")
+      bear_progress(killer, "king", 1)
+      announce("👑 " + killer.name + " がカブトムシの王をたおした！ 👑ロイヤルゼリー×2", 4)
+    end
+    hud(killer)
+  end
+  if victim.mob == "king" then
+    king = nil
+    king_next = time() + 180
+  end
+end

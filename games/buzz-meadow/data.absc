@@ -1,0 +1,76 @@
+-- data.absc — ハチ・花畑・道具とバッグ・たまご・くまさんのクエスト
+
+-- ハチ。color: 得意な花の色（同じ色の花畑で ×1.5）/ rarity の重みで出やすさ
+let BEES = [
+  {id: "basic", name: "ふつうのハチ", power: 1, color: "white", tint: "#FACC15", rarity: "コモン", weight: 50},
+  {id: "bomber", name: "ばくだんハチ", power: 2, color: "white", tint: "#F59E0B", rarity: "レア", weight: 14},
+  {id: "brave", name: "ゆうかんハチ", power: 2, color: "red", tint: "#EF4444", rarity: "レア", weight: 12},
+  {id: "cool", name: "クールハチ", power: 2, color: "blue", tint: "#60A5FA", rarity: "レア", weight: 12},
+  {id: "hasty", name: "せっかちハチ", power: 3, color: "white", tint: "#FDE68A", rarity: "レア", weight: 8},
+  {id: "flame", name: "ほのおハチ", power: 4, color: "red", tint: "#DC2626", rarity: "エピック", weight: 5},
+  {id: "frost", name: "こおりハチ", power: 4, color: "blue", tint: "#38BDF8", rarity: "エピック", weight: 5},
+  {id: "honey", name: "ハチミツハチ", power: 5, color: "white", tint: "#FBBF24", rarity: "エピック", weight: 4},
+  {id: "ninja", name: "にんじゃハチ", power: 7, color: "blue", tint: "#1E3A8A", rarity: "レジェンド", weight: 1.6},
+  {id: "demon", name: "デーモンハチ", power: 7, color: "red", tint: "#7F1D1D", rarity: "レジェンド", weight: 1.6},
+  {id: "star", name: "スターハチ", power: 12, color: "white", tint: "#FEF08A", rarity: "ミシック", weight: 0.5},
+  {id: "rainbow", name: "にじいろハチ", power: 18, color: "white", tint: "#F0ABFC", rarity: "ミシック", weight: 0.3}
+]
+
+-- 花畑。need: 必要なハチの数 / mult: 花粉の量
+let FIELDS = [
+  {id: "sunflower", name: "🌻 ひまわり畑", color: "white", need: 0, mult: 1},
+  {id: "clover", name: "🍀 クローバー畑", color: "white", need: 5, mult: 1.3},
+  {id: "blueflower", name: "💙 あおい花畑", color: "blue", need: 5, mult: 1.3},
+  {id: "mushroom", name: "🍄 キノコ畑", color: "red", need: 10, mult: 1.6},
+  {id: "pine", name: "🌲 松の森", color: "blue", need: 15, mult: 2},
+  {id: "rose", name: "🌹 バラ畑", color: "red", need: 15, mult: 2},
+  {id: "cactus", name: "🌵 サボテン畑", color: "white", need: 20, mult: 2.4},
+  {id: "mountain", name: "🏔 山頂の花畑", color: "white", need: 25, mult: 3}
+]
+
+-- 道具（花粉を集める力）とバッグ（入る量）
+let TOOLS = [
+  {id: "scooper", name: "🥄 スクーパー", price: 0, mult: 1},
+  {id: "rake", name: "🧹 熊手", price: 300, mult: 1.5},
+  {id: "clipper", name: "✂️ クリッパー", price: 1500, mult: 2.2},
+  {id: "vacuum", name: "🌪 ハチミツ掃除機", price: 8000, mult: 3.5},
+  {id: "wand", name: "🪄 花のつえ", price: 40000, mult: 6}
+]
+let BAGS = [
+  {id: "pouch", name: "👝 ポーチ", price: 0, cap: 200},
+  {id: "jar", name: "🫙 ジャー", price: 500, cap: 800},
+  {id: "backpack", name: "🎒 リュック", price: 3000, cap: 3000},
+  {id: "canister", name: "🛢 キャニスター", price: 15000, cap: 12000},
+  {id: "porcelain", name: "🏺 陶器のつぼ", price: 60000, cap: 50000}
+]
+
+-- たまご。luck: レアの出やすさ
+let EGGS = [
+  {id: "basic", name: "🥚 たまご", price: 100, luck: 1},
+  {id: "silver", name: "🥈 銀のたまご", price: 1500, luck: 3},
+  {id: "gold", name: "🥇 金のたまご", price: 8000, luck: 8}
+]
+
+let HIVE_SLOTS = 25
+let SLOT_PRICE = 200         -- ハチの巣の部屋をふやす値段（× 部屋の数）
+
+-- くまさんのクエスト（順番に）。goal の kind: pollen（花粉） field（その畑で花粉）bugs bees honey
+let BEAR_QUESTS = [
+  {text: "花粉を300集めておいで", kind: "pollen", goal: 300, reward: {honey: 200, treat: 3}},
+  {text: "ハチを5ひきにしよう", kind: "bees", goal: 5, reward: {honey: 400, egg: 1}},
+  {text: "てんとう虫を5ひきたおして", kind: "bugs", goal: 5, reward: {honey: 600, treat: 5}},
+  {text: "あおい花畑で花粉を1000", kind: "field:blueflower", goal: 1000, reward: {honey: 1000, jelly: 1}},
+  {text: "ハチミツを1万ためよう", kind: "honey", goal: 10000, reward: {honey: 3000, egg: 2}},
+  {text: "ハチを10ぴきにしよう", kind: "bees", goal: 10, reward: {honey: 5000, jelly: 2}},
+  {text: "バラ畑で花粉を5000", kind: "field:rose", goal: 5000, reward: {honey: 8000, treat: 20}},
+  {text: "カブトムシの王をたおして", kind: "king", goal: 1, reward: {honey: 30000, jelly: 5}},
+  {text: "ハチを25ひきにしよう", kind: "bees", goal: 25, reward: {honey: 100000, egg: 5}}
+]
+
+-- 花畑に落ちるトークン
+let TOKENS = [
+  {id: "honey", name: "🍯 ハチミツ", color: "#FBBF24", weight: 40},
+  {id: "boost", name: "⚡ ブースト（花粉 ×2）", color: "#22D3EE", weight: 25},
+  {id: "haste", name: "💨 はやさ", color: "#A3E635", weight: 20},
+  {id: "treat", name: "🍓 おやつ", color: "#F472B6", weight: 15}
+]

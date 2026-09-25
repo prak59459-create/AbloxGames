@@ -1,0 +1,225 @@
+-- hive.absc — 巣・ハチミツにかえる・たまご・おやつでレベルアップ・ロイヤルゼリー・巣の部屋・ついてくるハチ
+
+let convert_clock = 0
+
+func take_hive(p, n)
+  hive_owner[n] = p.id
+  p.hive = n
+  let pad = block("Hive " + n + " Pad")
+  if pad != nil then pad.color = "#FB923C" end
+  p.message("🍯 巣 " + n + "（オレンジのパッド）があなたの巣！ 花粉を持ってここに立つとハチミツになる", 3)
+end
+
+func claim_hive(p, b)
+  let n = replace(replace(b.name, "Hive ", ""), " Pad", "")
+  if p.hive == nil and hive_owner[n] == nil then take_hive(p, n)
+  elif p.hive != n and quiet_ready(p, "hive_msg", 3) then
+    if p.hive == nil then p.message("この巣はほかの人のもの", 1.2)
+    else p.message("あなたの巣は " + p.hive + " ばん（オレンジのパッド）", 1.5) end
+  end
+end
+
+-- 入ったらあいている巣をもらう
+func auto_hive(p)
+  for i in 1 to 8 do
+    let n = "" + i
+    if p.hive == nil and hive_owner[n] == nil and block("Hive " + n + " Pad") != nil then take_hive(p, n) end
+  end
+end
+
+-- 巣のパッドに立っているあいだ、花粉が少しずつハチミツになる
+func convert_step(p)
+  if p.hive == nil or p.pollen <= 0 then return end
+  let pad = block("Hive " + p.hive + " Pad").position
+  if distance(p, pad) > 3 then return end
+  let rate = max(20, floor(bag_of(p).cap * 0.08))
+  let amount = min(p.pollen, rate)
+  p.pollen = p.pollen - amount
+  kit_give(p, amount)
+  p.honey_made = p.honey_made + amount
+  p.score = p.score + floor(amount / 10)
+  if p.pollen <= 0 then
+    p.message("🍯 全部ハチミツになった！", 1)
+    p.sound("collect")
+  end
+  bear_progress(p, "honey", 0)
+  hud(p)
+end
+
+-- MARK: たまごとハチ
+
+func draw_bee(luck)
+  let total = 0
+  for b in BEES do
+    let w = b.weight
+    if b.rarity != "コモン" then w = w * luck end
+    total = total + w
+  end
+  let roll = random() * total
+  let acc = 0
+  for b in BEES do
+    let w = b.weight
+    if b.rarity != "コモン" then w = w * luck end
+    acc = acc + w
+    if roll <= acc then return b end
+  end
+  return BEES[1]
+end
+
+func hatch(p, luck)
+  if len(p.bees) >= p.slots then
+    p.message("🏠 巣の部屋がいっぱい（部屋をふやそう）", 1.5)
+    return false
+  end
+  let t = draw_bee(luck)
+  append(p.bees, {id: t.id, level: 1})
+  p.message("🐝 " + t.name + "（" + t.rarity + "）がうまれた！", 2)
+  if t.rarity == "レジェンド" or t.rarity == "ミシック" then
+    announce("🌟 " + p.name + " の巣に " + t.name + "（" + t.rarity + "）！", 4)
+    kit_badge(p, "bee_" + t.id, t.name + " をそだてた")
+  end
+  kit_quest_progress(p, "bees", 1)
+  bear_progress(p, "bees", 0)
+  refresh_followers(p)
+  hud(p)
+  return true
+end
+
+func egg_panel(p)
+  let h = 110 + (len(EGGS) + 2) * 50
+  p.ui_remove("eggs")
+  p.ui_panel("eggs", {at: "center", w: 480, h: h, bg: "#422006F2", radius: 20, layer: 30})
+  p.ui_text("eggs_t", "🥚 たまご屋   🍯 " + kit_short(kit_money(p)), {parent: "eggs", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for e in EGGS do
+    i = i + 1
+    p.ui_button("egg_" + e.id, e.name + "   🍯" + kit_short(e.price), {parent: "eggs", y: (30 + i * 50) / h, w: 440, h: 42, size: 14, bg: "#A16207"})
+  end
+  let slot_price = SLOT_PRICE * p.slots
+  p.ui_button("slot", "🏠 巣の部屋 +1（いま " + p.slots + "/" + HIVE_SLOTS + "）  🍯" + kit_short(slot_price), {parent: "eggs", y: (30 + (i + 1) * 50) / h, w: 440, h: 42, size: 14, bg: "#92400E"})
+  p.ui_button("eggs_close", "閉じる", {parent: "eggs", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_egg(p, id)
+  for e in EGGS do
+    if e.id == id then
+      if len(p.bees) >= p.slots then
+        p.message("🏠 巣の部屋がいっぱい", 1.2)
+      elif kit_pay(p, e.price) then
+        hatch(p, e.luck)
+      end
+    end
+  end
+  egg_panel(p)
+end
+
+func buy_slot(p)
+  if p.slots >= HIVE_SLOTS then return end
+  if kit_pay(p, SLOT_PRICE * p.slots) then
+    p.slots = p.slots + 1
+    p.sound("collect")
+  end
+  egg_panel(p)
+  hud(p)
+end
+
+-- MARK: ハチの一覧・おやつ・ロイヤルゼリー
+
+func bees_panel(p)
+  let list = slice(p.bees, 1, 12)
+  let h = 120 + len(list) * 36
+  p.ui_remove("beelist")
+  p.ui_panel("beelist", {at: "center", w: 520, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  p.ui_text("beelist_t", "🐝 わたしのハチ（" + len(p.bees) + "）  🍓" + p.treats + " 👑" + p.jelly + " — タップでおやつ", {parent: "beelist", y: 24 / h, size: 15, bold: true, color: "#FDE68A"})
+  let i = 0
+  for bee in list do
+    i = i + 1
+    let t = bee_type(bee.id)
+    p.ui_button("feed_" + i, t.name + " Lv" + bee.level + "（" + t.rarity + "・力 " + fixed(bee_power(bee), 1) + "）", {parent: "beelist", y: (26 + i * 36) / h, w: 470, h: 32, size: 12, bg: "#44403C", color: t.tint})
+  end
+  p.ui_button("jelly", "👑 ロイヤルゼリー（いちばん弱いハチを別のハチに）", {parent: "beelist", y: (h - 56) / h, w: 470, h: 34, size: 12, bg: "#A21CAF"})
+  p.ui_button("beelist_close", "閉じる", {parent: "beelist", y: (h - 18) / h, w: 110, h: 28, size: 12, bg: "gray"})
+end
+
+func feed(p, i)
+  let bee = p.bees[i]
+  if bee == nil then return end
+  let need = bee.level
+  if p.treats < need then
+    p.message("🍓 おやつが " + need + " こいる", 1.2)
+    return
+  end
+  p.treats = p.treats - need
+  bee.level = bee.level + 1
+  p.sound("collect")
+  kit_quest_progress(p, "feed", 1)
+  bees_panel(p)
+  hud(p)
+end
+
+func use_jelly(p)
+  if p.jelly <= 0 or len(p.bees) == 0 then return end
+  let weakest = 1
+  for i in 1 to len(p.bees) do
+    if bee_power(p.bees[i]) < bee_power(p.bees[weakest]) then weakest = i end
+  end
+  p.jelly = p.jelly - 1
+  let t = draw_bee(4)
+  p.bees[weakest] = {id: t.id, level: p.bees[weakest].level}
+  p.message("👑 ロイヤルゼリー！ " + t.name + "（" + t.rarity + "）になった", 2)
+  refresh_followers(p)
+  bees_panel(p)
+  hud(p)
+end
+
+-- ついてくるハチ（見た目。5ひきまで）
+func refresh_followers(p)
+  for n in p.followers or [] do gone(n) end
+  let made = []
+  for bee in slice(p.bees, 1, 5) do
+    let t = bee_type(bee.id)
+    let n = create_npc({name: t.name, position: p.position + {x: random(-2, 2), y: 1.5, z: random(-2, 2)}, color: t.tint, head_color: "#111111",
+                        size: 0.3, health: 999999, speed: 1.7, team: "bees"})
+    n.follow(p)
+    n.pet_of = p.id
+    append(made, n)
+  end
+  p.followers = made
+end
+
+on tick(dt)
+  convert_clock = convert_clock + dt
+  if convert_clock < 0.5 then return end
+  convert_clock = 0
+  for p in players() do
+    if ready(p) then convert_step(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "hive") then claim_hive(p, b)
+  elif contains(b.tags, "eggs") and quiet_ready(p, "eggs", 2) then egg_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "egg_") then buy_egg(p, replace(id, "egg_", ""))
+  elif id == "slot" then buy_slot(p)
+  elif id == "eggs_close" then p.ui_remove("eggs")
+  elif id == "bees" then bees_panel(p)
+  elif id == "beelist_close" then p.ui_remove("beelist")
+  elif starts_with(id, "feed_") then feed(p, num(replace(id, "feed_", "")))
+  elif id == "jelly" then use_jelly(p)
+  end
+end
+
+on leave(p)
+  for n in p.followers or [] do gone(n) end
+  if p.hive != nil then
+    hive_owner[p.hive] = nil
+    let pad = block("Hive " + p.hive + " Pad")
+    if pad != nil then pad.color = "#FDE047" end
+  end
+end

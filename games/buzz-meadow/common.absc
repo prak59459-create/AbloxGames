@@ -1,0 +1,89 @@
+-- common.absc — 小さな道具・ハチの力・画面
+
+let hive_owner = {}
+
+func ready(p)
+  return p.bees != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func bee_type(id)
+  for b in BEES do
+    if b.id == id then return b end
+  end
+  return BEES[1]
+end
+
+func field_by_id(id)
+  for f in FIELDS do
+    if f.id == id then return f end
+  end
+  return nil
+end
+
+func tool_of(p)
+  for t in TOOLS do
+    if t.id == p.tool then return t end
+  end
+  return TOOLS[1]
+end
+
+func bag_of(p)
+  for b in BAGS do
+    if b.id == p.bag then return b end
+  end
+  return BAGS[1]
+end
+
+-- ハチ1ぴきの力（レベルで上がる）
+func bee_power(bee)
+  return bee_type(bee.id).power * (1 + (bee.level - 1) * 0.25)
+end
+
+-- その花畑での、1回あたりの花粉
+func gather_amount(p, field)
+  let total = 0
+  for bee in p.bees do
+    let t = bee_type(bee.id)
+    let pw = bee_power(bee)
+    if t.color == field.color and field.color != "white" then pw = pw * 1.5 end
+    total = total + pw
+  end
+  let amount = total * tool_of(p).mult * field.mult * 2
+  if p.boost_until != nil and time() < p.boost_until then amount = amount * 2 end
+  return floor(amount)
+end
+
+func swarm_power(p)
+  let total = 0
+  for bee in p.bees do total = total + bee_power(bee) end
+  return floor(total)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let buffs = ""
+  if p.boost_until != nil and time() < p.boost_until then buffs = buffs + " ⚡" end
+  if p.haste_until != nil and time() < p.haste_until then buffs = buffs + " 💨" end
+  p.ui_text("bag", "🌼 " + kit_short(p.pollen) + " / " + kit_short(bag_of(p).cap) + "   🐝 " + len(p.bees) + "/" + p.slots + "（力 " + swarm_power(p) + "）" + buffs,
+            {at: "top", dy: 30, size: 16, bold: true})
+  p.ui_bar("bagbar", {at: "top", dy: 54, w: 240, h: 10, value: p.pollen, max: bag_of(p).cap, color: "#FACC15", bg: "#00000088"})
+  p.ui_text("items", tool_of(p).name + "  " + bag_of(p).name + "   🍓" + p.treats + "  👑" + p.jelly, {at: "top_left", dy: 36, size: 14, color: "#FDE68A"})
+end

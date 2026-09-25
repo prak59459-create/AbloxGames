@@ -1,0 +1,80 @@
+-- bears.absc — くまさんのクエスト（順番に9つ）
+
+func bear_quest(p)
+  if p.bear_i > len(BEAR_QUESTS) then return nil end
+  return BEAR_QUESTS[p.bear_i]
+end
+
+-- kind のしごとが amount 進んだ
+func bear_progress(p, kind, amount)
+  let q = bear_quest(p)
+  if q == nil then return end
+  if q.kind == "bees" then p.bear_count = len(p.bees)
+  elif q.kind == "honey" then p.bear_count = kit_money(p)
+  elif q.kind == kind then p.bear_count = p.bear_count + amount
+  else return end
+  if p.bear_count >= q.goal and not p.bear_done then
+    p.bear_done = true
+    p.message("🐻 くまさんのクエスト達成！ くまさんに話しかけよう", 2.5)
+    p.sound("goal")
+  end
+  bear_hud(p)
+end
+
+func bear_hud(p)
+  let q = bear_quest(p)
+  if q == nil then
+    p.ui_text("bearq", "🐻 くまさんのクエスト全部クリア！", {at: "top_left", dy: 60, size: 13, color: "#FDBA74"})
+    return
+  end
+  let mark = ""
+  if p.bear_done then mark = " ✅ くまさんへ" end
+  p.ui_text("bearq", "🐻 " + q.text + "（" + kit_short(min(p.bear_count, q.goal)) + "/" + kit_short(q.goal) + "）" + mark, {at: "top_left", dy: 60, size: 13, color: "#FDBA74"})
+end
+
+func talk_bear(p, b)
+  let bear = b.position
+  let q = bear_quest(p)
+  if q == nil then
+    p.message("🐻「もう教えることはないよ。立派な養蜂家だ！」", 2)
+    return
+  end
+  if not p.bear_done then
+    p.message("🐻「" + q.text + "」", 2.5)
+    return
+  end
+  -- ごほうび
+  let r = q.reward
+  let parts = []
+  if r.honey != nil then
+    kit_give(p, r.honey)
+    append(parts, "🍯" + kit_short(r.honey))
+  end
+  if r.treat != nil then
+    p.treats = p.treats + r.treat
+    append(parts, "🍓" + r.treat)
+  end
+  if r.jelly != nil then
+    p.jelly = p.jelly + r.jelly
+    append(parts, "👑" + r.jelly)
+  end
+  if r.egg != nil then
+    for i in 1 to r.egg do hatch(p, 2) end
+    append(parts, "🥚" + r.egg)
+  end
+  p.message("🐻「ありがとう！」 ごほうび: " + join(parts, " "), 3)
+  kit_quest_progress(p, "bear", 1)
+  p.bear_i = p.bear_i + 1
+  p.bear_done = false
+  p.bear_count = 0
+  if p.bear_i > len(BEAR_QUESTS) then kit_badge(p, "bear_friend", "くまさんのクエストを全部クリア") end
+  -- 次のクエストがもう達成ずみかどうか
+  bear_progress(p, "", 0)
+  bear_hud(p)
+  hud(p)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "bear") and quiet_ready(p, "bear", 2) then talk_bear(p, b) end
+end

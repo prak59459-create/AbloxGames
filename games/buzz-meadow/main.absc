@@ -1,98 +1,41 @@
--- Buzz Meadow — ハチを集めて花粉をハチミツに
+-- Buzz Meadow — ハチを集めて花粉をハチミツに。花畑・虫・くまさんのクエスト。
+--
+-- ファイル:
+--   data.absc    ハチ・花畑・道具とバッグ・たまご・クエスト・トークン
+--   common.absc  ハチの力・画面
+--   bears.absc   くまさんのクエスト
+--   fields.absc  花粉あつめ・トークン・道具屋
+--   hive.absc    巣・ハチミツ・たまご・おやつ・ロイヤルゼリー・ついてくるハチ
+--   mobs.absc    虫とカブトムシの王
+--   main.absc    このファイル
 
 kit_setup("Buzz Meadow", "ハチをふやして、ハチミツ長者に", [
-  "黄色い巣のパッドにさわると、その巣があなたのものに",
-  "花畑の中にいると、ハチが花粉を集める（バッグがいっぱいになるまで）",
-  "自分の巣のパッドで花粉をハチミツ（お金）に変える",
-  "ハチ屋（黄色い店）でハチやバッグを買える",
-  "奥の花畑は、ハチがたくさんいないと入れない",
-  "花畑のてんとう虫はハチがやっつけてくれる。くまさんのクエストも"
+  "🍯 オレンジのパッドがあなたの巣。花粉を持って巣に立つとハチミツ（お金）になる",
+  "🌼 花畑に立つとハチが花粉を集める。赤・青の花畑は同じ色のハチが得意（×1.5）",
+  "🥚 たまご屋でハチをふやす（銀・金のたまごはレアが出やすい）。巣の部屋もふやせる",
+  "🍓 おやつでハチをレベルアップ。👑 ロイヤルゼリーでいちばん弱いハチを別のハチに",
+  "🧰 道具屋で道具とバッグ。花畑に落ちるトークン（⚡ブースト・💨はやさ・🍓おやつ）も拾おう",
+  "🐻 くまさんのクエスト、🐞 虫たいじ、洞くつのカブトムシの王！"
 ])
 kit_currency = "ハチミツ"
-kit_shop_title = "ハチ屋"
 
-let bee_types = [
-  {name: "ふつうのハチ", power: 1, weight: 60, color: "#FACC15"},
-  {name: "がんばりハチ", power: 2, weight: 25, color: "#F59E0B"},
-  {name: "ばくだんハチ", power: 3, weight: 10, color: "#EF4444"},
-  {name: "ゴールドハチ", power: 6, weight: 4, color: "#FDE047"},
-  {name: "にじいろハチ", power: 15, weight: 1, color: "#F0ABFC"}
-]
-let hive_owner = {}
-let followers = {}
-
-kit_shop_add("egg", "ハチのたまご", 40, func(p) add_bee(p) end)
-kit_shop_add("bag", "大きなバッグ（+100）", 100, func(p)
-  p.cap = p.cap + 100
-  show(p)
+kit_shop_title = "服"
+kit_shop_add("antenna", "📡 ハチのしょっかく", 300, func(p) p.hat = "antenna" end)
+kit_shop_add("bee_suit", "🐝 ハチの服", 800, func(p)
+  p.color = "#FACC15"
+  p.leg_color = "#111827"
 end)
-kit_shop_add("bag2", "リュックサック（+500）", 800, func(p)
-  p.cap = p.cap + 500
-  show(p)
-end)
-kit_shop_add("rake", "熊手（花粉 ×1.5）", 300, func(p) p.tool = p.tool * 1.5 end)
+kit_shop_add("crown", "👑 女王バチの冠", 20000, func(p) p.hat = "crown" end)
 
-kit_quest("pollen", "花粉を500集める", 500, 100)
-kit_quest("bees5", "ハチを5ひきにする", 1, 150)
-kit_quest("honey", "ハチミツを2000にする", 1, 300)
-kit_quest("bugs", "てんとう虫を5ひきたおす", 5, 120)
-
-func bee_power(p)
-  let t = 0
-  for b in p.bees do t = t + b.power end
-  return t
-end
-
-func show(p)
-  p.ui_text("bag", "🌼 花粉 " + kit_short(p.pollen) + " / " + kit_short(p.cap) + "   🐝 " + len(p.bees) + " ひき（力 " + bee_power(p) + "）",
-            {at: "top", dy: 30, size: 17, bold: true})
-  p.ui_bar("bagbar", p.pollen, p.cap, {at: "top", dy: 56, w: 240, h: 10, color: "#FACC15"})
-end
-
-func refresh_followers(p)
-  for n in followers[p.id] or [] do
-    if kit_here(n) then n.destroy() end
-  end
-  let made = []
-  for b in slice(p.bees, 1, 4) do
-    let n = create_npc({name: b.name, position: p.position + {x: random(-2, 2), y: 1.5, z: random(-2, 2)}, color: b.color,
-                        head_color: "#111111", size: 0.3, health: 999999, speed: 1.6, team: "bees"})
-    n.follow(p)
-    append(made, n)
-  end
-  followers[p.id] = made
-end
-
-func add_bee(p)
-  let b = kit_pick(bee_types, 1)
-  append(p.bees, b)
-  p.message("🐝 " + b.name + " が仲間になった！", 2)
-  if b.weight <= 1 then announce("🌈 " + p.name + " がにじいろハチを手に入れた！", 3) end
-  if len(p.bees) >= 5 then kit_quest_progress(p, "bees5", 1) end
-  refresh_followers(p)
-  show(p)
-end
-
-func spawn_bug()
-  let fields = blocks("field")
-  if len(fields) == 0 then return end
-  let f = random(fields)
-  create_npc({name: "てんとう虫", position: f.position + {x: random(-8, 8), y: 1, z: random(-8, 8)}, color: "#DC2626",
-              head_color: "#111111", size: 0.8, health: 40, speed: 0.5, team: "bugs"})
-end
+kit_quest("pollen", "花粉を5000集める", 5000, 300)
+kit_quest("bees", "ハチを10ぴきふやす", 10, 400)
+kit_quest("bugs", "虫を10ぴきたおす", 10, 300)
+kit_quest("feed", "おやつを10回あげる", 10, 200)
+kit_quest("token", "トークンを20こ拾う", 20, 200)
+kit_quest("gear", "道具かバッグを3回買う", 3, 300)
+kit_quest("bear", "くまさんのクエストを3つ", 3, 500)
 
 on start()
-  every(8, func()
-    if len(filter(npcs(), func(n) return n.team == "bugs" end)) < 8 then spawn_bug() end
-  end)
-  every(1, func()
-    -- ハチがてんとう虫をやっつける
-    for p in players() do
-      for n in npcs() do
-        if n.team == "bugs" and distance(p, n) < 10 then n.damage(bee_power(p) * 2, p) end
-      end
-    end
-  end)
   every(10, func() kit_leaderboard("🍯") end)
 end
 
@@ -100,75 +43,27 @@ on join(p)
   kit_welcome(p)
   kit_quest_button(p)
   kit_shop_button(p)
-  p.bees = [bee_types[1]]
+  kit_camera_button(p)
+  p.bees = [{id: "basic", level: 1}, {id: "basic", level: 1}]
+  p.slots = 5
   p.pollen = 0
-  p.cap = 100
-  p.tool = 1
-  kit_give(p, 0)
+  p.tool = "scooper"
+  p.bag = "pouch"
+  p.treats = 2
+  p.jelly = 0
+  p.honey_made = 0
+  p.bear_i = 1
+  p.bear_count = 0
+  p.bear_done = false
+  kit_give(p, 100)
+  auto_hive(p)
+  p.ui_button("bees", "🐝 ハチ", {at: "right", dy: 180, w: 150, h: 46, size: 16, bg: "#CA8A04"})
   refresh_followers(p)
-  show(p)
+  hud(p)
+  bear_hud(p)
 end
 
-on leave(p)
-  for n in followers[p.id] or [] do
-    if kit_here(n) then n.destroy() end
-  end
-  remove(followers, p.id)
-  if p.hive != nil then remove(hive_owner, p.hive) end
-end
-
-on tick(dt)
-  for n in npcs() do
-    if n.team == "bugs" then kit_chase(n, 12, 6, dt) end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "field") then
-    let need = 0
-    for t in b.tags do
-      if starts_with(t, "need") then need = num(replace(t, "need", "")) end
-    end
-    if len(p.bees) < need then
-      if kit_ready(p, "field_msg", 2) then p.message("🔒 この花畑はハチ " + need + " ひきから", 1.5) end
-      return
-    end
-    if p.pollen >= p.cap then
-      if kit_ready(p, "full_msg", 3) then p.message("👜 バッグがいっぱい！巣にもどろう", 1.5) end
-      return
-    end
-    let gain = floor(bee_power(p) * p.tool * (1 + need / 10) * 2)
-    p.pollen = min(p.cap, p.pollen + gain)
-    kit_quest_progress(p, "pollen", gain)
-    show(p)
-  elif contains(b.tags, "hive") then
-    let n = split(b.name, " ")[2]
-    if p.hive == nil and hive_owner[n] == nil then
-      hive_owner[n] = p.id
-      p.hive = n
-      p.message("🍯 巣 " + n + " があなたの巣に！", 2)
-    end
-    if p.hive == n and p.pollen > 0 then
-      kit_give(p, p.pollen)
-      p.score = p.coins
-      p.message("🍯 ハチミツ +" + kit_short(p.pollen), 1.5)
-      p.pollen = 0
-      if p.coins >= 2000 then kit_quest_progress(p, "honey", 1) end
-      show(p)
-    end
-  elif contains(b.tags, "beeshop") and kit_ready(p, "shop", 3) then
-    kit_open_shop(p)
-  elif contains(b.tags, "bear") and kit_ready(p, "bear", 3) then
-    kit_open_quests(p)
-    p.kit_quests_open = true
-    p.message("🐻 くまさん「クエストをやってくれるかい？」", 2)
-  end
-end
-
-on death(victim, killer)
-  if victim.team == "bugs" and killer != nil and not killer.is_npc then
-    kit_give(killer, 15)
-    kit_quest_progress(killer, "bugs", 1)
-  end
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  refresh_followers(p)
 end
