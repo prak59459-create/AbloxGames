@@ -1,0 +1,257 @@
+-- show.absc — 番組の流れ: シーズン開始 → チャレンジ → マシュマロ授与式（投票）→ … → 決勝 → チャンピオン
+
+let season_size = 0
+let last_challenge = ""
+let bottom = []          -- 授与式の下位2人
+let votes = {}           -- 投票した人の id → 残したい人の id
+let show_clock = 0
+let slow_clock = 0
+
+func spawn_host()
+  let spot = block("Host Spot")
+  if spot == nil then return end
+  host = create_npc({name: "📣 司会のトビー", position: spot.position + {x: 0, y: 1, z: 0}, color: "#1D4ED8", head_color: "#FDE68A", size: 1.1,
+                     health: 999999, speed: 0, team: "host"})
+  host.hat = "cap"
+end
+
+func to_camp(p)
+  p.teleport(block("Spawn " + random(1, 12)).position + {x: 0, y: 1, z: 0})
+end
+
+func start_season()
+  episode = 0
+  season_size = 0
+  for p in players() do
+    if ready(p) then
+      p.in_show = true
+      p.out = false
+      p.points = 0
+      p.immune = false
+      season_size = season_size + 1
+      to_camp(p)
+    end
+  end
+  announce("🎬 新シーズン開幕！ 出演者 " + season_size + " 人。最後の1人がチャンピオン！", 4)
+  host_say("ようこそ、ドラマアイランドへ！")
+  next_episode()
+end
+
+func pick_challenge(final)
+  let pool = filter(CHALLENGES, func(c) return c.id != last_challenge end)
+  if final then pool = filter(pool, func(c) return c.kind == "race" end) end
+  let c = random(pool)
+  last_challenge = c.id
+  return c
+end
+
+func next_episode()
+  let left = contestants()
+  if len(left) == 0 then
+    end_season(nil)
+    return
+  end
+  if season_size > 1 and len(left) == 1 then
+    end_season(left[1])
+    return
+  end
+  if season_size == 1 and episode >= 5 then
+    end_season(left[1])
+    return
+  end
+  episode = episode + 1
+  let final = season_size > 2 and len(left) == 2
+  challenge = pick_challenge(final)
+  challenge.final = final
+  for p in left do p.immune = false end
+  phase = "challenge"
+  phase_until = time() + CHALLENGE_TIME
+  if final then announce("🔥 決勝戦！ " + challenge.name + " — " + challenge.text, 5)
+  else announce("🎬 第" + episode + "話 " + challenge.name + " — " + challenge.text, 5) end
+  host_say(random(HOST_LINES))
+  begin_challenge(challenge)
+end
+
+func challenge_over()
+  let c = challenge
+  if c.kind == "race" then
+    let active = filter(runners(), func(p) return p.c_done == 0 end)
+    if len(active) == 0 then return true end
+  elif c.kind == "survive" then
+    let standing = runners()
+    if len(standing) == 0 then return true end
+    if len(standing) == 1 and len(contestants()) > 1 then return true end
+  end
+  return time() >= phase_until
+end
+
+func end_challenge()
+  let c = challenge
+  let ranked = rank_challenge(c)
+  cleanup_challenge()
+  let lines = []
+  let i = 0
+  for p in ranked do
+    i = i + 1
+    let pts = 2
+    if i <= len(PLACE_POINTS) then pts = PLACE_POINTS[i] end
+    p.points = p.points + pts
+    p.in_challenge = false
+    kit_give(p, pts * 5)
+    if i <= 3 then append(lines, i + "位 " + p.name) end
+    p.message("🏅 " + c.name + " " + i + "位！ +" + pts + "ポイント", 3)
+    to_camp(p)
+  end
+  if len(ranked) > 0 then
+    let top = ranked[1]
+    kit_quest_progress(top, "challenge", 1)
+    if c.final then
+      end_season(top)
+      return
+    end
+    top.immune = true
+    top.message("🛡 イミュニティ！ 今回の授与式は安全", 3)
+  end
+  announce("🏁 " + c.name + " 結果: " + join(lines, "  "), 4)
+  challenge = nil
+  if season_size > 1 and len(contestants()) > 1 then start_ceremony() else
+    phase = "rest"
+    phase_until = time() + 5
+  end
+end
+
+-- MARK: マシュマロ授与式
+
+func start_ceremony()
+  let list = sort(filter(contestants(), func(p) return not p.immune end), func(a, b) return a.points < b.points end)
+  if len(list) < 2 then
+    -- 投票するほど人がいない: いちばん点の低い人が脱落
+    if len(list) == 1 and len(contestants()) > 2 then eliminate(list[1]) end
+    phase = "rest"
+    phase_until = time() + 5
+    return
+  end
+  bottom = [list[1], list[2]]
+  votes = {}
+  phase = "ceremony"
+  phase_until = time() + CEREMONY_TIME
+  host_say("マシュマロ授与式の時間だ…")
+  announce("🍡 マシュマロ授与式！ ピンチの2人: " + bottom[1].name + " と " + bottom[2].name + " — みんなで残す人に投票！", 5)
+  for p in players() do
+    if ready(p) then vote_panel(p) end
+  end
+  for q in contestants() do
+    if not contains(bottom, q) then q.message("🍡 マシュマロをもらった！ 安全", 2) end
+  end
+end
+
+func vote_panel(p)
+  p.ui_remove("vote")
+  p.ui_panel("vote", {at: "center", w: 480, h: 190, bg: "#431407F2", radius: 20, layer: 40})
+  p.ui_text("vote_t", "🍡 どっちを島に残す？", {parent: "vote", y: 0.2, size: 20, bold: true, color: "#FDE68A"})
+  p.ui_button("vote_1", bottom[1].name + "（" + bottom[1].points + "）", {parent: "vote", x: 0.27, y: 0.65, w: 200, h: 56, size: 16, bg: "#2563EB"})
+  p.ui_button("vote_2", bottom[2].name + "（" + bottom[2].points + "）", {parent: "vote", x: 0.73, y: 0.65, w: 200, h: 56, size: 16, bg: "#DC2626"})
+end
+
+func cast_vote(p, i)
+  if phase != "ceremony" or bottom[i] == nil then return end
+  votes[p.id] = bottom[i].id
+  p.ui_remove("vote")
+  p.message("🗳 " + bottom[i].name + " に投票した", 1.5)
+  kit_quest_progress(p, "vote", 1)
+end
+
+func finish_ceremony()
+  for p in players() do p.ui_remove("vote") end
+  let a = bottom[1]
+  let b = bottom[2]
+  let va = 0
+  let vb = 0
+  for id in keys(votes) do
+    if votes[id] == a.id then va = va + 1 elif votes[id] == b.id then vb = vb + 1 end
+  end
+  -- 票の多い人が残る。同じなら点の低い人が脱落
+  let out = a
+  if va > vb then out = b
+  elif va == vb and b.points < a.points then out = b end
+  announce("🍡 最後のマシュマロは…  " + (out == a and b.name or a.name) + "！（" + va + " 対 " + vb + "）", 4)
+  after(2, func() eliminate(out) end)
+  phase = "rest"
+  phase_until = time() + 6
+end
+
+func eliminate(p)
+  if still(p) and p.in_show and not p.out then
+    p.out = true
+    announce("😢 " + p.name + " は島を去る… 「はずかしの桟橋」へ", 4)
+    host_say("さよなら、" + p.name + "！")
+    p.message("😢 脱落… 観客席から応援しよう（次のシーズンで復活）", 3)
+    to_audience(p)
+  end
+end
+
+-- MARK: シーズンのおわり
+
+func end_season(winner)
+  phase = "done"
+  phase_until = time() + 12
+  challenge = nil
+  cleanup_challenge()
+  if winner != nil then
+    announce("🏆 チャンピオンは " + winner.name + "！ おめでとう！", 8)
+    host_say(winner.name + " が優勝だ！")
+    kit_give(winner, 500)
+    winner.score = winner.score + 10
+    winner.wins = winner.wins + 1
+    winner.hat = "crown"
+    kit_quest_progress(winner, "win", 1)
+    kit_badge(winner, "champion", "ドラマアイランドのチャンピオン")
+  else
+    announce("🎬 シーズン終了！", 5)
+  end
+  for p in players() do
+    if ready(p) and p.in_show then
+      kit_quest_progress(p, "season", 1)
+      to_camp(p)
+    end
+  end
+end
+
+on start()
+  spawn_host()
+  phase_until = time() + 15
+end
+
+on tick(dt)
+  show_clock = show_clock + dt
+  if show_clock < 0.25 then return end
+  show_clock = 0
+  slow_clock = slow_clock + 0.25
+  if phase == "lobby" then
+    if time() >= phase_until and len(filter(players(), func(p) return ready(p) end)) > 0 then start_season() end
+  elif phase == "challenge" and challenge != nil then
+    challenge_step(challenge)
+    if slow_clock >= 1 then
+      slow_clock = 0
+      challenge_slow(challenge)
+    end
+    if challenge_over() then end_challenge() end
+  elif phase == "ceremony" and time() >= phase_until then finish_ceremony()
+  elif phase == "rest" and time() >= phase_until then next_episode()
+  elif phase == "done" and time() >= phase_until then
+    phase = "lobby"
+    phase_until = time() + 5
+  end
+  board()
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "vote_1" then cast_vote(p, 1)
+  elif id == "vote_2" then cast_vote(p, 2)
+  end
+end
+
+on leave(p)
+  if phase == "ceremony" and contains(bottom, p) then phase_until = time() end
+end

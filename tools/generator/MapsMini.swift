@@ -13,7 +13,7 @@ let miniGames: [Game] = [
          summary: "8つのワールド（草原・氷・溶岩・宇宙・おかし・砂漠・雲・ネオン）を超スピードで走るスピードラン。金銀銅メダル、自分のベスト走りの👻ゴースト、レース大会、シューズ・ブーツ・グライダー！",
          tags: ["obby", "speedrun", "fast"], maxPlayers: 12, build: speedWorlds),
     Game(number: 74, id: "island-drama-show", title: "Island Drama Show",
-         summary: "サバイバル番組の出演者になって、毎回ちがうミニゲームで勝ちぬけ！最下位は脱落…最後に残るのはだれだ？",
+         summary: "無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！",
          tags: ["minigames", "elimination", "party"], maxPlayers: 12, build: dramaShow),
     Game(number: 75, id: "prop-hide-and-seek", title: "Prop Hide & Seek",
          summary: "家具に変身してかくれんぼ！鬼は怪しいものを撃って探す。まちがえると鬼がダメージ。最後まで見つからなければ勝ち。",
@@ -264,22 +264,92 @@ func speedWorlds(_ m: MapBuilder) {
 // MARK: 74 Island Drama Show
 
 func dramaShow(_ m: MapBuilder) {
-    m.day(ground: "#65A30D")
-    m.sky("#38BDF8", "#E0F2FE", light: 0.8, ground: "#1D4ED8")
+    m.sky("#38BDF8", "#E0F2FE", light: 0.85, ground: "#1D4ED8")
+    m.environment.killPlaneHeight = -30
+    m.part("Cover Focus", at: (0, 2, 0), size: (150, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
+    var r = Seeded("drama")
+    // Camp island: spawns, the campfire, the stage with quiz podiums, the ceremony and the audience benches.
     m.part("Camp Island", at: (0, -1, 0), size: (70, 2, 70), color: "#84CC16", shape: .cylinder, material: .matte)
-    m.spawnRing(0, 0, radius: 8, count: 12, color: "#FACC15")
-    m.slab("Stage", x: 0, y: 0, z: -24, w: 16, h: 1, d: 8, color: "#7C2D12")
-    m.part("Campfire", at: (0, 0.5, 10), size: (2, 1, 2), color: "#F97316", shape: .cone, material: .neon)
-    // Log run over the water.
-    m.slab("Log Start", x: 60, y: -1, z: 0, w: 8, h: 1, d: 8, color: "#A16207")
-    for i in 0..<10 {
-        m.part("Log \(i + 1)", at: (60, -0.6, Float(i) * 4 + 6), size: (2.2, 0.6, 3), color: "#92400E", shape: .box, behavior: .disappear,
+    m.part("Camp Beach", at: (0, -1.2, 0), size: (78, 2, 78), color: "#FDE68A", shape: .cylinder, material: .matte)
+    m.spawnRing(0, 8, radius: 7, count: 12, color: "#FACC15")
+    m.part("Campfire Logs", at: (0, 0.2, 8), size: (2, 0.4, 2), color: "#78350F", shape: .cylinder)
+    m.part("Campfire", at: (0, 1, 8), size: (1.4, 1.6, 1.4), color: "#F97316", shape: .cone, material: .neon, solid: false)
+    m.slab("Stage", x: 0, y: 0, z: -22, w: 30, h: 1, d: 10, color: "#7C2D12")
+    m.part("Stage Sign", at: (0, 5.5, -27.2), size: (18, 3, 0.4), color: "#FACC15", material: .neon, solid: false)
+    for k in 0..<8 {
+        let x = -10.5 + Float(k) * 3
+        m.part("Podium \(k + 1)", at: (x, 1.6, -21), size: (1.8, 1.2, 1.2), color: k % 2 == 0 ? "#DC2626" : "#2563EB", solid: false)
+    }
+    m.part("Host Spot", at: (0, 1.1, -25), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    m.slab("Ceremony Stage", x: -20, y: 0, z: 14, w: 12, h: 0.6, d: 6, color: "#A16207")
+    m.part("Marshmallow Plate", at: (-20, 1.4, 12), size: (2, 0.2, 2), color: "#F8FAFC", shape: .cylinder, solid: false)
+    for k in 0..<5 {
+        m.part("Marshmallow", at: (-20.5 + Float(k % 3) * 0.5, 1.7, 11.6 + Float(k / 3) * 0.6), size: (0.35, 0.35, 0.35), color: "#FFFFFF", shape: .sphere, solid: false)
+    }
+    for k in 0..<3 {
+        m.slab("Audience Bench", x: 20, y: 0, z: 8 + Float(k) * 3, w: 10, h: 0.6 + Float(k) * 0.6, d: 1.6, color: "#92400E")
+    }
+    m.part("Audience", at: (20, 2.4, 14), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    m.slab("Dock", x: 34, y: -0.5, z: 0, w: 14, h: 0.5, d: 4, color: "#A16207")
+    for p in ring(9, radius: 30, phase: 0.2) {
+        if abs(p.1 + 22) > 8 { m.tree(p.0, p.1, height: 5) }
+    }
+    // 1: the log run over the water.
+    m.slab("Log Start", x: 70, y: -1, z: -4, w: 8, h: 1, d: 8, color: "#A16207")
+    for i in 0..<12 {
+        m.part("Log", at: (70 + r.range(-1.5, 1.5), -0.6, Float(i) * 4 + 3), size: (2.2, 0.6, 3), color: "#92400E", behavior: .disappear,
                gimmick: GimmickSettings(disappearDelay: 0.6, respawnDelay: 2.5))
     }
-    m.slab("Log End", x: 60, y: -1, z: 48, w: 8, h: 1, d: 8, color: "#A16207")
-    m.pad("Log Finish", x: 60, z: 48, size: 5, color: "#22C55E", tags: ["logfinish"])
-    // A dodge arena.
-    m.slab("Dodge Arena", x: -60, y: -1, z: 0, w: 30, h: 1, d: 30, color: "#E5E7EB")
+    m.slab("Log End", x: 70, y: -1, z: 52, w: 8, h: 1, d: 8, color: "#A16207")
+    m.pad("Log Finish", x: 70, z: 52, size: 5, color: "#22C55E", tags: ["logfinish"])
+    // 2: the dodgeball arena.
+    m.slab("Dodge Arena", x: -70, y: -1, z: 0, w: 30, h: 1, d: 30, color: "#E5E7EB")
+    m.walls(-70, 0, w: 30, d: 30, h: 1.2, color: "#EF4444", name: "Dodge Rail")
+    // 3: the hill: a stepped pyramid with a small top and two pushers sweeping it.
+    m.slab("Hill Arena", x: 0, y: -1, z: 80, w: 30, h: 1, d: 30, color: "#A3E635")
+    for (k, w) in ([14, 9, 5] as [Float]).enumerated() {
+        m.slab("Hill Step", x: 0, y: Float(k) * 1.2, z: 80, w: w, h: 1.2, d: w, color: k == 2 ? "#FACC15" : "#65A30D")
+    }
+    m.pad("Hill Top", x: 0, z: 80, y: 3.6, size: 4, color: "#FDE047", tags: ["hilltop"], shape: .box)
+    m.part("Pusher", at: (-8, 4.4, 80), size: (1, 1.2, 6), color: "#DC2626", tags: ["pusher"])
+    m.part("Pusher", at: (8, 1.2, 76), size: (1, 1.2, 6), color: "#DC2626", tags: ["pusher"])
+    // 4: the tower climb: a spiral of platforms to a flag.
+    m.slab("Tower Start", x: 70, y: -1, z: -70, w: 10, h: 1, d: 10, color: "#78716C")
+    m.pillar("Tower Core", x: 70, z: -60, height: 30, radius: 2, color: "#57534E")
+    for k in 0..<16 {
+        let a = Float(k) * 0.8
+        m.slab("Tower Step", x: 70 + cos(a) * 6, y: 1.2 + Float(k) * 1.8, z: -60 + sin(a) * 6, w: 3, h: 0.5, d: 3, color: k % 2 == 0 ? "#F97316" : "#FACC15")
+    }
+    m.slab("Tower Top Floor", x: 70, y: 30, z: -60, w: 6, h: 0.5, d: 6, color: "#FDE047")
+    m.pad("Tower Top", x: 70, z: -60, y: 30.5, size: 4, color: "#22C55E", tags: ["towertop"])
+    // 5: the coin arena.
+    m.slab("Coin Arena", x: -70, y: -1, z: 70, w: 30, h: 1, d: 30, color: "#FEF3C7")
+    m.walls(-70, 70, w: 30, d: 30, h: 1.2, color: "#F59E0B", name: "Coin Rail")
+    // 6: the colour floor: 6 × 6 tiles.
+    for row in 0..<6 {
+        for col in 0..<6 {
+            m.slab("Color Tile \(row * 6 + col + 1)", x: 70 - 7.5 + Float(col) * 3, y: -0.5, z: 70 - 7.5 + Float(row) * 3, w: 2.9, h: 0.5, d: 2.9, color: "#F8FAFC",
+                   tags: ["colortile"])
+        }
+    }
+    m.part("Color Floor", at: (70, 0.1, 70), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    // 7: the ice floor that cracks under your feet.
+    for row in 0..<7 {
+        for col in 0..<7 {
+            m.slab("Spleef \(row * 7 + col + 1)", x: -70 - 7.5 + Float(col) * 2.5, y: -0.5, z: -70 - 7.5 + Float(row) * 2.5, w: 2.4, h: 0.5, d: 2.4, color: "#BAE6FD",
+                   material: .glass, behavior: .trigger, tags: ["spleef"])
+        }
+    }
+    m.part("Spleef Floor", at: (-70, 0.1, -70), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    // 8: the memory path: 5 across, 8 deep.
+    m.slab("Memory Start", x: 0, y: -1, z: -84, w: 14, h: 1, d: 5, color: "#A78BFA")
+    for row in 0..<8 {
+        for col in 0..<5 {
+            m.slab("Mem \(row + 1) \(col + 1)", x: -5 + Float(col) * 2.5, y: -0.5, z: -80 + Float(row) * 2.5, w: 2.3, h: 0.5, d: 2.3, color: "#E9D5FF", behavior: .trigger, tags: ["memtile"])
+        }
+    }
+    m.slab("Memory End", x: 0, y: -1, z: -59, w: 14, h: 1, d: 5, color: "#A78BFA")
+    m.pad("Memory Finish", x: 0, z: -59, size: 4, color: "#22C55E", tags: ["memfinish"])
 }
 
 // MARK: 75 Prop Hide & Seek

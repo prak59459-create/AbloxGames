@@ -1,0 +1,343 @@
+-- challenges.absc — 9つのチャレンジ: はじめる・とちゅう・おわり（順位をつける）
+
+let made = []            -- チャレンジで作ったもの（玉・コイン）
+let finish_n = 0
+let fall_n = 0
+let quiz_q = nil
+let quiz_answered = {}
+let quiz_next = 0
+let quiz_first = true
+let color_target = nil
+let color_drop_at = 0
+let color_back_at = 0
+let color_round = 0
+let mem_path = []
+let pusher_flip = 1
+let ch_clock = 0
+
+func spot_near(name, spread)
+  let b = block(name)
+  return b.position + {x: random(0 - spread, spread), y: 1.5, z: random(0 - spread, spread)}
+end
+
+func tile_list(tag)
+  return blocks(tag)
+end
+
+-- MARK: はじめる
+
+func begin_challenge(c)
+  finish_n = 0
+  fall_n = 0
+  for p in contestants() do
+    p.in_challenge = true
+    p.c_score = 0
+    p.c_done = 0
+    p.c_fell = 0
+    p.progress = 0
+  end
+  let id = c.id
+  let list = runners()
+  if id == "logs" then
+    for p in list do p.teleport(spot_near("Log Start", 2)) end
+  elif id == "dodge" then
+    for p in list do p.teleport(spot_near("Dodge Arena", 10)) end
+  elif id == "quiz" then
+    let i = 0
+    for p in list do
+      i = i + 1
+      let pod = block("Podium " + ((i - 1) % 8 + 1))
+      p.teleport(pod.position + {x: 0, y: 1.2, z: 1.5})
+    end
+    quiz_next = time() + 2
+    quiz_q = nil
+  elif id == "hill" then
+    for p in list do p.teleport(spot_near("Hill Arena", 12)) end
+  elif id == "tower" then
+    for p in list do p.teleport(spot_near("Tower Start", 3)) end
+  elif id == "coins" then
+    for p in list do p.teleport(spot_near("Coin Arena", 10)) end
+  elif id == "color" then
+    color_round = 0
+    color_target = nil
+    color_back_at = time() + 2
+    for p in list do p.teleport(spot_near("Color Floor", 6)) end
+  elif id == "spleef" then
+    for p in list do p.teleport(spot_near("Spleef Floor", 6)) end
+  elif id == "memory" then
+    make_path()
+    for p in list do p.teleport(spot_near("Memory Start", 3)) end
+  end
+end
+
+-- MARK: とちゅう（0.25秒ごと）
+
+func challenge_step(c)
+  let id = c.id
+  for p in runners() do
+    -- 落ちた
+    if p.y < -3 then fell(p, id) end
+  end
+  if id == "logs" then
+    for p in runners() do
+      if p.c_done == 0 then p.progress = max(p.progress, p.z) end
+    end
+  elif id == "tower" or id == "memory" then
+    for p in runners() do
+      if p.c_done == 0 then
+        if id == "tower" then p.progress = max(p.progress, p.y) else p.progress = max(p.progress, p.z) end
+      end
+    end
+  elif id == "hill" then
+    let top = block("Hill Top").position
+    for p in runners() do
+      if abs(p.x - top.x) < 2.3 and abs(p.z - top.z) < 2.3 and p.y > top.y - 0.5 then p.c_score = p.c_score + 0.25 end
+      for b in blocks("pusher") do
+        if distance(p, b) < 2.2 then p.launch(random(-14, 14), 6, random(-14, 14)) end
+      end
+    end
+  elif id == "coins" then
+    if len(made) < 16 then
+      let arena = block("Coin Arena").position
+      append(made, create_block({name: "Coin", shape: "cylinder", position: arena + {x: random(-13, 13), y: 0.8, z: random(-13, 13)}, size: {x: 1, y: 0.2, z: 1},
+                                 color: "#FACC15", material: "neon", behavior: "trigger", solid: false, rotation: {x: 90, y: 0, z: 0}, tags: ["coin"]}))
+    end
+  elif id == "color" then
+    color_step()
+  elif id == "quiz" then
+    if time() >= quiz_next then ask_quiz() end
+  end
+end
+
+-- 1秒ごと（玉とおしだしバー）
+func challenge_slow(c)
+  if c.id == "dodge" then
+    let arena = block("Dodge Arena").position
+    for k in 1 to 4 do drop_ball(arena + {x: random(-13, 13), y: 16, z: random(-13, 13)}) end
+  elif c.id == "hill" then
+    pusher_flip = 0 - pusher_flip
+    for b in blocks("pusher") do b.move_to({x: b.x + pusher_flip * 16, y: b.y, z: b.z}, 1.8) end
+  end
+end
+
+func drop_ball(pos)
+  let ball = create_block({name: "Dodgeball", shape: "sphere", position: pos, size: {x: 1.4, y: 1.4, z: 1.4}, color: "#EF4444", material: "neon", solid: false,
+                           behavior: "trigger", tags: ["ball"]})
+  ball.move(0, -16, 0, 1.2)
+  after(1.5, func() gone(ball) end)
+end
+
+func fell(p, id)
+  if id == "color" or id == "spleef" then
+    fall_n = fall_n + 1
+    p.c_fell = fall_n
+    p.in_challenge = false
+    p.message("💦 落ちた！ 見学しよう", 2)
+    to_audience(p)
+  elif id == "logs" then p.teleport(spot_near("Log Start", 2))
+  elif id == "tower" then p.teleport(spot_near("Tower Start", 3))
+  elif id == "memory" then p.teleport(spot_near("Memory Start", 3))
+  else p.teleport(spot_near("Hill Arena", 10)) end
+end
+
+func reach_goal(p, id)
+  if not p.in_challenge or p.c_done > 0 then return end
+  if challenge == nil or challenge.id != id then return end
+  finish_n = finish_n + 1
+  p.c_done = finish_n
+  p.message("🏁 " + finish_n + " ばんでゴール！", 2)
+  p.sound("goal")
+  host_say(p.name + " が " + finish_n + " ばん！")
+  to_audience(p)
+end
+
+-- MARK: クイズ
+
+func ask_quiz()
+  quiz_q = random(QUIZ)
+  quiz_answered = {}
+  quiz_first = true
+  quiz_next = time() + 9
+  for p in runners() do
+    p.ui_remove("quiz")
+    p.ui_panel("quiz", {at: "center", w: 520, h: 180, bg: "#1E3A8AEE", radius: 20, layer: 30})
+    p.ui_text("quiz_q", quiz_q[1], {parent: "quiz", y: 0.25, size: 19, bold: true})
+    let i = 0
+    for choice in quiz_q[2] do
+      i = i + 1
+      p.ui_button("ans_" + i, choice, {parent: "quiz", x: (i - 0.5) / 3, y: 0.7, w: 150, h: 52, size: 16, bg: "#3B82F6"})
+    end
+  end
+end
+
+func answer(p, i)
+  if challenge == nil or challenge.id != "quiz" or quiz_q == nil or not p.in_challenge then return end
+  if quiz_answered[p.id] != nil then return end
+  quiz_answered[p.id] = true
+  p.ui_remove("quiz")
+  if i == quiz_q[3] then
+    let pts = 2
+    if quiz_first then pts = 3 end
+    quiz_first = false
+    p.c_score = p.c_score + pts
+    p.message("⭕ 正解！ +" + pts, 1.2)
+  else
+    p.message("❌ ざんねん… 正解は「" + quiz_q[2][quiz_q[3]] + "」", 1.5)
+  end
+  if len(keys(quiz_answered)) >= len(runners()) then quiz_next = time() + 1.5 end
+end
+
+-- MARK: 色の床
+
+func color_step()
+  let tiles = tile_list("colortile")
+  if color_target == nil and time() >= color_back_at then
+    color_round = color_round + 1
+    for t in tiles do
+      t.visible = true
+      t.solid = true
+      t.color = random(FLOOR_COLORS).color
+    end
+    color_target = random(FLOOR_COLORS)
+    -- 目的の色が少なくとも3まいあるように
+    for k in 1 to 3 do random(tiles).color = color_target.color end
+    let wait = max(2, 4.5 - color_round * 0.3)
+    color_drop_at = time() + wait
+    ui_text("colorcall", "🎨 " + color_target.name + " にのれ！", {at: "center", dy: -140, size: 30, bold: true, color: color_target.color})
+  elif color_target != nil and time() >= color_drop_at then
+    for t in tiles do
+      if t.color != color_target.color then
+        t.visible = false
+        t.solid = false
+      end
+    end
+    color_target = nil
+    color_back_at = time() + 2
+    ui_remove("colorcall")
+  end
+end
+
+func reset_color_floor()
+  for t in tile_list("colortile") do
+    t.visible = true
+    t.solid = true
+    t.color = "#F8FAFC"
+  end
+  ui_remove("colorcall")
+end
+
+-- MARK: 氷のゆか割り
+
+func crack(b)
+  if not b.visible then return end
+  b.color = "#E0F2FE"
+  after(0.45, func()
+    b.visible = false
+    b.solid = false
+  end)
+end
+
+func reset_spleef()
+  for t in tile_list("spleef") do
+    t.visible = true
+    t.solid = true
+    t.color = "#BAE6FD"
+  end
+end
+
+-- MARK: 記憶の道
+
+func make_path()
+  mem_path = []
+  let col = random(1, 5)
+  for row in 1 to 8 do
+    col = clamp(col + random(-1, 1), 1, 5)
+    append(mem_path, "Mem " + row + " " + col)
+  end
+  for t in tile_list("memtile") do
+    t.visible = true
+    t.solid = true
+    if contains(mem_path, t.name) then t.color = "#FDE047" else t.color = "#E9D5FF" end
+  end
+  after(4, func()
+    for t in tile_list("memtile") do t.color = "#E9D5FF" end
+    host_say("さあ、覚えたかな？")
+  end)
+end
+
+func mem_touch(b)
+  if contains(mem_path, b.name) or not b.visible then return end
+  b.color = "#EF4444"
+  after(0.25, func()
+    b.visible = false
+    b.solid = false
+  end)
+  after(3, func()
+    b.visible = true
+    b.solid = true
+    b.color = "#E9D5FF"
+  end)
+end
+
+-- MARK: おわり
+
+func cleanup_challenge()
+  for x in made do gone(x) end
+  made = []
+  for p in players() do p.ui_remove("quiz") end
+  reset_color_floor()
+  reset_spleef()
+  for t in tile_list("memtile") do
+    t.visible = true
+    t.solid = true
+    t.color = "#E9D5FF"
+  end
+end
+
+-- 順位をつけて返す
+func rank_challenge(c)
+  let list = filter(contestants(), func(p) return p.c_done != nil end)
+  if c.kind == "race" then
+    return sort(list, func(a, b)
+      if a.c_done > 0 and b.c_done > 0 then return a.c_done < b.c_done end
+      if a.c_done > 0 then return true end
+      if b.c_done > 0 then return false end
+      return a.progress > b.progress
+    end)
+  elif c.kind == "survive" then
+    return sort(list, func(a, b)
+      if a.c_fell == 0 and b.c_fell == 0 then return false end
+      if a.c_fell == 0 then return true end
+      if b.c_fell == 0 then return false end
+      return a.c_fell > b.c_fell
+    end)
+  end
+  if c.id == "dodge" then
+    return sort(list, func(a, b) return a.c_score > b.c_score end)
+  end
+  return sort(list, func(a, b) return a.c_score > b.c_score end)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.in_challenge or challenge == nil then return end
+  if contains(b.tags, "logfinish") then reach_goal(p, "logs")
+  elif contains(b.tags, "towertop") then reach_goal(p, "tower")
+  elif contains(b.tags, "memfinish") then reach_goal(p, "memory")
+  elif contains(b.tags, "ball") and challenge.id == "dodge" and quiet_ready(p, "ball", 0.6) then
+    p.c_score = p.c_score - 1
+    p.message("💥 当たった！（" + (0 - p.c_score) + "）", 0.8)
+    p.launch(0, 6, 0)
+  elif contains(b.tags, "coin") and challenge.id == "coins" then
+    if contains(made, b) then remove(made, index_of(made, b)) end
+    gone(b)
+    p.c_score = p.c_score + 1
+    p.sound("collect")
+  elif contains(b.tags, "spleef") and challenge.id == "spleef" then crack(b)
+  elif contains(b.tags, "memtile") and challenge.id == "memory" then mem_touch(b)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "ans_") then answer(p, num(replace(id, "ans_", ""))) end
+end

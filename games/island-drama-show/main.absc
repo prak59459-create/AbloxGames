@@ -1,160 +1,53 @@
--- Island Drama Show — ミニゲームで勝ちぬくサバイバル番組
+-- Island Drama Show — 無人島のサバイバル番組。チャレンジで勝ちぬいて、授与式を生きのこれ！
+--
+-- ファイル:
+--   data.absc        チャレンジ9つ・クイズ40問・司会のセリフ
+--   common.absc      番組の状態・画面
+--   challenges.absc  9つのチャレンジのしくみ
+--   show.absc        シーズン・授与式（投票）・決勝・チャンピオン
+--   main.absc        このファイル
 
-kit_setup("Island Drama Show", "勝ちぬけ！最下位は脱落", [
-  "毎回ちがうチャレンジ: 丸太わたり・玉よけ・早押しクイズ",
-  "チャレンジの順位でポイント。いちばん低い人が脱落",
-  "脱落した人は観客席から応援（次のショーで復活）",
-  "最後の1人がチャンピオン！"
+kit_setup("Island Drama Show", "勝ちぬけ！ 最後の1人はだれだ", [
+  "🎬 毎回ちがうチャレンジ（9種類）。順位でポイントがもらえる",
+  "🛡 1位はイミュニティ。授与式で安全",
+  "🍡 マシュマロ授与式: ポイントの低い2人から、みんなの投票で1人が脱落",
+  "😢 脱落した人は観客席から投票で参加。次のシーズンで復活",
+  "🔥 2人になったら決勝戦！ 勝ったほうがチャンピオン",
+  "🪵 丸太わたり・⚽ 玉よけ・❓ クイズ・👑 山の王さま・🗼 タワー・🪙 コイン・🎨 色の床・🧊 氷のゆか・🧠 記憶の道"
 ])
+kit_currency = "コイン"
 
-let challenges = ["logs", "dodge", "quiz"]
-let challenge = nil
-let round_no = 0
-let order = []
-let live = false
-let quiz = [
-  ["日本でいちばん高い山は？", ["富士山", "エベレスト", "阿蘇山"], 1],
-  ["1週間は何日？", ["5日", "7日", "10日"], 2],
-  ["虹は何色？", ["3色", "5色", "7色"], 3],
-  ["クジラは何のなかま？", ["魚", "ほにゅう類", "は虫類"], 2],
-  ["水がこおるのは何度？", ["0度", "10度", "100度"], 1],
-  ["太陽のまわりを回っているのは？", ["月", "地球", "星座"], 2],
-  ["パンダが好きな食べ物は？", ["ササ", "リンゴ", "魚"], 1],
-  ["12 × 3 は？", ["33", "36", "39"], 2]
-]
-let question = nil
-let answered = {}
-
-kit_quest("win", "チャンピオンになる", 1, 500)
 kit_quest("challenge", "チャレンジで1位", 1, 150)
+kit_quest("win", "チャンピオンになる", 1, 1000)
+kit_quest("season", "シーズンに3回出る", 3, 300)
+kit_quest("vote", "授与式で5回投票する", 5, 150)
 
-func contestants()
-  return filter(players(), func(p) return not p.out end)
-end
-
-func show()
-  let list = map(contestants(), func(p) return p.name + " " + p.points end)
-  ui_text("board", "🎬 残り: " + join(list, " / "), {at: "top", dy: 26, size: 16, bold: true})
-end
-
-func place(p)
-  append(order, p)
-  let rank = len(order)
-  p.points = p.points + max(1, 6 - rank)
-  p.message("🏅 " + rank + " 位！", 1.5)
-  if rank == 1 then kit_quest_progress(p, "challenge", 1) end
-  show()
-end
-
-func start_challenge()
-  let left = contestants()
-  if len(left) <= 1 and len(players()) > 1 then
-    if len(left) == 1 then
-      kit_quest_progress(left[1], "win", 1)
-      left[1].score = left[1].score + 5
-      kit_finish("🏆 チャンピオンは " + left[1].name + "！", 10)
-    else
-      kit_finish("🎬 番組終了！", 6)
-    end
-    return
-  end
-  round_no = round_no + 1
-  challenge = challenges[(round_no - 1) % len(challenges) + 1]
-  order = []
-  live = true
-  if challenge == "logs" then
-    announce("🪵 チャレンジ: 丸太わたり！向こう岸の緑までいそげ", 4)
-    for p in left do p.teleport(block("Log Start")) end
-  elif challenge == "dodge" then
-    announce("⚽ チャレンジ: 玉よけ！最後まで当たらずに残れ", 4)
-    for p in left do
-      p.teleport(block("Dodge Arena"))
-      p.hits = 0
-    end
-  else
-    announce("❓ チャレンジ: 早押しクイズ！", 3)
-    after(2, func() ask() end)
-  end
-  after(40, func() finish_challenge() end)
-end
-
-func ask()
-  question = random(quiz)
-  answered = {}
-  for p in contestants() do
-    p.ui_panel("quiz", {at: "center", w: 480, h: 170, bg: "#1E3A8AEE", radius: 20, layer: 30})
-    p.ui_text("quiz_q", question[1], {parent: "quiz", y: 0.25, size: 20, bold: true})
-    let i = 0
-    for choice in question[2] do
-      i = i + 1
-      p.ui_button("ans_" + i, choice, {parent: "quiz", x: (i - 0.5) / 3, y: 0.7, w: 140, h: 50, size: 17, bg: "#3B82F6"})
-    end
-  end
-end
-
-func finish_challenge()
-  if not live then return end
-  live = false
-  for p in players() do p.ui_remove("quiz") end
-  if challenge == "dodge" then
-    for p in sort(contestants(), func(a, b) return a.hits < b.hits end) do place(p) end
-  end
-  -- 順位のつかなかった人は0点
-  let left = contestants()
-  if len(left) > 1 then
-    let worst = sort(left, func(a, b) return a.points < b.points end)[1]
-    worst.out = true
-    worst.teleport(block("Stage"))
-    announce("😢 " + worst.name + " は脱落…", 4)
-  end
-  show()
-  after(6, func() start_challenge() end)
-end
+kit_shop_title = "衣装"
+kit_shop_add("cap", "🧢 キャップ", 100, func(p) p.hat = "cap" end)
+kit_shop_add("antenna", "📡 アンテナ", 200, func(p) p.hat = "antenna" end)
+kit_shop_add("halo", "😇 天使の輪", 500, func(p) p.hat = "halo" end)
+kit_shop_add("red", "🔴 赤チームの服", 150, func(p) p.color = "#DC2626" end)
+kit_shop_add("blue", "🔵 青チームの服", 150, func(p) p.color = "#2563EB" end)
 
 on start()
-  after(5, func() start_challenge() end)
-  every(1, func()
-    if live and challenge == "dodge" then
-      let arena = block("Dodge Arena")
-      for k in 1 to 3 do
-        let ball = create_block({name: "Dodgeball", shape: "sphere", position: arena.position + {x: random(-14, 14), y: 18, z: random(-14, 14)},
-                                size: 1.4, color: "#EF4444", material: "neon", solid: false, behavior: "trigger", tags: ["ball"]})
-        ball.move(0, -18, 0, 1.2)
-        after(1.4, func() kit_gone(ball) end)
-      end
-    end
-  end)
+  every(10, func() kit_leaderboard("🏆") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_shop_button(p)
   p.points = 0
-  p.out = live
-  show()
-end
-
-on touch(p, b)
-  if p.is_npc or p.out or not live then return end
-  if contains(b.tags, "logfinish") and challenge == "logs" and not contains(order, p) then
-    place(p)
-  elif contains(b.tags, "ball") and challenge == "dodge" then
-    p.hits = p.hits + 1
-    p.message("💥 当たった！（" + p.hits + "）", 0.8)
-  end
-end
-
-on button(p, id)
-  if starts_with(id, "ans_") and live and challenge == "quiz" and question != nil and answered[p.id] == nil then
-    answered[p.id] = true
-    p.ui_remove("quiz")
-    if num(replace(id, "ans_", "")) == question[3] then
-      place(p)
-    else
-      p.message("❌ ざんねん", 1)
-    end
-    if len(keys(answered)) >= len(contestants()) then
-      after(1.5, func() if live and challenge == "quiz" then ask() end end)
-    end
+  p.wins = 0
+  p.in_show = false
+  p.out = false
+  p.immune = false
+  p.in_challenge = false
+  kit_give(p, 20)
+  if phase == "lobby" then
+    p.message("🎬 もうすぐ新シーズン！", 2)
+  else
+    p.message("🎬 いま放送中。観客席から見て、授与式では投票できるよ！", 3)
+    to_audience(p)
   end
 end

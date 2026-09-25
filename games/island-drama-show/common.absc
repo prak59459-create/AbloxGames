@@ -1,0 +1,65 @@
+-- common.absc — 番組の状態・小さな道具・画面
+
+let phase = "lobby"      -- lobby / challenge / ceremony / done
+let episode = 0
+let challenge = nil
+let phase_until = 0
+let host = nil
+
+func ready(p)
+  return p.points != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+-- まだ番組に残っている出演者
+func contestants()
+  return filter(players(), func(p) return ready(p) and p.in_show and not p.out end)
+end
+
+-- いまのチャレンジに出ている人
+func runners()
+  return filter(contestants(), func(p) return p.in_challenge end)
+end
+
+func host_say(text)
+  if still(host) then host.say(text) end
+end
+
+func to_audience(p)
+  let a = block("Audience")
+  if a != nil then p.teleport(a.position + {x: random(-4, 4), y: 1, z: random(-1, 1)}) end
+end
+
+func board()
+  let list = sort(contestants(), func(a, b) return a.points > b.points end)
+  let parts = map(list, func(p)
+    let mark = ""
+    if p.immune then mark = "🛡" end
+    return mark + p.name + " " + p.points
+  end)
+  let head = "🎬 第" + episode + "話"
+  if challenge != nil and phase == "challenge" then head = head + " " + challenge.name + "  ⏱" + max(0, ceil(phase_until - time())) end
+  ui_text("board", head + "   残り: " + join(parts, " / "), {at: "top", dy: 26, size: 15, bold: true})
+end

@@ -1981,16 +1981,20 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 29,
-      "cover" : "games\/island-drama-show\/cover-ea12f127.png",
+      "blockCount" : 232,
+      "cover" : "games\/island-drama-show\/cover-0db6bdd0.png",
       "id" : "island-drama-show",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/island-drama-show\/data.absc",
+        "games\/island-drama-show\/challenges.absc",
+        "games\/island-drama-show\/common.absc",
+        "games\/island-drama-show\/show.absc",
         "games\/island-drama-show\/main.absc"
       ],
-      "summary" : "サバイバル番組の出演者になって、毎回ちがうミニゲームで勝ちぬけ！最下位は脱落…最後に残るのはだれだ？",
+      "summary" : "無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！",
       "tags" : [
         "minigames",
         "elimination",

@@ -120,7 +120,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/disaster-island/cover-e9547e3e.png" width="200"> | 71 | **Disaster Island** | 15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！ |
 | <img src="games/chaos-golf/cover-480692cc.png" width="200"> | 72 | **Chaos Golf** | ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！ |
 | <img src="games/speed-worlds/cover-210e034f.png" width="200"> | 73 | **Speed Worlds** | 8つのワールド（草原・氷・溶岩・宇宙・おかし・砂漠・雲・ネオン）を超スピードで走るスピードラン。金銀銅メダル、自分のベスト走りの👻ゴースト、レース大会、シューズ・ブーツ・グライダー！ |
-| <img src="games/island-drama-show/cover-ea12f127.png" width="200"> | 74 | **Island Drama Show** | サバイバル番組の出演者になって、毎回ちがうミニゲームで勝ちぬけ！最下位は脱落…最後に残るのはだれだ？ |
+| <img src="games/island-drama-show/cover-0db6bdd0.png" width="200"> | 74 | **Island Drama Show** | 無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！ |
 | <img src="games/prop-hide-and-seek/cover-325ffdc9.png" width="200"> | 75 | **Prop Hide & Seek** | 家具に変身してかくれんぼ！鬼は怪しいものを撃って探す。まちがえると鬼がダメージ。最後まで見つからなければ勝ち。 |
 | <img src="games/mega-minigames/cover-78e7b27a.png" width="200"> | 76 | **Mega Minigames** | 落ちる床、山の王、色あわせ、玉よけ…次々に出るミニゲームで勝ってポイントを集めよう。 |
 | <img src="games/rhythm-battle/cover-15974b21.png" width="200"> | 77 | **Rhythm Battle** | 落ちてくるノーツに合わせてボタンを押す、対戦リズムゲーム。パーフェクトを決めて相手より高いスコアを！ |
