@@ -90,7 +90,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/yokai-shrine/cover-6f19b57d.png" width="200"> | 51 | **Yokai Shrine** | 夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！ |
 | <img src="games/night-lockdown/cover-b2d5390d.png" width="200"> | 52 | **Night Lockdown** | 昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！ |
 | <img src="games/toy-factory-night-shift/cover-57a3ef17.png" width="200"> | 53 | **Toy Factory Night Shift** | おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！ |
-| <img src="games/midnight-guard/cover-43f549cc.png" width="200"> | 54 | **Midnight Guard** | 真夜中の施設を見回る警備員。発電機を動かし続け、懐中電灯で怪異を追い払え。 |
+| <img src="games/midnight-guard/cover-0f79591d.png" width="200"> | 54 | **Midnight Guard** | 真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。 |
 | <img src="games/endless-rooms/cover-d6946cbf.png" width="200"> | 55 | **Endless Rooms** | どこまでも続く黄色い部屋の迷路。徘徊する何かから逃げながら出口を探し、次のレベルへ進め。 |
 | <img src="games/infinite-store/cover-7a6542f5.png" width="200"> | 56 | **Infinite Store** | 終わりのない巨大家具店。昼は家具を集めて基地を作り、夜は店員の怪物から基地を守れ。何日生きのびられる？ |
 | <img src="games/smile-outbreak/cover-66218789.png" width="200"> | 57 | **Smile Outbreak** | 笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！ |

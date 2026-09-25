@@ -1,0 +1,134 @@
+-- power.absc — 発電機と燃料缶・棟の明かり・ライトの充電・ロッカー
+
+let power_clock = 0
+
+func update_light(w)
+  let l = block(w + " Light")
+  if l == nil then return end
+  if lit(w) then
+    l.color = "#FEF9C3"
+    l.material = "neon"
+  else
+    l.color = "#1F2937"
+    l.material = "plastic"
+  end
+end
+
+func take_cans(p)
+  let cap = 1
+  if has_gear(p, "carrier") then cap = 2 end
+  if p.cans >= cap then
+    if quiet_ready(p, "cans_full", 3) then p.message("⛽ もう持てない。発電機へ", 1) end
+    return
+  end
+  p.cans = cap
+  p.sound("collect")
+  p.message("⛽ 燃料缶を持った（" + p.cans + "）", 1)
+  hud(p)
+end
+
+func refuel(p, b)
+  let w = replace(b.name, "Generator ", "")
+  if not contains(WINGS, w) then return end
+  if p.cans <= 0 then
+    if quiet_ready(p, "gen_hint", 3) then p.message("⛽ 警備室の燃料置き場で燃料缶を取ってこよう", 1.5) end
+    return
+  end
+  if fuel[w] >= 95 then return end
+  let was_dark = not lit(w)
+  p.cans = p.cans - 1
+  fuel[w] = min(100, fuel[w] + 55)
+  update_light(w)
+  p.sound("checkpoint")
+  kit_give(p, 6)
+  kit_quest_progress(p, "refuel", 1)
+  if was_dark then
+    announce("💡 " + p.name + " が " + wing_name(w) + " の明かりをもどした！", 2)
+    -- 明るくなると、その棟の影は消える
+    for n in npcs() do
+      if n.anomaly == "shade" and wing_at(n.position) == w then n.destroy() end
+    end
+  else
+    p.message("⚡ " + wing_name(w) + " の発電機に燃料を入れた", 1)
+  end
+  hud(p)
+  shift_hud()
+end
+
+func charge(p)
+  if p.battery >= 100 then return end
+  p.battery = min(100, p.battery + 35)
+  p.sound("tick")
+  p.message("🔋 ライトを充電中… " + floor(p.battery) + "%", 0.8)
+  hud(p)
+end
+
+-- MARK: ロッカー
+
+func gear_panel(p)
+  let h = 110 + len(GEAR) * 48
+  p.ui_remove("gear")
+  p.ui_panel("gear", {at: "center", w: 500, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("gear_t", "🗄 警備員のロッカー   💵 " + kit_money(p), {parent: "gear", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for g in GEAR do
+    i = i + 1
+    let label = g.name + "  " + g.text
+    let bg = "#1D4ED8"
+    if has_gear(p, g.id) then
+      label = label + "  ✅"
+      bg = "#475569"
+    else
+      label = label + "   💵" + g.price
+    end
+    p.ui_button("gear_" + g.id, label, {parent: "gear", y: (30 + i * 48) / h, w: 460, h: 40, size: 12, bg: bg})
+  end
+  p.ui_button("gear_close", "閉じる", {parent: "gear", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_gear(p, id)
+  for g in GEAR do
+    if g.id == id and not has_gear(p, id) and kit_pay(p, g.price) then
+      p.gear[id] = true
+      if id == "shoes" then p.speed = 1.2 end
+      p.sound("collect")
+      p.message("🗄 " + g.name + " を手に入れた", 1.2)
+      kit_quest_progress(p, "gear", 1)
+    end
+  end
+  gear_panel(p)
+  hud(p)
+end
+
+on tick(dt)
+  power_clock = power_clock + dt
+  if power_clock < 1 then return end
+  let secs = power_clock
+  power_clock = 0
+  if phase != "shift" then return end
+  for w in WINGS do
+    if lit(w) then
+      fuel[w] = max(0, fuel[w] - night().drain * secs * (0.8 + random() * 0.4))
+      if not lit(w) then
+        update_light(w)
+        announce("🔴 " + wing_name(w) + " の発電機が止まった！ 暗くなった…", 2)
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "fuel") then take_cans(p)
+  elif contains(b.tags, "generator") then refuel(p, b)
+  elif contains(b.tags, "charger") and quiet_ready(p, "charge", 0.8) then charge(p)
+  elif contains(b.tags, "locker") and quiet_ready(p, "locker", 2) then gear_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "gear_") and id != "gear_close" then buy_gear(p, replace(id, "gear_", ""))
+  elif id == "gear_close" then p.ui_remove("gear")
+  end
+end

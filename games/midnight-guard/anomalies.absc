@@ -1,0 +1,311 @@
+-- anomalies.absc — 怪異とライト
+--   🌑 影        暗い棟から出てくる。ライトを当てつづけると消える
+--   👁 見張る者  だれかに見られているあいだは動けない。目をはなすと一気に近づく
+--   🧒 迷子      そばに行くとついてくる。警備室へ連れていく。放っておくと影になる
+--   👑 停電の王  3日目の5時。みんなでライトを当てて追い返す
+
+let anomaly_clock = 0
+let spawn_clock = 0
+let event_clock = 0
+let king_done = false
+
+func clear_anomalies()
+  for n in npcs() do
+    if n.anomaly != nil then n.destroy() end
+  end
+  king_done = false
+end
+
+func count_of(kind)
+  return len(filter(npcs(), func(n) return n.anomaly == kind end))
+end
+
+func hurt(p, amount, by)
+  if has_gear(p, "vest") then amount = amount * 0.65 end
+  p.damage(amount, by)
+end
+
+-- MARK: 🔦 ライト
+
+func toggle_light(p)
+  if not active(p) then return end
+  if not p.light_on and p.battery <= 0 then
+    p.message("🔋 電池切れ… 警備室で充電しよう", 1.2)
+    return
+  end
+  p.light_on = not p.light_on
+  p.sound("tick")
+  hud(p)
+end
+
+-- ライトの先にいるか（距離と向き）
+func in_beam(p, n)
+  let range = 14
+  if has_gear(p, "lens") then range = 22 end
+  if distance(p, n) > range then return false end
+  return facing(p, n.position, 0.86)
+end
+
+func light_step(p, secs)
+  if not p.light_on then return end
+  let rate = 1.4
+  if has_gear(p, "battery") then rate = rate * 0.65 end
+  p.battery = max(0, p.battery - rate * secs)
+  if p.battery <= 0 then
+    p.light_on = false
+    p.message("🔋 ライトの電池が切れた！", 1.5)
+    hud(p)
+    return
+  end
+  let power = 1
+  if has_gear(p, "lens") then power = 1.5 end
+  for n in npcs() do
+    if n.anomaly == "shade" or n.anomaly == "king" then
+      if in_beam(p, n) then
+        n.exposed = (n.exposed or 0) + secs * power
+        n.last_lit_by = p.id
+        n.color = "#E5E7EB"
+        see_anomaly(p, n.anomaly)
+      end
+    end
+  end
+end
+
+-- MARK: 🌑 影
+
+func dark_wings()
+  return filter(WINGS, func(w) return not lit(w) end)
+end
+
+func spawn_shade(w)
+  if w == nil then
+    let dark = dark_wings()
+    if len(dark) > 0 and random() < 0.75 then w = random(dark) else w = random(WINGS) end
+  end
+  let pos = block(w + " Center").position + {x: random(-5, 5), y: 1, z: random(-5, 5)}
+  let n = create_npc({name: "🌑 影", position: pos, color: "#020617", head_color: "#7F1D1D", size: 1.5, health: 999999,
+                      speed: 0.75, team: "anomaly"})
+  n.anomaly = "shade"
+  n.exposed = 0
+  n.home = w
+  return n
+end
+
+func shade_step(n, secs)
+  if n.exposed >= 1.6 then
+    let p = find_player(n.last_lit_by)
+    if p != nil then
+      kit_give(p, 8)
+      p.score = p.score + 2
+      kit_quest_progress(p, "banish", 1)
+      p.message("🔦 影を消した！", 0.8)
+    end
+    n.destroy()
+    return
+  end
+  -- 光を当てられていないと、少しずつもとにもどる
+  n.exposed = max(0, n.exposed - secs * 0.5)
+  if n.exposed <= 0 then n.color = "#020617" end
+  let target = nil
+  let best_d = 26
+  for p in players() do
+    if active(p) and not in_hub(p.position) and distance(n, p) < best_d then
+      target = p
+      best_d = distance(n, p)
+    end
+  end
+  if target != nil then
+    n.follow(target)
+    if best_d < 2.2 then hurt(target, 12 * secs, n) end
+  else
+    n.move_to(block(n.home + " Center").position)
+  end
+end
+
+-- MARK: 👁 見張る者
+
+func spawn_watcher()
+  let w = random(WINGS)
+  let n = create_npc({name: "👁 見張る者", position: block(w + " Center").position + {x: 0, y: 1, z: 0}, color: "#E5E7EB",
+                      head_color: "#111827", size: 2, health: 999999, speed: 1.9, team: "anomaly"})
+  n.anomaly = "watcher"
+  n.born = time()
+  announce("👁 どこかに「見られていないと動くもの」があらわれた…", 3)
+end
+
+func watched(n)
+  for p in players() do
+    if active(p) and distance(p, n) < 30 and facing(p, n.position, 0.75) then return true end
+  end
+  return false
+end
+
+func watcher_step(n)
+  if time() - n.born > 70 then
+    n.destroy()
+    return
+  end
+  if watched(n) then
+    n.stop()
+    see_near("watcher", n.position, 30)
+    return
+  end
+  let target = nil
+  let best_d = 60
+  for p in players() do
+    if active(p) and distance(n, p) < best_d then
+      target = p
+      best_d = distance(n, p)
+    end
+  end
+  if target == nil then return end
+  n.follow(target)
+  if best_d < 2.2 then
+    hurt(target, 55, n)
+    target.shake(0.8, 0.6)
+    target.message("👁 目をはなした瞬間に…！", 1.5)
+    n.position = block(random(WINGS) + " Center").position + {x: 0, y: 1, z: 0}
+  end
+end
+
+-- MARK: 🧒 迷子
+
+func spawn_child()
+  let w = random(WINGS)
+  let n = create_npc({name: "🧒 迷子", position: block(w + " Center").position + {x: random(-3, 3), y: 1, z: random(-3, 3)},
+                      color: "#FDE68A", head_color: "#F5D0A9", size: 0.7, health: 999999, speed: 0.95, team: "anomaly"})
+  n.anomaly = "child"
+  n.born = time()
+  n.lead = nil
+  n.say("ママ… どこ…？")
+  announce("🧒 " + wing_name(w) + " のほうから子どもの泣き声がする…", 3)
+end
+
+func child_step(n)
+  if in_hub(n.position) then
+    let p = find_player(n.lead)
+    n.say("ありがとう！")
+    trust = min(TRUST_START, trust + 10)
+    if p != nil then
+      kit_give(p, 30)
+      p.score = p.score + 8
+      kit_quest_progress(p, "child", 1)
+      see_anomaly(p, "child")
+    end
+    announce("🧒 迷子を警備室まで送りとどけた！ 信頼 +10", 2.5)
+    n.destroy()
+    return
+  end
+  if time() - n.born > 55 then
+    let pos = n.position
+    n.say("…ひとりぼっちは、いや")
+    n.destroy()
+    announce("😨 迷子が影になった…！", 2.5)
+    for i in 1 to 3 do
+      let s = spawn_shade(wing_at(pos) or random(WINGS))
+      s.position = pos + {x: random(-3, 3), y: 1, z: random(-3, 3)}
+    end
+    return
+  end
+  let lead = find_player(n.lead)
+  if lead == nil or not lead.alive then
+    lead = nil
+    for p in players() do
+      if active(p) and distance(p, n) < 3.5 then lead = p end
+    end
+    if lead != nil then
+      n.lead = lead.id
+      n.say("…いっしょに行ってくれるの？")
+      lead.message("🧒 迷子がついてくる。警備室まで連れていこう", 2)
+      see_anomaly(lead, "child")
+    end
+  end
+  if lead != nil then n.follow(lead) else n.stop() end
+end
+
+-- MARK: 👑 停電の王
+
+func spawn_king()
+  king_done = true
+  for w in WINGS do fuel[w] = fuel[w] * 0.5 end
+  let n = create_npc({name: "👑 停電の王", position: block("Server Center").position + {x: 0, y: 1, z: 0}, color: "#0A0A0A",
+                      head_color: "#FACC15", size: 3, health: 999999, speed: 0.8, team: "anomaly"})
+  n.anomaly = "king"
+  n.hat = "crown"
+  n.exposed = 0
+  shake(0.6, 1.5)
+  sound("defeat")
+  announce("👑 停電の王があらわれた！ みんなでライトを当てて追い返せ（1人では足りない）", 5)
+end
+
+func king_step(n, secs)
+  if n.exposed >= 9 then
+    announce("👑 停電の王が闇にかえっていった！", 3)
+    for p in players() do
+      if active(p) then
+        kit_give(p, 80)
+        kit_quest_progress(p, "king", 1)
+        kit_badge(p, "king", "停電の王を追い返した")
+      end
+    end
+    n.destroy()
+    return
+  end
+  n.exposed = max(0, n.exposed - secs * 0.4)
+  if n.exposed <= 0 then n.color = "#0A0A0A" end
+  let target = nil
+  let best_d = 80
+  for p in players() do
+    if active(p) and distance(n, p) < best_d then
+      target = p
+      best_d = distance(n, p)
+    end
+  end
+  if target != nil then
+    n.follow(target)
+    if best_d < 3.2 then hurt(target, 25 * secs, n) end
+  end
+  -- 王のまわりの発電機は燃料がへる
+  let w = wing_at(n.position)
+  if w != nil and lit(w) then
+    fuel[w] = max(0, fuel[w] - 4 * secs)
+    if not lit(w) then update_light(w) end
+  end
+end
+
+on tick(dt)
+  anomaly_clock = anomaly_clock + dt
+  spawn_clock = spawn_clock + dt
+  event_clock = event_clock + dt
+  if anomaly_clock < 0.25 then return end
+  let secs = anomaly_clock
+  anomaly_clock = 0
+  if phase != "shift" then return end
+  for p in players() do
+    if active(p) then light_step(p, secs) end
+  end
+  for n in npcs() do
+    if n.anomaly == "shade" then shade_step(n, secs)
+    elif n.anomaly == "watcher" then watcher_step(n)
+    elif n.anomaly == "child" then child_step(n)
+    elif n.anomaly == "king" then king_step(n, secs)
+    end
+  end
+  if spawn_clock >= 6 then
+    spawn_clock = 0
+    let limit = night().shades + len(dark_wings())
+    if count_of("shade") < limit and (len(dark_wings()) > 0 or random() < 0.4) then spawn_shade(nil) end
+  end
+  if event_clock >= 30 then
+    event_clock = 0
+    if night().child and count_of("child") == 0 and random() < 0.45 then spawn_child()
+    elif night().watcher and count_of("watcher") == 0 and random() < 0.4 then spawn_watcher()
+    end
+  end
+  if night().boss and not king_done and hour() >= 5 then spawn_king() end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "light" then toggle_light(p) end
+end

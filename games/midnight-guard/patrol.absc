@@ -1,0 +1,175 @@
+-- patrol.absc — 巡回: 1時間ごとの巡回リスト・チェックポイント・所長の無線（とニセの無線）・信頼・夜の流れ
+
+let patrol_clock = 0
+
+-- MARK: 巡回
+
+func new_round()
+  round_hour = hour()
+  round_done = {}
+  round_list = slice(shuffle(copy(WINGS)), 1, night().round)
+  let names = map(round_list, func(w) return wing_name(w) end)
+  announce("📻 " + random(DIRECTOR_LINES) + "：" + join(names, "・"), 4)
+  -- 2日目から、ときどきニセの無線がまじる
+  if night().fake and random() < 0.55 then
+    let others = filter(WINGS, func(w) return not contains(round_list, w) end)
+    fake_wing = random(others)
+    fake_until = time() + HOUR_SECS
+    let token = night_token
+    after(random(6, 14), func()
+      if token != night_token or phase != "shift" or fake_wing == nil then return end
+      announce("📻 ザ…ザザ…しょ…ちょう…だ… " + wing_name(fake_wing) + "…へ…すぐ…ザザッ", 3)
+    end)
+  else
+    fake_wing = nil
+  end
+  shift_hud()
+end
+
+-- 1時間が終わったとき: 回れなかったぶん信頼がへる
+func close_round()
+  let missed = len(filter(round_list, func(w) return not round_done[w] end))
+  if missed > 0 then
+    trust = trust - missed * 12
+    announce("📉 巡回が " + missed + " か所できなかった… 所長の信頼 -" + (missed * 12), 3)
+  else
+    trust = min(TRUST_START, trust + 5)
+    for p in players() do
+      if active(p) then kit_give(p, 15) end
+    end
+    announce("📈 巡回完了！ 所長の信頼 +5", 2)
+  end
+  if trust <= 0 then fired() end
+end
+
+func scan(p, b)
+  let w = replace(b.name, "Checkpoint ", "")
+  if not contains(WINGS, w) or phase != "shift" then return end
+  if not lit(w) then
+    if quiet_ready(p, "dark_" + w, 3) then p.message("🔌 暗くてチェックポイントが読めない！ 発電機に燃料を", 1.5) end
+    return
+  end
+  if w == fake_wing and time() < fake_until then
+    ambush(w)
+    see_anomaly(p, "voice")
+    p.message("📻 …ニセの無線だった！ ここはワナだ！", 2)
+    fake_wing = nil
+    return
+  end
+  if not contains(round_list, w) then
+    if quiet_ready(p, "not_list_" + w, 4) then p.message("📋 ここは今の巡回リストにない", 1) end
+    return
+  end
+  if round_done[w] then return end
+  round_done[w] = true
+  kit_give(p, 12)
+  p.score = p.score + 3
+  p.sound("checkpoint")
+  kit_quest_progress(p, "scan", 1)
+  p.message("✅ " + wing_name(w) + " のチェックポイントをスキャン", 1.2)
+  shift_hud()
+end
+
+-- ニセの無線のワナ: その棟の電気が落ちて、影が出てくる
+func ambush(w)
+  fuel[w] = 0
+  update_light(w)
+  for i in 1 to 2 do spawn_shade(w) end
+  sound("defeat")
+  announce("⚡ " + wing_name(w) + " の電気が落ちた！ 影が…！", 2.5)
+end
+
+-- MARK: 夜の流れ
+
+func start_night(i)
+  night_i = i
+  night_token = night_token + 1
+  phase = "shift"
+  shift_start = time()
+  trust = TRUST_START
+  round_hour = -1
+  fake_wing = nil
+  clear_anomalies()
+  for w in WINGS do
+    fuel[w] = random(55, 85)
+    update_light(w)
+  end
+  for p in players() do
+    if ready(p) then
+      p.battery = 100
+      p.cans = 0
+      p.light_on = false
+      p.teleport(block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0})
+      hud(p)
+    end
+  end
+  world.light = 0.3
+  announce("🌙 " + night().name + "。朝6時まで見回りだ。発電機を止めるな！", 4)
+  new_round()
+end
+
+func fired()
+  if phase != "shift" then return end
+  phase = "fired"
+  clear_anomalies()
+  announce("📉 所長「きみはクビだ！」… もう一度この夜から", 4)
+  let token = night_token
+  after(6, func()
+    if token == night_token then start_night(night_i) end
+  end)
+end
+
+func night_done()
+  phase = "done"
+  clear_anomalies()
+  world.light = 0.6
+  sound("goal")
+  for p in players() do
+    if ready(p) then
+      kit_give(p, 60 * night_i + floor(trust / 2))
+      p.score = p.score + 10 * night_i
+      kit_quest_progress(p, "nights", 1)
+      if trust >= 80 then kit_badge(p, "trusted_" + night_i, night().name + "を信頼80以上で終えた") end
+      p.light_on = false
+      hud(p)
+    end
+  end
+  if night_i >= len(NIGHTS) then
+    phase = "over"
+    for p in players() do
+      if ready(p) then kit_badge(p, "guard", "3つの夜を守りぬいた警備員") end
+    end
+    kit_finish("🌅 3日間の夜警をやりとげた！ 所長「きみは最高の警備員だ」", 10)
+    return
+  end
+  announce("🌅 6:00！ シフト終了。15秒後に次の夜。ロッカーで装備を買っておこう", 5)
+  let token = night_token
+  after(15, func()
+    if token == night_token then start_night(night_i + 1) end
+  end)
+end
+
+on tick(dt)
+  patrol_clock = patrol_clock + dt
+  if patrol_clock < 0.5 then return end
+  patrol_clock = 0
+  if phase != "shift" then
+    shift_hud()
+    return
+  end
+  if hour() >= HOURS then
+    close_round()
+    if phase == "shift" then night_done() end
+    return
+  end
+  if hour() != round_hour then
+    if round_hour >= 0 then close_round() end
+    if phase == "shift" then new_round() end
+  end
+  shift_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "checkpoint") then scan(p, b) end
+end

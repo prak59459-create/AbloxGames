@@ -28,7 +28,7 @@ let horrorGames: [Game] = [
          summary: "おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！",
          tags: ["horror", "cameras", "coop"], maxPlayers: 6, build: toyFactory),
     Game(number: 54, id: "midnight-guard", title: "Midnight Guard",
-         summary: "真夜中の施設を見回る警備員。発電機を動かし続け、懐中電灯で怪異を追い払え。",
+         summary: "真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。",
          tags: ["horror", "guard", "coop"], maxPlayers: 8, build: midnightGuard),
     Game(number: 55, id: "endless-rooms", title: "Endless Rooms",
          summary: "どこまでも続く黄色い部屋の迷路。徘徊する何かから逃げながら出口を探し、次のレベルへ進め。",
@@ -1033,24 +1033,138 @@ func toyFactory(_ m: MapBuilder) {
 // MARK: 54 Midnight Guard
 
 func midnightGuard(_ m: MapBuilder) {
-    m.indoor(ground: "#000000")
     m.sky("#000000", "#050505", light: 0.3, showGround: false)
-    m.ground(100, 100, color: "#1F2937", name: "Facility Floor")
-    m.walls(0, 0, w: 100, d: 100, h: 6, color: "#374151", name: "Facility Wall")
-    m.slab("Guard Room", x: 0, y: 0, z: 0, w: 12, h: 0.2, d: 12, color: "#1E3A8A")
-    m.spawnRing(0, 0, y: 0.2, radius: 3, count: 8, color: "#93C5FD")
-    let rooms: [(String, Float, Float)] = [("Lab", -30, -30), ("Archive", 30, -30), ("Ward", -30, 30), ("Boiler", 30, 30)]
-    for rm in rooms {
-        m.slab("\(rm.0) Floor", x: rm.1, y: 0, z: rm.2, w: 22, h: 0.2, d: 22, color: "#374151")
-        m.walls(rm.1, rm.2, w: 22, d: 22, h: 4, y: 0.2, color: "#4B5563", thickness: 0.4, name: "\(rm.0) Wall", opacity: 0.85)
-        m.pad("\(rm.0) Generator", x: rm.1, z: rm.2, y: 0.2, size: 2.5, color: "#FACC15", tags: ["generator"])
-        m.part("\(rm.0) Light", at: (rm.1, 3.8, rm.2), size: (2, 0.2, 2), color: "#FEF9C3", material: .neon, solid: false)
+    m.ground(120, 120, color: "#1F2937", name: "Facility Floor")
+    m.walls(0, 0, w: 120, d: 120, h: 6, color: "#374151", name: "Facility Wall")
+    m.part("Cover Focus", at: (0, 2, 0), size: (90, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
+
+    /// A wall along x (at z) or along z (at x), from a to b, with doorways
+    /// (centre, width) cut out of it.
+    func wall(alongX: Bool, at fixed: Float, from a: Float, to b: Float, doors: [(Float, Float)] = [], h: Float = 4.5,
+              color: String = "#4B5563", name: String = "Wall") {
+        func piece(_ lo: Float, _ hi: Float) {
+            guard hi - lo > 0.01 else { return }
+            if alongX { m.slab(name, x: (lo + hi) / 2, y: 0, z: fixed, w: hi - lo, h: h, d: 0.5, color: color) }
+            else { m.slab(name, x: fixed, y: 0, z: (lo + hi) / 2, w: 0.5, h: h, d: hi - lo, color: color) }
+        }
+        var cursor = a
+        for d in doors.sorted(by: { $0.0 < $1.0 }) {
+            piece(cursor, d.0 - d.1 / 2)
+            cursor = d.0 + d.1 / 2
+        }
+        piece(cursor, b)
     }
-    // Doorways cut as see-through slabs.
-    for rm in rooms {
-        m.part("\(rm.0) Doorway", at: (rm.1 * 0.64, 1.5, rm.2), size: (0.5, 3, 3), color: "#1F2937", solid: false, opacity: 0.1)
+    /// A room: four walls with doorways on the named sides (N is +z).
+    func room(_ name: String, _ cx: Float, _ cz: Float, w: Float, d: Float, doors: [(String, Float)], color: String, floor: String) {
+        m.slab("\(name) Floor", x: cx, y: 0, z: cz, w: w, h: 0.05, d: d, color: floor)
+        func gaps(_ side: String) -> [(Float, Float)] { doors.filter { $0.0 == side }.map { ($0.1, 5) } }
+        wall(alongX: true, at: cz + d / 2, from: cx - w / 2, to: cx + w / 2, doors: gaps("N"), color: color, name: "\(name) Wall")
+        wall(alongX: true, at: cz - d / 2, from: cx - w / 2, to: cx + w / 2, doors: gaps("S"), color: color, name: "\(name) Wall")
+        wall(alongX: false, at: cx + w / 2, from: cz - d / 2, to: cz + d / 2, doors: gaps("E"), color: color, name: "\(name) Wall")
+        wall(alongX: false, at: cx - w / 2, from: cz - d / 2, to: cz + d / 2, doors: gaps("W"), color: color, name: "\(name) Wall")
+        m.part("\(name) Center", at: (cx, 0.1, cz), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("\(name) Light", at: (cx, 4.3, cz), size: (4, 0.2, 4), color: "#FEF9C3", material: .neon, solid: false)
     }
-    m.markers("Entity Spot", points: [(-30, -20), (30, -20), (-30, 20), (30, 20), (0, 40), (0, -40)], color: "#000000", visible: false, behavior: .none)
+    /// A corridor 5 m wide between two doorways, walls on both sides.
+    func corridor(alongX: Bool, at c: Float, from a: Float, to b: Float) {
+        wall(alongX: alongX, at: c - 2.5, from: a, to: b, h: 4, color: "#374151", name: "Corridor Wall")
+        wall(alongX: alongX, at: c + 2.5, from: a, to: b, h: 4, color: "#374151", name: "Corridor Wall")
+        if alongX { m.slab("Corridor Floor", x: (a + b) / 2, y: 0, z: c, w: b - a, h: 0.04, d: 5, color: "#111827") }
+        else { m.slab("Corridor Floor", x: c, y: 0, z: (a + b) / 2, w: 5, h: 0.04, d: b - a, color: "#111827") }
+        for t in stride(from: a + 4, to: b, by: 8) {
+            m.part("Corridor Lamp", at: alongX ? (t, 3.9, c) : (c, 3.9, t), size: (0.6, 0.15, 0.6), color: "#94A3B8", material: .neon, solid: false)
+        }
+    }
+    func generator(_ wing: String, _ x: Float, _ z: Float, pad: (Float, Float)) {
+        m.slab("Generator Body", x: x, y: 0, z: z, w: 2.2, h: 1.6, d: 1.4, color: "#6B7280", material: .metal)
+        m.part("Generator Lamp", at: (x, 1.8, z), size: (0.4, 0.3, 0.4), color: "#FACC15", shape: .sphere, material: .neon, solid: false)
+        m.pad("Generator \(wing)", x: pad.0, z: pad.1, size: 2, color: "#FACC15", tags: ["generator"])
+    }
+    func checkpoint(_ wing: String, _ x: Float, _ z: Float) {
+        m.pad("Checkpoint \(wing)", x: x, z: z, size: 1.6, color: "#22D3EE", tags: ["checkpoint"])
+        m.part("Checkpoint Panel", at: (x, 1.6, z), size: (0.5, 0.7, 0.5), color: "#0891B2", material: .neon, solid: false)
+    }
+
+    // MARK: The guard hub in the middle.
+    room("Hub", 0, 0, w: 18, d: 18, doors: [("N", 0), ("S", 0), ("E", 0), ("W", 0)], color: "#1E3A8A", floor: "#1E3A8A")
+    m.spawnRing(0, 0, radius: 3, count: 8, color: "#93C5FD")
+    m.slab("Guard Desk", x: -6, y: 0, z: -6, w: 3.5, h: 1, d: 1.6, color: "#78350F")
+    for x: Float in [-7, -5] { m.part("Guard Monitor", at: (x, 1.5, -6.6), size: (1.4, 0.9, 0.1), color: "#38BDF8", material: .neon, solid: false) }
+    m.pad("Fuel Depot", x: -6, z: 6, size: 2.2, color: "#F97316", tags: ["fuel"])
+    for dx: Float in [-7.8, -4.2] { m.slab("Fuel Can", x: dx, y: 0, z: 7.6, w: 0.8, h: 1, d: 0.6, color: "#DC2626") }
+    m.pad("Charger", x: 6, z: 6, size: 2, color: "#22C55E", tags: ["charger"])
+    m.slab("Charging Station", x: 6, y: 0, z: 8.1, w: 2, h: 1.4, d: 0.5, color: "#166534")
+    m.pad("Locker", x: 6, z: -6, size: 2, color: "#3B82F6", tags: ["locker"])
+    for i in 0..<3 { m.slab("Locker Door", x: 4.6 + Float(i) * 1.4, y: 0, z: -8.3, w: 1.2, h: 2.4, d: 0.6, color: "#475569") }
+
+    // MARK: The six wings.
+    room("Server", 0, 44, w: 26, d: 20, doors: [("S", 0), ("W", 44)], color: "#334155", floor: "#1E293B")
+    for x: Float in [-8, 8] {
+        m.slab("Server Rack", x: x, y: 0, z: 44, w: 1.2, h: 2.8, d: 8, color: "#111827")
+        for k in 0..<4 {
+            m.part("Rack LED", at: (x + (x < 0 ? 0.65 : -0.65), 0.6 + Float(k) * 0.6, 44), size: (0.05, 0.08, 7), color: k % 2 == 0 ? "#22C55E" : "#3B82F6",
+                   material: .neon, solid: false)
+        }
+    }
+    generator("Server", 9, 51.5, pad: (9, 48.8))
+    checkpoint("Server", -9, 52)
+    room("Lobby", 0, -44, w: 26, d: 20, doors: [("N", 0), ("E", -44)], color: "#57534E", floor: "#44403C")
+    m.slab("Reception Desk", x: 5, y: 0, z: -50, w: 7, h: 1.1, d: 1.5, color: "#92400E")
+    m.slab("Front Doors", x: 0, y: 0, z: -54, w: 6, h: 3, d: 0.2, color: "#93C5FD", material: .glass, opacity: 0.5)
+    m.part("Lobby Sign", at: (0, 3.6, -53.6), size: (8, 0.8, 0.1), color: "#22D3EE", material: .neon, solid: false)
+    for p in [(-11, -36), (11, -36), (-11, -52)] as [(Float, Float)] {
+        m.part("Plant Pot", at: (p.0, 0.4, p.1), size: (1, 0.8, 1), color: "#78350F", shape: .cylinder)
+        m.part("Plant", at: (p.0, 1.5, p.1), size: (1.6, 1.6, 1.6), color: "#166534", shape: .sphere, material: .matte, solid: false)
+    }
+    generator("Lobby", -10, -51.5, pad: (-10, -48.8))
+    checkpoint("Lobby", -11, -38)
+    room("Lab", -44, 0, w: 20, d: 26, doors: [("E", 0), ("N", -44)], color: "#475569", floor: "#E2E8F0")
+    for z: Float in [-8, 8] {
+        m.slab("Lab Bench", x: -48, y: 0, z: z, w: 6, h: 1, d: 1.4, color: "#F8FAFC")
+        for k in 0..<3 {
+            m.part("Flask", at: (-50 + Float(k) * 2, 1.3, z), size: (0.4, 0.6, 0.4), color: ["#22C55E", "#A855F7", "#F97316"][k], shape: .cylinder,
+                   material: .neon, solid: false)
+        }
+    }
+    m.part("Specimen Tank", at: (-51.5, 1.8, 0), size: (2.6, 3.6, 2.6), color: "#4ADE80", shape: .cylinder, material: .glass, opacity: 0.6)
+    generator("Lab", -50.5, -11, pad: (-47.6, -11))
+    checkpoint("Lab", -37, -11)
+    room("Archive", 44, 0, w: 20, d: 26, doors: [("W", 0), ("S", 44)], color: "#57534E", floor: "#78716C")
+    for z: Float in [-8, 8] {
+        m.slab("Archive Shelf", x: 46, y: 0, z: z, w: 10, h: 3, d: 1, color: "#92400E")
+        for k in 0..<5 {
+            m.part("Files", at: (42 + Float(k) * 2, 3.2, z), size: (1.2, 0.4, 0.8), color: k % 2 == 0 ? "#FDE68A" : "#F5F5F4", solid: false)
+        }
+    }
+    generator("Archive", 51, 11, pad: (48.2, 11))
+    checkpoint("Archive", 37, 11)
+    room("Ward", -44, 44, w: 20, d: 20, doors: [("S", -44), ("E", 44)], color: "#94A3B8", floor: "#CBD5E1")
+    for z: Float in [38, 44, 50] {
+        m.slab("Ward Bed", x: -52, y: 0, z: z, w: 2.2, h: 0.7, d: 3.2, color: "#F1F5F9")
+        m.part("Ward Curtain", at: (-50.4, 1.6, z), size: (0.05, 3.2, 3.2), color: "#BAE6FD", solid: false, opacity: 0.7)
+        m.part("IV Stand", at: (-50.8, 1.2, z - 1.6), size: (0.1, 2.4, 0.1), color: "#9CA3AF", solid: false)
+    }
+    generator("Ward", -38, 51.5, pad: (-38, 48.8))
+    checkpoint("Ward", -46, 52.5)
+    room("Boiler", 44, -44, w: 20, d: 20, doors: [("N", 44), ("W", -44)], color: "#7C2D12", floor: "#44403C")
+    for z: Float in [-38, -46] {
+        m.part("Boiler Tank", at: (51, 2.2, z), size: (4, 4.4, 4), color: "#9A3412", shape: .cylinder, material: .metal)
+    }
+    for y: Float in [3.2, 3.8] {
+        m.part("Pipe", at: (44, y, -53), size: (18, 0.4, 0.4), color: "#B45309", shape: .cylinder, material: .metal, solid: false, rotation: (0, 0, 90))
+    }
+    generator("Boiler", 38, -51.5, pad: (40.8, -51.5))
+    checkpoint("Boiler", 52.5, -52.5)
+
+    // MARK: Corridors: a cross from the hub, and a ring through the wings.
+    corridor(alongX: false, at: 0, from: 9, to: 34)
+    corridor(alongX: false, at: 0, from: -34, to: -9)
+    corridor(alongX: true, at: 0, from: -34, to: -9)
+    corridor(alongX: true, at: 0, from: 9, to: 34)
+    corridor(alongX: false, at: -44, from: 13, to: 34)
+    corridor(alongX: true, at: 44, from: -34, to: -13)
+    corridor(alongX: false, at: 44, from: -34, to: -13)
+    corridor(alongX: true, at: -44, from: 13, to: 34)
 }
 
 // MARK: 55 Endless Rooms

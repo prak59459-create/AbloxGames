@@ -1,0 +1,155 @@
+-- common.absc — 夜の状態・小さな道具・画面
+
+let phase = "wait"         -- wait / shift / done / fired / over
+let night_i = 1
+let night_token = 0
+let shift_start = 0
+let trust = TRUST_START    -- 所長からの信頼。0になるとクビ（夜のやり直し）
+let fuel = {}              -- 棟 → 燃料 0〜100
+let round_list = []        -- この1時間に回るチェックポイント
+let round_done = {}        -- 棟 → true
+let round_hour = -1
+let fake_wing = nil        -- ニセの無線が言った棟
+let fake_until = 0
+
+func ready(p)
+  return p.battery != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func night()
+  return NIGHTS[night_i]
+end
+
+func hour()
+  return min(HOURS, floor((time() - shift_start) / HOUR_SECS))
+end
+
+func hour_left()
+  return max(0, ceil(shift_start + (hour() + 1) * HOUR_SECS - time()))
+end
+
+func wing_name(w)
+  return WING_NAMES[w]
+end
+
+func lit(w)
+  return (fuel[w] or 0) > 0
+end
+
+-- いちばん近い棟（中心からの距離で）
+func wing_at(pos)
+  let best = nil
+  let best_d = 16
+  for w in WINGS do
+    let d = distance(pos, block(w + " Center").position)
+    if d < best_d then
+      best = w
+      best_d = d
+    end
+  end
+  return best
+end
+
+func in_hub(pos)
+  return abs(pos.x) < 9 and abs(pos.z) < 9
+end
+
+func active(p)
+  return ready(p) and p.alive
+end
+
+func has_gear(p, id)
+  return p.gear[id] == true
+end
+
+-- p が pos のほうを向いているか（上下は気にせず、水平の向きだけで）
+func facing(p, pos, limit)
+  let d = {x: pos.x - p.x, y: 0, z: pos.z - p.z}
+  let l = {x: p.look.x, y: 0, z: p.look.z}
+  if magnitude(d) < 0.01 or magnitude(l) < 0.01 then return true end
+  return dot(normalize(d), normalize(l)) > limit
+end
+
+func see_anomaly(p, id)
+  if not ready(p) or p.dex[id] then return end
+  p.dex[id] = true
+  p.message("📖 記録: " + ANOMALIES[id].name + " — " + ANOMALIES[id].hint, 4)
+  kit_give(p, 10)
+  kit_quest_progress(p, "dex", 1)
+  if len(keys(p.dex)) >= len(ANOMALY_ORDER) then kit_badge(p, "dex_full", "すべての怪異を記録した") end
+end
+
+func see_near(id, pos, r)
+  for p in players() do
+    if active(p) and distance(p, pos) < r then see_anomaly(p, id) end
+  end
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let light = "🔦 OFF"
+  if p.light_on then light = "🔦 ON" end
+  let c = "#FDE68A"
+  if p.battery < 20 then c = "#F87171" end
+  p.ui_text("me", light + "   ⛽ 燃料缶 " + p.cans + "   💵 " + kit_money(p), {at: "top_left", dy: 36, size: 15, bold: true, color: "#FDE68A"})
+  p.ui_bar("battery", {at: "top_left", dy: 64, dx: 60, w: 140, h: 10, value: p.battery, max: 100, color: c, bg: "#00000088"})
+  p.ui_text("battery_t", "🔋", {at: "top_left", dy: 58, size: 14})
+  let lbl = "🔦 ライト"
+  if p.light_on then lbl = "🔦 ライト ON" end
+  p.ui_button("light", lbl, {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 64, size: 17, bg: p.light_on and "#FACC15" or "#78716C", color: "#111827", radius: 16})
+end
+
+func round_line(p)
+  let parts = []
+  for w in round_list do
+    let mark = "⬜"
+    if round_done[w] then mark = "✅" end
+    let dir = ""
+    if p != nil and has_gear(p, "map") then dir = "(" + WING_DIRS[w] + ")" end
+    append(parts, mark + wing_name(w) + dir)
+  end
+  return join(parts, "  ")
+end
+
+func shift_hud()
+  let h = hour()
+  let clock = ""
+  if phase == "shift" then clock = "🌙 " + night().name + "  " + h + ":00  次の巡回まで " + hour_left() + "s"
+  elif phase == "done" then clock = "🌅 6:00 シフト終了"
+  elif phase == "fired" then clock = "📉 所長の信頼がなくなった…"
+  end
+  ui_text("clock", clock, {at: "top", dy: 26, size: 18, bold: true})
+  let gens = []
+  for w in WINGS do
+    let f = floor(fuel[w] or 0)
+    if f > 0 then append(gens, wing_name(w) + f) else append(gens, wing_name(w) + "🔴") end
+  end
+  ui_text("gens", "⚡ " + join(gens, " "), {at: "top", dy: 50, size: 12, color: "#E5E7EB"})
+  ui_bar("trust", {at: "top", dy: 72, w: 200, h: 8, value: max(0, trust), max: TRUST_START, color: "#60A5FA", bg: "#00000088"})
+  ui_text("trust_t", "🤝 信頼", {at: "top", dy: 68, dx: -140, size: 12, color: "#BFDBFE"})
+  for p in players() do
+    if ready(p) and phase == "shift" then
+      p.ui_text("round", "📋 巡回リスト: " + round_line(p), {at: "bottom", dy: -110, size: 15, bold: true, color: "#A5F3FC"})
+    elif ready(p) then
+      p.ui_remove("round")
+    end
+  end
+end

@@ -1,111 +1,68 @@
--- Midnight Guard — 発電機を守り、懐中電灯で怪異を追い払う
+-- Midnight Guard — 真夜中の施設の警備員。巡回・発電機・ライトで3つの夜を守る。
+--
+-- ファイル:
+--   data.absc       夜ごとの設定・棟・怪異・ロッカー
+--   common.absc     夜の状態・画面
+--   anomalies.absc  ライト・影・見張る者・迷子・停電の王
+--   patrol.absc     巡回リスト・チェックポイント・無線（ニセもの）・信頼・夜の流れ
+--   power.absc      発電機と燃料缶・明かり・充電・ロッカー
+--   main.absc       このファイル
 
-kit_setup("Midnight Guard", "明かりを消すな。朝まで見回れ", [
-  "4つの部屋に発電機（黄色）がある。燃料は少しずつ減る",
-  "発電機にさわると燃料満タン。0になるとその部屋が暗くなる",
-  "暗い部屋からは怪異が出てきやすい",
-  "「🔦 ライト」を怪異に向けると追い払える",
-  "怪異にふれるとダメージ。朝まで（3分）耐えよう"
+kit_setup("Midnight Guard", "明かりを消すな。朝6時まで見回れ", [
+  "📋 1時間ごとに所長から巡回リスト。その棟の🟦チェックポイントにさわってスキャン。できないと信頼がへる",
+  "⚡ 6つの棟に発電機。燃料が0だと真っ暗でスキャンできず、影が出る。⛽ 警備室の燃料缶を運ぼう",
+  "🔦 ライトを当てつづけると影が消える。🔋 電池は警備室で充電",
+  "👁 見張る者は見ているあいだ動けない。🧒 迷子は警備室まで連れていく",
+  "📻 ザザッとまじった無線はニセもの！ 画面の巡回リストを信じて",
+  "🗄 警備室のロッカーで装備を買える。3日目の最後に何かが来る…"
 ])
 
-let rooms = ["Lab", "Archive", "Ward", "Boiler"]
-let fuel = {Lab: 100, Archive: 100, Ward: 100, Boiler: 100}
-let ends_at = 0
-let banished = 0
+kit_currency = "給料"
+kit_shop_title = "制服"
+kit_shop_add("cap", "🧢 警備帽", 50, func(p)
+  p.hat = "cap"
+  p.color = "#1E3A8A"
+end)
+kit_shop_add("halo", "✨ 夜の守り神", 300, func(p) p.hat = "halo" end)
 
-kit_quest("refuel", "発電機を10回動かす", 10, 80)
-kit_quest("banish", "怪異を8体追い払う", 8, 150)
-kit_quest("dawn", "朝をむかえる", 1, 300)
-
-func show()
-  let line = ""
-  for r in rooms do
-    let f = floor(fuel[r])
-    line = line + r + (f > 0 and (" " + f + "%") or " 🔴") + "   "
-  end
-  ui_text("gens", "⚡ " + line, {at: "top", dy: 58, size: 14})
-  ui_text("clock", "🌙 朝まで " + kit_clock(ends_at - time()), {at: "top", dy: 26, size: 22, bold: true})
-end
-
-func spawn_entity()
-  let dark = filter(rooms, func(r) return fuel[r] <= 0 end)
-  let spot = nil
-  if len(dark) > 0 and random() < 0.7 then
-    spot = block(random(dark) + " Floor")
-  else
-    spot = block("Entity Spot " + random(1, 6))
-  end
-  let n = create_npc({name: "影", position: spot.position + {x: random(-3, 3), y: 1, z: random(-3, 3)}, color: "#020617",
-                      head_color: "#7F1D1D", size: 1.5, health: 999999, speed: 0.6})
-  n.scared_until = 0
-end
+kit_quest("scan", "チェックポイントを15回スキャン", 15, 150)
+kit_quest("refuel", "発電機に燃料を10回入れる", 10, 120)
+kit_quest("banish", "影を10体消す", 10, 150)
+kit_quest("child", "迷子を警備室へ送る", 1, 100)
+kit_quest("gear", "装備を2つ買う", 2, 80)
+kit_quest("nights", "夜を3回のりきる", 3, 400)
+kit_quest("king", "停電の王を追い返す", 1, 300)
+kit_quest("dex", "怪異を5つ記録する", 5, 200)
 
 on start()
   game.respawn_time = 8
-  ends_at = time() + 180
-  every(1, func()
-    for r in rooms do
-      fuel[r] = max(0, fuel[r] - (1 + random() * 1.5))
-      let light = block(r + " Light")
-      if light != nil then light.visible = fuel[r] > 0 end
-    end
-    show()
-    if time() >= ends_at then
-      for p in players() do
-        p.score = p.score + 5
-        kit_quest_progress(p, "dawn", 1)
-      end
-      kit_finish("🌅 朝が来た！見回り完了", 8)
-    end
-  end)
-  every(7, func()
-    if len(npcs()) < 12 then spawn_entity() end
-  end)
+  after(3, func() start_night(1) end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.ui_button("light", "🔦 ライト", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 64, size: 18, bg: "#CA8A04", radius: 16})
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 20)
+  p.battery = 100
+  p.cans = 0
+  p.light_on = false
+  p.gear = {}
+  p.dex = {}
+  hud(p)
+  shift_hud()
 end
 
-on tick(dt)
-  for n in npcs() do
-    if time() < n.scared_until then
-      let away = kit_nearest_player(n)
-      if away != nil then n.move_to(n.position + normalize(n.position - away.position) * 10) end
-    else
-      kit_chase(n, 30, 12, dt)
-    end
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.teleport(block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0})
+  if phase == "shift" then
+    trust = trust - 5
+    p.message("🚑 警備室で目をさました（信頼 -5）", 2)
   end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "generator") then
-    let r = split(b.name, " ")[1]
-    if fuel[r] < 90 and kit_ready(p, "gen_" + r, 2) then
-      fuel[r] = 100
-      kit_quest_progress(p, "refuel", 1)
-      p.message("⚡ " + r + " の発電機を動かした", 1.2)
-      show()
-    end
-  end
-end
-
-on button(p, id)
-  if id == "light" and p.alive and kit_ready(p, "light", 1.5) then
-    let hit = 0
-    for n in npcs() do
-      let dir = normalize(n.position - p.position)
-      if distance(p, n) < 22 and dot(dir, p.look) > 0.85 then
-        hit = hit + 1
-        banished = banished + 1
-        p.score = p.score + 1
-        kit_quest_progress(p, "banish", 1)
-        n.destroy()
-      end
-    end
-    p.message(hit > 0 and ("🔦 " + hit + " 体を追い払った！") or "🔦 …", 1)
-  end
+  p.battery = max(p.battery, 40)
+  p.light_on = false
+  if has_gear(p, "shoes") then p.speed = 1.2 end
+  hud(p)
 end

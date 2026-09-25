@@ -1,0 +1,43 @@
+-- data.absc — 夜ごとの設定・棟・怪異・ロッカー（装備）
+
+let HOUR_SECS = 34          -- ゲームの1時間（0時 → 6時）
+let HOURS = 6
+let TRUST_START = 100
+
+-- 3つの夜。round: 1時間ごとに回るチェックポイントの数 / drain: 発電機の燃料がへる速さ
+-- shades: 同時にいる影の上限 / fake: ニセの無線が来るか / watcher: 見張る者 / child: 迷子
+let NIGHTS = [
+  {name: "1日目の夜", round: 2, drain: 0.7, shades: 4, fake: false, watcher: false, child: true, boss: false},
+  {name: "2日目の夜", round: 3, drain: 0.9, shades: 6, fake: true, watcher: true, child: true, boss: false},
+  {name: "3日目の夜", round: 3, drain: 1.1, shades: 8, fake: true, watcher: true, child: true, boss: true}
+]
+
+-- 施設の棟。name は画面の名前
+let WINGS = ["Server", "Lobby", "Lab", "Archive", "Ward", "Boiler"]
+let WING_NAMES = {Server: "サーバー室", Lobby: "ロビー", Lab: "研究室", Archive: "資料室", Ward: "病棟", Boiler: "ボイラー室"}
+
+-- 怪異の図鑑（出会うと記録）
+let ANOMALY_ORDER = ["shade", "watcher", "child", "voice", "king"]
+let ANOMALIES = {
+  shade: {name: "🌑 影", hint: "暗い棟から出てくる。🔦 ライトを当てつづけると消える"},
+  watcher: {name: "👁 見張る者", hint: "だれかが見ているあいだは動けない。目をはなすと一気に近づく"},
+  child: {name: "🧒 迷子", hint: "そばに行くとついてくる。警備室まで連れていこう。放っておくと…"},
+  voice: {name: "📻 ニセの無線", hint: "ザザッとまじった命令はうそ。画面の「巡回リスト」を信じて"},
+  king: {name: "👑 停電の王", hint: "3日目の最後の時間。みんなでライトを当てて追い返せ"}
+}
+
+-- 警備室のロッカー（自分の給料で）
+let GEAR = [
+  {id: "battery", name: "🔋 大容量バッテリー", price: 60, text: "ライトが長もち（へり方 -35%）"},
+  {id: "lens", name: "🔦 強力レンズ", price: 80, text: "ライトがとどく距離 14m → 22m、はやく消せる"},
+  {id: "shoes", name: "👟 静かな靴", price: 70, text: "足が速くなる"},
+  {id: "carrier", name: "⛽ 燃料キャリー", price: 50, text: "燃料缶を2つ持てる"},
+  {id: "vest", name: "🦺 防護ベスト", price: 90, text: "受けるダメージ -35%"},
+  {id: "map", name: "🗺 施設マップ", price: 40, text: "巡回リストに棟の方角が出る"}
+]
+
+-- 方角（施設マップ用）
+let WING_DIRS = {Server: "北", Lobby: "南", Lab: "西", Archive: "東", Ward: "北西", Boiler: "南東"}
+
+-- 無線の言葉
+let DIRECTOR_LINES = ["こちら所長。次の巡回をたのむ", "所長だ。見回りをおこたるな", "所長より。つぎはここを見てくれ"]

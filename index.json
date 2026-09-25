@@ -1460,16 +1460,21 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 52,
-      "cover" : "games\/midnight-guard\/cover-43f549cc.png",
+      "blockCount" : 222,
+      "cover" : "games\/midnight-guard\/cover-0f79591d.png",
       "id" : "midnight-guard",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/midnight-guard\/data.absc",
+        "games\/midnight-guard\/anomalies.absc",
+        "games\/midnight-guard\/common.absc",
+        "games\/midnight-guard\/patrol.absc",
+        "games\/midnight-guard\/power.absc",
         "games\/midnight-guard\/main.absc"
       ],
-      "summary" : "真夜中の施設を見回る警備員。発電機を動かし続け、懐中電灯で怪異を追い払え。",
+      "summary" : "真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。",
       "tags" : [
         "horror",
         "guard",
