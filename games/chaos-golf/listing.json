@@ -1,15 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 44,
-  "cover" : "games\/chaos-golf\/cover-9b0b7e18.png",
+  "blockCount" : 162,
+  "cover" : "games\/chaos-golf\/cover-480692cc.png",
   "id" : "chaos-golf",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/chaos-golf\/data.absc",
+    "games\/chaos-golf\/golf.absc",
+    "games\/chaos-golf\/items.absc",
+    "games\/chaos-golf\/physics.absc",
     "games\/chaos-golf\/main.absc"
   ],
-  "summary" : "へんてこなコースを回るゴルフ対戦。パワーをえらんで打って、少ない打数でカップイン！全6ホール。",
+  "summary" : "ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！",
   "tags" : [
     "golf",
     "sports",

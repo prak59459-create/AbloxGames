@@ -1,0 +1,38 @@
+-- data.absc — 9ホール・アイテム・ボールの色
+
+let HOLES = [
+  {name: "まっすぐコース", par: 2},
+  {name: "ドッグレッグ", par: 3},
+  {name: "かたむき池", par: 3},
+  {name: "風車", par: 3},
+  {name: "砂の島", par: 3},
+  {name: "ブースター", par: 2},
+  {name: "ワープゲート", par: 2},
+  {name: "つるつる氷", par: 3},
+  {name: "カオスフィナーレ", par: 4}
+]
+
+-- アイテム（コースの「？」の箱にボールを通すと1つもらえる）
+let ITEMS = [
+  {id: "super", name: "💨 スーパーショット", text: "次のショットが1.6倍・砂もへっちゃら"},
+  {id: "magnet", name: "🧲 マグネット", text: "次のショット、カップの近くですいこまれる"},
+  {id: "ghost", name: "👻 ゴースト", text: "次のショットはかべをすりぬける"},
+  {id: "ice", name: "🧊 アイス", text: "ほかの人の次のショットがつるつる"},
+  {id: "twister", name: "🌪 たつまき", text: "ほかの人の止まっているボールを飛ばす"},
+  {id: "swap", name: "🔄 スワップ", text: "カップにいちばん近いボールと入れかわる"}
+]
+
+let BALL_COLORS = [
+  {id: "white", name: "⚪ しろ", color: "#FFFFFF", price: 0},
+  {id: "pink", name: "🩷 ピンク", color: "#F472B6", price: 100},
+  {id: "sky", name: "🩵 みずいろ", color: "#38BDF8", price: 100},
+  {id: "lime", name: "💚 ライム", color: "#A3E635", price: 150},
+  {id: "gold", name: "🟡 ゴールド", color: "#FACC15", price: 400},
+  {id: "rainbow", name: "🌈 レインボー", color: "#F0ABFC", price: 1000}
+]
+
+let MAX_STROKES = 8
+let HOLE_TIME = 75
+let MAX_POWER = 10
+let SPEED_PER_POWER = 2.2
+let BALL_R = 0.25

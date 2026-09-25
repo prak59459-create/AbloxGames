@@ -1,0 +1,160 @@
+-- items.absc — 「？」の箱とアイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）・ボールの色
+
+let item_boxes = []      -- {b, spot, back_at}
+
+func item_of(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return ITEMS[1]
+end
+
+func reset_item_boxes()
+  for x in item_boxes do gone(x.b) end
+  item_boxes = []
+  for k in 1 to 2 do
+    let spot = block("h" + hole + " Item " + k)
+    if spot != nil then append(item_boxes, {b: nil, spot: spot.position, back_at: 0}) end
+  end
+end
+
+func item_box_step()
+  for x in item_boxes do
+    if not still(x.b) and time() >= x.back_at then
+      x.b = create_block({name: "Item Box", position: x.spot + {x: 0, y: 0.3, z: 0}, size: {x: 0.9, y: 0.9, z: 0.9}, color: "#FACC15", material: "neon",
+                          solid: false, rotation: {x: 0, y: 45, z: 0}})
+    end
+    if still(x.b) then x.b.rotate(0, 30, 0) end
+  end
+end
+
+-- ボールが箱を通ったら
+func item_box_check(p)
+  let ball = p.ball
+  if ball == nil or not ball.moving then return end
+  for x in item_boxes do
+    if still(x.b) and flat({x: ball.x, z: ball.z}, x.spot) < 1 then
+      gone(x.b)
+      x.back_at = time() + 10
+      if p.item == nil then
+        p.item = random(ITEMS).id
+        p.message("🎁 " + item_of(p.item).name + " をゲット！ 「🎁 使う」ボタンで", 2)
+        p.sound("collect")
+        kit_quest_progress(p, "items", 1)
+      end
+    end
+  end
+end
+
+func use_item(p)
+  if p.item == nil then
+    p.message("🎁 アイテムがない（コースの黄色い箱にボールを通そう）", 1.5)
+    return
+  end
+  if phase != "play" then return end
+  let id = p.item
+  p.item = nil
+  let it = item_of(id)
+  if id == "super" or id == "magnet" or id == "ghost" then
+    p.item_on = id
+    p.message(it.name + " — " + it.text, 2)
+  elif id == "ice" then
+    for q in golfers() do
+      if q.id != p.id then
+        q.icy = true
+        q.message("🧊 " + p.name + " のアイスで、次のショットがつるつる！", 2)
+      end
+    end
+    announce("🧊 " + p.name + " がアイスを使った！", 2)
+  elif id == "twister" then
+    for q in golfers() do
+      if q.id != p.id and q.ball != nil and not q.ball.moving and not q.sunk then
+        q.ball.vx = random(-8, 8)
+        q.ball.vz = random(-8, 8)
+        q.ball.last_x = q.ball.x
+        q.ball.last_z = q.ball.z
+        q.ball.moving = true
+        q.ball.started = time()
+        q.ball.bounces = 0
+        q.message("🌪 " + p.name + " のたつまきでボールが飛ばされた！", 2)
+      end
+    end
+    announce("🌪 " + p.name + " がたつまきを使った！", 2)
+  elif id == "swap" then
+    let best = nil
+    let mine = flat({x: p.ball.x, z: p.ball.z}, course.cup)
+    for q in golfers() do
+      if q.id != p.id and q.ball != nil and not q.ball.moving and not q.sunk then
+        let d = flat({x: q.ball.x, z: q.ball.z}, course.cup)
+        if d < mine and (best == nil or d < flat({x: best.ball.x, z: best.ball.z}, course.cup)) then best = q end
+      end
+    end
+    if best == nil or p.ball.moving then
+      p.message("🔄 入れかわれる相手がいない", 1.5)
+      p.item = id
+      return
+    end
+    let ax = p.ball.x
+    let az = p.ball.z
+    p.ball.x = best.ball.x
+    p.ball.z = best.ball.z
+    best.ball.x = ax
+    best.ball.z = az
+    for q in [p, best] do
+      if still(q.ball.b) then q.ball.b.position = {x: q.ball.x, y: BALL_R, z: q.ball.z} end
+      stand_behind(q)
+    end
+    best.message("🔄 " + p.name + " にボールを入れかえられた！", 2)
+    announce("🔄 " + p.name + " がスワップ！", 2)
+  end
+  kit_quest_progress(p, "use", 1)
+  hud(p)
+end
+
+-- MARK: ボールの色
+
+func color_panel(p)
+  let h = 110 + len(BALL_COLORS) * 42
+  p.ui_remove("colors")
+  p.ui_panel("colors", {at: "center", w: 420, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  p.ui_text("colors_t", "🎨 ボールの色   💰 " + kit_short(kit_money(p)), {parent: "colors", y: 22 / h, size: 16, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in BALL_COLORS do
+    i = i + 1
+    let label = c.name + "  💰" + c.price
+    if contains(p.colors, c.id) then label = c.name end
+    if p.ball_color == c.id then label = "✅ " + c.name end
+    p.ui_button("color_" + c.id, label, {parent: "colors", y: (30 + i * 42) / h, w: 360, h: 36, size: 14, bg: c.color, color: "#111111"})
+  end
+  p.ui_button("colors_close", "閉じる", {parent: "colors", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func pick_color(p, id)
+  let c = nil
+  for x in BALL_COLORS do
+    if x.id == id then c = x end
+  end
+  if c == nil then return end
+  if not contains(p.colors, id) then
+    if not kit_pay(p, c.price) then return end
+    append(p.colors, id)
+  end
+  p.ball_color = id
+  if p.ball != nil and still(p.ball.b) then p.ball.b.color = c.color end
+  color_panel(p)
+end
+
+on start()
+  every(0.5, func()
+    if phase == "play" then item_box_step() end
+  end)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "use_item" then use_item(p)
+  elif id == "open_colors" then color_panel(p)
+  elif starts_with(id, "color_") then pick_color(p, replace(id, "color_", ""))
+  elif id == "colors_close" then p.ui_remove("colors")
+  end
+end

@@ -118,7 +118,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | | # | ゲーム | 内容 |
 |---|---|---|---|
 | <img src="games/disaster-island/cover-e9547e3e.png" width="200"> | 71 | **Disaster Island** | 15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！ |
-| <img src="games/chaos-golf/cover-9b0b7e18.png" width="200"> | 72 | **Chaos Golf** | へんてこなコースを回るゴルフ対戦。パワーをえらんで打って、少ない打数でカップイン！全6ホール。 |
+| <img src="games/chaos-golf/cover-480692cc.png" width="200"> | 72 | **Chaos Golf** | ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！ |
 | <img src="games/speed-worlds/cover-0649fd28.png" width="200"> | 73 | **Speed Worlds** | ものすごいスピードで走りぬけるアスレチック。5つの世界をワープでつなぐコースを、最速タイムでクリアしよう。 |
 | <img src="games/island-drama-show/cover-ea12f127.png" width="200"> | 74 | **Island Drama Show** | サバイバル番組の出演者になって、毎回ちがうミニゲームで勝ちぬけ！最下位は脱落…最後に残るのはだれだ？ |
 | <img src="games/prop-hide-and-seek/cover-325ffdc9.png" width="200"> | 75 | **Prop Hide & Seek** | 家具に変身してかくれんぼ！鬼は怪しいものを撃って探す。まちがえると鬼がダメージ。最後まで見つからなければ勝ち。 |

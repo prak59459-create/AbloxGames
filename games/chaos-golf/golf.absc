@@ -1,0 +1,350 @@
+-- golf.absc — ゲームの流れ: クラブハウス → 9ホール（みんな同時）→ 結果。ボール・ねらい・打つ・スコア
+
+let phase = "lobby"      -- lobby / play / between / results
+let hole = 0
+let phase_until = 0
+let golf_clock = 0
+
+func ready(p)
+  return p.card != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func golfers()
+  return filter(players(), func(p) return ready(p) and p.playing end)
+end
+
+func par_total(n)
+  let t = 0
+  if n <= 0 then return 0 end
+  for i in 1 to n do t = t + HOLES[i].par end
+  return t
+end
+
+func total(p)
+  let t = 0
+  for s in p.card do t = t + s end
+  return t
+end
+
+func ball_color(p)
+  for c in BALL_COLORS do
+    if c.id == p.ball_color then return c.color end
+  end
+  return "#FFFFFF"
+end
+
+-- MARK: ボール
+
+func place_ball(p, x, z)
+  if p.ball == nil then p.ball = {} end
+  gone(p.ball.b)
+  p.ball = {b: create_block({name: "Ball", shape: "sphere", position: {x: x, y: BALL_R, z: z}, size: {x: BALL_R * 2, y: BALL_R * 2, z: BALL_R * 2},
+                             color: ball_color(p), material: "neon", solid: false}),
+            x: x, z: z, vx: 0, vz: 0, moving: false, last_x: x, last_z: z, bounces: 0}
+end
+
+-- ボールのうしろに立って、カップのほうを向く
+func stand_behind(p)
+  let b = p.ball
+  let dx = course.cup.x - b.x
+  let dz = course.cup.z - b.z
+  let d = max(0.1, sqrt(dx * dx + dz * dz))
+  p.teleport({x: b.x - dx / d * 1.8, y: 1, z: b.z - dz / d * 1.8})
+  p.aim = atan2(dx, dz)
+  show_aim(p)
+end
+
+-- MARK: ねらいの矢印
+
+func aim_dir(p)
+  return {x: sin(p.aim), z: cos(p.aim)}
+end
+
+func show_aim(p)
+  for d in p.dots or [] do gone(d) end
+  p.dots = []
+  if p.ball == nil or p.ball.moving or p.sunk or phase != "play" then return end
+  let dir = aim_dir(p)
+  let n = 2 + floor(p.power / 2)
+  for i in 1 to n do
+    let dist = i * 0.9
+    append(p.dots, create_block({name: "Aim", shape: "sphere", position: {x: p.ball.x + dir.x * dist, y: 0.2, z: p.ball.z + dir.z * dist}, size: {x: 0.25, y: 0.25, z: 0.25},
+                                color: "#FDE047", material: "neon", solid: false}))
+  end
+end
+
+func turn_aim(p, deg)
+  p.aim = p.aim + deg
+  show_aim(p)
+end
+
+func set_power(p, n)
+  p.power = clamp(n, 1, MAX_POWER)
+  show_aim(p)
+  hud(p)
+end
+
+-- MARK: 打つ
+
+func swing(p)
+  if phase != "play" or p.ball == nil or p.ball.moving or p.sunk or not p.playing then return end
+  let ball = p.ball
+  let power = p.power
+  if p.item_on == "super" then power = power * 1.6 end
+  let dir = aim_dir(p)
+  ball.vx = dir.x * power * SPEED_PER_POWER
+  ball.vz = dir.z * power * SPEED_PER_POWER
+  ball.last_x = ball.x
+  ball.last_z = ball.z
+  ball.moving = true
+  ball.bounces = 0
+  ball.started = time()
+  ball.super = p.item_on == "super"
+  ball.magnet = p.item_on == "magnet"
+  ball.ghost = p.item_on == "ghost"
+  ball.icy = p.icy == true
+  p.icy = false
+  p.item_on = nil
+  p.strokes = p.strokes + 1
+  p.shots = p.shots + 1
+  for d in p.dots or [] do gone(d) end
+  p.dots = []
+  p.sound("hit")
+  hud(p)
+end
+
+func ball_step(p, secs)
+  let ball = p.ball
+  if ball == nil or not ball.moving then return end
+  let result = "move"
+  let n = 4
+  for i in 1 to n do
+    if result == "move" then result = ball_substep(p, ball, secs / n) end
+  end
+  if time() - ball.started > 12 and result == "move" then result = "stop" end
+  if still(ball.b) then ball.b.move_to({x: ball.x, y: BALL_R, z: ball.z}, secs) end
+  if result == "move" then return end
+  ball.moving = false
+  ball.vx = 0
+  ball.vz = 0
+  if result == "sink" then
+    sink(p)
+  elif result == "water" or result == "out" then
+    p.strokes = p.strokes + 1
+    if result == "water" then p.message("💦 ポチャン！ 1打ペナルティ", 1.5) else p.message("🚫 OB！ 1打ペナルティ", 1.5) end
+    ball.x = ball.last_x
+    ball.z = ball.last_z
+    if still(ball.b) then ball.b.position = {x: ball.x, y: BALL_R, z: ball.z} end
+    after_shot(p)
+  else
+    if ball.bounces >= 5 then kit_badge(p, "pinball", "5回はねてもセーフ") end
+    after_shot(p)
+  end
+end
+
+func after_shot(p)
+  if p.strokes >= MAX_STROKES then
+    p.sunk = true
+    p.message("⏱ " + MAX_STROKES + "打まで。このホールはここまで", 2)
+    gone(p.ball.b)
+    return
+  end
+  stand_behind(p)
+  hud(p)
+end
+
+func sink(p)
+  p.sunk = true
+  gone(p.ball.b)
+  let par = HOLES[hole].par
+  let diff = p.strokes - par
+  let words = "⛳ カップイン！ " + p.strokes + " 打"
+  if p.strokes == 1 then
+    words = "🎉 ホールインワン！！"
+    announce("🎉 " + p.name + " がホールインワン！（" + HOLES[hole].name + "）", 3)
+    kit_quest_progress(p, "ace", 1)
+    kit_badge(p, "ace", "ホールインワン")
+  elif diff <= -2 then words = "🦅 イーグル！ " + p.strokes + " 打"
+  elif diff == -1 then words = "🐦 バーディー！ " + p.strokes + " 打"
+  elif diff == 0 then words = "⛳ パー！ " + p.strokes + " 打" end
+  if diff <= 0 then kit_quest_progress(p, "par", 1) end
+  let coins = max(5, 30 - diff * 8)
+  kit_give(p, coins)
+  p.message(words + "  💰+" + coins, 2.5)
+  p.sound("goal")
+  hud(p)
+end
+
+-- MARK: ゲームの流れ
+
+func start_game()
+  hole = 0
+  for p in players() do
+    if ready(p) then
+      p.card = []
+      p.playing = true
+    end
+  end
+  next_hole()
+end
+
+func next_hole()
+  hole = hole + 1
+  if hole > len(HOLES) then
+    results()
+    return
+  end
+  phase = "play"
+  phase_until = time() + HOLE_TIME
+  load_course(hole)
+  reset_item_boxes()
+  let i = 0
+  for p in golfers() do
+    i = i + 1
+    p.strokes = 0
+    p.sunk = false
+    place_ball(p, course.tee.x + (i % 3 - 1) * 0.8, course.tee.z + floor((i - 1) / 3) * 0.8)
+    stand_behind(p)
+    hud(p)
+  end
+  announce("⛳ ホール " + hole + "「" + HOLES[hole].name + "」 パー " + HOLES[hole].par, 3)
+end
+
+func end_hole()
+  for p in golfers() do
+    let s = p.strokes
+    if not p.sunk or s >= MAX_STROKES then s = max(s, MAX_STROKES) end
+    append(p.card, s)
+    if p.ball != nil then gone(p.ball.b) end
+    for d in p.dots or [] do gone(d) end
+    p.dots = []
+  end
+  phase = "between"
+  phase_until = time() + 3
+end
+
+func results()
+  phase = "results"
+  phase_until = time() + 10
+  let list = sort(golfers(), func(a, b) return total(a) < total(b) end)
+  let lines = []
+  let rank = 0
+  for p in list do
+    rank = rank + 1
+    let diff = total(p) - par_total(len(HOLES))
+    let sd = "" + diff
+    if diff > 0 then sd = "+" + diff end
+    append(lines, rank + "位 " + p.name + " " + total(p) + "打（" + sd + "）")
+    kit_quest_progress(p, "finish", 1)
+    p.score = p.score + max(0, 6 - rank)
+    if rank == 1 then
+      kit_give(p, 300)
+      kit_badge(p, "winner", "ゴルフ大会で優勝")
+      kit_quest_progress(p, "win", 1)
+    end
+    if diff <= 0 then kit_badge(p, "under", "パー以下で9ホールを回った") end
+    p.teleport(block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0})
+  end
+  announce("🏆 結果: " + join(slice(lines, 1, min(4, len(lines))), "  "), 8)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  if phase != "play" or hole == 0 then
+    p.ui_text("golf", "🏌 クラブハウス  次の大会まで " + max(0, ceil(phase_until - time())) + " 秒", {at: "top", dy: 30, size: 16, bold: true})
+    return
+  end
+  let t = total(p) + p.strokes
+  let diff = t - par_total(hole - 1) - HOLES[hole].par
+  let sd = "±0"
+  if diff > 0 then sd = "+" + diff elif diff < 0 then sd = "" + diff end
+  p.ui_text("golf", "⛳ " + hole + "/" + len(HOLES) + "「" + HOLES[hole].name + "」パー" + HOLES[hole].par + "   打数 " + p.strokes + "   合計 " + t + "（" + sd + "）   パワー " + p.power,
+            {at: "top", dy: 30, size: 15, bold: true})
+  let item = "なし"
+  if p.item != nil then item = item_of(p.item).name end
+  if p.item_on != nil then item = item_of(p.item_on).name + "（次のショット）" end
+  p.ui_text("item", "🎁 " + item + "   ⏱ " + max(0, ceil(phase_until - time())), {at: "top", dy: 54, size: 13, color: "#FDE68A"})
+end
+
+func card_panel(p)
+  let h = 140 + len(players()) * 30
+  p.ui_remove("card")
+  p.ui_panel("card", {at: "center", w: 620, h: h, bg: "#14532DF2", radius: 20, layer: 30})
+  p.ui_text("card_t", "📋 スコア表（パー " + join(map(HOLES, func(x) return "" + x.par end), " ") + "）", {parent: "card", y: 24 / h, size: 15, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for q in players() do
+    if ready(q) then
+      i = i + 1
+      p.ui_text("card_" + i, q.name + ": " + join(map(q.card, func(x) return "" + x end), " ") + "  = " + total(q), {parent: "card", y: (40 + i * 30) / h, size: 13, color: "#FFFFFF"})
+    end
+  end
+  p.ui_button("card_close", "閉じる", {parent: "card", y: (h - 22) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+on start()
+  phase_until = time() + 12
+  every(1, func()
+    for p in players() do hud(p) end
+  end)
+end
+
+on tick(dt)
+  golf_clock = golf_clock + dt
+  if golf_clock < 0.1 then return end
+  let secs = golf_clock
+  golf_clock = 0
+  if phase == "play" then
+    movers_step()
+    for p in golfers() do
+      ball_step(p, secs)
+      item_box_check(p)
+    end
+    let left = filter(golfers(), func(p) return not p.sunk end)
+    if len(left) == 0 or time() >= phase_until then end_hole() end
+  elif phase == "between" and time() >= phase_until then next_hole()
+  elif phase == "results" and time() >= phase_until then
+    phase = "lobby"
+    phase_until = time() + 12
+  elif phase == "lobby" and time() >= phase_until and len(filter(players(), func(p) return ready(p) end)) > 0 then start_game()
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "swing" then swing(p)
+  elif id == "aim_l" then turn_aim(p, -3)
+  elif id == "aim_ll" then turn_aim(p, -15)
+  elif id == "aim_r" then turn_aim(p, 3)
+  elif id == "aim_rr" then turn_aim(p, 15)
+  elif id == "aim_look" then
+    p.aim = atan2(p.look.x, p.look.z)
+    show_aim(p)
+  elif id == "pow_up" then set_power(p, p.power + 1)
+  elif id == "pow_down" then set_power(p, p.power - 1)
+  elif id == "open_card" then card_panel(p)
+  elif id == "card_close" then p.ui_remove("card")
+  end
+end
+
+on leave(p)
+  if p.ball != nil then gone(p.ball.b) end
+  for d in p.dots or [] do gone(d) end
+end

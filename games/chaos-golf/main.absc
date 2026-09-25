@@ -1,120 +1,69 @@
--- Chaos Golf — パワーを選んで打つ、へんてこゴルフ
+-- Chaos Golf — ボールの物理でころがる、みんな同時のへんてこミニゴルフ。9ホールとアイテムでカオスに！
+--
+-- ファイル:
+--   data.absc     9ホール・アイテム・ボールの色
+--   physics.absc  ボールの物理（まさつ・反射・坂・砂・氷・加速床・水・ワープ・動くじゃま・カップ）
+--   golf.absc     ゲームの流れ・ねらい・打つ・スコア
+--   items.absc    ？の箱とアイテム・ボールの色
+--   main.absc     このファイル
 
 kit_setup("Chaos Golf", "少ない打数でカップイン！", [
-  "パワー（1〜5）を選んで「⛳ 打つ」。見ている方向に飛ぶ",
-  "ボールが止まったところへ自動で移動する",
-  "黒い穴（カップ）の近くで止まればカップイン！",
-  "紫のかべは動く。ピンクのバンパーに注意",
-  "6ホールの合計打数が少ない人の勝ち"
+  "🎯 黄色い点がねらいの方向。◀ ▶ で向きを変える（👀 でカメラの向き）",
+  "💪 ＋ − でパワー（1〜10）を決めて「⛳ 打つ」",
+  "🏌 ボールはころがって、かべではねる。止まったら次のショット",
+  "🟡 砂はとまりやすい、🧊 氷はすべる、🔵 加速床はビュン、💧 水と場外は1打ペナルティ",
+  "🌀 紫のワープゲート、🟥 動くじゃまものに注意",
+  "🎁 黄色い箱にボールを通すとアイテム（ほかの人のじゃまもできる！）",
+  "9ホールの合計打数が少ない人の優勝！"
 ])
+kit_currency = "コイン"
 
-let hole_count = 6
-let movers_on = false
-
-kit_quest("par", "3打以内でカップイン", 1, 150)
-kit_quest("finish", "6ホールを回る", 1, 300)
-kit_quest("ace", "ホールインワン", 1, 500)
-
-func show(p)
-  p.ui_text("golf", "⛳ ホール " + p.hole + " / " + hole_count + "   打数 " + p.strokes + "（合計 " + p.total + "）   パワー " + p.power,
-            {at: "top", dy: 30, size: 17, bold: true})
-end
-
-func tee_up(p)
-  let tee = block("Hole " + p.hole + " Tee")
-  if p.ball != nil then p.ball.destroy() end
-  p.ball = create_block({name: "Ball", shape: "sphere", position: tee.position + {x: 0, y: 0.35, z: 1}, size: 0.5, color: "#FFFFFF", solid: false})
-  p.strokes = 0
-  p.teleport(tee)
-  p.look_at(block("Hole " + p.hole + " Cup"))
-  show(p)
-end
-
-func swing(p)
-  if p.ball == nil or p.done or p.rolling then return end
-  p.strokes = p.strokes + 1
-  p.total = p.total + 1
-  p.rolling = true
-  let dir = normalize({x: p.look.x, y: 0, z: p.look.z})
-  let dist = p.power * 5 * (0.9 + random() * 0.2)
-  let target = p.ball.position + dir * dist
-  -- コースの外に出たら、コースのはしで止まる
-  let green = block("Hole " + p.hole + " Green")
-  target = {x: clamp(target.x, green.x - 7.5, green.x + 7.5), y: p.ball.y, z: clamp(target.z, green.z - 19.5, green.z + 19.5)}
-  p.ball.move_to(target, 1.2)
-  p.sound("hit")
-  show(p)
-  kit_later(p, 1.3, func()
-    p.rolling = false
-    let cup = block("Hole " + p.hole + " Cup")
-    if distance({x: target.x, y: cup.y, z: target.z}, cup) < 1.6 then
-      sink(p)
-    else
-      p.teleport(target - dir * 1.5)
-      p.look_at(cup)
-    end
-  end)
-end
-
-func sink(p)
-  p.message(p.strokes == 1 and "🎉 ホールインワン！！" or ("⛳ カップイン！ " + p.strokes + " 打"), 2.5)
-  p.sound("goal")
-  if p.strokes == 1 then
-    kit_quest_progress(p, "ace", 1)
-    announce("🎉 " + p.name + " がホールインワン！", 3)
-  end
-  if p.strokes <= 3 then kit_quest_progress(p, "par", 1) end
-  if p.hole >= hole_count then
-    p.done = true
-    p.score = 100 - p.total
-    kit_quest_progress(p, "finish", 1)
-    announce("🏁 " + p.name + " が6ホール完了！ 合計 " + p.total + " 打", 4)
-    let all_done = len(filter(players(), func(q) return not q.done end)) == 0
-    if all_done then
-      let best = kit_top(1)
-      kit_finish("🏆 優勝は " + best[1].name + "！（" + best[1].total + " 打）", 8)
-    end
-  else
-    p.hole = p.hole + 1
-    kit_later(p, 1.5, func() tee_up(p) end)
-  end
-end
-
-on start()
-  every(2, func()
-    movers_on = not movers_on
-    for b in blocks("mover") do b.move(movers_on and 4 or -4, 0, 0, 1.8) end
-  end)
-end
+kit_quest("par", "パー以下で5回カップイン", 5, 300)
+kit_quest("ace", "ホールインワン", 1, 1000)
+kit_quest("finish", "9ホールを回る", 1, 300)
+kit_quest("win", "大会で優勝する", 1, 800)
+kit_quest("items", "アイテムを5こ拾う", 5, 200)
+kit_quest("use", "アイテムを5回使う", 5, 200)
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.hole = 1
-  p.total = 0
-  p.power = 3
-  p.done = false
+  p.card = []
+  p.playing = false
+  p.power = 5
+  p.aim = 0
+  p.strokes = 0
+  p.shots = 0
+  p.sunk = false
+  p.colors = ["white"]
+  p.ball_color = "white"
+  kit_give(p, 20)
   p.camera = "third"
-  p.camera_distance = 8
-  for k in 1 to 5 do
-    p.ui_button("power_" + k, str(k), {at: "bottom", dx: (k - 3) * 64, dy: -96, w: 56, h: 48, size: 20, bg: "#16A34A", radius: 12})
+  p.camera_distance = 9
+  p.ui_button("swing", "⛳ 打つ", {at: "bottom_right", dx: -110, dy: -170, w: 140, h: 66, size: 20, bg: "#F59E0B", radius: 18})
+  p.ui_button("aim_ll", "⏪", {at: "bottom", dx: -170, dy: -100, w: 56, h: 48, size: 18, bg: "#16A34A", radius: 12})
+  p.ui_button("aim_l", "◀", {at: "bottom", dx: -108, dy: -100, w: 56, h: 48, size: 18, bg: "#22C55E", radius: 12})
+  p.ui_button("aim_look", "👀", {at: "bottom", dx: -46, dy: -100, w: 56, h: 48, size: 18, bg: "#0EA5E9", radius: 12})
+  p.ui_button("aim_r", "▶", {at: "bottom", dx: 16, dy: -100, w: 56, h: 48, size: 18, bg: "#22C55E", radius: 12})
+  p.ui_button("aim_rr", "⏩", {at: "bottom", dx: 78, dy: -100, w: 56, h: 48, size: 18, bg: "#16A34A", radius: 12})
+  p.ui_button("pow_down", "−", {at: "bottom", dx: 150, dy: -100, w: 48, h: 48, size: 22, bg: "#B91C1C", radius: 12})
+  p.ui_button("pow_up", "＋", {at: "bottom", dx: 204, dy: -100, w: 48, h: 48, size: 22, bg: "#DC2626", radius: 12})
+  p.ui_button("use_item", "🎁 使う", {at: "right", dy: -60, w: 130, h: 44, size: 15, bg: "#A855F7"})
+  p.ui_button("open_card", "📋 スコア", {at: "right", dy: -10, w: 130, h: 44, size: 15, bg: "#15803D"})
+  p.ui_button("open_colors", "🎨 ボール", {at: "right", dy: 40, w: 130, h: 44, size: 15, bg: "#57534E"})
+  -- 大会の途中なら、次のホールから参加（出られなかったホールはパー+3）
+  if phase == "play" or phase == "between" then
+    p.playing = true
+    if hole > 1 then
+      for i in 1 to hole - 1 do append(p.card, HOLES[i].par + 3) end
+    end
+    if phase == "between" then
+      append(p.card, HOLES[hole].par + 3)
+    else
+      p.strokes = HOLES[hole].par + 3
+      p.sunk = true
+    end
+    p.message("⛳ 大会の途中から参加！ 次のホールからプレイ", 3)
   end
-  p.ui_button("swing", "⛳ 打つ", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 70, size: 20, bg: "#F59E0B", radius: 18})
-  p.ui_button("retee", "↺ ホールをやり直す（+2打）", {at: "right", dy: -60, w: 200, h: 44, size: 14, bg: "#6B7280"})
-  tee_up(p)
-end
-
-on leave(p)
-  if p.ball != nil then p.ball.destroy() end
-end
-
-on button(p, id)
-  if starts_with(id, "power_") then
-    p.power = num(replace(id, "power_", ""))
-    show(p)
-  elif id == "swing" then swing(p)
-  elif id == "retee" and not p.done and not p.rolling then
-    p.total = p.total + 2
-    tee_up(p)
-  end
+  hud(p)
 end

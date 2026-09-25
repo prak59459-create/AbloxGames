@@ -7,7 +7,7 @@ let miniGames: [Game] = [
          summary: "15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！",
          tags: ["survival", "disasters", "classic"], maxPlayers: 16, build: disasterIsland),
     Game(number: 72, id: "chaos-golf", title: "Chaos Golf",
-         summary: "へんてこなコースを回るゴルフ対戦。パワーをえらんで打って、少ない打数でカップイン！全6ホール。",
+         summary: "ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！",
          tags: ["golf", "sports", "party"], maxPlayers: 8, build: chaosGolf),
     Game(number: 73, id: "speed-worlds", title: "Speed Worlds",
          summary: "ものすごいスピードで走りぬけるアスレチック。5つの世界をワープでつなぐコースを、最速タイムでクリアしよう。",
@@ -97,19 +97,98 @@ func disasterIsland(_ m: MapBuilder) {
 
 // MARK: 72 Chaos Golf
 
+/// A mini-golf green for Chaos Golf: the green itself, a rim of walls the ball bounces off (tag h<n>wall), the tee and the cup.
+/// The script reads every feature back by its tag, so the ball physics matches what is drawn.
+func golfHole(_ m: MapBuilder, n: Int, ox: Float, oz: Float, color: String, cupX: Float, features: (Float, Float, String) -> Void) {
+    let w: Float = 16, d: Float = 36
+    m.slab("Hole \(n) Green", x: ox, y: -1, z: oz, w: w, h: 1, d: d, color: color, tags: ["green", "h\(n)green"])
+    m.slab("Hole \(n) Base", x: ox, y: -3, z: oz, w: w + 1.2, h: 2, d: d + 1.2, color: "#78350F")
+    for sx: Float in [-1, 1] {
+        m.slab("Rail", x: ox + sx * (w / 2 + 0.3), y: 0, z: oz, w: 0.6, h: 0.6, d: d + 1.2, color: "#F8FAFC", tags: ["h\(n)wall"])
+    }
+    for sz: Float in [-1, 1] {
+        m.slab("Rail", x: ox, y: 0, z: oz + sz * (d / 2 + 0.3), w: w, h: 0.6, d: 0.6, color: "#F8FAFC", tags: ["h\(n)wall"])
+    }
+    m.part("Hole \(n) Tee", at: (ox, 0.03, oz - 14), size: (2, 0.06, 2), color: "#FFFFFF", material: .matte, solid: false)
+    m.part("Hole \(n) Cup", at: (ox + cupX, 0.02, oz + 14), size: (1, 0.05, 1), color: "#111827", shape: .cylinder, solid: false)
+    m.part("Hole \(n) Flag Pole", at: (ox + cupX, 1.6, oz + 14), size: (0.08, 3.2, 0.08), color: "#F8FAFC", shape: .cylinder, solid: false)
+    m.part("Hole \(n) Flag", at: (ox + cupX + 0.5, 2.8, oz + 14), size: (1, 0.6, 0.05), color: "#DC2626", solid: false)
+    m.part("Hole \(n) Number", at: (ox - 6.5, 2.2, oz - 17.8), size: (2.2, 1.6, 0.2), color: color, material: .neon, solid: false)
+    features(ox, oz, "h\(n)")
+}
+
 func chaosGolf(_ m: MapBuilder) {
     m.sky("#7DD3FC", "#F0F9FF", light: 0.85, showGround: false, fall: -20)
-    m.spawnRing(0, -12, y: 0, radius: 3, count: 8, color: "#FFFFFF")
-    let holes: [(Float, Float, String)] = [(0, 0, "#4ADE80"), (60, 0, "#22C55E"), (120, 0, "#84CC16"), (120, 60, "#16A34A"), (60, 60, "#65A30D"), (0, 60, "#15803D")]
-    for (i, h) in holes.enumerated() {
-        let n = i + 1
-        m.slab("Hole \(n) Green", x: h.0, y: -1, z: h.1 + 10, w: 16, h: 1, d: 40, color: h.2, tags: ["green"])
-        m.pad("Hole \(n) Tee", x: h.0, z: h.1 - 6, size: 2, color: "#FFFFFF", tags: ["tee"])
-        m.part("Hole \(n) Cup", at: (h.0 + (i % 2 == 0 ? 3 : -3), 0.02, h.1 + 26), size: (1.2, 0.05, 1.2), color: "#111827", shape: .cylinder, solid: false)
-        m.part("Hole \(n) Flag", at: (h.0 + (i % 2 == 0 ? 3 : -3), 1.6, h.1 + 26), size: (0.08, 3.2, 0.08), color: "#DC2626", shape: .cylinder, solid: false)
-        // Chaos: bumpers and a moving wall.
-        m.slab("Hole \(n) Bumper", x: h.0 + (i % 2 == 0 ? -3 : 3), y: 0, z: h.1 + 10, w: 3, h: 1, d: 1, color: "#F472B6")
-        m.slab("Hole \(n) Wall", x: h.0, y: 0, z: h.1 + 18, w: 6, h: 1.2, d: 0.6, color: "#A855F7", tags: ["mover"])
+    m.part("Cover Focus", at: (22, 0, 22), size: (80, 1, 1), color: "#000000", tags: ["yaw=205"], solid: false, visible: false)
+    // The clubhouse, where everyone waits between rounds.
+    m.slab("Clubhouse Lawn", x: 0, y: -1, z: -40, w: 30, h: 1, d: 20, color: "#86EFAC")
+    m.spawnRing(0, -40, radius: 4, count: 8, color: "#FFFFFF")
+    m.house("Clubhouse", x: -10, z: -44, w: 8, d: 6, wall: "#FEF3C7", roof: "#15803D", floor: "#D6D3D1")
+    m.part("Scoreboard", at: (8, 3, -49.6), size: (10, 4, 0.3), color: "#14532D", material: .neon, solid: false)
+    let wall = "#F8FAFC"
+    // 1: a straight hole with a bumper in the middle.
+    golfHole(m, n: 1, ox: 0, oz: 0, color: "#4ADE80", cupX: 0) { ox, oz, h in
+        m.slab("Bumper", x: ox, y: 0, z: oz + 2, w: 3, h: 0.6, d: 1, color: "#F472B6", tags: ["\(h)wall"])
+        m.part("\(h) Item 1", at: (ox - 4, 0.4, oz + 6), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // 2: a dogleg: a long wall makes you go round.
+    golfHole(m, n: 2, ox: 24, oz: 0, color: "#22C55E", cupX: 5) { ox, oz, h in
+        m.slab("Dogleg", x: ox + 2, y: 0, z: oz + 2, w: 12, h: 0.6, d: 0.6, color: wall, tags: ["\(h)wall"])
+        m.slab("Dogleg", x: ox - 2, y: 0, z: oz + 9, w: 12, h: 0.6, d: 0.6, color: wall, tags: ["\(h)wall"])
+        m.part("\(h) Item 1", at: (ox - 5, 0.4, oz + 5), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // 3: a slope that tips the ball toward the water.
+    golfHole(m, n: 3, ox: 48, oz: 0, color: "#84CC16", cupX: -4) { ox, oz, h in
+        m.part("Slope +x", at: (ox - 1, 0.01, oz), size: (10, 0.02, 12), color: "#65A30D", tags: ["\(h)slope"], solid: false)
+        m.part("Water", at: (ox + 6, 0.02, oz), size: (4, 0.04, 12), color: "#38BDF8", material: .glass, tags: ["\(h)water"], solid: false)
+        m.part("\(h) Item 1", at: (ox - 5, 0.4, oz - 8), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // 4: the windmill: two blades sweep across the middle.
+    golfHole(m, n: 4, ox: 48, oz: 48, color: "#16A34A", cupX: 0) { ox, oz, h in
+        m.slab("Windmill Blade", x: ox - 4, y: 0, z: oz, w: 5, h: 0.6, d: 0.8, color: "#DC2626", tags: ["\(h)mover"])
+        m.slab("Windmill Blade", x: ox + 4, y: 0, z: oz + 6, w: 5, h: 0.6, d: 0.8, color: "#DC2626", tags: ["\(h)mover"])
+        m.part("Windmill Tower", at: (ox + 7, 3, oz + 3), size: (1.4, 6, 1.4), color: "#FEF3C7", shape: .cylinder, solid: false)
+        m.part("\(h) Item 1", at: (ox + 4, 0.4, oz - 8), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // 5: sand traps around an island green.
+    golfHole(m, n: 5, ox: 24, oz: 48, color: "#65A30D", cupX: 3) { ox, oz, h in
+        m.part("Sand", at: (ox - 3, 0.02, oz + 4), size: (8, 0.04, 6), color: "#FDE68A", tags: ["\(h)sand"], solid: false)
+        m.part("Sand", at: (ox + 4, 0.02, oz + 9), size: (6, 0.04, 3), color: "#FDE68A", tags: ["\(h)sand"], solid: false)
+        m.part("Water", at: (ox, 0.02, oz - 4), size: (16, 0.04, 3), color: "#38BDF8", material: .glass, tags: ["\(h)water"], solid: false)
+        m.part("\(h) Item 1", at: (ox + 5, 0.4, oz), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // 6: boost pads down the middle.
+    golfHole(m, n: 6, ox: 0, oz: 48, color: "#4D7C0F", cupX: -3) { ox, oz, h in
+        m.part("Boost +z", at: (ox, 0.03, oz - 6), size: (3, 0.06, 2), color: "#22D3EE", material: .neon, tags: ["\(h)boost"], solid: false)
+        m.slab("Blocker", x: ox + 3, y: 0, z: oz + 6, w: 8, h: 0.6, d: 0.6, color: wall, tags: ["\(h)wall"])
+        m.part("\(h) Item 1", at: (ox - 5, 0.4, oz), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // 7: portals past a wall of blocks.
+    golfHole(m, n: 7, ox: 0, oz: 96, color: "#A3E635", cupX: 0) { ox, oz, h in
+        m.slab("Portal Wall", x: ox, y: 0, z: oz, w: 16, h: 0.6, d: 1, color: "#7C3AED", tags: ["\(h)wall"])
+        m.part("Hole 7 Portal A", at: (ox - 4, 0.03, oz - 8), size: (2, 0.06, 2), color: "#A855F7", shape: .cylinder, material: .neon, tags: ["\(h)portal"], solid: false)
+        m.part("Hole 7 Portal B", at: (ox + 3, 0.03, oz + 6), size: (2, 0.06, 2), color: "#F0ABFC", shape: .cylinder, material: .neon, tags: ["\(h)portal"], solid: false)
+        m.slab("Side Gap Block", x: ox + 7, y: 0, z: oz - 1.5, w: 2, h: 0.6, d: 2, color: "#7C3AED", tags: ["\(h)wall"])
+    }
+    // 8: an icy zig-zag.
+    golfHole(m, n: 8, ox: 24, oz: 96, color: "#BAE6FD", cupX: 5) { ox, oz, h in
+        m.part("Ice", at: (ox, 0.015, oz), size: (16, 0.03, 36), color: "#E0F2FE", material: .glass, tags: ["\(h)ice"], solid: false)
+        m.slab("Zig", x: ox - 2, y: 0, z: oz - 5, w: 12, h: 0.6, d: 0.6, color: "#7DD3FC", tags: ["\(h)wall"])
+        m.slab("Zag", x: ox + 2, y: 0, z: oz + 4, w: 12, h: 0.6, d: 0.6, color: "#7DD3FC", tags: ["\(h)wall"])
+        m.part("\(h) Item 1", at: (ox + 5, 0.4, oz - 10), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // 9: the chaos finale: a sweeper, water, sand and a boost.
+    golfHole(m, n: 9, ox: 48, oz: 96, color: "#15803D", cupX: -5) { ox, oz, h in
+        m.slab("Sweeper", x: ox, y: 0, z: oz - 4, w: 6, h: 0.6, d: 0.8, color: "#F97316", tags: ["\(h)mover"])
+        m.part("Water", at: (ox + 4, 0.02, oz + 4), size: (8, 0.04, 4), color: "#38BDF8", material: .glass, tags: ["\(h)water"], solid: false)
+        m.part("Sand", at: (ox - 4, 0.02, oz + 9), size: (6, 0.04, 4), color: "#FDE68A", tags: ["\(h)sand"], solid: false)
+        m.part("Boost -x", at: (ox + 4, 0.03, oz + 10), size: (2, 0.06, 3), color: "#22D3EE", material: .neon, tags: ["\(h)boost"], solid: false)
+        m.part("Slope -z", at: (ox, 0.01, oz + 1), size: (16, 0.02, 3), color: "#166534", tags: ["\(h)slope"], solid: false)
+        m.part("\(h) Item 1", at: (ox - 5, 0.4, oz - 8), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("\(h) Item 2", at: (ox + 5, 0.4, oz), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    for q in [(-14, 24), (36, 24), (12, 72), (36, 120), (62, 72), (-14, 120)] as [(Float, Float)] {
+        m.part("Cloud", at: (q.0, -6, q.1), size: (8, 3, 6), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false)
     }
 }
 

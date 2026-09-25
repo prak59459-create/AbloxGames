@@ -1,0 +1,145 @@
+-- physics.absc — ボールの物理: まさつ・かべで反射・坂・砂・氷・加速床・水・ワープ・動くじゃま・カップ
+
+let course = nil
+let movers = []
+
+func box_of(b)
+  return {x: b.x, z: b.z, hx: b.size.x / 2, hz: b.size.z / 2}
+end
+
+func inside(pos, bx, pad)
+  return abs(pos.x - bx.x) <= bx.hx + pad and abs(pos.z - bx.z) <= bx.hz + pad
+end
+
+func dir_from_name(name)
+  if contains(name, "+x") then return {x: 1, z: 0} end
+  if contains(name, "-x") then return {x: -1, z: 0} end
+  if contains(name, "-z") then return {x: 0, z: -1} end
+  return {x: 0, z: 1}
+end
+
+-- ホールの形を読みこむ（ブロックのタグから）
+func load_course(n)
+  let h = "h" + n
+  let slopes = []
+  for b in blocks(h + "slope") do append(slopes, {box: box_of(b), dir: dir_from_name(b.name)}) end
+  let boosts = []
+  for b in blocks(h + "boost") do append(boosts, {box: box_of(b), dir: dir_from_name(b.name)}) end
+  movers = []
+  let i = 0
+  for b in blocks(h + "mover") do
+    i = i + 1
+    append(movers, {b: b, base: b.position, amp: 5, speed: 70 + i * 15, phase: i * 90})
+  end
+  course = {n: n, walls: map(blocks(h + "wall"), func(b) return box_of(b) end), sand: map(blocks(h + "sand"), func(b) return box_of(b) end), water: map(blocks(h + "water"), func(b) return box_of(b) end),
+            ice: map(blocks(h + "ice"), func(b) return box_of(b) end), slopes: slopes, boosts: boosts, green: box_of(block("Hole " + n + " Green")),
+            cup: block("Hole " + n + " Cup").position, tee: block("Hole " + n + " Tee").position,
+            portal_a: block("Hole " + n + " Portal A"), portal_b: block("Hole " + n + " Portal B")}
+end
+
+func movers_step()
+  let t = time()
+  for m in movers do
+    if still(m.b) then m.b.move_to({x: m.base.x + sin(t * m.speed + m.phase) * m.amp, y: m.base.y, z: m.base.z}, 0.1) end
+  end
+end
+
+func speed_of(ball)
+  return sqrt(ball.vx * ball.vx + ball.vz * ball.vz)
+end
+
+-- ボールを dt 秒すすめる。戻り値: "move" / "stop" / "sink" / "water" / "out"
+func ball_substep(p, ball, dt)
+  let pos = {x: ball.x, z: ball.z}
+  let fric = 1.1
+  for bx in course.sand do
+    if inside(pos, bx, 0) and not ball.super then fric = 5 end
+  end
+  for bx in course.ice do
+    if inside(pos, bx, 0) then fric = 0.22 end
+  end
+  if ball.icy then fric = fric * 0.3 end
+  for s in course.slopes do
+    if inside(pos, s.box, 0) then
+      ball.vx = ball.vx + s.dir.x * 7 * dt
+      ball.vz = ball.vz + s.dir.z * 7 * dt
+    end
+  end
+  for bo in course.boosts do
+    if inside(pos, bo.box, 0) and time() > (ball.boosted or 0) then
+      ball.vx = bo.dir.x * 16
+      ball.vz = bo.dir.z * 16
+      ball.boosted = time() + 0.5
+      p.sound("goal")
+    end
+  end
+  if ball.magnet then
+    let dx = course.cup.x - ball.x
+    let dz = course.cup.z - ball.z
+    let d = sqrt(dx * dx + dz * dz)
+    if d < 3.5 and d > 0.05 then
+      ball.vx = ball.vx + dx / d * 9 * dt
+      ball.vz = ball.vz + dz / d * 9 * dt
+    end
+  end
+  let nx = ball.x + ball.vx * dt
+  let nz = ball.z + ball.vz * dt
+  if not ball.ghost then
+    let solid = copy(course.walls)
+    for m in movers do
+      if still(m.b) then append(solid, box_of(m.b)) end
+    end
+    for w in solid do
+      if inside({x: nx, z: nz}, w, BALL_R) then
+        let ox = w.hx + BALL_R - abs(nx - w.x)
+        let oz = w.hz + BALL_R - abs(nz - w.z)
+        if ox < oz then
+          ball.vx = 0 - ball.vx * 0.8
+          nx = w.x + sign(nx - w.x + 0.0001) * (w.hx + BALL_R + 0.01)
+        else
+          ball.vz = 0 - ball.vz * 0.8
+          nz = w.z + sign(nz - w.z + 0.0001) * (w.hz + BALL_R + 0.01)
+        end
+        ball.bounces = ball.bounces + 1
+      end
+    end
+  end
+  ball.x = nx
+  ball.z = nz
+  let k = max(0, 1 - fric * dt)
+  ball.vx = ball.vx * k
+  ball.vz = ball.vz * k
+  let here = {x: nx, z: nz}
+  if not inside(here, course.green, 0) then return "out" end
+  for bx in course.water do
+    if inside(here, bx, 0) then return "water" end
+  end
+  -- ワープ
+  if course.portal_a != nil and course.portal_b != nil and time() > (ball.warped or 0) then
+    let a = course.portal_a.position
+    if flat(here, a) < 1 then
+      let b = course.portal_b.position
+      ball.x = b.x
+      ball.z = b.z
+      ball.warped = time() + 1
+      p.sound("collect")
+    end
+  end
+  -- カップ
+  let sp = speed_of(ball)
+  let cd = flat(here, course.cup)
+  if cd < 0.5 then
+    if sp < 6.5 then return "sink" end
+    -- はやすぎて、ふちでとびだす
+    ball.vx = ball.vx * 0.7 + random(-10, 10) / 10
+    ball.vz = ball.vz * 0.7 + random(-10, 10) / 10
+  end
+  if sp < 0.15 then return "stop" end
+  return "move"
+end
+
+func flat(a, b)
+  let dx = a.x - b.x
+  let dz = a.z - b.z
+  return sqrt(dx * dx + dz * dz)
+end
