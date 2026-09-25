@@ -1,0 +1,122 @@
+-- craft.absc — 素材ひろい・クラフト台でギアを作る・運の塔（アスレチック）
+
+let material_clock = 0
+
+func spawn_material()
+  if len(blocks("material")) >= 14 then return end
+  let kind = biome.material
+  if random() < 0.35 then kind = "leaf" end
+  let spot = block("Material Spot " + random(1, 16)).position
+  let m = MATERIALS[kind]
+  create_block({name: kind, shape: "sphere", position: spot + {x: random(-2, 2), y: 0.8, z: random(-2, 2)}, size: 0.6, color: m.color,
+                material: "neon", solid: false, behavior: "trigger", tags: ["material", kind]})
+end
+
+func pick_material(p, b)
+  let kind = nil
+  for t in b.tags do
+    if MATERIALS[t] != nil then kind = t end
+  end
+  if kind == nil then return end
+  gone(b)
+  p.mats[kind] = (p.mats[kind] or 0) + 1
+  p.sound("collect")
+  p.message(MATERIALS[kind].name + " を拾った（" + p.mats[kind] + "）", 1)
+  kit_quest_progress(p, "material", 1)
+end
+
+func have(p, key)
+  if MATERIALS[key] != nil then return p.mats[key] or 0 end
+  return stored(p, key)
+end
+
+func cost_line(cost)
+  let parts = []
+  for k in keys(cost) do
+    let label = k
+    if MATERIALS[k] != nil then label = split(MATERIALS[k].name, " ")[1] else
+      let a = aura_by_id(k)
+      if a != nil then label = a.name end
+    end
+    append(parts, label + "×" + cost[k])
+  end
+  return join(parts, " ")
+end
+
+func craft_panel(p)
+  let h = 110 + len(GEAR) * 52
+  p.ui_remove("craft")
+  p.ui_panel("craft", {at: "center", w: 560, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  p.ui_text("craft_t", "⚒ クラフト台（オーラと素材でギアを作る）", {parent: "craft", y: 26 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for g in GEAR do
+    i = i + 1
+    let label = g.name + "  運+" + g.luck + (g.speed > 0 and ("  速さ+" + g.speed) or "") + "  ← " + cost_line(g.cost)
+    let bg = "#57534E"
+    if p.gear[g.id] then
+      label = g.name + "  ✅ 作った"
+      bg = "#166534"
+    end
+    p.ui_button("craft_" + g.id, label, {parent: "craft", y: (30 + i * 52) / h, w: 520, h: 44, size: 12, bg: bg})
+  end
+  p.ui_button("craft_close", "閉じる", {parent: "craft", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func craft(p, id)
+  let g = gear_by_id(id)
+  if g == nil or p.gear[id] then return end
+  for k in keys(g.cost) do
+    if have(p, k) < g.cost[k] then
+      p.message("⚒ 足りない: " + cost_line(g.cost), 2)
+      return
+    end
+  end
+  for k in keys(g.cost) do
+    if MATERIALS[k] != nil then p.mats[k] = p.mats[k] - g.cost[k] else
+      p.storage[k] = p.storage[k] - g.cost[k]
+      if p.equipped == k and p.storage[k] <= 0 then p.equipped = nil end
+    end
+  end
+  p.gear[id] = true
+  p.sound("goal")
+  announce("⚒ " + p.name + " が「" + g.name + "」を作った！", 3)
+  kit_quest_progress(p, "craft", 1)
+  craft_panel(p)
+  hud(p)
+end
+
+-- 運の塔のてっぺん: 運のポーションがもらえる（3分に1回）
+func tower_top(p)
+  if not quiet_ready(p, "tower", 180) then
+    if quiet_ready(p, "tower_hint", 5) then p.message("🗼 また少ししてから来よう", 1) end
+    return
+  end
+  p.buffs.luck = time() + 120
+  p.sound("goal")
+  p.message("🗼 運の塔のてっぺん！ 🍀 運のポーション（2分）をもらった", 2.5)
+  kit_quest_progress(p, "tower", 1)
+  hud(p)
+end
+
+on tick(dt)
+  material_clock = material_clock + dt
+  if material_clock >= 6 then
+    material_clock = 0
+    spawn_material()
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "material") then pick_material(p, b)
+  elif contains(b.tags, "craft") and quiet_ready(p, "craft_pad", 2) then craft_panel(p)
+  elif contains(b.tags, "tower_top") then tower_top(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "craft_") and id != "craft_close" then craft(p, replace(id, "craft_", ""))
+  elif id == "craft_close" then p.ui_remove("craft")
+  end
+end

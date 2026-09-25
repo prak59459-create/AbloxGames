@@ -1,0 +1,83 @@
+-- data.absc — オーラ・バイオーム（天気）・素材・ギア（クラフト）・ポーション
+
+-- オーラ。chance: 1/chance で出る。tier: 見た目のランク（まわる玉の数）。biome: その天気のときだけ出る
+let AURAS = [
+  {id: "common", name: "コモン", chance: 2, color: "#E5E7EB", hat: "none", tier: 0},
+  {id: "uncommon", name: "アンコモン", chance: 4, color: "#86EFAC", hat: "none", tier: 0},
+  {id: "good", name: "グッド", chance: 5, color: "#60A5FA", hat: "none", tier: 0},
+  {id: "natural", name: "ナチュラル", chance: 8, color: "#22C55E", hat: "none", tier: 0},
+  {id: "rare", name: "レア", chance: 16, color: "#3B82F6", hat: "antenna", tier: 0},
+  {id: "divine", name: "ディバイン", chance: 32, color: "#FDE68A", hat: "halo", tier: 1},
+  {id: "crystal", name: "クリスタル", chance: 64, color: "#A5F3FC", hat: "antenna", tier: 1},
+  {id: "rage", name: "レイジ", chance: 128, color: "#EF4444", hat: "none", tier: 1},
+  {id: "topaz", name: "トパーズ", chance: 150, color: "#F59E0B", hat: "antenna", tier: 1},
+  {id: "ruby", name: "ルビー", chance: 350, color: "#DC2626", hat: "crown", tier: 1},
+  {id: "forest", name: "フォレスト", chance: 1000, color: "#15803D", hat: "halo", tier: 2},
+  {id: "gilded", name: "ギルデッド", chance: 1500, color: "#EAB308", hat: "crown", tier: 2},
+  {id: "jade", name: "ジェイド", chance: 2500, color: "#10B981", hat: "halo", tier: 2},
+  {id: "galaxy", name: "ギャラクシー", chance: 5000, color: "#6D28D9", hat: "crown", tier: 2},
+  {id: "comet", name: "コメット", chance: 9000, color: "#93C5FD", hat: "halo", tier: 2},
+  {id: "eclipse", name: "エクリプス", chance: 25000, color: "#111827", hat: "halo", tier: 3},
+  {id: "nebula", name: "ネビュラ", chance: 60000, color: "#C026D3", hat: "crown", tier: 3},
+  {id: "aurora", name: "オーロラ", chance: 100000, color: "#2DD4BF", hat: "crown", tier: 3},
+  {id: "phoenix", name: "フェニックス", chance: 400000, color: "#F97316", hat: "halo", tier: 3},
+  {id: "celestial", name: "セレスティアル", chance: 1000000, color: "#FFFFFF", hat: "halo", tier: 4},
+  {id: "abyss", name: "アビス", chance: 3000000, color: "#1E1B4B", hat: "crown", tier: 4},
+  {id: "zeus", name: "ゼウス", chance: 10000000, color: "#FACC15", hat: "crown", tier: 4},
+  {id: "origin", name: "オリジン", chance: 100000000, color: "#F0ABFC", hat: "crown", tier: 5},
+  -- 天気だけのオーラ
+  {id: "gale", name: "ウィンドストーム", chance: 3000, color: "#BAE6FD", hat: "antenna", tier: 2, biome: "wind"},
+  {id: "splash", name: "スプラッシュ", chance: 2000, color: "#38BDF8", hat: "halo", tier: 2, biome: "rain"},
+  {id: "frost", name: "フロスト", chance: 4000, color: "#E0F2FE", hat: "halo", tier: 2, biome: "snow"},
+  {id: "dune", name: "デューン", chance: 6000, color: "#D97706", hat: "antenna", tier: 2, biome: "sand"},
+  {id: "starlight", name: "スターライト", chance: 8000, color: "#C4B5FD", hat: "crown", tier: 3, biome: "star"},
+  {id: "bloodmoon", name: "ブラッドムーン", chance: 20000, color: "#7F1D1D", hat: "crown", tier: 3, biome: "blood"},
+  {id: "glitch", name: "グリッチ", chance: 12000, color: "#22D3EE", hat: "antenna", tier: 4, biome: "glitch"},
+  {id: "bit", name: "ビット・エラー", chance: 404000, color: "#4ADE80", hat: "crown", tier: 4, biome: "glitch"},
+  {id: "void", name: "ヴォイド", chance: 50000000, color: "#000000", hat: "halo", tier: 5, biome: "glitch"}
+]
+
+-- バイオーム（天気）。luck: 運の倍率 / secs: 続く時間 / weight: 来やすさ
+let BIOMES = [
+  {id: "normal", name: "☀️ 晴れ", luck: 1, secs: 90, weight: 40, sky: ["#1E1B4B", "#6D28D9"], material: "leaf"},
+  {id: "wind", name: "🌬 風", luck: 1.2, secs: 70, weight: 16, sky: ["#0E7490", "#BAE6FD"], material: "feather"},
+  {id: "rain", name: "🌧 雨", luck: 1.3, secs: 70, weight: 16, sky: ["#334155", "#64748B"], material: "raindrop"},
+  {id: "snow", name: "❄️ 雪", luck: 1.4, secs: 60, weight: 10, sky: ["#CBD5E1", "#F1F5F9"], material: "snowflake"},
+  {id: "sand", name: "🏜 砂あらし", luck: 1.5, secs: 60, weight: 8, sky: ["#92400E", "#FCD34D"], material: "sandglass"},
+  {id: "star", name: "🌌 星空", luck: 2, secs: 60, weight: 6, sky: ["#0B1026", "#312E81"], material: "stardust"},
+  {id: "blood", name: "🩸 血の月", luck: 3, secs: 45, weight: 3, sky: ["#450A0A", "#7F1D1D"], material: "stardust"},
+  {id: "glitch", name: "👾 グリッチ", luck: 5, secs: 30, weight: 1, sky: ["#022C22", "#16A34A"], material: "fragment"}
+]
+
+-- 素材（広場に落ちている）
+let MATERIALS = {
+  leaf: {name: "🍃 葉っぱ", color: "#22C55E"},
+  feather: {name: "🪶 羽", color: "#E0F2FE"},
+  raindrop: {name: "💧 雨つぶ", color: "#38BDF8"},
+  snowflake: {name: "❄️ 雪の結晶", color: "#F8FAFC"},
+  sandglass: {name: "⏳ 砂時計", color: "#FBBF24"},
+  stardust: {name: "✨ 星くず", color: "#C4B5FD"},
+  fragment: {name: "👾 データのかけら", color: "#4ADE80"}
+}
+
+-- ギア（クラフト台で作る）。cost の aura はそのオーラを使う（在庫から1つへる）
+let GEAR = [
+  {id: "glove", name: "🧤 ラッキーグローブ", luck: 0.25, speed: 0, cost: {rare: 5, leaf: 5}},
+  {id: "boots", name: "👟 はやいブーツ", luck: 0, speed: 0.2, cost: {crystal: 3, feather: 4}},
+  {id: "solar", name: "☀️ ソーラーデバイス", luck: 0.5, speed: 0.1, cost: {ruby: 1, divine: 5, sandglass: 3}},
+  {id: "lunar", name: "🌙 ルナデバイス", luck: 0.75, speed: 0, cost: {galaxy: 1, stardust: 5}},
+  {id: "storm", name: "⛈ ストームガントレット", luck: 1, speed: 0.15, cost: {splash: 1, gale: 1, raindrop: 6}},
+  {id: "eclipse_dev", name: "🌑 エクリプスデバイス", luck: 2, speed: 0.2, cost: {eclipse: 1, jade: 2, snowflake: 5}},
+  {id: "matrix", name: "💠 マトリックス", luck: 4, speed: 0.3, cost: {glitch: 1, fragment: 8, aurora: 1}}
+]
+
+-- ポーション（旅の商人が売る。在庫はそのつど変わる）
+let POTIONS = [
+  {id: "luck", name: "🍀 運のポーション", price: 40, text: "2分間 運 ×2", secs: 120},
+  {id: "speed", name: "⚡ はやさのポーション", price: 35, text: "2分間 ロールが速い", secs: 120},
+  {id: "fortune", name: "🌟 フォーチュン", price: 150, text: "3分間 運 ×3", secs: 180},
+  {id: "heavenly", name: "👼 ヘブンリー", price: 600, text: "次の1回だけ 運 ×50", secs: 0},
+  {id: "oblivion", name: "🕳 オブリビオン", price: 1500, text: "次の1回だけ 運 ×300", secs: 0}
+]
+
+let ROLL_COOLDOWN = 1.2

@@ -1,0 +1,119 @@
+-- merchant.absc — 天気のうつりかわり・旅の商人マリ・ポーション
+
+let merchant = nil
+let merchant_until = 0
+let merchant_stock = []
+let merchant_next = 0
+
+-- MARK: 天気
+
+func pick_biome()
+  let total = sum(map(BIOMES, func(b) return b.weight end))
+  let roll = random() * total
+  let acc = 0
+  for b in BIOMES do
+    acc = acc + b.weight
+    if roll <= acc then return b end
+  end
+  return BIOMES[1]
+end
+
+func set_biome(b)
+  biome = b
+  biome_ends = time() + b.secs
+  world.sky_top = b.sky[1]
+  world.sky_bottom = b.sky[2]
+  if b.id == "glitch" then
+    world.light = 0.9
+    shake(0.3, 1)
+  elif b.id == "blood" or b.id == "star" then
+    world.light = 0.45
+  else
+    world.light = 0.7
+  end
+  if b.id != "normal" then
+    let extra = ""
+    let special = filter(AURAS, func(a) return a.biome == b.id end)
+    if len(special) > 0 then extra = " 限定オーラ: " + join(map(special, func(a) return a.name end), "・") end
+    announce("🌦 天気が「" + b.name + "」に！ 運 ×" + b.luck + "。" + extra, 4)
+  end
+  for p in players() do
+    if ready(p) then hud(p) end
+  end
+  biome_hud()
+end
+
+-- MARK: 旅の商人
+
+func merchant_arrive()
+  merchant_stock = slice(shuffle(copy(POTIONS)), 1, 3)
+  merchant_until = time() + 70
+  let spot = block("Merchant Spot").position
+  merchant = create_npc({name: "🧙 旅の商人マリ", position: spot + {x: 0, y: 1, z: 0}, color: "#7C3AED", head_color: "#F5D0A9", size: 1.1,
+                         health: 999999, speed: 0, team: "shop"})
+  merchant.hat = "crown"
+  merchant.say("いらっしゃい！ めずらしいポーションがあるよ")
+  announce("🧙 旅の商人マリがやってきた！（70秒だけ）紫のじゅうたんへ", 3)
+end
+
+func merchant_leave()
+  if still(merchant) then
+    merchant.say("またね〜")
+    let m = merchant
+    after(1, func() gone(m) end)
+  end
+  merchant = nil
+  merchant_next = time() + random(80, 140)
+end
+
+func merchant_panel(p)
+  if merchant == nil then
+    p.message("🧙 商人はまだ来ていない", 1)
+    return
+  end
+  let h = 110 + len(merchant_stock) * 50
+  p.ui_remove("merch")
+  p.ui_panel("merch", {at: "center", w: 480, h: h, bg: "#2E1065F2", radius: 20, layer: 30})
+  p.ui_text("merch_t", "🧙 マリのポーション   💰 " + kit_money(p), {parent: "merch", y: 26 / h, size: 18, bold: true, color: "#F0ABFC"})
+  let i = 0
+  for po in merchant_stock do
+    i = i + 1
+    p.ui_button("potion_" + po.id, po.name + "  " + po.text + "   💰" + po.price, {parent: "merch", y: (30 + i * 50) / h, w: 440, h: 42, size: 13, bg: "#7C3AED"})
+  end
+  p.ui_button("merch_close", "閉じる", {parent: "merch", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_potion(p, id)
+  for po in merchant_stock do
+    if po.id == id and kit_pay(p, po.price) then
+      if id == "heavenly" then p.once_luck = max(p.once_luck, 50)
+      elif id == "oblivion" then p.once_luck = max(p.once_luck, 300)
+      else p.buffs[id] = max(p.buffs[id] or 0, time()) + po.secs end
+      p.sound("collect")
+      p.message("🧪 " + po.name + "！", 1.5)
+      kit_quest_progress(p, "potion", 1)
+    end
+  end
+  p.ui_remove("merch")
+  hud(p)
+end
+
+on tick(dt)
+  if time() >= biome_ends then
+    if biome.id != "normal" then set_biome(BIOMES[1]) else set_biome(pick_biome()) end
+  end
+  if merchant == nil and merchant_next > 0 and time() >= merchant_next then merchant_arrive() end
+  if merchant != nil and time() >= merchant_until then merchant_leave() end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "merchant") and quiet_ready(p, "merch", 2) then merchant_panel(p) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "potion_") then buy_potion(p, replace(id, "potion_", ""))
+  elif id == "merch_close" then p.ui_remove("merch")
+  end
+end

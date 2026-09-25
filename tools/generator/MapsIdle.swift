@@ -4,7 +4,7 @@ import Foundation
 
 let idleGames: [Game] = [
     Game(number: 59, id: "aura-roll", title: "Aura Roll",
-         summary: "ボタンを押してオーラを引く運だめし。天気が変わると特別なオーラが出やすくなる。1億分の1を引き当てろ！",
+         summary: "ボタンでオーラを引く運だめし。32種のオーラ、8つの天気（その天気だけのオーラ）、素材とオーラでギアをクラフト、旅の商人のポーション、運の塔。10回ごとのボーナスで1億分の1を引き当てろ！",
          tags: ["rng", "collect", "idle"], maxPlayers: 12, build: auraRoll),
     Game(number: 60, id: "raft-to-treasure", title: "Raft to Treasure",
          summary: "ブロックで橋やいかだを作って、危険な川を下って宝箱をめざす工作ゲーム。遠くまで行くほどゴールドがもらえる。",
@@ -45,15 +45,55 @@ let idleGames: [Game] = [
 
 func auraRoll(_ m: MapBuilder) {
     m.sky("#1E1B4B", "#6D28D9", light: 0.7, ground: "#312E81")
-    m.ground(120, 120, color: "#3730A3", name: "Plaza")
+    m.ground(140, 140, color: "#3730A3", name: "Plaza")
+    m.part("Cover Focus", at: (4, 3, 4), size: (70, 1, 1), color: "#000000", tags: ["yaw=215"], solid: false, visible: false)
+    // The altar with the great orb in the middle.
     m.part("Altar", at: (0, 0.6, 0), size: (10, 1.2, 10), color: "#E0E7FF", shape: .cylinder, material: .metal)
-    m.part("Orb", at: (0, 4, 0), size: (2.4, 2.4, 2.4), color: "#A78BFA", shape: .sphere, material: .neon, solid: false)
+    m.part("Altar Ring", at: (0, 1.25, 0), size: (8, 0.1, 8), color: "#A78BFA", shape: .cylinder, material: .neon, solid: false)
+    m.part("Orb", at: (0, 5, 0), size: (3, 3, 3), color: "#A78BFA", shape: .sphere, material: .neon, solid: false)
+    for p in ring(4, radius: 3.4, phase: .pi / 4) {
+        m.part("Orb Pillar", at: (p.0, 2.7, p.1), size: (0.5, 3, 0.5), color: "#C4B5FD", shape: .cylinder, material: .glass)
+    }
     m.spawnRing(0, 0, radius: 9, count: 10, color: "#C4B5FD")
     for p in ring(8, radius: 30) {
         m.pillar("Crystal Pillar", x: p.0, z: p.1, height: 6, radius: 0.8, color: "#818CF8", material: .glass)
+        m.part("Crystal Top", at: (p.0, 7, p.1), size: (1.6, 2, 1.6), color: "#C4B5FD", shape: .cone, material: .neon, solid: false)
     }
-    m.shop("Potion Shop", x: 0, z: -40, w: 12, d: 8, color: "#4C1D95", sign: "#F0ABFC")
-    m.pad("Potion Counter", x: 0, z: -38, size: 2.4, color: "#E879F9", tags: ["potions"])
+    // The potion shop, the craft bench and the merchant's carpet.
+    m.shop("Potion Shop", x: 0, z: -42, w: 12, d: 8, color: "#4C1D95", sign: "#F0ABFC")
+    m.pad("Potion Counter", x: 0, z: -36.5, size: 2.4, color: "#E879F9", tags: ["potions"])
+    m.slab("Craft Bench", x: -24, y: 0, z: -14, w: 5, h: 1.1, d: 2, color: "#78350F")
+    m.part("Anvil", at: (-24, 1.5, -14), size: (1.4, 0.8, 0.8), color: "#6B7280", material: .metal, solid: false)
+    m.pad("Craft Table", x: -24, z: -11.5, size: 2.4, color: "#FACC15", tags: ["craft"])
+    m.part("Craft Sign", at: (-24, 3.4, -15.2), size: (4, 0.8, 0.2), color: "#FDE68A", material: .neon, solid: false)
+    m.slab("Merchant Carpet", x: 24, y: 0, z: -14, w: 6, h: 0.05, d: 4, color: "#7C3AED")
+    m.pad("Merchant Pad", x: 24, z: -11.8, size: 2, color: "#F0ABFC", tags: ["merchant"])
+    m.part("Merchant Spot", at: (24, 0.1, -14.5), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    for dx: Float in [-2.5, 2.5] {
+        m.part("Tent Pole", at: (24 + dx, 1.8, -16), size: (0.2, 3.6, 0.2), color: "#FDE68A", solid: false)
+    }
+    m.slab("Tent Roof", x: 24, y: 3.6, z: -15, w: 6.5, h: 0.2, d: 3, color: "#A21CAF")
+    // The luck tower: a spiral of stepping stones to a potion at the top.
+    let tc: (Float, Float) = (38, 34)
+    m.pillar("Tower Core", x: tc.0, z: tc.1, height: 26, radius: 1.6, color: "#6366F1")
+    for i in 0..<13 {
+        let a = Float(i) * 0.9
+        let rr: Float = 4.2
+        m.slab("Tower Step", x: tc.0 + cos(a) * rr, y: 0.5 + Float(i) * 1.7, z: tc.1 + sin(a) * rr, w: 2.6, h: 0.4, d: 2.6,
+               color: i % 2 == 0 ? "#A5B4FC" : "#C4B5FD")
+    }
+    m.slab("Tower Top Floor", x: tc.0, y: 26, z: tc.1, w: 5, h: 0.4, d: 5, color: "#FDE68A")
+    m.pad("Tower Top", x: tc.0, z: tc.1, y: 26.4, size: 2.4, color: "#22C55E", tags: ["tower_top"])
+    // Where the materials fall.
+    for (i, p) in ring(16, radius: 20, phase: 0.2).enumerated() {
+        let rr: Float = i % 2 == 0 ? 1 : 1.9
+        m.part("Material Spot \(i + 1)", at: (p.0 * rr, 0.1, p.1 * rr), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // Floating lanterns and benches around the plaza.
+    for p in ring(12, radius: 48) {
+        m.part("Sky Lantern", at: (p.0, 9, p.1), size: (1, 1.2, 1), color: "#F0ABFC", shape: .sphere, material: .neon, solid: false)
+    }
+    for p in ring(6, radius: 16, phase: 0.5) { m.slab("Bench", x: p.0, y: 0, z: p.1, w: 2.4, h: 0.6, d: 0.8, color: "#4338CA") }
 }
 
 // MARK: 60 Raft to Treasure

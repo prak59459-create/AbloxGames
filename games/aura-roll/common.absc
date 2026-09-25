@@ -1,0 +1,97 @@
+-- common.absc — バイオーム・運と速さ・小さな道具・画面
+
+let biome = BIOMES[1]
+let biome_ends = 0
+
+func ready(p)
+  return p.storage != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func aura_by_id(id)
+  for a in AURAS do
+    if a.id == id then return a end
+  end
+  return nil
+end
+
+func gear_by_id(id)
+  for g in GEAR do
+    if g.id == id then return g end
+  end
+  return nil
+end
+
+func active(p, key)
+  return p.buffs[key] != nil and time() < p.buffs[key]
+end
+
+-- 運の合計
+func luck(p)
+  let l = 1
+  for id in keys(p.gear) do
+    let g = gear_by_id(id)
+    if g != nil then l = l + g.luck end
+  end
+  l = l * biome.luck
+  if active(p, "luck") then l = l * 2 end
+  if active(p, "fortune") then l = l * 3 end
+  -- 10回ごとのボーナス
+  if (p.rolls + 1) % 10 == 0 then l = l * 2 end
+  if p.once_luck > 1 then l = l * p.once_luck end
+  return l
+end
+
+func roll_cooldown(p)
+  let cd = ROLL_COOLDOWN
+  for id in keys(p.gear) do
+    let g = gear_by_id(id)
+    if g != nil then cd = cd * (1 - g.speed) end
+  end
+  if active(p, "speed") then cd = cd * 0.5 end
+  return max(0.3, cd)
+end
+
+func stored(p, id)
+  return p.storage[id] or 0
+end
+
+func one_in(n)
+  return "1/" + kit_short(n)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let eq = "なし"
+  let a = aura_by_id(p.equipped)
+  if a != nil then eq = a.name + "（" + one_in(a.chance) + "）" end
+  let buffs = []
+  if active(p, "luck") then append(buffs, "🍀") end
+  if active(p, "fortune") then append(buffs, "🌟") end
+  if active(p, "speed") then append(buffs, "⚡") end
+  if p.once_luck > 1 then append(buffs, "×" + p.once_luck) end
+  let next10 = 10 - (p.rolls % 10)
+  p.ui_text("aura", "✨ " + eq + "   🍀 運 ×" + fixed(luck(p), 1) + " " + join(buffs, "") + "   🎲 " + p.rolls + " 回（あと" + next10 + "回でボーナス）",
+            {at: "top", dy: 54, size: 15, bold: true})
+end
+
+func biome_hud()
+  ui_text("weather", "天気: " + biome.name + "（運 ×" + biome.luck + "）  のこり " + max(0, ceil(biome_ends - time())) + "s", {at: "top", dy: 26, size: 18, bold: true})
+end
