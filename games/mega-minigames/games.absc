@@ -1,0 +1,392 @@
+-- games.absc — 12のミニゲーム: はじめる・0.25秒ごと・1秒ごと・かたづけ
+
+weapon("まとあてビーム", {model: "blaster", damage: 0, rate: 4, range: 80, ammo: 40, reload: 1, spread: 0.3})
+
+let made = []            -- ゲームで作ったもの
+let out_n = 0
+let hill_block = nil
+-- 色あわせ・いすとり
+let rnd_target = nil
+let rnd_at = 0
+let rnd_state = ""
+let rnd_n = 0
+-- ハンマー
+let bar = nil
+let bar_from = -20
+let bar_to = 20
+let bar_start = 0
+let bar_secs = 2.6
+-- 床ぬり
+let tile_owner = {}
+-- ばくだん
+let bomb_holder = nil
+let bomb_block = nil
+let bomb_at = 0
+let bomb_pass_at = 0
+
+func keep(x)
+  append(made, x)
+  return x
+end
+
+func reset_tiles()
+  let i = 0
+  for t in tiles() do
+    i = i + 1
+    t.visible = true
+    t.solid = true
+    t.color = COLORS[(i - 1) % 4 + 1].color
+  end
+end
+
+-- アウト（生きのこり系）
+func knock_out(p, why)
+  if not p.playing then return end
+  p.playing = false
+  out_n = out_n + 1
+  p.out_at = out_n
+  p.message(why + " アウト！", 1.5)
+  p.take()
+  p.teleport(lobby_spot())
+end
+
+-- MARK: はじめる
+
+func begin_game(g)
+  out_n = 0
+  reset_tiles()
+  tile_owner = {}
+  rnd_target = nil
+  rnd_state = ""
+  rnd_n = 0
+  let i = 0
+  for p in players() do
+    if ready(p) then
+      i = i + 1
+      if not p.alive then p.respawn() end
+      p.playing = true
+      p.out_at = 0
+      p.g_score = 0
+      p.laps = 0
+      p.done_at = 0
+      p.paint = PAINT_COLORS[(i - 1) % len(PAINT_COLORS) + 1]
+      p.teleport(arena_spot())
+    end
+  end
+  let id = g.id
+  if id == "hill" then
+    hill_block = block("Hill")
+    hill_block.visible = true
+    hill_block.solid = true
+  elif id == "hammer" then
+    bar = keep(create_block({name: "Hammer Bar", position: {x: 0, y: 0.8, z: -20}, size: {x: 44, y: 1, z: 1}, color: "#DC2626", material: "metal", solid: false}))
+    bar_from = -20
+    bar_to = 20
+    bar_start = time() + 2
+    after(2, func() if still(bar) then bar.move_to({x: 0, y: 0.8, z: bar_to}, bar_secs) end end)
+  elif id == "targets" then
+    for p in in_game() do p.give("まとあてビーム") end
+    for k in 1 to 6 do spawn_target() end
+  elif id == "chickens" then
+    for k in 1 to 8 do spawn_chicken(k == 1) end
+  elif id == "bomb" then
+    bomb_at = time() + random(9, 14)
+    give_bomb(random(in_game()))
+  end
+end
+
+-- MARK: 0.25秒ごと
+
+func game_step(g)
+  let id = g.id
+  for p in in_game() do
+    if p.y < -5 then
+      if g.kind == "survive" then knock_out(p, "💦 落ちた！") else p.teleport(arena_spot()) end
+    end
+  end
+  if id == "hill" then
+    for p in in_game() do
+      if distance(p, block("Arena Center")) < 3.6 and p.y > 1.2 then p.g_score = p.g_score + 0.25 end
+    end
+  elif id == "hammer" and still(bar) then
+    let t = clamp((time() - bar_start) / bar_secs, 0, 1)
+    let z = bar_from + (bar_to - bar_from) * t
+    if time() >= bar_start then
+      for p in in_game() do
+        if abs(p.z - z) < 1 and p.y < 1.7 then knock_out(p, "🔨 当たった！") end
+      end
+    end
+    if t >= 1 then
+      -- 向きをかえて、少しずつ速く
+      let a = bar_from
+      bar_from = bar_to
+      bar_to = a
+      bar_secs = max(1.2, bar_secs * 0.93)
+      bar_start = time() + 0.6
+      let goal = bar_to
+      let secs = bar_secs
+      let b = bar
+      after(0.6, func() if still(b) then b.move_to({x: 0, y: 0.8, z: goal}, secs) end end)
+    end
+  elif id == "chickens" then
+    for n in npcs() do
+      if n.chicken then
+        for p in in_game() do
+          if still(n) and distance(p, n) < 1.8 then
+            p.g_score = p.g_score + (n.gold and 3 or 1)
+            p.message("🐔 つかまえた！（" + p.g_score + "）", 0.8)
+            let gold = n.gold
+            n.destroy()
+            spawn_chicken(gold)
+          end
+        end
+      end
+    end
+  elif id == "bomb" then
+    bomb_step()
+  elif id == "color" then
+    color_step()
+  elif id == "chairs" then
+    chairs_step()
+  end
+end
+
+-- MARK: 1秒ごと
+
+func game_slow(g)
+  let id = g.id
+  if id == "dodge" then
+    for k in 1 to 5 do drop_ball() end
+  elif id == "eggs" then
+    let eggs = filter(made, func(x) return still(x) and contains(x.tags, "egg") end)
+    if len(eggs) < 12 then
+      let gold = random() < 0.12
+      let color = "#FFFBEB"
+      if gold then color = "#FACC15" end
+      let e = keep(create_block({name: gold and "Gold Egg" or "Egg", shape: "sphere", position: {x: random(-18, 18), y: 0.5, z: random(-18, 18)}, size: {x: 0.8, y: 1, z: 0.8},
+                                 color: color, material: gold and "metal" or "plastic", solid: false, behavior: "trigger", tags: ["egg"]}))
+    end
+  elif id == "chickens" then
+    for n in npcs() do
+      if n.chicken and random() < 0.7 then
+        n.move_to({x: clamp(n.x + random(-8, 8), -19, 19), y: 1, z: clamp(n.z + random(-8, 8), -19, 19)})
+        if random() < 0.3 then n.jump_now() end
+      end
+    end
+  end
+end
+
+-- 空から玉（ループの中から呼ぶので関数に分ける）
+func drop_ball()
+  let ball = keep(create_block({name: "Ball", shape: "sphere", position: {x: random(-18, 18), y: 25, z: random(-18, 18)}, size: {x: 1.6, y: 1.6, z: 1.6},
+                                color: "#F97316", material: "neon", solid: false, behavior: "trigger", tags: ["ball"]}))
+  ball.move(0, -26, 0, 1.4)
+  after(1.6, func() gone(ball) end)
+end
+
+-- MARK: 色あわせ
+
+func color_step()
+  if rnd_state == "" and time() >= rnd_at then
+    rnd_n = rnd_n + 1
+    reset_tiles()
+    rnd_target = random(COLORS)
+    rnd_state = "wait"
+    rnd_at = time() + max(1.8, 3.6 - rnd_n * 0.25)
+    ui_text("call", "🎨 " + rnd_target.name + " の床へ！", {at: "center", dy: -140, size: 30, bold: true, color: rnd_target.color})
+  elif rnd_state == "wait" and time() >= rnd_at then
+    for t in tiles() do
+      if t.color != rnd_target.color then
+        t.visible = false
+        t.solid = false
+      end
+    end
+    rnd_state = ""
+    rnd_at = time() + 2.2
+    ui_remove("call")
+  end
+end
+
+-- MARK: いすとり
+
+func chairs_step()
+  let alive = in_game()
+  if rnd_state == "" then
+    rnd_state = "music"
+    rnd_at = time() + random(4, 7)
+    ui_text("call", "🎵 ♪ ♫ 歩きまわって！", {at: "center", dy: -140, size: 26, bold: true, color: "#F0ABFC"})
+  elif rnd_state == "music" and time() >= rnd_at then
+    rnd_state = "stop"
+    rnd_at = time() + 3
+    ui_text("call", "🛑 止まった！ 光るパッドへ！", {at: "center", dy: -140, size: 28, bold: true, color: "#FDE047"})
+    let count = max(1, len(alive) - 1)
+    for k in 1 to count do
+      keep(create_block({name: "Chair Pad", shape: "cylinder", position: {x: random(-16, 16), y: 0.1, z: random(-16, 16)}, size: {x: 2.4, y: 0.2, z: 2.4},
+                         color: "#FDE047", material: "neon", solid: false, tags: ["chair"]}))
+    end
+  elif rnd_state == "stop" and time() >= rnd_at then
+    let pads = filter(made, func(x) return still(x) and contains(x.tags, "chair") end)
+    let taken = []
+    for p in alive do
+      let seat = nil
+      for c in pads do
+        if seat == nil and not contains(taken, c) and abs(p.x - c.x) < 1.4 and abs(p.z - c.z) < 1.4 then seat = c end
+      end
+      if seat == nil then knock_out(p, "🪑 すわれなかった！") else append(taken, seat) end
+    end
+    for c in pads do gone(c) end
+    rnd_state = ""
+    ui_remove("call")
+  end
+end
+
+-- MARK: ばくだんパス
+
+func give_bomb(p)
+  if p == nil then return end
+  bomb_holder = p
+  bomb_pass_at = time() + 1
+  gone(bomb_block)
+  bomb_block = keep(create_block({name: "Bomb", shape: "sphere", position: p.position + {x: 0, y: 3, z: 0}, size: {x: 1.2, y: 1.2, z: 1.2}, color: "#111827",
+                                  material: "matte", solid: false}))
+  p.message("💣 ばくだんを持った！ 近くの人にくっついてわたせ！", 2)
+end
+
+func bomb_step()
+  let alive = in_game()
+  if bomb_holder == nil or not bomb_holder.playing or not bomb_holder.alive then
+    if len(alive) > 1 then give_bomb(random(alive)) end
+    return
+  end
+  if still(bomb_block) then bomb_block.move_to(bomb_holder.position + {x: 0, y: 3, z: 0}, 0.25) end
+  if time() >= bomb_pass_at then
+    for q in alive do
+      if q.id != bomb_holder.id and distance(q, bomb_holder) < 2.2 and time() >= bomb_pass_at then
+        let from = bomb_holder
+        give_bomb(q)
+        from.message("✅ わたした！", 1)
+      end
+    end
+  end
+  if time() >= bomb_at then
+    let boom = bomb_holder
+    announce("💥 ドカーン！ " + boom.name + " がアウト", 2)
+    knock_out(boom, "💥")
+    bomb_holder = nil
+    gone(bomb_block)
+    bomb_at = time() + random(8, 13)
+  end
+end
+
+-- MARK: 的当て・にわとり
+
+func spawn_target()
+  let a = random(0, 359)
+  let pos = {x: sin(a) * 27, y: random(2, 6), z: cos(a) * 27}
+  keep(create_block({name: "Target", shape: "cylinder", position: pos, size: {x: 1.8, y: 0.2, z: 1.8}, color: "#EF4444", material: "neon",
+                     rotation: {x: 90, y: a, z: 0}, tags: ["target"]}))
+end
+
+func spawn_chicken(gold)
+  let n = create_npc({name: gold and "🐔 金のにわとり" or "🐔 にわとり", position: {x: random(-16, 16), y: 1, z: random(-16, 16)}, color: gold and "#FACC15" or "#F8FAFC",
+                      head_color: "#DC2626", size: 0.6, health: 999999, speed: gold and 1.6 or 1.1, team: "chickens"})
+  n.chicken = true
+  n.gold = gold
+end
+
+-- MARK: かたづけ
+
+func end_game_cleanup()
+  for x in made do gone(x) end
+  made = []
+  for n in npcs() do
+    if n.chicken then n.destroy() end
+  end
+  if still(hill_block) then
+    hill_block.visible = false
+    hill_block.solid = false
+  end
+  bomb_holder = nil
+  bomb_block = nil
+  bar = nil
+  bar_secs = 2.6
+  ui_remove("call")
+  reset_tiles()
+  for p in players() do p.take() end
+end
+
+-- 順位のリスト（同じ順位はいっしょのリスト）
+func ranking(g)
+  let list = filter(players(), func(p) return ready(p) and p.out_at != nil and (p.playing or p.out_at > 0 or p.g_score > 0 or p.done_at > 0) end)
+  if g.kind == "survive" then
+    let alive = filter(list, func(p) return p.playing end)
+    let out = sort(filter(list, func(p) return not p.playing end), func(a, b) return a.out_at > b.out_at end)
+    let groups = []
+    if len(alive) > 0 then append(groups, alive) end
+    for p in out do append(groups, [p]) end
+    return groups
+  elif g.kind == "race" then
+    let sorted = sort(list, func(a, b)
+      if a.done_at > 0 and b.done_at > 0 then return a.done_at < b.done_at end
+      if a.done_at > 0 then return true end
+      if b.done_at > 0 then return false end
+      return a.laps > b.laps
+    end)
+    return map(sorted, func(p) return [p] end)
+  end
+  if g.id == "paint" then
+    for p in list do p.g_score = 0 end
+    for name in keys(tile_owner) do
+      let owner = tile_owner[name]
+      for p in list do
+        if p.id == owner then p.g_score = p.g_score + 1 end
+      end
+    end
+  end
+  let sorted = sort(list, func(a, b) return a.g_score > b.g_score end)
+  return map(sorted, func(p) return [p] end)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.playing or phase != "play" or current == nil then return end
+  let id = current.id
+  if contains(b.tags, "tile") then
+    if id == "spleef" and b.visible then
+      b.color = "#F8FAFC"
+      after(0.5, func()
+        b.visible = false
+        b.solid = false
+      end)
+    elif id == "paint" and tile_owner[b.name] != p.id then
+      tile_owner[b.name] = p.id
+      b.color = p.paint
+    end
+  elif contains(b.tags, "ball") and id == "dodge" then knock_out(p, "☄️ 当たった！")
+  elif contains(b.tags, "egg") and id == "eggs" then
+    if contains(made, b) then remove(made, index_of(made, b)) end
+    p.g_score = p.g_score + (b.name == "Gold Egg" and 3 or 1)
+    gone(b)
+    p.sound("collect")
+  elif contains(b.tags, "corner") and id == "relay" and p.done_at == 0 then
+    let k = num(replace(b.name, "Corner ", ""))
+    if k == p.laps % 4 + 1 then
+      p.laps = p.laps + 1
+      p.sound("collect")
+      if p.laps >= 8 then
+        p.done_at = time()
+        p.message("🏁 ゴール！", 2)
+      else
+        p.message("✅ " + p.laps + "/8", 0.8)
+      end
+    end
+  end
+end
+
+on hit_block(p, b)
+  if not ready(p) or current == nil or current.id != "targets" or not contains(b.tags, "target") then return end
+  if contains(made, b) then remove(made, index_of(made, b)) end
+  gone(b)
+  p.g_score = p.g_score + 1
+  p.sound("collect")
+  spawn_target()
+end

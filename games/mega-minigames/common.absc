@@ -1,0 +1,59 @@
+-- common.absc — 状態・小さな道具・画面
+
+let phase = "lobby"      -- lobby / vote / play / results / done
+let current = nil        -- いまのミニゲーム
+let game_no = 0
+let phase_until = 0
+
+func ready(p)
+  return p.stars != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func game_of(id)
+  for g in GAMES do
+    if g.id == id then return g end
+  end
+  return GAMES[1]
+end
+
+-- ミニゲームに出ていて、まだ残っている人
+func in_game()
+  return filter(players(), func(p) return ready(p) and p.playing and p.alive end)
+end
+
+func arena_spot()
+  return {x: random(-16, 16), y: 2, z: random(-16, 16)}
+end
+
+func lobby_spot()
+  return block("Spawn " + random(1, 12)).position + {x: 0, y: 1, z: 0}
+end
+
+func tiles()
+  return blocks("tile")
+end
+
+func board()
+  let list = sort(filter(players(), func(p) return ready(p) end), func(a, b) return a.stars > b.stars end)
+  let parts = map(slice(list, 1, min(6, len(list))), func(p) return p.name + " ⭐" + p.stars end)
+  let head = "🎮 " + game_no + "/" + MATCH_GAMES
+  if phase == "play" and current != nil then head = head + " " + current.name + " ⏱" + max(0, ceil(phase_until - time())) end
+  if phase == "vote" then head = head + " 🗳 投票中 " + max(0, ceil(phase_until - time())) end
+  ui_text("board", head + "   " + join(parts, " / "), {at: "top", dy: 26, size: 15, bold: true})
+end

@@ -1,0 +1,157 @@
+-- match.absc — 大会の流れ: 投票 → ミニゲーム → 結果（⭐）→ … 10ゲームで総合優勝
+
+let options = []         -- 投票の3つのゲーム
+let votes = {}
+let last_id = ""
+let match_clock = 0
+let slow_clock = 0
+
+func start_vote()
+  phase = "vote"
+  phase_until = time() + VOTE_TIME
+  let pool = shuffle(filter(GAMES, func(g) return g.id != last_id end))
+  options = slice(pool, 1, 3)
+  votes = {}
+  for p in players() do
+    if ready(p) then vote_panel(p) end
+  end
+end
+
+func vote_panel(p)
+  p.ui_remove("vote")
+  p.ui_panel("vote", {at: "center", w: 600, h: 200, bg: "#4C1D95F2", radius: 20, layer: 40})
+  p.ui_text("vote_t", "🗳 次のミニゲームに投票！（" + (game_no + 1) + "/" + MATCH_GAMES + "）", {parent: "vote", y: 0.16, size: 18, bold: true, color: "#F0ABFC"})
+  let i = 0
+  for g in options do
+    i = i + 1
+    p.ui_button("vote_" + i, g.name, {parent: "vote", x: (i - 0.5) / 3, y: 0.52, w: 180, h: 56, size: 15, bg: "#7C3AED"})
+    p.ui_text("vote_h" + i, g.text, {parent: "vote", x: (i - 0.5) / 3, y: 0.85, size: 10, color: "#E9D5FF"})
+  end
+end
+
+func cast(p, i)
+  if phase != "vote" or i > len(options) then return end
+  votes[p.id] = i
+  p.ui_remove("vote")
+  p.message("🗳 " + options[i].name + " に投票", 1.2)
+end
+
+func play_voted()
+  for p in players() do p.ui_remove("vote") end
+  let counts = [0, 0, 0]
+  for id in keys(votes) do counts[votes[id]] = counts[votes[id]] + 1 end
+  let best = random(1, len(options))
+  for i in 1 to len(options) do
+    if counts[i] > counts[best] then best = i end
+  end
+  current = options[best]
+  last_id = current.id
+  game_no = game_no + 1
+  phase = "play"
+  phase_until = time() + current.secs
+  announce("🎮 " + current.name + " — " + current.text, 4)
+  begin_game(current)
+end
+
+func game_over()
+  let g = current
+  if g.kind == "survive" and len(filter(players(), func(p) return ready(p) end)) > 1 then
+    if len(in_game()) <= 1 then return true end
+  end
+  if g.kind == "race" and len(filter(in_game(), func(p) return p.done_at == 0 end)) == 0 then return true end
+  return time() >= phase_until
+end
+
+func finish_game()
+  let g = current
+  let groups = ranking(g)
+  end_game_cleanup()
+  let stars = [3, 2, 1]
+  let lines = []
+  let place = 0
+  for grp in groups do
+    place = place + 1
+    let st = 0
+    if place <= 3 then st = stars[place] end
+    for p in grp do
+      p.stars = p.stars + st
+      kit_give(p, 5 + st * 10)
+      kit_quest_progress(p, "play10", 1)
+      if place == 1 then
+        kit_quest_progress(p, "win3", 1)
+        p.game_wins = p.game_wins + 1
+      end
+      if st > 0 then p.message("🏅 " + place + "位！ ⭐+" + st, 2.5) end
+    end
+    if place <= 3 then append(lines, place + "位 " + join(map(grp, func(p) return p.name end), "・")) end
+  end
+  for p in players() do
+    if ready(p) then
+      p.playing = false
+      p.teleport(lobby_spot())
+    end
+  end
+  announce("🏁 " + g.name + " 結果: " + join(lines, "  "), 4)
+  current = nil
+  phase = "results"
+  phase_until = time() + 5
+end
+
+func finish_match()
+  let list = sort(filter(players(), func(p) return ready(p) end), func(a, b) return a.stars > b.stars end)
+  phase = "done"
+  phase_until = time() + 12
+  if len(list) > 0 then
+    let champ = list[1]
+    announce("🏆 総合優勝は " + champ.name + "！（⭐" + champ.stars + "）", 8)
+    kit_give(champ, 300)
+    champ.score = champ.score + 10
+    champ.hat = "crown"
+    kit_badge(champ, "champion", "メガミニゲームで総合優勝")
+    kit_quest_progress(champ, "champ", 1)
+  end
+end
+
+func new_match()
+  game_no = 0
+  for p in players() do
+    if ready(p) then p.stars = 0 end
+  end
+  start_vote()
+end
+
+on start()
+  game.respawn_time = 2
+  phase_until = time() + 8
+end
+
+on tick(dt)
+  match_clock = match_clock + dt
+  if match_clock < 0.25 then return end
+  match_clock = 0
+  slow_clock = slow_clock + 0.25
+  if phase == "lobby" and time() >= phase_until and len(filter(players(), func(p) return ready(p) end)) > 0 then new_match()
+  elif phase == "vote" and time() >= phase_until then play_voted()
+  elif phase == "play" and current != nil then
+    game_step(current)
+    if slow_clock >= 1 then
+      slow_clock = 0
+      game_slow(current)
+    end
+    if game_over() then finish_game() end
+  elif phase == "results" and time() >= phase_until then
+    if game_no >= MATCH_GAMES then finish_match() else start_vote() end
+  elif phase == "done" and time() >= phase_until then new_match()
+  end
+  board()
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  if phase == "play" and p.playing then p.teleport(arena_spot()) else p.teleport(lobby_spot()) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "vote_") then cast(p, num(replace(id, "vote_", ""))) end
+end

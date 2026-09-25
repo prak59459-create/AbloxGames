@@ -1,150 +1,48 @@
--- Mega Minigames — 次々に出るミニゲームでポイントを集める
+-- Mega Minigames — 投票で次のゲームを決めるパーティー。12種類のミニゲームで⭐を集めて総合優勝！
+--
+-- ファイル:
+--   data.absc    ミニゲーム12種・色
+--   common.absc  状態・画面
+--   games.absc   12のミニゲームのしくみ
+--   match.absc   投票・結果・総合優勝
+--   main.absc    このファイル
 
-kit_setup("Mega Minigames", "いろんなミニゲームで1位を目指せ", [
-  "🟥 落ちる床: 乗った床はすぐ消える。最後まで残れ",
-  "⛰ 山の王: 真ん中の黄色い山に長くいた人の勝ち",
-  "🎨 色あわせ: 言われた色の床に乗れ！ほかの床は消える",
-  "☄️ 玉よけ: 空から落ちてくる玉をよけろ",
-  "勝つとポイント。20ゲームでいちばんの人が優勝"
+kit_setup("Mega Minigames", "投票して、遊んで、⭐を集めよう", [
+  "🗳 3つの中から次のミニゲームを投票で決める",
+  "🏅 1位 ⭐3・2位 ⭐2・3位 ⭐1。生きのこり系は最後まで残った人みんなが1位",
+  "🎮 10ゲームで⭐がいちばん多い人が総合優勝！",
+  "🟥 落ちる床・⛰ 山の王・🎨 色あわせ・☄️ 玉よけ・🔨 ハンマーよけ・🥚 たまご集め",
+  "🏃 リレー・🖌 床ぬり・🎯 的当て・🐔 にわとりつかまえ・🪑 いすとり・💣 ばくだんパス"
 ])
+kit_currency = "コイン"
 
-let games = ["spleef", "hill", "color", "dodge"]
-let game_names = {spleef: "🟥 落ちる床", hill: "⛰ 山の王", color: "🎨 色あわせ", dodge: "☄️ 玉よけ"}
-let colors = [["赤", "#EF4444"], ["青", "#3B82F6"], ["緑", "#22C55E"], ["黄", "#FACC15"]]
-let current = nil
-let count = 0
-let live = false
-let hill_time = {}
-let target_color = nil
+kit_quest("win3", "ミニゲームで3回1位", 3, 200)
+kit_quest("play10", "10ゲーム遊ぶ", 10, 150)
+kit_quest("champ", "総合優勝する", 1, 800)
 
-kit_quest("win3", "ミニゲームで3回勝つ", 3, 200)
-kit_quest("play10", "10ゲーム遊ぶ", 10, 100)
-
-func alive_in_game()
-  return filter(players(), func(p) return p.playing and p.alive and p.y > -8 end)
-end
-
-func reset_tiles()
-  let i = 0
-  for t in blocks("tile") do
-    i = i + 1
-    t.visible = true
-    t.solid = true
-  end
-end
-
-func start_game()
-  count = count + 1
-  if count > 20 then
-    let best = kit_top(1)
-    kit_finish("🏆 総合優勝は " + (len(best) > 0 and best[1].name or "?") + "！", 10)
-    return
-  end
-  current = games[(count - 1) % len(games) + 1]
-  reset_tiles()
-  hill_time = {}
-  for p in players() do
-    if not p.alive then p.respawn() end
-    p.playing = true
-    p.teleport({x: random(-14, 14), y: 2, z: random(-14, 14)})
-    kit_quest_progress(p, "play10", 1)
-  end
-  announce("🎮 " + count + " / 20: " + game_names[current], 3)
-  block("Hill").visible = current == "hill"
-  live = true
-  if current == "color" then color_round() end
-  after(current == "hill" and 30 or 40, func() finish_game() end)
-end
-
-func color_round()
-  if not live or current != "color" then return end
-  reset_tiles()
-  let c = random(colors)
-  target_color = c[2]
-  announce("🎨 「" + c[1] + "」の床へ！", 2)
-  after(3, func()
-    if not live or current != "color" then return end
-    for t in blocks("tile") do
-      -- 色は "#RRGGBB" か "#RRGGBBAA" で返るので、頭の6けたで比べる
-      if not starts_with(upper(t.color), upper(target_color)) then
-        t.visible = false
-        t.solid = false
-      end
-    end
-    after(2.5, func() color_round() end)
-  end)
-end
-
-func finish_game()
-  if not live then return end
-  live = false
-  let winners = []
-  if current == "hill" then
-    let best = nil
-    for p in players() do
-      if best == nil or (hill_time[p.id] or 0) > (hill_time[best.id] or 0) then best = p end
-    end
-    if best != nil then winners = [best] end
-  else
-    winners = alive_in_game()
-  end
-  for p in winners do
-    p.score = p.score + 3
-    kit_quest_progress(p, "win3", 1)
-  end
-  let names = map(winners, func(p) return p.name end)
-  announce("🏅 勝者: " + (len(names) > 0 and join(names, ", ") or "なし"), 3)
-  for p in players() do p.playing = false end
-  reset_tiles()
-  after(5, func() start_game() end)
-end
+kit_shop_title = "パーティーグッズ"
+kit_shop_add("cap", "🧢 キャップ", 100, func(p) p.hat = "cap" end)
+kit_shop_add("antenna", "📡 アンテナ", 200, func(p) p.hat = "antenna" end)
+kit_shop_add("halo", "😇 天使の輪", 500, func(p) p.hat = "halo" end)
+kit_shop_add("party", "🎉 パーティーの服", 300, func(p)
+  p.color = "#F472B6"
+  p.leg_color = "#7C3AED"
+end)
 
 on start()
-  game.respawn_time = -1
-  after(4, func() start_game() end)
-  every(1, func()
-    if not live then return end
-    if current == "dodge" then
-      for k in 1 to 4 do
-        let ball = create_block({name: "Ball", shape: "sphere", position: {x: random(-18, 18), y: 25, z: random(-18, 18)}, size: 1.6,
-                                color: "#F97316", material: "neon", solid: false, behavior: "trigger", tags: ["ball"]})
-        ball.move(0, -26, 0, 1.4)
-        after(1.6, func() kit_gone(ball) end)
-      end
-    end
-    if current == "hill" then
-      for p in players() do
-        if p.alive and distance(p, block("Arena Center")) < 3.5 then hill_time[p.id] = (hill_time[p.id] or 0) + 1 end
-      end
-    end
-    -- 落ちた人
-    for p in players() do
-      if p.playing and p.alive and p.y < -8 then
-        p.playing = false
-        p.teleport(block("Lobby"))
-        p.message("落ちた！", 1.5)
-      end
-    end
-    if current != "hill" and len(players()) > 1 and len(alive_in_game()) <= 1 then finish_game() end
-  end)
+  every(10, func() kit_leaderboard("⭐") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_shop_button(p)
+  p.stars = 0
+  p.game_wins = 0
   p.playing = false
-end
-
-on touch(p, b)
-  if p.is_npc or not live then return end
-  if contains(b.tags, "tile") and current == "spleef" and b.visible then
-    after(0.5, func()
-      b.visible = false
-      b.solid = false
-    end)
-  elif contains(b.tags, "ball") and current == "dodge" and p.playing then
-    p.playing = false
-    p.teleport(block("Lobby"))
-    p.message("☄️ 当たった！", 1.5)
-  end
+  p.g_score = 0
+  kit_give(p, 20)
+  p.teleport(lobby_spot())
+  if phase == "vote" then vote_panel(p) end
+  if phase == "play" then p.message("🎮 いまゲーム中。次のゲームから参加！", 2) end
 end

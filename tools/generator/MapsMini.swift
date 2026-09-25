@@ -19,7 +19,7 @@ let miniGames: [Game] = [
          summary: "家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！",
          tags: ["hide-and-seek", "props", "party"], maxPlayers: 12, build: propHunt),
     Game(number: 76, id: "mega-minigames", title: "Mega Minigames",
-         summary: "落ちる床、山の王、色あわせ、玉よけ…次々に出るミニゲームで勝ってポイントを集めよう。",
+         summary: "投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！",
          tags: ["minigames", "party", "classic"], maxPlayers: 16, build: megaMinigames),
     Game(number: 77, id: "rhythm-battle", title: "Rhythm Battle",
          summary: "落ちてくるノーツに合わせてボタンを押す、対戦リズムゲーム。パーフェクトを決めて相手より高いスコアを！",
@@ -428,10 +428,17 @@ func propHunt(_ m: MapBuilder) {
 // MARK: 76 Mega Minigames
 
 func megaMinigames(_ m: MapBuilder) {
-    m.sky("#A855F7", "#F0ABFC", light: 0.8, showGround: false, fall: -20)
-    m.slab("Lobby", x: 0, y: -1, z: -60, w: 30, h: 1, d: 20, color: "#F5F5F4")
-    m.spawnRing(0, -60, radius: 6, count: 12, color: "#F472B6")
-    // A 10x10 floor of tiles used by several games.
+    m.sky("#A855F7", "#F0ABFC", light: 0.85, showGround: false, fall: -20)
+    m.part("Cover Focus", at: (0, 0, -8), size: (86, 1, 1), color: "#000000", tags: ["yaw=205"], solid: false, visible: false)
+    // The lobby with a scoreboard.
+    m.slab("Lobby", x: 0, y: -1, z: -48, w: 34, h: 1, d: 18, color: "#F5F5F4")
+    m.spawnRing(0, -48, radius: 6, count: 12, color: "#F472B6")
+    m.part("Lobby Board", at: (0, 4, -56.6), size: (20, 5, 0.3), color: "#4C1D95", material: .neon, solid: false)
+    for sx: Float in [-1, 1] {
+        m.part("Balloon", at: (sx * 14, 5, -52), size: (2, 2.6, 2), color: sx < 0 ? "#F472B6" : "#60A5FA", shape: .sphere, solid: false)
+        m.part("Balloon String", at: (sx * 14, 2, -52), size: (0.05, 4, 0.05), color: "#F8FAFC", solid: false)
+    }
+    // The arena: a 10 × 10 floor of tiles inside a rim with a pad in each corner.
     let colors = ["#EF4444", "#3B82F6", "#22C55E", "#FACC15"]
     for gx in 0..<10 {
         for gz in 0..<10 {
@@ -439,8 +446,24 @@ func megaMinigames(_ m: MapBuilder) {
                    color: colors[(gx + gz * 3) % 4], behavior: .trigger, tags: ["tile"])
         }
     }
+    for side in 0..<4 {
+        let horizontal = side < 2
+        let sgn: Float = side % 2 == 0 ? -1 : 1
+        m.slab("Rim", x: horizontal ? 0 : sgn * 22.5, y: -1, z: horizontal ? sgn * 22.5 : 0, w: horizontal ? 50 : 5, h: 1, d: horizontal ? 5 : 40,
+               color: "#E9D5FF")
+    }
+    let corners: [(Float, Float)] = [(-22.5, -22.5), (22.5, -22.5), (22.5, 22.5), (-22.5, 22.5)]
+    for (i, c) in corners.enumerated() {
+        m.pad("Corner \(i + 1)", x: c.0, z: c.1, size: 3.4, color: ["#EF4444", "#3B82F6", "#22C55E", "#FACC15"][i], tags: ["corner"])
+        m.part("Corner Flag \(i + 1)", at: (c.0, 3, c.1), size: (0.2, 6, 0.2), color: "#F8FAFC", solid: false)
+    }
     m.part("Hill", at: (0, 1, 0), size: (6, 2, 6), color: "#FDE047", shape: .cylinder, material: .neon, behavior: .trigger, tags: ["hill"], visible: false)
-    m.part("Arena Center", at: (0, 1, 0), size: (1, 1, 1), color: "#000000", visible: false)
+    m.part("Arena Center", at: (0, 1, 0), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.slab("Bridge", x: 0, y: -1, z: -32, w: 6, h: 1, d: 15, color: "#F5F5F4")
+    for p in ring(12, radius: 34) {
+        m.part("Confetti Pole", at: (p.0, 4, p.1), size: (0.3, 8, 0.3), color: "#FDE047", solid: false)
+        m.part("Confetti Ball", at: (p.0, 8.4, p.1), size: (1.2, 1.2, 1.2), color: "#F0ABFC", shape: .sphere, material: .neon, solid: false)
+    }
 }
 
 // MARK: 77 Rhythm Battle

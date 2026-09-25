@@ -2029,16 +2029,20 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 115,
-      "cover" : "games\/mega-minigames\/cover-78e7b27a.png",
+      "blockCount" : 158,
+      "cover" : "games\/mega-minigames\/cover-f7cd88f3.png",
       "id" : "mega-minigames",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/mega-minigames\/data.absc",
+        "games\/mega-minigames\/common.absc",
+        "games\/mega-minigames\/games.absc",
+        "games\/mega-minigames\/match.absc",
         "games\/mega-minigames\/main.absc"
       ],
-      "summary" : "落ちる床、山の王、色あわせ、玉よけ…次々に出るミニゲームで勝ってポイントを集めよう。",
+      "summary" : "投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！",
       "tags" : [
         "minigames",
         "party",

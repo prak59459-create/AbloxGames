@@ -1,0 +1,29 @@
+-- data.absc — ミニゲーム12種・色
+
+-- kind: survive（最後まで残る）/ score（点数）/ race（ゴールの早さ）
+let GAMES = [
+  {id: "spleef", name: "🟥 落ちる床", text: "ふんだ床はすぐ消える。最後まで残れ！", kind: "survive", secs: 40},
+  {id: "hill", name: "⛰ 山の王", text: "真ん中の黄色い山に長くいた人の勝ち", kind: "score", secs: 30},
+  {id: "color", name: "🎨 色あわせ", text: "言われた色の床にのれ！ ほかは消える", kind: "survive", secs: 45},
+  {id: "dodge", name: "☄️ 玉よけ", text: "空から落ちてくる玉に当たったらアウト", kind: "survive", secs: 40},
+  {id: "hammer", name: "🔨 ハンマーよけ", text: "床をなぎはらうバーをジャンプでよけろ", kind: "survive", secs: 40},
+  {id: "eggs", name: "🥚 たまご集め", text: "たまごをいっぱい集めろ。金のたまごは3点！", kind: "score", secs: 30},
+  {id: "relay", name: "🏃 リレー", text: "四すみのパッドを 赤→青→緑→黄 の順に2周！", kind: "race", secs: 60},
+  {id: "paint", name: "🖌 床ぬり", text: "ふんだ床が自分の色に。いちばん多くぬった人の勝ち", kind: "score", secs: 30},
+  {id: "targets", name: "🎯 的当て", text: "まわりに出る的をビームで当てろ！", kind: "score", secs: 35},
+  {id: "chickens", name: "🐔 にわとりつかまえ", text: "にげるにわとりにさわってつかまえろ。金色は3点", kind: "score", secs: 35},
+  {id: "chairs", name: "🪑 いすとり", text: "音楽が止まったら光るパッドへ！ のれなかったらアウト", kind: "survive", secs: 70},
+  {id: "bomb", name: "💣 ばくだんパス", text: "ばくだんを持ったら、近くの人にくっついてわたせ！", kind: "survive", secs: 70}
+]
+
+let COLORS = [
+  {name: "🔴 赤", color: "#EF4444"},
+  {name: "🔵 青", color: "#3B82F6"},
+  {name: "🟢 緑", color: "#22C55E"},
+  {name: "🟡 黄", color: "#FACC15"}
+]
+
+let PAINT_COLORS = ["#F472B6", "#22D3EE", "#A3E635", "#FB923C", "#A78BFA", "#F87171", "#34D399", "#FDE047", "#60A5FA", "#E879F9", "#FCA5A5", "#5EEAD4"]
+
+let MATCH_GAMES = 10
+let VOTE_TIME = 8
