@@ -1,0 +1,231 @@
+-- shops.absc — 道場（強化）・エンチャント台・転生と転生ショップ・ゲート・プレゼント・オート召喚
+
+let shop_clock = 0
+
+-- MARK: 道場
+
+func upgrade_price(p, u)
+  return floor(u.base * pow(u.grow, lvl(p, u.id)))
+end
+
+func dojo_panel(p)
+  let h = 120 + len(UPGRADES) * 48
+  p.ui_remove("dojo")
+  p.ui_panel("dojo", {at: "center", w: 560, h: h, bg: "#1E3A8AF2", radius: 20, layer: 30})
+  p.ui_text("dojo_t", "🥋 道場   💰 " + kit_short(kit_money(p)), {parent: "dojo", y: 22 / h, size: 17, bold: true, color: "#BFDBFE"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let l = lvl(p, u.id)
+    let label = u.name + " Lv" + l + "/" + u.max + "（" + u.text + "）  💰" + kit_short(upgrade_price(p, u))
+    if l >= u.max then label = u.name + " MAX" end
+    p.ui_button("up_" + u.id, label, {parent: "dojo", y: (30 + i * 48) / h, w: 520, h: 42, size: 13, bg: "#2563EB"})
+  end
+  p.ui_button("dojo_close", "閉じる", {parent: "dojo", y: (h - 22) / h, w: 120, h: 30, size: 13, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  let u = upgrade_of(id)
+  if u == nil or lvl(p, id) >= u.max then return end
+  if kit_pay(p, upgrade_price(p, u)) then
+    p.ups[id] = lvl(p, id) + 1
+    p.sound("goal")
+    kit_quest_progress(p, "upgrade", 1)
+    if id == "walk" then apply_walk(p) end
+    if id == "slots" then rebuild_orbit(p) end
+    hud(p)
+  end
+  dojo_panel(p)
+end
+
+-- MARK: エンチャント台
+
+func enchant_panel(p)
+  let eq = equipped(p)
+  let h = 130 + max(1, len(eq)) * 44
+  p.ui_remove("ench")
+  p.ui_panel("ench", {at: "center", w: 560, h: h, bg: "#4C1D95F2", radius: 20, layer: 30})
+  p.ui_text("ench_t", "✨ エンチャント（" + ENCHANT_COST + "💎・ランダム）  💎 " + p.gems, {parent: "ench", y: 22 / h, size: 16, bold: true, color: "#F0ABFC"})
+  p.ench_list = map(eq, func(it) return it.uid end)
+  let i = 0
+  for it in eq do
+    i = i + 1
+    let now = "なし"
+    if it.ench != nil then now = enchant_of(it.ench).name end
+    p.ui_button("ench_" + i, item_name(it) + "  いま: " + now, {parent: "ench", y: (30 + i * 44) / h, w: 520, h: 38, size: 13, bg: "#7C3AED"})
+  end
+  let lines = join(map(ENCHANTS, func(e) return e.name + " " + e.text end), " / ")
+  p.ui_text("ench_h", lines, {parent: "ench", y: (h - 50) / h, size: 10, color: "#E9D5FF"})
+  p.ui_button("ench_close", "閉じる", {parent: "ench", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func do_enchant(p, i)
+  if p.ench_list == nil or i > len(p.ench_list) then return end
+  if p.gems < ENCHANT_COST then
+    p.message("💎 宝石が " + ENCHANT_COST + " こいる（エリートやボスがおとす）", 1.5)
+    return
+  end
+  let uid = p.ench_list[i]
+  for it in p.bag do
+    if it.uid == uid then
+      p.gems = p.gems - ENCHANT_COST
+      it.ench = random(ENCHANTS).id
+      p.message("✨ " + item_name(it) + " に " + enchant_of(it.ench).name + "！（" + enchant_of(it.ench).text + "）", 2)
+      p.sound("goal")
+      kit_quest_progress(p, "enchant", 1)
+    end
+  end
+  hud(p)
+  enchant_panel(p)
+end
+
+-- MARK: 転生
+
+func rebirth_price(p)
+  return 250000 * pow(4, p.rebirths)
+end
+
+func rebirth_panel(p)
+  let h = 170 + len(PERKS) * 44
+  p.ui_remove("reb")
+  p.ui_panel("reb", {at: "center", w: 560, h: h, bg: "#3F1D38F2", radius: 20, layer: 30})
+  p.ui_text("reb_t", "🔄 転生  いま " + p.rebirths + " 回   🎟 トークン " + p.tokens, {parent: "reb", y: 22 / h, size: 16, bold: true, color: "#FBCFE8"})
+  p.ui_text("reb_h", "コイン・強化・ワールドがリセット。武器はそのまま。パワー+25%・コイン+50%・トークン1", {parent: "reb", y: 50 / h, size: 11, color: "#FCE7F3"})
+  p.ui_button("rebirth", "🔄 転生する  💰" + kit_short(rebirth_price(p)), {parent: "reb", y: 88 / h, w: 480, h: 42, size: 15, bg: "#DB2777"})
+  let i = 0
+  for k in PERKS do
+    i = i + 1
+    let label = k.name + "（" + k.text + "）  🎟" + k.cost
+    if has_perk(p, k.id) then label = "✅ " + k.name end
+    p.ui_button("perk_" + k.id, label, {parent: "reb", y: (100 + i * 44) / h, w: 500, h: 38, size: 13, bg: "#9D174D"})
+  end
+  p.ui_button("reb_close", "閉じる", {parent: "reb", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func do_rebirth(p)
+  let price = rebirth_price(p)
+  if kit_money(p) < price then
+    p.message("💰 " + kit_short(price) + " たまったら転生できる", 1.5)
+    return
+  end
+  kit_pay(p, kit_money(p))
+  p.rebirths = p.rebirths + 1
+  p.tokens = p.tokens + 1
+  p.ups = {}
+  p.unlocked = 1
+  p.world = 1
+  apply_walk(p)
+  p.teleport(block("World 1 Spot").position + {x: 0, y: 1, z: 0})
+  kit_give(p, 100)
+  kit_quest_progress(p, "rebirth", 1)
+  kit_badge(p, "rebirth" + min(p.rebirths, 5), "転生 " + p.rebirths + " 回")
+  announce("🔄 " + p.name + " が転生した！（" + p.rebirths + " 回目）", 3)
+  p.sound("goal")
+  rebuild_orbit(p)
+  hud(p)
+  rebirth_panel(p)
+end
+
+func buy_perk(p, id)
+  let k = perk_of(id)
+  if k == nil or has_perk(p, id) then return end
+  if p.tokens < k.cost then
+    p.message("🎟 トークンが " + k.cost + " こいる（転生でもらえる）", 1.5)
+    return
+  end
+  p.tokens = p.tokens - k.cost
+  append(p.perks, id)
+  p.message("✅ " + k.name + " を手に入れた！", 2)
+  if id == "slot" then rebuild_orbit(p) end
+  hud(p)
+  rebirth_panel(p)
+end
+
+-- MARK: ゲート
+
+func gate_touch(p, b)
+  let n = num(replace(b.name, "Area Gate ", ""))
+  if p.unlocked >= n then return end
+  let w = WORLDS[n]
+  if p.unlocked == n - 1 and kit_pay(p, w.price) then
+    p.unlocked = n
+    p.message("🔓 " + w.name + " が開いた！", 2.5)
+    p.sound("goal")
+    kit_quest_progress(p, "world3", 1)
+    kit_quest_progress(p, "world6", 1)
+    kit_badge(p, "world" + n, w.name + " に入った")
+  elif quiet_ready(p, "gate", 2) then
+    let need = "前のワールドを先に開けよう"
+    if p.unlocked == n - 1 then need = "💰 " + kit_short(w.price) + " いる" end
+    p.message("🔒 " + w.name + " — " + need, 2)
+    p.teleport(block("World " + p.unlocked + " Spot").position + {x: 0, y: 1, z: 0})
+  end
+end
+
+-- MARK: プレゼント
+
+func gift_button(p)
+  let left = ceil(p.gift_at - time())
+  let label = "🎁 " + kit_clock(max(0, left))
+  if left <= 0 then label = "🎁 もらう！" end
+  if label != p.gift_label then
+    p.gift_label = label
+    p.ui_button("gift", label, {at: "right", dy: 110, w: 140, h: 42, size: 15, bg: "#DB2777"})
+  end
+end
+
+func take_gift(p)
+  if time() < p.gift_at then
+    p.message("🎁 あと " + kit_clock(ceil(p.gift_at - time())), 1)
+    return
+  end
+  p.gift_at = time() + GIFT_EVERY
+  let c = earn(p, WORLDS[p.unlocked].summon * 3)
+  let g = give_gems(p, 3)
+  p.message("🎁 プレゼント！ 💰+" + kit_short(c) + " 💎+" + g, 2.5)
+  p.sound("collect")
+  hud(p)
+end
+
+-- オート召喚: 祭壇の近くにいるあいだ
+func auto_summon_step(p)
+  if not p.auto_summon or not has_perk(p, "auto") then return end
+  let altar = block("Altar " + p.world)
+  if altar == nil or distance(p, altar) > 10 then return end
+  if kit_money(p) >= WORLDS[p.world].summon then summon(p, 1) end
+end
+
+on tick(dt)
+  shop_clock = shop_clock + dt
+  if shop_clock < 1 then return end
+  shop_clock = 0
+  for p in players() do
+    if ready(p) then
+      gift_button(p)
+      auto_summon_step(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "altar") and quiet_ready(p, "altar", 2) then summon_panel(p)
+  elif contains(b.tags, "dojo") and quiet_ready(p, "dojo", 2) then dojo_panel(p)
+  elif contains(b.tags, "enchant") and quiet_ready(p, "enchant", 2) then enchant_panel(p)
+  elif contains(b.tags, "rebirth") and quiet_ready(p, "rebirth", 2) then rebirth_panel(p)
+  elif contains(b.tags, "gate") then gate_touch(p, b)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "up_") then buy_upgrade(p, replace(id, "up_", ""))
+  elif id == "dojo_close" then p.ui_remove("dojo")
+  elif starts_with(id, "ench_") and id != "ench_close" then do_enchant(p, num(replace(id, "ench_", "")))
+  elif id == "ench_close" then p.ui_remove("ench")
+  elif id == "rebirth" then do_rebirth(p)
+  elif starts_with(id, "perk_") then buy_perk(p, replace(id, "perk_", ""))
+  elif id == "reb_close" then p.ui_remove("reb")
+  elif id == "gift" then take_gift(p)
+  end
+end

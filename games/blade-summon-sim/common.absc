@@ -1,0 +1,171 @@
+-- common.absc — 小さな道具・武器の強さ・プレイヤーの強さ・画面
+
+let LETTERS = ["a", "b", "c", "d", "e", "f"]
+let STAR_MULT = 3.5
+
+func ready(p)
+  return p.bag != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func blade_of(bid)
+  for b in BLADES do
+    if b.id == bid then return b end
+  end
+  return BLADES[1]
+end
+
+func rarity_of(bid)
+  return RARITIES[index_of(LETTERS, slice(bid, 3, 3))]
+end
+
+func enchant_of(id)
+  for e in ENCHANTS do
+    if e.id == id then return e end
+  end
+  return nil
+end
+
+func upgrade_of(id)
+  for u in UPGRADES do
+    if u.id == id then return u end
+  end
+  return nil
+end
+
+func perk_of(id)
+  for k in PERKS do
+    if k.id == id then return k end
+  end
+  return nil
+end
+
+func has_perk(p, id)
+  return contains(p.perks, id)
+end
+
+func lvl(p, id)
+  return p.ups[id] or 0
+end
+
+-- MARK: 武器の強さ
+
+func item_power(it)
+  let b = blade_of(it.bid)
+  let pw = 2 * pow(11, b.world - 1) * rarity_of(it.bid).mult * pow(STAR_MULT, it.star)
+  if it.ench == "sharp" then pw = pw * 1.4 end
+  return pw
+end
+
+func item_name(it)
+  let s = blade_of(it.bid).name
+  if it.star > 0 then s = s + " " + slice("★★★", 1, it.star) end
+  if it.ench != nil then s = s + " " + slice(enchant_of(it.ench).name, 1, 1) end
+  return s
+end
+
+func slots(p)
+  let n = BASE_SLOTS + lvl(p, "slots")
+  if has_perk(p, "slot") then n = n + 1 end
+  return n
+end
+
+-- いちばん強い武器から、スロットの数だけ
+func equipped(p)
+  let list = sort(copy(p.bag), func(a, b) return item_power(a) > item_power(b) end)
+  return slice(list, 1, min(slots(p), len(list)))
+end
+
+func count_ench(p, id)
+  let n = 0
+  for it in equipped(p) do
+    if it.ench == id then n = n + 1 end
+  end
+  return n
+end
+
+-- MARK: プレイヤーの強さ
+
+func rebirth_mult(p)
+  return 1 + p.rebirths * 0.25
+end
+
+func power_of(p)
+  let t = 0
+  for it in equipped(p) do t = t + item_power(it) end
+  return t * rebirth_mult(p)
+end
+
+func attacks_per_sec(p)
+  return 2 * (1 + lvl(p, "speed") * 0.1 + count_ench(p, "swift") * 0.15)
+end
+
+func range_of(p)
+  return 8 + lvl(p, "range") * 1.5
+end
+
+func luck_of(p)
+  let l = 1 + lvl(p, "luck") * 0.15 + count_ench(p, "lucky") * 0.2
+  if has_perk(p, "aura") then l = l + 0.5 end
+  return l
+end
+
+func coin_mult(p)
+  return (1 + lvl(p, "coins") * 0.2 + count_ench(p, "greed") * 0.25) * (1 + p.rebirths * 0.5)
+end
+
+func crit_chance(p)
+  return 0.05 + count_ench(p, "crit") * 0.08
+end
+
+func apply_walk(p)
+  p.speed = 1 + lvl(p, "walk") * 0.08
+end
+
+func earn(p, coins)
+  let c = floor(coins * coin_mult(p))
+  kit_give(p, c)
+  p.earned = p.earned + c
+  return c
+end
+
+func give_gems(p, n)
+  if has_perk(p, "gems") then n = n * 2 end
+  p.gems = p.gems + n
+  return n
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let w = WORLDS[p.world]
+  p.ui_text("pow", "⚔️ パワー " + kit_short(power_of(p)) + "   💎 " + p.gems + "   🗡 " + len(p.bag) + "（装備 " + min(slots(p), len(p.bag)) + "/" + slots(p) + "）",
+            {at: "top", dy: 30, size: 17, bold: true})
+  let reb = ""
+  if p.rebirths > 0 then reb = "   🔄 転生 " + p.rebirths end
+  p.ui_text("where", w.name + "（" + p.world + "/" + len(WORLDS) + "）" + reb, {at: "top", dy: 54, size: 14, color: "#BFDBFE"})
+  p.score = floor(power_of(p))
+end

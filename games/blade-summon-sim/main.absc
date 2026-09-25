@@ -1,155 +1,88 @@
--- Blade Summon Sim — 召喚した武器がまわりを回って、勝手に敵をたおす
+-- Blade Summon Sim — 武器を召喚すると、まわりを回って勝手に敵をたおしてくれる放置系シミュレーター
+--
+-- ファイル:
+--   data.absc    ワールド6つ・武器36本・レア度・強化・エンチャント・転生ショップ
+--   common.absc  武器とプレイヤーの強さ・画面
+--   blades.absc  召喚・合体・バッグ・図鑑
+--   combat.absc  敵・エリート・ボス・自動攻撃・回る武器
+--   shops.absc   道場・エンチャント・転生・ゲート・プレゼント
+--   main.absc    このファイル
 
-kit_setup("Blade Summon Sim", "召喚して、放置して、強くなれ", [
-  "金色の祭壇にさわると武器ガチャ（コインが必要）",
-  "強い武器3本があなたのまわりを回って、近くの敵を自動でこうげき",
-  "敵をたおすとコイン。奥のエリアほど敵が強くてもうかる",
-  "オレンジのゲートはコインを払うと通れる",
-  "同じ武器が3本そろうと自動で合体して強くなる"
+kit_setup("Blade Summon Sim", "召喚して、合体して、最強の武器軍団を", [
+  "🎲 金色の祭壇で武器を召喚。ワールドごとに出る武器がちがう",
+  "🗡 強い武器が自動で装備されて、まわりを回りながら近くの敵をこうげき",
+  "⭐ 同じ武器・同じ★が3本そろうと合体して★が上がる（パワー×3.5）",
+  "🥋 道場でスロット・範囲・スピード・運・コイン・足の速さを強化",
+  "✨ エリートやボスの💎で、エンチャント（鋭さ・強欲・幸運・疾風・会心）",
+  "🚪 オレンジのゲートはコインで開く。全部で6ワールド",
+  "🔄 お金がたまったら転生。パワーとコインがずっと上がって、転生ショップも使える"
 ])
-
-let blades = [
-  {name: "木の剣", power: 1, weight: 40, color: "#A16207"},
-  {name: "鉄の剣", power: 3, weight: 30, color: "#9CA3AF"},
-  {name: "水晶の剣", power: 8, weight: 15, color: "#67E8F9"},
-  {name: "炎の剣", power: 20, weight: 9, color: "#F97316"},
-  {name: "雷の槍", power: 50, weight: 4, color: "#FACC15"},
-  {name: "星の大剣", power: 140, weight: 1.5, color: "#C4B5FD"},
-  {name: "神話の刃", power: 500, weight: 0.4, color: "#F0ABFC"}
-]
-let area_names = ["Training Grounds", "Crystal Cave", "Lava Fields", "Sky Palace"]
-let gate_price = [0, 800, 12000, 200000]
-let summon_price = 50
-let orbit = {}
+kit_currency = "コイン"
 
 kit_quest("summon", "10回召喚する", 10, 200)
-kit_quest("area2", "クリスタルの洞窟に入る", 1, 200)
-kit_quest("kills", "敵を50体たおす", 50, 300)
-
-func power(p)
-  let best = sort(p.owned, func(a, b) return a.power > b.power end)
-  let t = 0
-  for b in slice(best, 1, 3) do t = t + b.power end
-  return t
-end
-
-func show(p)
-  p.ui_text("pow", "⚔️ パワー " + kit_short(power(p)) + "   🗡 " + len(p.owned) + " 本", {at: "top", dy: 30, size: 18, bold: true})
-  p.score = floor(power(p))
-end
-
-func rebuild_orbit(p)
-  for b in orbit[p.id] or [] do b.destroy() end
-  let made = []
-  let best = sort(p.owned, func(a, b) return a.power > b.power end)
-  for w in slice(best, 1, 3) do
-    append(made, create_block({name: w.name, position: p.position + {x: 0, y: 2, z: 0}, size: {x: 0.3, y: 1.6, z: 0.3},
-                               color: w.color, material: "neon", solid: false}))
-  end
-  orbit[p.id] = made
-end
-
-func merge(p)
-  for w in blades do
-    let same = filter(p.owned, func(o) return o.name == w.name and not o.merged end)
-    if len(same) >= 3 then
-      for k in 1 to 3 do remove(p.owned, index_of(p.owned, same[k])) end
-      append(p.owned, {name: w.name + "★", power: w.power * 4, color: w.color, merged: true})
-      p.message("✨ " + w.name + " ×3 が合体！", 2)
-    end
-  end
-end
-
-func spawn_enemy(area, k)
-  let spot = block("Enemy " + area + " " + k)
-  let hp = 20 * pow(15, area - 1)
-  let n = create_npc({name: ["ワラ人形", "水晶ゴーレム", "溶岩トカゲ", "天空の騎士"][area], position: spot.position + {x: 0, y: 1, z: 0},
-                      color: ["#CA8A04", "#7C3AED", "#DC2626", "#E0F2FE"][area], health: hp, speed: 0, team: "enemies"})
-  n.frozen = true
-  n.area = area
-  n.slot = k
-  n.reward = floor(hp / 3)
-end
+kit_quest("summon100", "100回召喚する", 100, 3000)
+kit_quest("kills", "敵を100体たおす", 100, 500)
+kit_quest("kills1000", "敵を1000体たおす", 1000, 20000)
+kit_quest("legend", "レジェンド以上を召喚する", 1, 1000)
+kit_quest("merge", "5回合体する", 5, 800)
+kit_quest("upgrade", "道場で10回強化する", 10, 1500)
+kit_quest("world3", "3つ目のワールドへ", 2, 5000)
+kit_quest("world6", "星の神殿へ", 5, 1000000)
+kit_quest("boss", "ボスを3回たおす", 3, 5000)
+kit_quest("enchant", "エンチャントを3回", 3, 3000)
+kit_quest("rebirth", "転生する", 1, 10000)
+kit_quest("tap", "こうげきボタンを200回", 200, 800)
 
 on start()
-  for a in 1 to 4 do
-    for k in 1 to 6 do spawn_enemy(a, k) end
-  end
-  every(1, func()
-    for p in players() do
-      let pw = power(p)
-      if pw > 0 then
-        let target = nil
-        for n in npcs() do
-          if n.team == "enemies" and distance(p, n) < 12 and (target == nil or distance(p, n) < distance(p, target)) then target = n end
-        end
-        if target != nil then target.damage(pw, p) end
-      end
-    end
-  end)
-  every(0.5, func()
-    for p in players() do
-      let list = orbit[p.id] or []
-      let i = 0
-      for b in list do
-        i = i + 1
-        let a = time() * 180 + i * 120
-        b.position = p.position + {x: cos(a) * 2, y: 1.4, z: sin(a) * 2}
-      end
-    end
-  end)
   every(10, func() kit_leaderboard("⚔️") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.owned = [blades[1]]
-  p.area = 1
-  kit_give(p, 100)
+  p.bag = []
+  p.serial = 0
+  p.found = {}
+  p.ups = {}
+  p.perks = []
+  p.autosell = {}
+  p.automerge = true
+  p.gems = 0
+  p.tokens = 0
+  p.rebirths = 0
+  p.unlocked = 1
+  p.world = 1
+  p.summons = 0
+  p.slain = 0
+  p.earned = 0
+  p.gift_at = time() + GIFT_EVERY
+  add_blade(p, "w1a", 0)
+  kit_give(p, 150)
+  apply_walk(p)
+  p.ui_button("tap", "⚔️ こうげき", {at: "bottom_right", dx: -110, dy: -170, w: 160, h: 64, size: 18, bg: "#DC2626", radius: 16})
+  p.ui_button("open_bag", "🗡 武器", {at: "right", dy: -40, w: 140, h: 42, size: 15, bg: "#1D4ED8"})
+  p.ui_button("open_index", "📖 図鑑", {at: "right", dy: 10, w: 140, h: 42, size: 15, bg: "#4338CA"})
+  p.ui_button("autosell", "🗑 自動売却 OFF", {at: "right", dy: 60, w: 140, h: 42, size: 13, bg: "#57534E"})
   rebuild_orbit(p)
-  show(p)
+  hud(p)
+  p.message("🎲 金色の祭壇にさわって、最初の召喚をしよう！", 3)
 end
 
-on leave(p)
-  for b in orbit[p.id] or [] do b.destroy() end
-  remove(orbit, p.id)
+on respawn(p)
+  if not ready(p) then return end
+  p.teleport(block("World " + p.world + " Spot").position + {x: 0, y: 1, z: 0})
+  rebuild_orbit(p)
 end
 
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "altar") and kit_ready(p, "summon", 0.8) then
-    if kit_pay(p, summon_price) then
-      let w = kit_pick(blades, 1)
-      append(p.owned, {name: w.name, power: w.power, color: w.color})
-      p.message("🗡 " + w.name + "（パワー " + w.power + "）", 1.5)
-      if w.weight <= 1.5 then announce("🌟 " + p.name + " が「" + w.name + "」を召喚した！", 3) end
-      kit_quest_progress(p, "summon", 1)
-      merge(p)
-      rebuild_orbit(p)
-      show(p)
-    end
-  elif contains(b.tags, "gate") then
-    let n = num(split(b.name, " ")[3])
-    if p.area >= n then return end
-    if p.area == n - 1 and kit_pay(p, gate_price[n]) then
-      p.area = n
-      p.message("🔓 " + area_names[n] + " へ！", 2)
-      if n == 2 then kit_quest_progress(p, "area2", 1) end
-    else
-      p.message("🔒 " + area_names[n] + " は 💰" + kit_short(gate_price[n]), 1.5)
-      p.teleport(block(area_names[max(1, n - 1)] + " Ground"))
-    end
-  end
-end
-
-on death(victim, killer)
-  if victim.team != "enemies" then return end
-  let a = victim.area
-  let k = victim.slot
-  after(3, func() spawn_enemy(a, k) end)
-  if killer != nil and not killer.is_npc then
-    kit_give(killer, victim.reward)
-    kit_quest_progress(killer, "kills", 1)
+on button(p, id)
+  if not ready(p) then return end
+  if id == "autosell" then
+    -- コモンとレアの自動売却を切りかえ
+    let on_now = p.autosell["common"] == true
+    p.autosell["common"] = not on_now
+    p.autosell["rare"] = not on_now
+    let label = "🗑 自動売却 OFF"
+    if not on_now then label = "🗑 コモン・レア売却 ON" end
+    p.ui_button("autosell", label, {at: "right", dy: 60, w: 140, h: 42, size: 12, bg: "#57534E"})
   end
 end

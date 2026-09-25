@@ -25,7 +25,7 @@ let idleGames: [Game] = [
          summary: "草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！",
          tags: ["monsters", "rpg", "turn-based"], maxPlayers: 12, build: critterQuest),
     Game(number: 66, id: "blade-summon-sim", title: "Blade Summon Sim",
-         summary: "武器を召喚すると、まわりをぐるぐる回って勝手に敵をたおしてくれる。コインでガチャを回して、最強の武器軍団を。",
+         summary: "召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！",
          tags: ["idle", "summon", "collect"], maxPlayers: 12, build: bladeSummon),
     Game(number: 67, id: "crusher-yard", title: "Crusher Yard",
          summary: "車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。",
@@ -680,19 +680,78 @@ func critterQuest(_ m: MapBuilder) {
 // MARK: 66 Blade Summon Sim
 
 func bladeSummon(_ m: MapBuilder) {
-    m.sky("#0F172A", "#1E3A8A", light: 0.75, ground: "#1E293B")
-    let areas: [(String, String, Float)] = [("Training Grounds", "#475569", 0), ("Crystal Cave", "#6D28D9", 60), ("Lava Fields", "#B91C1C", 120),
-                                            ("Sky Palace", "#E0F2FE", 180)]
-    for (i, a) in areas.enumerated() {
-        m.ground(50, 50, color: a.1, name: "\(a.0) Ground", z: a.2)
-        if i > 0 {
-            m.part("Area Gate \(i + 1)", at: (0, 3, a.2 - 26), size: (50, 6, 1), color: "#F59E0B", material: .glass, behavior: .trigger,
-                   tags: ["gate"], solid: false, opacity: 0.4)
+    m.sky("#1E1B4B", "#60A5FA", light: 0.8, showGround: false, fall: -40)
+    m.part("Cover Focus", at: (0, 0, 40), size: (120, 1, 1), color: "#000000", tags: ["yaw=205"], solid: false, visible: false)
+    var r = Seeded("blades")
+    // Six floating worlds in a line, joined by bridges with a gate on each.
+    let worlds: [(String, String, String)] = [("#65A30D", "#4D7C0F", "#FACC15"), ("#7C3AED", "#5B21B6", "#E9D5FF"), ("#7F1D1D", "#451A03", "#F97316"),
+                                              ("#E0F2FE", "#7DD3FC", "#FFFFFF"), ("#FEF3C7", "#FDE68A", "#FFFFFF"), ("#1E1B4B", "#312E81", "#F0ABFC")]
+    for (i, w) in worlds.enumerated() {
+        let n = i + 1
+        let zc = Float(i) * 75
+        let first = n == 1
+        let depth: Float = first ? 76 : 60
+        let fz: Float = first ? -8 : zc
+        m.slab("World \(n) Floor", x: 0, y: -1, z: fz, w: 60, h: 1, d: depth, color: w.0)
+        m.slab("World \(n) Rock", x: 0, y: -7, z: fz, w: 52, h: 6, d: depth - 8, color: w.1)
+        m.part("World \(n) Spot", at: (0, 0.1, zc - 24), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        // The altar.
+        m.part("Altar \(n)", at: (-18, 1, zc - 20), size: (3.4, 2, 3.4), color: "#FBBF24", shape: .cylinder, material: .metal, behavior: .trigger, tags: ["altar"])
+        m.part("Altar Orb", at: (-18, 3.2, zc - 20), size: (1.4, 1.4, 1.4), color: w.2, shape: .sphere, material: .neon, solid: false)
+        for q in ring(4, radius: 2.6, cx: -18, cz: zc - 20, phase: 0.78) {
+            m.part("Altar Candle", at: (q.0, 2.4, q.1), size: (0.3, 0.8, 0.3), color: "#FDE68A", shape: .cylinder, material: .neon, solid: false)
         }
-        m.markers("Enemy \(i + 1)", points: grid(3, 2, spacing: 12, cx: 0, cz: a.2 + 8), color: "#000000", visible: false, behavior: .none)
+        // Where the enemies stand, the elite and the boss ring.
+        let spots: [(Float, Float)] = [(-15, -8), (-5, -8), (5, -8), (15, -8), (-10, 2), (10, 2), (-18, 10), (18, 10)]
+        m.markers("Enemy \(n)", points: spots.map { ($0.0, zc + $0.1) }, color: "#000000", visible: false, behavior: .none)
+        m.part("Elite \(n)", at: (0, 0.1, zc + 6), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Elite Ring", at: (0, 0.03, zc + 6), size: (5, 0.04, 5), color: "#FACC15", shape: .cylinder, material: .neon, solid: false, opacity: 0.5)
+        m.part("Boss \(n)", at: (0, 0.1, zc + 21), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Boss Ring", at: (0, 0.03, zc + 21), size: (14, 0.04, 14), color: "#EF4444", shape: .cylinder, material: .neon, solid: false, opacity: 0.45)
+        for q in ring(6, radius: 8.5, cx: 0, cz: zc + 21) {
+            m.pillar("Boss Pillar", x: q.0, z: q.1, height: 3, radius: 0.5, color: w.1)
+        }
+        // Scenery of each world.
+        for _ in 0..<10 {
+            var x = r.range(-27, 27), z = zc + r.range(-27, 27)
+            if abs(x) < 22 && z > zc - 14 && z < zc + 29 { x = x < 0 ? -26 : 26 }
+            if abs(x + 18) < 4 && abs(z - (zc - 20)) < 4 { z += 6 }
+            switch n {
+            case 1: m.tree(x, z, height: r.range(3, 5))
+            case 2: m.part("Crystal", at: (x, 1.4, z), size: (1.2, 2.8, 1.2), color: r.unit() < 0.5 ? "#A78BFA" : "#F0ABFC", shape: .cone, material: .neon, solid: false)
+            case 3:
+                m.rock(x, z, size: r.range(1.5, 3), color: "#44403C")
+                m.part("Lava Pool", at: (x + 2, 0.03, z + 1), size: (2.4, 0.04, 2.4), color: "#F97316", shape: .cylinder, material: .neon, solid: false)
+            case 4: m.pine(x, z, height: r.range(4, 6), leaves: "#E0F2FE")
+            case 5: m.part("Cloud", at: (x, 0.8, z), size: (3, 1.4, 2.2), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false)
+            default: m.part("Star", at: (x, r.range(3, 7), z), size: (0.8, 0.8, 0.8), color: "#F0ABFC", shape: .sphere, material: .neon, solid: false)
+            }
+        }
+        // The bridge and gate into this world.
+        if !first {
+            let from = Float(i - 1) * 75 + 30
+            let to = zc - 30
+            m.slab("Bridge", x: 0, y: -1, z: (from + to) / 2, w: 8, h: 1, d: to - from, color: "#A8A29E")
+            for sx: Float in [-4.2, 4.2] {
+                m.slab("Bridge Rail", x: sx, y: 0, z: (from + to) / 2, w: 0.4, h: 1, d: to - from, color: "#78716C")
+            }
+            m.part("Area Gate \(n)", at: (0, 3, (from + to) / 2), size: (8, 6, 0.6), color: "#F59E0B", material: .glass, behavior: .trigger,
+                   tags: ["gate"], solid: false, opacity: 0.45)
+            for sx: Float in [-4.6, 4.6] {
+                m.slab("Gate Post", x: sx, y: 0, z: (from + to) / 2, w: 1, h: 7, d: 1, color: "#B45309")
+            }
+        }
     }
-    m.spawnRing(0, -12, radius: 4, count: 8, color: "#60A5FA")
-    m.part("Summon Altar", at: (15, 1, -15), size: (4, 2, 4), color: "#FBBF24", shape: .cylinder, material: .metal, behavior: .trigger, tags: ["altar"])
+    // The hub at the start of the first world: spawns, the dojo, the enchanting table and the rebirth statue.
+    m.spawnRing(0, -38, radius: 4, count: 8, color: "#60A5FA")
+    m.house("Dojo", x: 19, z: -38, w: 10, d: 8, wall: "#FEF3C7", roof: "#7F1D1D", floor: "#D6D3D1")
+    m.pad("Dojo Pad", x: 19, z: -37, size: 2.4, color: "#3B82F6", tags: ["dojo"])
+    m.slab("Enchant Table", x: -19, y: 0, z: -38, w: 3, h: 1.1, d: 2, color: "#4C1D95")
+    m.part("Enchant Book", at: (-19, 1.3, -38), size: (1, 0.2, 0.7), color: "#F0ABFC", material: .neon, solid: false)
+    m.pad("Enchant Pad", x: -19, z: -35.5, size: 2.4, color: "#A855F7", tags: ["enchant"])
+    m.part("Rebirth Statue Base", at: (0, 0.5, -44), size: (3, 1, 3), color: "#9D174D", shape: .cylinder)
+    m.part("Rebirth Statue", at: (0, 2.6, -44), size: (1.4, 3.2, 1.4), color: "#F9A8D4", shape: .cone, material: .neon, solid: false)
+    m.pad("Rebirth Pad", x: 0, z: -41.4, size: 2.4, color: "#EC4899", tags: ["rebirth"])
 }
 
 // MARK: 67 Crusher Yard

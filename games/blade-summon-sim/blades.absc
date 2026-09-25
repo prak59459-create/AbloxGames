@@ -1,0 +1,286 @@
+-- blades.absc — 召喚・★合体・バッグ（売る・まとめて売る・自動売却）・図鑑
+
+-- そのワールドの武器を1本引く（運が高いほどレアが出やすい）
+func roll_blade(world, luck, floor_i)
+  let pool = filter(BLADES, func(b) return b.world == world end)
+  let total = 0
+  for b in pool do
+    let r = rarity_of(b.id)
+    let w = r.weight
+    if r.id != "common" then w = w * luck end
+    if index_of(RARITIES, r) >= floor_i then total = total + w end
+  end
+  let roll = random() * total
+  for b in pool do
+    let r = rarity_of(b.id)
+    let w = r.weight
+    if r.id != "common" then w = w * luck end
+    if index_of(RARITIES, r) >= floor_i then
+      roll = roll - w
+      if roll <= 0 then return b end
+    end
+  end
+  return pool[len(pool)]
+end
+
+func add_blade(p, bid, star)
+  p.serial = p.serial + 1
+  let it = {bid: bid, star: star, ench: nil, uid: p.serial}
+  append(p.bag, it)
+  p.found[bid] = true
+  return it
+end
+
+-- 1回召喚。お金はここでは払わない
+func summon_one(p, world, luck, floor_i)
+  let b = roll_blade(world, luck, floor_i)
+  let r = rarity_of(b.id)
+  kit_quest_progress(p, "summon", 1)
+  kit_quest_progress(p, "summon100", 1)
+  p.summons = p.summons + 1
+  if p.autosell[r.id] and index_of(RARITIES, r) <= 2 then
+    let c = earn(p, WORLDS[world].summon * 0.2)
+    p.message("🗑 " + b.name + "（" + r.name + "）を自動で売った +" + kit_short(c), 1)
+    return nil
+  end
+  let it = add_blade(p, b.id, 0)
+  let idx = index_of(RARITIES, r)
+  if idx >= 4 then
+    kit_quest_progress(p, "legend", 1)
+    kit_badge(p, "r_" + r.id, r.name + " の武器を召喚した")
+  end
+  if idx >= 5 then announce("🌟 " + p.name + " が " + r.name + "「" + b.name + "」を召喚した！", 4) end
+  p.message("🗡 " + b.name + "（" + r.name + "・パワー " + kit_short(item_power(it)) + "）", 1.5)
+  return it
+end
+
+func summon(p, count)
+  let world = p.world
+  let price = WORLDS[world].summon * count
+  if not kit_pay(p, price) then
+    p.message("💰 コインが足りない（" + kit_short(price) + "）", 1.2)
+    return false
+  end
+  for i in 1 to count do summon_one(p, world, luck_of(p), 1) end
+  after_bag_change(p)
+  p.sound("collect")
+  return true
+end
+
+func gem_summon(p)
+  if p.gems < GEM_SUMMON then
+    p.message("💎 宝石が " + GEM_SUMMON + " こいる", 1.2)
+    return
+  end
+  p.gems = p.gems - GEM_SUMMON
+  summon_one(p, p.world, luck_of(p) * 2, 3)
+  after_bag_change(p)
+end
+
+-- MARK: 合体（同じ武器・同じ★が3本 → ★がひとつ上）
+
+func merge_all(p)
+  let merged = 0
+  let again = true
+  while again do
+    again = false
+    let groups = {}
+    for it in p.bag do
+      if it.star < 3 then
+        let key = it.bid + "_" + it.star
+        if groups[key] == nil then groups[key] = [] end
+        append(groups[key], it)
+      end
+    end
+    for key in keys(groups) do
+      let g = groups[key]
+      if len(g) >= 3 then
+        -- エンチャントがあれば引きつぐ
+        let ench = nil
+        for k in 1 to 3 do
+          if g[k].ench != nil and ench == nil then ench = g[k].ench end
+          remove(p.bag, index_of(p.bag, g[k]))
+        end
+        let it = add_blade(p, g[1].bid, g[1].star + 1)
+        it.ench = ench
+        merged = merged + 1
+        again = true
+        p.message("✨ " + blade_of(it.bid).name + " ×3 が合体！ → " + item_name(it), 2)
+        kit_quest_progress(p, "merge", 1)
+        if it.star == 3 then kit_badge(p, "star3", "★★★の武器を作った") end
+      end
+    end
+  end
+  return merged
+end
+
+func after_bag_change(p)
+  if p.automerge then merge_all(p) end
+  -- いっぱいなら一番弱いものを売る
+  while len(p.bag) > BAG_MAX do
+    let weakest = 1
+    for i in 1 to len(p.bag) do
+      if item_power(p.bag[i]) < item_power(p.bag[weakest]) then weakest = i end
+    end
+    let it = remove(p.bag, weakest)
+    earn(p, sell_price(it))
+  end
+  rebuild_orbit(p)
+  hud(p)
+end
+
+func sell_price(it)
+  return floor(item_power(it) * 3)
+end
+
+-- MARK: バッグ
+
+func bag_panel(p)
+  let list = sort(copy(p.bag), func(a, b) return item_power(a) > item_power(b) end)
+  let shown = slice(list, 1, min(10, len(list)))
+  let eq = equipped(p)
+  let h = 170 + max(1, len(shown)) * 40
+  p.ui_remove("bagp")
+  p.ui_panel("bagp", {at: "center", w: 560, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("bagp_t", "🗡 武器（" + len(p.bag) + "/" + BAG_MAX + "）  ⚔️ " + kit_short(power_of(p)), {parent: "bagp", y: 22 / h, size: 17, bold: true, color: "#FDE68A"})
+  p.shown = map(shown, func(it) return it.uid end)
+  let i = 0
+  for it in shown do
+    i = i + 1
+    let r = rarity_of(it.bid)
+    let mark = ""
+    if contains(eq, it) then mark = "🔵 " end
+    p.ui_text("bag_i" + i, mark + item_name(it) + "（" + r.name + "）  " + kit_short(item_power(it)), {parent: "bagp", x: 0.38, y: (40 + i * 40) / h, size: 13, color: r.color})
+    p.ui_button("sell_" + i, "売る " + kit_short(sell_price(it)), {parent: "bagp", x: 0.85, y: (40 + i * 40) / h, w: 130, h: 32, size: 12, bg: "#92400E"})
+  end
+  p.ui_button("sell_weak", "🗑 装備していないコモンとレアを全部売る", {parent: "bagp", y: (h - 94) / h, w: 480, h: 34, size: 13, bg: "#B45309"})
+  p.ui_button("merge_now", "⭐ 合体できるものを全部合体", {parent: "bagp", x: 0.3, y: (h - 52) / h, w: 260, h: 34, size: 13, bg: "#7C3AED"})
+  let am = "🔁 自動合体 OFF"
+  if p.automerge then am = "🔁 自動合体 ON" end
+  p.ui_button("automerge", am, {parent: "bagp", x: 0.76, y: (h - 52) / h, w: 200, h: 34, size: 13, bg: "#4338CA"})
+  p.ui_button("bagp_close", "閉じる", {parent: "bagp", y: (h - 16) / h, w: 120, h: 26, size: 12, bg: "gray"})
+end
+
+func sell_shown(p, i)
+  if p.shown == nil or i > len(p.shown) then return end
+  let uid = p.shown[i]
+  for k in 1 to len(p.bag) do
+    if p.bag[k].uid == uid then
+      if len(p.bag) <= 1 then
+        p.message("最後の1本は売れない", 1)
+        return
+      end
+      let it = remove(p.bag, k)
+      let c = earn(p, sell_price(it))
+      p.message("💰 " + item_name(it) + " を売った +" + kit_short(c), 1.2)
+      after_bag_change(p)
+      bag_panel(p)
+      return
+    end
+  end
+end
+
+func sell_weak(p)
+  let eq = equipped(p)
+  let keep = []
+  let total = 0
+  for it in p.bag do
+    let idx = index_of(RARITIES, rarity_of(it.bid))
+    if idx <= 2 and not contains(eq, it) then total = total + sell_price(it) else append(keep, it) end
+  end
+  p.bag = keep
+  let c = earn(p, total)
+  p.message("💰 まとめて売った +" + kit_short(c), 1.5)
+  after_bag_change(p)
+  bag_panel(p)
+end
+
+-- MARK: 図鑑
+
+func index_panel(p)
+  let h = 120 + len(WORLDS) * 44
+  p.ui_remove("idx")
+  p.ui_panel("idx", {at: "center", w: 640, h: h, bg: "#1E1B4BF2", radius: 20, layer: 30})
+  p.ui_text("idx_t", "📖 武器図鑑  " + len(keys(p.found)) + " / " + len(BLADES), {parent: "idx", y: 22 / h, size: 17, bold: true, color: "#C4B5FD"})
+  let wi = 0
+  for w in WORLDS do
+    wi = wi + 1
+    let line = slice(w.name, 1, 1) + " "
+    for b in filter(BLADES, func(x) return x.world == wi end) do
+      if p.found[b.id] then line = line + b.name + "・" else line = line + "？？？・" end
+    end
+    p.ui_text("idx_" + wi, line, {parent: "idx", y: (34 + wi * 44) / h, size: 12, color: "#E0E7FF"})
+  end
+  p.ui_button("idx_close", "閉じる", {parent: "idx", y: (h - 22) / h, w: 120, h: 30, size: 13, bg: "gray"})
+end
+
+-- MARK: 召喚の画面（祭壇にさわると開く）
+
+func summon_panel(p)
+  let w = WORLDS[p.world]
+  let h = 330
+  p.ui_remove("sum")
+  p.ui_panel("sum", {at: "center", w: 520, h: h, bg: "#422006F2", radius: 20, layer: 30})
+  p.ui_text("sum_t", "🎲 " + w.name + " の祭壇   💰 " + kit_short(kit_money(p)) + "  💎 " + p.gems, {parent: "sum", y: 22 / h, size: 16, bold: true, color: "#FDE68A"})
+  let odds = ""
+  let luck = luck_of(p)
+  let total = 0
+  for r in RARITIES do
+    if r.id == "common" then total = total + r.weight else total = total + r.weight * luck end
+  end
+  for r in RARITIES do
+    let wgt = r.weight
+    if r.id != "common" then wgt = wgt * luck end
+    odds = odds + r.name + " " + fixed(wgt / total * 100, 1) + "%  "
+  end
+  p.ui_text("sum_odds", odds, {parent: "sum", y: 52 / h, size: 11, color: "#FED7AA"})
+  p.ui_button("sum1", "🎲 1回  💰" + kit_short(w.summon), {parent: "sum", y: 100 / h, w: 460, h: 44, size: 15, bg: "#CA8A04"})
+  let t3 = "🎲🎲🎲 3回  💰" + kit_short(w.summon * 3)
+  if not has_perk(p, "triple") then t3 = "🔒 3連召喚（転生ショップで解放）" end
+  p.ui_button("sum3", t3, {parent: "sum", y: 152 / h, w: 460, h: 44, size: 15, bg: "#A16207"})
+  p.ui_button("sumgem", "💎 宝石召喚 " + GEM_SUMMON + "💎（エピック以上！）", {parent: "sum", y: 204 / h, w: 460, h: 44, size: 15, bg: "#7C3AED"})
+  let au = "🔒 オート召喚（転生ショップで解放）"
+  if has_perk(p, "auto") then
+    if p.auto_summon then au = "🔁 オート召喚 ON（祭壇の近くで）" else au = "🔁 オート召喚 OFF" end
+  end
+  p.ui_button("sumauto", au, {parent: "sum", y: 256 / h, w: 460, h: 40, size: 14, bg: "#0E7490"})
+  p.ui_button("sum_close", "閉じる", {parent: "sum", y: (h - 16) / h, w: 120, h: 26, size: 12, bg: "gray"})
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "open_bag" then bag_panel(p)
+  elif id == "bagp_close" then p.ui_remove("bagp")
+  elif starts_with(id, "sell_") and id != "sell_weak" then sell_shown(p, num(replace(id, "sell_", "")))
+  elif id == "sell_weak" then sell_weak(p)
+  elif id == "merge_now" then
+    let n = merge_all(p)
+    if n == 0 then p.message("合体できる組み合わせがない（同じ武器・同じ★が3本）", 1.5) end
+    after_bag_change(p)
+    bag_panel(p)
+  elif id == "automerge" then
+    p.automerge = not p.automerge
+    bag_panel(p)
+  elif id == "open_index" then index_panel(p)
+  elif id == "idx_close" then p.ui_remove("idx")
+  elif id == "sum1" then
+    if summon(p, 1) then summon_panel(p) end
+  elif id == "sum3" then
+    if has_perk(p, "triple") then
+      if summon(p, 3) then summon_panel(p) end
+    else
+      p.message("🔒 転生ショップで「3連召喚」を買おう", 1.5)
+    end
+  elif id == "sumgem" then
+    gem_summon(p)
+    summon_panel(p)
+  elif id == "sumauto" then
+    if has_perk(p, "auto") then
+      p.auto_summon = not p.auto_summon
+      summon_panel(p)
+    else
+      p.message("🔒 転生ショップで「オート召喚」を買おう", 1.5)
+    end
+  elif id == "sum_close" then p.ui_remove("sum")
+  end
+end

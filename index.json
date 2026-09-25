@@ -1776,16 +1776,21 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 40,
-      "cover" : "games\/blade-summon-sim\/cover-0d8cf5e4.png",
+      "blockCount" : 310,
+      "cover" : "games\/blade-summon-sim\/cover-ee97475f.png",
       "id" : "blade-summon-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/blade-summon-sim\/data.absc",
+        "games\/blade-summon-sim\/blades.absc",
+        "games\/blade-summon-sim\/combat.absc",
+        "games\/blade-summon-sim\/common.absc",
+        "games\/blade-summon-sim\/shops.absc",
         "games\/blade-summon-sim\/main.absc"
       ],
-      "summary" : "武器を召喚すると、まわりをぐるぐる回って勝手に敵をたおしてくれる。コインでガチャを回して、最強の武器軍団を。",
+      "summary" : "召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！",
       "tags" : [
         "idle",
         "summon",

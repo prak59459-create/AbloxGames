@@ -1,0 +1,297 @@
+-- combat.absc — 敵・エリート・ボス、回る武器の自動攻撃、こうげきボタン、いまいるワールド
+
+let orbits = {}          -- プレイヤーの id → 回っている武器のブロック
+let bosses = []          -- ワールドごとのボス（いなければ nil）
+let boss_next = []       -- 次にボスが出る時刻
+let boss_dmg = {}        -- プレイヤーの id → ボスに与えたダメージ
+let fight_clock = 0
+let orbit_clock = 0
+
+-- MARK: 敵
+
+func mob_kind(k)
+  if k <= 4 then return 1 end
+  if k <= 6 then return 2 end
+  return 3
+end
+
+func spawn_mob(w, k)
+  let spot = block("Enemy " + w + " " + k)
+  if spot == nil then return end
+  let m = WORLDS[w].mobs[mob_kind(k)]
+  let hp = WORLDS[w].hp * m.mult
+  let n = create_npc({name: m.name, position: spot.position + {x: 0, y: 1, z: 0}, color: m.color, head_color: m.head, size: m.size,
+                      health: hp, speed: 0, team: "enemies"})
+  n.foe = "mob"
+  n.w = w
+  n.slot = k
+  n.reward = hp * 0.45
+end
+
+func spawn_elite(w)
+  let spot = block("Elite " + w)
+  if spot == nil then return end
+  let e = WORLDS[w].elite
+  let hp = WORLDS[w].hp * 25
+  let n = create_npc({name: e.name, position: spot.position + {x: 0, y: 1, z: 0}, color: e.color, head_color: e.head, size: e.size,
+                      health: hp, speed: 0, team: "enemies"})
+  n.foe = "elite"
+  n.w = w
+  n.reward = hp * 0.5
+  n.hat = "crown"
+end
+
+func spawn_boss(w)
+  let spot = block("Boss " + w)
+  if spot == nil then return end
+  let b = WORLDS[w].boss
+  let hp = WORLDS[w].hp * 400 * max(1, len(players()) * 0.6)
+  let n = create_npc({name: b.name, position: spot.position + {x: 0, y: 2, z: 0}, color: b.color, head_color: b.head, size: b.size,
+                      health: hp, speed: 0, team: "enemies"})
+  n.foe = "boss"
+  n.w = w
+  n.reward = WORLDS[w].hp * 160
+  n.hat = "crown"
+  n.stomp_at = time() + 6
+  bosses[w] = n
+  boss_dmg = {}
+  for p in players() do
+    if ready(p) and p.world == w then p.message("👑 " + b.name + " があらわれた！ みんなでたおそう", 3) end
+  end
+end
+
+func is_foe(n)
+  return n.foe != nil and n.alive
+end
+
+func nearest_foe(p, reach)
+  let best = nil
+  let best_d = reach
+  for n in npcs() do
+    if is_foe(n) then
+      let d = distance(p, n)
+      if d < best_d then
+        best = n
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+-- MARK: こうげき
+
+func hit_foe(p, n, dmg)
+  let crit = random() < crit_chance(p)
+  if crit then dmg = dmg * 2 end
+  if n.foe == "boss" then boss_dmg[p.id] = (boss_dmg[p.id] or 0) + min(dmg, n.health) end
+  n.damage(dmg, p)
+  if crit and still(n) and n.alive then n.say("💥" + kit_short(dmg)) end
+end
+
+func auto_attack(p, secs)
+  let n = nearest_foe(p, range_of(p))
+  if n == nil then return end
+  hit_foe(p, n, power_of(p) * attacks_per_sec(p) * secs)
+  -- 武器が1本、敵にとんでいく
+  let list = orbits[p.id] or []
+  if len(list) > 0 and still(n) then
+    p.dash_i = (p.dash_i or 0) % len(list) + 1
+    let b = list[p.dash_i]
+    if still(b) then b.move_to(n.position + {x: 0, y: 1.2, z: 0}, 0.2) end
+  end
+end
+
+func tap_attack(p)
+  let n = nearest_foe(p, range_of(p) + 4)
+  if n == nil then
+    p.message("近くに敵がいない", 0.8)
+    return
+  end
+  hit_foe(p, n, power_of(p) * 1.5)
+  kit_quest_progress(p, "tap", 1)
+end
+
+-- MARK: 回る武器の見た目
+
+func rebuild_orbit(p)
+  for b in orbits[p.id] or [] do gone(b) end
+  let made = []
+  for it in equipped(p) do
+    let bl = blade_of(it.bid)
+    let size = {x: 0.25, y: 1.6, z: 0.25}
+    if bl.shape == "cylinder" then size = {x: 0.2, y: 2.2, z: 0.2} elif bl.shape == "cone" then size = {x: 0.8, y: 1.3, z: 0.3} end
+    let mat = "neon"
+    if index_of(RARITIES, rarity_of(it.bid)) <= 2 then mat = "metal" end
+    append(made, create_block({name: bl.name, shape: bl.shape, position: p.position + {x: 0, y: 2, z: 0}, size: size, color: bl.color,
+                               material: mat, solid: false}))
+  end
+  orbits[p.id] = made
+end
+
+func orbit_step()
+  for p in players() do
+    let list = orbits[p.id] or []
+    let count = len(list)
+    let i = 0
+    for b in list do
+      i = i + 1
+      if still(b) then
+        let a = time() * 120 + i * 360 / max(1, count)
+        b.move_to(p.position + {x: cos(a) * 2.2, y: 1.6 + sin(a * 2) * 0.3, z: sin(a) * 2.2}, 0.5)
+      end
+    end
+  end
+end
+
+-- MARK: ボスのふみつけ
+
+func boss_step(w)
+  let n = bosses[w]
+  if n == nil or not still(n) or not n.alive then return end
+  if time() < n.stomp_at then return end
+  n.stomp_at = time() + 6
+  let near = filter(players(), func(p) return p.alive and distance(p, n) < 25 end)
+  if len(near) == 0 then return end
+  let t = random(near)
+  let pos = t.position
+  let ring = create_block({name: "Stomp", shape: "cylinder", position: {x: pos.x, y: 0.08, z: pos.z}, size: {x: 10, y: 0.1, z: 10}, color: "#EF4444",
+                           material: "neon", opacity: 0.45, solid: false})
+  n.say("ドシーン！")
+  after(1.4, func()
+    for p in players() do
+      if p.alive and distance(p, pos) < 5 then
+        p.damage(p.max_health * 0.35)
+        p.launch(0, 10, 0)
+      end
+    end
+    gone(ring)
+  end)
+end
+
+-- MARK: いまいるワールド
+
+func world_at(p)
+  for w in 1 to len(WORLDS) do
+    let f = block("World " + w + " Floor")
+    if f != nil and abs(p.x - f.x) < f.size.x / 2 + 1 and abs(p.z - f.z) < f.size.z / 2 + 1 then return w end
+  end
+  return 0
+end
+
+func track_world(p)
+  let w = world_at(p)
+  if w == 0 or w == p.world then return end
+  if w > p.unlocked then
+    p.teleport(block("World " + p.unlocked + " Spot").position + {x: 0, y: 1, z: 0})
+    return
+  end
+  p.world = w
+  p.message(WORLDS[w].name + " へようこそ！", 2)
+  hud(p)
+end
+
+-- MARK: たおしたとき
+
+func reward_boss(n)
+  let w = n.w
+  let total = 0
+  for id in keys(boss_dmg) do total = total + boss_dmg[id] end
+  if total <= 0 then return end
+  let top_id = nil
+  let top = 0
+  for id in keys(boss_dmg) do
+    if boss_dmg[id] > top then
+      top = boss_dmg[id]
+      top_id = id
+    end
+  end
+  for id in keys(boss_dmg) do
+    let p = player_by_id(id)
+    if p != nil then
+      let share = max(0.1, boss_dmg[id] / total)
+      let c = earn(p, n.reward * share)
+      let g = give_gems(p, 10 + random(0, 10))
+      kit_quest_progress(p, "boss", 1)
+      kit_badge(p, "boss" + w, WORLDS[w].boss.name + " をたおした")
+      p.message("👑 ボス撃破！ 💰+" + kit_short(c) + " 💎+" + g, 3)
+      if id == top_id then
+        let it = summon_one(p, w, luck_of(p) * 3, 3)
+        p.message("🏆 ダメージ1位！ ごほうびの武器", 2.5)
+        after_bag_change(p)
+      end
+      hud(p)
+    end
+  end
+  announce("👑 " + WORLDS[w].boss.name + " がたおされた！", 3)
+end
+
+on start()
+  for w in 1 to len(WORLDS) do
+    append(bosses, nil)
+    append(boss_next, time() + 30 + w * 10)
+    for k in 1 to 8 do spawn_mob(w, k) end
+    spawn_elite(w)
+  end
+end
+
+on tick(dt)
+  fight_clock = fight_clock + dt
+  orbit_clock = orbit_clock + dt
+  if orbit_clock >= 0.5 then
+    orbit_clock = 0
+    orbit_step()
+  end
+  if fight_clock < 0.5 then return end
+  let secs = fight_clock
+  fight_clock = 0
+  for p in players() do
+    if ready(p) and p.alive then
+      track_world(p)
+      auto_attack(p, secs)
+    end
+  end
+  for w in 1 to len(WORLDS) do
+    let b = bosses[w]
+    if (b == nil or not still(b) or not b.alive) and time() >= boss_next[w] then
+      spawn_boss(w)
+      boss_next[w] = time() + BOSS_EVERY
+    end
+    boss_step(w)
+  end
+end
+
+on death(victim, killer)
+  if not victim.is_npc or victim.foe == nil then return end
+  let w = victim.w
+  let kind = victim.foe
+  let slot = victim.slot
+  if killer != nil and not killer.is_npc and kind != "boss" then
+    let c = earn(killer, victim.reward)
+    killer.slain = killer.slain + 1
+    kit_quest_progress(killer, "kills", 1)
+    kit_quest_progress(killer, "kills1000", 1)
+    if kind == "elite" then
+      let g = give_gems(killer, random(2, 4))
+      killer.message("⭐ エリート撃破！ 💰+" + kit_short(c) + " 💎+" + g, 2)
+    end
+    hud(killer)
+  end
+  if kind == "mob" then after(3, func() spawn_mob(w, slot) end)
+  elif kind == "elite" then after(40, func() spawn_elite(w) end)
+  elif kind == "boss" then
+    reward_boss(victim)
+    bosses[w] = nil
+    boss_next[w] = time() + BOSS_EVERY
+  end
+end
+
+on leave(p)
+  for b in orbits[p.id] or [] do gone(b) end
+  remove(orbits, p.id)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "tap" and quiet_ready(p, "tap", 0.3) then tap_attack(p) end
+end

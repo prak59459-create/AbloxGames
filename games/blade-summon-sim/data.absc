@@ -1,0 +1,114 @@
+-- data.absc — ワールド・武器（36本）・レア度・強化・エンチャント・転生ショップ
+
+-- ワールド。price: 入るのに必要なコイン / summon: 召喚1回のコイン / hp: 敵の強さの基準
+let WORLDS = [
+  {name: "🌾 はじまりの草原", price: 0, summon: 50, hp: 20, color: "#65A30D",
+   mobs: [{name: "ワラ人形", color: "#CA8A04", head: "#FDE68A", size: 1, mult: 1}, {name: "木のゴーレム", color: "#78350F", head: "#A16207", size: 1.3, mult: 2.2},
+          {name: "イノシシ", color: "#57534E", head: "#A8A29E", size: 1.1, mult: 4}],
+   elite: {name: "⭐ 森の番人", color: "#166534", head: "#FACC15", size: 2}, boss: {name: "👑 キングかかし", color: "#A16207", head: "#FDE047", size: 3.6}},
+  {name: "💎 水晶の洞窟", price: 1500, summon: 400, hp: 240, color: "#6D28D9",
+   mobs: [{name: "水晶スライム", color: "#A78BFA", head: "#EDE9FE", size: 1, mult: 1}, {name: "コウモリ", color: "#27272A", head: "#7F1D1D", size: 0.8, mult: 2},
+          {name: "水晶ゴーレム", color: "#7C3AED", head: "#C4B5FD", size: 1.5, mult: 4}],
+   elite: {name: "⭐ 水晶のさそり", color: "#5B21B6", head: "#F0ABFC", size: 2}, boss: {name: "👑 クリスタルドラゴン", color: "#8B5CF6", head: "#E9D5FF", size: 3.8}},
+  {name: "🌋 溶岩の谷", price: 25000, summon: 3500, hp: 2900, color: "#B91C1C",
+   mobs: [{name: "火の玉", color: "#F97316", head: "#FDE047", size: 0.9, mult: 1}, {name: "溶岩トカゲ", color: "#DC2626", head: "#F97316", size: 1.2, mult: 2.2},
+          {name: "マグマ兵", color: "#7F1D1D", head: "#FB923C", size: 1.5, mult: 4}],
+   elite: {name: "⭐ 炎の将軍", color: "#991B1B", head: "#FACC15", size: 2.1}, boss: {name: "👑 ボルケーノキング", color: "#450A0A", head: "#F97316", size: 4}},
+  {name: "❄️ 氷河の峰", price: 400000, summon: 30000, hp: 35000, color: "#7DD3FC",
+   mobs: [{name: "雪だるま", color: "#F8FAFC", head: "#E0F2FE", size: 1, mult: 1}, {name: "氷のオオカミ", color: "#BAE6FD", head: "#E0F2FE", size: 1.1, mult: 2.2},
+          {name: "イエティ", color: "#E2E8F0", head: "#93C5FD", size: 1.6, mult: 4}],
+   elite: {name: "⭐ 氷の女騎士", color: "#38BDF8", head: "#F0F9FF", size: 2}, boss: {name: "👑 フロストタイタン", color: "#0369A1", head: "#BAE6FD", size: 4.2}},
+  {name: "☁️ 天空の宮殿", price: 6000000, summon: 250000, hp: 420000, color: "#E0F2FE",
+   mobs: [{name: "雲の精", color: "#F1F5F9", head: "#FFFFFF", size: 0.9, mult: 1}, {name: "天空の騎士", color: "#FDE68A", head: "#FFFFFF", size: 1.3, mult: 2.2},
+          {name: "ガーゴイル", color: "#94A3B8", head: "#CBD5E1", size: 1.5, mult: 4}],
+   elite: {name: "⭐ 天使長", color: "#FEF3C7", head: "#FACC15", size: 2.2}, boss: {name: "👑 天空の王", color: "#FACC15", head: "#FFFFFF", size: 4.2}},
+  {name: "🌌 星の神殿", price: 90000000, summon: 2000000, hp: 5000000, color: "#312E81",
+   mobs: [{name: "星くず", color: "#C4B5FD", head: "#FFFFFF", size: 0.9, mult: 1}, {name: "流星の獣", color: "#6366F1", head: "#A5B4FC", size: 1.3, mult: 2.2},
+          {name: "銀河の守護者", color: "#1E1B4B", head: "#F0ABFC", size: 1.7, mult: 4}],
+   elite: {name: "⭐ 星の魔女", color: "#4C1D95", head: "#F0ABFC", size: 2.2}, boss: {name: "👑 ギャラクシーゴッド", color: "#0F172A", head: "#F0ABFC", size: 4.6}}
+]
+
+-- レア度。mult: 強さ / weight: 出やすさ
+let RARITIES = [
+  {id: "common", name: "コモン", mult: 1, weight: 60, color: "#E5E7EB"},
+  {id: "rare", name: "レア", mult: 2.5, weight: 25, color: "#60A5FA"},
+  {id: "epic", name: "エピック", mult: 6, weight: 10, color: "#A855F7"},
+  {id: "legend", name: "レジェンド", mult: 15, weight: 4, color: "#F59E0B"},
+  {id: "mythic", name: "ミシック", mult: 40, weight: 0.9, color: "#F43F5E"},
+  {id: "secret", name: "シークレット", mult: 120, weight: 0.1, color: "#22D3EE"}
+]
+
+-- 武器。ワールドごとに6本（レア度の順）。shape: 見た目
+let BLADES = [
+  {id: "w1a", name: "木の剣", world: 1, color: "#A16207", shape: "box"},
+  {id: "w1b", name: "鉄の剣", world: 1, color: "#9CA3AF", shape: "box"},
+  {id: "w1c", name: "風の槍", world: 1, color: "#86EFAC", shape: "cylinder"},
+  {id: "w1d", name: "黄金の大剣", world: 1, color: "#FACC15", shape: "box"},
+  {id: "w1e", name: "森の王の斧", world: 1, color: "#16A34A", shape: "cone"},
+  {id: "w1f", name: "はじまりの聖剣", world: 1, color: "#FFFFFF", shape: "box"},
+  {id: "w2a", name: "水晶のナイフ", world: 2, color: "#C4B5FD", shape: "box"},
+  {id: "w2b", name: "アメジストの剣", world: 2, color: "#8B5CF6", shape: "box"},
+  {id: "w2c", name: "こだまの槍", world: 2, color: "#A5B4FC", shape: "cylinder"},
+  {id: "w2d", name: "プリズムブレード", world: 2, color: "#F0ABFC", shape: "box"},
+  {id: "w2e", name: "竜晶の鎌", world: 2, color: "#7C3AED", shape: "cone"},
+  {id: "w2f", name: "無限水晶の剣", world: 2, color: "#E0E7FF", shape: "box"},
+  {id: "w3a", name: "炎のナイフ", world: 3, color: "#FB923C", shape: "box"},
+  {id: "w3b", name: "マグマの剣", world: 3, color: "#DC2626", shape: "box"},
+  {id: "w3c", name: "火山の槍", world: 3, color: "#EA580C", shape: "cylinder"},
+  {id: "w3d", name: "フェニックスの剣", world: 3, color: "#F97316", shape: "box"},
+  {id: "w3e", name: "溶岩王の斧", world: 3, color: "#7F1D1D", shape: "cone"},
+  {id: "w3f", name: "太陽の剣", world: 3, color: "#FDE047", shape: "box"},
+  {id: "w4a", name: "つららの短剣", world: 4, color: "#BAE6FD", shape: "box"},
+  {id: "w4b", name: "氷河の剣", world: 4, color: "#7DD3FC", shape: "box"},
+  {id: "w4c", name: "ふぶきの槍", world: 4, color: "#E0F2FE", shape: "cylinder"},
+  {id: "w4d", name: "オーロラブレード", world: 4, color: "#5EEAD4", shape: "box"},
+  {id: "w4e", name: "氷の女王の鎌", world: 4, color: "#0EA5E9", shape: "cone"},
+  {id: "w4f", name: "絶対零度", world: 4, color: "#F0F9FF", shape: "box"},
+  {id: "w5a", name: "雲の剣", world: 5, color: "#F1F5F9", shape: "box"},
+  {id: "w5b", name: "天使の羽の剣", world: 5, color: "#FEF3C7", shape: "box"},
+  {id: "w5c", name: "雷神の槍", world: 5, color: "#FACC15", shape: "cylinder"},
+  {id: "w5d", name: "天空の聖剣", world: 5, color: "#FDE68A", shape: "box"},
+  {id: "w5e", name: "大天使の斧", world: 5, color: "#FFFFFF", shape: "cone"},
+  {id: "w5f", name: "神々のつるぎ", world: 5, color: "#FEF08A", shape: "box"},
+  {id: "w6a", name: "星くずの剣", world: 6, color: "#C4B5FD", shape: "box"},
+  {id: "w6b", name: "流星の剣", world: 6, color: "#818CF8", shape: "box"},
+  {id: "w6c", name: "銀河の槍", world: 6, color: "#6366F1", shape: "cylinder"},
+  {id: "w6d", name: "ブラックホール", world: 6, color: "#1E1B4B", shape: "box"},
+  {id: "w6e", name: "超新星の鎌", world: 6, color: "#F0ABFC", shape: "cone"},
+  {id: "w6f", name: "創世の剣", world: 6, color: "#22D3EE", shape: "box"}
+]
+
+-- 道場の強化。max: 最大レベル / base: 最初の値段 / grow: 値段の伸び
+let UPGRADES = [
+  {id: "slots", name: "🗡 装備スロット", text: "回る武器 +1本", max: 5, base: 600, grow: 7},
+  {id: "range", name: "📏 攻撃範囲", text: "+1.5m", max: 10, base: 200, grow: 2.3},
+  {id: "speed", name: "⚡ 攻撃スピード", text: "+10%", max: 10, base: 300, grow: 2.4},
+  {id: "luck", name: "🍀 運", text: "レアが出やすい +15%", max: 10, base: 400, grow: 2.5},
+  {id: "coins", name: "💰 コイン", text: "+20%", max: 10, base: 350, grow: 2.4},
+  {id: "walk", name: "👟 足の速さ", text: "+8%", max: 5, base: 250, grow: 2.2}
+]
+
+-- エンチャント（武器ひとつに1つ。装備しているときだけ効く）
+let ENCHANTS = [
+  {id: "sharp", name: "🔪 鋭さ", text: "この武器のパワー +40%"},
+  {id: "greed", name: "💰 強欲", text: "コイン +25%"},
+  {id: "lucky", name: "🍀 幸運", text: "運 +20%"},
+  {id: "swift", name: "💨 疾風", text: "攻撃スピード +15%"},
+  {id: "crit", name: "💥 会心", text: "クリティカル +8%"}
+]
+
+-- 転生ショップ（転生トークンで買う。ずっと残る）
+let PERKS = [
+  {id: "auto", name: "🔁 オート召喚", cost: 1, text: "祭壇の近くで自動で召喚"},
+  {id: "triple", name: "🎲 3連召喚", cost: 2, text: "一度に3回召喚できる"},
+  {id: "slot", name: "🗡 転生スロット", cost: 3, text: "装備スロット +1"},
+  {id: "aura", name: "🌈 幸運のオーラ", cost: 3, text: "運 +50%"},
+  {id: "gems", name: "💎 宝石ハンター", cost: 4, text: "宝石が2倍"}
+]
+
+let BASE_SLOTS = 3
+let BAG_MAX = 60
+let GEM_SUMMON = 50
+let ENCHANT_COST = 10
+let BOSS_EVERY = 150
+let GIFT_EVERY = 180
