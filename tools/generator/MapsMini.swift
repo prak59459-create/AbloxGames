@@ -22,7 +22,7 @@ let miniGames: [Game] = [
          summary: "投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！",
          tags: ["minigames", "party", "classic"], maxPlayers: 16, build: megaMinigames),
     Game(number: 77, id: "rhythm-battle", title: "Rhythm Battle",
-         summary: "落ちてくるノーツに合わせてボタンを押す、対戦リズムゲーム。パーフェクトを決めて相手より高いスコアを！",
+         summary: "8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ",
          tags: ["rhythm", "music", "1v1"], maxPlayers: 8, build: rhythmBattle),
     Game(number: 78, id: "last-survivor-games", title: "Last Survivor Games",
          summary: "「だるまさんがころんだ」とガラスの橋。動いたら失格、まちがえたら落ちる。最後まで生き残れ！",
@@ -470,16 +470,50 @@ func megaMinigames(_ m: MapBuilder) {
 
 func rhythmBattle(_ m: MapBuilder) {
     m.indoor()
-    m.sky("#0F0A1F", "#3B0764", light: 0.7, showGround: false)
-    m.ground(60, 50, color: "#1E1B4B", name: "Club Floor")
-    m.slab("Stage", x: 0, y: 0, z: -10, w: 24, h: 1.2, d: 10, color: "#312E81")
-    m.pad("Stage Left", x: -6, z: -10, y: 1.2, size: 3, color: "#EC4899", tags: ["stage", "left"])
-    m.pad("Stage Right", x: 6, z: -10, y: 1.2, size: 3, color: "#22D3EE", tags: ["stage", "right"])
-    for (i, p) in grid(6, 1, spacing: 4, cx: 0, cz: -15.5).enumerated() {
-        m.part("Speaker \(i + 1)", at: (p.0, 2.5, p.1), size: (2, 3, 1), color: "#111827")
+    m.sky("#0F0A1F", "#3B0764", light: 0.9, showGround: false)
+    m.part("Cover Focus", at: (0, 3, -4), size: (44, 1, 1), color: "#000000", tags: ["yaw=20"], solid: false, visible: false)
+    m.ground(64, 54, color: "#1E1B4B", name: "Club Floor")
+    // A dance floor of glowing tiles.
+    let tileColors = ["#EC4899", "#22D3EE", "#A3E635", "#F97316", "#A78BFA"]
+    for gx in 0..<6 {
+        for gz in 0..<4 {
+            m.part("Dance Tile", at: (-10 + Float(gx) * 4, 0.03, 2 + Float(gz) * 4), size: (3.8, 0.06, 3.8), color: tileColors[(gx + gz) % 5], material: .neon,
+                   tags: ["light"], solid: false, opacity: 0.55)
+        }
     }
-    m.part("Stage Lights", at: (0, 7, -10), size: (20, 0.3, 2), color: "#F0ABFC", material: .neon, solid: false)
-    m.spawnRing(0, 10, radius: 6, count: 8, color: "#A78BFA")
+    // The battle stage with a pad on each side.
+    m.slab("Stage", x: 0, y: 0, z: -12, w: 26, h: 1.2, d: 10, color: "#4338CA")
+    m.stairs(-3, -6.5, steps: 2, rise: 0.6, run: 1, width: 6, color: "#4338CA", name: "Stage Step")
+    m.pad("Stage Left", x: -6, z: -11, y: 1.2, size: 3.2, color: "#EC4899", tags: ["stage", "left"])
+    m.pad("Stage Right", x: 6, z: -11, y: 1.2, size: 3.2, color: "#22D3EE", tags: ["stage", "right"])
+    m.part("Stage Screen", at: (0, 5.5, -16.8), size: (18, 6, 0.3), color: "#1E1B4B", material: .neon, solid: false)
+    m.part("Stage Screen Glow", at: (0, 5.5, -16.6), size: (16, 5, 0.1), color: "#7C3AED", material: .neon, tags: ["light"], solid: false, opacity: 0.6)
+    for (i, p) in grid(6, 1, spacing: 4.4, cx: 0, cz: -18).enumerated() {
+        m.part("Speaker \(i + 1)", at: (p.0, 2.5, p.1), size: (2.2, 3.4, 1.2), color: "#111827")
+        m.part("Speaker Cone", at: (p.0, 2.5, p.1 + 0.62), size: (1.4, 0.05, 1.4), color: "#374151", shape: .cylinder, solid: false, rotation: (90, 0, 0))
+    }
+    for k in 0..<5 {
+        m.part("Stage Light", at: (-10 + Float(k) * 5, 8, -10), size: (1, 0.6, 1), color: "#F0ABFC", shape: .cone, material: .neon, tags: ["light"], solid: false,
+               rotation: (180, 0, 0))
+    }
+    // The DJ booth.
+    m.slab("DJ Booth", x: 0, y: 1.2, z: -15, w: 6, h: 1.2, d: 1.6, color: "#0F172A")
+    m.part("DJ Deck", at: (-1.4, 2.5, -15), size: (1.2, 0.1, 1.2), color: "#A855F7", shape: .cylinder, material: .neon, solid: false)
+    m.part("DJ Deck", at: (1.4, 2.5, -15), size: (1.2, 0.1, 1.2), color: "#22D3EE", shape: .cylinder, material: .neon, solid: false)
+    // Four practice booths down the sides.
+    let booths: [(Float, Float, String)] = [(-26, -6, "#EC4899"), (-26, 10, "#22D3EE"), (26, -6, "#A3E635"), (26, 10, "#F97316")]
+    for (i, b) in booths.enumerated() {
+        m.slab("Booth Floor", x: b.0, y: 0, z: b.1, w: 8, h: 0.3, d: 8, color: "#312E81")
+        m.slab("Booth Wall", x: b.0 + (b.0 < 0 ? -4 : 4), y: 0, z: b.1, w: 0.4, h: 3.4, d: 8, color: b.2)
+        m.part("Booth Sign", at: (b.0 + (b.0 < 0 ? -3.7 : 3.7), 2.6, b.1), size: (0.2, 1, 4), color: b.2, material: .neon, tags: ["light"], solid: false)
+        m.pad("Booth \(i + 1)", x: b.0, z: b.1, y: 0.3, size: 3, color: b.2, tags: ["booth"])
+    }
+    // Neon strips round the walls.
+    m.walls(0, 0, w: 64, d: 54, h: 8, color: "#1E1B4B", name: "Club Wall")
+    for sx: Float in [-31.6, 31.6] {
+        m.part("Neon Strip", at: (sx, 5, 0), size: (0.2, 0.4, 50), color: "#F0ABFC", material: .neon, tags: ["light"], solid: false)
+    }
+    m.spawnRing(0, 18, radius: 5, count: 8, color: "#A78BFA")
 }
 
 // MARK: 78 Last Survivor Games

@@ -1,15 +1,18 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 19,
-  "cover" : "games\/rhythm-battle\/cover-15974b21.png",
+  "blockCount" : 83,
+  "cover" : "games\/rhythm-battle\/cover-7ea56992.png",
   "id" : "rhythm-battle",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/rhythm-battle\/data.absc",
+    "games\/rhythm-battle\/play.absc",
+    "games\/rhythm-battle\/stage.absc",
     "games\/rhythm-battle\/main.absc"
   ],
-  "summary" : "落ちてくるノーツに合わせてボタンを押す、対戦リズムゲーム。パーフェクトを決めて相手より高いスコアを！",
+  "summary" : "8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ",
   "tags" : [
     "rhythm",
     "music",

@@ -1,188 +1,50 @@
--- Rhythm Battle — 落ちてくるノーツに合わせて押す対戦リズムゲーム
+-- Rhythm Battle — 落ちてくるノーツに合わせて押すリズムゲーム。ステージで対戦、ブースで練習
+--
+-- ファイル:
+--   data.absc   曲8つ・難易度・レーン・判定
+--   play.absc   譜面・ノーツ・判定・コンボ・フィーバー・おじゃま攻撃・結果
+--   stage.absc  曲えらび・対戦エントリー・練習ブース・照明とダンサー
+--   main.absc   このファイル
 
 kit_setup("Rhythm Battle", "リズムに乗って、相手に勝て！", [
-  "ステージの左右のパッドに乗ると対戦エントリー",
-  "2人そろうと曲スタート（1人のときはCPUと対戦）",
-  "ノーツが下の線に来たら、同じ色のボタンを押す！",
-  "ぴったりほど高得点（PERFECT / GOOD / MISS）",
-  "曲が終わったとき、スコアが高いほうの勝ち"
+  "🎤 ステージのパッドで対戦（12秒相手が来なければCPUと）。🎧 まわりの練習ブースでひとりで",
+  "⬇️ ノーツが白い線に来たら、同じ色のボタンを押す！",
+  "PERFECT / GREAT / GOOD / MISS。コンボがつづくほど高得点",
+  "🔥 30コンボでフィーバー（点数2倍）",
+  "💥 対戦中は25コンボごとに相手へおじゃま攻撃（スピードアップ・かくれノーツ）",
+  "⭐ ファンがふえると新しい曲が解放。全部でSランクをめざそう"
 ])
+kit_currency = "コイン"
 
-let lanes = [["←", "#EC4899"], ["↓", "#22D3EE"], ["↑", "#22C55E"], ["→", "#F97316"]]
-let songs = [
-  {name: "ビート・スタート", bpm: 100, length: 32},
-  {name: "ネオン・ナイト", bpm: 120, length: 40},
-  {name: "スピード・スター", bpm: 140, length: 48}
-]
-let playing = false
-let notes = []        -- {lane, at, id, hit}
-let singers = []      -- 対戦している2人（CPUは nil）
-let scores = {}
-let song = nil
-let started_at = 0
-let note_id = 0
-let fall_time = 2
+kit_quest("perfect", "PERFECTを50回", 50, 200)
+kit_quest("combo", "50コンボ", 1, 300)
+kit_quest("songs", "10曲あそぶ", 10, 300)
+kit_quest("practice", "練習ブースで3曲", 3, 150)
+kit_quest("win", "対戦で3回勝つ", 3, 500)
+kit_quest("rank_s", "Sランクをとる", 1, 800)
 
-kit_quest("perfect", "PERFECTを20回", 20, 100)
-kit_quest("win", "対戦で勝つ", 1, 200)
-kit_quest("combo", "20コンボ", 1, 150)
-
-func lane_x(i)
-  return 0.2 + (i - 1) * 0.2
-end
-
-func draw(p)
-  let now = time()
-  for n in notes do
-    if not n.hit then
-      let t = 1 - (n.at - now) / fall_time
-      let id = "note" + n.id
-      if t >= 0 and t <= 1.15 then
-        p.ui_panel(id, {parent: "track", x: lane_x(n.lane), y: 0.05 + t * 0.8, w: 60, h: 20, bg: lanes[n.lane][2], radius: 10})
-      end
-    end
-  end
-end
-
-func start_song()
-  song = random(songs)
-  notes = []
-  note_id = 0
-  let beat = 60 / song.bpm
-  started_at = time() + 3
-  for k in 1 to song.length do
-    note_id = note_id + 1
-    append(notes, {lane: random(1, 4), at: started_at + k * beat, id: note_id, hit: false})
-  end
-  playing = true
-  for p in singers do
-    if p != nil then
-      scores[p.id] = 0
-      p.combo = 0
-      p.ui_panel("track", {at: "center", dy: -20, w: 380, h: 420, bg: "#00000099", radius: 18, layer: 10})
-      p.ui_panel("hitline", {parent: "track", y: 0.85, w: 360, h: 6, bg: "#FFFFFF", radius: 3})
-      let i = 0
-      for l in lanes do
-        i = i + 1
-        p.ui_button("lane" + i, l[1], {at: "bottom", dx: (i - 2.5) * 96, dy: -60, w: 88, h: 70, size: 28, bg: l[2], radius: 18})
-      end
-    end
-  end
-  scores["cpu"] = 0
-  announce("🎵 " + song.name + "（BPM " + song.bpm + "）", 3)
-end
-
-func judge(p, lane)
-  let now = time()
-  let best = nil
-  for n in notes do
-    if not n.hit and n.lane == lane and abs(n.at - now) < 0.3 then
-      if best == nil or abs(n.at - now) < abs(best.at - now) then best = n end
-    end
-  end
-  if best == nil then
-    p.combo = 0
-    return
-  end
-  best.hit = true
-  p.ui_remove("note" + best.id)
-  let off = abs(best.at - now)
-  let points = 0
-  if off < 0.08 then
-    points = 300
-    p.ui_text("judge", "PERFECT!", {at: "center", dy: 120, size: 26, bold: true, color: "#FDE047"})
-    kit_quest_progress(p, "perfect", 1)
-  elif off < 0.18 then
-    points = 100
-    p.ui_text("judge", "GOOD", {at: "center", dy: 120, size: 24, bold: true, color: "#86EFAC"})
-  else
-    points = 30
-    p.ui_text("judge", "OK", {at: "center", dy: 120, size: 22, color: "#E5E7EB"})
-  end
-  p.combo = p.combo + 1
-  if p.combo >= 20 then kit_quest_progress(p, "combo", 1) end
-  scores[p.id] = scores[p.id] + points + p.combo * 5
-end
-
-func end_song()
-  playing = false
-  let a = singers[1]
-  let b = singers[2]
-  let sa = scores[a.id] or 0
-  let sb = b != nil and (scores[b.id] or 0) or scores["cpu"]
-  let winner_name = sa >= sb and a.name or (b != nil and b.name or "CPU")
-  announce("🏆 " + winner_name + " の勝ち！（" + sa + " vs " + sb + "）", 5)
-  for p in singers do
-    if p != nil and kit_here(p) then
-      p.ui_remove("track")
-      for i in 1 to 4 do p.ui_remove("lane" + i) end
-      p.ui_remove("judge")
-      p.score = p.score + floor(scores[p.id] / 1000)
-      if p.name == winner_name then kit_quest_progress(p, "win", 1) end
-      p.entered = false
-    end
-  end
-  singers = []
-end
+kit_shop_title = "ステージ衣装"
+kit_shop_add("antenna", "📡 アンテナ", 150, func(p) p.hat = "antenna" end)
+kit_shop_add("crown", "👑 スターの冠", 2000, func(p) p.hat = "crown" end)
+kit_shop_add("neon", "💜 ネオンの服", 300, func(p)
+  p.color = "#A855F7"
+  p.leg_color = "#22D3EE"
+end)
+kit_shop_add("gold", "✨ ゴールドの服", 1000, func(p)
+  p.color = "#FACC15"
+  p.leg_color = "#111827"
+end)
 
 on start()
-  every(0.1, func()
-    if not playing then
-      -- エントリーしている人がそろったら開始
-      let ready = filter(players(), func(p) return p.entered end)
-      if len(ready) >= 2 or (len(ready) == 1 and len(players()) == 1) then
-        singers = [ready[1]]
-        if len(ready) >= 2 then append(singers, ready[2]) else append(singers, nil) end
-        start_song()
-      end
-      return
-    end
-    let now = time()
-    for p in singers do
-      if p != nil and kit_here(p) then
-        draw(p)
-        p.ui_text("score", "🎤 " + p.name + " " + scores[p.id] + "   " + (p.combo > 1 and ("🔥" + p.combo) or ""), {at: "top", dy: 26, size: 20, bold: true})
-      end
-    end
-    -- 通りすぎたノーツはミス。CPU は8割くらい当てる
-    for n in notes do
-      if not n.hit and now > n.at + 0.3 then
-        n.hit = true
-        scores["cpu"] = scores["cpu"] + (random() < 0.8 and 150 or 0)
-        for p in singers do
-          if p != nil and kit_here(p) then
-            p.ui_remove("note" + n.id)
-            p.combo = 0
-          end
-        end
-      end
-    end
-    if len(notes) > 0 and now > notes[len(notes)].at + 1 then end_song() end
-  end)
+  every(10, func() kit_leaderboard("⭐ ファン") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.entered = false
-end
-
-on leave(p)
-  if playing then
-    for s in singers do
-      if s != nil and s.id == p.id then end_song() end
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc or playing then return end
-  if contains(b.tags, "stage") and not p.entered then
-    p.entered = true
-    p.message("🎤 エントリーした！相手を待っています", 2)
-  end
-end
-
-on button(p, id)
-  if playing and starts_with(id, "lane") then judge(p, num(replace(id, "lane", ""))) end
+  kit_shop_button(p)
+  p.fans = 0
+  p.best = {}
+  p.sess = nil
+  kit_give(p, 20)
 end

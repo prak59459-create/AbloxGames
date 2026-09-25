@@ -1,0 +1,165 @@
+-- stage.absc — 曲えらび・ステージの対戦エントリー・練習ブース・照明とダンサー
+
+let stage_wait = nil     -- ステージで相手を待っている {pid, song, diff, until}
+let light_clock = 0
+let beat_i = 0
+
+func song_panel(p, where)
+  p.pick_where = where
+  let h = 130 + len(SONGS) * 40
+  p.ui_remove("songs")
+  p.ui_panel("songs", {at: "center", w: 520, h: h, bg: "#1E1B4BF2", radius: 20, layer: 30})
+  let title = "🎵 練習ブース — 曲をえらぼう"
+  if where == "stage" then title = "🎤 対戦ステージ — 曲をえらぼう" end
+  p.ui_text("songs_t", title + "   ⭐ " + p.fans, {parent: "songs", y: 22 / h, size: 16, bold: true, color: "#F0ABFC"})
+  let i = 0
+  for sg in SONGS do
+    i = i + 1
+    let label = sg.name + "  BPM " + sg.bpm
+    let best = ""
+    for d in 1 to len(DIFFS) do
+      let b = p.best[i + "_" + d]
+      if b != nil then best = best + " " + slice(DIFFS[d].name, 1, 1) + b.grade end
+    end
+    if best != "" then label = label + "  " + best end
+    if p.fans < sg.fans then label = "🔒 " + sg.name + "（ファン " + sg.fans + " で解放）" end
+    p.ui_button("song_" + i, label, {parent: "songs", y: (28 + i * 40) / h, w: 480, h: 34, size: 13, bg: p.fans >= sg.fans and "#6D28D9" or "#374151"})
+  end
+  p.ui_button("songs_close", "閉じる", {parent: "songs", y: (h - 22) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func diff_panel(p, si)
+  p.pick_song = si
+  p.ui_remove("songs")
+  p.ui_panel("diffs", {at: "center", w: 480, h: 190, bg: "#1E1B4BF2", radius: 20, layer: 30})
+  p.ui_text("diffs_t", "🎵 " + SONGS[si].name + " — 難易度は？", {parent: "diffs", y: 0.16, size: 16, bold: true, color: "#F0ABFC"})
+  let i = 0
+  for d in DIFFS do
+    i = i + 1
+    p.ui_button("diff_" + i, d.name, {parent: "diffs", x: (i - 0.5) / 3, y: 0.58, w: 140, h: 56, size: 15, bg: "#7C3AED"})
+  end
+  p.ui_button("diffs_close", "もどる", {parent: "diffs", y: 0.88, w: 110, h: 26, size: 12, bg: "gray"})
+end
+
+func pick_song(p, si)
+  let sg = SONGS[si]
+  if sg == nil then return end
+  if p.fans < sg.fans then
+    p.message("🔒 ファンが " + sg.fans + " 人になると解放", 1.5)
+    return
+  end
+  diff_panel(p, si)
+end
+
+func pick_diff(p, di)
+  p.ui_remove("diffs")
+  let si = p.pick_song
+  if si == nil or p.sess != nil then return end
+  if p.pick_where == "stage" then
+    stage_wait = {pid: p.id, song: si, diff: di, until: time() + 12}
+    announce("🎤 " + p.name + " が対戦相手をさがしている！「" + SONGS[si].name + "」 — もう一方のステージパッドへ！", 5)
+    p.message("⏳ 12秒待っても相手が来なければCPUと対戦", 2)
+  else
+    start_session("solo", [p.id], si, di)
+    kit_quest_progress(p, "practice", 1)
+  end
+end
+
+func stage_touch(p, b)
+  if p.sess != nil then return end
+  if stage_wait != nil then
+    if stage_wait.pid == p.id then return end
+    let host = player_by_id(stage_wait.pid)
+    if host == nil or host.sess != nil then
+      stage_wait = nil
+    else
+      let w = stage_wait
+      stage_wait = nil
+      announce("🔥 対戦スタート！ " + host.name + " VS " + p.name, 3)
+      start_session("battle", [host.id, p.id], w.song, w.diff)
+      return
+    end
+  end
+  if quiet_ready(p, "stage", 2) then song_panel(p, "stage") end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+-- MARK: 照明とダンサー
+
+func stage_bpm()
+  for s in sessions do
+    if s.kind == "battle" then return SONGS[s.song].bpm end
+  end
+  return 110
+end
+
+func beat_step()
+  beat_i = beat_i + 1
+  let colors = ["#F0ABFC", "#22D3EE", "#FDE047", "#86EFAC", "#F87171", "#A78BFA"]
+  -- ブロックごとに色をずらして、フロアがにじのように流れる
+  let k = 0
+  for b in blocks("light") do
+    k = k + 1
+    b.color = colors[(beat_i + k) % len(colors) + 1]
+  end
+  for n in npcs() do
+    if n.dancer and random() < 0.6 then n.jump_now() end
+  end
+end
+
+func spawn_dancers()
+  let spots = [{x: -9, z: -6}, {x: 9, z: -6}, {x: -12, z: 2}, {x: 12, z: 2}]
+  let colors = ["#EC4899", "#22D3EE", "#A3E635", "#F97316"]
+  let i = 0
+  for sp in spots do
+    i = i + 1
+    let n = create_npc({name: "💃 ダンサー", position: {x: sp.x, y: 1.5, z: sp.z}, color: colors[i], head_color: "#FDE68A", size: 1, health: 999999, speed: 0, team: "dancers"})
+    n.dancer = true
+  end
+end
+
+on start()
+  spawn_dancers()
+end
+
+on tick(dt)
+  light_clock = light_clock + dt
+  if light_clock >= 60 / stage_bpm() then
+    light_clock = 0
+    beat_step()
+  end
+  if stage_wait != nil and time() >= stage_wait.until then
+    let host = player_by_id(stage_wait.pid)
+    let w = stage_wait
+    stage_wait = nil
+    if host != nil and host.sess == nil then
+      host.message("🤖 相手が来なかったので、CPUと対戦！", 2)
+      start_session("battle", [host.id, "cpu"], w.song, w.diff)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "stage") then stage_touch(p, b)
+  elif contains(b.tags, "booth") and p.sess == nil and quiet_ready(p, "booth", 2) then song_panel(p, "booth")
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "song_") then pick_song(p, num(replace(id, "song_", "")))
+  elif id == "songs_close" then p.ui_remove("songs")
+  elif starts_with(id, "diff_") then pick_diff(p, num(replace(id, "diff_", "")))
+  elif id == "diffs_close" then
+    p.ui_remove("diffs")
+    song_panel(p, p.pick_where)
+  end
+end

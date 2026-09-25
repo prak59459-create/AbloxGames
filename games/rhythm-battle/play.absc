@@ -1,0 +1,334 @@
+-- play.absc — 曲をあそぶ: 譜面・ノーツの表示・判定・コンボ・フィーバー・おじゃま攻撃・結果
+
+let sessions = []        -- {id, kind, pids, song, diff, notes, start, last, cpu}
+let session_serial = 0
+let play_clock = 0
+
+func ready(p)
+  return p.fans != nil
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func lcg(s)
+  return (s * 75 + 74) % 65537
+end
+
+-- いつも同じ譜面になるように、曲ごとの seed から作る
+func make_chart(song, di, start)
+  let d = DIFFS[di]
+  let notes = []
+  let beat = 60 / song.bpm
+  let s = song.seed * 7 + di
+  let lane = 1
+  let id = 0
+  for k in 1 to song.beats do
+    s = lcg(s)
+    if (k - 1) % d.every == 0 then
+      if s % 10 < 3 then lane = lane % 4 + 1 else lane = s % 4 + 1 end
+      id = id + 1
+      append(notes, {id: id, lane: lane, at: start + k * beat})
+      s = lcg(s)
+      if s % 100 < d.chord * 100 then
+        id = id + 1
+        append(notes, {id: id, lane: (lane + 1) % 4 + 1, at: start + k * beat})
+      end
+    end
+    s = lcg(s)
+    if k < song.beats and s % 100 < d.eighth * 100 then
+      id = id + 1
+      append(notes, {id: id, lane: floor(s / 7) % 4 + 1, at: start + (k + 0.5) * beat})
+    end
+  end
+  return notes
+end
+
+func session_of(p)
+  if p.sess == nil then return nil end
+  for s in sessions do
+    if s.id == p.sess then return s end
+  end
+  return nil
+end
+
+func start_session(kind, pids, si, di)
+  session_serial = session_serial + 1
+  let song = SONGS[si]
+  let start = time() + 3
+  let notes = make_chart(song, di, start)
+  let s = {id: session_serial, kind: kind, pids: pids, song: si, diff: di, notes: notes, start: start, last: notes[len(notes)].at, cpu: {score: 0, combo: 0}}
+  append(sessions, s)
+  for id in pids do
+    let p = player_by_id(id)
+    if p != nil then
+      p.sess = s.id
+      p.hits = {}
+      p.drawn = {}
+      p.rb_score = 0
+      p.combo = 0
+      p.max_combo = 0
+      p.counts = {perfect: 0, great: 0, good: 0, miss: 0}
+      p.speed_until = 0
+      p.hidden_until = 0
+      p.frozen = true
+      draw_frame(p, s)
+    end
+  end
+  return s
+end
+
+func draw_frame(p, s)
+  p.ui_remove("track")
+  p.ui_panel("track", {at: "center", dy: -30, w: 380, h: 440, bg: "#000000AA", radius: 18, layer: 10})
+  p.ui_panel("hitline", {parent: "track", y: 0.86, w: 360, h: 6, bg: "#FFFFFF", radius: 3})
+  let i = 0
+  for l in LANES do
+    i = i + 1
+    p.ui_panel("lanebg" + i, {parent: "track", x: 0.2 + (i - 1) * 0.2, y: 0.46, w: 64, h: 400, bg: "#FFFFFF14", radius: 12})
+    p.ui_button("lane" + i, l.key, {at: "bottom", dx: (i - 2.5) * 98, dy: -54, w: 90, h: 76, size: 30, bg: l.color, radius: 18})
+  end
+  p.ui_text("songname", "🎵 " + SONGS[s.song].name + "  " + DIFFS[s.diff].name, {parent: "track", y: 0.03, size: 14, bold: true, color: "#F0ABFC"})
+end
+
+func clear_frame(p)
+  p.ui_remove("track")
+  for i in 1 to 4 do p.ui_remove("lane" + i) end
+  p.ui_remove("judge")
+  p.ui_remove("rbscore")
+  p.frozen = false
+end
+
+func fall_time(p, s)
+  let f = DIFFS[s.diff].fall
+  if time() < p.speed_until then f = f * 0.65 end
+  return f
+end
+
+-- ノーツを表示する（見えるものだけ）
+func draw_notes(p, s)
+  let now = time()
+  let f = fall_time(p, s)
+  for n in s.notes do
+    let key = "" + n.id
+    let t = 1 - (n.at - now) / f
+    let id = "n" + n.id
+    if p.hits[key] == nil and t >= 0 and t <= 1.12 then
+      let hide = time() < p.hidden_until and t > 0.45
+      if hide then
+        if p.drawn[key] then
+          p.ui_remove(id)
+          p.drawn[key] = nil
+        end
+      else
+        p.ui_panel(id, {parent: "track", x: 0.2 + (n.lane - 1) * 0.2, y: 0.08 + t * 0.78, w: 60, h: 20, bg: LANES[n.lane].color, radius: 10})
+        p.drawn[key] = true
+      end
+    elif p.drawn[key] then
+      p.ui_remove(id)
+      p.drawn[key] = nil
+    end
+  end
+  let fever = ""
+  if p.combo >= FEVER_COMBO then fever = "  🔥フィーバー×2" end
+  let vs = ""
+  if s.kind == "battle" then
+    let other = opponent_score(p, s)
+    vs = "   VS " + other
+  end
+  p.ui_text("rbscore", "🎤 " + p.rb_score + "  コンボ " + p.combo + fever + vs, {at: "top", dy: 26, size: 18, bold: true})
+end
+
+func opponent_score(p, s)
+  for id in s.pids do
+    if id != p.id then
+      if id == "cpu" then return s.cpu.score end
+      let q = player_by_id(id)
+      if q != nil then return q.rb_score end
+    end
+  end
+  return 0
+end
+
+func show_judge(p, text, color)
+  p.ui_text("judge", text, {at: "center", dy: 150, size: 26, bold: true, color: color})
+end
+
+func judge(p, lane)
+  let s = session_of(p)
+  if s == nil then return end
+  let now = time()
+  let best = nil
+  for n in s.notes do
+    if n.lane == lane and p.hits["" + n.id] == nil and abs(n.at - now) <= 0.2 then
+      if best == nil or abs(n.at - now) < abs(best.at - now) then best = n end
+    end
+  end
+  if best == nil then return end
+  let off = abs(best.at - now)
+  let j = nil
+  for x in JUDGES do
+    if j == nil and off <= x.win then j = x end
+  end
+  if j == nil then j = JUDGES[len(JUDGES)] end
+  p.hits["" + best.id] = j.name
+  p.ui_remove("n" + best.id)
+  p.drawn["" + best.id] = nil
+  p.combo = p.combo + 1
+  p.max_combo = max(p.max_combo, p.combo)
+  let pts = j.points + min(p.combo, 100) * 2
+  if p.combo >= FEVER_COMBO then pts = pts * 2 end
+  p.rb_score = p.rb_score + floor(pts * DIFFS[s.diff].mult)
+  if j.name == "PERFECT!" then
+    p.counts.perfect = p.counts.perfect + 1
+    kit_quest_progress(p, "perfect", 1)
+    if p.combo % 8 == 0 then p.launch(0, 5, 0) end
+  elif j.name == "GREAT" then p.counts.great = p.counts.great + 1
+  else p.counts.good = p.counts.good + 1 end
+  show_judge(p, j.name, j.color)
+  if p.combo == FEVER_COMBO then p.message("🔥 フィーバー！ 点数2倍", 1.5) end
+  if s.kind == "battle" and p.combo % ATTACK_EVERY == 0 then attack(p, s) end
+  if p.combo >= 50 then kit_quest_progress(p, "combo", 1) end
+end
+
+-- 対戦のおじゃま: 相手のノーツが速くなるか、見えにくくなる
+func attack(p, s)
+  for id in s.pids do
+    if id != p.id and id != "cpu" then
+      let q = player_by_id(id)
+      if q != nil then
+        if random() < 0.5 then
+          q.speed_until = time() + 5
+          q.message("⚡ " + p.name + " のスピードアップ攻撃！", 1.5)
+        else
+          q.hidden_until = time() + 5
+          q.message("🌫 " + p.name + " のかくれノーツ攻撃！", 1.5)
+        end
+      end
+    end
+  end
+  p.message("💥 おじゃま攻撃を送った！", 1)
+end
+
+-- 通りすぎたノーツはミス。CPU の点も
+func miss_step(s)
+  let now = time()
+  for n in s.notes do
+    if now > n.at + 0.2 and n.cpu_done == nil then
+      n.cpu_done = true
+      if random() < DIFFS[s.diff].cpu then
+        s.cpu.combo = s.cpu.combo + 1
+        s.cpu.score = s.cpu.score + floor((200 + min(s.cpu.combo, 100) * 2) * DIFFS[s.diff].mult)
+      else
+        s.cpu.combo = 0
+      end
+      for id in s.pids do
+        let p = player_by_id(id)
+        if p != nil and p.hits["" + n.id] == nil then
+          p.hits["" + n.id] = "MISS"
+          p.counts.miss = p.counts.miss + 1
+          p.combo = 0
+          show_judge(p, "MISS", "#F87171")
+        end
+      end
+    end
+  end
+end
+
+func grade(acc)
+  if acc >= 0.95 then return "S" end
+  if acc >= 0.85 then return "A" end
+  if acc >= 0.7 then return "B" end
+  if acc >= 0.5 then return "C" end
+  return "D"
+end
+
+func end_session(s)
+  let ranking = []
+  for id in s.pids do
+    let p = player_by_id(id)
+    if p != nil then append(ranking, {name: p.name, score: p.rb_score, p: p}) end
+    if id == "cpu" then append(ranking, {name: "CPU", score: s.cpu.score, p: nil}) end
+  end
+  ranking = sort(ranking, func(a, b) return a.score > b.score end)
+  for id in s.pids do
+    let p = player_by_id(id)
+    if p != nil then
+      let c = p.counts
+      let total = max(1, c.perfect + c.great + c.good + c.miss)
+      let acc = (c.perfect + c.great * 0.8 + c.good * 0.5) / total
+      let g = grade(acc)
+      let won = s.kind == "battle" and ranking[1].p != nil and ranking[1].p.id == p.id
+      let fans = floor(p.rb_score / 100)
+      if won then fans = floor(fans * 1.5) end
+      p.fans = p.fans + fans
+      kit_give(p, floor(fans / 2))
+      p.score = p.fans
+      let key = s.song + "_" + s.diff
+      let old = p.best[key]
+      let new_best = old == nil or p.rb_score > old.score
+      if new_best then p.best[key] = {score: p.rb_score, grade: g} end
+      kit_quest_progress(p, "songs", 1)
+      if g == "S" then
+        kit_quest_progress(p, "rank_s", 1)
+        kit_badge(p, "s_" + key, SONGS[s.song].name + " " + DIFFS[s.diff].name + " でSランク")
+      end
+      if won then kit_quest_progress(p, "win", 1) end
+      clear_frame(p)
+      let head = "🎵 " + SONGS[s.song].name + " — ランク " + g + "（" + floor(acc * 100) + "%）"
+      if new_best then head = head + " ✨自己ベスト！" end
+      result_panel(p, head, c, p.max_combo, p.rb_score, fans, won, s.kind == "battle")
+      p.sess = nil
+    end
+  end
+  if s.kind == "battle" then announce("🏆 " + ranking[1].name + " の勝ち！（" + join(map(ranking, func(r) return r.name + " " + r.score end), " vs ") + "）", 5) end
+  remove(sessions, index_of(sessions, s))
+end
+
+func result_panel(p, head, c, mc, score, fans, won, battle)
+  let h = 260
+  p.ui_remove("result")
+  p.ui_panel("result", {at: "center", w: 480, h: h, bg: "#1E1B4BF2", radius: 20, layer: 30})
+  p.ui_text("res_t", head, {parent: "result", y: 26 / h, size: 16, bold: true, color: "#F0ABFC"})
+  p.ui_text("res_1", "PERFECT " + c.perfect + " / GREAT " + c.great + " / GOOD " + c.good + " / MISS " + c.miss, {parent: "result", y: 70 / h, size: 14, color: "#FFFFFF"})
+  p.ui_text("res_2", "スコア " + score + "   最大コンボ " + mc, {parent: "result", y: 104 / h, size: 16, bold: true, color: "#FDE047"})
+  let w = ""
+  if battle then
+    if won then w = "🏆 勝ち！ ファン1.5倍  " else w = "😢 負け…  " end
+  end
+  p.ui_text("res_3", w + "⭐ ファン +" + fans, {parent: "result", y: 140 / h, size: 15, color: "#86EFAC"})
+  p.ui_button("res_close", "OK", {parent: "result", y: (h - 36) / h, w: 140, h: 40, size: 16, bg: "#7C3AED"})
+end
+
+on tick(dt)
+  play_clock = play_clock + dt
+  if play_clock < 0.1 then return end
+  play_clock = 0
+  for s in copy(sessions) do
+    miss_step(s)
+    for id in s.pids do
+      let p = player_by_id(id)
+      if p != nil then draw_notes(p, s) end
+    end
+    if time() > s.last + 1.5 then end_session(s) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "lane") and p.sess != nil then judge(p, num(replace(id, "lane", "")))
+  elif id == "res_close" then p.ui_remove("result")
+  end
+end
+
+on leave(p)
+  let s = session_of(p)
+  if s != nil then
+    remove(s.pids, index_of(s.pids, p.id))
+    if len(filter(s.pids, func(x) return x != "cpu" end)) == 0 then remove(sessions, index_of(sessions, s)) end
+  end
+end

@@ -1,0 +1,37 @@
+-- data.absc — 曲8つ・難易度・レーン・判定
+
+let LANES = [
+  {key: "←", color: "#EC4899"},
+  {key: "↓", color: "#22D3EE"},
+  {key: "↑", color: "#22C55E"},
+  {key: "→", color: "#F97316"}
+]
+
+-- fans: 解放に必要なファンの数 / seed: 譜面のもと（いつも同じ譜面になる）
+let SONGS = [
+  {name: "ビート・スタート", bpm: 96, beats: 40, fans: 0, seed: 11},
+  {name: "ネオン・ナイト", bpm: 112, beats: 48, fans: 0, seed: 23},
+  {name: "ソーダ・ポップ", bpm: 120, beats: 48, fans: 300, seed: 37},
+  {name: "スピード・スター", bpm: 136, beats: 56, fans: 800, seed: 41},
+  {name: "ムーンライト・ステップ", bpm: 104, beats: 56, fans: 1500, seed: 53},
+  {name: "ロボット・ダンス", bpm: 128, beats: 64, fans: 2500, seed: 67},
+  {name: "ドラゴン・ドラム", bpm: 150, beats: 64, fans: 4000, seed: 79},
+  {name: "ギャラクシー・フィナーレ", bpm: 164, beats: 72, fans: 6000, seed: 97}
+]
+
+-- 難易度。fall: ノーツが落ちる時間 / eighth: 8分音符の多さ / chord: 同時押しの多さ / cpu: CPUの正確さ
+let DIFFS = [
+  {id: "easy", name: "🟢 かんたん", fall: 2.4, every: 2, eighth: 0, chord: 0, cpu: 0.6, mult: 1},
+  {id: "normal", name: "🟡 ふつう", fall: 2, every: 1, eighth: 0.2, chord: 0.05, cpu: 0.75, mult: 1.5},
+  {id: "hard", name: "🔴 むずかしい", fall: 1.6, every: 1, eighth: 0.5, chord: 0.18, cpu: 0.88, mult: 2.2}
+]
+
+-- 判定。win: ずれていい時間
+let JUDGES = [
+  {name: "PERFECT!", win: 0.07, points: 300, color: "#FDE047"},
+  {name: "GREAT", win: 0.13, points: 200, color: "#86EFAC"},
+  {name: "GOOD", win: 0.2, points: 100, color: "#93C5FD"}
+]
+
+let FEVER_COMBO = 30
+let ATTACK_EVERY = 25
