@@ -1,0 +1,136 @@
+-- common.absc — ブースの記録・近くのブース・チップ入れ・看板の表示
+
+-- ブース番号（文字列）→ {owner, name, npc, theme, sign, raised, likes, visits, liked, notes, ups, record, pattern, paint}
+let booths = {}
+
+func ready(p)
+  return p.tips_given != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func theme_of(id)
+  for t in THEMES do
+    if t.id == id then return t end
+  end
+  return THEMES[6]
+end
+
+func booth_part(key, part)
+  return block("Booth " + key + " " + part)
+end
+
+func booth_of(p)
+  for key in keys(booths) do
+    if booths[key].owner == p.id then return key end
+  end
+  return nil
+end
+
+-- いちばん近いブース（お店が出ているものだけ）
+func near_booth(p)
+  let best = nil
+  let best_d = 0
+  for key in keys(booths) do
+    let d = distance(p, booth_part(key, "Counter"))
+    if d < 6.5 and (best == nil or d < best_d) then
+      best = key
+      best_d = d
+    end
+  end
+  return best
+end
+
+func free_booths()
+  let list = []
+  for k in 1 to 12 do
+    if booths[str(k)] == nil then append(list, str(k)) end
+  end
+  return list
+end
+
+func owner_player(b)
+  if b == nil or b.npc then return nil end
+  for q in players() do
+    if q.id == b.owner then return q end
+  end
+  return nil
+end
+
+func has_up(b, id)
+  return contains(b.ups, id)
+end
+
+-- 人気: いいね×3 + 来てくれた数 + もらったチップ÷10 → ⭐1〜5
+func booth_stars(b)
+  let pop = b.likes * 3 + b.visits + floor(b.raised / 10)
+  if pop >= 150 then return 5 end
+  if pop >= 80 then return 4 end
+  if pop >= 40 then return 3 end
+  if pop >= 15 then return 2 end
+  return 1
+end
+
+func stars_text(n)
+  let s = ""
+  for k in 1 to n do s = s + "⭐" end
+  return s
+end
+
+-- MARK: チップ入れ
+
+func update_jar(key)
+  let b = booths[key]
+  let jar = booth_part(key, "Jar")
+  let coins = booth_part(key, "Coins")
+  let big = 1
+  if b != nil and has_up(b, "jar") then big = 1.5 end
+  jar.size = {x: 0.8 * big, y: 0.9 * big, z: 0.8 * big}
+  jar.position = {x: jar.x, y: 1.1 + 0.45 * big, z: jar.z}
+  let raised = 0
+  if b != nil then raised = b.raised end
+  let h = min(0.85 * big, 0.06 + raised / 300 * big)
+  coins.size = {x: 0.66 * big, y: h, z: 0.66 * big}
+  coins.position = {x: coins.x, y: 1.11 + h / 2, z: coins.z}
+end
+
+-- MARK: 看板とブースの見た目
+
+func paint_booth(key)
+  let b = booths[key]
+  let sign = booth_part(key, "Sign")
+  let awning = booth_part(key, "Awning")
+  let light = booth_part(key, "Light")
+  if b == nil then
+    sign.color = "#FFFFFF"
+    awning.visible = false
+    light.visible = false
+    update_jar(key)
+    return
+  end
+  let t = theme_of(b.theme)
+  sign.color = t.color
+  awning.visible = has_up(b, "awning")
+  awning.color = t.color
+  light.visible = has_up(b, "light")
+  update_jar(key)
+end
+
+-- 近くの人に見せる看板の文
+func sign_line(key)
+  let b = booths[key]
+  let t = theme_of(b.theme)
+  let who = b.name
+  if b.npc then who = b.name + "（NPC）" end
+  return t.name + "  " + who + " のお店  " + stars_text(booth_stars(b)) + "\n「" + b.sign + "」  💝 " + b.raised + "  ❤️ " + b.likes
+end
+
+func tip_feed(text)
+  ui_text("feed", text, {at: "bottom_left", dx: 20, dy: -200, size: 14, bold: true, color: "#FBCFE8"})
+end

@@ -1,0 +1,233 @@
+-- activities.absc — テーマごとの遊び
+--
+-- 🔮 うらない: 今日の運勢 / 🍩 おかし: 20秒だけ速く歩ける / 🎵 ミュージック: 店主の演奏に拍手
+-- 🎨 アート: 看板の上の3×3ドット絵 / 🎮 ゲーム: 反射神経（ブースの記録をぬりかえるとチップ）
+-- 💬 おしゃべり: ひとことが看板のまわりに出る
+
+-- お客さんが来た（テーマの遊びを使った）
+func visited(p, key)
+  let b = booths[key]
+  if b == nil then return end
+  b.visits = b.visits + 1
+  if p.tried == nil then p.tried = [] end
+  if not contains(p.tried, b.theme) then
+    append(p.tried, b.theme)
+    kit_quest_progress(p, "themes", 1)
+  end
+  let o = owner_player(b)
+  if o != nil and o.id != p.id and quiet_ready(o, "visit_msg", 4) then o.message("🙋 " + p.name + " がお店で遊んでいる！", 1.5) end
+end
+
+func visit_action(p, key)
+  let b = booths[key]
+  if b == nil or b.owner == p.id then return end
+  let id = b.theme
+  if id == "fortune" then
+    if not quiet_ready(p, "fortune", 20) then
+      p.message("🔮 うらないは20秒に1回", 1)
+      return
+    end
+    let f = FORTUNES[random(1, len(FORTUNES))]
+    p.message("🔮 " + b.name + "「" + f + "」", 4)
+    visited(p, key)
+  elif id == "snack" then
+    if not quiet_ready(p, "snack", 25) then
+      p.message("🍩 おなかいっぱい…（25秒に1回）", 1)
+      return
+    end
+    let s = SNACKS[random(1, len(SNACKS))]
+    p.message(s + " をもらった！ 20秒だけ足が速い", 2)
+    p.speed = 1.5
+    kit_later(p, 20, func() p.speed = 1 end)
+    visited(p, key)
+  elif id == "music" then
+    clap_music(p, key)
+  elif id == "art" then
+    let pat = PATTERNS[b.pattern]
+    p.message("🖼 " + b.name + " の作品「" + pat.name + "」", 2)
+    if quiet_ready(p, "art_" + key, 30) then visited(p, key) end
+  elif id == "game" then
+    start_reaction(p, key)
+  elif id == "talk" then
+    note_box(p, key)
+  end
+end
+
+-- MARK: 🎵 ミュージック
+
+func play_music(p, key)
+  let b = booths[key]
+  if not quiet_ready(p, "music", 8) then
+    p.message("🎵 少し休けい（8秒に1回）", 1)
+    return
+  end
+  b.show_until = time() + 8
+  b.clapped = {}
+  let c = booth_part(key, "Counter")
+  for q in players() do
+    if distance(q, c) < 14 then
+      q.sound("checkpoint")
+      kit_later(q, 0.5, func() q.sound("collect") end)
+      kit_later(q, 1, func() q.sound("goal") end)
+      if q.id != p.id then q.message("🎵 " + p.name + " の演奏！ 👏 で拍手しよう", 2) end
+    end
+  end
+  for k in 1 to 5 do float_note(c, k) end
+  kit_quest_progress(p, "perform", 1)
+end
+
+func float_note(c, k)
+  let colors = ["#22D3EE", "#F472B6", "#FACC15", "#A78BFA", "#86EFAC"]
+  after(k * 0.3, func()
+    let n = create_block({name: "Note", position: {x: c.x + random() * 2 - 1, y: 2.5, z: c.z + random() * 2 - 1}, size: {x: 0.35, y: 0.35, z: 0.35},
+                          color: colors[k], shape: "sphere", material: "neon", solid: false})
+    n.move(0, 3, 0, 2)
+    after(2, func() kit_gone(n) end)
+  end)
+end
+
+func clap_music(p, key)
+  let b = booths[key]
+  if time() > b.show_until then
+    p.message("👏 演奏が始まったら拍手しよう", 1.2)
+    return
+  end
+  if b.clapped[p.id] == true then return end
+  b.clapped[p.id] = true
+  p.message("👏 拍手した！", 0.8)
+  kit_quest_progress(p, "clap", 1)
+  visited(p, key)
+  let o = owner_player(b)
+  if o != nil then
+    kit_give(o, 1)
+    o.message("👏 " + p.name + " の拍手！ +1", 1)
+  end
+end
+
+-- MARK: 🎨 アート（看板の上の3×3のドット）
+
+func make_canvas(key)
+  let b = booths[key]
+  let sign = booth_part(key, "Sign")
+  let c = booth_part(key, "Counter")
+  let a = atan2(c.z, c.x)
+  let tx = 0 - sin(a)
+  let tz = cos(a)
+  b.pixels = []
+  for r in [1, 0, -1] do
+    for col in [-1, 0, 1] do
+      let px = create_block({name: "Art Pixel", position: {x: sign.x + tx * col * 0.55, y: 5.35 + r * 0.55, z: sign.z + tz * col * 0.55},
+                            size: {x: 0.5, y: 0.5, z: 0.5}, color: "#FFFFFF", solid: false})
+      append(b.pixels, px)
+      append(b.props, px)
+    end
+  end
+  draw_canvas(key)
+end
+
+func draw_canvas(key)
+  let b = booths[key]
+  if b.pixels == nil then return end
+  let pat = PATTERNS[b.pattern]
+  let i = 0
+  for px in b.pixels do
+    i = i + 1
+    if pat.dots[i] == 1 then px.color = PAINTS[b.paint] else px.color = "#FFFFFF" end
+  end
+end
+
+func art_panel(p, key)
+  let h = 230
+  p.ui_remove("artbox")
+  p.ui_panel("artbox", {at: "center", w: 480, h: h, bg: "#1C1917F0", radius: 20, layer: 30})
+  p.ui_text("art_t", "🎨 絵をかえる", {parent: "artbox", y: 0.1, size: 17, bold: true, color: "gold"})
+  let i = 0
+  for pat in PATTERNS do
+    i = i + 1
+    p.ui_button("pat_" + i, pat.name, {parent: "artbox", x: (i - 0.5) / len(PATTERNS), y: 0.33, w: 72, h: 40, size: 12, bg: "#44403C"})
+  end
+  let k = 0
+  for c in PAINTS do
+    k = k + 1
+    p.ui_button("paint_" + k, "●", {parent: "artbox", x: (k - 0.5) / len(PAINTS), y: 0.6, w: 48, h: 44, size: 22, bg: c})
+  end
+  p.ui_button("art_close", "閉じる", {parent: "artbox", y: 0.88, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+-- MARK: 🎮 反射神経ゲーム
+
+func start_reaction(p, key)
+  if p.rx_state != nil then return end
+  p.rx_state = "wait"
+  p.rx_key = key
+  p.rx_at = nil
+  p.ui_button("rx_go", "🔴 まだ…", {at: "center", dy: 40, w: 260, h: 110, size: 26, bg: "#991B1B", radius: 24})
+  let delay = 1.5 + random() * 2.5
+  let run = (p.rx_run or 0) + 1
+  p.rx_run = run
+  kit_later(p, delay, func()
+    if p.rx_run != run or p.rx_state != "wait" then return end
+    p.rx_state = "go"
+    p.rx_at = time()
+    p.ui_button("rx_go", "🟢 いま！", {at: "center", dy: 40, w: 260, h: 110, size: 30, bg: "#16A34A", radius: 24})
+  end)
+  kit_later(p, delay + 3, func()
+    if p.rx_run == run and p.rx_state == "go" then
+      p.rx_state = nil
+      p.ui_remove("rx_go")
+      p.message("⌛ おそすぎ…", 1)
+    end
+  end)
+end
+
+func press_reaction(p)
+  if p.rx_state == "wait" then
+    p.rx_state = nil
+    p.rx_run = (p.rx_run or 0) + 1
+    p.ui_remove("rx_go")
+    p.message("❌ フライング！", 1.2)
+    return
+  end
+  if p.rx_state != "go" then return end
+  p.rx_state = nil
+  p.ui_remove("rx_go")
+  let ms = floor((time() - p.rx_at) * 1000)
+  let key = p.rx_key
+  let b = booths[key]
+  if b == nil then return end
+  visited(p, key)
+  p.best_rx = min(p.best_rx or 99999, ms)
+  if b.record == nil or ms < b.record.ms then
+    b.record = {ms: ms, name: p.name}
+    kit_give(p, 3)
+    p.message("🏆 " + ms + " ミリ秒！ ブース新記録（+3）", 2.5)
+    announce("🎮 " + p.name + " が " + b.name + " のお店で反射神経の新記録 " + ms + "ms！", 2.5)
+  else
+    p.message("⚡ " + ms + " ミリ秒（記録: " + b.record.name + " " + b.record.ms + "ms）", 2.5)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "visit" and p.near != nil then
+    visit_action(p, p.near)
+  elif id == "o_act" then
+    let key = booth_of(p)
+    if key == nil then return end
+    let b = booths[key]
+    if b.theme == "music" then
+      play_music(p, key)
+    elif b.theme == "art" then
+      art_panel(p, key)
+    end
+  elif starts_with(id, "pat_") or starts_with(id, "paint_") then
+    let key = booth_of(p)
+    if key == nil or booths[key].theme != "art" then return end
+    if starts_with(id, "pat_") then booths[key].pattern = num(replace(id, "pat_", "")) else booths[key].paint = num(replace(id, "paint_", "")) end
+    draw_canvas(key)
+  elif id == "art_close" then
+    p.ui_remove("artbox")
+  elif id == "rx_go" then
+    press_reaction(p)
+  end
+end

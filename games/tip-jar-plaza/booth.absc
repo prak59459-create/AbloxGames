@@ -1,0 +1,309 @@
+-- booth.absc — ブースを出す・たたむ・看板・改装・ゲストブック・いいね・近くのボタン
+--
+-- 緑のパッドにさわると、あいているブースをテーマをえらんでお店にできる（1人1つ）。
+-- ブースが全部うまっているときは、NPCのお店がゆずってくれる。
+
+func new_booth(owner_id, name, theme, npc)
+  return {owner: owner_id, name: name, npc: npc, theme: theme, sign: "いらっしゃい！", raised: 0, likes: 0, visits: 0,
+          liked: {}, notes: [], ups: [], props: [], record: nil, pattern: 1, paint: 1, show_until: 0, clapped: {}, last_tipper: nil}
+end
+
+-- MARK: ブースを出す
+
+func touch_pad(p, key)
+  if booths[key] != nil then
+    let b = booths[key]
+    if b.npc and booth_of(p) == nil and len(free_booths()) == 0 then
+      -- 空きがないので、NPCがゆずってくれる
+      close_booth(key)
+      p.message("🙇 " + b.name + " がブースをゆずってくれた！", 2)
+    else
+      return
+    end
+  end
+  if booth_of(p) != nil then
+    if quiet_ready(p, "pad_msg", 3) then p.message("🏪 お店は1人1つまで", 1.2) end
+    return
+  end
+  if quiet_ready(p, "pad_panel", 2) then theme_panel(p, key) end
+end
+
+func theme_panel(p, key)
+  p.claim_key = key
+  let h = 110 + len(THEMES) * 50
+  p.ui_remove("themes")
+  p.ui_panel("themes", {at: "center", w: 500, h: h, bg: "#1C1917F0", radius: 20, layer: 30})
+  p.ui_text("themes_t", "🏪 ブース " + key + " — どんなお店にする？", {parent: "themes", y: 26 / h, size: 18, bold: true, color: "gold"})
+  let i = 0
+  for t in THEMES do
+    i = i + 1
+    p.ui_button("theme_" + t.id, t.name + " — " + t.text, {parent: "themes", y: (28 + i * 50) / h, w: 460, h: 42, size: 12, bg: t.color})
+  end
+  p.ui_button("themes_close", "やめる", {parent: "themes", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func open_booth(p, theme)
+  let key = p.claim_key
+  p.ui_remove("themes")
+  if key == nil or booths[key] != nil or booth_of(p) != nil then return end
+  booths[key] = new_booth(p.id, p.name, theme, false)
+  if theme == "art" then make_canvas(key) end
+  paint_booth(key)
+  p.near = nil
+  let t = theme_of(theme)
+  p.message("🏪 ブース " + key + " が " + t.name + " のお店に！ 「✏️ 看板」で書いてみよう", 3)
+  announce("🏪 " + p.name + " が " + t.name + " のお店を開いた！", 2.5)
+  kit_quest_progress(p, "booth", 1)
+end
+
+func close_booth(key)
+  let b = booths[key]
+  if b == nil then return end
+  for x in b.props do kit_gone(x) end
+  if b.npc and b.keeper != nil then kit_gone(b.keeper) end
+  remove(booths, key)
+  paint_booth(key)
+  for p in players() do
+    if p.near == key then p.near = nil end
+  end
+end
+
+-- MARK: 看板
+
+func edit_sign(p)
+  if booth_of(p) == nil then
+    p.message("まず緑のパッドでブースを出そう", 1.5)
+    return
+  end
+  p.ui_remove("editbox")
+  p.ui_panel("editbox", {at: "center", w: 440, h: 160, bg: "#111827EE", radius: 20, layer: 30})
+  p.ui_text("edit_t", "🪧 看板のメッセージ（40文字まで）", {parent: "editbox", y: 0.18, size: 17, bold: true})
+  p.ui_input("sign_text", "例: 絵をかきます！", {parent: "editbox", y: 0.52, w: 360})
+  p.ui_button("edit_close", "閉じる", {parent: "editbox", y: 0.85, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+-- MARK: 改装
+
+func upgrade_panel(p)
+  let key = booth_of(p)
+  if key == nil then return end
+  let b = booths[key]
+  let h = 110 + len(UPGRADES) * 50
+  p.ui_remove("ups")
+  p.ui_panel("ups", {at: "center", w: 460, h: h, bg: "#1C1917F0", radius: 20, layer: 30})
+  p.ui_text("ups_t", "🛠 ブースの改装（💝 チップで）", {parent: "ups", y: 26 / h, size: 18, bold: true, color: "gold"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let label = u.name + " — " + u.text + "   💝" + u.price
+    let bg = "#B45309"
+    if has_up(b, u.id) then
+      label = "✅ " + u.name + "（改装ずみ）"
+      bg = "#374151"
+    end
+    p.ui_button("up_" + u.id, label, {parent: "ups", y: (28 + i * 50) / h, w: 420, h: 42, size: 13, bg: bg})
+  end
+  p.ui_button("ups_close", "閉じる", {parent: "ups", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  let key = booth_of(p)
+  if key == nil then return end
+  let b = booths[key]
+  if has_up(b, id) then return end
+  for u in UPGRADES do
+    if u.id == id and kit_pay(p, u.price) then
+      append(b.ups, id)
+      if id == "plant" then make_plants(key) end
+      paint_booth(key)
+      p.sound("collect")
+      p.message("🛠 " + u.name + " をつけた！", 1.5)
+      kit_quest_progress(p, "upgrade", 1)
+      upgrade_panel(p)
+    end
+  end
+end
+
+func make_plants(key)
+  let b = booths[key]
+  let c = booth_part(key, "Counter")
+  let a = atan2(c.z, c.x)
+  let tx = 0 - sin(a)
+  let tz = cos(a)
+  for s in [-1, 1] do
+    let pot = create_block({name: "Booth Plant", position: {x: c.x + tx * s * 2.8, y: 0.45, z: c.z + tz * s * 2.8}, size: {x: 0.9, y: 0.9, z: 0.9},
+                           color: "#92400E", shape: "cylinder"})
+    let leaf = create_block({name: "Booth Plant Leaves", position: {x: c.x + tx * s * 2.8, y: 1.5, z: c.z + tz * s * 2.8}, size: {x: 1.4, y: 1.4, z: 1.4},
+                            color: "#16A34A", shape: "sphere", solid: false})
+    append(b.props, pot)
+    append(b.props, leaf)
+  end
+end
+
+-- MARK: いいね・ゲストブック
+
+func like_booth(p, key)
+  let b = booths[key]
+  if b == nil or b.owner == p.id then return end
+  if b.liked[p.id] == true then
+    p.message("❤️ もういいねした", 1)
+    return
+  end
+  b.liked[p.id] = true
+  b.likes = b.likes + 1
+  p.message("❤️ いいね！", 1)
+  p.likes_given = (p.likes_given or 0) + 1
+  kit_quest_progress(p, "like", 1)
+  let o = owner_player(b)
+  if o != nil then o.message("❤️ " + p.name + " がお店にいいね！", 1.5) end
+  p.near = nil
+end
+
+func note_box(p, key)
+  p.note_key = key
+  p.ui_remove("notebox")
+  p.ui_panel("notebox", {at: "center", w: 440, h: 160, bg: "#111827EE", radius: 20, layer: 30})
+  p.ui_text("note_t", "📒 " + booths[key].name + " のお店に、ひとこと（30文字まで）", {parent: "notebox", y: 0.18, size: 15, bold: true})
+  p.ui_input("note_text", "例: また来ます！", {parent: "notebox", y: 0.52, w: 360})
+  p.ui_button("note_close", "閉じる", {parent: "notebox", y: 0.85, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+func add_note(key, from, text)
+  let b = booths[key]
+  if b == nil then return end
+  append(b.notes, {from: from, text: text})
+  while len(b.notes) > 8 do remove(b.notes, 1) end
+  let o = owner_player(b)
+  if o != nil then o.message("📒 " + from + " からひとこと:「" + text + "」", 3) end
+end
+
+func guestbook_panel(p)
+  let key = booth_of(p)
+  if key == nil then return end
+  let b = booths[key]
+  let n = max(1, len(b.notes))
+  let h = 100 + n * 30
+  p.ui_remove("book")
+  p.ui_panel("book", {at: "center", w: 480, h: h, bg: "#FEF3C7F0", radius: 18, layer: 30})
+  p.ui_text("book_t", "📒 ゲストブック（" + len(b.notes) + "）", {parent: "book", y: 24 / h, size: 18, bold: true, color: "#78350F"})
+  if len(b.notes) == 0 then
+    p.ui_text("book_0", "まだだれも書いていない…", {parent: "book", y: 60 / h, size: 14, color: "#57534E"})
+  end
+  let i = 0
+  for note in b.notes do
+    i = i + 1
+    p.ui_text("book_" + i, note.from + ":「" + note.text + "」", {parent: "book", y: (34 + i * 30) / h, size: 14, color: "#1C1917"})
+  end
+  p.ui_button("book_close", "閉じる", {parent: "book", y: (h - 22) / h, w: 110, h: 30, size: 13, bg: "gray"})
+end
+
+-- MARK: 近くのボタン
+
+func clear_near_ui(p)
+  for id in ["sign", "tip", "like", "visit", "note", "o_sign", "o_up", "o_book", "o_act", "o_thanks", "o_close"] do p.ui_remove(id) end
+end
+
+func near_ui(p, key)
+  clear_near_ui(p)
+  if key == nil then return end
+  let b = booths[key]
+  let t = theme_of(b.theme)
+  if b.owner == p.id then
+    p.ui_button("o_sign", "✏️ 看板", {at: "bottom_right", dx: -30, dy: -120, w: 130, h: 46, size: 15, bg: "#0EA5E9", radius: 12})
+    p.ui_button("o_up", "🛠 改装", {at: "bottom_right", dx: -170, dy: -120, w: 120, h: 46, size: 15, bg: "#B45309", radius: 12})
+    p.ui_button("o_book", "📒 ゲストブック", {at: "bottom_right", dx: -30, dy: -175, w: 170, h: 46, size: 15, bg: "#92400E", radius: 12})
+    if t.owner != nil then
+      p.ui_button("o_act", t.owner, {at: "bottom_right", dx: -30, dy: -230, w: 170, h: 50, size: 15, bg: t.color, radius: 12})
+    end
+    if b.last_tipper != nil then
+      p.ui_button("o_thanks", "🙏 お礼", {at: "bottom_right", dx: -210, dy: -175, w: 110, h: 46, size: 15, bg: "#DB2777", radius: 12})
+    end
+    p.ui_button("o_close", "🚪 たたむ", {at: "bottom_right", dx: -210, dy: -230, w: 110, h: 42, size: 13, bg: "#57534E", radius: 12})
+  else
+    p.ui_button("tip", "💝 チップ", {at: "bottom_right", dx: -30, dy: -120, w: 150, h: 60, size: 18, bg: "#DB2777", radius: 16})
+    if b.liked[p.id] != true then
+      p.ui_button("like", "❤️ いいね", {at: "bottom_right", dx: -190, dy: -120, w: 120, h: 50, size: 15, bg: "#E11D48", radius: 14})
+    end
+    p.ui_button("visit", t.visit, {at: "bottom_right", dx: -30, dy: -190, w: 220, h: 50, size: 15, bg: t.color, radius: 14})
+    p.ui_button("note", "📒 ひとこと", {at: "bottom_right", dx: -30, dy: -250, w: 150, h: 44, size: 14, bg: "#92400E", radius: 12})
+  end
+end
+
+-- 1秒ごと: 近くのブースの看板と、ボタン（近くのブースが変わったときだけ作りなおす）
+func near_step(p)
+  let key = near_booth(p)
+  if key != p.near then
+    p.near = key
+    near_ui(p, key)
+  end
+  if key != nil then
+    let line = sign_line(key)
+    let b = booths[key]
+    if b.theme == "talk" and len(b.notes) > 0 then
+      let last = slice(b.notes, max(1, len(b.notes) - 2), len(b.notes))
+      line = line + "\n💬 " + join(map(last, func(n) return n.from + "「" + n.text + "」" end), "  ")
+    end
+    p.ui_text("sign", "🪧 " + line, {at: "center", dy: -170, size: 16, bold: true})
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "booth") then touch_pad(p, split(b.name, " ")[2]) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "theme_") then
+    open_booth(p, replace(id, "theme_", ""))
+  elif id == "themes_close" then
+    p.ui_remove("themes")
+  elif id == "o_sign" then
+    edit_sign(p)
+  elif id == "edit_close" then
+    p.ui_remove("editbox")
+  elif id == "o_up" then
+    upgrade_panel(p)
+  elif starts_with(id, "up_") then
+    buy_upgrade(p, replace(id, "up_", ""))
+  elif id == "ups_close" then
+    p.ui_remove("ups")
+  elif id == "o_book" then
+    guestbook_panel(p)
+  elif id == "book_close" then
+    p.ui_remove("book")
+  elif id == "o_close" then
+    let key = booth_of(p)
+    if key != nil then
+      close_booth(key)
+      clear_near_ui(p)
+      p.message("🚪 お店をたたんだ", 1.5)
+    end
+  elif id == "like" and p.near != nil then
+    like_booth(p, p.near)
+  elif id == "note" and p.near != nil then
+    note_box(p, p.near)
+  elif id == "note_close" then
+    p.ui_remove("notebox")
+  end
+end
+
+on input(p, id, text)
+  let clean = slice(trim(text), 1, 40)
+  if clean == "" then return end
+  if id == "sign_text" then
+    let key = booth_of(p)
+    if key != nil then
+      booths[key].sign = clean
+      p.ui_remove("editbox")
+      p.message("🪧 看板を書きかえた", 1.5)
+    end
+  elif id == "note_text" and p.note_key != nil and booths[p.note_key] != nil then
+    let key = p.note_key
+    add_note(key, p.name, slice(clean, 1, 30))
+    p.ui_remove("notebox")
+    p.message("📒 書いた！", 1)
+    kit_quest_progress(p, "note", 1)
+    if booths[key].theme == "talk" then visited(p, key) end
+  end
+end

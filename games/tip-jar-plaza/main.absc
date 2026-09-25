@@ -1,134 +1,108 @@
--- Tip Jar Plaza — ブースを出して、チップ（ゲーム内のコイン）をおくり合う
+-- Tip Jar Plaza — 広場にブースを出して、チップ（ゲーム内のコイン）をおくり合う
+--
+-- ファイル:
+--   data.absc        テーマ・改装・うらない・チップ・NPC
+--   common.absc      ブースの記録・近くのブース・チップ入れ・看板
+--   activities.absc  テーマごとの遊び（うらない・おかし・演奏・ドット絵・反射神経・ひとこと）
+--   booth.absc       ブースを出す・たたむ・看板・改装・ゲストブック・いいね・ボタン
+--   plaza.absc       NPCのお店とお客さん・風船・ゴミ・噴水・ステージ・昼と夜
+--   tips.absc        チップをおくる・お礼
+--   main.absc        このファイル
+--
+-- ※ チップはこのゲームの中だけのコインです。本物のお金はいっさい使いません。
 
 kit_setup("Tip Jar Plaza", "ブースを出して、なかよくチップ", [
-  "緑のパッドにさわると、そのブースがあなたのお店に",
-  "「✏️ 看板」で看板のメッセージを書ける（近くの人に見える）",
-  "遊んでいると1分ごとにチップ（ゲーム内のコイン）がたまる",
-  "ほかの人のブースの近くで「💝 チップ」を押すとプレゼント",
-  "噴水にさわると、ときどき幸運のチップ",
+  "🏪 緑のパッドでブースを出す。🔮うらない 🍩おかし 🎵音楽 🎨アート 🎮ゲーム 💬おしゃべり から選べる",
+  "💝 ほかのお店の前で「チップ」。金額とひとことをえらんでおくる",
+  "❤️ いいね・📒 ひとこと・テーマの遊びで、お店の⭐が上がる。⭐が多いほどお客さんが来る",
+  "🛠 もらったチップで改装（ひさし・ライト・植木・ネオン看板・大きなジャー）",
+  "🎈 風船・🧹 ゴミひろい・⛲ 噴水・🎤 ステージでもチップがたまる",
   "※ 本物のお金はいっさい使いません"
 ])
 kit_currency = "チップ"
 
-let booths = {}     -- ブース番号 → {owner, name, sign, raised}
-
 kit_quest("booth", "ブースを出す", 1, 20)
-kit_quest("give", "チップを3回おくる", 3, 60)
-kit_quest("get", "チップを50もらう", 50, 100)
+kit_quest("give", "チップを5回おくる", 5, 60)
+kit_quest("get", "チップを100もらう", 100, 120)
+kit_quest("like", "5つのお店にいいね", 5, 40)
+kit_quest("note", "ゲストブックに3回書く", 3, 40)
+kit_quest("themes", "4種類のお店で遊ぶ", 4, 80)
+kit_quest("upgrade", "ブースを3回改装", 3, 100)
+kit_quest("balloon", "風船を10こわる", 10, 60)
+kit_quest("clean", "ゴミを10こひろう", 10, 60)
+kit_quest("perform", "3回パフォーマンスする", 3, 80)
+kit_quest("clap", "10回拍手する", 10, 40)
+kit_quest("thanks", "お礼を3回おくる", 3, 50)
 
-func booth_of(p)
-  for key in keys(booths) do
-    if booths[key].owner == p.id then return key end
-  end
-  return nil
-end
+kit_shop_title = "広場のファッション"
+kit_shop_add("cap", "🧢 キャップ", 20, func(p) p.hat = "cap" end)
+kit_shop_add("antenna", "📡 アンテナ", 60, func(p) p.hat = "antenna" end)
+kit_shop_add("halo", "😇 天使の輪", 150, func(p) p.hat = "halo" end)
+kit_shop_add("crown", "👑 広場の王冠", 500, func(p) p.hat = "crown" end)
+kit_shop_add("sunny", "🌻 ひまわりの服", 80, func(p)
+  p.color = "#FACC15"
+  p.leg_color = "#65A30D"
+end)
+kit_shop_add("night", "🌙 夜空の服", 80, func(p)
+  p.color = "#1E3A8A"
+  p.leg_color = "#FDE047"
+end)
+kit_shop_add("scooter", "🛴 キックスクーター", 250, func(p)
+  p.ride = "scooter"
+  p.ride_color = "#F472B6"
+end)
 
-func near_booth(p)
-  for key in keys(booths) do
-    if distance(p, block("Booth " + key + " Counter")) < 7 then return key end
+func open_stats(p)
+  p.ui_remove("stats")
+  p.ui_panel("stats", {at: "center", w: 420, h: 250, bg: "#1C1917F0", radius: 18, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の記録", {parent: "stats", y: 0.12, size: 18, bold: true, color: "gold"})
+  let mine = "まだお店はない"
+  let key = booth_of(p)
+  if key != nil then
+    let b = booths[key]
+    mine = theme_of(b.theme).name + " " + stars_text(booth_stars(b)) + "  💝" + b.raised + "  ❤️" + b.likes + "  🙋" + b.visits
   end
-  return nil
+  let rx = "まだ"
+  if p.best_rx != nil then rx = p.best_rx + " ms" end
+  let lines = [
+    "🏪 " + mine,
+    "💝 おくった: " + p.tips_given + "   もらった: " + p.tips_got,
+    "❤️ いいねした: " + (p.likes_given or 0) + "   🙏 お礼をもらった: " + (p.thanks_got or 0),
+    "🧹 ひろったゴミ: " + (p.cleaned or 0) + "   ⚡ 反射神経: " + rx
+  ]
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats", y: 0.2 + i * 0.15, size: 14, color: "#E7E5E4"})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats", y: 0.9, w: 110, h: 28, size: 13, bg: "gray"})
 end
 
 on start()
-  every(60, func()
-    for p in players() do kit_give(p, 5) end
-  end)
-  every(1, func()
-    for p in players() do
-      let key = near_booth(p)
-      if key != nil and booths[key] != nil then
-        let b = booths[key]
-        p.ui_text("sign", "🪧 " + b.name + " のお店: 「" + b.sign + "」  💝 " + b.raised, {at: "center", dy: -160, size: 18, bold: true})
-        if b.owner != p.id then
-          p.ui_button("tip", "💝 チップ 5", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 60, size: 17, bg: "#DB2777", radius: 16})
-        else
-          p.ui_remove("tip")
-        end
-        p.near = key
-      else
-        p.ui_remove("sign")
-        p.ui_remove("tip")
-        p.near = nil
-      end
-    end
-  end)
   every(10, func() kit_leaderboard("💝 もらった") end)
 end
 
 on join(p)
+  p.tips_given = 0
+  p.tips_got = 0
   kit_welcome(p)
   kit_quest_button(p)
-  kit_give(p, 20)
-  p.ui_button("edit", "✏️ 看板", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0EA5E9"})
+  kit_shop_button(p)
+  p.ui_button("stats_open", "📊 記録", {at: "right", dy: 180, w: 150, h: 50, size: 17, bg: "#0F766E"})
+  kit_give(p, 30)
+  p.near = nil
+  p.message("🏪 緑のパッドでお店を出そう！ チップはゲームの中だけのコインです", 3)
 end
 
 on leave(p)
   let key = booth_of(p)
-  if key != nil then
-    remove(booths, key)
-    block("Booth " + key + " Sign").color = "#FFFFFF"
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "booth") then
-    let key = split(b.name, " ")[2]
-    if booths[key] == nil and booth_of(p) == nil then
-      booths[key] = {owner: p.id, name: p.name, sign: "いらっしゃい！", raised: 0}
-      block("Booth " + key + " Sign").color = p.color
-      p.message("🏪 ブース " + key + " があなたのお店に！「✏️ 看板」で書こう", 3)
-      kit_quest_progress(p, "booth", 1)
-    end
-  elif contains(b.tags, "wish") and kit_ready(p, "wish", 20) then
-    if random() < 0.3 then
-      kit_give(p, 10)
-      p.message("⛲ 幸運のチップ +10！", 2)
-    else
-      p.message("⛲ …願いごとをした", 1.5)
-    end
-  end
+  if key != nil then close_booth(key) end
 end
 
 on button(p, id)
-  if id == "edit" then
-    if booth_of(p) == nil then
-      p.message("まず緑のパッドでブースを出そう", 1.5)
-      return
-    end
-    p.ui_panel("editbox", {at: "center", w: 420, h: 150, bg: "#111827EE", radius: 20, layer: 30})
-    p.ui_text("edit_t", "看板のメッセージ", {parent: "editbox", y: 0.2, size: 18, bold: true})
-    p.ui_input("sign_text", "例: 絵をかきます！", {parent: "editbox", y: 0.55, w: 340})
-    p.ui_button("edit_close", "閉じる", {parent: "editbox", y: 0.85, w: 110, h: 32, size: 13, bg: "gray"})
-  elif id == "edit_close" then
-    p.ui_remove("editbox")
-  elif id == "tip" and p.near != nil then
-    let b = booths[p.near]
-    if b == nil or b.owner == p.id then return end
-    if kit_pay(p, 5) then
-      b.raised = b.raised + 5
-      kit_quest_progress(p, "give", 1)
-      for q in players() do
-        if q.id == b.owner then
-          kit_give(q, 5)
-          q.score = b.raised
-          kit_quest_progress(q, "get", 5)
-          q.message("💝 " + p.name + " からチップ 5！", 2)
-        end
-      end
-      announce("💝 " + p.name + " → " + b.name + " にチップ！", 2)
-    end
-  end
-end
-
-on input(p, id, text)
-  if id == "sign_text" then
-    let key = booth_of(p)
-    if key != nil then
-      booths[key].sign = slice(trim(text), 1, 40)
-      p.ui_remove("editbox")
-      p.message("🪧 看板を書きかえた", 1.5)
-    end
+  if id == "stats_open" then
+    open_stats(p)
+  elif id == "stats_close" then
+    p.ui_remove("stats")
   end
 end

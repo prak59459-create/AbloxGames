@@ -31,7 +31,7 @@ let miniGames: [Game] = [
          summary: "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",
          tags: ["pvp", "shark", "ocean"], maxPlayers: 12, build: sharkBay),
     Game(number: 80, id: "tip-jar-plaza", title: "Tip Jar Plaza",
-         summary: "自分のお店ブースを出して、メッセージを書こう。遊んでたまったチップを、気に入ったブースにプレゼント！（ゲーム内のコインだけです）",
+         summary: "広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです）",
          tags: ["social", "chill", "booths"], maxPlayers: 16, build: tipJarPlaza),
 ]
 
@@ -757,17 +757,62 @@ func sharkBay(_ m: MapBuilder) {
 
 func tipJarPlaza(_ m: MapBuilder) {
     m.sunset(ground: "#A3A3A3")
+    m.part("Cover Focus", at: (0, 1, 4), size: (60, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
     m.ground(120, 120, color: "#D6D3D1", name: "Plaza")
+    // Paving rings round the fountain.
+    for (k, r) in ([10, 20, 34] as [Float]).enumerated() {
+        m.part("Paving Ring", at: (0, 0.01, 0), size: (r * 2, 0.02, r * 2), color: ["#E7E5E4", "#D6D3D1", "#E7E5E4"][k], shape: .cylinder,
+               material: .matte, solid: false)
+    }
     m.part("Fountain", at: (0, 0.5, 0), size: (8, 1, 8), color: "#BFDBFE", shape: .cylinder, material: .metal)
     m.water(0, 0, w: 7, d: 7, y: 1.05, name: "Fountain Water", tags: ["wish"])
-    m.spawnRing(0, 0, radius: 8, count: 10, color: "#FDE68A")
-    for (i, p) in ring(12, radius: 28).enumerated() {
-        let n = i + 1
-        m.slab("Booth \(n) Counter", x: p.0, y: 0, z: p.1, w: 4, h: 1.1, d: 2, color: "#78350F")
-        m.part("Booth \(n) Sign", at: (p.0, 3, p.1), size: (4, 1.2, 0.3), color: "#FFFFFF", material: .neon)
-        m.pillar("Booth \(n) Pole", x: p.0 - 1.8, z: p.1, height: 3, radius: 0.1, color: "#57534E")
-        m.pillar("Booth \(n) Pole", x: p.0 + 1.8, z: p.1, height: 3, radius: 0.1, color: "#57534E")
-        m.pad("Booth \(n)", x: p.0 * 0.9, z: p.1 * 0.9, size: 2.2, color: "#22C55E", tags: ["booth"])
+    m.part("Fountain Spout", at: (0, 2, 0), size: (0.8, 2, 0.8), color: "#E0F2FE", shape: .cylinder, material: .metal)
+    m.part("Fountain Top", at: (0, 3.2, 0), size: (2.4, 0.5, 2.4), color: "#BFDBFE", shape: .cylinder, material: .glass, solid: false, opacity: 0.8)
+    m.spawnRing(0, 0, radius: 7, count: 10, color: "#FDE68A")
+    for (i, q) in ring(6, radius: 13, phase: 0.26).enumerated() {
+        let a = atan2(q.1, q.0) * 180 / .pi
+        m.slab("Bench", x: q.0, y: 0, z: q.1, w: 3, h: 0.5, d: 0.9, color: "#92400E", rotation: (0, 90 - a, 0))
+        m.slab("Bench Back", x: q.0 * 1.06, y: 0.5, z: q.1 * 1.06, w: 3, h: 0.7, d: 0.2, color: "#78350F", rotation: (0, 90 - a, 0))
+        if i % 2 == 0 { m.part("Flower Pot", at: (q.0 * 0.86, 0.4, q.1 * 0.86), size: (0.8, 0.8, 0.8), color: "#F472B6", shape: .sphere, solid: false) }
     }
-    for i in 0..<8 { m.lamp(-42 + Float(i) * 12, 44) }
+    // Twelve booths round the plaza, each facing the fountain: counter, sign, jar, and an awning and a light the owner can add.
+    for (i, q) in ring(12, radius: 28).enumerated() {
+        let n = i + 1
+        let a = atan2(q.1, q.0)
+        let tx = -sin(a), tz = cos(a)          // along the counter
+        let ox = cos(a), oz = sin(a)           // outward, away from the fountain
+        let yaw = 90 - a * 180 / .pi
+        m.slab("Booth \(n) Counter", x: q.0, y: 0, z: q.1, w: 4, h: 1.1, d: 1.6, color: "#78350F", rotation: (0, yaw, 0))
+        let pastel = ["#FCE7F3", "#E0F2FE", "#DCFCE7", "#FEF9C3", "#EDE9FE", "#FFEDD5"][i % 6]
+        m.slab("Booth \(n) Back", x: q.0 + ox * 1.8, y: 0, z: q.1 + oz * 1.8, w: 4.4, h: 3.2, d: 0.2, color: pastel, rotation: (0, yaw, 0))
+        m.part("Booth \(n) Sign", at: (q.0 + ox * 1.7, 3.6, q.1 + oz * 1.7), size: (4, 1.1, 0.3), color: "#FFFFFF", material: .neon,
+               rotation: (0, yaw, 0))
+        for sgn: Float in [-1, 1] {
+            m.pillar("Booth \(n) Pole", x: q.0 + tx * sgn * 2 + ox * 1.7, z: q.1 + tz * sgn * 2 + oz * 1.7, height: 4.2, radius: 0.1, color: "#57534E")
+        }
+        m.part("Booth \(n) Jar", at: (q.0 + tx * 1.3, 1.55, q.1 + tz * 1.3), size: (0.8, 0.9, 0.8), color: "#E0F2FE", shape: .cylinder,
+               material: .glass, solid: false, opacity: 0.45)
+        m.part("Booth \(n) Coins", at: (q.0 + tx * 1.3, 1.14, q.1 + tz * 1.3), size: (0.66, 0.06, 0.66), color: "#FACC15", shape: .cylinder,
+               material: .neon, solid: false)
+        m.part("Booth \(n) Awning", at: (q.0 + ox * 0.6, 4.35, q.1 + oz * 0.6), size: (4.8, 0.2, 3), color: "#F43F5E", tags: ["awning"],
+               solid: false, visible: false, rotation: (12, yaw, 0))
+        m.part("Booth \(n) Light", at: (q.0 - tx * 1.4, 1.5, q.1 - tz * 1.4), size: (0.5, 0.5, 0.5), color: "#FDE047", shape: .sphere,
+               material: .neon, tags: ["boothlight"], solid: false, visible: false)
+        m.pad("Booth \(n)", x: q.0 * 0.88, z: q.1 * 0.88, size: 2.2, color: "#22C55E", tags: ["booth"])
+    }
+    // The street stage on the north side.
+    m.slab("Stage", x: 0, y: 0, z: -46, w: 14, h: 0.8, d: 7, color: "#7C2D12", tags: ["stage"])
+    m.slab("Stage Back", x: 0, y: 0.8, z: -49.3, w: 14, h: 4.5, d: 0.3, color: "#1E1B4B")
+    m.part("Stage Star", at: (0, 3.6, -49), size: (2.4, 2.4, 0.2), color: "#FACC15", material: .neon, tags: ["stagelight"], solid: false)
+    for x: Float in [-6, -2, 2, 6] {
+        m.part("Stage Bulb", at: (x, 5.4, -49), size: (0.6, 0.6, 0.6), color: "#FEF3C7", shape: .sphere, material: .neon, tags: ["stagelight"], solid: false)
+    }
+    m.stairs(-2, -42.2, y: 0, steps: 2, rise: 0.4, run: 1, width: 3, color: "#92400E", name: "Stage Step")
+    // Lamps and trees round the edge.
+    for (i, q) in ring(10, radius: 40, phase: 0.31).enumerated() {
+        m.lamp(q.0, q.1, name: "Lamp \(i + 1)")
+    }
+    for q in ring(8, radius: 50, phase: 0.1) { m.tree(q.0, q.1, height: 5, leaves: "#65A30D") }
+    m.part("Balloon Cart", at: (38, 0.8, 22), size: (2.4, 1.6, 1.4), color: "#F97316")
+    m.part("Balloon Cart Balloon", at: (38, 3.2, 22), size: (1.2, 1.5, 1.2), color: "#F43F5E", shape: .sphere, solid: false)
 }

@@ -1,0 +1,108 @@
+-- tips.absc — チップをおくる・お礼・チップ入れ
+--
+-- 「💝 チップ」で金額（1・5・10・50）とひとこと（いいね！など）をえらんでおくる。
+-- もらったチップは店主のものになり、ブースのチップ入れに金色のコインがたまっていく。
+-- 店主は「🙏 お礼」で、最後にチップをくれた人にお礼をおくれる。
+
+func tip_panel(p)
+  let key = p.near
+  if key == nil or booths[key] == nil then return end
+  let b = booths[key]
+  if b.owner == p.id then return end
+  p.tip_key = key
+  if p.tip_word == nil then p.tip_word = 1 end
+  p.ui_remove("tipbox")
+  p.ui_panel("tipbox", {at: "center", w: 480, h: 250, bg: "#500724F0", radius: 22, layer: 30})
+  p.ui_text("tip_t", "💝 " + b.name + " のお店にチップ（あなた: 💝" + kit_money(p) + "）", {parent: "tipbox", y: 0.12, size: 16, bold: true, color: "#FBCFE8"})
+  let i = 0
+  for amount in TIP_PRESETS do
+    i = i + 1
+    let bg = "#DB2777"
+    if kit_money(p) < amount then bg = "#6B7280" end
+    p.ui_button("tip_" + amount, "💝 " + amount, {parent: "tipbox", x: (i - 0.5) / len(TIP_PRESETS), y: 0.36, w: 100, h: 52, size: 17, bg: bg})
+  end
+  let k = 0
+  for w in TIP_WORDS do
+    k = k + 1
+    let bg = "#831843"
+    if k == p.tip_word then bg = "#BE185D" end
+    p.ui_button("tipword_" + k, w, {parent: "tipbox", x: (k - 0.5) / len(TIP_WORDS), y: 0.62, w: 108, h: 36, size: 12, bg: bg})
+  end
+  p.ui_text("tip_note", "※ ゲームの中のチップだけ。本物のお金は使いません", {parent: "tipbox", y: 0.8, size: 11, color: "#F9A8D4"})
+  p.ui_button("tip_close", "閉じる", {parent: "tipbox", y: 0.92, w: 110, h: 28, size: 13, bg: "gray"})
+end
+
+func send_tip(p, amount)
+  let key = p.tip_key
+  if key == nil or booths[key] == nil then
+    p.ui_remove("tipbox")
+    return
+  end
+  let b = booths[key]
+  if b.owner == p.id or not kit_pay(p, amount) then return end
+  let word = TIP_WORDS[p.tip_word or 1]
+  receive_tip(key, amount, p.name, p.id, word)
+  p.tips_given = p.tips_given + amount
+  kit_quest_progress(p, "give", 1)
+  if amount >= 50 then kit_badge(p, "patron", "太っ腹なパトロン") end
+  p.sound("collect")
+  p.message("💝 " + amount + " チップをおくった！ " + word, 1.5)
+  tip_panel(p)
+end
+
+-- どこからのチップでもここを通る（NPCのお客さんからも）
+func receive_tip(key, amount, from_name, from_id, word)
+  let b = booths[key]
+  if b == nil then return end
+  b.raised = b.raised + amount
+  b.last_tipper = from_id
+  b.last_tipper_name = from_name
+  update_jar(key)
+  let o = owner_player(b)
+  if o != nil then
+    kit_give(o, amount)
+    o.tips_got = o.tips_got + amount
+    o.score = o.tips_got
+    kit_quest_progress(o, "get", amount)
+    o.message("💝 " + from_name + " から " + amount + " チップ！ " + word, 2)
+    o.sound("collect")
+    -- お礼ボタンを出す
+    if o.near == key then near_ui(o, key) end
+  end
+  if amount >= 10 then announce("💝 " + from_name + " → " + b.name + " のお店に " + amount + " チップ！ " + word, 2.5) end
+  tip_feed("💝 " + from_name + " → " + b.name + "  " + amount)
+end
+
+func send_thanks(p)
+  let key = booth_of(p)
+  if key == nil then return end
+  let b = booths[key]
+  if b.last_tipper == nil or not quiet_ready(p, "thanks", 5) then return end
+  for q in players() do
+    if q.id == b.last_tipper then
+      q.message("🙏 " + p.name + " からお礼がとどいた！（+1）", 2.5)
+      kit_give(q, 1)
+      q.thanks_got = (q.thanks_got or 0) + 1
+    end
+  end
+  p.message("🙏 " + (b.last_tipper_name or "お客さん") + " にお礼をおくった", 1.5)
+  kit_quest_progress(p, "thanks", 1)
+  b.last_tipper = nil
+  near_ui(p, key)
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "tip" then
+    tip_panel(p)
+  elif starts_with(id, "tip_") and id != "tip_close" then
+    send_tip(p, num(replace(id, "tip_", "")))
+  elif starts_with(id, "tipword_") then
+    p.tip_word = num(replace(id, "tipword_", ""))
+    tip_panel(p)
+  elif id == "tip_close" then
+    p.ui_remove("tipbox")
+  elif id == "o_thanks" then
+    send_thanks(p)
+  end
+end

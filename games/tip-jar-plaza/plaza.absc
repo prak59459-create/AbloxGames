@@ -1,0 +1,386 @@
+-- plaza.absc — 広場: NPCのお店とお客さん・風船・ゴミひろい・噴水・ステージ・昼と夜
+--
+-- ひとりで遊んでいても広場がにぎやかなように、NPCのお店が3つと、ぶらぶら歩くお客さんがいる。
+-- お客さんは人気のあるブース（⭐が多い・改装している）によく来て、いいね・チップ・ひとことをくれる。
+
+let visitors = []
+let balloons = []
+let litter = []
+let stage_show = nil        -- {pid, name, until, claps}
+let sky_phase = ""
+let light_clock = 0
+let think_clock = 0
+let spin_clock = 0
+let SKIN = ["#FDE68A", "#F5D0A9", "#D6A77A", "#A0785A", "#FBCFE8"]
+let SHIRTS = ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B", "#A855F7", "#EC4899", "#14B8A6", "#F97316"]
+
+-- MARK: NPCのお店
+
+func open_npc_shops()
+  for s in NPC_SHOPS do
+    let key = str(s.booth)
+    if booths[key] == nil then
+      let b = new_booth("npc:" + key, s.name, s.theme, true)
+      b.sign = s.sign
+      booths[key] = b
+      let c = booth_part(key, "Counter")
+      let a = atan2(c.z, c.x)
+      b.keeper = create_npc({name: s.name, position: {x: c.x + cos(a) * 1.2, y: 0.5, z: c.z + sin(a) * 1.2}, color: s.color, head_color: "#FDE68A",
+                             size: 1, health: 100, speed: 0, team: "plaza"})
+      if s.theme == "art" then make_canvas(key) end
+      paint_booth(key)
+    end
+  end
+end
+
+-- MARK: NPCのお客さん
+
+func spawn_visitors()
+  for k in 1 to NPC_VISITORS do
+    let n = create_npc({name: NPC_NAMES[k], position: {x: random() * 40 - 20, y: 1, z: random() * 40 - 20}, color: SHIRTS[random(1, len(SHIRTS))],
+                        head_color: SKIN[random(1, len(SKIN))], size: 0.9 + random() * 0.15, health: 100, speed: 0.45, team: "plaza"})
+    n.busy_until = time() + random() * 3
+    n.goal_key = nil
+    n.claps = 0
+    append(visitors, n)
+  end
+end
+
+-- 人気のブースほど、えらばれやすい
+func pick_booth_for(n)
+  let total = 0
+  let list = []
+  for key in keys(booths) do
+    let b = booths[key]
+    let w = 1
+    if not b.npc then w = 3 + booth_stars(b) * 2 + len(b.ups) * 2 end
+    append(list, {key: key, w: w})
+    total = total + w
+  end
+  if total == 0 then return nil end
+  let r = random() * total
+  for item in list do
+    r = r - item.w
+    if r <= 0 then return item.key end
+  end
+  return list[len(list)].key
+end
+
+func visitor_think(n)
+  if not kit_here(n) or time() < n.busy_until then return end
+  if n.goal_key != nil then
+    let key = n.goal_key
+    n.goal_key = nil
+    if booths[key] != nil and distance(n, block("Booth " + key)) < 4 then npc_visit(n, key) end
+    n.busy_until = time() + 3 + random() * 4
+    return
+  end
+  if stage_show != nil and random() < 0.6 then
+    n.move_to({x: random() * 12 - 6, y: 0, z: -38 + random() * 3})
+    n.busy_until = time() + 7
+    return
+  end
+  if random() < 0.65 then
+    let key = pick_booth_for(n)
+    if key != nil then
+      let pad = block("Booth " + key)
+      n.move_to({x: pad.x + random() - 0.5, y: 0, z: pad.z + random() - 0.5})
+      n.goal_key = key
+      n.busy_until = time() + distance(n, pad) / 2.25 + 0.8
+      return
+    end
+  end
+  n.move_to({x: random() * 48 - 24, y: 0, z: random() * 48 - 24})
+  n.busy_until = time() + 4 + random() * 4
+end
+
+func npc_visit(n, key)
+  let b = booths[key]
+  b.visits = b.visits + 1
+  let o = owner_player(b)
+  if b.liked[n.name] != true and random() < 0.4 then
+    b.liked[n.name] = true
+    b.likes = b.likes + 1
+    n.say("❤️")
+    if o != nil then o.message("❤️ " + n.name + "（お客さん）がいいね！", 1.5) end
+  end
+  let chance = 0.25 + booth_stars(b) * 0.05 + len(b.ups) * 0.05
+  if b.npc then chance = 0.1 end
+  if random() < chance then
+    receive_tip(key, random(1, 2 + booth_stars(b)), n.name, n.id, TIP_WORDS[random(1, len(TIP_WORDS))])
+    n.say("💝")
+  end
+  if random() < 0.15 then add_note(key, n.name, NPC_NOTES[random(1, len(NPC_NOTES))]) end
+  if b.theme == "music" and time() < b.show_until and b.clapped[n.name] != true then
+    b.clapped[n.name] = true
+    if o != nil then
+      kit_give(o, 1)
+      o.message("👏 " + n.name + " の拍手！ +1", 1)
+    end
+  end
+  let lines = {fortune: "🔮 大吉だって！", snack: "🍩 おいしい！", music: "🎵 いい曲〜", art: "🎨 すてきな絵！", game: "🎮 はやっ！", talk: "💬 こんにちは！"}
+  if random() < 0.5 then n.say(lines[b.theme]) end
+end
+
+-- MARK: 風船・ゴミ・噴水
+
+func spawn_balloon()
+  balloons = filter(balloons, func(x) return x.id != nil end)
+  if len(balloons) >= BALLOON_MAX then return end
+  let a = random() * 360
+  let r = 8 + random() * 34
+  let b = create_block({name: "Balloon", position: {x: cos(a) * r, y: 1.6, z: sin(a) * r}, size: {x: 1, y: 1.3, z: 1},
+                        color: SHIRTS[random(1, len(SHIRTS))], shape: "sphere", material: "neon", solid: false, behavior: "trigger", tags: ["balloon"]})
+  append(balloons, b)
+end
+
+func spawn_litter()
+  litter = filter(litter, func(x) return x.id != nil end)
+  if len(litter) >= LITTER_MAX then return end
+  let a = random() * 360
+  let r = 6 + random() * 36
+  let b = create_block({name: "Litter", position: {x: cos(a) * r, y: 0.2, z: sin(a) * r}, size: {x: 0.5, y: 0.3, z: 0.4},
+                        color: "#F5F5F4", shape: "box", solid: false, behavior: "trigger", tags: ["litter"]})
+  append(litter, b)
+end
+
+func pop_balloon(p, b)
+  if b.id == nil then return end
+  kit_gone(b)
+  let got = random(2, 5)
+  kit_give(p, got)
+  p.message("🎈 パン！ +" + got, 1)
+  p.sound("collect")
+  kit_quest_progress(p, "balloon", 1)
+end
+
+func pick_litter(p, b)
+  if b.id == nil then return end
+  kit_gone(b)
+  kit_give(p, 1)
+  p.message("🧹 ゴミをひろった +1", 0.8)
+  p.cleaned = (p.cleaned or 0) + 1
+  kit_quest_progress(p, "clean", 1)
+  if p.cleaned >= 25 then kit_badge(p, "clean", "広場のそうじ名人") end
+end
+
+func make_wish(p)
+  if not quiet_ready(p, "wish", WISH_COOLDOWN) then return end
+  if random() < 0.3 then
+    kit_give(p, 10)
+    p.message("⛲ 幸運のチップ +10！", 2)
+    p.sound("goal")
+  else
+    p.message("⛲ …願いごとをした（" + WISH_COOLDOWN + "秒後にまた）", 1.5)
+  end
+end
+
+-- MARK: ステージ
+
+func on_stage(p)
+  return abs(p.x) < 7 and p.z > -49.5 and p.z < -42.5 and p.y > 0.6
+end
+
+func start_show(p)
+  if stage_show != nil or not quiet_ready(p, "show", 15) then return end
+  stage_show = {pid: p.id, name: p.name, until: time() + 10, claps: {}}
+  announce("🎤 " + p.name + " がステージでパフォーマンス中！ 近くの人は 👏 で応援", 3)
+  kit_quest_progress(p, "perform", 1)
+  for k in 1 to 10 do
+    kit_later(p, k * 0.2, func() p.yaw = p.yaw + 36 end)
+  end
+  for q in players() do
+    if ready(q) and q.id != p.id and distance(q, p) < 35 then
+      q.ui_button("stage_clap", "👏 ステージに拍手", {at: "bottom", dy: -60, w: 220, h: 56, size: 16, bg: "#7C3AED", radius: 16})
+    end
+  end
+end
+
+func clap_show(q)
+  if stage_show == nil or q.id == stage_show.pid then return end
+  let n = stage_show.claps[q.id] or 0
+  if n >= 5 or not quiet_ready(q, "clap", 1.2) then return end
+  stage_show.claps[q.id] = n + 1
+  kit_quest_progress(q, "clap", 1)
+  for p in players() do
+    if p.id == stage_show.pid then
+      kit_give(p, 1)
+      p.message("👏 " + q.name + " の拍手！ +1", 0.8)
+    end
+  end
+end
+
+func end_show()
+  stage_show = nil
+  for q in players() do q.ui_remove("stage_clap") end
+  for l in blocks("stagelight") do l.color = "#FEF3C7" end
+end
+
+func show_step()
+  if stage_show == nil then return end
+  if time() >= stage_show.until then
+    end_show()
+    return
+  end
+  let colors = ["#F472B6", "#22D3EE", "#FACC15", "#A78BFA", "#86EFAC"]
+  let k = 0
+  for l in blocks("stagelight") do
+    k = k + 1
+    l.color = colors[(k + floor(time() * 2)) % len(colors) + 1]
+  end
+  -- 見ているNPCも拍手する
+  for n in visitors do
+    if kit_here(n) and n.z < -34 and n.z > -44 and abs(n.x) < 10 and random() < 0.3 then
+      let c = stage_show.claps[n.name] or 0
+      if c < 3 then
+        stage_show.claps[n.name] = c + 1
+        for p in players() do
+          if p.id == stage_show.pid then kit_give(p, 1) end
+        end
+        n.say("👏")
+      end
+    end
+  end
+end
+
+-- MARK: 昼と夜
+
+func sky_step()
+  let t = ((time() + DAY_LENGTH * 0.42) % DAY_LENGTH) / DAY_LENGTH
+  let ph = "day"
+  if t >= 0.4 and t < 0.55 then
+    ph = "sunset"
+  elif t >= 0.55 and t < 0.85 then
+    ph = "night"
+  elif t >= 0.85 then
+    ph = "dawn"
+  end
+  if ph == sky_phase then return end
+  sky_phase = ph
+  if ph == "day" then
+    world.sky_top = "#5AB2FF"
+    world.sky_bottom = "#CDEBFF"
+    world.light = 0.8
+  elif ph == "sunset" then
+    world.sky_top = "#FF8A5B"
+    world.sky_bottom = "#FFD29D"
+    world.light = 0.6
+  elif ph == "night" then
+    world.sky_top = "#060A1A"
+    world.sky_bottom = "#1B2340"
+    world.light = 0.3
+    announce("🌙 夜になった。ライトのあるブースが光る", 2)
+  else
+    world.sky_top = "#F9A8D4"
+    world.sky_bottom = "#FDE68A"
+    world.light = 0.55
+  end
+  let glow = "#A8A29E"
+  if ph == "night" or ph == "sunset" then glow = "#FFE9A8" end
+  for k in 1 to 10 do
+    let lamp = block("Lamp " + k)
+    if lamp != nil then lamp.color = glow end
+  end
+end
+
+-- ネオン看板の改装をしたブースは、看板の色がくるくる変わる
+func neon_step()
+  let colors = ["#F472B6", "#22D3EE", "#FACC15", "#A78BFA", "#86EFAC", "#FB923C"]
+  for key in keys(booths) do
+    if has_up(booths[key], "neon") then
+      booth_part(key, "Sign").color = colors[(floor(time()) + num(key)) % len(colors) + 1]
+    end
+  end
+end
+
+-- NPCのお店も動く: DJは演奏し、画家は絵をかきかえる
+func npc_shop_step()
+  for key in keys(booths) do
+    let b = booths[key]
+    if b.npc and b.theme == "music" then
+      b.show_until = time() + 8
+      b.clapped = {}
+      let c = booth_part(key, "Counter")
+      for k in 1 to 5 do float_note(c, k) end
+      if b.keeper != nil and kit_here(b.keeper) then b.keeper.say("🎵 ライブの時間だよ！") end
+      for q in players() do
+        if ready(q) and distance(q, c) < 14 then
+          q.sound("checkpoint")
+          q.message("🎵 " + b.name + " のライブ！ 👏 で拍手しよう", 2)
+        end
+      end
+    elif b.npc and b.theme == "art" then
+      b.pattern = random(1, len(PATTERNS))
+      b.paint = random(1, len(PAINTS))
+      draw_canvas(key)
+    end
+  end
+end
+
+on start()
+  open_npc_shops()
+  every(30, func() npc_shop_step() end)
+  spawn_visitors()
+  sky_step()
+  every(15, func() spawn_balloon() end)
+  every(20, func() spawn_litter() end)
+  every(60, func()
+    for p in players() do
+      if ready(p) then
+        let bonus = 0
+        let key = booth_of(p)
+        if key != nil then bonus = booth_stars(booths[key]) end
+        kit_give(p, PASSIVE_TIP + bonus)
+        p.message("💝 広場で過ごしたチップ +" + (PASSIVE_TIP + bonus), 1.5)
+      end
+    end
+  end)
+  every(2, func()
+    sky_step()
+    neon_step()
+  end)
+  after(2, func()
+    spawn_balloon()
+    spawn_balloon()
+    spawn_litter()
+  end)
+end
+
+on tick(dt)
+  think_clock = think_clock + dt
+  if think_clock >= 0.5 then
+    think_clock = 0
+    for n in visitors do visitor_think(n) end
+    show_step()
+    for p in players() do
+      if ready(p) then
+        near_step(p)
+        if on_stage(p) and stage_show == nil then
+          p.ui_button("perform", "🎤 パフォーマンス", {at: "bottom", dy: -60, w: 220, h: 56, size: 16, bg: "#DB2777", radius: 16})
+        else
+          p.ui_remove("perform")
+        end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "balloon") then
+    pop_balloon(p, b)
+  elif contains(b.tags, "litter") then
+    pick_litter(p, b)
+  elif contains(b.tags, "wish") then
+    make_wish(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "perform" and on_stage(p) then
+    start_show(p)
+  elif id == "stage_clap" then
+    clap_show(p)
+  end
+end
