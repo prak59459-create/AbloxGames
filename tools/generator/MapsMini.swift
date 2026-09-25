@@ -28,7 +28,7 @@ let miniGames: [Game] = [
          summary: "24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！",
          tags: ["survival", "minigames", "tense"], maxPlayers: 16, build: survivorGames),
     Game(number: 79, id: "shark-attack-bay", title: "Shark Attack Bay",
-         summary: "巨大なサメと、ボートに乗った人間の海上バトル。人間はサメを撃退、サメは全員を海に引きずりこめ！",
+         summary: "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",
          tags: ["pvp", "shark", "ocean"], maxPlayers: 12, build: sharkBay),
     Game(number: 80, id: "tip-jar-plaza", title: "Tip Jar Plaza",
          summary: "自分のお店ブースを出して、メッセージを書こう。遊んでたまったチップを、気に入ったブースにプレゼント！（ゲーム内のコインだけです）",
@@ -679,21 +679,78 @@ func survivorGames(_ m: MapBuilder) {
 
 // MARK: 79 Shark Attack Bay
 
+/// Steps out of the shallow sea (floor at y = -1.2) up to a deck whose top is `top`: 0.4 m risers, walkable without jumping.
+/// (x, z) is the step touching the deck; the steps run away from it along (dx, dz).
+func seaLadder(_ m: MapBuilder, x: Float, z: Float, dx: Float, dz: Float, top: Float, color: String = "#A16207", width: Float = 1.8) {
+    var height = top - 0.4 + 1.2
+    var k: Float = 0
+    while height > 0.05 {
+        let cx = x + dx * k * 0.55, cz = z + dz * k * 0.55
+        m.slab("Ladder", x: cx, y: -1.2, z: cz, w: dx != 0 ? 0.55 : width, h: height, d: dz != 0 ? 0.55 : width, color: color)
+        height -= 0.4
+        k += 1
+    }
+}
+
 func sharkBay(_ m: MapBuilder) {
     m.ocean()
     m.environment.killPlaneHeight = -40
-    m.ground(260, 260, color: "#0C4A6E", name: "Seabed", y: -12)
-    m.water(0, 0, w: 260, d: 260, y: 0, name: "Bay Water", color: "#0284C7", depth: 12, tags: ["sea"])
-    m.slab("Dock", x: 0, y: -1, z: -70, w: 40, h: 1.6, d: 14, color: "#A16207")
-    m.spawnRing(0, -70, y: 0.6, radius: 6, count: 10, color: "#FDE68A")
-    // Boats to stand on.
-    for (i, p) in ring(6, radius: 30).enumerated() {
-        m.slab("Boat \(i + 1)", x: p.0, y: -0.4, z: p.1, w: 5, h: 0.8, d: 9, color: ["#EF4444", "#3B82F6", "#FACC15", "#22C55E", "#F97316", "#A855F7"][i],
-               tags: ["boat"])
-        m.slab("Boat \(i + 1) Rail", x: p.0, y: 0.4, z: p.1 + 4.3, w: 5, h: 0.8, d: 0.3, color: "#FFFFFF")
+    m.part("Cover Focus", at: (0, 0, -8), size: (64, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
+    // A shallow bay: you can stand on the bottom, but wading is slow — and the shark is fast.
+    m.ground(260, 260, color: "#155E75", name: "Sea Floor", y: -1.2, tags: ["seafloor"])
+    m.water(0, 0, w: 260, d: 260, y: 0, name: "Bay Water", color: "#0284C7", depth: 1.2, tags: ["sea"])
+    var r = Seeded("shark-bay")
+    for _ in 0..<26 {
+        let x = r.range(-110, 110), z = r.range(-110, 110)
+        if abs(x) < 40 && abs(z) < 40 { continue }
+        m.part("Seaweed", at: (x, -0.9, z), size: (0.4, 0.8, 0.4), color: "#15803D", shape: .cone, solid: false)
     }
-    m.part("Shark Den", at: (0, -6, 60), size: (1, 1, 1), color: "#000000", visible: false)
-    m.part("Lighthouse", at: (60, 6, -60), size: (4, 14, 4), color: "#FFFFFF", shape: .cylinder)
+    // The dock with the armory, and a pier out toward the boats.
+    m.slab("Dock", x: 0, y: -1.2, z: -70, w: 40, h: 1.8, d: 14, color: "#A16207", tags: ["dock"])
+    m.slab("Pier", x: 0, y: -1.2, z: -50, w: 3.2, h: 1.8, d: 26, color: "#B45309", tags: ["dock"])
+    for z: Float in [-60, -52, -44, -38] {
+        m.pillar("Pier Post", x: -1.8, z: z, y: -1.2, height: 2.8, radius: 0.18, color: "#78350F")
+        m.pillar("Pier Post", x: 1.8, z: z, y: -1.2, height: 2.8, radius: 0.18, color: "#78350F")
+    }
+    seaLadder(m, x: 0, z: -36.6, dx: 0, dz: 1, top: 0.6)
+    seaLadder(m, x: -14, z: -62.7, dx: 0, dz: 1, top: 0.6)
+    seaLadder(m, x: 14, z: -62.7, dx: 0, dz: 1, top: 0.6)
+    m.spawnRing(0, -70, y: 0.6, radius: 6, count: 10, color: "#FDE68A")
+    m.house("Armory", x: -13, z: -73, w: 8, d: 6, h: 3.4, y: 0.6, wall: "#1E3A8A", roof: "#DC2626", floor: "#78350F", door: false, tags: ["armory"])
+    m.part("Armory Sign", at: (-13, 4.7, -69.6), size: (5, 0.9, 0.2), color: "#FACC15", material: .neon, solid: false)
+    m.pad("Armory Pad", x: -13, z: -68.2, y: 0.6, size: 2.6, color: "#FACC15", tags: ["armory"])
+    for (k, x) in ([8, 12, 16] as [Float]).enumerated() {
+        m.slab("Barrel", x: x, y: 0.6, z: -75, w: 1, h: 1.3, d: 1, color: ["#DC2626", "#2563EB", "#16A34A"][k])
+    }
+    // Six boats round the middle, each with a ladder at both ends.
+    let boatColors = ["#EF4444", "#3B82F6", "#FACC15", "#22C55E", "#F97316", "#A855F7"]
+    for (i, q) in ring(6, radius: 26, phase: .pi / 6).enumerated() {
+        let n = i + 1
+        m.slab("Boat \(n)", x: q.0, y: -0.9, z: q.1, w: 5, h: 1.3, d: 9, color: boatColors[i], tags: ["boat"])
+        m.slab("Boat \(n) Deck", x: q.0, y: 0.4, z: q.1, w: 4.2, h: 0.05, d: 8.2, color: "#F5F5F4", tags: ["boatpart"])
+        for sx: Float in [-1, 1] {
+            m.slab("Boat \(n) Rail", x: q.0 + sx * 2.35, y: 0.4, z: q.1, w: 0.3, h: 0.7, d: 7, color: "#FFFFFF", tags: ["boatpart"])
+        }
+        m.part("Boat \(n) Mast", at: (q.0, 2.8, q.1 + 2), size: (0.2, 4.8, 0.2), color: "#78350F", shape: .cylinder, tags: ["boatpart"], solid: false)
+        m.part("Boat \(n) Flag", at: (q.0 + 0.5, 4.8, q.1 + 2), size: (1, 0.6, 0.05), color: boatColors[i], tags: ["boatpart"], solid: false)
+        seaLadder(m, x: q.0, z: q.1 + 4.78, dx: 0, dz: 1, top: 0.4, color: "#F5F5F4", width: 1.6)
+        seaLadder(m, x: q.0, z: q.1 - 4.78, dx: 0, dz: -1, top: 0.4, color: "#F5F5F4", width: 1.6)
+    }
+    // Buoys, the shark's den far out, the lighthouse where the fallen watch and cheer.
+    for q in ring(10, radius: 50, phase: 0.2) {
+        m.part("Buoy", at: (q.0, 0.3, q.1), size: (1, 1, 1), color: "#DC2626", shape: .sphere, solid: false)
+        m.part("Buoy Top", at: (q.0, 1, q.1), size: (0.3, 0.8, 0.3), color: "#F8FAFC", shape: .cylinder, solid: false)
+    }
+    m.part("Shark Den", at: (0, -1.2, 70), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+    m.part("Rock Island", at: (62, -0.5, 58), size: (18, 3, 16), color: "#78716C", shape: .sphere, material: .matte)
+    m.pillar("Lighthouse", x: 62, z: 58, y: 0.6, height: 14, radius: 2.2, color: "#F8FAFC", tags: ["lighthouse"])
+    for k in 0..<3 {
+        m.part("Lighthouse Stripe", at: (62, 3 + Float(k) * 4.2, 58), size: (4.5, 1, 4.5), color: "#DC2626", shape: .cylinder, solid: false)
+    }
+    m.slab("Lighthouse Top", x: 62, y: 14.6, z: 58, w: 9, h: 0.5, d: 9, color: "#475569")
+    m.walls(62, 58, w: 9, d: 9, h: 1, y: 15.1, color: "#94A3B8", thickness: 0.3, name: "Lighthouse Rail")
+    m.part("Lighthouse Lamp", at: (62, 17, 58), size: (2, 2, 2), color: "#FDE047", shape: .sphere, material: .neon, solid: false)
+    m.part("Lighthouse Seat", at: (62, 15.4, 58), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
 }
 
 // MARK: 80 Tip Jar Plaza

@@ -1,0 +1,254 @@
+-- round.absc — ラウンドの流れ: 休けい（サメに立候補）→ サメえらび → 3分の戦い → 結果
+--
+-- サメは立候補した人の中からえらばれる（いなければ全員から。1人のときはCPUのサメ）。
+-- 人間の勝ち: サメをたおす／時間まで1人でも生きのこる。サメの勝ち: 人間を全員たおす。
+
+func round_humans_count()
+  return len(filter(players(), func(p) return ready(p) and p.role == "human" end))
+end
+
+func start_break()
+  phase = "wait"
+  break_until = time() + BREAK_TIME
+  for p in players() do
+    if ready(p) then wait_buttons(p) end
+  end
+end
+
+func wait_buttons(p)
+  let label = "🦈 サメに立候補"
+  let bg = "#0369A1"
+  if p.volunteer then
+    label = "✅ 立候補中（おす と取り消し）"
+    bg = "#15803D"
+  end
+  p.ui_button("volunteer", label, {at: "bottom", dy: -40, w: 260, h: 54, size: 16, bg: bg, radius: 16})
+end
+
+func pick_shark_player()
+  let list = filter(players(), func(p) return ready(p) end)
+  if len(list) < 2 then return nil end
+  let vols = filter(list, func(p) return p.volunteer end)
+  if len(vols) > 0 then return vols[random(1, len(vols))] end
+  -- 立候補がいなければ、前のラウンドにサメだった人以外から
+  let others = filter(list, func(p) return not p.was_shark end)
+  if len(others) == 0 then others = list end
+  return others[random(1, len(others))]
+end
+
+func owned_sharks(p)
+  return filter(SHARKS, func(k) return k.price == 0 or contains(p.sharks or [], k.id) end)
+end
+
+func shark_of(id)
+  for k in SHARKS do
+    if k.id == id then return k end
+  end
+  return SHARKS[1]
+end
+
+func start_round()
+  round_no = round_no + 1
+  phase = "play"
+  ends_at = time() + ROUND_TIME
+  diving_until = 0
+  reset_boats()
+  kit_gone(cpu)
+  cpu = nil
+  kit_gone(chum)
+  chum = nil
+  remove_crate()
+  next_drop = time() + 20
+  next_chum = time() + CHUM_EVERY
+  shark = pick_shark_player()
+  kind = SHARKS[1]
+  if shark != nil then kind = shark_of(shark.pick or "white") end
+  for p in players() do
+    if ready(p) then
+      p.was_shark = false
+      p.ui_remove("volunteer")
+      p.ui_remove("cheer")
+      p.ui_remove("ghost")
+      p.dealt_round = 0
+      if not p.alive then p.respawn() end
+    end
+  end
+  let n = 0
+  for p in players() do
+    if ready(p) and (shark == nil or p.id != shark.id) then
+      n = n + 1
+      p.role = "human"
+      p.team = "human"
+      p.size = 1
+      p.visible = true
+      p.max_health = 100
+      p.heal(999)
+      p.speed = 1
+      p.teleport(dock_spot())
+      loadout(p)
+    end
+  end
+  shark_max = (SHARK_HP_BASE + SHARK_HP_PER * max(1, n)) * kind.hp
+  if shark != nil then
+    shark.role = "shark"
+    shark.team = "shark"
+    shark.was_shark = true
+    shark.volunteer = false
+    shark.take()
+    item_buttons(shark)
+    shark.size = kind.size
+    shark.color = kind.color
+    shark.head_color = kind.head
+    shark.max_health = shark_max
+    shark.heal(999999)
+    shark.speed = kind.speed
+    shark.teleport(block("Shark Den").position + {x: 0, y: 1, z: 0})
+    shark_buttons(shark)
+    shark.message("🦈 あなたは " + kind.name + "！ 人間を全員海にしずめろ", 3)
+    announce("🦈 " + shark.name + " が " + kind.name + " になった！ ボートに乗れ！", 3)
+  else
+    make_cpu_shark()
+    announce("🦈 " + kind.name + "（CPU）が湾にあらわれた！ 桟橋からボートへ！", 3)
+  end
+  make_fin()
+  sound("goal")
+end
+
+func end_round(humans_win, why)
+  if phase != "play" then return end
+  phase = "over"
+  let alive = humans_alive()
+  if humans_win then
+    announce("🎉 人間の勝ち！ " + why, 4)
+    for p in players() do
+      if ready(p) and p.role != "shark" and p.role != nil then
+        kit_give(p, PAY.human_win)
+        p.human_wins = (p.human_wins or 0) + 1
+      end
+    end
+  else
+    announce("🦈 サメの勝ち！ " + why, 4)
+    if shark != nil and kit_here(shark) then
+      kit_give(shark, PAY.shark_win)
+      shark.shark_wins = (shark.shark_wins or 0) + 1
+      kit_badge(shark, "apex", "海の王者")
+    end
+  end
+  for p in alive do
+    kit_give(p, PAY.survive)
+    kit_quest_progress(p, "survive", 1)
+    p.message("🛟 生きのこった！ +" + PAY.survive, 2)
+  end
+  results_panel(humans_win)
+  after(5, func() cleanup_round() end)
+end
+
+func results_panel(humans_win)
+  let list = sort(filter(players(), func(p) return ready(p) end), func(a, b) return (a.dealt_round or 0) > (b.dealt_round or 0) end)
+  let lines = []
+  for p in slice(list, 1, min(5, len(list))) do
+    append(lines, p.name + "  🎯 " + floor(p.dealt_round or 0))
+  end
+  let head = "🎉 人間の勝ち"
+  if not humans_win then head = "🦈 サメの勝ち" end
+  for p in players() do
+    if ready(p) then
+      p.ui_panel("results", {at: "center", w: 360, h: 60 + len(lines) * 26, bg: "#0C4A6EE6", radius: 16, layer: 30})
+      p.ui_text("results_t", head + "（ラウンド " + round_no + "）", {parent: "results", y: 22 / (60 + len(lines) * 26), size: 17, bold: true, color: "gold"})
+      let i = 0
+      for line in lines do
+        i = i + 1
+        p.ui_text("results_" + i, line, {parent: "results", y: (30 + i * 26) / (60 + len(lines) * 26), size: 14})
+      end
+      kit_later(p, 5, func() p.ui_remove("results") end)
+    end
+  end
+end
+
+func cleanup_round()
+  kit_gone(cpu)
+  cpu = nil
+  kit_gone(fin)
+  fin = nil
+  kit_gone(chum)
+  chum = nil
+  remove_crate()
+  reset_boats()
+  for p in players() do
+    if ready(p) then
+      if p.role == "shark" then remove_shark_buttons(p) end
+      p.role = "human"
+      p.team = "human"
+      p.size = 1
+      p.visible = true
+      p.color = p.my_color or p.color
+      p.head_color = p.my_head or p.head_color
+      p.max_health = 100
+      p.speed = 1
+      if not p.alive then p.respawn() end
+      p.heal(999)
+      p.ui_remove("cheer")
+      p.ui_remove("ghost")
+      p.ui_remove("boat_hp")
+      p.ui_remove("repair")
+      p.teleport(dock_spot())
+      p.take()
+      item_buttons(p)
+    end
+  end
+  start_break()
+end
+
+func round_clock()
+  hud()
+  if phase == "wait" then
+    if len(filter(players(), func(p) return ready(p) end)) > 0 and time() >= break_until then start_round() end
+    return
+  end
+  if phase != "play" then return end
+  let s = the_shark()
+  if s == nil then
+    end_round(true, "サメを撃退した！")
+  elif len(humans_alive()) == 0 then
+    end_round(false, "人間は全員やられた…")
+  elif time() >= ends_at then
+    end_round(true, "時間まで生きのこった！")
+  elif shark != nil and not kit_here(shark) then
+    end_round(true, "サメがいなくなった")
+  end
+end
+
+on start()
+  game.respawn_time = 3
+  weapon(HARPOON, {model: "rifle", damage: 95, rate: 0.7, range: 70, ammo: 3, reload: 2.4, spread: 0})
+  break_until = time() + 8
+  every(0.5, func() round_clock() end)
+end
+
+on death(victim, killer)
+  if phase != "play" then return end
+  if is_shark(victim) or (cpu != nil and victim.id == cpu.id) or victim.role == "shark" then
+    if killer != nil and kit_here(killer) and killer.role == "human" then
+      kit_give(killer, PAY.last_hit)
+      kit_quest_progress(killer, "hunt", 1)
+      kit_badge(killer, "hunter", "サメハンター")
+      announce("🎯 " + killer.name + " がサメにとどめ！", 3)
+    end
+    end_round(true, "サメを撃退した！")
+  elif victim.role == "human" then
+    victim.role = "ghost"
+    victim.message("🦈 やられた… 灯台から応援しよう", 2.5)
+    announce("🦈 " + victim.name + " がやられた！ のこり " + len(humans_alive()) + " 人", 2)
+  end
+end
+
+on leave(p)
+  if phase == "play" and shark != nil and p.id == shark.id then end_round(true, "サメがいなくなった") end
+end
+
+on button(p, id)
+  if id == "volunteer" and phase == "wait" then
+    p.volunteer = not p.volunteer
+    wait_buttons(p)
+  end
+end

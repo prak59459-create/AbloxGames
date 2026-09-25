@@ -1,0 +1,144 @@
+-- common.absc — 状態・役わり・海とボートの小さな道具・画面
+
+let phase = "wait"          -- wait / play / over
+let round_no = 0
+let ends_at = 0
+let break_until = 0
+let shark = nil             -- サメになったプレイヤー（いなければ nil）
+let cpu = nil               -- CPUのサメ（NPC）
+let kind = nil              -- このラウンドのサメの種類
+let shark_max = 1
+let diving_until = 0
+let boat_hp = {}            -- "Boat 1" → 体力
+let sunk = {}               -- "Boat 1" → true（沈んだ）
+
+func ready(p)
+  return p.role != nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+-- 待ち時間。のこり秒（0 = 使える）
+func cd_left(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last == nil then return 0 end
+  return max(0, seconds - (time() - last))
+end
+
+func humans_alive()
+  return filter(players(), func(p) return ready(p) and p.role == "human" and p.alive end)
+end
+
+func ghosts()
+  return filter(players(), func(p) return ready(p) and p.role == "ghost" end)
+end
+
+-- いまのサメ（プレイヤーかCPU）
+func the_shark()
+  if shark != nil and kit_here(shark) and shark.alive then return shark end
+  if cpu != nil and kit_here(cpu) and cpu.alive then return cpu end
+  return nil
+end
+
+func is_shark(c)
+  let s = the_shark()
+  return s != nil and c != nil and c.id == s.id
+end
+
+func in_water(c)
+  return c.y < SEA_Y
+end
+
+func diving()
+  return time() < diving_until
+end
+
+-- MARK: ボート
+
+func boats()
+  return blocks("boat")
+end
+
+func boats_afloat()
+  return filter(boats(), func(b) return sunk[b.name] != true end)
+end
+
+-- その人が乗っているボート（なければ nil）
+func boat_of(c)
+  if in_water(c) then return nil end
+  for b in boats_afloat() do
+    if abs(c.x - b.x) < 2.7 and abs(c.z - b.z) < 4.8 then return b end
+  end
+  return nil
+end
+
+-- ボートのふちまでのきょり（横だけ）
+func boat_gap(c, b)
+  let dx = max(0, abs(c.x - b.x) - 2.5)
+  let dz = max(0, abs(c.z - b.z) - 4.5)
+  return sqrt(dx * dx + dz * dz)
+end
+
+func nearest_boat(c)
+  let best = nil
+  let best_d = 0
+  for b in boats_afloat() do
+    let d = boat_gap(c, b)
+    if best == nil or d < best_d then
+      best = b
+      best_d = d
+    end
+  end
+  return best
+end
+
+-- MARK: 場所
+
+func dock_spot()
+  return block("Spawn " + random(1, 10)).position + {x: 0, y: 1, z: 0}
+end
+
+func lighthouse_spot()
+  return block("Lighthouse Seat").position + {x: random() * 5 - 2.5, y: 0.6, z: random() * 5 - 2.5}
+end
+
+-- MARK: 画面
+
+func hud()
+  let s = the_shark()
+  if phase == "play" then
+    let hp = "?"
+    if s != nil then hp = floor(s.health) + "/" + floor(shark_max) end
+    ui_text("hud", "⏱ " + kit_clock(ends_at - time()) + "   🧍 人間 " + len(humans_alive()) + "   ⛵ " + len(boats_afloat()) + "/6   " + kind.name + " " + hp,
+            {at: "top", dy: 26, size: 18, bold: true})
+    if s != nil then ui_bar("shark_hp", s.health, shark_max, {at: "top", dy: 56, w: 320, h: 14, color: "#EF4444", bg: "#00000088"}) end
+  elif phase == "wait" then
+    ui_text("hud", "🌊 次のラウンドまで " + max(0, ceil(break_until - time())) + " 秒 — 🦈 サメに立候補するならボタンを！", {at: "top", dy: 26, size: 16, bold: true})
+    ui_remove("shark_hp")
+  else
+    ui_remove("shark_hp")
+  end
+end
+
+-- その人のボートの体力
+func boat_ui(p)
+  let b = boat_of(p)
+  if b == nil or p.role != "human" then
+    p.ui_remove("boat_hp")
+    p.ui_remove("repair")
+    return
+  end
+  p.ui_bar("boat_hp", boat_hp[b.name], BOAT_HP, {at: "bottom", dy: -150, w: 240, h: 16, color: "#22C55E", bg: "#00000088"})
+  if (p.repairs or 0) > 0 and boat_hp[b.name] < BOAT_HP then
+    p.ui_button("repair", "🔧 修理 ×" + p.repairs, {at: "bottom", dy: -185, w: 150, h: 44, size: 15, bg: "#CA8A04", radius: 12})
+  else
+    p.ui_remove("repair")
+  end
+end

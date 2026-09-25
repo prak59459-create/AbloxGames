@@ -1,15 +1,21 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 27,
-  "cover" : "games\/shark-attack-bay\/cover-25fdc453.png",
+  "blockCount" : 175,
+  "cover" : "games\/shark-attack-bay\/cover-a6c15e4a.png",
   "id" : "shark-attack-bay",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/shark-attack-bay\/data.absc",
+    "games\/shark-attack-bay\/boats.absc",
+    "games\/shark-attack-bay\/common.absc",
+    "games\/shark-attack-bay\/humans.absc",
+    "games\/shark-attack-bay\/round.absc",
+    "games\/shark-attack-bay\/shark.absc",
     "games\/shark-attack-bay\/main.absc"
   ],
-  "summary" : "巨大なサメと、ボートに乗った人間の海上バトル。人間はサメを撃退、サメは全員を海に引きずりこめ！",
+  "summary" : "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",
   "tags" : [
     "pvp",
     "shark",

@@ -1,0 +1,126 @@
+-- boats.absc — ボートの体力・沈没・修理・補給物資
+--
+-- ボートはサメの体当たりやかみつきで体力がへり、0 になると沈む（乗っていた人は海へ）。
+-- 🔧 修理キットで体力がもどる。ときどき空から補給物資がボートに落ちてくる。
+
+let crate = nil
+let crate_boat = nil
+let crate_lands = 0         -- move_to は終わりの位置がすぐ入るので、着く時刻を覚えておく
+let next_drop = 0
+let next_chum = 0
+
+func reset_boats()
+  boat_hp = {}
+  sunk = {}
+  for b in boats() do
+    boat_hp[b.name] = BOAT_HP
+    b.solid = true
+    b.visible = true
+    b.opacity = 1
+    b.color = boat_color(b.name)
+  end
+  for part in blocks("boatpart") do part.visible = true end
+end
+
+func boat_color(name)
+  let colors = ["#EF4444", "#3B82F6", "#FACC15", "#22C55E", "#F97316", "#A855F7"]
+  return colors[num(replace(name, "Boat ", ""))]
+end
+
+func hurt_boat(b, amount, by)
+  if sunk[b.name] == true then return end
+  boat_hp[b.name] = max(0, boat_hp[b.name] - amount)
+  b.color = "#FFFFFF"
+  let name = b.name
+  after(0.15, func() if sunk[name] != true then b.color = boat_color(name) end end)
+  if boat_hp[b.name] <= 0 then sink_boat(b, by) end
+end
+
+func sink_boat(b, by)
+  sunk[b.name] = true
+  b.solid = false
+  b.opacity = 0.35
+  b.color = "#1E293B"
+  for part in blocks("boatpart") do
+    if starts_with(part.name, b.name + " ") then part.visible = false end
+  end
+  announce("⛵💥 " + b.name + " が沈んだ！", 2.5)
+  shake(0.25, 0.5)
+  if by != nil and kit_here(by) and not by.is_npc then
+    kit_give(by, PAY.sink)
+    kit_quest_progress(by, "sink", 1)
+  end
+  if crate_boat != nil and crate_boat.name == b.name then remove_crate() end
+end
+
+func repair_boat(p)
+  let b = boat_of(p)
+  if b == nil or (p.repairs or 0) <= 0 or phase != "play" then return end
+  if boat_hp[b.name] >= BOAT_HP then
+    p.message("🔧 このボートはこわれていない", 1)
+    return
+  end
+  p.repairs = p.repairs - 1
+  boat_hp[b.name] = min(BOAT_HP, boat_hp[b.name] + REPAIR_AMOUNT)
+  p.message("🔧 修理した！（" + boat_hp[b.name] + "/" + BOAT_HP + "）", 1.5)
+  p.sound("collect")
+  kit_quest_progress(p, "repair", 1)
+  boat_ui(p)
+end
+
+-- MARK: 補給物資
+
+func drop_crate()
+  if crate != nil or phase != "play" then return end
+  let list = boats_afloat()
+  if len(list) == 0 then return end
+  let b = list[random(1, len(list))]
+  crate_boat = b
+  crate = create_block({name: "Supply Crate", position: {x: b.x, y: 16, z: b.z}, size: {x: 1.4, y: 1.4, z: 1.4}, color: "#CA8A04",
+                        material: "matte", solid: false, tags: ["crate"]})
+  crate.move_to({x: b.x, y: 1.2, z: b.z}, 3)
+  crate_lands = time() + 3
+  -- だれもひろわなければ30秒で消える
+  let mine = crate
+  after(30, func() if crate == mine then remove_crate() end end)
+  announce("📦 補給物資が " + b.name + " に落ちてくる！", 2.5)
+end
+
+func remove_crate()
+  kit_gone(crate)
+  crate = nil
+  crate_boat = nil
+end
+
+func pick_crate(p)
+  if crate == nil or crate_boat == nil then return end
+  if time() < crate_lands or distance(p, crate) > 2.4 then return end
+  remove_crate()
+  p.dynamite = (p.dynamite or 0) + 1
+  p.medkits = (p.medkits or 0) + 1
+  p.heal(30)
+  p.reload()
+  p.message("📦 ダイナマイト+1・救急キット+1・弾をフル回復！", 2.5)
+  p.sound("collect")
+  kit_quest_progress(p, "crate", 1)
+  item_buttons(p)
+end
+
+on tick(dt)
+  if phase != "play" then return end
+  if time() >= next_drop then
+    next_drop = time() + DROP_EVERY
+    drop_crate()
+  end
+  if time() >= next_chum then
+    next_chum = time() + CHUM_EVERY
+    spawn_chum()
+  end
+  if crate != nil then
+    for p in humans_alive() do pick_crate(p) end
+  end
+end
+
+on button(p, id)
+  if id == "repair" then repair_boat(p) end
+end

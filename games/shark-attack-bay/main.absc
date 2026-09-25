@@ -1,135 +1,171 @@
--- Shark Attack Bay — サメ vs ボートの人間
+-- Shark Attack Bay — サメ1匹 vs ボートの人間たち
+--
+-- ファイル:
+--   data.absc    サメの種類・時間・ボート・ごほうび
+--   common.absc  状態・役わり・海とボートの道具・画面
+--   boats.absc   ボートの体力・沈没・修理・補給物資
+--   humans.absc  泳ぎ・武器・ダイナマイト・救急キット・灯台からの応援
+--   round.absc   ラウンドの流れ（立候補 → 戦い → 結果）
+--   shark.absc   サメの技・CPUのサメ・背びれ・えさ
+--   main.absc    このファイル
 
 kit_setup("Shark Attack Bay", "サメを撃退するか、全員を海へ", [
-  "ラウンドごとに1人がサメになる（1人のときはCPUのサメ）",
-  "人間: 桟橋からボートに乗って、ライフルでサメを撃て",
-  "海に落ちると泳ぎが遅い。サメに気をつけて",
-  "サメ: 海の中ではとても速い。「🦈 かみつく」で近くの人間をおそう",
-  "3分以内にサメをたおせば人間の勝ち、全員やられたらサメの勝ち"
+  "🦈 ラウンドごとに1人がサメ（立候補できる）。1人で遊ぶときはCPUのサメ",
+  "🧍 人間: 桟橋からボートへ。ライフルやハープーンでサメを撃て。3分生きのこれば勝ち",
+  "🌊 海は浅いけど、歩くのがおそい。ボートや桟橋のはしごから上がれる",
+  "⛵ ボートは体当たりでこわれて沈む。🔧 修理キットで直せる。📦 補給物資もひろおう",
+  "🦈 サメ: かみつく・突進・もぐる（見えない）・体当たり。🍖 えさで回復",
+  "🗼 やられた人は灯台から「📣 応援」で仲間を回復できる"
 ])
+kit_currency = "コイン"
 
-let shark = nil
-let shark_npc = nil
-let live = false
-let ends_at = 0
+kit_quest("hunt", "サメにとどめをさす", 1, 300)
+kit_quest("damage", "サメに合計1500ダメージ", 1500, 300)
+kit_quest("survive", "人間で3回生きのこる", 3, 300)
+kit_quest("bite", "サメで8回かみつく", 8, 300)
+kit_quest("sink", "サメでボートを3そう沈める", 3, 250)
+kit_quest("repair", "ボートを5回修理", 5, 150)
+kit_quest("crate", "補給物資を3回ひろう", 3, 150)
+kit_quest("cheer", "灯台から10回応援", 10, 100)
 
-kit_quest("hunt", "サメをたおす", 1, 200)
-kit_quest("bite", "サメで3人かみつく", 3, 200)
+kit_shop_title = "港の売店"
+kit_shop_add("harpoon", "🔱 ハープーン（強い・弾3発）", 600, func(p)
+  p.harpoon = true
+  p.use_harpoon = true
+  if p.role == "human" and phase == "play" then loadout(p) else item_buttons(p) end
+  p.message("🔱 ハープーンを手に入れた！ 🔫/🔱 ボタンで持ちかえ", 2.5)
+end)
+kit_shop_add("ring", "🛟 浮き輪（海で速く動ける）", 300, func(p)
+  p.ring = true
+  p.message("🛟 浮き輪をつけた", 1.5)
+end)
+kit_shop_add("dynamite", "🧨 ダイナマイト", 150, func(p)
+  p.dynamite = (p.dynamite or 0) + 1
+  item_buttons(p)
+end)
+kit_shop_add("medkit", "🩹 救急キット（+50）", 100, func(p)
+  p.medkits = (p.medkits or 0) + 1
+  item_buttons(p)
+end)
+kit_shop_add("repair", "🔧 修理キット（ボート+40）", 120, func(p)
+  p.repairs = (p.repairs or 0) + 1
+  p.message("🔧 修理キット ×" + p.repairs + "（ボートの上で使う）", 1.5)
+end)
+kit_shop_add("hammer", "🔨 シュモクザメを解放", 800, func(p) unlock_shark(p, "hammer") end)
+kit_shop_add("mega", "🐋 メガロドンを解放", 2000, func(p) unlock_shark(p, "mega") end)
+kit_shop_add("captain", "🧢 船長の帽子", 150, func(p) p.hat = "cap" end)
+kit_shop_add("lifeguard", "🟥 ライフガードの服", 300, func(p)
+  p.color = "#DC2626"
+  p.leg_color = "#FDE047"
+  p.my_color = "#DC2626"
+end)
 
-func humans()
-  return filter(players(), func(p) return p.role == "human" and p.alive end)
+func unlock_shark(p, id)
+  if p.sharks == nil then p.sharks = [] end
+  if not contains(p.sharks, id) then append(p.sharks, id) end
+  p.pick = id
+  p.message("🦈 " + shark_of(id).name + " を解放！ サメになったらこの種類で出る", 2.5)
 end
 
-func start_round()
-  live = true
-  ends_at = time() + 180
-  let list = shuffle(copy(players()))
-  shark = nil
-  if shark_npc != nil and kit_here(shark_npc) then shark_npc.destroy() end
-  shark_npc = nil
-  if len(list) >= 2 then
-    shark = list[1]
-  end
-  for p in players() do
-    if not p.alive then p.respawn() end
-    if shark != nil and p.id == shark.id then
-      p.role = "shark"
-      p.team = "shark"
-      p.color = "#64748B"
-      p.head_color = "#94A3B8"
-      p.size = 2.2
-      p.max_health = 1500
-      p.heal(9999)
-      p.take()
-      p.teleport(block("Shark Den"))
-      p.ui_button("bite", "🦈 かみつく", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 70, size: 18, bg: "#0369A1", radius: 18})
-      p.message("🦈 あなたはサメだ！", 3)
-    else
-      p.role = "human"
-      p.team = "human"
-      p.size = 1
-      p.max_health = 100
-      p.give("rifle")
-      p.ui_remove("bite")
-      p.teleport(block("Spawn " + random(1, 10)))
+-- MARK: サメの種類をえらぶ
+
+func open_picker(p)
+  let list = SHARKS
+  let h = 90 + len(list) * 58
+  p.ui_remove("picker")
+  p.ui_panel("picker", {at: "center", w: 480, h: h, bg: "#0C4A6EF0", radius: 20, layer: 35})
+  p.ui_text("picker_t", "🦈 サメになったときの種類", {parent: "picker", y: 26 / h, size: 18, bold: true, color: "gold"})
+  let i = 0
+  for k in list do
+    i = i + 1
+    let owned = k.price == 0 or contains(p.sharks or [], k.id)
+    let label = k.name + " — " + k.text
+    let bg = "#0369A1"
+    if not owned then
+      label = "🔒 " + k.name + "（売店で 💰" + k.price + "）"
+      bg = "#374151"
+    elif (p.pick or "white") == k.id then
+      label = "✅ " + label
+      bg = "#15803D"
     end
+    p.ui_button("pick_" + k.id, label, {parent: "picker", y: (30 + i * 58) / h, w: 440, h: 48, size: 13, bg: bg})
   end
-  if shark == nil then
-    shark_npc = create_npc({name: "巨大ザメ", position: block("Shark Den").position, color: "#64748B", head_color: "#94A3B8",
-                            size: 2.4, health: 1500, speed: 1.3, team: "shark"})
-  end
-  announce("🦈 サメが海にいる…ボートに乗れ！", 3)
+  p.ui_button("picker_close", "閉じる", {parent: "picker", y: (h - 22) / h, w: 120, h: 30, size: 13, bg: "gray"})
 end
 
-func end_round(humans_win)
-  if not live then return end
-  live = false
-  if humans_win then
-    for p in players() do
-      if p.role == "human" then p.score = p.score + 2 end
-    end
-    announce("🎉 サメを撃退した！人間の勝ち", 4)
-  else
-    if shark != nil and kit_here(shark) then shark.score = shark.score + 3 end
-    announce("🦈 全員やられた… サメの勝ち", 4)
+func open_stats(p)
+  p.ui_remove("stats")
+  p.ui_panel("stats", {at: "center", w: 400, h: 220, bg: "#0F172AF0", radius: 18, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + " の記録", {parent: "stats", y: 0.14, size: 18, bold: true, color: "gold"})
+  let lines = [
+    "🧍 人間で勝った: " + (p.human_wins or 0) + " 回",
+    "🦈 サメで勝った: " + (p.shark_wins or 0) + " 回",
+    "🎯 サメに与えたダメージ: " + floor(p.dealt or 0),
+    "🦷 サメでたおした人間: " + (p.kills_total or 0)
+  ]
+  let i = 0
+  for line in lines do
+    i = i + 1
+    p.ui_text("stats_" + i, line, {parent: "stats", y: 0.22 + i * 0.14, size: 14, color: "#E5E7EB"})
   end
-  after(6, func() start_round() end)
+  p.ui_button("stats_close", "閉じる", {parent: "stats", y: 0.9, w: 110, h: 28, size: 13, bg: "gray"})
 end
 
 on start()
-  game.respawn_time = -1
-  after(4, func() start_round() end)
-  every(1, func()
-    if not live then return end
-    ui_text("clock", "⏱ " + kit_clock(ends_at - time()) + "   🧍 " + len(humans()), {at: "top", dy: 26, size: 22, bold: true})
+  every(10, func() kit_leaderboard("💰") end)
+  every(3, func()
     for p in players() do
-      -- 泳ぎ: 水の中（y が低い）では、人間はおそく、サメは速い
-      let in_water = p.y < -0.5
-      let want = 1
-      if p.role == "shark" then want = in_water and 2.2 or 0.4 end
-      if p.role == "human" and in_water then want = 0.55 end
-      if abs(p.speed - want) > 0.05 then p.speed = want end
+      if ready(p) then p.score = (p.human_wins or 0) + (p.shark_wins or 0) end
     end
-    if time() >= ends_at then end_round(true) end
-    if len(players()) > 0 and len(humans()) == 0 then end_round(false) end
   end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.role = "human"
-  p.team = "human"
-  p.give("rifle")
-end
-
-on tick(dt)
-  if shark_npc != nil and kit_here(shark_npc) then
-    let t = kit_nearest(shark_npc, humans())
-    if t != nil then
-      shark_npc.follow(t)
-      if distance(shark_npc, t) < 3 then t.damage(35 * dt, shark_npc) end
-    end
+  kit_shop_button(p)
+  p.ui_button("picker_open", "🦈 種類", {at: "right", dy: 180, w: 150, h: 50, size: 17, bg: "#0E7490"})
+  p.ui_button("stats_open", "📊 記録", {at: "right", dy: 240, w: 150, h: 50, size: 17, bg: "#334155"})
+  p.my_color = p.color
+  p.my_head = p.head_color
+  p.sharks = []
+  p.pick = "white"
+  p.dynamite = 1
+  p.medkits = 1
+  p.repairs = 1
+  kit_give(p, 40)
+  if phase == "play" then
+    p.role = "ghost"
+    p.team = "human"
+    to_ghost(p)
+    p.message("🌊 ラウンドの最中！ 灯台から応援して、次のラウンドから参加", 3)
+  else
+    p.role = "human"
+    p.team = "human"
+    p.teleport(dock_spot())
+    wait_buttons(p)
+    item_buttons(p)
   end
 end
 
 on button(p, id)
-  if id == "bite" and p.role == "shark" and p.alive and kit_ready(p, "bite", 1.5) then
-    for q in humans() do
-      if distance(p, q) < 4.5 then
-        q.damage(45, p)
-        p.sound("hit")
-        if not q.alive then kit_quest_progress(p, "bite", 1) end
-      end
+  if id == "picker_open" then
+    open_picker(p)
+  elif id == "picker_close" then
+    p.ui_remove("picker")
+  elif starts_with(id, "pick_") then
+    let key = replace(id, "pick_", "")
+    let k = shark_of(key)
+    if k.price == 0 or contains(p.sharks or [], k.id) then
+      p.pick = k.id
+      p.message("🦈 " + k.name + " にした", 1.2)
+      open_picker(p)
+    else
+      p.message("🔒 売店で解放しよう（💰" + k.price + "）", 1.5)
     end
-  end
-end
-
-on death(victim, killer)
-  if victim.role == "shark" or (shark_npc != nil and victim.id == shark_npc.id) or victim.name == "巨大ザメ" then
-    if killer != nil then kit_quest_progress(killer, "hunt", 1) end
-    end_round(true)
-  elif victim.role == "human" then
-    victim.message("🦈 やられた…", 2)
+  elif id == "stats_open" then
+    open_stats(p)
+  elif id == "stats_close" then
+    p.ui_remove("stats")
   end
 end

@@ -125,7 +125,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/mega-minigames/cover-f7cd88f3.png" width="200"> | 76 | **Mega Minigames** | 投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！ |
 | <img src="games/rhythm-battle/cover-7ea56992.png" width="200"> | 77 | **Rhythm Battle** | 8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ |
 | <img src="games/last-survivor-games/cover-1060dd5c.png" width="200"> | 78 | **Last Survivor Games** | 24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！ |
-| <img src="games/shark-attack-bay/cover-25fdc453.png" width="200"> | 79 | **Shark Attack Bay** | 巨大なサメと、ボートに乗った人間の海上バトル。人間はサメを撃退、サメは全員を海に引きずりこめ！ |
+| <img src="games/shark-attack-bay/cover-a6c15e4a.png" width="200"> | 79 | **Shark Attack Bay** | サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ |
 | <img src="games/tip-jar-plaza/cover-8c314076.png" width="200"> | 80 | **Tip Jar Plaza** | 自分のお店ブースを出して、メッセージを書こう。遊んでたまったチップを、気に入ったブースにプレゼント！（ゲーム内のコインだけです） |
 
 <!-- games:end -->

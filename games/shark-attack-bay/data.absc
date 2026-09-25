@@ -1,0 +1,49 @@
+-- data.absc — サメの種類・時間・ボート・ごほうび
+
+let ROUND_TIME = 180        -- 1ラウンドの長さ（秒）
+let BREAK_TIME = 12         -- ラウンドの間
+let SEA_Y = -0.3            -- これより低いと海の中（海底は -1.2）
+
+-- サメの種類。hp: 体力の倍率 / bite: かむ力 / speed: 海での速さ / ram: 体当たりの強さ / price: 解放に必要なコイン
+let SHARKS = [
+  {id: "white", name: "🦈 ホホジロザメ", text: "バランス型", hp: 1, bite: 45, speed: 2.2, ram: 1, size: 2.2,
+   color: "#64748B", head: "#CBD5E1", price: 0},
+  {id: "hammer", name: "🔨 シュモクザメ", text: "速い。体当たりでボートを2倍こわす", hp: 0.85, bite: 38, speed: 2.6, ram: 2, size: 2,
+   color: "#78716C", head: "#D6D3D1", price: 800},
+  {id: "mega", name: "🐋 メガロドン", text: "巨大でタフ。かむ力が強い（おそい）", hp: 1.45, bite: 60, speed: 1.9, ram: 1.4, size: 3,
+   color: "#334155", head: "#64748B", price: 2000}
+]
+
+let SHARK_HP_BASE = 500     -- サメの体力 = BASE + 人間1人ごとに PER
+let SHARK_HP_PER = 350
+
+-- サメの技の待ち時間（秒）
+let BITE_CD = 1.2
+let DASH_CD = 6
+let DIVE_CD = 14
+let DIVE_TIME = 4
+let RAM_CD = 5
+
+let BOAT_HP = 100
+let RAM_DAMAGE = 22
+let REPAIR_AMOUNT = 40
+let DROP_EVERY = 35         -- 補給物資が落ちてくる間かく
+let CHUM_EVERY = 30         -- サメのえさが浮かぶ間かく
+let CHEER_HEAL = 8
+
+-- 人間の武器
+let HARPOON = "ハープーン"
+let DYNAMITE_RADIUS = 6.5
+let DYNAMITE_DAMAGE = 220
+
+-- ごほうび（コイン）
+let PAY = {
+  survive: 100,       -- 人間で最後まで生きのこった
+  human_win: 150,     -- 人間チームの勝ち
+  last_hit: 300,      -- サメにとどめ
+  per_damage: 5,      -- サメに与えたダメージ5ごとに1コイン
+  bite: 25,           -- サメでかみついた
+  kill: 120,          -- サメで人間をたおした
+  shark_win: 400,     -- サメの勝ち
+  sink: 80            -- ボートを沈めた
+}

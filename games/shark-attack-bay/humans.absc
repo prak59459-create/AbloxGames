@@ -1,0 +1,156 @@
+-- humans.absc — 人間: 泳ぎ・武器（ライフル／ハープーン）・ダイナマイト・救急キット・やられた人の応援
+--
+-- 海に落ちると泳ぎがおそい（🛟 浮き輪があると少しまし）。ボートや桟橋のはしごから上がれる。
+-- やられた人は灯台の上へ。「📣 応援」で仲間の体力を少し回復できる。
+
+let swim_clock = 0
+
+func loadout(p)
+  p.take()
+  if p.use_harpoon and p.harpoon then p.give(HARPOON) else p.give("rifle") end
+  item_buttons(p)
+end
+
+func item_buttons(p)
+  if p.role != "human" then
+    for id in ["dyna", "medkit", "gun"] do p.ui_remove(id) end
+    return
+  end
+  if (p.dynamite or 0) > 0 then
+    p.ui_button("dyna", "🧨 ×" + p.dynamite, {at: "bottom_right", dx: -40, dy: -240, w: 110, h: 56, size: 17, bg: "#B91C1C", radius: 14})
+  else
+    p.ui_remove("dyna")
+  end
+  if (p.medkits or 0) > 0 then
+    p.ui_button("medkit", "🩹 ×" + p.medkits, {at: "bottom_right", dx: -160, dy: -240, w: 100, h: 56, size: 17, bg: "#15803D", radius: 14})
+  else
+    p.ui_remove("medkit")
+  end
+  if p.harpoon then
+    let label = "🔫 → 🔱"
+    if p.use_harpoon then label = "🔱 → 🔫" end
+    p.ui_button("gun", label, {at: "bottom_right", dx: -40, dy: -310, w: 110, h: 50, size: 15, bg: "#334155", radius: 14})
+  else
+    p.ui_remove("gun")
+  end
+end
+
+func throw_dynamite(p)
+  if phase != "play" or p.role != "human" or (p.dynamite or 0) <= 0 or not quiet_ready(p, "dyna", 1) then return end
+  p.dynamite = p.dynamite - 1
+  item_buttons(p)
+  let spot = kit_ahead(p, 7)
+  spot = {x: spot.x, y: 0.2, z: spot.z}
+  let stick = create_block({name: "Dynamite", position: spot, size: {x: 0.4, y: 1, z: 0.4}, color: "#DC2626", shape: "cylinder", solid: false})
+  p.message("🧨 投げた！", 0.8)
+  after(1.8, func()
+    kit_gone(stick)
+    let s = the_shark()
+    if s != nil and distance(spot, s) <= DYNAMITE_RADIUS + kind.size * 0.5 and not diving() then
+      -- スクリプトのダメージは on hit を通らないので、ここで記録する
+      if kit_here(p) then credit(p, min(DYNAMITE_DAMAGE, s.health)) end
+      s.damage(DYNAMITE_DAMAGE, p)
+      announce("💥 ダイナマイトがサメに命中！", 1.5)
+    end
+    shake(0.2, 0.3)
+  end)
+end
+
+func use_medkit(p)
+  if p.role != "human" or (p.medkits or 0) <= 0 or not p.alive then return end
+  if p.health >= p.max_health then
+    p.message("🩹 体力はまんたん", 0.8)
+    return
+  end
+  p.medkits = p.medkits - 1
+  p.heal(50)
+  p.message("🩹 +50", 0.8)
+  item_buttons(p)
+end
+
+-- MARK: やられた人（灯台）
+
+func to_ghost(p)
+  p.role = "ghost"
+  p.take()
+  item_buttons(p)
+  p.ui_remove("boat_hp")
+  p.ui_remove("repair")
+  p.teleport(lighthouse_spot())
+  p.ui_button("cheer", "📣 応援", {at: "bottom_right", dx: -40, dy: -150, w: 140, h: 70, size: 18, bg: "#DB2777", radius: 18})
+  p.ui_text("ghost", "🗼 灯台から応援中 — 仲間を回復できる", {at: "bottom", dy: -110, size: 14, bold: true, color: "#F9A8D4"})
+end
+
+func cheer(p)
+  if p.role != "ghost" or phase != "play" or not quiet_ready(p, "cheer", 8) then return end
+  let list = filter(humans_alive(), func(q) return q.health < q.max_health end)
+  if len(list) == 0 then
+    p.message("📣 みんな元気だ", 1)
+    return
+  end
+  let q = list[random(1, len(list))]
+  q.heal(CHEER_HEAL)
+  q.message("📣 " + p.name + " の応援！ +" + CHEER_HEAL, 1.2)
+  p.message("📣 " + q.name + " を応援した", 1)
+  kit_quest_progress(p, "cheer", 1)
+end
+
+-- MARK: 撃つ・やられる
+
+-- サメに与えたダメージを記録して、コインにする（とどめのごほうびは round.absc の on death）
+func credit(p, amount)
+  p.dealt = (p.dealt or 0) + amount
+  p.dealt_round = (p.dealt_round or 0) + amount
+  let coins = floor(p.dealt / PAY.per_damage) - floor((p.dealt - amount) / PAY.per_damage)
+  if coins > 0 then kit_give(p, coins) end
+  kit_quest_progress(p, "damage", amount)
+end
+
+on hit(victim, attacker, damage)
+  if attacker == nil then return damage end
+  if is_shark(victim) then
+    if diving() then return 0 end
+    if attacker.role == "human" then credit(attacker, damage) end
+    return damage
+  end
+  -- 人間どうし、サメどうしは当たらない
+  if victim.role == "human" and attacker.role == "human" then return 0 end
+  return damage
+end
+
+on respawn(p)
+  if phase == "play" and p.role == "ghost" then
+    kit_later(p, 0.2, func() to_ghost(p) end)
+  end
+end
+
+on tick(dt)
+  swim_clock = swim_clock + dt
+  if swim_clock < 0.3 then return end
+  swim_clock = 0
+  for p in players() do
+    if ready(p) and p.role == "human" and p.alive then
+      -- 海の中はおそい。浮き輪があると少し速い
+      let want = 1
+      if in_water(p) then
+        want = 0.5
+        if p.ring then want = 0.75 end
+      end
+      if abs(p.speed - want) > 0.05 then p.speed = want end
+      if phase == "play" then boat_ui(p) end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "dyna" then
+    throw_dynamite(p)
+  elif id == "medkit" then
+    use_medkit(p)
+  elif id == "gun" and p.harpoon then
+    p.use_harpoon = not p.use_harpoon
+    if p.role == "human" then loadout(p) end
+  elif id == "cheer" then
+    cheer(p)
+  end
+end

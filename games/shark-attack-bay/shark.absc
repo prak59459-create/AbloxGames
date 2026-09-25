@@ -1,0 +1,273 @@
+-- shark.absc — サメの技（プレイヤーとCPU共通）・CPUのサメの考え・背びれ・えさ
+--
+-- 技: 🦈 かみつく / 🌊 突進（少しのあいだ速くなって、着いたらかみつく）/ 🫧 もぐる（見えない・撃たれない）
+--     💥 体当たり（近くのボートをこわす。乗っている人が海に落ちることも）
+-- サメは海から上がれない。上がろうとすると海にもどされる。
+
+let fin = nil
+let fin_clock = 0
+let think_clock = 0
+let chum = nil
+let last_water = nil
+let cpu_next_dive = 0
+let cpu_next_dash = 0
+
+func shark_reach(s)
+  return 2.4 + kind.size * 0.6
+end
+
+-- MARK: 技
+
+func do_bite(s)
+  let hit = 0
+  for q in humans_alive() do
+    if distance(s, q) < shark_reach(s) then
+      q.damage(kind.bite, s)
+      hit = hit + 1
+      -- ボートのふちの人は、ときどき海に引きずりこまれる
+      if kit_here(q) and q.alive and not in_water(q) and random() < 0.35 then
+        let dx = q.x - s.x
+        let dz = q.z - s.z
+        let d = max(0.5, sqrt(dx * dx + dz * dz))
+        q.launch(-dx / d * 7, 4, -dz / d * 7)
+        q.message("🦈 引きずりこまれる！", 1.2)
+      end
+      if kit_here(q) and not q.alive then shark_scored_kill(s) end
+    end
+  end
+  if hit > 0 then
+    s.heal(kind.bite * 0.3 * hit)
+    if not s.is_npc then
+      s.sound("hit")
+      kit_give(s, PAY.bite * hit)
+      kit_quest_progress(s, "bite", hit)
+    end
+  elif not s.is_npc then
+    -- だれもいなければ、近くのボートをかじる
+    let b = nearest_boat(s)
+    if b != nil and boat_gap(s, b) < 2.5 + kind.size * 0.4 then hurt_boat(b, RAM_DAMAGE * 0.4 * kind.ram, s) end
+  end
+  return hit
+end
+
+func shark_scored_kill(s)
+  if s.is_npc then return end
+  kit_give(s, PAY.kill)
+  s.kills_total = (s.kills_total or 0) + 1
+end
+
+func do_ram(s)
+  let b = nearest_boat(s)
+  if b == nil or boat_gap(s, b) > 3 + kind.size * 0.5 then
+    if not s.is_npc then s.message("💥 近くにボートがない", 0.8) end
+    return false
+  end
+  hurt_boat(b, RAM_DAMAGE * kind.ram, s)
+  for q in humans_alive() do
+    if boat_of(q) != nil and boat_of(q).name == b.name then
+      q.shake(0.3, 0.4)
+      if random() < 0.3 then
+        q.launch(random() * 10 - 5, 5, random() * 10 - 5)
+        q.message("💥 ボートがゆれて落ちた！", 1.2)
+      end
+    end
+  end
+  return true
+end
+
+func do_dash(s)
+  let base = kind.speed
+  s.speed = min(10, base * 1.9)
+  if not s.is_npc then s.message("🌊 突進！", 0.6) end
+  kit_later(s, 1.2, func()
+    s.speed = base
+    do_bite(s)
+  end)
+end
+
+func do_dive(s)
+  diving_until = time() + DIVE_TIME
+  s.visible = false
+  if fin != nil then fin.visible = false end
+  if not s.is_npc then s.message("🫧 もぐった（" + DIVE_TIME + "秒 見えない・撃たれない）", 1.2) end
+  kit_later(s, DIVE_TIME, func()
+    s.visible = true
+    if fin != nil then fin.visible = true end
+  end)
+end
+
+-- MARK: プレイヤーのサメのボタン
+
+func shark_buttons(p)
+  p.ui_button("s_bite", "🦈 かみつく", {at: "bottom_right", dx: -40, dy: -140, w: 150, h: 80, size: 18, bg: "#0369A1", radius: 18})
+  p.ui_button("s_dash", "🌊 突進", {at: "bottom_right", dx: -200, dy: -140, w: 110, h: 60, size: 15, bg: "#0E7490", radius: 16})
+  p.ui_button("s_dive", "🫧 もぐる", {at: "bottom_right", dx: -40, dy: -235, w: 110, h: 56, size: 15, bg: "#1E40AF", radius: 16})
+  p.ui_button("s_ram", "💥 体当たり", {at: "bottom_right", dx: -160, dy: -215, w: 120, h: 56, size: 15, bg: "#9A3412", radius: 16})
+end
+
+func remove_shark_buttons(p)
+  for id in ["s_bite", "s_dash", "s_dive", "s_ram"] do p.ui_remove(id) end
+end
+
+func shark_button(p, id)
+  if phase != "play" or not is_shark(p) then return end
+  if id == "s_bite" then
+    if cd_left(p, "bite", BITE_CD) > 0 then return end
+    quiet_ready(p, "bite", BITE_CD)
+    if do_bite(p) == 0 then p.message("🦈 とどかない…", 0.5) end
+  elif id == "s_dash" then
+    let left = cd_left(p, "dash", DASH_CD)
+    if left > 0 then
+      p.message("🌊 あと " + ceil(left) + " 秒", 0.6)
+      return
+    end
+    quiet_ready(p, "dash", DASH_CD)
+    do_dash(p)
+  elif id == "s_dive" then
+    let left = cd_left(p, "dive", DIVE_CD)
+    if left > 0 then
+      p.message("🫧 あと " + ceil(left) + " 秒", 0.6)
+      return
+    end
+    quiet_ready(p, "dive", DIVE_CD)
+    do_dive(p)
+  elif id == "s_ram" then
+    let left = cd_left(p, "ram", RAM_CD)
+    if left > 0 then
+      p.message("💥 あと " + ceil(left) + " 秒", 0.6)
+      return
+    end
+    if do_ram(p) then quiet_ready(p, "ram", RAM_CD) end
+  end
+end
+
+-- MARK: CPUのサメ
+
+func make_cpu_shark()
+  cpu = create_npc({name: kind.name, position: block("Shark Den").position + {x: 0, y: 1, z: 0}, color: kind.color, head_color: kind.head,
+                    leg_color: kind.color, size: kind.size, health: shark_max, speed: kind.speed, team: "shark"})
+  cpu.cds = {}
+  cpu_next_dive = time() + 20
+  cpu_next_dash = time() + 8
+end
+
+func cpu_think()
+  let n = cpu
+  let list = humans_alive()
+  if len(list) == 0 then
+    n.stop()
+    return
+  end
+  -- 弱ったら、えさを食べに行く
+  if chum != nil and n.health < shark_max * 0.45 then
+    n.move_to(chum.position)
+    return
+  end
+  -- 海に落ちた人をまずねらう
+  let wet = filter(list, func(q) return in_water(q) end)
+  let t = kit_nearest(n, wet)
+  if t == nil then t = kit_nearest(n, list) end
+  if t == nil then return end
+  n.follow(t)
+  let d = distance(n, t)
+  if in_water(t) then n.speed = kind.speed else n.speed = kind.speed * 0.8 end
+  if d < shark_reach(n) and quiet_ready(n, "bite", BITE_CD + 0.3) then do_bite(n) end
+  if not in_water(t) then
+    let b = boat_of(t)
+    if b != nil and boat_gap(n, b) < 3 + kind.size * 0.5 and quiet_ready(n, "ram", RAM_CD + 1) then do_ram(n) end
+  end
+  if time() >= cpu_next_dash and d < 14 and in_water(t) then
+    cpu_next_dash = time() + 9 + random() * 5
+    do_dash(n)
+  end
+  if time() >= cpu_next_dive and n.health < shark_max * 0.8 then
+    cpu_next_dive = time() + 22 + random() * 8
+    do_dive(n)
+  end
+end
+
+-- MARK: 背びれ・海から出さない・えさ
+
+func make_fin()
+  kit_gone(fin)
+  fin = create_block({name: "Shark Fin", position: block("Shark Den").position + {x: 0, y: 2, z: 0}, size: {x: 0.4, y: 1.8, z: 1.6},
+                      color: "#475569", shape: "cone", solid: false})
+end
+
+func follow_fin(s)
+  if fin == nil then return end
+  fin.move_to({x: s.x, y: s.y + 1.85 * kind.size + 0.5, z: s.z}, 0.2)
+end
+
+-- はしごの下の段（-0.8）までは入れる。それより上に登ったら、最後に海底にいた場所へもどす
+func keep_in_sea(s)
+  if s.y < -0.9 then
+    last_water = {x: s.x, y: s.y, z: s.z}
+  elif s.y > -0.6 and last_water != nil then
+    s.teleport(last_water)
+    if not s.is_npc and quiet_ready(s, "land", 2) then s.message("🦈 サメは陸に上がれない！", 1.2) end
+  end
+end
+
+func spawn_chum()
+  if chum != nil or phase != "play" then return end
+  let a = random() * 360
+  let r = 18 + random() * 25
+  chum = create_block({name: "Chum", position: {x: cos(a) * r, y: 0.1, z: sin(a) * r}, size: {x: 1.4, y: 0.5, z: 1.4}, color: "#B91C1C",
+                       shape: "cylinder", behavior: "trigger", tags: ["chum"]})
+  if shark != nil and kit_here(shark) then shark.message("🍖 えさが浮かんだ！ 食べると回復", 2) end
+end
+
+func eat_chum(s)
+  if chum == nil then return end
+  kit_gone(chum)
+  chum = nil
+  s.heal(shark_max * 0.12)
+  announce("🍖 サメがえさを食べて回復した…", 1.5)
+end
+
+-- 休けい中は、ボートのまわりを背びれだけがぐるぐる回っている
+let teaser = nil
+let teaser_a = 0
+
+func teaser_step(dt)
+  if teaser == nil then
+    teaser = create_block({name: "Teaser Fin", position: {x: 14, y: 1.2, z: 0}, size: {x: 1, y: 3.6, z: 3.4}, color: "#334155",
+                           shape: "cone", solid: false})
+  end
+  teaser.visible = phase != "play"
+  if phase == "play" then return end
+  teaser_a = teaser_a + 20
+  teaser.move_to({x: cos(teaser_a) * 14, y: 1.2, z: sin(teaser_a) * 14 - 4}, 0.5)
+end
+
+let teaser_clock = 0
+
+on tick(dt)
+  teaser_clock = teaser_clock + dt
+  if teaser_clock >= 0.5 then
+    teaser_clock = 0
+    teaser_step(dt)
+  end
+  if phase != "play" then return end
+  let s = the_shark()
+  if s == nil then return end
+  keep_in_sea(s)
+  fin_clock = fin_clock + dt
+  if fin_clock >= 0.2 then
+    fin_clock = 0
+    follow_fin(s)
+    if chum != nil and distance(s, chum) < 2.5 + kind.size * 0.5 then eat_chum(s) end
+  end
+  if cpu != nil and kit_here(cpu) and cpu.alive then
+    think_clock = think_clock + dt
+    if think_clock >= 0.25 then
+      think_clock = 0
+      cpu_think()
+    end
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "s_") then shark_button(p, id) end
+end
