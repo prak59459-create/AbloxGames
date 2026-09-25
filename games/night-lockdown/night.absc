@@ -1,0 +1,416 @@
+-- night.absc — 夜: 侵入者が窓とドアの板をはがしにくる。外にいると「夜の影」に追われる。
+-- 5日目の夜が明けたら救助ヘリ。家族を連れて公園のヘリポートへ。
+
+let night_clock = 0
+let spawn_queue = []       -- これから来る侵入者の種類
+let spawn_every = 5
+let spawn_next = 0
+let helipad_saved = 0
+
+-- MARK: 夜の始まりと終わり
+
+func start_night()
+  phase = "night"
+  phase_ends = time() + today().night_secs
+  world.sky_top = "#050816"
+  world.sky_bottom = "#1B2340"
+  world.light = 0.2
+  set_doors(true)
+  update_lights()
+  for b in blocks("crate") do gone(b) end
+  -- 外にいる人は、家族がドアを開けて入れてくれる
+  for p in players() do
+    if ready(p) and p.alive and not in_house(p.position) then
+      p.teleport(block("In FD").position + {x: random(-2, 2), y: 1, z: random(-1, 1)})
+      p.message("🚪 ギリギリで家に入れてもらった！", 1.5)
+    end
+  end
+  dinner()
+  -- 今夜来る侵入者を順番に
+  spawn_queue = []
+  let w = today().waves
+  for kind in keys(w) do
+    for i in 1 to w[kind] do append(spawn_queue, kind) end
+  end
+  spawn_queue = shuffle(spawn_queue)
+  -- ボスは最後
+  let boss_at = index_of(spawn_queue, "boss")
+  if boss_at != nil then
+    remove(spawn_queue, boss_at)
+    append(spawn_queue, "boss")
+  end
+  spawn_every = today().night_secs * 0.6 / max(1, len(spawn_queue))
+  spawn_next = time() + 4
+  for p in players() do
+    if ready(p) and has_order(p, "nailgun") then p.reload() end
+  end
+  announce("🌙 " + day_n + " 日目の夜。窓とドアを守れ！ 今夜の侵入者は " + len(spawn_queue) + " 人", 4)
+  house_hud()
+end
+
+func clear_intruders()
+  for n in npcs() do
+    if n.intruder != nil or n.stalker then n.destroy() end
+  end
+end
+
+func end_night()
+  clear_intruders()
+  for p in players() do
+    if ready(p) then
+      kit_give(p, 15 + day_n * 5)
+      p.score = p.score + 5
+      kit_quest_progress(p, "nights", 1)
+      if not p.alive then p.respawn() end
+    end
+  end
+  let fam = len(family_alive())
+  announce("🌅 朝だ！ " + day_n + " 日目の夜をのりこえた（家族 " + fam + "/" + len(FAMILY) + "）", 3)
+  day_n = day_n + 1
+  if day_n > len(DAYS) then
+    start_rescue()
+  else
+    start_day()
+  end
+end
+
+-- MARK: 侵入者
+
+func spawn_intruder(kind)
+  let spec = INTRUDERS[kind]
+  let spot = block("Intruder Spawn " + random(1, 8)).position
+  let n = create_npc({name: spec.name, position: spot + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: spec.color, head_color: spec.head,
+                      size: spec.size, health: spec.hp + day_n * 12, speed: spec.speed, team: "intruder"})
+  n.intruder = kind
+  n.inside = false
+  n.stun_until = 0
+  n.brk_t = 0
+  n.warned = false
+  n.stolen = 0
+  n.fleeing = false
+  n.cut = false
+  n.target = choose_opening(kind)
+  if kind == "lurker" and power then n.goal = "power" else n.goal = "opening" end
+  if kind == "boss" then
+    n.hat = "crown"
+    announce("🕴 黒コートの男があらわれた…！ 玄関を守れ！", 3)
+  end
+  return n
+end
+
+-- ねらう開口部: 大男とボスはドア、こそ泥は板の少ないところ、ほかはランダム気味
+func choose_opening(kind)
+  if kind == "boss" then return "FD" end
+  if kind == "brute" then return random(["FD", "BD"]) end
+  let best = OPENINGS[1].id
+  let best_score = 999
+  for o in OPENINGS do
+    let score = layer_count(o.id) * 2 + random(0, 3)
+    if kind == "sneak" then score = layer_count(o.id) * 5 + random(0, 1) end
+    if score < best_score then
+      best = o.id
+      best_score = score
+    end
+  end
+  return best
+end
+
+func stunned(n)
+  return n.stun_until != nil and time() < n.stun_until
+end
+
+-- 家の中の人（プレイヤーか家族）でいちばん近い人
+func nearest_victim(n, range)
+  let best = nil
+  let best_d = range
+  for p in players() do
+    if ready(p) and p.alive and not p.boarded and (in_house(p.position) or phase == "rescue") and distance(n, p) < best_d then
+      best = p
+      best_d = distance(n, p)
+    end
+  end
+  for f in family_alive() do
+    if distance(n, f) < best_d then
+      best = f
+      best_d = distance(n, f)
+    end
+  end
+  return best
+end
+
+func intruder_step(n, secs)
+  let spec = INTRUDERS[n.intruder]
+  if n.inside then
+    if n.intruder == "sneak" then
+      sneak_step(n)
+      return
+    end
+    let v = nearest_victim(n, 40)
+    if v != nil then
+      go_to(n, v)
+      if distance(n, v) < 2.2 + n.size * 0.3 then v.damage(spec.dps * secs, n) end
+    else
+      walk_to(n, block("In " + n.target).position)
+    end
+    return
+  end
+  -- 電線切り: まず外の電気の箱
+  if n.goal == "power" then
+    let box = block("Power Box Pad").position
+    n.move_to(box)
+    if distance(n, box) < 2.5 then
+      n.brk_t = n.brk_t + secs
+      if n.brk_t >= 4 then
+        n.brk_t = 0
+        n.goal = "opening"
+        if power then
+          power = false
+          update_lights()
+          announce("⚡ 停電！ 電線が切られた！（家の外の東、電気の箱で直せる）", 3)
+          house_hud()
+        end
+      end
+    end
+    return
+  end
+  let out = block("Out " + n.target).position
+  if distance(n, out) > 1.8 then
+    n.move_to(out)
+    return
+  end
+  -- 着いた: わな → 見張りの声 → 板をはがす
+  n.stop()
+  n.look_at(block("In " + n.target).position)
+  if traps[n.target] != nil then
+    spring_trap(n.target, n)
+    return
+  end
+  if not n.warned then
+    n.warned = true
+    sister_warn(opening(n.target))
+  end
+  let rate = 1
+  if lights_on() then rate = 0.75 end         -- 明るいと手がおそい
+  n.brk_t = n.brk_t + secs * rate
+  if n.brk_t >= spec.brk then
+    n.brk_t = 0
+    let amount = 1
+    if n.intruder == "brute" or n.intruder == "boss" then amount = 2 end
+    if layer_count(n.target) > 0 then
+      sound("hit")
+      rip_board(n.target, amount)
+    else
+      break_in(n)
+    end
+    house_hud()
+  end
+end
+
+func break_in(n)
+  let o = opening(n.target)
+  n.inside = true
+  break_opening(n.target)
+  n.position = block("In " + n.target).position + {x: 0, y: 1, z: 0}
+  sound("error")
+  announce("🚨 " + o.name + "から " + INTRUDERS[n.intruder].name + " が入ってきた！", 2.5)
+end
+
+-- こそ泥: 食料庫から食べ物をぬすんで逃げる
+func sneak_step(n)
+  if not n.fleeing then
+    let pantry = block("Pantry").position
+    walk_to(n, pantry)
+    if distance(n, pantry) < 2.5 then
+      let take = min(2, stock.food)
+      stock.food = stock.food - take
+      n.stolen = take
+      n.fleeing = true
+      n.say("いただき！")
+      announce("🏃 こそ泥が食べ物を " + take + " こぬすんだ！ 逃がすな！", 2.5)
+      house_hud()
+    end
+    return
+  end
+  let door = block("In " + n.target).position
+  walk_to(n, door)
+  if distance(n, door) < 2 then
+    n.destroy()
+  end
+end
+
+-- MARK: 夜の影（外にいると追ってくる）
+
+func stalker_step(n, secs)
+  let p = find_player(n.prey)
+  if p == nil or not p.alive or in_house(p.position) or phase != "night" then
+    n.destroy()
+    return
+  end
+  go_to(n, p)
+  if distance(n, p) < 2.3 then p.damage(28 * secs, n) end
+end
+
+func outside_check(secs)
+  for p in players() do
+    if ready(p) and p.alive then
+      if in_house(p.position) then
+        p.outside_since = 0
+      else
+        if p.outside_since == 0 then
+          p.outside_since = time()
+          p.message("🌑 夜の外は危ない！ 家に入れ（ドアの前のパッド）", 2)
+        elif time() - p.outside_since > 7 and not p.hunted then
+          p.hunted = true
+          let a = random(0, 359)
+          let s = create_npc({name: "🌑 夜の影", position: p.position + {x: cos(a) * 18, y: 1, z: sin(a) * 18}, color: "#020617",
+                              head_color: "#7F1D1D", size: 1.3, health: 400, speed: 1.3, team: "intruder"})
+          s.stalker = true
+          s.prey = p.id
+          after(20, func()
+            p.hunted = false
+            gone(s)
+          end)
+        end
+      end
+    end
+  end
+end
+
+func door_step(p, b)
+  if phase != "night" then return end
+  let id = replace(b.name, "Door Step ", "")
+  p.teleport(block("In " + id).position + {x: 0, y: 1, z: 0})
+  p.message("🚪 家族がドアを開けてくれた", 1.2)
+end
+
+-- MARK: 救助ヘリ
+
+func start_rescue()
+  phase = "rescue"
+  phase_ends = time() + RESCUE_SECS
+  world.sky_top = "#FDBA74"
+  world.sky_bottom = "#FEF3C7"
+  world.light = 0.7
+  set_doors(false)
+  for b in blocks("heli") do
+    b.visible = true
+    b.solid = contains(b.tags, "solid")
+  end
+  for n in family_alive() do n.speed = 1.05 end
+  -- 最後のしつこい侵入者たち
+  for i in 1 to 3 + len(players()) do
+    let n = spawn_intruder("stranger")
+    n.inside = true
+  end
+  announce("🚁 救助ヘリが公園に着いた！ 家族を連れて " + RESCUE_SECS + " 秒以内にヘリポートへ！", 5)
+end
+
+func rescue_step()
+  let pad = block("Helipad").position
+  for n in family_alive() do
+    if distance(n, pad) < 7 then
+      helipad_saved = helipad_saved + 1
+      n.say("たすかったー！")
+      announce("🚁 " + n.name + " がヘリに乗った！", 2)
+      family[n.family] = nil
+      n.destroy()
+    end
+  end
+  let waiting = len(family_alive())
+  let boarded = filter(players(), func(p) return ready(p) and p.boarded end)
+  if (waiting == 0 and len(boarded) > 0) or time() >= phase_ends then finish_rescue() end
+end
+
+func board_heli(p)
+  if phase != "rescue" or p.boarded then return end
+  p.boarded = true
+  p.frozen = true
+  kit_give(p, 100)
+  p.score = p.score + 20
+  kit_quest_progress(p, "rescue", 1)
+  p.message("🚁 ヘリに乗った！ 家族を待とう", 2)
+end
+
+func finish_rescue()
+  if phase == "over" then return end
+  phase = "over"
+  let saved = helipad_saved
+  for p in players() do
+    if ready(p) then
+      p.frozen = false
+      kit_give(p, saved * 60)
+      if saved == len(FAMILY) then kit_badge(p, "whole_family", "家族みんなで脱出した") end
+      if p.boarded then kit_badge(p, "survivor", "5日間を生きのびた") end
+    end
+  end
+  if saved == len(FAMILY) then
+    kit_finish("🚁 家族みんなで町を脱出！ 5日間を守りぬいた！", 10)
+  elif saved > 0 then
+    kit_finish("🚁 家族 " + saved + " 人と町を脱出した…", 10)
+  else
+    kit_finish("🚁 ヘリは飛び立った… 家族は間に合わなかった", 10)
+  end
+end
+
+on tick(dt)
+  night_clock = night_clock + dt
+  if night_clock < 0.5 then return end
+  let secs = night_clock
+  night_clock = 0
+  if phase == "night" then
+    if len(spawn_queue) > 0 and time() >= spawn_next then
+      spawn_next = time() + spawn_every
+      let kind = spawn_queue[1]
+      remove(spawn_queue, 1)
+      spawn_intruder(kind)
+    end
+    outside_check(secs)
+    if time() >= phase_ends then
+      end_night()
+      return
+    end
+  end
+  if phase == "rescue" then rescue_step() end
+  if phase == "night" or phase == "rescue" then
+    for n in npcs() do
+      if n.stalker then stalker_step(n, secs)
+      elif n.intruder != nil then
+        if stunned(n) then n.stop() else intruder_step(n, secs) end
+      end
+    end
+  end
+  house_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "door_step") then door_step(p, b)
+  elif contains(b.tags, "helipad") then board_heli(p)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and victim.intruder != nil then
+    if victim.stolen > 0 then
+      stock.food = stock.food + victim.stolen
+      announce("🍞 ぬすまれた食べ物を取り返した！", 2)
+    end
+    if killer != nil and not killer.is_npc then
+      kit_give(killer, INTRUDERS[victim.intruder].reward)
+      killer.score = killer.score + 3
+      kit_quest_progress(killer, "defend", 1)
+      if victim.intruder == "boss" then
+        kit_badge(killer, "boss", "黒コートの男をたおした")
+        announce("🕴 " + killer.name + " が黒コートの男をたおした！", 3)
+      end
+    end
+  elif victim.is_npc and victim.family != nil then
+    family[victim.family] = nil
+    lost = lost + 1
+    announce("😢 " + victim.name + " が連れ去られた…", 3)
+    if lost >= len(FAMILY) then
+      phase = "over"
+      kit_finish("💀 家族をみんな連れ去られた… " + day_n + " 日目", 8)
+    end
+  end
+end

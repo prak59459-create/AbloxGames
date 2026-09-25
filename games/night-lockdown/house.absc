@@ -1,0 +1,465 @@
+-- house.absc — 家: 板と鉄板を打つ・わな・作業場・発電機と明かり・電気・家族（おばあちゃん・妹・ポチ）
+
+let family_clock = 0
+let light_clock = 0
+
+-- MARK: 板を打つ
+
+func show_boards(id)
+  let o = opening(id)
+  let list = layers[id] or []
+  for k in 1 to MAX_LAYERS + 2 do
+    let b = block("Board " + id + " " + k)
+    if b != nil then
+      b.visible = k <= len(list) and k <= max_layers(o)
+      if k <= len(list) then b.color = board_color(list[k]) end
+    end
+  end
+end
+
+-- 鉄板は灰色、板は茶色。はがれかけの鉄板は暗い灰色
+func board_color(layer)
+  if layer.steel and layer.hp >= 2 then return "#9CA3AF" end
+  if layer.steel then return "#4B5563" end
+  return "#A16207"
+end
+
+func nail_board(p, id)
+  let o = opening(id)
+  if o == nil then return end
+  if phase == "rescue" or phase == "over" then return end
+  let list = layers[id] or []
+  if len(list) >= max_layers(o) then
+    if quiet_ready(p, "full_" + id, 3) then p.message("🪵 " + o.name + " はもう板でいっぱい", 1) end
+    return
+  end
+  if stock.metal >= 1 and stock.nails >= 2 then
+    stock.metal = stock.metal - 1
+    stock.nails = stock.nails - 2
+    append(list, {hp: 2, steel: true})
+    p.message("🛡 " + o.name + " に鉄板を打った（" + len(list) + "/" + max_layers(o) + "）", 1)
+  elif stock.plank >= 1 then
+    stock.plank = stock.plank - 1
+    append(list, {hp: 1, steel: false})
+    p.message("🪵 " + o.name + " に板を打った（" + len(list) + "/" + max_layers(o) + "）", 1)
+  else
+    if quiet_ready(p, "no_plank", 3) then p.message("🪵 板がない！ 材木置き場やホームセンターで集めよう", 1.5) end
+    return
+  end
+  layers[id] = list
+  show_boards(id)
+  p.sound("hit")
+  kit_quest_progress(p, "board", 1)
+  kit_give(p, 1)
+  house_hud()
+end
+
+-- 侵入者が1回ぶんはがす（大男は2）。全部はがれたら true
+func rip_board(id, amount)
+  let list = layers[id] or []
+  let k = amount
+  while k > 0 and len(list) > 0 do
+    let top = list[len(list)]
+    top.hp = top.hp - 1
+    if top.hp <= 0 then remove(list, len(list)) end
+    k = k - 1
+  end
+  layers[id] = list
+  show_boards(id)
+  return len(list) == 0
+end
+
+-- 朝: 割れた窓とドアを直す（板はそのまま）
+func repair_openings()
+  for o in OPENINGS do
+    if o.door then
+      let d = block("Door " + o.id)
+      d.opacity = 1
+    else
+      let w = block("Window " + o.id)
+      w.opacity = 0.55
+      w.solid = true
+    end
+    show_boards(o.id)
+  end
+end
+
+func break_opening(id)
+  let o = opening(id)
+  if o.door then
+    let d = block("Door " + id)
+    d.solid = false
+    d.opacity = 0.25
+  else
+    block("Window " + id).opacity = 0.1
+  end
+end
+
+-- 夜はドアを閉める（閉まったドアは侵入者の板とおなじにはがされる）
+func set_doors(closed)
+  for o in OPENINGS do
+    if o.door then
+      let d = block("Door " + o.id)
+      d.solid = closed
+      if closed then d.opacity = 1 else d.opacity = 0.35 end
+    end
+  end
+end
+
+-- MARK: わな
+
+func place_trap(p, b)
+  let id = replace(b.name, "Trap Spot ", "")
+  if opening(id) == nil then return end
+  if traps[id] != nil then
+    if quiet_ready(p, "trap_there", 3) then p.message("🪤 ここにはもうわながある", 1) end
+    return
+  end
+  if p.traps_held <= 0 then
+    if quiet_ready(p, "trap_hint", 5) then p.message("🪤 わなは作業場で作れる（板2・釘3）", 1.5) end
+    return
+  end
+  p.traps_held = p.traps_held - 1
+  let kind = "spike"
+  if p.beartraps > 0 then
+    p.beartraps = p.beartraps - 1
+    kind = "beartrap"
+  end
+  traps[id] = kind
+  let t = block("Trap " + id)
+  t.visible = true
+  if kind == "beartrap" then t.color = "#6B7280" else t.color = "#78350F" end
+  p.message("🪤 " + opening(id).name + " の外にわなをしかけた", 1.2)
+  p.sound("tick")
+  kit_quest_progress(p, "trap", 1)
+  hud(p)
+end
+
+-- 侵入者がわなをふんだ
+func spring_trap(id, n)
+  let kind = traps[id]
+  if kind == nil then return end
+  traps[id] = nil
+  block("Trap " + id).visible = false
+  let dmg = 40
+  let hold = 3
+  if kind == "beartrap" then
+    dmg = 70
+    hold = 5
+  end
+  n.stun_until = time() + hold
+  n.stop()
+  n.say("いてっ！")
+  n.damage(dmg)
+  sound("hit")
+end
+
+-- MARK: 作業場
+
+func workshop_panel(p)
+  let h = 130 + len(RECIPES) * 56
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 520, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  p.ui_text("shop_t", "🔨 作業場   🪵" + stock.plank + " 🔩" + stock.nails + " 🛡" + stock.metal, {parent: "shop", y: 24 / h, size: 18, bold: true, color: "#FDE68A"})
+  p.ui_text("shop_s", "板は窓の内側の茶色いパッドで打てる（鉄板と釘があれば鉄板を先に使う）", {parent: "shop", y: 50 / h, size: 11, color: "#D6D3D1"})
+  let i = 0
+  for r in RECIPES do
+    i = i + 1
+    let parts = map(keys(r.cost), func(k) return split(LOOT[k].name, " ")[1] + r.cost[k] end)
+    p.ui_button("craft_" + r.id, r.name + "  " + join(parts, " ") + " — " + r.text, {parent: "shop", y: (50 + i * 56) / h, w: 480, h: 48, size: 12, bg: "#57534E"})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func can_afford(cost)
+  for k in keys(cost) do
+    if (stock[k] or 0) < cost[k] then return false end
+  end
+  return true
+end
+
+func craft(p, id)
+  let r = nil
+  for x in RECIPES do
+    if x.id == id then r = x end
+  end
+  if r == nil then return end
+  if id == "nailbat" and p.nailbat then
+    p.message("もうくぎバットがある", 1)
+    return
+  end
+  if id == "barricade" and door_bar then
+    p.message("もう補強してある", 1)
+    return
+  end
+  if not can_afford(r.cost) then
+    p.message("🔨 材料が足りない", 1)
+    return
+  end
+  for k in keys(r.cost) do stock[k] = stock[k] - r.cost[k] end
+  if id == "spike" then
+    p.traps_held = p.traps_held + 1
+  elif id == "beartrap" then
+    p.traps_held = p.traps_held + 1
+    p.beartraps = p.beartraps + 1
+  elif id == "nailbat" then
+    p.nailbat = true
+    equip_bat(p)
+  elif id == "barricade" then
+    door_bar = true
+    for o in OPENINGS do
+      if o.door then show_boards(o.id) end
+    end
+    announce("🧱 " + p.name + " がドアを補強した！（板を5枚まで打てる）", 2.5)
+  end
+  p.sound("collect")
+  p.message("🔨 " + r.name + " を作った", 1.2)
+  kit_quest_progress(p, "craft", 1)
+  kit_give(p, 5)
+  workshop_panel(p)
+  hud(p)
+  house_hud()
+end
+
+func equip_bat(p)
+  let name = "バット"
+  if p.nailbat then name = "くぎバット" end
+  if has_order(p, "metalbat") then name = "金属バット" end
+  p.bat = name
+  if p.using_gun != true then p.give(name) end
+end
+
+func swap_weapon(p)
+  if not has_order(p, "nailgun") then return end
+  p.using_gun = not p.using_gun
+  if p.using_gun then p.give("くぎ打ち機") else p.give(p.bat) end
+end
+
+-- MARK: 発電機・明かり・電気
+
+func lights_on()
+  return power and fuel > 0
+end
+
+func update_lights()
+  let lit = lights_on() and phase == "night"
+  for i in 1 to 6 do
+    let l = block("House Light " + i)
+    if l != nil then
+      if lit then
+        l.color = "#FEF3C7"
+        l.material = "neon"
+      else
+        l.color = "#44403C"
+        l.material = "plastic"
+      end
+    end
+  end
+  let porch = block("Porch Light")
+  if porch != nil then
+    if lit then porch.material = "neon" else porch.material = "plastic" end
+  end
+end
+
+func fix_power(p)
+  if power then return end
+  power = true
+  p.message("🔧 電線をつないだ！ 明かりがもどった", 1.5)
+  announce("💡 " + p.name + " が電気を直した", 2)
+  kit_give(p, 8)
+  kit_quest_progress(p, "power", 1)
+  update_lights()
+  house_hud()
+end
+
+-- MARK: 家族
+
+func spawn_family()
+  for f in FAMILY do
+    let home = block(f.home).position
+    let n = create_npc({name: f.name, position: home + {x: 0, y: 1, z: 0}, color: f.color, head_color: f.head, size: f.size,
+                        health: f.hp, speed: 0, team: "family"})
+    n.family = f.id
+    n.max_health = f.hp
+    n.health = f.hp
+    if f.id == "dog" then n.speed = 1.1 end
+    if f.id == "grandma" then n.hat = "none" end
+    family[f.id] = n
+  end
+end
+
+func family_member(id)
+  let n = family[id]
+  if n != nil and still(n) and n.alive then return n end
+  return nil
+end
+
+-- 夜のはじめに、みんなでごはん
+func dinner()
+  let fam = family_alive()
+  let mouths = len(fam) + len(filter(players(), func(p) return ready(p) end))
+  let eat = min(stock.food, mouths)
+  stock.food = stock.food - eat
+  let short = mouths - eat
+  if short <= 0 then
+    announce("🍽 みんなで晩ごはん。おなかいっぱい！", 2)
+    for n in fam do n.health = min(n.max_health, n.health + 20) end
+    return
+  end
+  -- 足りないぶん、まず大人（プレイヤー）ががまんし、それでも足りないと家族が弱る
+  let hungry_players = min(short, len(players()))
+  let k = 0
+  for p in players() do
+    if ready(p) and k < hungry_players then
+      p.hungry = true
+      p.speed = 0.85
+      p.message("🍞 食べ物が足りない…おなかがすいて足が重い", 2)
+      k = k + 1
+    end
+  end
+  let left = short - hungry_players
+  for n in fam do
+    if left > 0 then
+      n.damage(25)
+      left = left - 1
+    end
+  end
+  announce("🍞 食べ物が " + short + " 人ぶん足りない…", 2.5)
+end
+
+func grandma_heal(p)
+  let g = family_member("grandma")
+  if g == nil or p.healed_by_grandma then return end
+  if p.health >= p.max_health then return end
+  p.healed_by_grandma = true
+  p.heal(50)
+  g.say(random(["無理しないでね", "ほら、おにぎり", "がんばってるねえ"]))
+  p.message("👵 おばあちゃんが手当てしてくれた（1日1回）", 1.5)
+end
+
+-- 近くにけがをした家族がいれば、家族の手当てを先に
+func use_medkit(p)
+  if p.medkits <= 0 then return end
+  p.medkits = p.medkits - 1
+  let patient = nil
+  for n in family_alive() do
+    if distance(n, p) < 3.5 and n.health < n.max_health then patient = n end
+  end
+  if patient != nil then
+    patient.health = min(patient.max_health, patient.health + 60)
+    patient.say("ありがとう…")
+    p.message("🩹 " + patient.name + " の手当てをした", 1.2)
+    kit_quest_progress(p, "care", 1)
+  else
+    p.heal(60)
+    p.message("🩹 回復した", 1)
+  end
+  hud(p)
+  house_hud()
+end
+
+func flashlight(p)
+  if not has_order(p, "flashlight") or not kit_ready(p, "flash", 10) then return end
+  let k = 0
+  for n in npcs() do
+    if n.intruder != nil and distance(n, p) < 9 then
+      n.stun_until = time() + 3
+      n.stop()
+      k = k + 1
+    end
+  end
+  let beam = create_block({name: "Flash", shape: "sphere", position: p.position + p.look * 3 + {x: 0, y: 1.2, z: 0}, size: 3, color: "#FEF9C3",
+                           material: "neon", solid: false, opacity: 0.35})
+  after(0.4, func() gone(beam) end)
+  p.message("🔦 " + k + " 人がまぶしがった", 1)
+end
+
+-- 家族の動き: ポチは中の侵入者にかみつき、妹は見張り
+func family_step(secs)
+  let dog = family_member("dog")
+  if dog != nil then
+    let best = nil
+    let best_d = 22
+    for n in npcs() do
+      if n.intruder != nil and n.inside and distance(n, dog) < best_d then
+        best = n
+        best_d = distance(n, dog)
+      end
+    end
+    if best != nil then
+      go_to(dog, best)
+      if best_d < 2 then
+        best.damage(10 * secs)
+        if random() < 0.2 then dog.say("ガルル…！") end
+      end
+    elif distance(dog, block("Dog Bed").position) > 2 then
+      walk_to(dog, block("Dog Bed").position)
+    end
+  end
+  -- 家族はいつもの場所にもどる（救助のときはついてくる）
+  if phase == "rescue" then
+    for n in family_alive() do
+      let lead = kit_nearest_player(n)
+      if lead != nil then go_to(n, lead) end
+    end
+  end
+end
+
+func sister_warn(o)
+  let s = family_member("sister")
+  if s == nil then return end
+  s.say(o.name + "に誰かいる！")
+  let dog = family_member("dog")
+  if dog != nil then dog.say("ワン！ ワン！") end
+end
+
+on tick(dt)
+  family_clock = family_clock + dt
+  light_clock = light_clock + dt
+  if family_clock >= 0.5 then
+    let secs = family_clock
+    family_clock = 0
+    if phase != "over" then family_step(secs) end
+  end
+  if light_clock >= 1 then
+    let secs = light_clock
+    light_clock = 0
+    if phase == "night" and lights_on() then
+      fuel = max(0, fuel - 0.9 * secs)
+      if fuel <= 0 then
+        announce("🔋 発電機の燃料がきれた！ 明かりが消えた（ガソリンスタンドで燃料を）", 2.5)
+        update_lights()
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "board_spot") and quiet_ready(p, "board", 0.7) then nail_board(p, replace(b.name, "Board Spot ", ""))
+  elif contains(b.tags, "trap_spot") and quiet_ready(p, "trap", 1) then place_trap(p, b)
+  elif contains(b.tags, "workshop") and quiet_ready(p, "workshop", 2) then
+    deposit(p)
+    workshop_panel(p)
+  elif contains(b.tags, "powerbox") then fix_power(p)
+  elif contains(b.tags, "grandma") then grandma_heal(p)
+  end
+end
+
+on tap(p, b)
+  if not ready(p) then return end
+  -- 窓やドアを直接タップしても板を打てる
+  for o in OPENINGS do
+    if (b.name == "Window " + o.id or b.name == "Door " + o.id) and distance(p, b) < 5 then nail_board(p, o.id) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "craft_") then craft(p, replace(id, "craft_", ""))
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif id == "medkit" then use_medkit(p)
+  elif id == "flash" then flashlight(p)
+  elif id == "swap" then swap_weapon(p)
+  end
+end

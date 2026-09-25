@@ -22,7 +22,7 @@ let horrorGames: [Game] = [
          summary: "夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！",
          tags: ["horror", "japanese", "coop"], maxPlayers: 8, build: yokaiShrine),
     Game(number: 52, id: "night-lockdown", title: "Night Lockdown",
-         summary: "昼は町で食料と板を集め、夜は家の窓に板を打ちつけて立てこもる。侵入者から家族を守って3夜を生きのびろ。",
+         summary: "昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！",
          tags: ["survival", "story", "defend"], maxPlayers: 8, build: nightLockdown),
     Game(number: 53, id: "toy-factory-night-shift", title: "Toy Factory Night Shift",
          summary: "おもちゃ工場の夜間警備。カメラで動くおもちゃを見張り、電力を節約しながらドアを閉めて、朝6時まで耐えろ。",
@@ -692,28 +692,223 @@ func yokaiShrine(_ m: MapBuilder) {
 // MARK: 52 Night Lockdown
 
 func nightLockdown(_ m: MapBuilder) {
-    m.sunset(ground: "#365314")
-    m.ground(180, 180, color: "#4D7C0F", name: "Town")
-    m.slab("Safehouse Floor", x: 0, y: 0, z: 0, w: 20, h: 0.3, d: 16, color: "#A16207")
-    m.walls(0, 0, w: 20, d: 16, h: 4, y: 0.3, color: "#E7E5E4", name: "Safehouse Wall")
-    m.slab("Safehouse Roof", x: 0, y: 4.3, z: 0, w: 21, h: 0.4, d: 17, color: "#7F1D1D")
-    let windows: [(Float, Float, Bool)] = [(-6, -8, true), (6, -8, true), (-6, 8, true), (6, 8, true), (-10, 0, false), (10, 0, false)]
-    for (i, w) in windows.enumerated() {
-        m.part("Window \(i + 1)", at: (w.0, 2, w.1), size: w.2 ? (3, 1.6, 0.6) : (0.6, 1.6, 3), color: "#93C5FD", material: .glass,
-               tags: ["window"], opacity: 0.6)
+    m.day(ground: "#4D7C0F")
+    m.ground(220, 220, color: "#4D7C0F", name: "Town")
+    m.part("Cover Focus", at: (0, 2, 4), size: (70, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
+
+    // MARK: The family's house
+    // Floor 0.3 high, walls 4 m, openings cut into them: six windows and two
+    // doors. Every opening has a board spot inside, a trap spot outside,
+    // markers for the intruders (Out / In) and hidden boards to show.
+    m.slab("House Floor", x: 0, y: 0, z: 0, w: 26, h: 0.3, d: 20, color: "#A16207")
+    let floorY: Float = 0.3, wallTop: Float = 4.3, t: Float = 0.4
+    let wallColor = "#F5F5F4"
+    /// A wall along x (at z) or along z (at x), from a to b, with gaps
+    /// (centre, width, bottom, top).
+    func wall(alongX: Bool, at fixed: Float, from a: Float, to b: Float, gaps: [(Float, Float, Float, Float)] = [],
+              name: String = "House Wall", color: String = wallColor) {
+        func piece(_ lo: Float, _ hi: Float, _ y0: Float, _ y1: Float) {
+            guard hi - lo > 0.01, y1 - y0 > 0.01 else { return }
+            if alongX {
+                m.slab(name, x: (lo + hi) / 2, y: y0, z: fixed, w: hi - lo, h: y1 - y0, d: t, color: color)
+            } else {
+                m.slab(name, x: fixed, y: y0, z: (lo + hi) / 2, w: t, h: y1 - y0, d: hi - lo, color: color)
+            }
+        }
+        var cursor = a
+        for g in gaps.sorted(by: { $0.0 < $1.0 }) {
+            let g0 = g.0 - g.1 / 2, g1 = g.0 + g.1 / 2
+            piece(cursor, g0, floorY, wallTop)
+            piece(g0, g1, floorY, g.2)
+            piece(g0, g1, g.3, wallTop)
+            cursor = g1
+        }
+        piece(cursor, b, floorY, wallTop)
     }
-    m.part("Front Door", at: (0, 1.4, 8), size: (2, 2.6, 0.6), color: "#78350F", tags: ["window"])
-    m.spawnRing(0, 0, y: 0.3, radius: 3, count: 8, color: "#FDE68A")
-    m.pad("Pantry", x: -7, z: -5, y: 0.3, size: 2, color: "#F59E0B", tags: ["pantry"])
+    // (id, side, position along the wall, door)
+    let openings: [(String, String, Float, Bool)] = [("N1", "N", -7, false), ("N2", "N", 7, false), ("S1", "S", -7, false),
+                                                      ("S2", "S", 8.5, false), ("FD", "S", 0, true), ("W", "W", 3, false),
+                                                      ("E", "E", -6.5, false), ("BD", "E", 6, true)]
+    func gaps(_ side: String) -> [(Float, Float, Float, Float)] {
+        openings.filter { $0.1 == side }.map { o in o.3 ? (o.2, 2.4, floorY, 3.1) : (o.2, 3, 1.5, 3.1) }
+    }
+    wall(alongX: true, at: -10, from: -13.2, to: 13.2, gaps: gaps("N"))
+    wall(alongX: true, at: 10, from: -13.2, to: 13.2, gaps: gaps("S"))
+    wall(alongX: false, at: -13, from: -10, to: 10, gaps: gaps("W"))
+    wall(alongX: false, at: 13, from: -10, to: 10, gaps: gaps("E"))
+    for o in openings {
+        let normal: (Float, Float) = o.1 == "N" ? (0, -1) : o.1 == "S" ? (0, 1) : o.1 == "W" ? (-1, 0) : (1, 0)
+        let centre: (Float, Float) = o.1 == "N" ? (o.2, -10) : o.1 == "S" ? (o.2, 10) : o.1 == "W" ? (-13, o.2) : (13, o.2)
+        func at(_ d: Float) -> (Float, Float) { (centre.0 + normal.0 * d, centre.1 + normal.1 * d) }
+        let alongX = normal.0 == 0
+        let width: Float = o.3 ? 2.4 : 3
+        if o.3 {
+            m.part("Door \(o.0)", at: (centre.0, 1.7, centre.1), size: alongX ? (width, 2.8, 0.25) : (0.25, 2.8, width), color: "#78350F",
+                   tags: ["door"], solid: false, opacity: 0.35)
+            let step = at(1.5)
+            m.pad("Door Step \(o.0)", x: step.0, z: step.1, size: 1.4, color: "#22C55E", tags: ["door_step"])
+        } else {
+            m.part("Window \(o.0)", at: (centre.0, 2.3, centre.1), size: alongX ? (width, 1.6, 0.2) : (0.2, 1.6, width), color: "#93C5FD",
+                   material: .glass, tags: ["window"], opacity: 0.55)
+        }
+        let heights: [Float] = o.3 ? [0.75, 1.3, 1.85, 2.4, 2.95] : [1.75, 2.3, 2.85]
+        let face = at(0.35)
+        for (k, y) in heights.enumerated() {
+            let tilt: Float = k % 2 == 0 ? 6 : -6
+            m.part("Board \(o.0) \(k + 1)", at: (face.0, y, face.1), size: alongX ? (width + 0.8, 0.35, 0.12) : (0.12, 0.35, width + 0.8),
+                   color: "#A16207", solid: false, visible: false, rotation: alongX ? (0, 0, tilt) : (tilt, 0, 0))
+        }
+        let inside = at(-1.1), trap = at(4), out = at(2.6), inn = at(-2.2)
+        m.pad("Board Spot \(o.0)", x: inside.0, z: inside.1, y: floorY, size: 1.4, color: "#92400E", tags: ["board_spot"])
+        m.pad("Trap Spot \(o.0)", x: trap.0, z: trap.1, size: 1.6, color: "#57534E", tags: ["trap_spot"])
+        m.part("Trap \(o.0)", at: (trap.0, 0.3, trap.1), size: (1.2, 0.2, 1.2), color: "#78350F", solid: false, visible: false)
+        m.part("Out \(o.0)", at: (out.0, 0.1, out.1), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+        m.part("In \(o.0)", at: (inn.0, 0.4, inn.1), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+    }
+    // Rooms: kitchen (NW), workshop (NE), living room (SW), bedroom (SE).
+    wall(alongX: true, at: -3, from: -13, to: 13, gaps: [(-6.5, 2.4, floorY, 3), (6.5, 2.4, floorY, 3)], name: "Inner Wall", color: "#E7E5E4")
+    wall(alongX: false, at: 0, from: -10, to: -3, name: "Inner Wall", color: "#E7E5E4")
+    wall(alongX: false, at: 4, from: -3, to: 10, gaps: [(3.5, 2.4, floorY, 3)], name: "Inner Wall", color: "#E7E5E4")
+    m.slab("House Roof", x: 0, y: 4.3, z: 0, w: 27.5, h: 0.4, d: 21.5, color: "#7F1D1D")
+    m.part("House Roof Top", at: (0, 6, 0), size: (26, 3, 19), color: "#7F1D1D", shape: .cone, material: .matte, solid: false)
+    // Kitchen and pantry.
+    m.slab("Counter", x: -11, y: floorY, z: -8.9, w: 3.5, h: 1, d: 1.2, color: "#D6D3D1")
+    m.slab("Fridge", x: -12.1, y: floorY, z: -5, w: 1.2, h: 2.4, d: 1.2, color: "#F8FAFC")
+    m.slab("Kitchen Table", x: -6, y: floorY, z: -6, w: 3, h: 0.9, d: 2, color: "#B45309")
+    m.slab("Pantry Shelf", x: -0.9, y: floorY, z: -8, w: 1, h: 2.6, d: 3.2, color: "#92400E")
+    for i in 0..<4 {
+        m.part("Pantry Food", at: (-1.2, floorY + 0.7 + Float(i % 2) * 1, -9 + Float(i / 2) * 1.6), size: (0.5, 0.5, 0.6),
+               color: i % 2 == 0 ? "#F59E0B" : "#DC2626", solid: false)
+    }
+    m.pad("Pantry", x: -2.4, z: -8, y: floorY, size: 1.8, color: "#F59E0B", tags: ["deposit"])
+    // Workshop and generator.
+    m.slab("Workbench", x: 1.2, y: floorY, z: -6.5, w: 1.2, h: 1, d: 4, color: "#78350F")
+    m.part("Saw", at: (1.2, floorY + 1.1, -7.5), size: (0.8, 0.1, 0.8), color: "#9CA3AF", shape: .cylinder, material: .metal, solid: false)
+    m.pad("Workshop Bench", x: 2.8, z: -6.5, y: floorY, size: 1.8, color: "#EAB308", tags: ["workshop"])
+    m.slab("Generator", x: 11.5, y: floorY, z: -8.8, w: 1.6, h: 1.4, d: 1.2, color: "#6B7280", material: .metal)
+    m.pad("Generator Pad", x: 9.4, z: -8.6, y: floorY, size: 1.6, color: "#F97316", tags: ["deposit"])
+    // Living room.
+    m.slab("Rug", x: -5, y: floorY, z: 3.5, w: 7, h: 0.03, d: 5, color: "#1D4ED8")
+    m.slab("Sofa", x: -9.5, y: floorY, z: 6.3, w: 4, h: 0.9, d: 1.4, color: "#7C3AED")
+    m.slab("TV Stand", x: -4, y: floorY, z: -2.1, w: 3, h: 0.6, d: 0.6, color: "#44403C")
+    m.part("TV", at: (-4, floorY + 1.3, -2.2), size: (2.4, 1.3, 0.12), color: "#111827")
+    m.slab("Laptop Table", x: 2, y: floorY, z: 0, w: 1.4, h: 0.8, d: 1.4, color: "#B45309")
+    m.part("Laptop Screen", at: (2, floorY + 1.1, -0.3), size: (0.9, 0.6, 0.05), color: "#38BDF8", material: .neon, solid: false)
+    m.pad("Laptop", x: 2, z: 1.6, y: floorY, size: 1.4, color: "#38BDF8", tags: ["laptop"])
+    m.slab("Supply Crate", x: -4.2, y: floorY, z: 8.9, w: 1.4, h: 0.9, d: 1, color: "#A16207")
+    m.pad("Supply Box", x: -2.8, z: 7.8, y: floorY, size: 1.8, color: "#F59E0B", tags: ["deposit"])
+    m.part("Dog Bed", at: (-2.5, floorY + 0.1, 4), size: (1.4, 0.2, 1.4), color: "#DC2626", shape: .cylinder, solid: false)
+    m.part("Sister Spot", at: (-8.5, floorY + 0.1, 7.6), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+    m.spawnRing(-6, 2.5, y: floorY, radius: 1.8, count: 6, color: "#FDE68A")
+    // Bedroom.
+    for x: Float in [9.2, 11.8] {
+        m.slab("Bed", x: x, y: floorY, z: 0.5, w: 2, h: 0.6, d: 3, color: "#F1F5F9")
+        m.slab("Pillow", x: x, y: floorY + 0.6, z: -0.5, w: 1.6, h: 0.2, d: 0.6, color: "#FDE68A")
+    }
+    m.slab("Rocking Chair", x: 6.2, y: floorY, z: 7.4, w: 1.2, h: 1, d: 1.2, color: "#92400E")
+    m.pad("Grandma Chair", x: 6.2, z: 5.4, y: floorY, size: 1.8, color: "#A78BFA", tags: ["grandma"])
+    // Lights on the ceiling, off until the generator runs at night.
+    for (i, p) in [(-6.5, -6.5), (6.5, -6.5), (-8, 1), (-1, 6), (8.5, 1), (8.5, 7)].enumerated() {
+        m.part("House Light \(i + 1)", at: (Float(p.0), 4.0, Float(p.1)), size: (0.5, 0.3, 0.5), color: "#44403C", shape: .sphere, solid: false)
+    }
+    m.slab("Porch", x: 0, y: 0, z: 12, w: 6, h: 0.3, d: 3, color: "#78716C")
+    m.part("Porch Light", at: (0, 3.6, 10.5), size: (0.5, 0.5, 0.5), color: "#FEF3C7", shape: .sphere, solid: false)
+    m.part("Power Box", at: (13.4, 1.6, -9), size: (0.3, 1, 0.8), color: "#9CA3AF", material: .metal)
+    m.pad("Power Box Pad", x: 14.6, z: -9, size: 1.4, color: "#FACC15", tags: ["powerbox"])
+    // The yard.
+    m.slab("Driveway", x: 0, y: 0.02, z: 19, w: 4, h: 0.04, d: 14, color: "#6B7280")
+    for (a, b) in [((-22, -17), (22, -17)), ((-22, -17), (-22, 17)), ((22, -17), (22, 17)), ((-22, 17), (-3, 17)), ((3, 17), (22, 17))]
+        as [((Float, Float), (Float, Float))] {
+        m.fence(from: a, to: b, color: "#FAFAF9")
+    }
+    m.part("Mailbox", at: (4, 0.9, 18), size: (0.5, 0.5, 0.8), color: "#1D4ED8")
+    m.tree(-18, -13, height: 5)
+    m.tree(18, 13, height: 5)
+    m.tree(-18, 13, height: 4)
+
+    // MARK: The town
+    m.road(from: (-105, 26), to: (105, 26), width: 8, name: "Main Street")
+    m.road(from: (-105, -34), to: (105, -34), width: 8, name: "North Road")
+    m.road(from: (-40, -105), to: (-40, 105), width: 8, name: "West Avenue")
+    m.road(from: (40, -105), to: (40, 105), width: 8, name: "East Avenue")
+    func loot(_ id: String, _ points: [(Float, Float)], y: Float = 0) {
+        for (i, p) in points.enumerated() {
+            m.part("\(id) Loot \(i + 1)", at: (p.0, y + 0.1, p.1), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+        }
+    }
+    // Hardware store (north), grocery (north-east), pharmacy (south-west).
+    m.shop("Hardware Store", x: 0, z: -58, w: 18, d: 12, color: "#F97316", sign: "#FFFFFF", facing: 1)
+    for x: Float in [-6, 6] { m.slab("Shelf", x: x, y: 0.15, z: -62.5, w: 3, h: 2.2, d: 0.8, color: "#9CA3AF") }
+    loot("hardware", [(-7, -61), (7, -61), (-6, -55), (6, -55)], y: 0.15)
+    m.shop("Grocery", x: 62, z: -58, w: 20, d: 14, color: "#22C55E", sign: "#FEF08A", facing: 1)
+    for x: Float in [56, 62, 68] { m.slab("Grocery Shelf", x: x, y: 0.15, z: -63.5, w: 3.5, h: 1.8, d: 0.8, color: "#FDE68A") }
+    loot("grocery", [(55, -62), (62, -61.5), (69, -62), (57, -54), (67, -54)], y: 0.15)
+    m.shop("Pharmacy", x: -62, z: 50, w: 12, d: 10, color: "#E0F2FE", sign: "#22C55E", facing: -1)
+    m.part("Pharmacy Cross", at: (-62, 5, 44.6), size: (1.6, 1.6, 0.2), color: "#22C55E", material: .neon, solid: false)
+    loot("pharmacy", [(-66, 53), (-58, 53), (-62, 47.5)], y: 0.15)
+    // Gas station (south-east).
+    m.slab("Forecourt", x: 62, y: 0, z: 50, w: 22, h: 0.06, d: 16, color: "#9CA3AF")
+    for p in [(55, 45), (69, 45), (55, 55), (69, 55)] as [(Float, Float)] { m.pillar("Canopy Post", x: p.0, z: p.1, height: 5, radius: 0.3, color: "#F8FAFC") }
+    m.slab("Gas Canopy", x: 62, y: 5, z: 50, w: 17, h: 0.5, d: 12, color: "#DC2626")
+    for x: Float in [59, 65] { m.slab("Fuel Pump", x: x, y: 0, z: 50, w: 1, h: 1.6, d: 0.8, color: "#B91C1C") }
+    m.house("Gas Kiosk", x: 62, z: 64, w: 8, d: 6, wall: "#FEF3C7", roof: "#DC2626", floor: "#D6D3D1", door: false, tags: ["store"], facing: -1)
+    loot("gas", [(57, 50), (67, 50), (62, 64)], y: 0)
+    // Lumber yard (north-west): a fenced yard with stacks of planks.
+    for (a, b) in [((-74, -67), (-50, -67)), ((-74, -67), (-74, -49)), ((-50, -67), (-50, -49)), ((-74, -49), (-65, -49)), ((-59, -49), (-50, -49))]
+        as [((Float, Float), (Float, Float))] {
+        m.fence(from: a, to: b, color: "#92400E")
+    }
+    for (i, p) in ([(-70, -63), (-62, -64), (-54, -63), (-70, -56), (-54, -56)] as [(Float, Float)]).enumerated() {
+        for k in 0..<3 {
+            m.slab("Lumber Stack", x: p.0, y: Float(k) * 0.35, z: p.1, w: 4, h: 0.35, d: 1.4, color: (i + k) % 2 == 0 ? "#D97706" : "#B45309")
+        }
+    }
+    m.house("Lumber Shed", x: -62, z: -76, w: 10, d: 6, wall: "#78350F", roof: "#44403C", floor: "#A16207", door: false, tags: ["store"], facing: 1)
+    loot("lumber", [(-66, -60), (-58, -60), (-66, -52), (-58, -52)])
+    // Empty houses to search.
+    let homes: [(Float, Float, Float)] = [(-66, 0, 1), (66, 0, 1), (-18, 58, -1), (18, 58, -1), (-20, -80, 1)]
+    for (i, h) in homes.enumerated() {
+        m.house("Empty House", x: h.0, z: h.1, w: 10, d: 8, wall: ["#FDE68A", "#FECACA", "#BFDBFE", "#E9D5FF", "#D1FAE5"][i], roof: "#44403C",
+                floor: "#78716C", door: false, tags: ["store"], facing: h.2)
+    }
+    loot("homes", homes.map { ($0.0, $0.1 - $0.2 * 1.5) }, y: 0.15)
+    // The park and the helipad, where the rescue lands.
+    m.slab("Park", x: 0, y: 0.02, z: 78, w: 30, h: 0.05, d: 24, color: "#65A30D")
+    m.pad("Helipad", x: 0, z: 78, size: 8, color: "#FDE047", tags: ["helipad"])
+    m.part("Helipad H", at: (-1.2, 0.25, 78), size: (0.5, 0.05, 4), color: "#1C1917", solid: false)
+    m.part("Helipad H", at: (1.2, 0.25, 78), size: (0.5, 0.05, 4), color: "#1C1917", solid: false)
+    m.part("Helipad H", at: (0, 0.25, 78), size: (2.4, 0.05, 0.5), color: "#1C1917", solid: false)
+    m.group("heli", shown: false) {
+        m.part("Helicopter", at: (0, 2.2, 83), size: (3, 2.2, 5.5), color: "#1D4ED8", shape: .sphere, solid: false)
+        m.part("Helicopter Tail", at: (0, 2.6, 88), size: (0.6, 0.6, 5), color: "#1D4ED8", solid: false)
+        m.part("Helicopter Rotor", at: (0, 3.6, 83), size: (10, 0.1, 0.5), color: "#111827", solid: false)
+        m.part("Helicopter Rotor", at: (0, 3.6, 83), size: (0.5, 0.1, 10), color: "#111827", solid: false)
+        m.part("Helicopter Skid", at: (-1.2, 0.5, 83), size: (0.2, 0.2, 5), color: "#111827", solid: false)
+        m.part("Helicopter Skid", at: (1.2, 0.5, 83), size: (0.2, 0.2, 5), color: "#111827", solid: false)
+    }
+    for p in [(-10, 70), (10, 70), (-12, 86), (12, 86)] as [(Float, Float)] { m.tree(p.0, p.1, height: 4.5) }
+    // Street lamps, parked cars, trees.
+    for x in stride(from: Float(-90), through: 90, by: 30) {
+        m.lamp(x, 31.5)
+        m.lamp(x, -28.5)
+    }
+    m.parkedCar("Car", x: -24, z: 31.5, yaw: 90, color: "#DC2626")
+    m.parkedCar("Car", x: 28, z: -28.5, yaw: -90, color: "#F8FAFC")
+    m.parkedCar("Car", x: 45.5, z: 12, yaw: 0, color: "#1D4ED8")
+    m.parkedCar("Car", x: -35, z: -10, yaw: 180, color: "#16A34A")
     var r = Seeded("lockdown")
-    for i in 0..<6 {
-        let x = r.range(-70, 70), z = r.range(-70, 70)
-        if abs(x) < 20 && abs(z) < 20 { continue }
-        m.house("Store \(i + 1)", x: x, z: z, w: 10, d: 8, h: 3.4, wall: r.pick(["#E5E7EB", "#FDE68A", "#FECACA"]), roof: "#44403C",
-                floor: "#78716C", door: false, tags: ["store"])
+    var planted = 0
+    while planted < 26 {
+        let x = r.range(-100, 100), z = r.range(-100, 100)
+        let clear = abs(x) < 26 && abs(z) < 21 || abs(z - 26) < 7 || abs(z + 34) < 7 || abs(x + 40) < 7 || abs(x - 40) < 7
+            || abs(x) > 44 && abs(x) < 80 && (abs(z + 58) < 14 || abs(z - 50) < 14 || abs(z) < 8)
+            || abs(x) < 26 && (abs(z - 58) < 8 || abs(z - 78) < 14 || abs(z + 58) < 10 || abs(z + 80) < 8)
+        if clear { continue }
+        m.tree(x, z, height: r.range(4, 6.5))
+        planted += 1
     }
-    m.markers("Supply", points: (0..<12).map { _ in (r.range(-75, 75), r.range(-75, 75)) }, color: "#000000", visible: false, behavior: .none)
-    m.markers("Intruder Spawn", points: ring(6, radius: 80), color: "#000000", visible: false, behavior: .none)
+    m.markers("Intruder Spawn", points: [(-92, 0), (92, 0), (0, -95), (0, 95), (-72, -72), (72, -72), (-72, 72), (72, 72)],
+              color: "#000000", visible: false, behavior: .none)
 }
 
 // MARK: 53 Toy Factory Night Shift

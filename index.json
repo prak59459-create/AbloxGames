@@ -1407,16 +1407,21 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 107,
-      "cover" : "games\/night-lockdown\/cover-8f5ff717.png",
+      "blockCount" : 676,
+      "cover" : "games\/night-lockdown\/cover-b2d5390d.png",
       "id" : "night-lockdown",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/night-lockdown\/data.absc",
+        "games\/night-lockdown\/common.absc",
+        "games\/night-lockdown\/day.absc",
+        "games\/night-lockdown\/house.absc",
+        "games\/night-lockdown\/night.absc",
         "games\/night-lockdown\/main.absc"
       ],
-      "summary" : "昼は町で食料と板を集め、夜は家の窓に板を打ちつけて立てこもる。侵入者から家族を守って3夜を生きのびろ。",
+      "summary" : "昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！",
       "tags" : [
         "survival",
         "story",

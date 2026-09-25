@@ -1,0 +1,189 @@
+-- day.absc — 昼: 町のお店で物資を集め、家にしまう。通販。日没前のサイレン。
+
+let day_clock = 0
+
+func store_by_id(id)
+  for s in STORES do
+    if s.id == id then return s end
+  end
+  return nil
+end
+
+-- MARK: 物資の箱
+
+func spawn_crates()
+  for b in blocks("crate") do gone(b) end
+  for s in STORES do
+    for i in 1 to s.spots do
+      let spot = block(s.id + " Loot " + i)
+      if spot != nil then
+        create_block({name: "Supply Crate", position: spot.position + {x: 0, y: 0.55, z: 0}, size: 0.9, color: "#A16207",
+                      material: "matte", behavior: "trigger", solid: false, tags: ["crate", s.id]})
+      end
+    end
+  end
+end
+
+func open_crate(p, b)
+  if len(p.pack) >= pack_max(p) then
+    if quiet_ready(p, "full", 3) then p.message("🎒 いっぱい！ 家の📦 物資箱にしまおう", 1.5) end
+    return
+  end
+  let s = nil
+  for t in b.tags do
+    if store_by_id(t) != nil then s = store_by_id(t) end
+  end
+  if s == nil then return end
+  gone(b)
+  let kind = pick_weighted(s.loot)
+  if kind == "cash" then
+    let got = random(8, 20)
+    kit_give(p, got)
+    p.message("💵 お金を見つけた +" + got, 1.2)
+  elif kind == "medkit" then
+    p.medkits = p.medkits + 1
+    p.message("🩹 救急箱を見つけた（ボタンで使う）", 1.5)
+  else
+    append(p.pack, kind)
+    p.message(LOOT[kind].name + " を見つけた（" + s.name + "）", 1.2)
+  end
+  p.sound("collect")
+  kit_quest_progress(p, "loot", 1)
+  hud(p)
+end
+
+-- 家にしまう: 材料は作業場へ、食べ物は食料庫へ、燃料は発電機へ
+func deposit(p)
+  if len(p.pack) == 0 then return end
+  let got = {}
+  for k in p.pack do
+    if k == "fuel" then
+      fuel = min(100, fuel + 30)
+    else
+      stock[k] = (stock[k] or 0) + 1
+    end
+    got[k] = (got[k] or 0) + 1
+  end
+  let n = len(p.pack)
+  p.pack = []
+  kit_give(p, n * 2)
+  p.score = p.score + n
+  kit_quest_progress(p, "deposit", n)
+  let parts = map(keys(got), func(k) return split(LOOT[k].name, " ")[1] + got[k] end)
+  p.message("📦 家にしまった: " + join(parts, " "), 1.8)
+  p.sound("checkpoint")
+  hud(p)
+  house_hud()
+end
+
+-- MARK: 通販（昼だけ・自分のお金）
+
+func order_panel(p)
+  let h = 110 + len(ORDERS) * 48
+  p.ui_remove("orders")
+  p.ui_panel("orders", {at: "center", w: 500, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("orders_t", "💻 通販（昼だけ）   💰 " + kit_money(p), {parent: "orders", y: 26 / h, size: 18, bold: true, color: "#7DD3FC"})
+  let i = 0
+  for o in ORDERS do
+    i = i + 1
+    let label = o.name + "  " + o.text
+    let bg = "#1D4ED8"
+    if has_order(p, o.id) then
+      label = label + "  ✅"
+      bg = "#475569"
+    else
+      label = label + "   💰" + o.price
+    end
+    p.ui_button("order_" + o.id, label, {parent: "orders", y: (30 + i * 48) / h, w: 460, h: 40, size: 13, bg: bg})
+  end
+  p.ui_button("orders_close", "閉じる", {parent: "orders", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_order(p, id)
+  if phase != "day" then
+    p.message("💻 通販は昼だけ", 1)
+    return
+  end
+  let o = nil
+  for x in ORDERS do
+    if x.id == id then o = x end
+  end
+  if o == nil or has_order(p, id) then return end
+  if not kit_pay(p, o.price) then return end
+  if id == "backpack" or id == "flashlight" or id == "metalbat" or id == "nailgun" then p.orders[id] = true end
+  if id == "metalbat" then equip_bat(p) end
+  if id == "nailgun" then
+    p.give("くぎ打ち機")
+    p.ui_button("swap", "🔁 武器", {at: "right", dy: 240, w: 150, h: 46, size: 16, bg: "#334155"})
+  end
+  if id == "fuelcan" then fuel = min(100, fuel + 40) end
+  if id == "foodbox" then stock.food = stock.food + 3 end
+  if id == "traps" then p.traps_held = p.traps_held + 2 end
+  p.sound("collect")
+  p.message("📦 " + o.name + " がとどいた！", 1.5)
+  kit_quest_progress(p, "order", 1)
+  order_panel(p)
+  hud(p)
+  house_hud()
+end
+
+-- MARK: 昼の始まり
+
+func start_day()
+  phase = "day"
+  phase_ends = time() + today().day_secs
+  siren_done = false
+  clear_intruders()
+  world.sky_top = "#5AB2FF"
+  world.sky_bottom = "#CDEBFF"
+  world.light = 0.75
+  if not power then
+    power = true
+    announce("🔧 朝のうちに電気が直った", 2)
+  end
+  repair_openings()
+  set_doors(false)
+  update_lights()
+  spawn_crates()
+  -- ぐっすり眠って、少し元気になる
+  for n in family_alive() do n.health = min(n.max_health, n.health + 30) end
+  for p in players() do
+    if ready(p) then
+      if p.alive then p.heal(100) end
+      p.hungry = false
+      p.speed = 1
+      p.outside_since = 0
+      p.healed_by_grandma = false
+    end
+  end
+  announce("☀️ " + day_n + " 日目の朝。町のお店で物資を集めよう！（📦 家の物資箱にしまう）", 4)
+  house_hud()
+end
+
+on tick(dt)
+  day_clock = day_clock + dt
+  if day_clock < 0.5 then return end
+  day_clock = 0
+  if phase != "day" then return end
+  if not siren_done and left_secs() <= SIREN_SECS then
+    siren_done = true
+    sound("tick")
+    announce("🚨 サイレンが鳴った！ あと " + SIREN_SECS + " 秒で日がしずむ。家にもどれ！", 3)
+  end
+  if time() >= phase_ends then start_night() end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "crate") then open_crate(p, b)
+  elif contains(b.tags, "deposit") then deposit(p)
+  elif contains(b.tags, "laptop") and quiet_ready(p, "laptop", 2) then order_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "order_") then buy_order(p, replace(id, "order_", ""))
+  elif id == "orders_close" then p.ui_remove("orders")
+  end
+end

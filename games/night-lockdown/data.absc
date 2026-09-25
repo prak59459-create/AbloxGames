@@ -1,0 +1,81 @@
+-- data.absc — 日ごとの設定・お店と物資・侵入者・家族・工作・通販
+
+-- 5日。day/night は昼と夜の長さ（秒）。waves は夜に来る侵入者の種類と数
+let DAYS = [
+  {day_secs: 80, night_secs: 70, waves: {stranger: 4}},
+  {day_secs: 80, night_secs: 75, waves: {stranger: 5, sneak: 2}},
+  {day_secs: 75, night_secs: 80, waves: {stranger: 5, sneak: 2, brute: 1}},
+  {day_secs: 75, night_secs: 85, waves: {stranger: 6, sneak: 3, brute: 2, lurker: 1}},
+  {day_secs: 70, night_secs: 90, waves: {stranger: 6, sneak: 3, brute: 2, lurker: 2, boss: 1}}
+]
+let SIREN_SECS = 15          -- 日没前のサイレン
+let RESCUE_SECS = 70         -- 最後の救助ヘリ
+
+-- 物資。goes: 家のどこにしまわれるか（workshop / pantry / generator / 自分で使う）
+let LOOT = {
+  plank: {name: "🪵 板", goes: "workshop"},
+  nails: {name: "🔩 釘", goes: "workshop"},
+  metal: {name: "🛡 鉄板", goes: "workshop"},
+  food: {name: "🍞 食べ物", goes: "pantry"},
+  medkit: {name: "🩹 救急箱", goes: "self"},
+  fuel: {name: "⛽ 燃料", goes: "generator"},
+  cash: {name: "💵 お金", goes: "self"}
+}
+
+-- 町のお店。loot は出やすさ（合計100）
+let STORES = [
+  {id: "lumber", name: "材木置き場", spots: 4, loot: {plank: 60, nails: 25, cash: 15}},
+  {id: "grocery", name: "スーパー", spots: 5, loot: {food: 70, medkit: 10, cash: 20}},
+  {id: "hardware", name: "ホームセンター", spots: 4, loot: {nails: 35, metal: 35, plank: 15, cash: 15}},
+  {id: "pharmacy", name: "薬局", spots: 3, loot: {medkit: 60, food: 20, cash: 20}},
+  {id: "gas", name: "ガソリンスタンド", spots: 3, loot: {fuel: 60, metal: 20, food: 20}},
+  {id: "homes", name: "空き家", spots: 5, loot: {food: 35, plank: 25, cash: 25, medkit: 15}}
+]
+
+-- 開口部（窓とドア）。dir は妹が教える方角
+let OPENINGS = [
+  {id: "N1", name: "北の窓（台所）", door: false},
+  {id: "N2", name: "北の窓（作業場）", door: false},
+  {id: "W", name: "西の窓（居間）", door: false},
+  {id: "E", name: "東の窓（作業場）", door: false},
+  {id: "S1", name: "南の窓（居間）", door: false},
+  {id: "S2", name: "南の窓（寝室）", door: false},
+  {id: "FD", name: "玄関", door: true},
+  {id: "BD", name: "裏口（寝室）", door: true}
+]
+let MAX_LAYERS = 3
+
+-- 侵入者。brk: 板を1枚はがす秒数 / dps: そばにいる人へのダメージ
+let INTRUDERS = {
+  stranger: {name: "🎭 覆面の男", color: "#111827", head: "#F5F5F4", size: 1, hp: 90, speed: 0.75, brk: 4, dps: 12, reward: 8},
+  sneak: {name: "🏃 こそ泥", color: "#1E3A8A", head: "#111827", size: 0.8, hp: 55, speed: 1.15, brk: 3, dps: 6, reward: 8},
+  brute: {name: "💪 大男", color: "#7F1D1D", head: "#F5F5F4", size: 1.5, hp: 260, speed: 0.6, brk: 2.5, dps: 22, reward: 20},
+  lurker: {name: "🔦 電線切り", color: "#374151", head: "#FDE047", size: 0.95, hp: 80, speed: 0.9, brk: 5, dps: 10, reward: 14},
+  boss: {name: "🕴 黒コートの男", color: "#0A0A0A", head: "#E5E5E5", size: 1.9, hp: 900, speed: 0.7, brk: 1.8, dps: 30, reward: 120}
+}
+
+-- 家族。hp は最大の体力
+let FAMILY = [
+  {id: "grandma", name: "👵 おばあちゃん", color: "#A78BFA", head: "#F5D0A9", size: 0.9, hp: 120, home: "Grandma Chair"},
+  {id: "sister", name: "👧 妹", color: "#F472B6", head: "#F5D0A9", size: 0.7, hp: 100, home: "Sister Spot"},
+  {id: "dog", name: "🐕 ポチ", color: "#B45309", head: "#92400E", size: 0.55, hp: 90, home: "Dog Bed"}
+]
+
+-- 作業場で作れるもの（家の材料を使う）
+let RECIPES = [
+  {id: "spike", name: "🪤 くぎ板のわな", cost: {plank: 2, nails: 3}, text: "窓の外に置く。ふんだ侵入者に40ダメージ＋3秒止める"},
+  {id: "beartrap", name: "⚙️ トラバサミ", cost: {metal: 1, nails: 2}, text: "70ダメージ＋5秒止める"},
+  {id: "nailbat", name: "🏏 くぎバット", cost: {plank: 1, nails: 5}, text: "自分のバットを強くする（45ダメージ）"},
+  {id: "barricade", name: "🧱 補強ドア", cost: {plank: 3, metal: 2, nails: 4}, text: "玄関と裏口に鉄のかんぬき（板2枚ぶん追加）"}
+]
+
+-- 通販（自分のお金で。昼だけ）
+let ORDERS = [
+  {id: "backpack", name: "🎒 大きなリュック", price: 120, text: "持てる数 4 → 7"},
+  {id: "flashlight", name: "🔦 懐中電灯", price: 60, text: "ボタンで前の侵入者を3秒ひるませる"},
+  {id: "metalbat", name: "🏏 金属バット", price: 90, text: "55ダメージ"},
+  {id: "nailgun", name: "🔫 くぎ打ち機", price: 220, text: "遠くから撃てる（夜ごとに弾が満タン）"},
+  {id: "fuelcan", name: "⛽ 燃料缶", price: 40, text: "発電機の燃料 +40"},
+  {id: "foodbox", name: "🍱 食料セット", price: 50, text: "食べ物 +3"},
+  {id: "traps", name: "🪤 わなセット", price: 70, text: "くぎ板のわな ×2"}
+]

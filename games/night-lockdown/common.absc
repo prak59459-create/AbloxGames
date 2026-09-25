@@ -1,0 +1,202 @@
+-- common.absc — 町と家の状態・小さな道具・持ち物・画面
+
+let phase = "day"          -- day / night / rescue / over
+let day_n = 1
+let phase_ends = 0
+let siren_done = false
+let stock = {plank: 6, nails: 4, metal: 0, food: 4}   -- 家の材料と食料（みんなのもの）
+let fuel = 40              -- 発電機の燃料 0〜100
+let power = true           -- 電線切りに切られると false
+let layers = {}            -- 開口部 id → 板の列（1枚ごとの残り: 板1・鉄板2）
+let traps = {}             -- 開口部 id → "spike" / "beartrap" / nil
+let door_bar = false       -- 補強ドア
+let family = {}            -- 家族 id → NPC
+let lost = 0               -- 連れ去られた家族の数
+
+func ready(p)
+  return p.pack != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func today()
+  return DAYS[min(day_n, len(DAYS))]
+end
+
+func left_secs()
+  return max(0, ceil(phase_ends - time()))
+end
+
+-- 家の中か（床の上）
+func in_house(pos)
+  return abs(pos.x) < 13 and abs(pos.z) < 10 and pos.y < 5
+end
+
+func opening(id)
+  for o in OPENINGS do
+    if o.id == id then return o end
+  end
+  return nil
+end
+
+func max_layers(o)
+  if o.door and door_bar then return MAX_LAYERS + 2 end
+  return MAX_LAYERS
+end
+
+func layer_count(id)
+  return len(layers[id] or [])
+end
+
+func pick_weighted(table)
+  let roll = random(1, 100)
+  let acc = 0
+  for k in keys(table) do
+    acc = acc + table[k]
+    if roll <= acc then return k end
+  end
+  return keys(table)[1]
+end
+
+func family_alive()
+  let list = []
+  for f in FAMILY do
+    let n = family[f.id]
+    if n != nil and still(n) and n.alive then append(list, n) end
+  end
+  return list
+end
+
+func has_order(p, id)
+  return p.orders[id] == true
+end
+
+-- MARK: 持ち物（リュック）
+
+func pack_max(p)
+  if has_order(p, "backpack") then return 7 end
+  return 4
+end
+
+func pack_line(p)
+  if len(p.pack) == 0 then return "からっぽ" end
+  let counts = {}
+  for k in p.pack do counts[k] = (counts[k] or 0) + 1 end
+  let parts = []
+  for k in keys(counts) do append(parts, split(LOOT[k].name, " ")[1] + counts[k]) end
+  return join(parts, " ")
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let extra = ""
+  if p.traps_held > 0 then extra = "   🪤" + p.traps_held end
+  if p.medkits > 0 then extra = extra + "   🩹" + p.medkits end
+  p.ui_text("pack", "🎒 " + len(p.pack) + "/" + pack_max(p) + "  " + pack_line(p) + extra, {at: "top_left", dy: 36, size: 15, bold: true, color: "#FDE68A"})
+  if p.medkits > 0 then
+    p.ui_button("medkit", "🩹 " + p.medkits, {at: "bottom_right", dx: -240, dy: -160, w: 100, h: 56, size: 20, bg: "#DC2626", radius: 16})
+  else
+    p.ui_remove("medkit")
+  end
+  if has_order(p, "flashlight") then
+    p.ui_button("flash", "🔦", {at: "bottom_right", dx: -120, dy: -236, w: 100, h: 56, size: 24, bg: "#CA8A04", radius: 16})
+  end
+end
+
+func house_hud()
+  let clock = ""
+  if phase == "day" then
+    clock = "☀️ " + day_n + " 日目の昼  ⏱ " + kit_clock(left_secs())
+    if left_secs() <= SIREN_SECS then clock = clock + "  🚨 日がしずむ！ 家へ！" end
+  elif phase == "night" then
+    clock = "🌙 " + day_n + " 日目の夜  ⏱ " + kit_clock(left_secs()) + "  侵入者 " + len(filter(npcs(), func(n) return n.intruder != nil end))
+  elif phase == "rescue" then
+    clock = "🚁 救助ヘリ！ 公園へ  ⏱ " + kit_clock(left_secs())
+  end
+  ui_text("clock", clock, {at: "top", dy: 26, size: 19, bold: true})
+  let fam = []
+  for f in FAMILY do
+    let n = family[f.id]
+    if n != nil and still(n) and n.alive then
+      append(fam, split(f.name, " ")[1] + floor(n.health))
+    else
+      append(fam, split(f.name, " ")[1] + "✖")
+    end
+  end
+  let lights = "🔋 " + floor(fuel) + "%"
+  if not power then lights = "⚡ 停電！" end
+  ui_text("house", "🏠 🍞" + stock.food + "  🪵" + stock.plank + "  🔩" + stock.nails + "  🛡" + stock.metal + "   " + lights + "   " + join(fam, " "),
+          {at: "top", dy: 52, size: 14, color: "#E5E7EB"})
+end
+
+-- MARK: 家の中の道順
+-- NPC はまっすぐ歩くので、ちがう部屋へは戸口をひとつずつ通る。
+-- ROOM_LINKS[a][b] は部屋 a から b へ入った先の点（戸口の少し向こう）。
+
+let ROOM_LINKS = {
+  kitchen: {living: {x: -6.5, z: -1.6}},
+  workshop: {bedroom: {x: 6.5, z: -1.6}},
+  living: {kitchen: {x: -6.5, z: -4.4}, bedroom: {x: 5.4, z: 3.5}, out: {x: 0, z: 11.6}},
+  bedroom: {workshop: {x: 6.5, z: -4.4}, living: {x: 2.6, z: 3.5}, out: {x: 14.6, z: 6}},
+  out: {living: {x: 0, z: 8.4}, bedroom: {x: 11.4, z: 6}}
+}
+
+func room_of(pos)
+  if not in_house(pos) then return "out" end
+  if pos.z < -3 then
+    if pos.x < 0 then return "kitchen" end
+    return "workshop"
+  end
+  if pos.x < 4 then return "living" end
+  return "bedroom"
+end
+
+-- here から goal へ行くとき、次に向かう点
+func route(here, goal)
+  let a = room_of(here)
+  let b = room_of(goal)
+  if a == b then return goal end
+  let prev = {}
+  prev[a] = a
+  let queue = [a]
+  while len(queue) > 0 do
+    let r = queue[1]
+    remove(queue, 1)
+    for nb in keys(ROOM_LINKS[r]) do
+      if prev[nb] == nil then
+        prev[nb] = r
+        append(queue, nb)
+      end
+    end
+  end
+  if prev[b] == nil then return goal end
+  let hop = b
+  while prev[hop] != a do hop = prev[hop] end
+  let d = ROOM_LINKS[a][hop]
+  return {x: d.x, y: 0.5, z: d.z}
+end
+
+-- 同じ部屋ならついていき、ちがえば戸口へ
+func go_to(n, target)
+  if room_of(n.position) == room_of(target.position) then n.follow(target) else n.move_to(route(n.position, target.position)) end
+end
+
+func walk_to(n, pos)
+  n.move_to(route(n.position, pos))
+end
