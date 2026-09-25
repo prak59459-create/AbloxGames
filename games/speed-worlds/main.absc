@@ -1,76 +1,55 @@
--- Speed Worlds — 超スピードで5つの世界を走りぬける
+-- Speed Worlds — 8つのワールドを超スピードで走るスピードラン。メダルとゴーストとレース大会
+--
+-- ファイル:
+--   data.absc    ワールド8つ・強化
+--   common.absc  メダルの目安・画面
+--   run.absc     走る・タイム・チェックポイント・ゴール・ゴースト・しかけ
+--   race.absc    レース大会・お店
+--   main.absc    このファイル
 
 kit_setup("Speed Worlds", "最速タイムでゴールへ！", [
-  "とても速く走れる！ジャンプも高い",
-  "紫のポータルで次の世界へワープ（全部で5つ）",
-  "黄色いブーストを踏むと、さらに加速",
-  "緑のパッドはチェックポイント。落ちてもそこから",
-  "最後のゴールでタイムが記録される。自己ベストを更新しよう"
+  "🌀 ハブの光るパッドでワールドへ。ゴールすると次のワールドが開く",
+  "⏱ 3・2・1・GO! でタイムスタート。🥇🥈🥉 のメダルをねらおう",
+  "🟩 緑のパッドはチェックポイント。落ちてもそこから",
+  "🟨 黄色い加速床でビュン！ 🟣 トランポリンで大ジャンプ",
+  "🌌 宇宙はふわっと、🏜 砂漠は動く足場、🌋 溶岩は踏まないで",
+  "👻 ゴーストをONにすると、自分のベストの走りがいっしょに走る",
+  "🏁 ときどきレース大会！ 🛒 お店でシューズ・ブーツ・グライダー"
 ])
+kit_currency = "コイン"
 
-let record = nil
-let record_name = ""
-
-kit_quest("world3", "3つ目の世界に着く", 1, 100)
-kit_quest("finish", "ゴールする", 1, 300)
-kit_quest("fast", "3分以内にゴール", 1, 500)
-
-func show(p)
-  let t = p.started != nil and (time() - p.started) or 0
-  p.ui_text("time", "⏱ " + fixed(t, 1) + " 秒   🌍 " + p.world + " / 5" + (p.best != nil and ("   🏅 自己ベスト " + fixed(p.best, 1)) or ""),
-            {at: "top", dy: 30, size: 18, bold: true})
-end
+kit_quest("finish", "ゴールを5回", 5, 200)
+kit_quest("worlds", "4つのワールドをクリア", 4, 800)
+kit_quest("gold", "金メダルを3こ", 3, 1000)
+kit_quest("race", "レース大会に出る", 1, 300)
+kit_quest("upgrade", "3回強化する", 3, 500)
 
 on start()
-  every(0.5, func()
-    for p in players() do
-      -- いまどの世界にいるか（z の位置で）
-      let w = min(5, max(1, floor((p.z + 20) / 400) + 1))
-      if w > p.world then
-        p.world = w
-        p.message("🌍 世界 " + w + "！", 1.5)
-        if w >= 3 then kit_quest_progress(p, "world3", 1) end
-      end
-      show(p)
-    end
-  end)
-  if record != nil then ui_text("record", "🏆 最速 " + record_name + " " + fixed(record, 1) + "秒", {at: "top_right", dy: 60, size: 15}) end
+  every(10, func() kit_leaderboard("🏅") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.speed = 1.7
-  p.jump = 1.3
-  p.world = 1
-  p.started = time()
-  show(p)
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "boost") and kit_ready(p, "boost", 1) then
-    p.speed = 2.6
-    p.launch(p.look * 12 + {x: 0, y: 4, z: 0})
-    kit_later(p, 2, func() p.speed = 1.7 end)
-  elif contains(b.tags, "finish") and p.started != nil then
-    let t = time() - p.started
-    p.started = nil
-    kit_quest_progress(p, "finish", 1)
-    if t < 180 then kit_quest_progress(p, "fast", 1) end
-    if p.best == nil or t < p.best then p.best = t end
-    p.score = max(p.score, floor(1000 - t))
-    announce("🏁 " + p.name + " ゴール！ " + fixed(t, 1) + " 秒", 4)
-    if record == nil or t < record then
-      record = t
-      record_name = p.name
-      announce("🏆 新記録！ " + p.name + " " + fixed(t, 1) + " 秒", 4)
-      ui_text("record", "🏆 最速 " + record_name + " " + fixed(record, 1) + "秒", {at: "top_right", dy: 60, size: 15})
-    end
-    kit_later(p, 3, func()
-      p.teleport(block("Spawn " + random(1, 8)))
-      p.world = 1
-      p.started = time()
-    end)
+  p.best = []
+  p.medals = []
+  p.ghost_paths = []
+  for n in 1 to len(WORLDS) do
+    append(p.best, nil)
+    append(p.medals, "")
+    append(p.ghost_paths, nil)
   end
+  p.ups = {}
+  p.ghost_on = true
+  p.glide = false
+  p.world = nil
+  p.rec = []
+  p.speed = run_speed(p)
+  p.jump = run_jump(p)
+  kit_give(p, 20)
+  p.ui_button("restart", "↺ やり直す", {at: "right", dy: -60, w: 130, h: 44, size: 15, bg: "#57534E"})
+  p.ui_button("hub", "🏠 ハブ", {at: "right", dy: -10, w: 130, h: 44, size: 15, bg: "#0369A1"})
+  p.ui_button("ghost", "👻 ゴースト", {at: "right", dy: 40, w: 130, h: 44, size: 15, bg: "#6366F1"})
+  p.ui_button("open_shop", "🛒 お店", {at: "right", dy: 90, w: 130, h: 44, size: 15, bg: "#B45309"})
+  hud(p)
 end

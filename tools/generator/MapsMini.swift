@@ -10,7 +10,7 @@ let miniGames: [Game] = [
          summary: "ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！",
          tags: ["golf", "sports", "party"], maxPlayers: 8, build: chaosGolf),
     Game(number: 73, id: "speed-worlds", title: "Speed Worlds",
-         summary: "ものすごいスピードで走りぬけるアスレチック。5つの世界をワープでつなぐコースを、最速タイムでクリアしよう。",
+         summary: "8つのワールド（草原・氷・溶岩・宇宙・おかし・砂漠・雲・ネオン）を超スピードで走るスピードラン。金銀銅メダル、自分のベスト走りの👻ゴースト、レース大会、シューズ・ブーツ・グライダー！",
          tags: ["obby", "speedrun", "fast"], maxPlayers: 12, build: speedWorlds),
     Game(number: 74, id: "island-drama-show", title: "Island Drama Show",
          summary: "サバイバル番組の出演者になって、毎回ちがうミニゲームで勝ちぬけ！最下位は脱落…最後に残るのはだれだ？",
@@ -196,38 +196,69 @@ func chaosGolf(_ m: MapBuilder) {
 
 func speedWorlds(_ m: MapBuilder) {
     m.sky("#22D3EE", "#ECFEFF", light: 0.85, showGround: false, fall: -25)
-    let worlds: [(String, String, String)] = [("Grass World", "#4ADE80", "#15803D"), ("Ice World", "#E0F2FE", "#7DD3FC"), ("Lava World", "#F97316", "#7F1D1D"),
-                                             ("Space World", "#312E81", "#A78BFA"), ("Candy World", "#F9A8D4", "#DB2777")]
+    m.part("Cover Focus", at: (-60, 4, 40), size: (130, 1, 1), color: "#000000", tags: ["yaw=215"], solid: false, visible: false)
+    // The hub: spawns, a portal pad in front of each world, the shop and the records board.
+    m.slab("Hub", x: 0, y: -1, z: -36, w: 500, h: 1, d: 26, color: "#F8FAFC")
+    m.spawnRing(0, -40, radius: 5, count: 8, color: "#22D3EE")
+    m.pad("Shop Pad", x: -12, z: -44, size: 3, color: "#F59E0B", tags: ["shop"])
+    m.slab("Shop Stand", x: -12, y: 0, z: -47.5, w: 5, h: 2.6, d: 1, color: "#B45309")
+    m.part("Records Board", at: (12, 3, -48.6), size: (10, 4, 0.3), color: "#0F172A", material: .neon, solid: false)
+    let worlds: [(String, String, String)] = [("grass", "#4ADE80", "#15803D"), ("ice", "#E0F2FE", "#7DD3FC"), ("lava", "#78716C", "#44403C"),
+                                              ("space", "#312E81", "#A78BFA"), ("candy", "#F9A8D4", "#DB2777"), ("desert", "#FDE68A", "#D97706"),
+                                              ("cloud", "#F8FAFC", "#CBD5E1"), ("neon", "#0F172A", "#22D3EE")]
     var r = Seeded("speedworlds")
-    var portals: [UUID] = []
-    var starts: [UUID] = []
     for (i, w) in worlds.enumerated() {
-        let baseZ = Float(i) * 400
-        starts.append(m.slab("\(w.0) Start", x: 0, y: -1, z: baseZ, w: 16, h: 1, d: 16, color: w.1))
-        var z = baseZ + 14
-        for k in 0..<12 {
-            let gap = r.range(3, 7)
-            let len = r.range(10, 22)
+        let n = i + 1
+        let bx = Float(i) * 60 - 210
+        m.pad("Portal \(n)", x: bx, z: -28, size: 3.4, color: w.2, tags: ["portal"])
+        m.part("Portal Arch \(n)", at: (bx, 2.5, -26.4), size: (4.4, 5, 0.4), color: w.2, material: .neon, solid: false, opacity: 0.7)
+        m.slab("World \(n) Start", x: bx, y: -1, z: 0, w: 12, h: 1, d: 12, color: w.1)
+        var z: Float = 6
+        var level: Float = 0
+        for k in 0..<14 {
+            let theme = w.0
+            var gap = r.range(3, 6)
+            var len = r.range(8, 16)
+            var width = r.range(4, 7)
+            if theme == "ice" { width = r.range(2.2, 3.6) }
+            if theme == "space" { gap = r.range(6, 10) }
+            if theme == "neon" { len = r.range(10, 20) }
+            level = max(0, min(5, level + r.range(-1, 1.4)))
             z += gap + len / 2
-            let x = r.range(-6, 6)
-            m.slab("\(w.0) Run \(k + 1)", x: x, y: -1 + Float(k % 3) * 0.6, z: z, w: r.range(3, 6), h: 1, d: len, color: k % 2 == 0 ? w.1 : w.2)
-            if k == 5 { m.pad("\(w.0) Checkpoint", x: x, z: z, y: Float(k % 3) * 0.6, size: 3, color: "#4ADE80", tags: ["cp"]) }
-            if k % 4 == 3 {
-                m.part("\(w.0) Boost \(k + 1)", at: (x, 0.15 + Float(k % 3) * 0.6, z - len / 2 + 1), size: (3, 0.2, 2), color: "#FACC15",
-                       material: .neon, behavior: .trigger, tags: ["boost"])
+            let x = bx + r.range(-5, 5)
+            let color = k % 2 == 0 ? w.1 : w.2
+            if theme == "desert" && k % 3 == 1 {
+                m.part("Mover", at: (x, level - 0.5, z), size: (width, 1, len), color: "#B45309", tags: ["mover"])
+            } else {
+                m.slab("World \(n) Run", x: x, y: level - 1, z: z, w: width, h: 1, d: len, color: color, material: theme == "ice" ? .glass : .plastic)
+            }
+            if theme == "lava" && k % 2 == 1 {
+                m.part("Lava", at: (x, level + 0.03, z), size: (width * 0.6, 0.06, len * 0.5), color: "#F97316", material: .neon, behavior: .hazard)
+            }
+            if (theme == "candy" || theme == "cloud") && k % 3 == 2 {
+                m.part("Bounce", at: (x, level + 0.1, z + len / 2 - 1.2), size: (min(width, 3), 0.2, 2), color: theme == "candy" ? "#F472B6" : "#38BDF8",
+                       material: .neon, behavior: .bounce)
+                level = min(6, level + 3)
+            }
+            if (theme == "neon" && k % 2 == 0) || (theme == "grass" && k % 4 == 3) {
+                m.part("Boost", at: (x, level + 0.1, z - len / 2 + 1.2), size: (3, 0.2, 2), color: "#FACC15", material: .neon, behavior: .trigger, tags: ["boost"])
+            }
+            if k == 4 || k == 9 {
+                m.pad("World \(n) CP \(k == 4 ? 1 : 2)", x: x, z: z, y: level, size: 2.6, color: "#22C55E", tags: ["cp"])
+            }
+            if theme == "cloud" && k % 2 == 0 {
+                m.part("Cloud Puff", at: (x + width, level - 1, z), size: (4, 2, 4), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false)
+            }
+            if theme == "space" && k % 3 == 0 {
+                m.part("Star", at: (x + r.range(-10, 10), level + r.range(3, 8), z), size: (0.6, 0.6, 0.6), color: "#FDE047", shape: .sphere, material: .neon, solid: false)
             }
             z += len / 2
         }
-        m.slab("\(w.0) End", x: 0, y: -1, z: z + 6, w: 10, h: 1, d: 6, color: w.2)
-        if i == worlds.count - 1 {
-            m.pad("Finish", x: 0, z: z + 6, size: 4, color: "#FFFFFF", tags: ["finish"])
-        } else {
-            portals.append(m.part("\(w.0) Portal", at: (0, 1.5, z + 6), size: (4, 4, 0.6), color: "#A855F7", material: .neon,
-                                  behavior: .teleport, tags: ["portal"], opacity: 0.8))
-        }
+        m.slab("World \(n) End", x: bx, y: level - 1, z: z + 8, w: 12, h: 1, d: 10, color: w.2)
+        m.pad("World \(n) Finish", x: bx, z: z + 8, y: level, size: 4, color: "#FFFFFF", tags: ["finish"])
+        m.part("Finish Flag \(n)", at: (bx + 4, level + 2.5, z + 8), size: (0.2, 5, 0.2), color: "#111827", solid: false)
+        m.part("Finish Checker \(n)", at: (bx + 5, level + 4.4, z + 8), size: (2, 1.2, 0.1), color: "#F8FAFC", solid: false)
     }
-    for i in portals.indices { m.setTeleport(from: portals[i], to: starts[i + 1]) }
-    m.spawnRing(0, 0, radius: 4, count: 8, color: "#FACC15")
 }
 
 // MARK: 74 Island Drama Show

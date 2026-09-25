@@ -1,0 +1,194 @@
+-- run.absc — ワールドを走る: スタートの合図・タイム・チェックポイント・ゴールとメダル・👻ゴースト・動く足場・加速床
+
+let run_clock = 0
+let mover_clock = 0
+let mover_flip = 1
+
+func to_hub(p)
+  p.run_id = (p.run_id or 0) + 1
+  p.world = nil
+  p.started = nil
+  p.cp = nil
+  p.frozen = false
+  p.gravity = 1
+  gone(p.ghost)
+  p.ghost = nil
+  p.teleport(block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0})
+  hud(p)
+end
+
+-- ワールドのスタートへ。3・2・1 のあいだは動けない
+func enter_world(p, n)
+  if not unlocked(p, n) then
+    p.message("🔒 前のワールドをゴールすると開く", 1.5)
+    return
+  end
+  p.world = n
+  p.cp = nil
+  p.started = nil
+  p.rec = []
+  -- 前のスタートの合図が遅れて来ても無視できるように
+  p.run_id = (p.run_id or 0) + 1
+  let id = p.run_id
+  p.gravity = WORLDS[n].gravity
+  if p.glide then p.gravity = p.gravity * 0.6 end
+  p.teleport(block("World " + n + " Start").position + {x: 0, y: 1, z: -3})
+  p.frozen = true
+  p.message("3", 0.6)
+  kit_later(p, 0.7, func() if p.run_id == id then p.message("2", 0.6) end end)
+  kit_later(p, 1.4, func() if p.run_id == id then p.message("1", 0.6) end end)
+  kit_later(p, 2.1, func()
+    if p.run_id != id or p.world != n then return end
+    p.frozen = false
+    p.started = time()
+    p.message("GO! 🏃", 0.8)
+    start_ghost(p)
+  end)
+  hud(p)
+end
+
+func touch_cp(p, b)
+  if p.world == nil or p.cp == b then return end
+  if not starts_with(b.name, "World " + p.world + " ") then return end
+  p.cp = b
+  p.message("✅ チェックポイント", 1)
+  p.sound("collect")
+end
+
+func finish(p, b)
+  if p.world == nil or p.started == nil then return end
+  if b.name != "World " + p.world + " Finish" then return end
+  let n = p.world
+  let t = time() - p.started
+  p.started = nil
+  let medal = medal_of(n, t)
+  let first = p.best[n] == nil
+  let new_best = first or t < p.best[n]
+  if new_best then
+    p.best[n] = t
+    p.ghost_paths[n] = p.rec
+  end
+  if medal_rank(medal) > medal_rank(p.medals[n] or "") then p.medals[n] = medal end
+  let coins = 20 + medal_rank(medal) * 25
+  if first then coins = coins + 50 end
+  kit_give(p, coins)
+  kit_quest_progress(p, "finish", 1)
+  if medal == "gold" then kit_quest_progress(p, "gold", 1) end
+  if first then kit_quest_progress(p, "worlds", 1) end
+  let rec = records[n]
+  let line = "🏁 " + WORLDS[n].name + " ゴール！ " + fixed(t, 1) + "秒 " + medal_icon(medal) + "  💰+" + coins
+  if new_best and not first then line = line + "  ✨自己ベスト！" end
+  p.message(line, 3)
+  if rec.time == 0 or t < rec.time then
+    records[n] = {time: t, name: p.name}
+    announce("🏆 " + WORLDS[n].name + " 新記録！ " + p.name + " " + fixed(t, 1) + "秒", 4)
+  end
+  p.sound("goal")
+  race_finish(p, n, t)
+  let all_gold = true
+  for k in 1 to len(WORLDS) do
+    if p.medals[k] != "gold" then all_gold = false end
+  end
+  if all_gold then kit_badge(p, "allgold", "全ワールドで金メダル") end
+  p.score = 0
+  for k in 1 to len(WORLDS) do p.score = p.score + medal_rank(p.medals[k] or "") end
+  kit_later(p, 2.5, func()
+    if p.world == n and p.started == nil then to_hub(p) end
+  end)
+end
+
+func restart(p)
+  if p.world == nil then return end
+  gone(p.ghost)
+  enter_world(p, p.world)
+end
+
+-- MARK: 👻 ゴースト（自分のベストの走りをもう一度）
+
+func start_ghost(p)
+  gone(p.ghost)
+  p.ghost = nil
+  if not p.ghost_on or p.world == nil then return end
+  let path = p.ghost_paths[p.world]
+  if path == nil or len(path) == 0 then return end
+  p.ghost = create_npc({name: "👻 ベスト", position: path[1], color: "#E0E7FF", head_color: "#FFFFFF", size: 1, health: 999999, speed: 0, team: "ghost"})
+  p.ghost_i = 1
+end
+
+func ghost_step(p)
+  if not still(p.ghost) then return end
+  p.ghost_i = p.ghost_i + 1
+  let path = p.ghost_paths[p.world]
+  if path == nil or p.ghost_i > len(path) then
+    gone(p.ghost)
+    p.ghost = nil
+    return
+  end
+  p.ghost.position = path[p.ghost_i]
+end
+
+-- MARK: 動く足場と加速床
+
+func movers_step()
+  mover_flip = 0 - mover_flip
+  for b in blocks("mover") do b.move_to({x: b.x + mover_flip * 7, y: b.y, z: b.z}, 1.8) end
+end
+
+on start()
+  compute_medals()
+end
+
+on tick(dt)
+  run_clock = run_clock + dt
+  mover_clock = mover_clock + dt
+  if mover_clock >= 2 then
+    mover_clock = 0
+    movers_step()
+  end
+  if run_clock < 0.25 then return end
+  run_clock = 0
+  for p in players() do
+    if ready(p) and p.world != nil and p.started != nil then
+      if len(p.rec) < 1200 then append(p.rec, p.position) end
+      ghost_step(p)
+      hud(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "portal") and quiet_ready(p, "portal", 2) then enter_world(p, num(replace(b.name, "Portal ", "")))
+  elif contains(b.tags, "cp") then touch_cp(p, b)
+  elif contains(b.tags, "finish") then finish(p, b)
+  elif contains(b.tags, "boost") and quiet_ready(p, "boost", 0.8) then
+    p.launch(0, 6, 34)
+    p.sound("goal")
+  end
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  p.speed = run_speed(p)
+  p.jump = run_jump(p)
+  if p.world == nil then return end
+  if p.cp != nil then p.teleport(p.cp.position + {x: 0, y: 1, z: 0})
+  else p.teleport(block("World " + p.world + " Start").position + {x: 0, y: 1, z: 0}) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "restart" then restart(p)
+  elif id == "hub" then to_hub(p)
+  elif id == "ghost" then
+    p.ghost_on = not p.ghost_on
+    if p.ghost_on then p.message("👻 ゴースト ON（自分のベストが走る）", 1.5) else
+      p.message("👻 ゴースト OFF", 1)
+      gone(p.ghost)
+    end
+  end
+end
+
+on leave(p)
+  gone(p.ghost)
+end

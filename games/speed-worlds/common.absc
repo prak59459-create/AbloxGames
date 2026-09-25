@@ -1,0 +1,95 @@
+-- common.absc — 小さな道具・メダルの目安タイム・画面
+
+let medal_times = []     -- ワールドごとの {gold, silver, bronze}
+let records = []         -- ワールドごとの {time, name}
+
+func ready(p)
+  return p.best != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func lvl(p, id)
+  return p.ups[id] or 0
+end
+
+func run_speed(p)
+  return BASE_SPEED + lvl(p, "shoes") * 0.1
+end
+
+func run_jump(p)
+  return BASE_JUMP + lvl(p, "boots") * 0.1
+end
+
+-- メダルの目安（スタートからゴールまでのきょりで決める）
+func compute_medals()
+  medal_times = []
+  records = []
+  for n in 1 to len(WORLDS) do
+    let s = block("World " + n + " Start")
+    let f = block("World " + n + " Finish")
+    let d = 100
+    if s != nil and f != nil then d = distance(s, f) end
+    append(medal_times, {gold: floor(d / 9 + 3), silver: floor(d / 7 + 6), bronze: floor(d / 5 + 10)})
+    append(records, {time: 0, name: ""})
+  end
+end
+
+func medal_of(n, t)
+  let m = medal_times[n]
+  if t <= m.gold then return "gold" end
+  if t <= m.silver then return "silver" end
+  if t <= m.bronze then return "bronze" end
+  return ""
+end
+
+func medal_icon(id)
+  if id == "gold" then return "🥇" end
+  if id == "silver" then return "🥈" end
+  if id == "bronze" then return "🥉" end
+  return "・"
+end
+
+func medal_rank(id)
+  if id == "gold" then return 3 end
+  if id == "silver" then return 2 end
+  if id == "bronze" then return 1 end
+  return 0
+end
+
+func unlocked(p, n)
+  return n == 1 or p.best[n - 1] != nil
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let medals = ""
+  for n in 1 to len(WORLDS) do medals = medals + medal_icon(p.medals[n] or "") end
+  if p.world == nil then
+    p.ui_text("time", "🏠 ハブ — 光るパッドでワールドへ   " + medals, {at: "top", dy: 30, size: 16, bold: true})
+    return
+  end
+  let t = 0
+  if p.started != nil then t = time() - p.started end
+  let best = "—"
+  if p.best[p.world] != nil then best = fixed(p.best[p.world], 1) + "秒" end
+  let m = medal_times[p.world]
+  p.ui_text("time", WORLDS[p.world].name + "  ⏱ " + fixed(t, 1) + "秒   🏅 ベスト " + best + "   🥇" + m.gold + " 🥈" + m.silver + " 🥉" + m.bronze,
+            {at: "top", dy: 30, size: 16, bold: true})
+end

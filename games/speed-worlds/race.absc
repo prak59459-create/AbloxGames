@@ -1,0 +1,157 @@
+-- race.absc — レース大会（ときどき）・お店（シューズ・ブーツ・グライダー）
+
+let race_state = "none"  -- none / signup / racing
+let race_world = 1
+let race_until = 0
+let race_next = 0
+let race_place = 0
+let racers = []
+
+func race_open()
+  race_state = "signup"
+  race_until = time() + RACE_SIGNUP
+  race_world = random(1, len(WORLDS))
+  racers = []
+  announce("🏁 レース大会！ " + WORLDS[race_world].name + " — 「🏁 参加」ボタンで " + RACE_SIGNUP + " 秒以内に参加", 5)
+  for p in players() do
+    if ready(p) then p.ui_button("join_race", "🏁 レースに参加", {at: "center", dy: 120, w: 220, h: 56, size: 18, bg: "#DC2626", radius: 16}) end
+  end
+end
+
+func race_start()
+  for p in players() do p.ui_remove("join_race") end
+  if len(racers) == 0 then
+    race_state = "none"
+    race_next = time() + RACE_EVERY
+    return
+  end
+  race_state = "racing"
+  race_until = time() + RACE_TIME
+  race_place = 0
+  for id in racers do
+    for p in players() do
+      if p.id == id then
+        p.racing = true
+        -- レースはカギがかかっていても走れる
+        enter_world_any(p, race_world)
+      end
+    end
+  end
+  announce("🏁 レーススタート！ " + WORLDS[race_world].name, 3)
+end
+
+func enter_world_any(p, n)
+  let saved = p.best[n - 1]
+  if n > 1 and saved == nil then
+    p.best[n - 1] = 9999
+    enter_world(p, n)
+    p.best[n - 1] = nil
+  else
+    enter_world(p, n)
+  end
+end
+
+func race_finish(p, n, t)
+  if race_state != "racing" or not p.racing or n != race_world then return end
+  p.racing = false
+  race_place = race_place + 1
+  let prizes = [150, 100, 60]
+  let prize = 30
+  if race_place <= 3 then prize = prizes[race_place] end
+  kit_give(p, prize)
+  kit_quest_progress(p, "race", 1)
+  if race_place == 1 then
+    kit_badge(p, "race_win", "レースで1位")
+    announce("🥇 レース優勝: " + p.name + "（" + fixed(t, 1) + "秒）", 4)
+  else
+    announce("🏁 " + race_place + "位: " + p.name, 2)
+  end
+  p.message("🏁 レース " + race_place + "位！ 💰+" + prize, 3)
+end
+
+func race_end()
+  race_state = "none"
+  race_next = time() + RACE_EVERY
+  for p in players() do
+    if p.racing then p.racing = false end
+  end
+  announce("🏁 レース終了！", 2)
+end
+
+-- MARK: お店
+
+func up_price(p, u)
+  return floor(u.base * pow(u.grow, lvl(p, u.id)))
+end
+
+func shop_panel(p)
+  let h = 110 + len(UPGRADES) * 48
+  p.ui_remove("shop")
+  p.ui_panel("shop", {at: "center", w: 500, h: h, bg: "#0C4A6EF2", radius: 20, layer: 30})
+  p.ui_text("shop_t", "🛒 お店   💰 " + kit_short(kit_money(p)), {parent: "shop", y: 22 / h, size: 17, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let l = lvl(p, u.id)
+    let label = u.name + " Lv" + l + "/" + u.max + "（" + u.text + "）  💰" + kit_short(up_price(p, u))
+    if l >= u.max then label = u.name + " MAX" end
+    p.ui_button("up_" + u.id, label, {parent: "shop", y: (30 + i * 48) / h, w: 460, h: 42, size: 13, bg: "#0369A1"})
+  end
+  p.ui_button("shop_close", "閉じる", {parent: "shop", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func buy_up(p, id)
+  let u = nil
+  for x in UPGRADES do
+    if x.id == id then u = x end
+  end
+  if u == nil or lvl(p, id) >= u.max then return end
+  if kit_pay(p, up_price(p, u)) then
+    p.ups[id] = lvl(p, id) + 1
+    p.speed = run_speed(p)
+    p.jump = run_jump(p)
+    if id == "glider" then
+      p.ui_button("glide", "🪂 OFF", {at: "bottom_right", dx: -110, dy: -240, w: 100, h: 50, size: 15, bg: "#0EA5E9", radius: 14})
+    end
+    p.sound("goal")
+    kit_quest_progress(p, "upgrade", 1)
+  end
+  shop_panel(p)
+end
+
+on start()
+  race_next = time() + 90
+end
+
+on tick(dt)
+  if race_state == "none" and time() >= race_next and len(players()) > 0 then race_open()
+  elif race_state == "signup" and time() >= race_until then race_start()
+  elif race_state == "racing" and (time() >= race_until or len(filter(players(), func(p) return p.racing end)) == 0) then race_end()
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "shop") and quiet_ready(p, "shop", 2) then shop_panel(p) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "join_race" and race_state == "signup" and not contains(racers, p.id) then
+    append(racers, p.id)
+    p.ui_remove("join_race")
+    p.message("🏁 エントリーした！", 1.5)
+  elif id == "open_shop" then shop_panel(p)
+  elif starts_with(id, "up_") then buy_up(p, replace(id, "up_", ""))
+  elif id == "shop_close" then p.ui_remove("shop")
+  elif id == "glide" and lvl(p, "glider") > 0 then
+    p.glide = not p.glide
+    let label = "🪂 OFF"
+    if p.glide then label = "🪂 ON" end
+    p.ui_button("glide", label, {at: "bottom_right", dx: -110, dy: -240, w: 100, h: 50, size: 15, bg: "#0EA5E9", radius: 14})
+    if p.world != nil then
+      p.gravity = WORLDS[p.world].gravity
+      if p.glide then p.gravity = p.gravity * 0.6 end
+    end
+  end
+end
