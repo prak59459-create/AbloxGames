@@ -1,0 +1,37 @@
+-- data.absc — モード・役割・笑顔の技・ショップ
+
+let ROUND_SECS = 150
+let VOTE_SECS = 12
+let RESULT_SECS = 8
+
+-- モード（投票で決める）
+let MODES = [
+  {id: "classic", name: "😁 アウトブレイク", text: "時間まで1人でも無事なら無事チームの勝ち。ワクチン銃で元にもどせる"},
+  {id: "last", name: "🏃 さいごの一人", text: "ワクチンなし。最後まで残った1人が大勝利"},
+  {id: "cure", name: "🧪 特効薬ラッシュ", text: "薬のかけら5つを理科室へ。特効薬ができれば全員元にもどって無事チームの勝ち"}
+]
+
+-- 無事な人の役割
+let ROLES = {
+  runner: {name: "🏃 ランナー", skill: "ダッシュ（3秒 速く走る）", cd: 14, color: "#22C55E"},
+  scout: {name: "🔦 スカウト", skill: "フラッシュ（前の笑顔を2秒止める）", cd: 16, color: "#FACC15"},
+  medic: {name: "🧪 メディック", skill: "ワクチン銃の弾が5発・薬のかけらを2こ持てる", cd: 0, color: "#38BDF8"},
+  guard: {name: "🛡 ガード", skill: "バリケード（目の前にかべを8秒）", cd: 20, color: "#A855F7"}
+}
+let ROLE_ORDER = ["runner", "scout", "medic", "guard"]
+
+-- 笑顔の技
+let SMILE_SKILLS = {
+  leap: {name: "🦘 とびかかる", cd: 9},
+  laugh: {name: "😂 高笑い（みんなの場所がわかる）", cd: 24}
+}
+
+-- ショップ（ずっと使える強化）
+let PERKS = [
+  {id: "ammo", name: "💉 ワクチン +1発", price: 150, text: "ワクチン銃の弾が1発ふえる"},
+  {id: "quick", name: "👟 はやい足", price: 200, text: "無事なときの足が少し速い"},
+  {id: "hide", name: "🗄 かくれ上手", price: 120, text: "ロッカーに長くかくれられる（8→12秒）"},
+  {id: "cool", name: "⏱ クールダウン短縮", price: 250, text: "役割の技の待ち時間 -25%"}
+]
+
+let CURE_PARTS = 5

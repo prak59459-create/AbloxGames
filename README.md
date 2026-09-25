@@ -93,7 +93,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/midnight-guard/cover-0f79591d.png" width="200"> | 54 | **Midnight Guard** | 真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。 |
 | <img src="games/endless-rooms/cover-ae6d92c2.png" width="200"> | 55 | **Endless Rooms** | 黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！ |
 | <img src="games/infinite-store/cover-cd54cfea.png" width="200"> | 56 | **Infinite Store** | 終わりのない巨大家具店。9つの売り場で家具を拾って基地を作り、夜は家具をこわしてくる店員（3日目と6日目は店長！）から守れ。おなか・武器の箱・落とし物・サービスカウンター。7日目の閉店で出口が開く！ |
-| <img src="games/smile-outbreak/cover-66218789.png" width="200"> | 57 | **Smile Outbreak** | 笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！ |
+| <img src="games/smile-outbreak/cover-bd5df63a.png" width="200"> | 57 | **Smile Outbreak** | 笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！ |
 | <img src="games/watch-the-house/cover-fa9ff674.png" width="200"> | 58 | **Watch The House** | ひとけのない家で、窓やドアに近づく何かを見張る。カメラと懐中電灯で追い払い、5夜を乗り切れ。 |
 
 ### 🏗️ 放置・ガチャ・タイクーン

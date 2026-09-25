@@ -1,0 +1,109 @@
+-- common.absc — ラウンドの状態・小さな道具・見た目・画面
+
+let phase = "lobby"        -- lobby / vote / live / result
+let mode = "classic"
+let ends_at = 0
+let round_no = 0
+let parts_in = 0           -- 理科室に集まった薬のかけら
+let votes = {}
+
+func ready(p)
+  return p.perks != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func has_perk(p, id)
+  return p.perks[id] == true
+end
+
+func in_round(p)
+  return ready(p) and p.in_round
+end
+
+func healthy()
+  return filter(players(), func(p) return in_round(p) and not p.infected end)
+end
+
+func smiles()
+  return filter(players(), func(p) return in_round(p) and p.infected end)
+end
+
+func mode_info()
+  for m in MODES do
+    if m.id == mode then return m end
+  end
+  return MODES[1]
+end
+
+-- MARK: 見た目
+
+func look_healthy(p)
+  let r = ROLES[p.role or "runner"]
+  p.color = r.color
+  p.head_color = "#F5D0A9"
+  p.leg_color = "#1E3A8A"
+  p.hat = p.own_hat or "none"
+  p.size = 1
+end
+
+func look_smile(p)
+  p.color = "#FACC15"
+  p.head_color = "#FDE047"
+  p.leg_color = "#CA8A04"
+  p.hat = "none"
+  if p.alpha then p.size = 1.25 end
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  if phase != "live" or not p.in_round then
+    p.ui_text("state", "👀 観戦中（次のラウンドを待とう）", {at: "top_left", dy: 36, size: 15, bold: true, color: "#E5E7EB"})
+    return
+  end
+  if p.infected then
+    let a = ""
+    if p.alpha then a = "（アルファ）" end
+    p.ui_text("state", "😁 笑顔" + a + " — ふれて仲間をふやせ", {at: "top_left", dy: 36, size: 15, bold: true, color: "#FDE047"})
+  else
+    let extra = ""
+    if p.parts > 0 then extra = "   🧩 かけら " + p.parts end
+    p.ui_text("state", "🙂 無事 " + ROLES[p.role].name + extra, {at: "top_left", dy: 36, size: 15, bold: true, color: "#93C5FD"})
+  end
+end
+
+func round_hud()
+  if phase == "live" then
+    let left = max(0, ceil(ends_at - time()))
+    let line = mode_info().name + "  ⏱ " + kit_clock(left) + "   🙂 " + len(healthy()) + "  😁 " + len(smiles())
+    if mode == "cure" then line = line + "   🧪 " + parts_in + "/" + CURE_PARTS end
+    ui_text("clock", line, {at: "top", dy: 26, size: 19, bold: true})
+  elif phase == "vote" then
+    ui_text("clock", "🗳 モード投票中… " + max(0, ceil(ends_at - time())) + "s", {at: "top", dy: 26, size: 19, bold: true})
+  elif phase == "result" then
+    ui_text("clock", "🏁 結果発表", {at: "top", dy: 26, size: 19, bold: true})
+  end
+end

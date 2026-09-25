@@ -1,0 +1,188 @@
+-- abilities.absc — 役割の技・笑顔の技・ロッカー・教室のドア・バリケード
+
+let door_clock = 0
+let door_closed = {}       -- ドアの名前 → 閉じている時刻の終わり
+let door_bash = {}         -- ドアの名前 → 笑顔がたたいている秒数
+
+func cooldown(p, base)
+  if has_perk(p, "cool") then return base * 0.75 end
+  return base
+end
+
+func skill_buttons(p)
+  let r = ROLES[p.role]
+  if r.cd > 0 then
+    p.ui_button("skill", split(r.skill, "（")[1], {at: "bottom_right", dx: -120, dy: -160, w: 140, h: 56, size: 15, bg: r.color, color: "#111827", radius: 16})
+  else
+    p.ui_remove("skill")
+  end
+end
+
+-- MARK: 無事な人の技
+
+func use_skill(p)
+  if not in_round(p) or p.infected or phase != "live" then return end
+  let r = ROLES[p.role]
+  if r.cd <= 0 or not kit_ready(p, "skill", cooldown(p, r.cd)) then return end
+  kit_quest_progress(p, "skill", 1)
+  if p.role == "runner" then
+    let base = p.speed
+    p.speed = base + 0.6
+    p.message("🏃 ダッシュ！", 1)
+    kit_later(p, 3, func()
+      if not p.infected then p.speed = base end
+    end)
+  elif p.role == "scout" then
+    let k = 0
+    for z in smiles() do
+      if distance(z, p) < 12 and facing(p, z.position) then
+        z.frozen = true
+        k = k + 1
+        kit_later(z, 2, func() z.frozen = false end)
+      end
+    end
+    let flash = create_block({name: "Flash", shape: "sphere", position: p.position + {x: p.look.x * 3, y: 1.3, z: p.look.z * 3}, size: 3,
+                              color: "#FEF9C3", material: "neon", solid: false, opacity: 0.4})
+    after(0.4, func() gone(flash) end)
+    p.message("🔦 フラッシュ！ " + k + " 人が止まった", 1)
+  elif p.role == "guard" then
+    let spot = p.position + {x: p.look.x * 2.5, y: 0, z: p.look.z * 2.5}
+    let yaw = round(p.yaw / 90) * 90
+    let wall = create_block({name: "Barricade", position: {x: spot.x, y: 1.3, z: spot.z}, size: {x: 4, y: 2.6, z: 0.5}, color: "#A855F7",
+                             material: "neon", opacity: 0.7, rotation: {x: 0, y: yaw, z: 0}, tags: ["barricade"]})
+    after(8, func() gone(wall) end)
+    p.message("🛡 バリケード！（8秒）", 1)
+  end
+end
+
+func facing(p, pos)
+  let d = {x: pos.x - p.x, y: 0, z: pos.z - p.z}
+  let l = {x: p.look.x, y: 0, z: p.look.z}
+  if magnitude(d) < 0.01 or magnitude(l) < 0.01 then return true end
+  return dot(normalize(d), normalize(l)) > 0.8
+end
+
+-- MARK: 笑顔の技
+
+func leap(p)
+  if not in_round(p) or not p.infected or not kit_ready(p, "leap", SMILE_SKILLS.leap.cd) then return end
+  p.launch(p.look.x * 22, 7, p.look.z * 22)
+  p.message("🦘 とびかかる！", 0.8)
+end
+
+func laugh(p)
+  if not in_round(p) or not p.infected or not kit_ready(p, "laugh", SMILE_SKILLS.laugh.cd) then return end
+  sound("tick")
+  announce("😂 アハハハハ…！ " + p.name + " の高笑い。どこにかくれても見える…", 2)
+  for h in healthy() do
+    let beam = create_block({name: "Beam", shape: "cylinder", position: h.position + {x: 0, y: 15, z: 0}, size: {x: 0.5, y: 30, z: 0.5},
+                             color: "#FDE047", material: "neon", solid: false, opacity: 0.45})
+    after(3, func() gone(beam) end)
+  end
+end
+
+-- MARK: ロッカー
+
+func hide(p, b)
+  if not in_round(p) or phase != "live" then return end
+  if p.infected then
+    -- 笑顔がロッカーをさがす: 中にだれかいれば見つかる
+    for h in healthy() do
+      if time() < h.hidden_until and h.hide_locker == b.name then
+        h.hidden_until = 0
+        h.visible = true
+        h.frozen = false
+        infect(h, p)
+        return
+      end
+    end
+    return
+  end
+  if time() < p.hidden_until or not quiet_ready(p, "hide", 12) then return end
+  let secs = 8
+  if has_perk(p, "hide") then secs = 12 end
+  p.hidden_until = time() + secs
+  p.hide_locker = b.name
+  p.visible = false
+  p.frozen = true
+  p.teleport(b.position + {x: 0, y: 0.5, z: 0})
+  p.message("🗄 ロッカーにかくれた（" + secs + "秒）。笑顔がさわると見つかる！", 2)
+  kit_quest_progress(p, "hide", 1)
+  kit_later(p, secs, func()
+    if not p.infected and p.hidden_until > 0 then
+      p.hidden_until = 0
+      p.visible = true
+      p.frozen = false
+      p.message("🗄 ロッカーから出た", 1)
+    end
+  end)
+end
+
+-- MARK: 教室のドア
+
+func close_door(p, b)
+  if p.infected or phase != "live" then return end
+  let name = replace(b.name, " Switch", "")
+  let d = block(name)
+  if d == nil or not quiet_ready(p, "door_" + name, 10) then return end
+  d.solid = true
+  d.color = "#DC2626"
+  d.opacity = 1
+  door_closed[name] = time() + 6
+  door_bash[name] = 0
+  p.sound("tick")
+  p.message("🚪 ドアを閉めた（6秒）", 1)
+end
+
+func open_door(name)
+  let d = block(name)
+  d.solid = false
+  d.color = "#92400E"
+  d.opacity = 0.35
+  door_closed[name] = nil
+end
+
+func doors_step(secs)
+  for name in keys(door_closed) do
+    let d = block(name)
+    if time() >= door_closed[name] then
+      open_door(name)
+    else
+      -- 笑顔がたたくと2秒でやぶれる
+      let bashing = false
+      for z in smiles() do
+        if distance(z, d.position) < 2.5 then bashing = true end
+      end
+      if bashing then
+        door_bash[name] = (door_bash[name] or 0) + secs
+        if door_bash[name] >= 2 then
+          open_door(name)
+          sound("hit")
+        end
+      end
+    end
+  end
+end
+
+on tick(dt)
+  door_clock = door_clock + dt
+  if door_clock < 0.25 then return end
+  let secs = door_clock
+  door_clock = 0
+  doors_step(secs)
+end
+
+on touch(p, b)
+  if p.is_npc or not in_round(p) then return end
+  if contains(b.tags, "locker") then hide(p, b)
+  elif contains(b.tags, "door_switch") then close_door(p, b)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "skill" then use_skill(p)
+  elif id == "leap" then leap(p)
+  elif id == "laugh" then laugh(p)
+  end
+end

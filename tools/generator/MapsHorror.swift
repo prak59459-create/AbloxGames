@@ -37,7 +37,7 @@ let horrorGames: [Game] = [
          summary: "終わりのない巨大家具店。9つの売り場で家具を拾って基地を作り、夜は家具をこわしてくる店員（3日目と6日目は店長！）から守れ。おなか・武器の箱・落とし物・サービスカウンター。7日目の閉店で出口が開く！",
          tags: ["survival", "build", "horror"], maxPlayers: 10, build: infiniteStore),
     Game(number: 57, id: "smile-outbreak", title: "Smile Outbreak",
-         summary: "笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！",
+         summary: "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
          tags: ["tag", "infection", "party"], maxPlayers: 12, build: smileOutbreak),
     Game(number: 58, id: "watch-the-house", title: "Watch The House",
          summary: "ひとけのない家で、窓やドアに近づく何かを見張る。カメラと懐中電灯で追い払い、5夜を乗り切れ。",
@@ -1459,15 +1459,128 @@ func infiniteStore(_ m: MapBuilder) {
 
 func smileOutbreak(_ m: MapBuilder) {
     m.day(ground: "#94A3B8")
-    m.ground(150, 150, color: "#CBD5E1", name: "School Yard")
-    m.walls(0, 0, w: 150, d: 150, h: 6, color: "#64748B", name: "Fence")
-    m.spawnRing(0, 0, radius: 8, count: 12, color: "#FDE047")
-    var r = Seeded("smile")
-    for i in 0..<16 {
-        m.slab("Building \(i + 1)", x: r.range(-60, 60), y: 0, z: r.range(-60, 60), w: r.range(6, 12), h: r.range(3, 8), d: r.range(6, 12),
-               color: r.pick(["#E2E8F0", "#FDE68A", "#BFDBFE"]))
+    m.ground(180, 180, color: "#A3B18A", name: "School Grounds")
+    m.walls(0, 0, w: 176, d: 176, h: 3, color: "#64748B", name: "School Fence")
+    m.part("Cover Focus", at: (0, 2, 12), size: (76, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
+    func wallX(_ z: Float, _ a: Float, _ b: Float, gaps: [(Float, Float)] = [], h: Float = 5, color: String = "#E2E8F0") {
+        var cursor = a
+        for g in gaps.sorted(by: { $0.0 < $1.0 }) {
+            if g.0 - g.1 / 2 > cursor { m.slab("School Wall", x: (cursor + g.0 - g.1 / 2) / 2, y: 0, z: z, w: g.0 - g.1 / 2 - cursor, h: h, d: 0.4, color: color) }
+            cursor = g.0 + g.1 / 2
+        }
+        if b > cursor { m.slab("School Wall", x: (cursor + b) / 2, y: 0, z: z, w: b - cursor, h: h, d: 0.4, color: color) }
     }
-    m.markers("Vaccine Spot", points: (0..<8).map { _ in (r.range(-65, 65), r.range(-65, 65)) }, color: "#000000", visible: false, behavior: .none)
+    func wallZ(_ x: Float, _ a: Float, _ b: Float, gaps: [(Float, Float)] = [], h: Float = 5, color: String = "#E2E8F0") {
+        var cursor = a
+        for g in gaps.sorted(by: { $0.0 < $1.0 }) {
+            if g.0 - g.1 / 2 > cursor { m.slab("School Wall", x: x, y: 0, z: (cursor + g.0 - g.1 / 2) / 2, w: 0.4, h: h, d: g.0 - g.1 / 2 - cursor, color: color) }
+            cursor = g.0 + g.1 / 2
+        }
+        if b > cursor { m.slab("School Wall", x: x, y: 0, z: (cursor + b) / 2, w: 0.4, h: h, d: b - cursor, color: color) }
+    }
+
+    // MARK: The school: a corridor with eight classrooms, lockers and doors.
+    m.slab("School Floor", x: 0, y: 0, z: 25, w: 80, h: 0.06, d: 30, color: "#D6D3D1")
+    m.slab("Corridor Floor", x: 0, y: 0.06, z: 25, w: 80, h: 0.02, d: 6, color: "#94A3B8")
+    wallX(40, -40, 40)
+    wallX(10, -40, 40, gaps: [(0, 4)])
+    wallZ(-40, 10, 40, gaps: [(25, 6)])
+    wallZ(40, 10, 40, gaps: [(25, 6)])
+    let north: [Float] = [-30, -10, 10, 30]
+    let south: [Float] = [-30.5, -11.5, 11.5, 30.5]
+    wallX(28, -40, 40, gaps: north.map { ($0, 3) })
+    wallX(22, -40, 40, gaps: south.map { ($0, 3) } + [(0, 4)])
+    for x: Float in [-20, 0, 20] { wallZ(x, 28, 40) }
+    for x: Float in [-21, -2, 2, 21] { wallZ(x, 10, 22) }
+    m.slab("School Roof", x: 0, y: 5, z: 25, w: 81, h: 0.4, d: 31, color: "#7F1D1D")
+    var door = 0
+    for (i, x) in north.enumerated() {
+        door += 1
+        m.part("Door \(door)", at: (x, 1.5, 28), size: (3, 3, 0.3), color: "#92400E", solid: false, opacity: 0.35)
+        m.pad("Door \(door) Switch", x: x + 2.4, z: 26.4, size: 1.2, color: "#EF4444", tags: ["door_switch"])
+        // Desks in the room behind.
+        if i != 2 {
+            for dx: Float in [-5, 0, 5] {
+                for dz: Float in [32, 36] { m.slab("Desk", x: x + dx, y: 0, z: dz, w: 1.6, h: 0.8, d: 1, color: "#B45309") }
+            }
+        }
+        m.slab("Blackboard", x: x, y: 1.2, z: 39.6, w: 8, h: 2.2, d: 0.2, color: "#14532D")
+    }
+    for x in south {
+        door += 1
+        m.part("Door \(door)", at: (x, 1.5, 22), size: (3, 3, 0.3), color: "#92400E", solid: false, opacity: 0.35)
+        m.pad("Door \(door) Switch", x: x + 2.4, z: 23.6, size: 1.2, color: "#EF4444", tags: ["door_switch"])
+        for dx: Float in [-5, 0, 5] {
+            for dz: Float in [14, 18] { m.slab("Desk", x: x + dx, y: 0, z: dz, w: 1.6, h: 0.8, d: 1, color: "#B45309") }
+        }
+        m.slab("Blackboard", x: x, y: 1.2, z: 10.4, w: 8, h: 2.2, d: 0.2, color: "#14532D")
+    }
+    // The science room (north, third) with the lab bench for the cure.
+    for dx: Float in [-5, 5] { m.slab("Lab Table", x: 10 + dx, y: 0, z: 34, w: 3, h: 1, d: 5, color: "#F8FAFC") }
+    m.slab("Lab Bench Top", x: 10, y: 0, z: 38, w: 5, h: 1.1, d: 1.2, color: "#7C3AED")
+    m.pad("Lab Bench", x: 10, z: 36.2, size: 2.2, color: "#A78BFA", tags: ["lab"])
+    m.part("Lab Sign", at: (10, 3.8, 28.3), size: (4, 0.7, 0.1), color: "#A78BFA", material: .neon, solid: false)
+    // Lockers along the corridor.
+    let lockers: [(Float, Float, Float)] = [(-36, 27.3, 27.8), (-16, 27.3, 27.8), (4, 27.3, 27.8), (24, 27.3, 27.8),
+                                            (-36, 22.7, 22.2), (-16, 22.7, 22.2), (6, 22.7, 22.2), (26, 22.7, 22.2)]
+    for (i, l) in lockers.enumerated() {
+        m.slab("Locker Box", x: l.0, y: 0, z: l.2, w: 1.4, h: 2.4, d: 0.5, color: "#2563EB")
+        m.pad("Locker \(i + 1)", x: l.0, z: l.1 + (l.1 > 25 ? -0.8 : 0.8), size: 1.4, color: "#60A5FA", tags: ["locker"])
+    }
+
+    // MARK: The gym (south-west) and the cafeteria (south-east).
+    m.slab("Gym Floor", x: -50, y: 0, z: -35, w: 34, h: 0.06, d: 26, color: "#D97706")
+    wallX(-22, -67, -33, gaps: [(-50, 5)], h: 7, color: "#CBD5E1")
+    wallX(-48, -67, -33, h: 7, color: "#CBD5E1")
+    wallZ(-67, -48, -22, h: 7, color: "#CBD5E1")
+    wallZ(-33, -48, -22, gaps: [(-35, 5)], h: 7, color: "#CBD5E1")
+    m.slab("Gym Roof", x: -50, y: 7, z: -35, w: 35, h: 0.4, d: 27, color: "#475569")
+    for x: Float in [-64, -36] {
+        m.part("Hoop Pole", at: (x, 2, -35), size: (0.3, 4, 0.3), color: "#6B7280")
+        m.part("Hoop Board", at: (x + (x < -50 ? 0.4 : -0.4), 3.8, -35), size: (0.1, 1.2, 1.8), color: "#F8FAFC", solid: false)
+    }
+    for k in 0..<3 { m.slab("Bleachers", x: -50, y: 0, z: -46 + Float(k), w: 22, h: 0.5 + Float(k) * 0.5, d: 1, color: "#64748B") }
+    for (i, x) in ([-62, -56] as [Float]).enumerated() {
+        m.slab("Locker Box", x: x, y: 0, z: -23, w: 1.4, h: 2.4, d: 0.5, color: "#2563EB")
+        m.pad("Locker \(9 + i)", x: x, z: -24, size: 1.4, color: "#60A5FA", tags: ["locker"])
+    }
+    m.slab("Cafeteria Floor", x: 45, y: 0, z: -35, w: 30, h: 0.06, d: 22, color: "#FEF3C7")
+    wallX(-24, 30, 60, gaps: [(45, 5)], color: "#FDE68A")
+    wallX(-46, 30, 60, color: "#FDE68A")
+    wallZ(30, -46, -24, gaps: [(-35, 5)], color: "#FDE68A")
+    wallZ(60, -46, -24, color: "#FDE68A")
+    m.slab("Cafeteria Roof", x: 45, y: 5, z: -35, w: 31, h: 0.4, d: 23, color: "#B45309")
+    for p in [(38, -30), (52, -30), (38, -40), (52, -40)] as [(Float, Float)] {
+        m.slab("Lunch Table", x: p.0, y: 0, z: p.1, w: 6, h: 0.8, d: 2, color: "#F8FAFC")
+    }
+    m.slab("Lunch Counter", x: 45, y: 0, z: -44.5, w: 12, h: 1.1, d: 1.2, color: "#DC2626")
+    m.slab("Locker Box", x: 58, y: 0, z: -25, w: 1.4, h: 2.4, d: 0.5, color: "#2563EB")
+    m.pad("Locker 11", x: 58, z: -26, size: 1.4, color: "#60A5FA", tags: ["locker"])
+
+    // MARK: The courtyard (spawn), the field and the trees.
+    m.part("Courtyard Tree Trunk", at: (-14, 3, -8), size: (1.2, 6, 1.2), color: "#78350F", shape: .cylinder)
+    m.part("Courtyard Tree", at: (-14, 7.5, -8), size: (8, 6, 8), color: "#16A34A", shape: .sphere, material: .matte, solid: false)
+    m.part("Fountain", at: (12, 0.5, -8), size: (6, 1, 6), color: "#94A3B8", shape: .cylinder)
+    m.part("Fountain Water", at: (12, 1.02, -8), size: (5, 0.05, 5), color: "#38BDF8", shape: .cylinder, material: .glass, solid: false)
+    for x: Float in [-6, 6] { m.slab("Bench", x: x, y: 0, z: 2, w: 3, h: 0.6, d: 0.8, color: "#92400E") }
+    m.spawnRing(0, -12, radius: 7, count: 12, color: "#FDE047")
+    m.slab("Field", x: 0, y: 0.02, z: -68, w: 70, h: 0.05, d: 30, color: "#65A30D")
+    for x: Float in [-33, 33] {
+        m.part("Goal Post", at: (x, 1.2, -72), size: (0.2, 2.4, 0.2), color: "#F8FAFC")
+        m.part("Goal Post", at: (x, 1.2, -64), size: (0.2, 2.4, 0.2), color: "#F8FAFC")
+        m.part("Goal Bar", at: (x, 2.4, -68), size: (0.2, 0.2, 8), color: "#F8FAFC")
+    }
+    for p in [(-75, 60), (75, 60), (-75, -10), (75, -10), (-78, 20), (78, 20), (-30, 60), (30, 60), (-80, -75), (80, -75)] as [(Float, Float)] {
+        m.tree(p.0, p.1, height: 5)
+    }
+    let vaccines: [(Float, Float)] = [(-30, 35), (30, 16), (-10, 16), (-60, -40), (45, -40), (0, -70), (-70, 50), (70, 45)]
+    for (i, p) in vaccines.enumerated() {
+        m.part("Vaccine Spot \(i + 1)", at: (p.0, 0.1, p.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    let parts: [(Float, Float)] = [(-30, 16), (30, 34), (-10, 34), (11, 16), (-45, -30), (52, -44), (-25, -68), (25, -68), (-70, 0), (70, 0)]
+    for (i, p) in parts.enumerated() {
+        m.part("Part Spot \(i + 1)", at: (p.0, 0.1, p.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
 }
 
 // MARK: 58 Watch The House

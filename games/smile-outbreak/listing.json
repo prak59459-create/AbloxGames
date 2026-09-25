@@ -1,15 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 41,
-  "cover" : "games\/smile-outbreak\/cover-66218789.png",
+  "blockCount" : 218,
+  "cover" : "games\/smile-outbreak\/cover-bd5df63a.png",
   "id" : "smile-outbreak",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/smile-outbreak\/data.absc",
+    "games\/smile-outbreak\/abilities.absc",
+    "games\/smile-outbreak\/common.absc",
+    "games\/smile-outbreak\/infection.absc",
+    "games\/smile-outbreak\/round.absc",
     "games\/smile-outbreak\/main.absc"
   ],
-  "summary" : "笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！",
+  "summary" : "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
   "tags" : [
     "tag",
     "infection",

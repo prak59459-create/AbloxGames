@@ -1,0 +1,172 @@
+-- round.absc — 投票・役割えらび・ラウンドの始まりと終わり・勝ち負け
+
+let round_clock = 0
+
+-- MARK: 投票
+
+func start_vote()
+  phase = "vote"
+  ends_at = time() + VOTE_SECS
+  votes = {}
+  for p in players() do
+    if ready(p) then vote_panel(p) end
+  end
+  round_hud()
+end
+
+func vote_panel(p)
+  let h = 110 + len(MODES) * 64 + 70
+  p.ui_remove("vote")
+  p.ui_panel("vote", {at: "center", w: 520, h: h, bg: "#1E1B4BF0", radius: 20, layer: 30})
+  p.ui_text("vote_t", "🗳 つぎのモードに投票", {parent: "vote", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for m in MODES do
+    i = i + 1
+    p.ui_button("vote_" + m.id, m.name + " — " + m.text, {parent: "vote", y: (30 + i * 64) / h, w: 480, h: 56, size: 12, bg: "#4338CA"})
+  end
+  -- 役割もここでえらぶ
+  let k = 0
+  for id in ROLE_ORDER do
+    k = k + 1
+    let bg = "#334155"
+    if p.role == id then bg = "#16A34A" end
+    p.ui_button("role_" + id, ROLES[id].name, {parent: "vote", x: 0.12 + (k - 1) * 0.253, y: (h - 44) / h, w: 118, h: 40, size: 12, bg: bg})
+  end
+end
+
+func cast_vote(p, id)
+  votes[p.id] = id
+  p.message("🗳 " + id + " に投票した", 1)
+end
+
+func pick_role(p, id)
+  if ROLES[id] == nil then return end
+  p.role = id
+  p.message(ROLES[id].name + " — " + ROLES[id].skill, 2)
+  if phase == "vote" then vote_panel(p) end
+end
+
+func winning_mode()
+  let counts = {}
+  for id in keys(votes) do counts[votes[id]] = (counts[votes[id]] or 0) + 1 end
+  let best = random(MODES).id
+  let best_n = 0
+  for m in MODES do
+    if (counts[m.id] or 0) > best_n then
+      best = m.id
+      best_n = counts[m.id]
+    end
+  end
+  return best
+end
+
+-- MARK: ラウンド
+
+func start_round()
+  mode = winning_mode()
+  phase = "live"
+  round_no = round_no + 1
+  ends_at = time() + ROUND_SECS
+  parts_in = 0
+  reset_items()
+  let list = shuffle(filter(players(), func(p) return ready(p) end))
+  for p in list do
+    p.ui_remove("vote")
+    p.in_round = true
+    p.infected = false
+    p.alpha = false
+    p.parts = 0
+    p.hidden_until = 0
+    p.joined_round_at = time()
+    p.teleport(block("Spawn " + random(1, 12)).position + {x: 0, y: 1, z: 0})
+    make_healthy(p)
+  end
+  let count = 1
+  if len(list) > 6 then count = 2 end
+  if len(list) >= 2 then
+    for i in 1 to count do
+      list[i].alpha = true
+      infect(list[i], nil)
+    end
+  end
+  announce("😁 " + mode_info().name + " — " + mode_info().text, 5)
+  round_hud()
+end
+
+func end_round(healthy_won, why)
+  if phase != "live" then return end
+  phase = "result"
+  ends_at = time() + RESULT_SECS
+  let survivors = healthy()
+  if healthy_won then
+    for p in survivors do
+      let bonus = 30
+      if mode == "last" then bonus = 120 end
+      kit_give(p, bonus)
+      p.score = p.score + 3
+      kit_quest_progress(p, "survive", 1)
+    end
+    if mode == "last" and len(survivors) == 1 then kit_badge(survivors[1], "last_one", "さいごの一人になった") end
+  else
+    for p in smiles() do
+      kit_give(p, 20)
+      p.score = p.score + 1
+    end
+  end
+  announce(why, 5)
+  for p in players() do
+    if ready(p) then
+      p.in_round = false
+      p.hidden_until = 0
+      p.visible = true
+      p.frozen = false
+      p.speed = 1
+      hud(p)
+    end
+  end
+  reset_items()
+  round_hud()
+end
+
+func check_end()
+  if phase != "live" then return end
+  let h = healthy()
+  let s = smiles()
+  if len(players()) < 2 then return end
+  if len(h) == 0 then
+    end_round(false, "😁 全員が笑顔になった… 笑顔チームの勝ち！")
+  elif mode == "last" and len(h) == 1 and len(s) > 0 then
+    end_round(true, "🏃 " + h[1].name + " がさいごの一人！ 大勝利！")
+  elif len(s) == 0 and time() - (ends_at - ROUND_SECS) > 5 then
+    end_round(true, "🙂 笑顔がいなくなった！ 無事チームの勝ち！")
+  end
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if round_clock < 0.5 then return end
+  round_clock = 0
+  if phase == "lobby" and len(players()) >= 1 then start_vote()
+  elif phase == "vote" and time() >= ends_at then start_round()
+  elif phase == "live" then
+    if time() >= ends_at then
+      if mode == "last" then end_round(len(healthy()) > 0, "⏱ 時間切れ！ 残った人たちの勝ち！")
+      else end_round(true, "⏱ 時間まで逃げきった！ 無事チームの勝ち！") end
+    else
+      check_end()
+    end
+  elif phase == "result" and time() >= ends_at then start_vote()
+  end
+  round_hud()
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "vote_") and phase == "vote" then cast_vote(p, replace(id, "vote_", ""))
+  elif starts_with(id, "role_") then pick_role(p, replace(id, "role_", ""))
+  end
+end
+
+on leave(p)
+  after(0.5, func() check_end() end)
+end

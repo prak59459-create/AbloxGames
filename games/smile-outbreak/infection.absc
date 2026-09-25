@@ -1,0 +1,166 @@
+-- infection.absc — 感染と治療・ワクチン銃・薬のかけらと特効薬
+
+let item_clock = 0
+
+func vaccine_ammo(p)
+  let n = 3
+  if p.role == "medic" then n = 5 end
+  if has_perk(p, "ammo") then n = n + 1 end
+  return n
+end
+
+func make_healthy(p)
+  p.infected = false
+  look_healthy(p)
+  let s = 1
+  if has_perk(p, "quick") then s = 1.08 end
+  p.speed = s
+  p.take()
+  p.ui_remove("leap")
+  p.ui_remove("laugh")
+  skill_buttons(p)
+  hud(p)
+end
+
+func infect(p, by)
+  if p.infected then return end
+  p.infected = true
+  p.hidden_until = 0
+  p.visible = true
+  p.frozen = false
+  -- 持っていた薬のかけらは、その場に落ちる
+  if p.parts > 0 then
+    for i in 1 to p.parts do drop_part(p.position) end
+    p.parts = 0
+  end
+  look_smile(p)
+  let s = 1.12
+  if p.alpha then s = 1.2 end
+  p.speed = s
+  p.take()
+  p.ui_remove("skill")
+  p.ui_button("leap", "🦘 とびかかる", {at: "bottom_right", dx: -120, dy: -160, w: 130, h: 56, size: 15, bg: "#CA8A04", radius: 16})
+  p.ui_button("laugh", "😂 高笑い", {at: "bottom_right", dx: -260, dy: -160, w: 120, h: 56, size: 15, bg: "#B45309", radius: 16})
+  if by != nil then
+    kit_give(by, 8)
+    by.score = by.score + 1
+    kit_quest_progress(by, "infect", 1)
+    p.message("😁 " + by.name + " に笑顔をうつされた！ 今度はきみが追う番", 2)
+    sound("hurt")
+  else
+    p.message("😁 きみが最初の笑顔だ！ みんなにうつせ！", 3)
+  end
+  hud(p)
+end
+
+func cure(p, by)
+  if not p.infected then return end
+  p.alpha = false
+  make_healthy(p)
+  p.message("🙂 元にもどった！", 2)
+  if by != nil then
+    kit_give(by, 15)
+    by.score = by.score + 2
+    kit_quest_progress(by, "cure", 1)
+  end
+end
+
+-- ふれたら感染（かくれている人はふれられない）
+func contact_step()
+  for z in smiles() do
+    if z.alive then
+      for p in healthy() do
+        if p.alive and time() >= p.hidden_until and distance(z, p) < 2 then infect(p, z) end
+      end
+    end
+  end
+end
+
+-- MARK: ワクチンと薬のかけら
+
+func reset_items()
+  for b in blocks("vaccine") do gone(b) end
+  for b in blocks("part") do gone(b) end
+  for b in blocks("barricade") do gone(b) end
+  if phase == "live" and mode == "cure" then
+    let spots = shuffle(range(1, 10))
+    for i in 1 to CURE_PARTS + 2 do drop_part(block("Part Spot " + spots[i]).position) end
+  end
+end
+
+func drop_part(pos)
+  create_block({name: "Cure Part", shape: "sphere", position: {x: pos.x, y: 1, z: pos.z}, size: 0.7, color: "#A78BFA", material: "neon",
+                solid: false, behavior: "trigger", tags: ["part"]})
+end
+
+func spawn_vaccine()
+  if mode == "last" or len(blocks("vaccine")) >= 3 then return end
+  let spot = block("Vaccine Spot " + random(1, 8))
+  create_block({name: "Vaccine", shape: "cylinder", position: spot.position + {x: 0, y: 0.8, z: 0}, size: {x: 0.4, y: 1, z: 0.4},
+                color: "#22D3EE", material: "neon", solid: false, behavior: "trigger", tags: ["vaccine"]})
+end
+
+func pick_vaccine(p, b)
+  if p.infected then return end
+  gone(b)
+  p.give("ワクチン銃")
+  p.ammo = vaccine_ammo(p)
+  p.message("💉 ワクチン銃を手に入れた（" + vaccine_ammo(p) + "発）。笑顔を撃つと元にもどる", 2)
+end
+
+func pick_part(p, b)
+  if p.infected then return end
+  let cap = 1
+  if p.role == "medic" then cap = 2 end
+  if p.parts >= cap then
+    if quiet_ready(p, "part_full", 3) then p.message("🧩 もう持てない。理科室（紫）へ運ぼう", 1.2) end
+    return
+  end
+  gone(b)
+  p.parts = p.parts + 1
+  p.sound("collect")
+  p.message("🧩 薬のかけらを拾った！ 理科室の紫の台へ", 1.5)
+  hud(p)
+end
+
+func deliver_parts(p)
+  if p.infected or p.parts <= 0 or mode != "cure" then return end
+  parts_in = parts_in + p.parts
+  kit_give(p, 12 * p.parts)
+  kit_quest_progress(p, "parts", p.parts)
+  p.parts = 0
+  p.sound("checkpoint")
+  announce("🧪 薬のかけら " + parts_in + " / " + CURE_PARTS, 2)
+  hud(p)
+  if parts_in >= CURE_PARTS then
+    for z in smiles() do cure(z, nil) end
+    for q in healthy() do kit_badge(q, "cure", "特効薬を完成させた") end
+    end_round(true, "🧪 特効薬が完成した！ みんな元にもどった！ 無事チームの勝ち！")
+  end
+end
+
+on tick(dt)
+  item_clock = item_clock + dt
+  if phase != "live" then return end
+  contact_step()
+  if item_clock >= 22 then
+    item_clock = 0
+    spawn_vaccine()
+  end
+end
+
+on hit(victim, attacker, damage)
+  if attacker == nil or victim.is_npc then return 0 end
+  if victim.infected and not attacker.infected and attacker.weapon == "ワクチン銃" then
+    cure(victim, attacker)
+  end
+  return 0
+end
+
+on touch(p, b)
+  if p.is_npc or not in_round(p) or phase != "live" then return end
+  if contains(b.tags, "vaccine") then pick_vaccine(p, b)
+  elif contains(b.tags, "part") then pick_part(p, b)
+  elif contains(b.tags, "lab") then deliver_parts(p)
+  end
+end

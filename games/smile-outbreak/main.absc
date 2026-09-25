@@ -1,127 +1,68 @@
--- Smile Outbreak — 笑顔に感染する鬼ごっこ
+-- Smile Outbreak — 笑顔がうつる学校の鬼ごっこ。3つのモードを投票で。
+--
+-- ファイル:
+--   data.absc       モード・役割・笑顔の技・ショップ
+--   common.absc     ラウンドの状態・見た目・画面
+--   abilities.absc  役割の技・笑顔の技・ロッカー・ドア・バリケード
+--   infection.absc  感染と治療・ワクチン銃・薬のかけらと特効薬
+--   round.absc      投票・役割えらび・ラウンド・勝ち負け
+--   main.absc       このファイル
 
 kit_setup("Smile Outbreak", "笑顔に感染するな！", [
-  "最初に1〜2人が「笑顔」に感染している",
-  "笑顔の人にふれられると感染してしまう",
-  "感染した人は、ほかの人にふれて仲間をふやそう",
-  "マップに光るワクチンが出る。拾うとワクチン銃（3発）",
-  "ワクチン銃で撃つと、感染した人を元にもどせる",
-  "2分30秒、1人でも無事なら無事チームの勝ち"
+  "😁 最初に1〜2人が笑顔。笑顔にふれられると感染して、今度は追う側に",
+  "🗳 ラウンドの前にモードを投票: アウトブレイク・さいごの一人・特効薬ラッシュ",
+  "🎭 役割: 🏃 ダッシュ / 🔦 フラッシュ / 🧪 弾が多い / 🛡 バリケード（投票画面でえらぶ）",
+  "💉 光るワクチンを拾うとワクチン銃。笑顔を撃つと元にもどせる",
+  "🗄 ロッカーにかくれられる（笑顔がさわると見つかる）。🚪 教室のドアのスイッチで6秒閉められる",
+  "😁 笑顔は 🦘 とびかかる・😂 高笑い（みんなの場所がわかる）が使える"
 ])
-weapon("ワクチン銃", {model: "pistol", damage: 1, rate: 1.5, range: 35, ammo: 3, reload: 30, spread: 0.5})
 
-let live = false
-let ends_at = 0
+weapon("ワクチン銃", {model: "pistol", damage: 1, rate: 1.5, range: 35, ammo: 8, reload: 40, spread: 0.5})
 
-kit_quest("survive", "無事なまま勝つ", 1, 150)
-kit_quest("infect", "5人に感染させる", 5, 120)
+kit_currency = "スマイル"
+kit_shop_title = "ショップ"
+func add_perk(perk)
+  kit_shop_add(perk.id, perk.name + "（" + perk.text + "）", perk.price, func(p) p.perks[perk.id] = true end)
+end
+for perk in PERKS do add_perk(perk) end
+kit_shop_add("cap", "🧢 キャップ", 50, func(p)
+  p.hat = "cap"
+  p.own_hat = "cap"
+end)
+kit_shop_add("crown", "👑 王冠", 500, func(p)
+  p.hat = "crown"
+  p.own_hat = "crown"
+end)
+
+kit_quest("survive", "無事なまま勝つ", 3, 200)
+kit_quest("infect", "10人に感染させる", 10, 150)
 kit_quest("cure", "3人を元にもどす", 3, 150)
-
-func infect(p)
-  p.infected = true
-  p.color = "#FACC15"
-  p.head_color = "#FDE047"
-  p.speed = 1.12
-  p.take()
-  p.ui_text("state", "😁 感染している（ふれて仲間をふやせ）", {at: "top_left", dy: 34, size: 17, bold: true, color: "#FDE047"})
-end
-
-func cure(p)
-  p.infected = false
-  p.color = "#3B82F6"
-  p.head_color = "#F5D0A9"
-  p.speed = 1
-  p.ui_text("state", "🙂 無事", {at: "top_left", dy: 34, size: 17, bold: true, color: "#93C5FD"})
-end
-
-func healthy()
-  return filter(players(), func(p) return not p.infected end)
-end
-
-func start_round()
-  live = true
-  ends_at = time() + 150
-  for p in players() do cure(p) end
-  let list = shuffle(copy(players()))
-  let count = len(list) > 6 and 2 or 1
-  if len(list) >= 2 then
-    for i in 1 to count do infect(list[i]) end
-  end
-  announce("😁 笑顔が広がりはじめた…逃げろ！", 3)
-end
-
-func end_round(healthy_won)
-  if not live then return end
-  live = false
-  if healthy_won then
-    for p in healthy() do
-      p.score = p.score + 2
-      kit_quest_progress(p, "survive", 1)
-    end
-    announce("🙂 無事チームの勝ち！", 4)
-  else
-    for p in players() do p.score = p.score + 1 end
-    announce("😁 全員が笑顔になった…", 4)
-  end
-  for b in blocks("vaccine") do b.destroy() end
-  after(6, func() start_round() end)
-end
+kit_quest("parts", "薬のかけらを5こ運ぶ", 5, 150)
+kit_quest("hide", "ロッカーにかくれる", 3, 60)
+kit_quest("skill", "役割の技を10回使う", 10, 80)
 
 on start()
-  after(4, func() start_round() end)
-  every(1, func()
-    if live then
-      let left = ends_at - time()
-      ui_text("clock", "⏱ " + kit_clock(left) + "   🙂 " + len(healthy()) + "  😁 " + (len(players()) - len(healthy())), {at: "top", dy: 26, size: 22, bold: true})
-      if left <= 0 then end_round(true) end
-    end
-  end)
-  every(25, func()
-    if live and len(blocks("vaccine")) < 3 then
-      let spot = block("Vaccine Spot " + random(1, 8))
-      create_block({name: "Vaccine", shape: "cylinder", position: spot.position + {x: 0, y: 0.8, z: 0}, size: {x: 0.4, y: 1, z: 0.4},
-                    color: "#22D3EE", material: "neon", solid: false, behavior: "trigger", tags: ["vaccine"]})
-    end
-  end)
+  every(10, func() kit_leaderboard("😁") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  if live then infect(p) else cure(p) end
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 20)
+  p.perks = {}
+  p.role = random(ROLE_ORDER)
+  p.in_round = false
+  p.infected = false
+  p.parts = 0
+  p.hidden_until = 0
+  look_healthy(p)
+  if phase == "vote" then vote_panel(p) end
+  hud(p)
 end
 
-on tick(dt)
-  if not live then return end
-  for z in players() do
-    if z.infected then
-      for p in players() do
-        if not p.infected and distance(z, p) < 2 then
-          infect(p)
-          kit_quest_progress(z, "infect", 1)
-          p.message("😁 感染してしまった！", 2)
-          sound("hurt")
-        end
-      end
-    end
-  end
-  if len(players()) > 1 and len(healthy()) == 0 then end_round(false) end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "vaccine") and not p.infected then
-    b.destroy()
-    p.give("ワクチン銃")
-    p.message("💉 ワクチン銃を手に入れた（3発）", 2)
-  end
-end
-
-on hit(victim, attacker, damage)
-  if victim.infected and not attacker.infected then
-    cure(victim)
-    victim.message("🙂 元にもどった！", 2)
-    kit_quest_progress(attacker, "cure", 1)
-  end
-  return 0
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.teleport(block("Spawn " + random(1, 12)).position + {x: 0, y: 1, z: 0})
 end
