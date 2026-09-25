@@ -1,0 +1,424 @@
+-- shrine.absc — 神社の場所: 石灯籠・手水舎・本殿の鈴・おさいせん・おみくじ・祠・お守り処・図鑑
+-- 勇気は暗いところでへり、灯りと仲間のそばでもどる。
+
+let lantern_lit = []
+let lantern_at = []
+let haunted_i = 0
+let courage_clock = 0
+
+-- MARK: 石灯籠
+
+func lanterns_setup()
+  lantern_lit = []
+  lantern_at = []
+  for i in 1 to LANTERNS do
+    append(lantern_lit, true)
+    append(lantern_at, block("Stone Lantern " + i).position)
+  end
+end
+
+func set_lantern(i, lit)
+  lantern_lit[i] = lit
+  let l = block("Lantern Light " + i)
+  if lit then
+    l.color = "#FB923C"
+    l.material = "neon"
+  else
+    l.color = "#1C1917"
+    l.material = "plastic"
+  end
+end
+
+func relight_all()
+  for i in 1 to LANTERNS do set_lantern(i, true) end
+end
+
+func pick_haunted()
+  haunted_i = random(1, LANTERNS)
+end
+
+func lit_near(pos, r)
+  for i in 1 to LANTERNS do
+    if lantern_lit[i] and distance(pos, lantern_at[i]) < r then return true end
+  end
+  return false
+end
+
+func nearest_lit(pos, r)
+  let best = 0
+  let best_d = r
+  for i in 1 to LANTERNS do
+    if lantern_lit[i] then
+      let d = distance(pos, lantern_at[i])
+      if d < best_d then
+        best = i
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func lantern_touch(p, b)
+  let i = num(replace(b.name, "Lantern Base ", ""))
+  if i == nil or i < 1 or i > LANTERNS then return end
+  if i == haunted_i and phase == "night" then
+    chochin_scare(p, i)
+    return
+  end
+  if not lantern_lit[i] then
+    set_lantern(i, true)
+    kit_give(p, 2)
+    add_courage(p, 5)
+    kit_quest_progress(p, "lanterns", 1)
+    p.message("🏮 灯籠に火をともした", 1)
+    p.sound("tick")
+  end
+end
+
+-- MARK: 手水舎・鈴・おさいせん
+
+func purify(p)
+  if not active(p) then return end
+  if not quiet_ready(p, "purify", 20) then
+    if quiet_ready(p, "purify_hint", 3) then p.message("💧 少し待ってからまた清めよう", 1) end
+    return
+  end
+  p.courage = 100
+  apply_speed(p)
+  p.sound("checkpoint")
+  p.message("💧 手と口を清めた。勇気が満ちた", 1.5)
+  kit_quest_progress(p, "purify", 1)
+  hud(p)
+end
+
+func ring_bell(p)
+  if not active(p) then return end
+  if time() < bell_ready_at then
+    if quiet_ready(p, "bell_wait", 2) then p.message("🔔 まだ鳴らせない（あと " + ceil(bell_ready_at - time()) + "s）", 1) end
+    return
+  end
+  bell_ready_at = time() + 30
+  sound("checkpoint")
+  let bell = block("Bell").position
+  let n = reveal_mimics(bell, 60, 4)
+  stun_yokai(bell, 30, 3)
+  reveal_cursed_until = time() + 12
+  show_cursed()
+  kit_quest_progress(p, "bell", 1)
+  kit_give(p, 5)
+  let extra = ""
+  if n > 0 then extra = " のっぺらぼうが" + n + "体、正体をあらわした！" end
+  announce("🔔 " + p.name + " が本殿の鈴を鳴らした！ 妖怪がひるみ、呪いのお札が赤く光る。" + extra, 3)
+end
+
+func show_cursed()
+  for b in blocks("cursed") do
+    if time() < reveal_cursed_until then b.color = "#EF4444" else b.color = "#FECDD3" end
+  end
+end
+
+func offer_coin(p)
+  if not active(p) or not quiet_ready(p, "offer", 1.5) then return end
+  if not kit_pay(p, OFFERING_PRICE) then
+    p.message("🪙 おさいせんは " + OFFERING_PRICE + " 銭", 1)
+    return
+  end
+  blessing = blessing + 10
+  kit_quest_progress(p, "offer", 1)
+  p.sound("collect")
+  p.message("🪙 おさいせんを入れた。🙏 ご加護 " + blessing + " / " + BLESSING_MAX, 1.5)
+  if blessing >= BLESSING_MAX then
+    blessing = 0
+    slowed_until = time() + 25
+    for q in players() do
+      if active(q) then add_courage(q, 30) end
+    end
+    announce("🙏 神様のご加護！ 25秒間、妖怪の動きがにぶくなる", 3)
+  end
+  night_hud()
+end
+
+-- MARK: おみくじ
+
+func draw_omikuji(p)
+  if not active(p) or not quiet_ready(p, "omikuji", 3) then return end
+  if not kit_pay(p, OMIKUJI_PRICE) then
+    p.message("🎋 おみくじは " + OMIKUJI_PRICE + " 銭", 1)
+    return
+  end
+  let roll = random(1, 100)
+  let pick = OMIKUJI[1]
+  let acc = 0
+  for o in OMIKUJI do
+    acc = acc + o.weight
+    if roll <= acc and acc - o.weight < roll then pick = o end
+  end
+  kit_quest_progress(p, "omikuji", 1)
+  p.ui_remove("kuji")
+  p.ui_panel("kuji", {at: "center", w: 300, h: 180, bg: "#FFFBEBF2", radius: 14, layer: 35})
+  p.ui_text("kuji_t", pick.name, {parent: "kuji", y: 0.35, size: 44, bold: true, color: "#B91C1C"})
+  p.ui_text("kuji_s", pick.text, {parent: "kuji", y: 0.75, size: 13, color: "#1C1917"})
+  kit_later(p, 3.5, func() p.ui_remove("kuji") end)
+  p.bad_fortune = false
+  if pick.id == "daikichi" then
+    for b in blocks("ofuda") do beacon(b.position, 20) end
+    p.courage = 100
+    kit_badge(p, "daikichi", "おみくじで大吉")
+    announce("🎋 " + p.name + " が大吉！ お札の場所が光の柱で見える！", 3)
+  elif pick.id == "chukichi" then
+    kit_give(p, 30)
+  elif pick.id == "kichi" then
+    add_courage(p, 40)
+  elif pick.id == "shokichi" then
+    p.charms.salt = min(3, (p.charms.salt or 0) + 1)
+  elif pick.id == "kyo" or pick.id == "daikyo" then
+    p.bad_fortune = true
+    -- 夜明けのあいだは、ただの悪いおみくじ
+    if phase == "night" or phase == "escape" then
+      if pick.id == "kyo" then
+        wisp_near(p)
+      else
+        curse_mimic(p, p.position - kit_dir(p.yaw) * 7)
+      end
+    end
+  end
+  hud(p)
+end
+
+func tie_omikuji(p)
+  if not p.bad_fortune then return end
+  p.bad_fortune = false
+  add_courage(p, 20)
+  p.message("🎋 おみくじを結び所に結んだ。気が楽になった", 1.5)
+  kit_quest_progress(p, "tie", 1)
+end
+
+-- 光の柱（大吉・座敷わらし）
+func beacon(pos, secs)
+  let b = create_block({name: "Beacon", shape: "cylinder", position: {x: pos.x, y: 15, z: pos.z}, size: {x: 0.5, y: 30, z: 0.5},
+                        color: "#FDE68A", material: "neon", solid: false, opacity: 0.35})
+  after(secs, func() gone(b) end)
+end
+
+-- MARK: 祠にかくれる
+
+func hide_in(p, b)
+  if not active(p) or hidden(p) then return end
+  if not quiet_ready(p, "hokora_" + b.name, 25) then
+    if quiet_ready(p, "hokora_hint", 3) then p.message("⛩ この祠はしばらく使えない", 1) end
+    return
+  end
+  p.hidden_until = time() + 10
+  p.hidden_at = b.position
+  p.message("⛩ 祠にかくれた…（10秒）妖怪から見えない", 2)
+  kit_quest_progress(p, "hide", 1)
+  hud(p)
+end
+
+func hide_step(p)
+  if p.hidden_until == nil or p.hidden_until == 0 then return end
+  if time() >= p.hidden_until or distance(p, p.hidden_at) > 3 then
+    p.hidden_until = 0
+    p.message("⛩ 「そろそろ出ておいき」", 1)
+    hud(p)
+  end
+end
+
+-- MARK: お守り処
+
+func charm_panel(p)
+  let h = 110 + len(CHARMS) * 50
+  p.ui_remove("charms")
+  p.ui_panel("charms", {at: "center", w: 500, h: h, bg: "#450A0AF2", radius: 20, layer: 30})
+  p.ui_text("charms_t", "⛩ お守り処   💰 " + kit_money(p), {parent: "charms", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in CHARMS do
+    i = i + 1
+    let k = p.charms[c.id] or 0
+    let label = c.name + "  " + c.text
+    let bg = "#991B1B"
+    if k >= c.max then
+      label = label + "  ✅"
+      bg = "#57534E"
+    else
+      label = label + "   💰" + c.price
+      if k > 0 then label = label + "（" + k + "）" end
+    end
+    p.ui_button("charm_" + c.id, label, {parent: "charms", y: (30 + i * 50) / h, w: 460, h: 42, size: 13, bg: bg})
+  end
+  p.ui_button("charms_close", "閉じる", {parent: "charms", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_charm(p, id)
+  for c in CHARMS do
+    if c.id == id then
+      let k = p.charms[id] or 0
+      if k >= c.max then
+        p.message("もう持っている", 1)
+      elif kit_pay(p, c.price) then
+        p.charms[id] = k + 1
+        p.sound("collect")
+        p.message("⛩ " + c.name + " を手に入れた", 1.2)
+        kit_quest_progress(p, "charm", 1)
+        apply_speed(p)
+        hud(p)
+      end
+      charm_panel(p)
+    end
+  end
+end
+
+-- MARK: 妖怪図鑑
+
+func see_yokai(p, id)
+  if not ready(p) or p.dex[id] then return end
+  p.dex[id] = true
+  let y = YOKAI[id]
+  p.message("📖 図鑑に「" + y.name + "」が加わった！ " + y.hint, 4)
+  kit_give(p, 10)
+  kit_quest_progress(p, "dex", 1)
+  if len(keys(p.dex)) >= len(YOKAI_ORDER) then kit_badge(p, "dex_full", "妖怪図鑑をうめた") end
+end
+
+func see_near(id, pos, r)
+  for p in players() do
+    if active(p) and distance(p, pos) < r then see_yokai(p, id) end
+  end
+end
+
+func dex_panel(p)
+  let h = 110 + len(YOKAI_ORDER) * 62
+  p.ui_remove("dex")
+  p.ui_panel("dex", {at: "center", w: 560, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("dex_t", "📖 妖怪図鑑  " + len(keys(p.dex)) + " / " + len(YOKAI_ORDER), {parent: "dex", y: 26 / h, size: 18, bold: true, color: "#C4B5FD"})
+  let i = 0
+  for id in YOKAI_ORDER do
+    i = i + 1
+    let y = YOKAI[id]
+    if p.dex[id] then
+      p.ui_text("dex_n" + i, y.name + " — " + y.text, {parent: "dex", y: (26 + i * 62) / h, size: 13, bold: true, color: "#F5F5F4"})
+      p.ui_text("dex_h" + i, "💡 " + y.hint, {parent: "dex", y: (46 + i * 62) / h, size: 12, color: "#A5B4FC"})
+    else
+      p.ui_text("dex_n" + i, "？？？ — まだ出会っていない", {parent: "dex", y: (26 + i * 62) / h, size: 13, color: "#64748B"})
+      p.ui_text("dex_h" + i, "", {parent: "dex", y: (46 + i * 62) / h, size: 12})
+    end
+  end
+  p.ui_button("dex_close", "閉じる", {parent: "dex", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+-- MARK: 持ち物
+
+-- ちょうちんをかざす: まわりの狐火を散らし、しばらく自分のまわりが明るい
+func raise_lantern(p)
+  if not active(p) then return end
+  let big = has(p, "big_lantern")
+  let wait = 12
+  if big then wait = 9 end
+  if not kit_ready(p, "lantern", wait) then return end
+  let r = 8
+  let secs = 5
+  if big then
+    r = 12
+    secs = 8
+  end
+  p.lit_until = time() + secs
+  p.lit_r = r
+  let n = scatter_wisps(p, p.position, r)
+  let glow = create_block({name: "Chochin Glow", shape: "cylinder", position: p.position + {x: 0, y: 0.1, z: 0}, size: {x: r * 2, y: 0.1, z: r * 2},
+                           color: "#FDBA74", material: "neon", solid: false, opacity: 0.3})
+  after(1.2, func() gone(glow) end)
+  add_courage(p, 10)
+  if n > 0 then p.message("🏮 狐火を " + n + " つ散らした！", 1.2) else p.message("🏮 ちょうちんをかざした", 1) end
+end
+
+func throw_salt(p)
+  if not active(p) or not has(p, "salt") or not quiet_ready(p, "salt", 1) then return end
+  p.charms.salt = p.charms.salt - 1
+  let n = stun_yokai(p.position, 7, 5) + scatter_wisps(p, p.position, 7)
+  let puff = create_block({name: "Salt", shape: "sphere", position: p.position + {x: 0, y: 1, z: 0}, size: 7, color: "#F8FAFC",
+                           material: "neon", solid: false, opacity: 0.35})
+  after(0.5, func() gone(puff) end)
+  p.message("🧂 清め塩！ " + n + " 体がひるんだ", 1.2)
+  kit_quest_progress(p, "salt", 1)
+  hud(p)
+end
+
+func small_bell(p)
+  if not active(p) or not has(p, "bell") or not kit_ready(p, "suzu", 15) then return end
+  let n = reveal_mimics(p.position, 20, 2)
+  reveal_cursed_until = time() + 6
+  show_cursed()
+  if n > 0 then p.message("🔔 ちりん… 近くののっぺらぼうが正体をあらわした！", 1.5) else p.message("🔔 ちりん… 近くに化けた妖怪はいない", 1.2) end
+end
+
+-- MARK: 勇気が毎秒どうかわるか
+
+func courage_step(p, secs)
+  hide_step(p)
+  let delta = 0
+  if hidden(p) then
+    delta = 4
+  elif (p.lit_until != nil and time() < p.lit_until) or lit_near(p.position, 9) then
+    delta = 2.5
+  elif phase == "night" or phase == "escape" then
+    delta = -0.45
+    if p.z > 45 and p.x < -25 then delta = delta - 0.4 end    -- 墓地はこわい
+  end
+  if phase == "rest" then delta = 5 end
+  let friends = filter(players(), func(q) return active(q) and q.id != p.id and distance(p, q) < 8 end)
+  if len(friends) > 0 then
+    delta = delta + 0.8
+  elif len(players()) > 1 and len(players_near(p.position, 18)) <= 1 and phase != "rest" then
+    delta = delta - 0.4
+  end
+  if p.lit_until != nil and time() < p.lit_until then scatter_wisps(p, p.position, p.lit_r) end
+  add_courage(p, delta * secs)
+  if p.boost_until != nil and p.boost_until > 0 and time() >= p.boost_until then
+    p.boost_until = 0
+    apply_speed(p)
+  end
+end
+
+on tick(dt)
+  courage_clock = courage_clock + dt
+  if courage_clock < 0.5 then return end
+  let secs = courage_clock
+  courage_clock = 0
+  if phase == "over" then return end
+  for p in players() do
+    if active(p) then
+      courage_step(p, secs)
+      hud(p)
+    end
+  end
+  if reveal_cursed_until > 0 and time() >= reveal_cursed_until then
+    reveal_cursed_until = 0
+    show_cursed()
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "lantern") then lantern_touch(p, b)
+  elif contains(b.tags, "purify") then purify(p)
+  elif contains(b.tags, "bell") then ring_bell(p)
+  elif contains(b.tags, "offering") then offer_coin(p)
+  elif contains(b.tags, "omikuji") then draw_omikuji(p)
+  elif contains(b.tags, "musubi") then tie_omikuji(p)
+  elif contains(b.tags, "hokora") then hide_in(p, b)
+  elif contains(b.tags, "charms") and quiet_ready(p, "charm_pad", 2) then charm_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "charm_") then buy_charm(p, replace(id, "charm_", ""))
+  elif id == "charms_close" then p.ui_remove("charms")
+  elif id == "dex" then dex_panel(p)
+  elif id == "dex_close" then p.ui_remove("dex")
+  elif id == "lantern" then raise_lantern(p)
+  elif id == "salt" then throw_salt(p)
+  elif id == "suzu" then small_bell(p)
+  end
+end

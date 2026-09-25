@@ -1381,16 +1381,21 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 109,
-      "cover" : "games\/yokai-shrine\/cover-16825c7f.png",
+      "blockCount" : 651,
+      "cover" : "games\/yokai-shrine\/cover-6f19b57d.png",
       "id" : "yokai-shrine",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/yokai-shrine\/data.absc",
+        "games\/yokai-shrine\/common.absc",
+        "games\/yokai-shrine\/nights.absc",
+        "games\/yokai-shrine\/shrine.absc",
+        "games\/yokai-shrine\/yokai.absc",
         "games\/yokai-shrine\/main.absc"
       ],
-      "summary" : "夜の神社に散らばった5枚のお札を集めて祭壇へ。仲間のふりをする妖怪に気をつけて…和風ホラー。",
+      "summary" : "夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！",
       "tags" : [
         "horror",
         "japanese",

@@ -1,0 +1,317 @@
+-- nights.absc — 夜の流れ: お札を置く・拾う・落とす・納める → 結界がとける → 鬼から逃げる → 夜明け
+-- 全員が気絶すると、納めたお札が1枚はがれて入口からやり直し。
+
+let used_spots = []
+let night_clock = 0
+
+-- MARK: お札
+
+func free_spot()
+  let open = filter(range(1, OFUDA_SPOTS), func(i) return not contains(used_spots, i) end)
+  if len(open) == 0 then return random(1, OFUDA_SPOTS) end
+  let i = random(open)
+  append(used_spots, i)
+  return i
+end
+
+func make_ofuda(pos, cursed)
+  let tags = ["ofuda"]
+  let color = "#FEF3C7"
+  if cursed then
+    append(tags, "cursed")
+    color = "#FECDD3"
+  end
+  return create_block({name: "Ofuda", position: pos, size: {x: 0.45, y: 0.8, z: 0.08}, color: color, material: "neon",
+                       solid: false, behavior: "trigger", tags: tags})
+end
+
+func spawn_ofuda(cursed)
+  let pos = spot_pos(free_spot()) + {x: random(-15, 15) / 10, y: 1.1, z: random(-15, 15) / 10}
+  make_ofuda(pos, cursed)
+end
+
+-- 地面に落とす（気絶・かっぱ・からかさ）
+func drop_ofuda_at(pos, count)
+  for k in 1 to count do
+    make_ofuda({x: pos.x + random(-10, 10) / 10, y: max(pos.y, 0) + 1.1, z: pos.z + random(-10, 10) / 10}, false)
+  end
+end
+
+func drop_carried(p)
+  if p.carry <= 0 then return end
+  drop_ofuda_at(p.position, p.carry)
+  p.carry = 0
+end
+
+func pick_ofuda(p, b)
+  if not active(p) then return end
+  if contains(b.tags, "cursed") then
+    let at = b.position
+    gone(b)
+    p.message("😱 呪いのお札だった！ 何かが来る…（うすい赤のふちに注意）", 2.5)
+    p.shake(0.5, 0.8)
+    add_courage(p, -20)
+    curse_mimic(p, at)
+    return
+  end
+  if p.carry >= carry_max(p) then
+    if quiet_ready(p, "full", 3) then p.message("📜 もう持てない。本殿の祭壇へ（📜 お札入れで2枚持てる）", 1.5) end
+    return
+  end
+  gone(b)
+  p.carry = p.carry + 1
+  p.sound("collect")
+  p.message("📜 お札を手に入れた！ 本殿の祭壇（金色）へ", 2)
+  hud(p)
+end
+
+-- MARK: 祭壇と封印
+
+func show_seals()
+  for i in 1 to 9 do
+    let s = block("Seal Slot " + i)
+    s.visible = i <= need()
+    if i <= placed then
+      s.color = "#FEF3C7"
+      s.material = "neon"
+    else
+      s.color = "#44403C"
+      s.material = "plastic"
+    end
+  end
+end
+
+func offer_ofuda(p)
+  if not active(p) or phase != "night" then return end
+  if p.carry <= 0 then
+    if quiet_ready(p, "altar_hint", 4) then p.message("⛩ お札を見つけてここに納めよう（境内に光る白い紙）", 1.5) end
+    return
+  end
+  let k = min(p.carry, need() - placed)
+  p.carry = 0
+  placed = placed + k
+  kit_give(p, 15 * k)
+  p.score = p.score + 5 * k
+  kit_quest_progress(p, "ofuda", k)
+  add_courage(p, 15)
+  sound("checkpoint")
+  announce("📜 " + p.name + " がお札を納めた（" + placed + " / " + need() + "）", 2.5)
+  show_seals()
+  hud(p)
+  night_hud()
+  if placed >= need() then start_escape() end
+end
+
+-- MARK: 結界
+
+func set_barrier(closed)
+  let b = block("Kekkai")
+  b.visible = closed
+  block("Oni Seal").visible = not oni_awake
+end
+
+func barrier_touch(p)
+  if phase == "escape" or p.escaped then return end
+  if quiet_ready(p, "barrier", 1) then
+    p.teleport({x: p.x, y: 1, z: -72})
+    p.message("⛩ 結界にはじかれた。お札をすべて納めないと出られない", 2)
+    p.sound("error")
+  end
+end
+
+-- MARK: 夜の流れ
+
+func start_night(i)
+  night_i = i
+  night_token = night_token + 1
+  phase = "night"
+  placed = 0
+  wipes = 0
+  rescue_until = 0
+  oni_awake = false
+  oni = nil
+  night_ends = time() + night().secs
+  clear_yokai()
+  for b in blocks("ofuda") do gone(b) end
+  used_spots = []
+  for k in 1 to need() do spawn_ofuda(false) end
+  if night().cursed > 0 then
+    for k in 1 to night().cursed do spawn_ofuda(true) end
+  end
+  show_seals()
+  set_barrier(true)
+  relight_all()
+  pick_haunted()
+  world.sky_top = "#020617"
+  world.sky_bottom = "#1E1B4B"
+  world.light = 0.25
+  for p in players() do
+    if ready(p) then ready_for_night(p) end
+  end
+  spawn_night_yokai()
+  let extra = ""
+  if night().cursed > 0 then extra = " 呪いのお札（うすい赤）が" + night().cursed + "枚まざっている…" end
+  announce("🌙 " + night().name + "。お札を" + need() + "枚、本殿に納めよ。" + extra, 5)
+  night_hud()
+end
+
+func ready_for_night(p)
+  if p.fainted then wake(p, 100) end
+  p.escaped = false
+  p.carry = 0
+  p.courage = 100
+  p.hidden_until = 0
+  p.frozen = false
+  p.teleport(spawn_pos())
+  apply_speed(p)
+  hud(p)
+end
+
+func start_escape()
+  phase = "escape"
+  set_barrier(false)
+  world.sky_top = "#450A0A"
+  world.sky_bottom = "#7F1D1D"
+  wake_oni("お札がそろって結界がとけた！ でも鬼が目をさました！ 鳥居の外へ逃げろ！")
+end
+
+func escape_player(p)
+  if phase != "escape" or not active(p) then return end
+  p.escaped = true
+  p.hidden_until = 0
+  kit_give(p, 30 + night_i * 10)
+  p.score = p.score + 10
+  p.sound("goal")
+  announce("⛩ " + p.name + " が脱出した！", 2)
+  hud(p)
+  check_escape()
+end
+
+-- だれも動けなくなったら: 1人でも脱出していれば夜明け（気絶した仲間は15秒だけ助けに行ける）
+func check_escape()
+  if phase != "escape" then return end
+  let left = filter(players(), func(p) return active(p) end)
+  if len(left) > 0 then
+    rescue_until = 0
+    return
+  end
+  let out = filter(players(), func(p) return ready(p) and p.escaped end)
+  if len(out) == 0 then return end
+  let down = filter(players(), func(p) return ready(p) and p.fainted end)
+  if len(down) == 0 then
+    clear_night()
+  elif rescue_until == 0 then
+    rescue_until = time() + 15
+    announce("🤝 まだ中に気絶した仲間がいる！ 15秒以内に起こして連れ出そう", 3)
+  end
+end
+
+-- 全員気絶: お札が1枚はがれて、入口で目をさます
+func check_wipe()
+  if phase != "night" and phase != "escape" then return end
+  let up = filter(players(), func(p) return ready(p) and p.alive and not p.fainted end)
+  if len(up) > 0 then
+    if phase == "escape" then check_escape() end
+    return
+  end
+  let token = night_token
+  wipes = wipes + 1
+  announce("💀 全員気を失った… 気がつくと鳥居の前にいた", 3)
+  after(3, func()
+    if token != night_token then return end
+    if placed > 0 and phase == "night" then
+      placed = placed - 1
+      spawn_ofuda(false)
+      announce("📜 納めたお札が1枚はがれて、どこかへ飛んでいった…", 3)
+      show_seals()
+    end
+    for p in players() do
+      if ready(p) and p.fainted then
+        wake(p, 70)
+        p.teleport(spawn_pos())
+      end
+    end
+    if still(oni) then
+      oni.position = block("Oni Gate").position + {x: 0, y: 1, z: -3}
+      oni.stun_until = time() + 6
+    end
+    night_hud()
+  end)
+end
+
+func clear_night()
+  if phase == "rest" or phase == "over" then return end
+  phase = "rest"
+  rescue_until = 0
+  clear_yokai()
+  for b in blocks("ofuda") do gone(b) end
+  world.sky_top = "#F9A8D4"
+  world.sky_bottom = "#FED7AA"
+  world.light = 0.6
+  for p in players() do
+    if ready(p) then
+      if p.escaped then
+        kit_quest_progress(p, "escape", 1)
+        if not p.was_hit then kit_badge(p, "untouched_" + night_i, night().name + "を一度も気絶せずに越えた") end
+      else
+        p.message("💫 気を失ったまま朝をむかえた…（ごほうび少なめ）", 2.5)
+      end
+      kit_give(p, 20 * night_i)
+      kit_quest_progress(p, "nights", 1)
+      p.was_hit = false
+    end
+  end
+  if night_i >= len(NIGHTS) then
+    phase = "over"
+    for p in players() do
+      if ready(p) then
+        kit_badge(p, "three_nights", "三つの夜をこえた")
+        kit_give(p, 200)
+        p.score = p.score + 50
+      end
+    end
+    kit_finish("🌅 三つの夜をこえた！ 神社に朝が来た。妖怪たちはねむりについた…", 10)
+    return
+  end
+  rest_until = time() + 15
+  announce("🌅 " + night().name + "をこえた！ 15秒後に" + NIGHTS[night_i + 1].name + "。お守り処で準備しよう", 5)
+  for p in players() do
+    if ready(p) then ready_for_night(p) end
+  end
+  night_hud()
+end
+
+on tick(dt)
+  night_clock = night_clock + dt
+  if night_clock < 0.5 then return end
+  let secs = night_clock
+  night_clock = 0
+  if phase == "over" then return end
+  revive_step(secs)
+  if phase == "night" and not oni_awake and time() >= night_ends then
+    wake_oni("🕑 丑三つ時… 裏の黒い鳥居から鬼が出てきた！")
+  end
+  if phase == "escape" then
+    check_escape()
+    if rescue_until > 0 and time() >= rescue_until then clear_night() end
+  end
+  if phase == "rest" and time() >= rest_until then start_night(night_i + 1) end
+  night_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "ofuda") then pick_ofuda(p, b)
+  elif contains(b.tags, "altar") then offer_ofuda(p)
+  elif contains(b.tags, "barrier") then barrier_touch(p)
+  elif contains(b.tags, "exit") then escape_player(p)
+  end
+end
+
+on leave(p)
+  if ready(p) and p.carry > 0 then drop_carried(p) end
+  after(0.2, func()
+    check_wipe()
+    check_escape()
+  end)
+end

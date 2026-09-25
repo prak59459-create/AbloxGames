@@ -19,7 +19,7 @@ let horrorGames: [Game] = [
          summary: "荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！",
          tags: ["survival", "train", "coop"], maxPlayers: 8, build: lastTrain),
     Game(number: 51, id: "yokai-shrine", title: "Yokai Shrine",
-         summary: "夜の神社に散らばった5枚のお札を集めて祭壇へ。仲間のふりをする妖怪に気をつけて…和風ホラー。",
+         summary: "夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！",
          tags: ["horror", "japanese", "coop"], maxPlayers: 8, build: yokaiShrine),
     Game(number: 52, id: "night-lockdown", title: "Night Lockdown",
          summary: "昼は町で食料と板を集め、夜は家の窓に板を打ちつけて立てこもる。侵入者から家族を守って3夜を生きのびろ。",
@@ -495,30 +495,198 @@ func lastTrain(_ m: MapBuilder) {
 // MARK: 51 Yokai Shrine
 
 func yokaiShrine(_ m: MapBuilder) {
-    m.night(ground: "#0F172A")
     m.sky("#020617", "#1E1B4B", light: 0.25, ground: "#0F172A", sunPitch: -15)
-    m.ground(160, 160, color: "#1E293B", name: "Shrine Grounds")
-    m.part("Torii", at: (0, 5, -60), size: (12, 0.8, 1), color: "#B91C1C")
-    m.pillar("Torii Leg", x: -5, z: -60, height: 5, radius: 0.45, color: "#B91C1C")
-    m.pillar("Torii Leg", x: 5, z: -60, height: 5, radius: 0.45, color: "#B91C1C")
-    m.spawnRing(0, -66, radius: 3, count: 8, color: "#FDE68A")
-    m.slab("Stone Path", x: 0, y: 0, z: -20, w: 4, h: 0.1, d: 80, color: "#57534E")
-    m.slab("Main Hall", x: 0, y: 0, z: 30, w: 24, h: 1, d: 16, color: "#7C2D12")
-    m.walls(0, 30, w: 24, d: 16, h: 5, y: 1, color: "#92400E", name: "Hall Wall", opacity: 0.9)
-    m.part("Hall Roof", at: (0, 7.5, 30), size: (28, 3, 20), color: "#1C1917", shape: .cone)
-    m.pad("Altar", x: 0, z: 34, y: 1, size: 3, color: "#FACC15", tags: ["altar"])
-    for (i, p) in ring(10, radius: 45, cz: 0).enumerated() {
-        m.part("Stone Lantern \(i + 1)", at: (p.0, 1, p.1), size: (0.8, 2, 0.8), color: "#78716C", shape: .cylinder)
-        m.part("Lantern Light \(i + 1)", at: (p.0, 2.2, p.1), size: (0.6, 0.6, 0.6), color: "#FB923C", shape: .sphere, material: .neon, solid: false)
+    m.ground(220, 240, color: "#1E293B", name: "Shrine Grounds")
+    m.part("Moon", at: (-30, 70, 190), size: (16, 16, 16), color: "#FEF9C3", shape: .sphere, material: .neon, tags: ["sky"], solid: false)
+    // The cover looks up the path at the main hall, from the south-east.
+    m.part("Cover Focus", at: (0, 2, 4), size: (88, 1, 1), color: "#000000", tags: ["yaw=160"], solid: false, visible: false)
+
+    // The red fence (tamagaki) all round, open only at the great torii.
+    let fence = "#991B1B"
+    m.slab("Tamagaki", x: -75, y: 0, z: 4, w: 1, h: 3, d: 168, color: fence)
+    m.slab("Tamagaki", x: 75, y: 0, z: 4, w: 1, h: 3, d: 168, color: fence)
+    m.slab("Tamagaki", x: 0, y: 0, z: 88, w: 151, h: 3, d: 1, color: fence)
+    m.slab("Tamagaki", x: -40.5, y: 0, z: -80, w: 69, h: 3, d: 1, color: fence)
+    m.slab("Tamagaki", x: 40.5, y: 0, z: -80, w: 69, h: 3, d: 1, color: fence)
+
+    // The great torii, its barrier, and the way out.
+    func torii(_ name: String, z: Float, halfWidth: Float, height: Float, color: String, post: Float) {
+        m.pillar("\(name) Leg", x: -halfWidth, z: z, height: height, radius: post, color: color)
+        m.pillar("\(name) Leg", x: halfWidth, z: z, height: height, radius: post, color: color)
+        m.part("\(name) Nuki", at: (0, height * 0.8, z), size: (halfWidth * 2 + 1, height * 0.07, post * 1.2), color: color)
+        m.part("\(name) Kasagi", at: (0, height + 0.2, z), size: (halfWidth * 2 + 2.4, height * 0.1, post * 2.6), color: "#1C1917")
     }
+    torii("Great Torii", z: -80, halfWidth: 5.5, height: 7, color: "#DC2626", post: 0.5)
+    m.part("Kekkai", at: (0, 2.6, -80), size: (10.6, 5.2, 0.3), color: "#A855F7", material: .neon, behavior: .trigger,
+           tags: ["barrier"], solid: false, opacity: 0.35)
+    m.slab("Outer Path", x: 0, y: 0, z: -95, w: 5, h: 0.08, d: 28, color: "#57534E")
+    m.pad("Exit Gate", x: 0, z: -93, size: 5, color: "#22C55E", tags: ["exit"])
+    m.spawnRing(0, -69, radius: 3, count: 8, color: "#FDE68A")
+
+    // The stone path through a tunnel of small torii (senbon torii).
+    m.slab("Stone Path", x: 0, y: 0, z: -24, w: 4, h: 0.08, d: 112, color: "#78716C")
+    for i in 0..<8 { torii("Path Torii", z: -62 + Float(i) * 6, halfWidth: 2.5, height: 3.8, color: "#EA580C", post: 0.22) }
+
+    // The purification basin (temizuya).
+    m.slab("Temizuya Basin", x: -12, y: 0, z: -60, w: 3, h: 0.9, d: 1.5, color: "#A8A29E")
+    m.part("Temizuya Water", at: (-12, 0.86, -60), size: (2.6, 0.08, 1.1), color: "#38BDF8", material: .glass, solid: false)
+    for p in [(-14, -61.6), (-10, -61.6), (-14, -58.4), (-10, -58.4)] as [(Float, Float)] {
+        m.part("Temizuya Post", at: (p.0, 1.5, p.1), size: (0.25, 3, 0.25), color: "#78350F", solid: false)
+    }
+    m.slab("Temizuya Roof", x: -12, y: 3, z: -60, w: 5, h: 0.3, d: 4.2, color: "#44403C", solid: false)
+    m.pad("Temizuya", x: -12, z: -57.2, size: 2, color: "#38BDF8", tags: ["purify"])
+
+    // The charm stall (omamori) and the fortune stand (omikuji).
+    m.slab("Stall Counter", x: 13, y: 0, z: -52, w: 5, h: 1, d: 1, color: "#7F1D1D")
+    m.slab("Stall Back", x: 13, y: 0, z: -50.2, w: 5, h: 3, d: 0.3, color: "#FEF3C7")
+    m.slab("Stall Roof", x: 13, y: 3, z: -51.3, w: 6, h: 0.3, d: 3.4, color: "#991B1B", solid: false)
+    for (i, c) in ["#EF4444", "#3B82F6", "#22C55E", "#EAB308", "#A855F7"].enumerated() {
+        m.part("Charm", at: (11.2 + Float(i) * 0.9, 1.2, -52), size: (0.35, 0.45, 0.1), color: c, solid: false)
+    }
+    m.part("Stall Sign", at: (13, 3.7, -52.8), size: (3.4, 0.7, 0.1), color: "#FDE68A", material: .neon, solid: false)
+    m.pad("Omamori Stall", x: 13, z: -54.6, size: 2.4, color: "#EF4444", tags: ["charms"])
+    m.slab("Omikuji Box", x: -13, y: 0, z: -44, w: 1.2, h: 1.4, d: 1.2, color: "#DC2626")
+    m.pad("Omikuji", x: -10.8, z: -44, size: 2, color: "#FDE68A", tags: ["omikuji"])
+    m.part("Rack Post", at: (-19, 0.9, -38), size: (0.2, 1.8, 0.2), color: "#78350F")
+    m.part("Rack Post", at: (-15, 0.9, -38), size: (0.2, 1.8, 0.2), color: "#78350F")
+    m.part("Rack Rope", at: (-17, 1.6, -38), size: (4, 0.08, 0.08), color: "#D6D3D1", solid: false)
+    for i in 0..<7 { m.part("Tied Fortune", at: (-18.6 + Float(i) * 0.53, 1.4, -38), size: (0.14, 0.35, 0.05), color: "#FFFFFF", solid: false) }
+    m.pad("Omikuji Rack", x: -17, z: -36.4, size: 2, color: "#F5F5F4", tags: ["musubi"])
+
+    // The plaza: the sacred tree and the kagura dance stage.
+    m.slab("Plaza", x: 0, y: 0, z: 4, w: 40, h: 0.06, d: 30, color: "#44403C")
+    m.pillar("Sacred Tree Trunk", x: -20, z: 6, height: 12, radius: 1.8, color: "#5B3A1E")
+    m.part("Sacred Tree", at: (-20, 14, 6), size: (13, 8, 13), color: "#14532D", shape: .sphere, material: .matte, solid: false)
+    m.part("Sacred Tree", at: (-17, 11, 9), size: (8, 5, 8), color: "#166534", shape: .sphere, material: .matte, solid: false)
+    m.part("Shimenawa", at: (-20, 3, 6), size: (4.3, 0.45, 4.3), color: "#FDE68A", shape: .cylinder, solid: false)
+    for a in [0, 90, 180, 270] as [Float] {
+        let r = a * .pi / 180
+        m.part("Shide", at: (-20 + cos(r) * 2.2, 2.4, 6 + sin(r) * 2.2), size: (0.3, 0.7, 0.05), color: "#FFFFFF", solid: false)
+    }
+    m.slab("Kagura Stage", x: 22, y: 0, z: 4, w: 10, h: 1, d: 8, color: "#78350F")
+    m.stairs(15.5, 4, steps: 2, rise: 0.5, run: 1, width: 3, color: "#78350F", name: "Stage Step")
+    for p in [(17.4, 0.4), (26.6, 0.4), (17.4, 7.6), (26.6, 7.6)] as [(Float, Float)] {
+        m.part("Stage Post", at: (p.0, 3, p.1), size: (0.3, 4, 0.3), color: "#DC2626", solid: false)
+    }
+    m.slab("Stage Roof", x: 22, y: 5, z: 4, w: 11, h: 0.4, d: 9, color: "#1C1917", solid: false)
+    for x: Float in [-5, 5] {
+        m.slab("Komainu Base", x: x, y: 0, z: 26, w: 1.6, h: 1, d: 1.6, color: "#57534E")
+        m.part("Komainu", at: (x, 1.7, 26), size: (1.2, 1.4, 1.4), color: "#A8A29E", shape: .sphere, material: .matte)
+    }
+
+    // The main hall (honden): a porch with the bell and the offering box,
+    // the altar inside and the seal slots that light up one by one.
+    m.slab("Hall Base", x: 0, y: 0, z: 42, w: 26, h: 1.2, d: 18, color: "#78350F")
+    for i in 0..<3 { m.slab("Hall Step", x: 0, y: 0, z: 30.5 + Float(i), w: 10, h: 0.4 * Float(i + 1), d: 1, color: "#A8A29E") }
+    let wall = "#B91C1C"
+    m.slab("Hall Wall", x: 0, y: 1.2, z: 51, w: 26, h: 5, d: 0.6, color: wall)
+    m.slab("Hall Wall", x: -13, y: 1.2, z: 43.5, w: 0.6, h: 5, d: 15, color: wall)
+    m.slab("Hall Wall", x: 13, y: 1.2, z: 43.5, w: 0.6, h: 5, d: 15, color: wall)
+    m.slab("Hall Wall", x: -8, y: 1.2, z: 36, w: 10, h: 5, d: 0.6, color: wall)
+    m.slab("Hall Wall", x: 8, y: 1.2, z: 36, w: 10, h: 5, d: 0.6, color: wall)
+    m.slab("Hall Wall", x: 0, y: 4.8, z: 36, w: 6, h: 1.4, d: 0.6, color: wall)
+    m.slab("Hall Roof", x: 0, y: 6.2, z: 42, w: 30, h: 0.5, d: 22, color: "#1C1917", solid: false)
+    m.part("Hall Roof Top", at: (0, 8, 43), size: (26, 3, 17), color: "#1C1917", shape: .cone, material: .matte, solid: false)
+    m.part("Bell Beam", at: (-3.5, 5.9, 34.5), size: (2.6, 0.3, 0.3), color: "#78350F", solid: false)
+    m.part("Bell", at: (-3.5, 5.1, 34.5), size: (1.1, 1.1, 1.1), color: "#EAB308", shape: .sphere, material: .metal, solid: false)
+    m.part("Bell Rope", at: (-3.5, 3, 34.5), size: (0.18, 3.4, 0.18), color: "#DC2626", solid: false)
+    m.pad("Bell Pad", x: -3.5, z: 34.4, y: 1.2, size: 1.8, color: "#EAB308", tags: ["bell"])
+    m.slab("Saisen Box", x: 5.2, y: 1.2, z: 35.1, w: 2.4, h: 0.9, d: 1, color: "#78350F")
+    m.pad("Offering", x: 5.2, z: 33.9, y: 1.2, size: 1.8, color: "#F59E0B", tags: ["offering"])
+    for x: Float in [-9, 9] {
+        m.part("Hall Lantern", at: (x, 4.4, 34.6), size: (1, 1.3, 1), color: "#EF4444", shape: .sphere, material: .neon, solid: false)
+    }
+    m.slab("Altar Table", x: 0, y: 1.2, z: 48.8, w: 7, h: 1.4, d: 2, color: "#1C1917")
+    m.part("Sacred Mirror", at: (0, 3.3, 48.8), size: (1.4, 1.4, 0.15), color: "#FDE68A", shape: .cylinder, material: .metal, solid: false,
+           rotation: (90, 0, 0))
+    m.pad("Altar", x: 0, z: 45.6, y: 1.2, size: 3.2, color: "#FACC15", tags: ["altar"])
+    for i in 0..<9 {
+        m.part("Seal Slot \(i + 1)", at: (-4 + Float(i), 4.6, 50.6), size: (0.6, 1, 0.1), color: "#44403C", solid: false)
+    }
+
+    // The pond with its arched bridge, where the kappa lives.
+    m.water(48, 12, w: 26, d: 22, y: 0.02, name: "Pond", color: "#0E7490", depth: 0.3, tags: ["water", "pond"])
+    let arch: [Float] = [0.35, 0.8, 1.1, 0.8, 0.35]
+    for (i, h) in arch.enumerated() {
+        m.slab("Taiko Bridge", x: 48, y: 0, z: 1.6 + Float(i) * 5.2, w: 3, h: h, d: 5.2, color: "#DC2626")
+    }
+    for z: Float in [2, 7, 12, 17, 22] {
+        for x: Float in [46.4, 49.6] { m.part("Bridge Post", at: (x, 1.9, z), size: (0.2, 1.2, 0.2), color: "#DC2626", solid: false) }
+    }
+    m.rock(55, 5, size: 3, color: "#57534E", name: "Kappa Rock")
+    for p in [(40, 18), (43, 4), (56, 20), (52, 16)] as [(Float, Float)] {
+        m.part("Lily Pad", at: (p.0, 0.05, p.1), size: (1.4, 0.04, 1.4), color: "#15803D", shape: .cylinder, solid: false)
+    }
+    m.part("Pond Bank", at: (31, 0.1, 12), size: (1.2, 0.2, 1.2), color: "#000000", shape: .cylinder, solid: false, visible: false)
+
+    // The bamboo grove in the west, with two paths through it.
     var r = Seeded("yokai")
-    for i in 0..<30 {
-        let a = r.range(0, 2 * .pi), d = r.range(20, 75)
-        m.pine(cos(a) * d, sin(a) * d, height: r.range(6, 10), leaves: "#052E16", name: "Cedar \(i + 1)")
+    var placedBamboo = 0
+    while placedBamboo < 90 {
+        let x = r.range(-70, -30), z = r.range(-34, 42)
+        if abs(z - 6) < 2.2 || abs(x + 48) < 2.2 { continue }
+        let h = r.range(8, 12)
+        m.part("Bamboo", at: (x, h / 2, z), size: (0.35, h, 0.35), color: placedBamboo % 3 == 0 ? "#4D7C0F" : "#65A30D",
+               shape: .cylinder, tags: ["tree"])
+        m.part("Bamboo Leaves", at: (x, h, z), size: (1.8, 1.4, 1.8), color: "#3F6212", shape: .sphere, material: .matte, solid: false)
+        placedBamboo += 1
     }
-    m.markers("Ofuda Spot", points: [(-40, 10), (40, 20), (-30, -40), (35, -35), (0, 60), (-55, -5), (55, 0), (20, 50)],
-              color: "#000000", visible: false, behavior: .none)
-    m.pad("Exit Gate", x: 0, z: -72, size: 4, color: "#22C55E", tags: ["exit"])
+
+    // The graveyard in the north-west.
+    for row in 0..<4 {
+        for col in 0..<7 {
+            let x = -64 + Float(col) * 5, z = 54 + Float(row) * 7
+            m.slab("Grave Base", x: x, y: 0, z: z, w: 1.5, h: 0.4, d: 1.1, color: "#57534E")
+            m.slab("Gravestone", x: x, y: 0.4, z: z, w: 0.7, h: 1.6 + Float((row + col) % 3) * 0.2, d: 0.5, color: "#78716C")
+            m.part("Sotoba", at: (x + 0.6, 1.2, z + 0.5), size: (0.2, 2.4, 0.05), color: "#D6D3D1", solid: false)
+        }
+    }
+
+    // Four small shrines (hokora) to hide in.
+    let hokora: [(Float, Float, Float)] = [(-32, -44, 1), (34, -36, 1), (62, 62, -1), (-24, 74, -1)]
+    for (i, h) in hokora.enumerated() {
+        m.house("Hokora", x: h.0, z: h.1, w: 3.2, d: 3.2, h: 2.8, wall: "#A16207", roof: "#1C1917", floor: "#78350F", door: false,
+                tags: ["hokora_building"], facing: h.2)
+        m.pad("Hokora \(i + 1)", x: h.0, z: h.1, y: 0.15, size: 1.6, color: "#A78BFA", tags: ["hokora"])
+    }
+
+    // The black torii behind the hall, where the oni sleeps.
+    torii("Oni Torii", z: 80, halfWidth: 4, height: 6, color: "#0C0A09", post: 0.45)
+    m.part("Oni Gate", at: (0, 3, 80), size: (0.2, 0.2, 0.2), color: "#0C0A09", solid: false, visible: false)
+    m.part("Oni Seal", at: (0, 3.4, 80), size: (1.2, 2, 0.1), color: "#FDE68A", material: .neon, solid: false)
+    m.part("Oni Rope", at: (0, 5, 80), size: (8, 0.3, 0.3), color: "#FDE68A", solid: false)
+
+    // Stone lanterns: touch the base to light one the fox fires put out.
+    let lanterns: [(Float, Float)] = [(-4.5, -48), (4.5, -48), (-4.5, -16), (4.5, -16), (-12, 22), (12, 22),
+                                      (-40, 6), (-46, 62), (36, 26), (60, -4), (-20, 62), (22, 62)]
+    for (i, p) in lanterns.enumerated() {
+        m.pad("Lantern Base \(i + 1)", x: p.0, z: p.1, size: 2.4, color: "#57534E", tags: ["lantern"])
+        m.part("Stone Lantern \(i + 1)", at: (p.0, 1, p.1), size: (0.8, 2, 0.8), color: "#78716C", shape: .cylinder)
+        m.part("Lantern Light \(i + 1)", at: (p.0, 2.15, p.1), size: (0.7, 0.5, 0.7), color: "#FB923C", shape: .sphere, material: .neon, solid: false)
+        m.part("Lantern Cap", at: (p.0, 2.7, p.1), size: (1.4, 0.7, 1.4), color: "#57534E", shape: .cone, solid: false)
+    }
+
+    // Where the ofuda can turn up, and where the yokai come from.
+    let spots: [(Float, Float, Float)] = [(-50, -20, 0), (-60, 12, 0), (-38, 30, 0), (-60, 58, 0), (-40, 78, 0), (-52, 70, 0),
+                                          (48, 12, 1.1), (62, 28, 0), (22, 4, 1), (-20, 12, 0), (0, 72, 0), (40, -40, 0),
+                                          (-34, -54, 0), (30, 70, 0)]
+    for (i, s) in spots.enumerated() {
+        m.part("Ofuda Spot \(i + 1)", at: (s.0, s.2 + 0.1, s.1), size: (1.2, 0.2, 1.2), color: "#000000", shape: .cylinder, solid: false,
+               visible: false)
+    }
+    m.markers("Yokai Den", points: [(-62, -44), (-62, 82), (64, -50), (64, 82)], color: "#000000", visible: false, behavior: .none)
+
+    // Cedars outside the fence and in the quiet corners.
+    for i in 0..<44 {
+        let side = i % 4
+        let t = r.range(-95, 95)
+        let p: (Float, Float) = side == 0 ? (-82 - r.range(0, 14), t) : side == 1 ? (82 + r.range(0, 14), t)
+            : side == 2 ? (t, 94 + r.range(0, 12)) : (t < 0 ? min(t, -12) : max(t, 12), -86 - r.range(0, 14))
+        m.pine(p.0, p.1, height: r.range(9, 14), leaves: "#052E16", name: "Cedar")
+    }
+    for p in [(50, -62), (58, -30), (-20, -66), (40, 44), (-66, -64), (66, 44), (20, 82), (-10, 84)] as [(Float, Float)] {
+        m.pine(p.0, p.1, height: r.range(8, 12), leaves: "#052E16", name: "Cedar")
+    }
 }
 
 // MARK: 52 Night Lockdown

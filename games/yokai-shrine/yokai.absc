@@ -1,0 +1,519 @@
+-- yokai.absc — 妖怪たちの動き
+--   👤 のっぺらぼう  仲間に化けて近づき、近くで正体をあらわして追ってくる
+--   🔥 狐火          石灯籠の火を消してまわる。近くにいると勇気がへる
+--   ☂️ からかさ      お札を持っている人からうばって逃げる
+--   🐸 かっぱ        池に入るとあらわれる（きゅうりがあれば仲良し）
+--   🏮 ちょうちんおばけ  灯籠のどれかにひそむ
+--   👘 座敷わらし    ときどきあらわれてお札の場所を教えてくれる
+--   👹 鬼            丑三つ時かお札がそろうと目ざめて追ってくる
+
+let wisps = []            -- 狐火（ブロック）
+let yokai_clock = 0
+let hop_clock = 0
+let warashi_clock = 0
+
+func is_yokai(n)
+  return n.yokai != nil
+end
+
+func clear_yokai()
+  for n in npcs() do
+    if is_yokai(n) then n.destroy() end
+  end
+  for w in wisps do gone(w) end
+  wisps = []
+  oni = nil
+end
+
+func spawn_night_yokai()
+  let nt = night()
+  for k in 1 to nt.mimics do spawn_mimic(den_pos(random(1, DENS))) end
+  for k in 1 to nt.wisps do spawn_wisp() end
+  if nt.umbrellas > 0 then
+    for k in 1 to nt.umbrellas do spawn_umbrella() end
+  end
+end
+
+func stunned(n)
+  return n.stun_until != nil and time() < n.stun_until
+end
+
+-- まわりの妖怪（鬼・のっぺらぼう・からかさ）をひるませる。ひるんだ数を返す
+func stun_yokai(pos, r, secs)
+  let k = 0
+  for n in npcs() do
+    if is_yokai(n) and n.yokai != "warashi" and n.yokai != "kappa" and distance(n, pos) < r then
+      n.stun_until = time() + secs
+      n.stop()
+      k = k + 1
+    end
+  end
+  return k
+end
+
+-- MARK: 👤 のっぺらぼう
+
+func disguise(n)
+  let list = filter(players(), func(p) return ready(p) end)
+  n.revealed_until = 0
+  n.size = 1
+  if len(list) > 0 then
+    let c = random(list)
+    n.name = c.name
+    n.color = c.color
+    n.head_color = c.head_color
+    n.leg_color = c.leg_color
+    n.hat = c.saved_hat or c.hat
+    if n.hat == "halo" then n.hat = "none" end
+  else
+    n.name = "だれか"
+    n.color = "#3B82F6"
+    n.head_color = "#F5D0A9"
+    n.leg_color = "#1E3A8A"
+    n.hat = "none"
+  end
+  n.speed = 0.9 * slow_factor()
+end
+
+func spawn_mimic(pos)
+  let n = create_npc({name: "だれか", position: pos + {x: random(-3, 3), y: 1, z: random(-3, 3)}, health: 999999, speed: 0.9, team: "yokai"})
+  n.yokai = "mimic"
+  n.stun_until = 0
+  n.wander_at = 0
+  n.lure_at = time() + random(8, 16)
+  disguise(n)
+  return n
+end
+
+-- 呪いのお札・大凶: その場で正体をあらわしたのっぺらぼうが出る
+func curse_mimic(p, pos)
+  let n = spawn_mimic(pos)
+  n.position = pos + {x: 0, y: 1, z: 0}
+  n.cursed = true
+  reveal(n, 6)
+end
+
+func reveal(n, secs)
+  n.revealed_until = time() + secs
+  n.name = "のっぺらぼう"
+  n.color = "#111111"
+  n.leg_color = "#111111"
+  n.head_color = "#F5F5F4"
+  n.hat = "none"
+  n.size = 1.7
+  n.speed = 1.2 * slow_factor()
+  n.say("…顔、ある？")
+  see_near("mimic", n.position, 25)
+  for p in players_near(n.position, 20) do p.shake(0.3, 0.4) end
+end
+
+-- 鈴: まわりののっぺらぼうの正体をあばいて、少しのあいだ止める
+func reveal_mimics(pos, r, secs)
+  let k = 0
+  for n in npcs() do
+    if n.yokai == "mimic" and distance(n, pos) < r then
+      if time() >= n.revealed_until then reveal(n, secs + 3) end
+      n.stun_until = time() + secs
+      n.stop()
+      k = k + 1
+    end
+  end
+  return k
+end
+
+func mimic_step(n)
+  if time() < n.revealed_until then
+    n.speed = 1.2 * slow_factor()
+    let target = nearest_prey(n, 30)
+    if target == nil then
+      n.stop()
+      return
+    end
+    n.follow(target)
+    if distance(n, target) < 2 and catch_player(target, n, "のっぺらぼう") then
+      n.revealed_until = 0
+    end
+    return
+  end
+  if n.size > 1.5 then
+    -- 正体がばれたあとは、どこかに消えてまた化ける
+    if n.cursed then
+      n.destroy()
+      return
+    end
+    disguise(n)
+    n.position = den_pos(random(1, DENS)) + {x: 0, y: 1, z: 0}
+    return
+  end
+  let near = nearest_prey(n, night().reveal)
+  if near != nil then
+    reveal(n, 7)
+    return
+  end
+  n.speed = 0.9 * slow_factor()
+  -- 仲間のふり: だれかのあとをつけたり、お札の場所へ歩いたり
+  if time() >= n.wander_at then
+    n.wander_at = time() + random(5, 9)
+    let far = nearest_prey(n, 60)
+    if far != nil and random() < 0.6 then
+      let d = normalize({x: n.x - far.x, y: 0, z: n.z - far.z})
+      n.move_to(far.position + d * 9)
+    else
+      n.move_to(spot_pos(random(1, OFUDA_SPOTS)))
+    end
+  end
+  if time() >= n.lure_at then
+    n.lure_at = time() + random(12, 22)
+    if len(players_near(n.position, 25)) > 0 then n.say(random(MIMIC_LINES)) end
+  end
+end
+
+-- MARK: 🔥 狐火
+
+func spawn_wisp()
+  let pos = den_pos(random(1, DENS)) + {x: random(-6, 6), y: 1.6, z: random(-6, 6)}
+  let w = create_block({name: "Kitsune-bi", shape: "sphere", position: pos, size: 0.8, color: "#60A5FA", material: "neon",
+                        solid: false, opacity: 0.85, tags: ["wisp"]})
+  append(wisps, w)
+end
+
+func wisp_near(p)
+  let pos = p.position + {x: random(-4, 4), y: 1.6, z: random(-4, 4)}
+  let w = create_block({name: "Kitsune-bi", shape: "sphere", position: pos, size: 0.8, color: "#60A5FA", material: "neon",
+                        solid: false, opacity: 0.85, tags: ["wisp"]})
+  append(wisps, w)
+end
+
+-- 散らした数を返す。散った狐火は20びょう後に巣からまた出てくる
+func scatter_wisps(p, pos, r)
+  let k = 0
+  let keep = []
+  for w in wisps do
+    if still(w) and distance(w.position, pos) < r then
+      gone(w)
+      k = k + 1
+    elif still(w) then
+      append(keep, w)
+    end
+  end
+  wisps = keep
+  if k > 0 then
+    see_yokai(p, "wisp")
+    kit_give(p, 5 * k)
+    kit_quest_progress(p, "wisps", k)
+    let token = night_token
+    after(20, func()
+      if token != night_token or (phase != "night" and phase != "escape") then return end
+      for i in 1 to k do
+        if len(wisps) < night().wisps then spawn_wisp() end
+      end
+    end)
+  end
+  return k
+end
+
+func wisp_step(w, secs)
+  let pos = w.position
+  let goal = nil
+  let li = nearest_lit(pos, 45)
+  if li > 0 then
+    goal = lantern_at[li] + {x: 0, y: 1.2, z: 0}
+    if distance(pos, goal) < 1.6 then
+      set_lantern(li, false)
+      goal = nil
+    end
+  end
+  if goal == nil then
+    let p = nearest_prey(pos, 30)
+    if p != nil then goal = p.position + {x: 0, y: 1.6, z: 0} end
+  end
+  if goal == nil then goal = spot_pos(random(1, OFUDA_SPOTS)) + {x: 0, y: 1.6, z: 0} end
+  let d = goal - pos
+  let len_d = magnitude(d)
+  let reach = 2.8 * secs * slow_factor()
+  let next = goal
+  if len_d > reach then next = pos + d / len_d * reach end
+  next.y = 1.4 + sin(time() * 140 + pos.x * 20) * 0.35
+  w.move_to(next, secs)
+  -- 近くの人は勇気がへる
+  for p in players_near(next, 5) do
+    if not hidden(p) then
+      add_courage(p, -6 * secs)
+      see_yokai(p, "wisp")
+    end
+  end
+end
+
+-- MARK: ☂️ からかさ
+
+func spawn_umbrella()
+  let n = create_npc({name: "からかさ", position: den_pos(random(1, DENS)) + {x: random(-3, 3), y: 1, z: random(-3, 3)},
+                      color: "#7C3AED", head_color: "#FDE68A", leg_color: "#FDE68A", size: 0.8, health: 999999, speed: 1.1, team: "yokai"})
+  n.hat = "antenna"
+  n.yokai = "umbrella"
+  n.holding = 0
+  n.stun_until = 0
+  n.held_at = 0
+  n.wander_at = 0
+end
+
+func umbrella_step(n)
+  if n.holding > 0 then
+    -- うばったお札を持って逃げる。追いついてさわれば取り返せる
+    let chaser = nearest_prey(n, 2.4)
+    if chaser != nil then
+      drop_ofuda_at(n.position, n.holding)
+      n.holding = 0
+      n.color = "#7C3AED"
+      n.say("ちぇっ…")
+      kit_give(chaser, 10)
+      chaser.score = chaser.score + 3
+      kit_quest_progress(chaser, "umbrella", 1)
+      chaser.message("☂️ からかさからお札を取り返した！ 拾おう", 1.5)
+      n.position = den_pos(random(1, DENS)) + {x: 0, y: 1, z: 0}
+      return
+    end
+    if time() - n.held_at > 45 then
+      drop_ofuda_at(n.position, n.holding)
+      n.holding = 0
+      n.color = "#7C3AED"
+      return
+    end
+    let from = nearest_prey(n, 40)
+    if from != nil then
+      let d = normalize({x: n.x - from.x, y: 0, z: n.z - from.z})
+      n.move_to({x: clamp(n.x + d.x * 12, -70, 70), y: 1, z: clamp(n.z + d.z * 12, -74, 84)})
+    end
+    return
+  end
+  let target = nil
+  let best_d = 28
+  for p in players() do
+    if prey(p) and p.carry > 0 and distance(n, p) < best_d then
+      target = p
+      best_d = distance(n, p)
+    end
+  end
+  if target != nil then
+    n.follow(target)
+    if distance(n, target) < 1.8 then
+      target.carry = target.carry - 1
+      n.holding = n.holding + 1
+      n.held_at = time()
+      n.color = "#DC2626"
+      n.say("いただき〜！")
+      target.message("☂️ からかさにお札をうばわれた！ 追いかけてさわれ！", 2)
+      target.sound("error")
+      see_near("umbrella", n.position, 20)
+      hud(target)
+    end
+  elif time() >= n.wander_at then
+    n.wander_at = time() + random(6, 10)
+    n.move_to(spot_pos(random(1, OFUDA_SPOTS)))
+  end
+end
+
+-- MARK: 🐸 かっぱ
+
+func kappa_meet(p)
+  if not active(p) or not quiet_ready(p, "kappa", 8) then return end
+  let n = create_npc({name: "かっぱ", position: p.position + {x: random(-2, 2), y: 0.5, z: 2}, color: "#16A34A",
+                      head_color: "#4ADE80", leg_color: "#15803D", size: 0.9, health: 999999, speed: 0, team: "yokai"})
+  n.hat = "halo"
+  n.yokai = "kappa"
+  n.look_at(p)
+  see_yokai(p, "kappa")
+  if has(p, "cucumber") then
+    p.charms.cucumber = p.charms.cucumber - 1
+    n.say("きゅうりだ〜！ ありがとう！")
+    p.boost_until = time() + 25
+    apply_speed(p)
+    kit_give(p, 8)
+    kit_quest_progress(p, "kappa", 1)
+    let near = nil
+    let best_d = 999
+    for b in blocks("ofuda") do
+      if not contains(b.tags, "cursed") and distance(b.position, p.position) < best_d then
+        near = b
+        best_d = distance(b.position, p.position)
+      end
+    end
+    if near != nil then beacon(near.position, 15) end
+    p.message("🐸 かっぱと仲良くなった！ 足が速くなって、近くのお札が光った", 2.5)
+  else
+    n.say("しりこだま、もーらった！")
+    add_courage(p, -30)
+    drop_carried(p)
+    p.teleport(block("Pond Bank").position + {x: 0, y: 1, z: 0})
+    p.sound("hurt")
+    p.message("🐸 かっぱに池から放り出された！（🥒 きゅうりを持っていくと…）", 2.5)
+  end
+  hud(p)
+  after(4, func() gone(n) end)
+end
+
+-- MARK: 🏮 ちょうちんおばけ
+
+func chochin_scare(p, i)
+  haunted_i = 0
+  set_lantern(i, true)
+  let l = lantern_at[i]
+  let face = normalize({x: p.x - l.x, y: 0, z: p.z - l.z})
+  let side = {x: -face.z, y: 0, z: face.x}
+  let c = l + {x: 0, y: 1.3, z: 0} + face * 0.55
+  let parts = [
+    create_block({name: "Chochin Eye", shape: "sphere", position: c + side * 0.22 + {x: 0, y: 0.15, z: 0}, size: 0.3, color: "#FFFFFF", material: "neon", solid: false}),
+    create_block({name: "Chochin Eye", shape: "sphere", position: c - side * 0.22 + {x: 0, y: 0.15, z: 0}, size: 0.3, color: "#FFFFFF", material: "neon", solid: false}),
+    create_block({name: "Chochin Pupil", shape: "sphere", position: c + side * 0.22 + face * 0.12 + {x: 0, y: 0.15, z: 0}, size: 0.12, color: "#111111", solid: false}),
+    create_block({name: "Chochin Pupil", shape: "sphere", position: c - side * 0.22 + face * 0.12 + {x: 0, y: 0.15, z: 0}, size: 0.12, color: "#111111", solid: false}),
+    create_block({name: "Chochin Tongue", position: c + face * 0.1 - {x: 0, y: 0.45, z: 0}, size: {x: 0.22, y: 0.9, z: 0.08}, color: "#F43F5E", solid: false})
+  ]
+  p.shake(0.7, 0.8)
+  p.sound("hurt")
+  add_courage(p, -35)
+  see_yokai(p, "chochin")
+  p.message("🏮 ぎゃっ！ ちょうちんおばけだ！", 2)
+  after(2.5, func()
+    for b in parts do gone(b) end
+  end)
+end
+
+-- MARK: 👘 座敷わらし
+
+func spawn_warashi()
+  let list = filter(players(), func(p) return prey(p) end)
+  if len(list) == 0 then return end
+  let p = random(list)
+  let a = random(0, 359)
+  let pos = p.position + {x: cos(a) * 12, y: 1, z: sin(a) * 12}
+  let n = create_npc({name: "座敷わらし", position: {x: clamp(pos.x, -70, 70), y: 1, z: clamp(pos.z, -74, 84)}, color: "#DC2626",
+                      head_color: "#F5D0A9", leg_color: "#FDE68A", size: 0.7, health: 999999, speed: 0.6, team: "yokai"})
+  n.yokai = "warashi"
+  n.born = time()
+  n.say("ふふっ… こっち")
+end
+
+func warashi_step(n)
+  let near = nearest_prey(n, 2.6)
+  if near != nil then
+    add_courage(near, 30)
+    see_yokai(near, "warashi")
+    let best = nil
+    let best_d = 999
+    for b in blocks("ofuda") do
+      if not contains(b.tags, "cursed") and distance(b.position, n.position) < best_d then
+        best = b
+        best_d = distance(b.position, n.position)
+      end
+    end
+    if best != nil then beacon(best.position, 15) end
+    kit_give(near, 5)
+    near.message("👘 座敷わらしが光の柱でお札の場所を教えてくれた", 2)
+    n.say("あっちにあるよ。またね")
+    n.destroy()
+    return
+  end
+  if time() - n.born > 30 then
+    n.say("またね…")
+    n.destroy()
+    return
+  end
+  let target = nil
+  let best_d = 999
+  for b in blocks("ofuda") do
+    if not contains(b.tags, "cursed") and distance(b.position, n.position) < best_d then
+      target = b
+      best_d = distance(b.position, n.position)
+    end
+  end
+  if target != nil then n.move_to(target.position) end
+end
+
+-- MARK: 👹 鬼
+
+func wake_oni(why)
+  if oni_awake then return end
+  oni_awake = true
+  block("Oni Seal").visible = false
+  let g = block("Oni Gate").position
+  oni = create_npc({name: "鬼", position: {x: g.x, y: 1, z: g.z - 3}, color: "#B91C1C", head_color: "#DC2626", leg_color: "#7F1D1D",
+                    size: 2.3, health: 999999, speed: night().oni_speed, team: "yokai"})
+  oni.hat = "antenna"
+  oni.yokai = "oni"
+  oni.stun_until = 0
+  oni.roar_at = time() + 8
+  oni.seen = nil
+  shake(0.5, 1.5)
+  sound("defeat")
+  announce("👹 " + why, 4)
+  for p in players() do
+    if ready(p) then see_yokai(p, "oni") end
+  end
+end
+
+func oni_step(n)
+  n.speed = night().oni_speed * slow_factor()
+  let target = nearest_prey(n, 45)
+  if target != nil then
+    if n.seen != target.id then
+      n.seen = target.id
+      n.say("みつけたぞぉ…！")
+    end
+    n.follow(target)
+    if distance(n, target) < 2.8 then catch_player(target, n, "鬼") end
+    return
+  end
+  n.seen = nil
+  if time() >= n.roar_at then
+    n.roar_at = time() + random(9, 14)
+    n.say(random(["どこだぁ…", "においがするぞ…", "にがさんぞぉ"]))
+    -- 本殿か出口のほうへ見まわり
+    if phase == "escape" then n.move_to(block("Kekkai").position + {x: random(-10, 10), y: 0, z: 10})
+    else n.move_to(spot_pos(random(1, OFUDA_SPOTS))) end
+  end
+end
+
+on tick(dt)
+  yokai_clock = yokai_clock + dt
+  hop_clock = hop_clock + dt
+  warashi_clock = warashi_clock + dt
+  if yokai_clock < 0.5 then return end
+  let secs = yokai_clock
+  yokai_clock = 0
+  if phase != "night" and phase != "escape" then return end
+  for n in npcs() do
+    if is_yokai(n) then
+      if stunned(n) then
+        n.stop()
+      elif n.yokai == "mimic" then mimic_step(n)
+      elif n.yokai == "umbrella" then umbrella_step(n)
+      elif n.yokai == "warashi" then warashi_step(n)
+      elif n.yokai == "oni" then oni_step(n)
+      end
+    end
+  end
+  let alive = []
+  for w in wisps do
+    if still(w) then
+      wisp_step(w, secs)
+      append(alive, w)
+    end
+  end
+  wisps = alive
+  if hop_clock >= 1.2 then
+    hop_clock = 0
+    for n in npcs() do
+      if n.yokai == "umbrella" and not stunned(n) then n.jump_now() end
+    end
+  end
+  if warashi_clock >= 40 and phase == "night" then
+    warashi_clock = 0
+    let count = len(filter(npcs(), func(n) return n.yokai == "warashi" end))
+    if count == 0 and random() < 0.6 then spawn_warashi() end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "pond") and (phase == "night" or phase == "escape") then kappa_meet(p) end
+end

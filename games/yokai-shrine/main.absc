@@ -1,128 +1,87 @@
--- Yokai Shrine — 5枚のお札を集める和風ホラー
+-- Yokai Shrine — 夜の神社でお札を集める和風ホラー（三つの夜）
+-- お札を本殿に納めると結界がとけ、目ざめた鬼から逃げて鳥居の外へ。
+-- 勇気が0になると気絶する。灯籠・仲間・手水舎で勇気をたもとう。
+--
+-- ファイル:
+--   data.absc     夜の設定・妖怪図鑑・お守り・おみくじ
+--   common.absc   夜の状態・勇気・気絶と助け合い・画面
+--   nights.absc   お札・祭壇・結界・夜の流れ・脱出・夜明け
+--   shrine.absc   石灯籠・手水舎・鈴・おさいせん・おみくじ・祠・お守り処・図鑑・持ち物
+--   yokai.absc    のっぺらぼう・狐火・からかさ・かっぱ・ちょうちんおばけ・座敷わらし・鬼
+--   main.absc     このファイル
 
-kit_setup("Yokai Shrine", "お札を集めて、神社から出よ", [
-  "境内のどこかに光るお札が5枚ある。さわると持てる（1枚ずつ）",
-  "本殿の祭壇（金色）にお札を納めよう",
-  "仲間のふりをした妖怪がいる…近づくと正体をあらわす！",
-  "つかまるとお札を落として、しばらく動けない",
-  "「🏮 ちょうちん」で少しの間まわりが明るくなる",
-  "5枚納めたら鳥居の緑のパッドから脱出！"
+kit_setup("Yokai Shrine", "お札を納めて、三つの夜をこえよ", [
+  "📜 境内の光るお札を拾って、本殿の祭壇（金色）に納めよう。うすい赤のふちは呪いのお札！",
+  "💪 暗いところでは勇気がへる。🏮 石灯籠のそば・仲間のそば・💧 手水舎でもどる。0になると気絶",
+  "👤 仲間と同じ名前でも油断しない。近づくと顔がなくなる…。🔔 本殿の鈴で正体をあばけ",
+  "🏮 ちょうちんボタンで狐火を散らす。消えた灯籠はさわるとまた灯る。⛩ 祠にはかくれられる",
+  "👹 お札がそろうと鬼が目ざめる。鳥居の外（緑）まで逃げろ！ 気絶した仲間はそばに行くと起こせる",
+  "🎋 おみくじ・🪙 おさいせん（ご加護）・⛩ お守り処（赤）もためしてみよう。📖 図鑑に妖怪を記録"
 ])
 
-let placed = 0
-let needed = 5
-let yokai = []
-let open = false
-let escaped = 0
+kit_currency = "銭"
+kit_shop_title = "着せかえ"
+kit_shop_add("horns", "👹 鬼のつの", 80, func(p)
+  p.hat = "antenna"
+  p.saved_hat = "antenna"
+end)
+kit_shop_add("halo", "✨ 光の輪", 150, func(p)
+  p.hat = "halo"
+  p.saved_hat = "halo"
+end)
+kit_shop_add("miko", "⛩ 巫女の赤", 60, func(p)
+  p.color = "#FFFFFF"
+  p.leg_color = "#DC2626"
+end)
 
-kit_quest("ofuda", "お札を2枚納める", 2, 150)
-kit_quest("escape", "神社から脱出", 1, 300)
-
-func show()
-  ui_text("ofuda", "📜 お札 " + placed + " / " + needed + (open and "   ⛩ 鳥居が開いた！" or ""), {at: "top", dy: 26, size: 20, bold: true})
-end
-
-func spawn_ofuda()
-  let spot = block("Ofuda Spot " + random(1, 8))
-  create_block({name: "Ofuda", position: spot.position + {x: random(-2, 2), y: 1, z: random(-2, 2)}, size: {x: 0.4, y: 0.8, z: 0.05},
-                color: "#FEF3C7", material: "neon", solid: false, behavior: "trigger", tags: ["ofuda"]})
-end
-
-func spawn_mimic()
-  -- だれかの名前と見た目をまねる
-  let list = players()
-  let copy_of = nil
-  if len(list) > 0 then copy_of = random(list) end
-  let spot = block("Ofuda Spot " + random(1, 8))
-  let n = create_npc({name: copy_of != nil and copy_of.name or "だれか", position: spot.position + {x: 0, y: 1, z: 0},
-                      color: copy_of != nil and copy_of.color or "#FFFFFF", head_color: copy_of != nil and copy_of.head_color or "#F5D0A9",
-                      health: 999999, speed: 0.5})
-  n.revealed_until = 0
-  append(yokai, n)
-end
+kit_quest("ofuda", "お札を10枚納める", 10, 200)
+kit_quest("escape", "鳥居の外へ脱出", 1, 150)
+kit_quest("nights", "三つの夜をこえる", 3, 500)
+kit_quest("lanterns", "消えた灯籠を10回ともす", 10, 100)
+kit_quest("wisps", "狐火を10個散らす", 10, 120)
+kit_quest("bell", "本殿の鈴を鳴らす", 3, 60)
+kit_quest("offer", "おさいせんを5回", 5, 80)
+kit_quest("omikuji", "おみくじを引く", 3, 50)
+kit_quest("tie", "悪いおみくじを結ぶ", 1, 30)
+kit_quest("revive", "気絶した仲間を助ける", 3, 150)
+kit_quest("hide", "祠にかくれる", 3, 60)
+kit_quest("umbrella", "からかさからお札を取り返す", 1, 80)
+kit_quest("kappa", "かっぱにきゅうりをあげる", 1, 60)
+kit_quest("purify", "手水舎で清める", 3, 40)
+kit_quest("salt", "清め塩を使う", 2, 40)
+kit_quest("charm", "お守りを3つ買う", 3, 80)
+kit_quest("dex", "妖怪図鑑を7体うめる", 7, 300)
 
 on start()
-  game.respawn_time = 8
-  for i in 1 to needed do spawn_ofuda() end
-  spawn_mimic()
-  show()
+  game.respawn_time = 4
+  lanterns_setup()
+  start_night(1)
+  every(10, func() kit_leaderboard("📜") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  p.ofuda = false
-  p.ui_button("lantern", "🏮 ちょうちん", {at: "bottom_right", dx: -120, dy: -160, w: 140, h: 60, size: 17, bg: "#EA580C", radius: 16})
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 30)
+  p.carry = 0
+  p.courage = 100
+  p.dex = {}
+  p.fainted = false
+  p.escaped = false
+  p.hidden_until = 0
+  p.boost_until = 0
+  p.charms = {}
+  p.ui_button("lantern", "🏮", {at: "bottom_right", dx: -120, dy: -160, w: 100, h: 56, size: 26, bg: "#EA580C", radius: 16})
+  p.ui_button("dex", "📖 図鑑", {at: "right", dy: 180, w: 150, h: 46, size: 16, bg: "#4C1D95"})
+  apply_speed(p)
+  hud(p)
+  night_hud()
 end
 
-on tick(dt)
-  for n in yokai do
-    if kit_here(n) then
-      let near = kit_nearest_player(n)
-      if near != nil and distance(n, near) < 6 and time() > n.revealed_until then
-        n.revealed_until = time() + 8
-        n.color = "#111111"
-        n.head_color = "#DC2626"
-        n.size = 1.9
-        n.speed = 1.05
-        n.say("みぃつけた…")
-        shake(0.2, 0.4)
-      end
-      if time() < n.revealed_until and near != nil then
-        n.follow(near)
-        if distance(n, near) < 2.2 then
-          if near.ofuda then
-            near.ofuda = false
-            spawn_ofuda()
-          end
-          near.kill()
-          near.message("👹 つかまった…", 2)
-          n.revealed_until = 0
-        end
-      elif time() >= n.revealed_until and n.size > 1.5 then
-        n.size = 1
-        n.speed = 0.5
-        n.color = "#FFFFFF"
-        n.head_color = "#F5D0A9"
-        n.move_to(block("Ofuda Spot " + random(1, 8)))
-      elif random() < 0.01 then
-        n.move_to(block("Ofuda Spot " + random(1, 8)))
-      end
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc or not p.alive then return end
-  if contains(b.tags, "ofuda") and not p.ofuda then
-    b.destroy()
-    p.ofuda = true
-    p.message("📜 お札を手に入れた！祭壇へ", 2)
-  elif contains(b.tags, "altar") and p.ofuda then
-    p.ofuda = false
-    placed = placed + 1
-    p.score = p.score + 2
-    kit_quest_progress(p, "ofuda", 1)
-    announce("📜 お札が納められた（" + placed + " / " + needed + "）", 2.5)
-    if placed == 3 then spawn_mimic() end
-    if placed >= needed then
-      open = true
-      announce("⛩ 鳥居の結界がとけた！脱出しよう！", 4)
-    end
-    show()
-  elif contains(b.tags, "exit") and open and not p.escaped then
-    p.escaped = true
-    escaped = escaped + 1
-    kit_quest_progress(p, "escape", 1)
-    announce("🎉 " + p.name + " が脱出した！", 3)
-    if escaped >= len(players()) then kit_finish("🏆 全員、神社から脱出！", 8) end
-  end
-end
-
-on button(p, id)
-  if id == "lantern" and kit_ready(p, "lantern", 20) then
-    world.light = 0.7
-    after(5, func() world.light = 0.25 end)
-    p.message("🏮 まわりが明るくなった", 1)
-  end
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.teleport(spawn_pos())
+  if p.fainted then wake(p, 60) end
 end

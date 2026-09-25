@@ -87,7 +87,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/run-from-faces/cover-79287542.png" width="200"> | 48 | **Run From The Faces** | 5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！ |
 | <img src="games/anomaly-hallway/cover-b5bc7a1e.png" width="200"> | 49 | **Anomaly Hallway** | 終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！ |
 | <img src="games/last-train-west/cover-67fe6da3.png" width="200"> | 50 | **Last Train West** | 荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！ |
-| <img src="games/yokai-shrine/cover-16825c7f.png" width="200"> | 51 | **Yokai Shrine** | 夜の神社に散らばった5枚のお札を集めて祭壇へ。仲間のふりをする妖怪に気をつけて…和風ホラー。 |
+| <img src="games/yokai-shrine/cover-6f19b57d.png" width="200"> | 51 | **Yokai Shrine** | 夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！ |
 | <img src="games/night-lockdown/cover-8f5ff717.png" width="200"> | 52 | **Night Lockdown** | 昼は町で食料と板を集め、夜は家の窓に板を打ちつけて立てこもる。侵入者から家族を守って3夜を生きのびろ。 |
 | <img src="games/toy-factory-night-shift/cover-b1288b6b.png" width="200"> | 53 | **Toy Factory Night Shift** | おもちゃ工場の夜間警備。カメラで動くおもちゃを見張り、電力を節約しながらドアを閉めて、朝6時まで耐えろ。 |
 | <img src="games/midnight-guard/cover-43f549cc.png" width="200"> | 54 | **Midnight Guard** | 真夜中の施設を見回る警備員。発電機を動かし続け、懐中電灯で怪異を追い払え。 |

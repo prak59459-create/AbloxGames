@@ -61,9 +61,10 @@ enum Cover {
                 Triangle(a: place(tri.0, t), b: place(tri.1, t), c: place(tri.2, t), color: color, unlit: unlit)
             }
             if alpha < 0.98 { clear += tris } else { opaque += tris }
-            // What the camera frames: the built things, not the ground.
+            // What the camera frames: the built things, not the ground, and
+            // not what hangs in the sky (a moon) either.
             let footprint = max(t.scale.x, t.scale.z)
-            if footprint < 60 { centres.append(t.position) }
+            if footprint < 60 && !block.tags.contains("sky") { centres.append(t.position) }
         }
 
         // Everyone in the world a few seconds in: the players at the spawn,
@@ -89,11 +90,18 @@ enum Cover {
             opaque.append(Triangle(a: Vec3(-s, y, -s), b: Vec3(s, y, s), c: Vec3(-s, y, s), color: g, unlit: false))
         }
 
-        let tops = world.blocks.filter { $0.isVisible && !isLid($0) }.map { block -> Float in
+        let tops = world.blocks.filter { $0.isVisible && !isLid($0) && !$0.tags.contains("sky") }.map { block -> Float in
             let t = WorldIndex.worldTransform(of: block, lookup: lookup)
             return t.position.y + t.scale.y / 2
         }
-        let camera = frame(centres: centres, tops: tops, spawn: spawns.isEmpty ? nil : world.spawnPosition(forPlayerIndex: 0))
+        // A map can say what to show: an invisible block named "Cover Focus"
+        // is the middle of the picture, its width how much to fit in, and a
+        // "yaw=…" tag the side it is seen from.
+        var camera = frame(centres: centres, tops: tops, spawn: spawns.isEmpty ? nil : world.spawnPosition(forPlayerIndex: 0))
+        if let focus = world.blocks.first(where: { $0.name == "Cover Focus" }) {
+            let yaw = focus.tags.compactMap { $0.hasPrefix("yaw=") ? Float($0.dropFirst(4)) : nil }.first ?? 35
+            camera = look(at: focus.transform.position, radius: focus.transform.scale.x / 2, yawDegrees: yaw)
+        }
         var canvas = Canvas(width: width * supersample, height: height * supersample, camera: camera, environment: environment)
         canvas.paintSky()
         for tri in opaque { canvas.draw(tri, blend: false) }
@@ -174,8 +182,11 @@ enum Cover {
             let tall = (y1 - y0) * 0.62
             radius = max(12, min(95, max(across, tall)))
         }
-        // Tall worlds (towers, obbies) are seen from lower down.
-        let yawDegrees: Float = 35
+        return look(at: target, radius: radius, yawDegrees: 35)
+    }
+
+    /// Three-quarters from above, `radius` metres around `target` in view.
+    private static func look(at target: Vec3, radius: Float, yawDegrees: Float) -> Camera {
         let pitchDegrees: Float = 24
         let yaw = yawDegrees * .pi / 180
         let pitch = pitchDegrees * .pi / 180

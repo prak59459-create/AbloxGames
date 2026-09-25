@@ -1,0 +1,63 @@
+-- data.absc — 夜ごとの設定・妖怪図鑑・お守り・おみくじ
+
+-- 三つの夜。夜ごとにお札がふえ、妖怪も多く・強くなる。
+-- ofuda: 納めるお札の数 / cursed: そのうち呪いのお札 / secs: 丑三つ時（鬼が目ざめる）までの時間
+let NIGHTS = [
+  {name: "一夜目", ofuda: 5, cursed: 0, mimics: 1, wisps: 3, umbrellas: 0, secs: 240, reveal: 4.5, oni_speed: 1.25},
+  {name: "二夜目", ofuda: 7, cursed: 1, mimics: 2, wisps: 5, umbrellas: 1, secs: 270, reveal: 5, oni_speed: 1.35},
+  {name: "三夜目", ofuda: 9, cursed: 2, mimics: 3, wisps: 6, umbrellas: 2, secs: 300, reveal: 6, oni_speed: 1.45}
+]
+
+let OFUDA_SPOTS = 14
+let DENS = 4
+let LANTERNS = 12
+let HOKORA = 4
+
+-- 妖怪図鑑。hint はどうすればいいかのヒント。
+let YOKAI_ORDER = ["mimic", "wisp", "umbrella", "kappa", "chochin", "warashi", "oni"]
+let YOKAI = {
+  mimic: {name: "👤 のっぺらぼう", text: "仲間のふりをして近づく。近くで顔がなくなって追ってくる",
+          hint: "なまえが仲間と同じでも油断しない。🔔 鈴で正体があばける"},
+  wisp: {name: "🔥 狐火", text: "青い火の玉。石灯籠の火を消し、近くにいると勇気がへる",
+         hint: "🏮 ちょうちんを近くでかざすと散る。消えた灯籠はさわるとまた灯る"},
+  umbrella: {name: "☂️ からかさ", text: "ぴょんぴょん跳ねて、持っているお札をうばって逃げる",
+             hint: "追いかけてさわれば取り返せる。🧂 塩で止まる"},
+  kappa: {name: "🐸 かっぱ", text: "池にすむ。水に入るとしりこだまを取りにくる",
+          hint: "🥒 きゅうりを持っていけば仲良くなれて、足が速くなる"},
+  chochin: {name: "🏮 ちょうちんおばけ", text: "石灯籠のどれかひとつにひそむ。さわると飛び出す",
+            hint: "こわいだけ。勇気がへるので、手水舎で心を清めよう"},
+  warashi: {name: "👘 座敷わらし", text: "赤い着物の子ども。ときどき現れてお札の場所を教えてくれる",
+            hint: "見つけたら近づいてみよう。勇気ももどる"},
+  oni: {name: "👹 鬼", text: "裏の黒い鳥居から出てくる大きな鬼。お札がそろうか丑三つ時に目ざめる",
+        hint: "足は少し遅い。🔔 鈴と 🧂 塩でひるむ。祠（ほこら）にかくれよう"}
+}
+
+-- お守り処（自分のお金で）。keep: 夜をこえても持ったまま
+let CHARMS = [
+  {id: "yakuyoke", name: "🧿 厄除け", price: 40, text: "一度だけつかまっても平気", keep: false, max: 2},
+  {id: "salt", name: "🧂 清め塩", price: 20, text: "まわりの妖怪を5秒止める", keep: false, max: 3},
+  {id: "cucumber", name: "🥒 きゅうり", price: 12, text: "かっぱへのおみやげ", keep: false, max: 3},
+  {id: "big_lantern", name: "🏮 大ちょうちん", price: 60, text: "ちょうちんが広く長く照らす", keep: true, max: 1},
+  {id: "bell", name: "🔔 小鈴", price: 50, text: "近くののっぺらぼうの正体があばける", keep: true, max: 1},
+  {id: "sandals", name: "👡 早足のお守り", price: 80, text: "いつも少し足が速い", keep: true, max: 1},
+  {id: "pouch", name: "📜 お札入れ", price: 100, text: "お札を2枚まで持てる", keep: true, max: 1}
+]
+
+-- おみくじ（10銭）。weight の合計は 100
+let OMIKUJI = [
+  {id: "daikichi", name: "大吉", weight: 8, text: "お札の場所がすべて光って見える！"},
+  {id: "chukichi", name: "中吉", weight: 15, text: "おさいせんが返ってきた +30銭"},
+  {id: "kichi", name: "吉", weight: 30, text: "勇気がわいてきた"},
+  {id: "shokichi", name: "小吉", weight: 20, text: "清め塩をひとつもらった"},
+  {id: "suekichi", name: "末吉", weight: 12, text: "まあまあ。こつこつがんばろう"},
+  {id: "kyo", name: "凶", weight: 10, text: "狐火が寄ってきた…（結び所に結ぶと気が楽になる）"},
+  {id: "daikyo", name: "大凶", weight: 5, text: "うしろに気配が…！（結び所に結ぶと気が楽になる）"}
+]
+
+let OMIKUJI_PRICE = 10
+let OFFERING_PRICE = 10
+let BLESSING_MAX = 100
+
+-- のっぺらぼうが言うこと（仲間のふり）
+let MIMIC_LINES = ["お札見つけた！こっち！", "ねえ、いっしょに行こう", "こっちこっち", "竹やぶにあったよ",
+                   "待って、置いてかないで", "池のほうで光ってた", "あれ？みんなどこ？"]

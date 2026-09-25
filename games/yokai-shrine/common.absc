@@ -1,0 +1,271 @@
+-- common.absc — 夜の状態・小さな道具・勇気・気絶と助け合い・画面
+
+let phase = "night"        -- night / escape / rest / over
+let night_i = 1
+let night_token = 0        -- 夜が変わるたびにふえる（あとで動く after の見分け用）
+let placed = 0             -- 納めたお札
+let night_ends = 0         -- 丑三つ時（鬼が目ざめる時刻）
+let oni_awake = false
+let oni = nil
+let blessing = 0           -- おさいせんでたまる「ご加護」
+let slowed_until = 0       -- ご加護で妖怪がにぶい時間
+let bell_ready_at = 0      -- 本殿の鈴
+let reveal_cursed_until = 0
+let rest_until = 0
+let rescue_until = 0       -- 気絶した仲間を助けに行ける残り時間
+let wipes = 0
+
+func ready(p)
+  return p.charms != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func night()
+  return NIGHTS[night_i]
+end
+
+func need()
+  return night().ofuda
+end
+
+-- 動ける人（気絶していない・脱出していない）
+func active(p)
+  return ready(p) and p.alive and not p.fainted and not p.escaped
+end
+
+func hidden(p)
+  return p.hidden_until != nil and time() < p.hidden_until
+end
+
+-- 妖怪にねらわれる人
+func prey(p)
+  return active(p) and not hidden(p)
+end
+
+func nearest_prey(from, range)
+  let best = nil
+  let best_d = range
+  for p in players() do
+    if prey(p) then
+      let d = distance(from, p)
+      if d < best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func players_near(pos, r)
+  return filter(players(), func(p) return active(p) and distance(p, pos) < r end)
+end
+
+func carry_max(p)
+  if (p.charms.pouch or 0) > 0 then return 2 end
+  return 1
+end
+
+func has(p, id)
+  return (p.charms[id] or 0) > 0
+end
+
+-- 妖怪はご加護のあいだ半分の速さ
+func slow_factor()
+  if time() < slowed_until then return 0.5 end
+  return 1
+end
+
+func spot_pos(i)
+  return block("Ofuda Spot " + i).position
+end
+
+func den_pos(i)
+  return block("Yokai Den " + i).position
+end
+
+func spawn_pos()
+  return block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0}
+end
+
+-- MARK: 速さ
+
+func apply_speed(p)
+  if not ready(p) then return end
+  let s = 1
+  if has(p, "sandals") then s = s + 0.15 end
+  if p.boost_until != nil and time() < p.boost_until then s = s + 0.35 end
+  if p.courage < 30 then s = s * 0.8 end
+  p.speed = s
+end
+
+-- MARK: 勇気
+
+func add_courage(p, amount)
+  if not active(p) then return end
+  let before = p.courage
+  p.courage = clamp(p.courage + amount, 0, 100)
+  if before >= 30 and p.courage < 30 then
+    p.message("😨 こわくて足がすくむ… 灯籠や仲間のそばで落ちつこう", 2)
+    apply_speed(p)
+  elif before < 30 and p.courage >= 30 then
+    apply_speed(p)
+  end
+  if p.courage <= 0 then faint(p, "こわくて気を失った…") end
+end
+
+-- 妖怪につかまった。厄除けがあれば身代わりになる
+func catch_player(p, by, what)
+  if not prey(p) then return false end
+  if has(p, "yakuyoke") then
+    p.charms.yakuyoke = p.charms.yakuyoke - 1
+    p.message("🧿 厄除けが身代わりになった！ 逃げろ！", 2)
+    p.sound("bounce")
+    let away = normalize({x: p.x - by.x, y: 0, z: p.z - by.z})
+    p.teleport(p.position + away * 6 + {x: 0, y: 0.5, z: 0})
+    by.stun_until = time() + 2
+    hud(p)
+    return false
+  end
+  faint(p, what + "につかまった…")
+  return true
+end
+
+-- MARK: 気絶と助け合い
+
+func faint(p, why)
+  if not ready(p) or p.fainted or p.escaped then return end
+  p.fainted = true
+  p.was_hit = true
+  p.faint_at = time()
+  p.revive = 0
+  p.courage = 0
+  p.frozen = true
+  p.hidden_until = 0
+  p.saved_hat = p.hat
+  p.hat = "halo"
+  drop_carried(p)
+  p.sound("hurt")
+  p.shake(0.4, 0.6)
+  p.message("💫 " + why + " 仲間が近くに来ると起きられる", 3)
+  announce("💫 " + p.name + " が気絶した！ そばに行って助けよう", 2)
+  hud(p)
+  check_wipe()
+end
+
+func wake(p, courage)
+  if not p.fainted then return end
+  p.fainted = false
+  p.frozen = false
+  p.revive = 0
+  p.courage = courage
+  p.hat = p.saved_hat or "none"
+  apply_speed(p)
+  hud(p)
+end
+
+-- 気絶した人のそばに仲間がいると、3びょうで起きる
+func revive_step(secs)
+  for p in players() do
+    if ready(p) and p.fainted then
+      let helper = nil
+      for q in players() do
+        if ready(q) and q.alive and not q.fainted and q.id != p.id and distance(p, q) < 3.2 then helper = q end
+      end
+      if helper != nil then
+        p.revive = p.revive + secs
+        p.ui_bar("revive", {at: "center", dy: 60, w: 200, h: 14, value: p.revive, max: 3, color: "#4ADE80", bg: "#00000088"})
+        if p.revive >= 3 then
+          p.ui_remove("revive")
+          wake(p, 50)
+          p.message("🤝 " + helper.name + " が起こしてくれた！", 2)
+          helper.message("🤝 " + p.name + " を助けた！ +10", 1.5)
+          kit_give(helper, 10)
+          helper.score = helper.score + 3
+          kit_quest_progress(helper, "revive", 1)
+        end
+      elif time() - p.faint_at > 30 then
+        -- だれも来なかった。30びょうで入口で目をさます
+        p.ui_remove("revive")
+        wake(p, 40)
+        p.teleport(spawn_pos())
+        p.message("😵 気がつくと鳥居の前にいた…", 2)
+      elif p.revive > 0 then
+        p.revive = max(0, p.revive - secs)
+        if p.revive <= 0 then p.ui_remove("revive") end
+      end
+    end
+  end
+end
+
+-- MARK: 画面
+
+func charm_line(p)
+  let parts = []
+  for c in CHARMS do
+    let k = p.charms[c.id] or 0
+    if k > 0 then
+      let icon = split(c.name, " ")[1]
+      if c.keep then append(parts, icon) else append(parts, icon + k) end
+    end
+  end
+  if len(parts) == 0 then return "" end
+  return "   " + join(parts, " ")
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let carry = "📜 お札なし"
+  if p.carry > 0 then carry = "📜 お札 " + p.carry + " 枚（本殿へ！）" end
+  if p.fainted then carry = "💫 気絶中" end
+  if p.escaped then carry = "⛩ 脱出した" end
+  if hidden(p) then carry = carry + "  ⛩ かくれ中" end
+  p.ui_text("me", carry + charm_line(p), {at: "top_left", dy: 36, size: 15, bold: true, color: "#FDE68A"})
+  let c = "#FDE68A"
+  if p.courage < 30 then c = "#F87171" end
+  p.ui_text("courage_t", "💪 勇気", {at: "top_left", dy: 60, size: 13, color: c})
+  p.ui_bar("courage", {at: "top_left", dy: 64, dx: 64, w: 150, h: 10, value: p.courage, max: 100, color: c, bg: "#00000088"})
+  if has(p, "salt") then
+    p.ui_button("salt", "🧂 " + p.charms.salt, {at: "bottom_right", dx: -240, dy: -160, w: 100, h: 56, size: 20, bg: "#E5E7EB", color: "#111827", radius: 16})
+  else
+    p.ui_remove("salt")
+  end
+  if has(p, "bell") then
+    p.ui_button("suzu", "🔔", {at: "bottom_right", dx: -120, dy: -236, w: 100, h: 56, size: 24, bg: "#CA8A04", radius: 16})
+  end
+end
+
+func night_hud()
+  let status = ""
+  if phase == "night" then
+    if oni_awake then
+      status = "👹 鬼が歩いている…"
+    else
+      let left = max(0, ceil(night_ends - time()))
+      status = "🕑 丑三つ時まで " + floor(left / 60) + ":" + (left % 60 < 10 and "0" or "") + (left % 60)
+    end
+  elif phase == "escape" then
+    status = "⛩ 結界がとけた！ 鳥居の外へ逃げろ！"
+    if rescue_until > 0 then status = "🤝 仲間を助けるなら あと " + max(0, ceil(rescue_until - time())) + "s" end
+  elif phase == "rest" then
+    status = "🌅 夜明け… 次の夜まで " + max(0, ceil(rest_until - time())) + "s（お守り処で準備）"
+  end
+  ui_text("night", "🌙 " + night().name + "   📜 " + placed + " / " + need() + "   " + status, {at: "top", dy: 26, size: 18, bold: true})
+  ui_bar("blessing", {at: "top", dy: 54, w: 200, h: 8, value: blessing, max: BLESSING_MAX, color: "#F472B6", bg: "#00000088"})
+  ui_text("blessing_t", "🙏 ご加護", {at: "top", dy: 50, dx: -150, size: 12, color: "#FBCFE8"})
+end
