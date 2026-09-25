@@ -1,217 +1,55 @@
--- Toy Army Tycoon — おもちゃの軍隊で基地を守るタイクーン
+-- Toy Army Tycoon — おもちゃの軍隊の基地を大きくし、敵軍の襲撃からコアを守る。
+--
+-- ファイル:
+--   data.absc    設備・部隊・研究・襲撃の敵
+--   common.absc  基地の状態・画面
+--   army.absc    兵隊と戦車・タレット・狙撃塔・迫撃砲・空爆
+--   base.absc    土地・設備を買う・研究所・銀行・昇進
+--   raids.absc   襲撃の予告・部隊・コア・将軍
+--   main.absc    このファイル
 
 kit_setup("Toy Army Tycoon", "兵隊を増やして、コアを守れ", [
-  "色のパッドで基地を手に入れる。緑のパッドで設備を順番に買う",
-  "ドロッパーが2秒ごとにお金を生む",
-  "兵舎を買うと「🪖 兵隊」ボタンで兵士をよべる（最大8人）",
-  "タレットは近づく敵を自動で撃つ",
-  "75秒ごとに敵軍がどこかの基地のコア（黄色い玉）をねらってくる",
-  "コアがこわされるとお金を半分うばわれる！"
+  "🟥 色のパッドで基地を手に入れ、🟩 緑のパッドで16の設備を順番に建てる",
+  "💰 設備がふえるほど2秒ごとのお金がふえる。🏦 銀行は持っているお金に利子",
+  "🪖 兵舎で兵隊、🚜 ガレージで戦車。🔫 タレット・🎯 狙撃塔・💥 迫撃砲は自動で戦う",
+  "🚨 襲撃の前に予告。敵は 敵兵・偵察兵・重装兵・戦車。5回ごとにおもちゃ将軍！",
+  "🔬 研究所で強化、🚁 ヘリポートで空爆。🗽 記念碑まで建てたら 🎖 昇進（お金 +50%）"
 ])
 
-let items = ["ドロッパー", "兵舎", "北のかべ", "タレット1", "タレット2", "戦車ガレージ", "南のかべ", "旗"]
-let prices = [0, 150, 200, 350, 600, 1000, 800, 1500]
-let owner = {}
-let bought = {}
-let core_hp = {}
-let raid_no = 0
+kit_currency = "コイン"
+kit_shop_title = "武器屋"
+kit_shop_add("shotgun", "💥 ショットガン", 300, func(p) p.give("shotgun") end)
+kit_shop_add("rifle", "🎯 ライフル", 800, func(p) p.give("rifle") end)
+kit_shop_add("blaster", "⚡ ブラスター", 2500, func(p) p.give("blaster") end)
+kit_shop_add("cap", "🪖 ヘルメット", 150, func(p) p.hat = "cap" end)
 
-kit_quest("buy", "設備を5つ買う", 5, 200)
-kit_quest("soldiers", "兵隊を5人よぶ", 5, 150)
+kit_quest("buy", "設備を8つ建てる", 8, 300)
+kit_quest("soldier", "兵隊を5人よぶ", 5, 150)
+kit_quest("tank", "戦車を1台", 1, 200)
 kit_quest("defend", "襲撃を3回守りきる", 3, 400)
-
-func has(plot, k)
-  return bought[plot + ":" + k] == true
-end
-
-func income(plot)
-  let n = 0
-  for k in 1 to len(items) do
-    if has(plot, str(k)) then n = n + 1 end
-  end
-  return 5 + n * 4
-end
-
-func show(p)
-  if p.plot == nil then return end
-  p.ui_text("base", "🪖 基地 " + p.plot + "   💸 " + income(p.plot) + "/2秒   ❤️ コア " + (core_hp[p.plot] or 100), {at: "top", dy: 30, size: 17, bold: true})
-end
-
-func buy(p, plot, k)
-  let n = num(k)
-  if n > 1 and not has(plot, str(n - 1)) then
-    p.message("先に「" + items[n - 1] + "」", 1.5)
-    return
-  end
-  if not kit_pay(p, prices[n]) then return end
-  bought[plot + ":" + k] = true
-  let item = block("Plot " + plot + " Item " + k)
-  item.visible = true
-  item.solid = true
-  kit_quest_progress(p, "buy", 1)
-  if n == 4 or n == 5 then
-    let t = create_npc({name: "タレット", position: item.position + {x: 0, y: 1.5, z: 0}, color: "#3F3F46", head_color: "#EF4444",
-                        health: 400, speed: 0, team: "base" + plot})
-    t.frozen = true
-    t.turret = plot
-    t.give("rifle")
-  end
-  if n == 2 then p.ui_button("soldier", "🪖 兵隊（50）", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#65A30D"}) end
-  p.message("🏗 " + items[n] + " を建てた", 1.5)
-  show(p)
-end
-
-func raid()
-  let list = keys(owner)
-  if len(list) == 0 then return end
-  raid_no = raid_no + 1
-  let target = random(list)
-  let spawn = block("Raid Spawn " + random(1, 4))
-  let count = min(20, 3 + raid_no * 2)
-  for i in 1 to count do
-    let n = create_npc({name: "敵兵", position: spawn.position + {x: random(-6, 6), y: 1, z: random(-6, 6)}, color: "#1F2937",
-                        head_color: "#DC2626", health: 60 + raid_no * 10, speed: 0.8, team: "raid"})
-    n.target = target
-    n.give("blaster")
-  end
-  announce("⚔️ 敵軍が基地 " + target + " をねらっている！", 4)
-end
+kit_quest("kills", "敵を20人たおす", 20, 250)
+kit_quest("research", "研究を3回", 3, 200)
+kit_quest("airstrike", "空爆をよぶ", 1, 100)
+kit_quest("rebirth", "昇進する", 1, 1000)
 
 on start()
-  every(2, func()
-    for p in players() do
-      if p.plot != nil and has(p.plot, "1") then
-        kit_give(p, income(p.plot))
-        p.score = p.coins
-      end
-    end
-  end)
-  every(75, func() raid() end)
-  every(1, func()
-    -- 襲撃が終わったか
-    let raiders = filter(npcs(), func(n) return n.team == "raid" end)
-    if raid_no > 0 and len(raiders) == 0 and not raid_cleared then
-      raid_cleared = true
-      for p in players() do
-        if p.plot != nil then kit_quest_progress(p, "defend", 1) end
-      end
-    end
-    if len(raiders) > 0 then raid_cleared = false end
-  end)
+  next_raid = time() + RAID_EVERY
+  every(10, func() kit_leaderboard("💰") end)
 end
-let raid_cleared = true
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
   kit_give(p, 100)
+  p.weapon_level = 1
+  p.rebirths = 0
+  p.give("pistol")
 end
 
-on leave(p)
-  if p.plot != nil then
-    let plot = p.plot
-    remove(owner, plot)
-    for n in npcs() do
-      if n.team == "base" + plot then n.destroy() end
-    end
-    for k in 1 to len(items) do
-      remove(bought, plot + ":" + k)
-      let item = block("Plot " + plot + " Item " + k)
-      item.visible = false
-      item.solid = false
-    end
-  end
-end
-
-on tick(dt)
-  for n in npcs() do
-    if n.team == "raid" then
-      -- 近くに守りがいれば戦う。いなければコアへ
-      let defender = nil
-      for c in kit_everyone() do
-        if c.team != "raid" and c.alive and distance(n, c) < 12 and not c.is_npc then defender = c end
-      end
-      if defender != nil then
-        n.follow(defender)
-        if random() < 0.05 then n.shoot(defender) end
-      else
-        let core = block("Plot " + n.target + " Core")
-        n.move_to(core)
-        if distance(n, core) < 3.5 then
-          core_hp[n.target] = (core_hp[n.target] or 100) - 10 * dt
-          if core_hp[n.target] <= 0 then
-            core_hp[n.target] = 100
-            for p in players() do
-              if p.plot == n.target then
-                p.coins = floor(kit_money(p) / 2)
-                kit_show_money(p)
-                p.message("💥 コアがこわされた！お金を半分うばわれた", 3)
-              end
-            end
-            for r in npcs() do
-              if r.team == "raid" and r.target == n.target then r.destroy() end
-            end
-            return
-          end
-        end
-      end
-    elif n.turret != nil or n.soldier != nil then
-      let enemy = nil
-      for e in npcs() do
-        if e.team == "raid" and distance(n, e) < 30 then enemy = e end
-      end
-      if enemy != nil then
-        if n.soldier != nil then n.follow(enemy) end
-        if random() < 0.15 then n.shoot(enemy) end
-      elif n.soldier != nil then
-        n.move_to(block("Plot " + n.soldier + " Core"))
-      end
-    end
-  end
-  for p in players() do
-    if p.plot != nil and random() < 0.05 then show(p) end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  let parts = split(b.name, " ")
-  if contains(b.tags, "claim") then
-    let plot = parts[2]
-    if owner[plot] == nil and p.plot == nil then
-      owner[plot] = p.id
-      p.plot = plot
-      p.team = "base" + plot
-      core_hp[plot] = 100
-      buy(p, plot, "1")
-    end
-  elif contains(b.tags, "buy") then
-    let plot = parts[2]
-    if p.plot == plot and not has(plot, parts[4]) then buy(p, plot, parts[4]) end
-  end
-end
-
-on button(p, id)
-  if id == "soldier" and p.plot != nil then
-    let mine = len(filter(npcs(), func(n) return n.soldier == p.plot end))
-    if mine >= 8 then
-      p.message("兵隊は8人まで", 1.5)
-      return
-    end
-    if kit_pay(p, 50) then
-      let s = create_npc({name: "兵隊", position: block("Plot " + p.plot + " Item 2").position + {x: random(-2, 2), y: 1, z: 3},
-                          color: "#4D7C0F", head_color: "#F5D0A9", health: 120, speed: 0.9, team: "base" + p.plot})
-      s.soldier = p.plot
-      s.give("rifle")
-      kit_quest_progress(p, "soldiers", 1)
-    end
-  end
-end
-
-on death(victim, killer)
-  if victim.team == "raid" and killer != nil then
-    for p in players() do
-      if p.team == killer.team then kit_give(p, 15) end
-    end
-  end
+on respawn(p)
+  if p.is_npc or not ready(p) then return end
+  p.give("pistol")
+  if p.plot != nil then p.teleport(core_block(p.plot).position + {x: 0, y: 1, z: 6}) end
 end

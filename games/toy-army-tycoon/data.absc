@@ -1,0 +1,48 @@
+-- data.absc — 基地の設備・部隊・研究・襲撃の敵
+
+-- 設備（この順番に買う）。income: 2秒ごとのお金 / kind: 何をするか
+let ITEMS = [
+  {name: "💰 お金ドロッパー", price: 0, income: 5, kind: "money"},
+  {name: "⚙️ コンベア強化", price: 120, income: 6, kind: "money"},
+  {name: "🏠 兵舎", price: 200, income: 2, kind: "barracks"},
+  {name: "🧱 北のかべ", price: 250, income: 2, kind: "wall"},
+  {name: "🔫 タレット1", price: 400, income: 3, kind: "turret"},
+  {name: "🔫 タレット2", price: 600, income: 3, kind: "turret"},
+  {name: "🧱 南のかべ", price: 700, income: 3, kind: "wall"},
+  {name: "🎯 狙撃塔", price: 1000, income: 4, kind: "sniper"},
+  {name: "🚜 戦車ガレージ", price: 1400, income: 5, kind: "garage"},
+  {name: "🧱 東のかべ", price: 1600, income: 4, kind: "wall"},
+  {name: "🧱 西のかべ", price: 1800, income: 4, kind: "wall"},
+  {name: "💥 迫撃砲", price: 2400, income: 6, kind: "mortar"},
+  {name: "🚁 ヘリポート", price: 3200, income: 6, kind: "helipad"},
+  {name: "🔬 研究所", price: 4000, income: 8, kind: "lab"},
+  {name: "🏦 銀行", price: 5500, income: 10, kind: "bank"},
+  {name: "🗽 記念碑", price: 8000, income: 20, kind: "monument"}
+]
+
+-- 部隊
+let UNITS = {
+  soldier: {name: "🪖 兵隊", price: 50, hp: 120, weapon: "rifle", size: 1, color: "#4D7C0F", speed: 0.95},
+  tank: {name: "🚜 戦車", price: 400, hp: 900, weapon: "blaster", size: 2.2, color: "#3F6212", speed: 0.6}
+}
+
+-- 研究（研究所で）。max: 最大レベル
+let RESEARCH = [
+  {id: "armor", name: "🛡 じょうぶな服", price: 300, max: 5, text: "兵隊と戦車の体力 +20%"},
+  {id: "aim", name: "🎯 ねらいの訓練", price: 400, max: 5, text: "味方がよく当てる"},
+  {id: "economy", name: "📈 経済学", price: 600, max: 5, text: "お金 +15%"},
+  {id: "barracks", name: "🏠 兵舎の増築", price: 500, max: 3, text: "兵隊の上限 +4"},
+  {id: "radar", name: "📡 レーダー", price: 350, max: 1, text: "襲撃の予告が早い・敵の数がわかる"}
+]
+
+-- 襲撃の敵
+let RAIDERS = {
+  grunt: {name: "敵兵", color: "#1F2937", head: "#DC2626", hp: 60, speed: 0.85, weapon: "pistol", size: 1, reward: 12},
+  scout: {name: "偵察兵", color: "#374151", head: "#F97316", hp: 40, speed: 1.35, weapon: "pistol", size: 0.85, reward: 10},
+  heavy: {name: "重装兵", color: "#111827", head: "#7F1D1D", hp: 260, speed: 0.6, weapon: "shotgun", size: 1.5, reward: 30},
+  tank: {name: "敵の戦車", color: "#1C1917", head: "#57534E", hp: 700, speed: 0.5, weapon: "blaster", size: 2.3, reward: 80},
+  general: {name: "👑 おもちゃ将軍", color: "#7F1D1D", head: "#FACC15", hp: 2500, speed: 0.55, weapon: "blaster", size: 2.8, reward: 400}
+}
+
+let RAID_EVERY = 80
+let CORE_HP = 300

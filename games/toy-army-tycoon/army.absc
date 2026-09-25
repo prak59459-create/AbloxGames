@@ -1,0 +1,145 @@
+-- army.absc — 兵隊と戦車・タレット・狙撃塔・迫撃砲・空爆・味方の動き
+
+let army_clock = 0
+let mortar_clock = 0
+
+func spawn_turret(n, k, kind)
+  let item = block("Plot " + n + " Item " + k)
+  let name = "タレット"
+  let weapon = "rifle"
+  if kind == "sniper" then
+    name = "狙撃兵"
+    weapon = "rifle"
+  end
+  if kind == "mortar" then name = "迫撃砲兵" end
+  let t = create_npc({name: name, position: item.position + {x: 0, y: item.size.y / 2 + 0.6, z: 0}, color: "#3F3F46", head_color: "#EF4444",
+                      health: 600, speed: 0, team: "base" + n})
+  t.frozen = true
+  t.base = n
+  t.unit = kind
+  if kind != "mortar" then t.give(weapon) end
+end
+
+func spawn_unit(p, kind)
+  let n = p.plot
+  if n == nil then return end
+  let u = UNITS[kind]
+  if kind == "soldier" and len(units_of(n, "soldier")) >= unit_cap(n) then
+    p.message("🪖 兵隊は " + unit_cap(n) + " 人まで（研究で増やせる）", 1.5)
+    return
+  end
+  if kind == "tank" and len(units_of(n, "tank")) >= 2 then
+    p.message("🚜 戦車は2台まで", 1.5)
+    return
+  end
+  if not kit_pay(p, u.price) then return end
+  let hp = floor(u.hp * (1 + research(n, "armor") * 0.2))
+  let spot = core_block(n).position
+  let s = create_npc({name: u.name, position: spot + {x: random(-4, 4), y: 1, z: random(3, 6)}, color: u.color, head_color: "#F5D0A9",
+                      size: u.size, health: hp, speed: u.speed, team: "base" + n})
+  s.base = n
+  s.unit = kind
+  s.give(u.weapon)
+  kit_quest_progress(p, kind, 1)
+  hud(p)
+end
+
+func nearest_raider(pos, range)
+  let best = nil
+  let best_d = range
+  for e in npcs() do
+    if e.raider != nil and distance(e, pos) < best_d then
+      best = e
+      best_d = distance(e, pos)
+    end
+  end
+  return best
+end
+
+func unit_step(u)
+  let aim = 0.25 + research(u.base, "aim") * 0.07
+  if u.unit == "turret" then
+    let e = nearest_raider(u.position, 32)
+    if e != nil and random() < aim then u.shoot(e) end
+  elif u.unit == "sniper" then
+    let e = nearest_raider(u.position, 70)
+    if e != nil and random() < aim * 0.6 then
+      u.shoot(e)
+      e.damage(35)
+    end
+  elif u.unit == "soldier" or u.unit == "tank" then
+    let e = nearest_raider(u.position, 35)
+    if e != nil then
+      if distance(u, e) > 14 then u.follow(e) else u.stop() end
+      u.look_at(e)
+      if random() < aim then u.shoot(e) end
+    else
+      let core = core_block(u.base).position
+      if distance(u, core) > 9 then u.move_to(core + {x: random(-5, 5), y: 0, z: random(-5, 5)}) end
+    end
+  end
+end
+
+-- 迫撃砲: 4秒ごとに、いちばん敵が多い場所へ
+func mortar_step()
+  for m in npcs() do
+    if m.unit == "mortar" then
+      let e = nearest_raider(m.position, 60)
+      if e != nil then
+        let at = e.position
+        let shell = create_block({name: "Shell", shape: "sphere", position: at + {x: 0, y: 1, z: 0}, size: 4, color: "#F97316", material: "neon",
+                                  solid: false, opacity: 0.5})
+        after(0.4, func() gone(shell) end)
+        for r in npcs() do
+          if r.raider != nil and distance(r, at) < 5 then r.damage(60) end
+        end
+        sound("hit")
+      end
+    end
+  end
+end
+
+func airstrike(p)
+  if p.plot == nil or not has_kind(p.plot, "helipad") then return end
+  if not kit_ready(p, "air", 60) then return end
+  let core = core_block(p.plot).position
+  let hit = 0
+  for r in npcs() do
+    if r.raider != nil and distance(r, core) < 40 then
+      r.damage(150)
+      hit = hit + 1
+    end
+  end
+  for i in 1 to 6 do
+    let b = create_block({name: "Blast", shape: "sphere", position: core + {x: random(-25, 25), y: 1, z: random(-25, 25)}, size: 6,
+                          color: "#FB923C", material: "neon", solid: false, opacity: 0.5})
+    after(0.6, func() gone(b) end)
+  end
+  shake(0.5, 0.8)
+  sound("defeat")
+  announce("🚁 " + p.name + " の空爆！ " + hit + " 人に命中", 2)
+  kit_quest_progress(p, "airstrike", 1)
+end
+
+on tick(dt)
+  army_clock = army_clock + dt
+  mortar_clock = mortar_clock + dt
+  if army_clock >= 0.5 then
+    army_clock = 0
+    for u in npcs() do
+      if u.base != nil then unit_step(u) end
+    end
+  end
+  if mortar_clock >= 4 then
+    mortar_clock = 0
+    mortar_step()
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "soldier" then spawn_unit(p, "soldier")
+  elif id == "tank" then spawn_unit(p, "tank")
+  elif id == "airstrike" then airstrike(p)
+  end
+end

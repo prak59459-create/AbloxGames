@@ -1,0 +1,102 @@
+-- common.absc — 基地の状態・小さな道具・画面
+
+let bases = {}             -- 基地番号（文字） → {owner, bought, core, research: {}, rebirths}
+let raid_no = 0
+let next_raid = 0
+let raid_target = nil
+
+func ready(p)
+  return p.weapon_level != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func base(n)
+  return bases[n]
+end
+
+func owner_of(n)
+  let b = bases[n]
+  if b == nil then return nil end
+  return player_by_id(b.owner)
+end
+
+func has_kind(n, kind)
+  let b = bases[n]
+  if b == nil then return false end
+  for k in 1 to b.bought do
+    if ITEMS[k].kind == kind then return true end
+  end
+  return false
+end
+
+func research(n, id)
+  let b = bases[n]
+  if b == nil then return 0 end
+  return b.research[id] or 0
+end
+
+-- 2秒ごとのお金
+func income(n)
+  let b = bases[n]
+  if b == nil then return 0 end
+  let sum_i = 0
+  for k in 1 to b.bought do sum_i = sum_i + ITEMS[k].income end
+  let mult = 1 + research(n, "economy") * 0.15 + b.rebirths * 0.5
+  return floor(sum_i * mult)
+end
+
+func core_block(n)
+  return block("Plot " + n + " Core")
+end
+
+func units_of(n, kind)
+  return filter(npcs(), func(u) return u.base == n and u.unit == kind end)
+end
+
+func unit_cap(n)
+  return 6 + research(n, "barracks") * 4
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) or p.plot == nil then return end
+  let b = bases[p.plot]
+  let next_item = "ぜんぶ建てた！ 🎖 昇進できる"
+  if b.bought < len(ITEMS) then next_item = "次: " + ITEMS[b.bought + 1].name + " 💰" + ITEMS[b.bought + 1].price end
+  p.ui_text("base", "🪖 基地 " + p.plot + "   💸 " + income(p.plot) + "/2秒   🎖×" + b.rebirths + "   " + next_item, {at: "top", dy: 54, size: 14, bold: true})
+  p.ui_bar("core", {at: "top", dy: 78, w: 220, h: 10, value: max(0, b.core), max: CORE_HP, color: "#FACC15", bg: "#00000088"})
+  p.ui_text("core_t", "🟡 コア", {at: "top", dy: 74, dx: -150, size: 12, color: "#FDE68A"})
+  p.ui_text("army", "🪖 " + len(units_of(p.plot, "soldier")) + "/" + unit_cap(p.plot) + "   🚜 " + len(units_of(p.plot, "tank")) + "/2", {at: "top_left", dy: 36, size: 15, bold: true, color: "#BEF264"})
+end
+
+func raid_hud()
+  let t = ""
+  let left = ceil(next_raid - time())
+  let raiders = len(filter(npcs(), func(n) return n.raider != nil end))
+  if raiders > 0 then t = "⚔️ 襲撃中！ 基地 " + (raid_target or "?") + " に敵 " + raiders + " 人"
+  elif left > 0 then t = "⏱ 次の襲撃まで " + left + "s（第" + (raid_no + 1) + "波）" end
+  ui_text("raid", t, {at: "top", dy: 26, size: 17, bold: true, color: "#FCA5A5"})
+end

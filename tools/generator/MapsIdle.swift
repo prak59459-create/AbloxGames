@@ -13,7 +13,7 @@ let idleGames: [Game] = [
          summary: "自分だけのアスレチックコースを作って公開しよう。17種のパーツ（動く床・回る溶岩バー・ワープ・コインも）、グリッドと回転、テストでクリアして公開、タイムといいね。お手本コースやみんなのコースに挑戦！",
          tags: ["obby", "build", "creative"], maxPlayers: 8, build: obbyMaker),
     Game(number: 62, id: "toy-army-tycoon", title: "Toy Army Tycoon",
-         summary: "おもちゃの兵隊を買って基地を大きくするタイクーン。定期的におそってくる敵軍から、兵隊とタレットでコアを守れ。",
+         summary: "おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！",
          tags: ["tycoon", "army", "defense"], maxPlayers: 8, build: toyArmy),
     Game(number: 63, id: "buzz-meadow", title: "Buzz Meadow",
          summary: "ハチを集めて花畑で花粉を集め、巣でハチミツに変えよう。ハチが増えるほど強くなり、奥の花畑へ行ける。",
@@ -215,20 +215,52 @@ func obbyMaker(_ m: MapBuilder) {
 
 func toyArmy(_ m: MapBuilder) {
     m.day(ground: "#4D7C0F")
-    m.ground(220, 220, color: "#65A30D", name: "Battlefield")
+    m.ground(240, 240, color: "#65A30D", name: "Battlefield")
+    m.part("Cover Focus", at: (0, 2, -24), size: (58, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
     m.spawnRing(0, 0, radius: 5, count: 8, color: "#FACC15")
+    m.part("HQ Tent", at: (0, 1.5, 0), size: (6, 3, 6), color: "#A16207", shape: .cone, solid: false)
+    // The sixteen buildings of a base, bought in this order (the script names them).
     let items: [(String, Float, Float, V, String, BlockShape)] = [
-        ("Dropper", -8, -10, (2, 3, 2), "#6B7280", .box), ("Barracks", 8, -10, (6, 3, 4), "#78716C", .box),
-        ("Wall North", 0, -14, (28, 2.5, 0.8), "#A8A29E", .box), ("Turret 1", -10, 8, (1.6, 2.4, 1.6), "#3F3F46", .cylinder),
-        ("Turret 2", 10, 8, (1.6, 2.4, 1.6), "#3F3F46", .cylinder), ("Tank Garage", 0, 10, (6, 2.4, 4), "#57534E", .box),
-        ("Wall South", 0, 14, (28, 2.5, 0.8), "#A8A29E", .box), ("Flag", 12, -12, (0.3, 6, 0.3), "#DC2626", .cylinder)
+        ("Dropper", -10, -10, (2, 3, 2), "#6B7280", .box), ("Conveyor", -5, -10, (6, 0.6, 1.6), "#374151", .box),
+        ("Barracks", 8, -10, (6, 3, 4), "#78716C", .box), ("Wall North", 0, -14.5, (30, 2.5, 0.8), "#A8A29E", .box),
+        ("Turret 1", -11, 7, (1.6, 2.4, 1.6), "#3F3F46", .cylinder), ("Turret 2", 11, 7, (1.6, 2.4, 1.6), "#3F3F46", .cylinder),
+        ("Wall South", 0, 11, (22, 2.5, 0.8), "#A8A29E", .box), ("Sniper Tower", -12, -2, (2, 6, 2), "#57534E", .box),
+        ("Tank Garage", 0, 5, (6, 2.4, 4), "#57534E", .box), ("Wall East", 14.5, 0, (0.8, 2.5, 22), "#A8A29E", .box),
+        ("Wall West", -14.5, 0, (0.8, 2.5, 22), "#A8A29E", .box), ("Mortar Pit", 6, -3, (3, 1, 3), "#44403C", .cylinder),
+        ("Helipad", -6, 2, (4, 0.2, 4), "#1F2937", .cylinder), ("Research Lab", 10.5, -4, (3, 2.5, 3), "#0E7490", .box),
+        ("Bank", -6, -4, (3, 2.5, 3), "#CA8A04", .box), ("Monument", 0, -6, (1, 5, 1), "#FACC15", .cylinder)
     ]
-    for (i, p) in [(-60, -60), (60, -60), (-60, 60), (60, 60)].enumerated() {
-        tycoonPlot(m, n: i + 1, x: Float(p.0), z: Float(p.1), color: ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"][i], items: items,
-                   padRow: true)
-        m.part("Plot \(i + 1) Core", at: (Float(p.0), 1.4, Float(p.1)), size: (2.4, 2.4, 2.4), color: "#FACC15", shape: .sphere, material: .neon)
+    // A finished base on show by the spawn, so everyone sees what they are building toward.
+    let sc: (Float, Float) = (0, -30)
+    m.slab("Showcase Floor", x: sc.0, y: 0, z: sc.1, w: 30, h: 0.2, d: 30, color: "#D6D3D1")
+    for item in items {
+        m.part("Showcase \(item.0)", at: (sc.0 + item.1, 0.2 + item.3.1 / 2, sc.1 + item.2), size: item.3, color: item.4, shape: item.5)
     }
-    m.markers("Raid Spawn", points: [(0, -100), (0, 100), (-100, 0), (100, 0)], color: "#000000", visible: false, behavior: .none)
+    m.part("Showcase Core", at: (sc.0, 1.4, sc.1), size: (2.4, 2.4, 2.4), color: "#FACC15", shape: .sphere, material: .neon, solid: false)
+    for p in [(-9, 1), (9, 1), (-3, -8), (3, 6)] as [(Float, Float)] {
+        m.part("Showcase Soldier", at: (sc.0 + p.0, 1.1, sc.1 + p.1), size: (0.8, 1.8, 0.5), color: "#4D7C0F", solid: false)
+    }
+    m.part("Showcase Tank", at: (sc.0 + 3, 0.9, sc.1 + 8), size: (3, 1.4, 2), color: "#3F6212")
+    m.part("Showcase Barrel", at: (sc.0 + 5, 1.5, sc.1 + 8), size: (2, 0.3, 0.3), color: "#1F2937", solid: false)
+    let colors = ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"]
+    for (i, p) in [(-60, -60), (60, -60), (-60, 60), (60, 60)].enumerated() {
+        tycoonPlot(m, n: i + 1, x: Float(p.0), z: Float(p.1), color: colors[i], items: items, padRow: true)
+        m.part("Plot \(i + 1) Core", at: (Float(p.0), 1.4, Float(p.1)), size: (2.4, 2.4, 2.4), color: "#FACC15", shape: .sphere, material: .neon)
+        m.part("Plot \(i + 1) Banner", at: (Float(p.0) + 15.5, 4, Float(p.1) + 15.5), size: (0.3, 8, 0.3), color: colors[i], material: .neon, solid: false)
+    }
+    // Scattered cover on the battlefield: sandbags and toy blocks.
+    var r = Seeded("army")
+    var placed = 0
+    while placed < 24 {
+        let x = r.range(-110, 110), z = r.range(-110, 110)
+        if abs(abs(x) - 60) < 22 && abs(abs(z) - 60) < 22 { continue }
+        if abs(x) < 10 && abs(z) < 10 { continue }
+        let toy = r.pick([("Sandbags", (4, 1, 1.2), "#A8A29E", BlockShape.box), ("Toy Block", (2, 2, 2), "#F87171", .box),
+                          ("Toy Block", (2, 2, 2), "#60A5FA", .box), ("Toy Ball", (2.4, 2.4, 2.4), "#FACC15", .sphere)] as [(String, V, String, BlockShape)])
+        m.part(toy.0, at: (x, toy.1.1 / 2, z), size: toy.1, color: toy.2, shape: toy.3, rotation: (0, r.range(0, 90), 0))
+        placed += 1
+    }
+    m.markers("Raid Spawn", points: [(0, -112), (0, 112), (-112, 0), (112, 0)], color: "#000000", visible: false, behavior: .none)
 }
 
 // MARK: 63 Buzz Meadow

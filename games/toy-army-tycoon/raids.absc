@@ -1,0 +1,180 @@
+-- raids.absc — 敵軍の襲撃: 予告・部隊の組み合わせ・コアをねらう・5回ごとに将軍
+
+let raid_clock = 0
+let warned = false
+let raid_alive = false
+let raid_ends = 0
+
+-- 基地の強さ（買った設備の数）で、襲撃の大きさが変わる
+func wave_for(n)
+  let power = bases[n].bought
+  let list = []
+  let grunts = 3 + raid_no + floor(power / 2)
+  for i in 1 to min(14, grunts) do append(list, "grunt") end
+  if raid_no >= 2 then
+    for i in 1 to min(6, floor(raid_no / 2) + 1) do append(list, "scout") end
+  end
+  if raid_no >= 3 then
+    for i in 1 to min(5, floor(raid_no / 3) + floor(power / 6)) do append(list, "heavy") end
+  end
+  if raid_no >= 4 and power >= 8 then append(list, "tank") end
+  if raid_no % 5 == 0 then append(list, "general") end
+  return list
+end
+
+func warn()
+  let list = keys(bases)
+  if len(list) == 0 then return end
+  raid_target = random(list)
+  warned = true
+  let extra = ""
+  let owner = owner_of(raid_target)
+  if owner != nil and research(raid_target, "radar") > 0 then extra = "（敵 " + len(wave_for(raid_target)) + " 人）" end
+  announce("🚨 もうすぐ襲撃！ 基地 " + raid_target + " がねらわれている" + extra, 4)
+end
+
+func start_raid()
+  if raid_target == nil or bases[raid_target] == nil then
+    warned = false
+    next_raid = time() + 10
+    return
+  end
+  raid_no = raid_no + 1
+  let spawn = block("Raid Spawn " + random(1, 4)).position
+  for kind in wave_for(raid_target) do
+    let r = RAIDERS[kind]
+    let n = create_npc({name: r.name, position: spawn + {x: random(-8, 8), y: 1, z: random(-8, 8)}, color: r.color, head_color: r.head,
+                        size: r.size, health: floor(r.hp * (1 + raid_no * 0.08)), speed: r.speed, team: "raid"})
+    n.raider = kind
+    n.target = raid_target
+    n.give(r.weapon)
+    if kind == "general" then n.hat = "crown" end
+  end
+  raid_alive = true
+  raid_ends = time() + 75
+  warned = false
+  next_raid = time() + RAID_EVERY
+  sound("defeat")
+  announce("⚔️ 第" + raid_no + "波！ 敵軍が基地 " + raid_target + " にせめてきた！", 3)
+end
+
+-- 近くの守り手（プレイヤー・兵隊・タレット）
+func nearest_defender(n, range)
+  let best = nil
+  let best_d = range
+  for c in players() do
+    if c.alive and distance(n, c) < best_d then
+      best = c
+      best_d = distance(n, c)
+    end
+  end
+  for u in npcs() do
+    if u.base != nil and distance(n, u) < best_d then
+      best = u
+      best_d = distance(n, u)
+    end
+  end
+  return best
+end
+
+func raider_step(n, secs)
+  let b = bases[n.target]
+  if b == nil then
+    n.destroy()
+    return
+  end
+  let d = nearest_defender(n, 14)
+  if d != nil then
+    if distance(n, d) > 8 then n.follow(d) else n.stop() end
+    n.look_at(d)
+    if random() < 0.12 then n.shoot(d) end
+    return
+  end
+  let core = core_block(n.target).position
+  n.move_to(core)
+  if distance(n, core) < 4 then
+    let dps = 10
+    if n.raider == "tank" then dps = 25 end
+    if n.raider == "general" then dps = 40 end
+    b.core = b.core - dps * secs
+    if b.core <= 0 then core_broken(n.target) end
+  end
+end
+
+func core_broken(target)
+  let b = bases[target]
+  b.core = CORE_HP
+  let p = owner_of(target)
+  if p != nil then
+    let lost = floor(kit_money(p) * 0.3)
+    p.coins = kit_money(p) - lost
+    kit_show_money(p)
+    p.shake(0.6, 1)
+    p.message("💥 コアがこわされた！ お金を " + kit_short(lost) + " うばわれた", 3)
+  end
+  for r in npcs() do
+    if r.raider != nil and r.target == target then r.destroy() end
+  end
+  announce("💥 基地 " + target + " のコアがこわされた…", 3)
+end
+
+func raid_over()
+  raid_alive = false
+  let p = owner_of(raid_target)
+  if p != nil then
+    let bonus = 100 + raid_no * 40
+    kit_give(p, bonus)
+    kit_quest_progress(p, "defend", 1)
+    p.message("🛡 襲撃を守りきった！ +" + kit_short(bonus), 2.5)
+    if raid_no % 5 == 0 then kit_badge(p, "general", "おもちゃ将軍の軍をしりぞけた") end
+  end
+  for q in players() do
+    if q.plot != nil and q.plot != raid_target then kit_give(q, 30) end
+  end
+  bases[raid_target].core = CORE_HP
+  announce("🛡 第" + raid_no + "波をしりぞけた！", 3)
+end
+
+on tick(dt)
+  raid_clock = raid_clock + dt
+  if raid_clock < 0.5 then return end
+  let secs = raid_clock
+  raid_clock = 0
+  let lead = 12
+  for n in keys(bases) do
+    if research(n, "radar") > 0 then lead = 25 end
+  end
+  if not warned and not raid_alive and time() >= next_raid - lead then warn() end
+  if warned and time() >= next_raid then start_raid() end
+  let alive = 0
+  for n in npcs() do
+    if n.raider != nil then
+      raider_step(n, secs)
+      alive = alive + 1
+    end
+  end
+  if raid_alive and alive == 0 then raid_over() end
+  -- 時間切れ: 敵は引きあげる（ごほうびなし）
+  if raid_alive and time() >= raid_ends then
+    for n in npcs() do
+      if n.raider != nil then n.destroy() end
+    end
+    raid_alive = false
+    if bases[raid_target] != nil then bases[raid_target].core = CORE_HP end
+    announce("🏳 敵軍が引きあげていった", 2)
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and victim.raider != nil then
+    let reward = RAIDERS[victim.raider].reward
+    if killer != nil and not killer.is_npc then
+      kit_give(killer, reward)
+      killer.score = killer.score + 1
+      kit_quest_progress(killer, "kills", 1)
+    elif killer != nil and killer.base != nil then
+      let p = owner_of(killer.base)
+      if p != nil then kit_give(p, floor(reward / 2)) end
+    end
+  end
+end

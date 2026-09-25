@@ -1,0 +1,150 @@
+-- base.absc — 基地を手に入れる・設備を買う・研究所・銀行・昇進（リバース）
+
+let income_clock = 0
+
+func claim(p, b)
+  if p.plot != nil then return end
+  let n = split(b.name, " ")[2]
+  if bases[n] != nil then return end
+  bases[n] = {owner: p.id, bought: 0, core: CORE_HP, research: {}, rebirths: p.rebirths}
+  p.plot = n
+  p.team = "base" + n
+  buy(p, 1)
+  p.message("🪖 基地 " + n + " を手に入れた！ 緑のパッドで設備を順番に建てよう", 3)
+  hud(p)
+end
+
+func show_item(n, k, shown)
+  let item = block("Plot " + n + " Item " + k)
+  item.visible = shown
+  item.solid = shown
+end
+
+func buy(p, k)
+  let n = p.plot
+  let b = bases[n]
+  if b == nil or k != b.bought + 1 or k > len(ITEMS) then return end
+  let it = ITEMS[k]
+  if not kit_pay(p, it.price) then return end
+  b.bought = k
+  show_item(n, k, true)
+  kit_quest_progress(p, "buy", 1)
+  if it.kind == "turret" or it.kind == "sniper" or it.kind == "mortar" then spawn_turret(n, k, it.kind) end
+  if it.kind == "barracks" then p.ui_button("soldier", "🪖 兵隊（" + UNITS.soldier.price + "）", {at: "right", dy: -110, w: 150, h: 46, size: 16, bg: "#65A30D"}) end
+  if it.kind == "garage" then p.ui_button("tank", "🚜 戦車（" + UNITS.tank.price + "）", {at: "right", dy: -58, w: 150, h: 46, size: 16, bg: "#3F6212"}) end
+  if it.kind == "helipad" then p.ui_button("airstrike", "🚁 空爆", {at: "bottom_right", dx: -120, dy: -236, w: 120, h: 56, size: 17, bg: "#B91C1C", radius: 16}) end
+  if it.kind == "lab" then p.ui_button("lab", "🔬 研究", {at: "right", dy: -6, w: 150, h: 46, size: 16, bg: "#0E7490"}) end
+  if k > 1 then
+    p.sound("collect")
+    p.message("🏗 " + it.name + " を建てた", 1.5)
+  end
+  if k == len(ITEMS) then
+    p.ui_button("rebirth", "🎖 昇進", {at: "right", dy: 180, w: 150, h: 46, size: 16, bg: "#CA8A04"})
+    announce("🗽 " + p.name + " の基地が完成した！", 3)
+  end
+  hud(p)
+end
+
+-- MARK: 研究所
+
+func lab_panel(p)
+  if p.plot == nil or not has_kind(p.plot, "lab") then return end
+  let h = 110 + len(RESEARCH) * 50
+  p.ui_remove("labp")
+  p.ui_panel("labp", {at: "center", w: 500, h: h, bg: "#083344F2", radius: 20, layer: 30})
+  p.ui_text("labp_t", "🔬 研究所   💰 " + kit_short(kit_money(p)), {parent: "labp", y: 26 / h, size: 18, bold: true, color: "#A5F3FC"})
+  let i = 0
+  for r in RESEARCH do
+    i = i + 1
+    let lv = research(p.plot, r.id)
+    let price = r.price * (lv + 1)
+    let label = r.name + " Lv" + lv + "/" + r.max + "  " + r.text
+    if lv < r.max then label = label + "   💰" + kit_short(price) else label = label + "  ✅" end
+    p.ui_button("res_" + r.id, label, {parent: "labp", y: (30 + i * 50) / h, w: 460, h: 42, size: 12, bg: "#0E7490"})
+  end
+  p.ui_button("labp_close", "閉じる", {parent: "labp", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func do_research(p, id)
+  for r in RESEARCH do
+    if r.id == id then
+      let lv = research(p.plot, id)
+      if lv < r.max and kit_pay(p, r.price * (lv + 1)) then
+        bases[p.plot].research[id] = lv + 1
+        p.sound("goal")
+        kit_quest_progress(p, "research", 1)
+      end
+    end
+  end
+  lab_panel(p)
+  hud(p)
+end
+
+-- MARK: 昇進（すべて建てたら、はじめからやり直してお金がずっと +50%）
+
+func rebirth(p)
+  let n = p.plot
+  let b = bases[n]
+  if b == nil or b.bought < len(ITEMS) then return end
+  p.rebirths = p.rebirths + 1
+  b.rebirths = p.rebirths
+  for k in 2 to len(ITEMS) do show_item(n, k, false) end
+  b.bought = 1
+  b.research = {}
+  for u in npcs() do
+    if u.base == n then u.destroy() end
+  end
+  p.coins = 100
+  kit_show_money(p)
+  for id in ["soldier", "tank", "airstrike", "lab", "rebirth"] do p.ui_remove(id) end
+  kit_badge(p, "rebirth_" + p.rebirths, "昇進 " + p.rebirths + " 回目")
+  kit_quest_progress(p, "rebirth", 1)
+  announce("🎖 " + p.name + " が昇進した！（お金 ×" + (1 + p.rebirths * 0.5) + "）", 3)
+  hud(p)
+end
+
+on tick(dt)
+  income_clock = income_clock + dt
+  if income_clock < 2 then return end
+  income_clock = 0
+  for n in keys(bases) do
+    let p = owner_of(n)
+    if p != nil then
+      let money = income(n)
+      -- 銀行: 持っているお金の 0.5% の利子（上限つき）
+      if has_kind(n, "bank") then money = money + min(200, floor(kit_money(p) * 0.005)) end
+      kit_give(p, money)
+      p.score = max(p.score, kit_money(p))
+      hud(p)
+    end
+  end
+  raid_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim(p, b)
+  elif contains(b.tags, "buy") then
+    let parts = split(b.name, " ")
+    if p.plot == parts[2] then buy(p, num(parts[4])) end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "lab" then lab_panel(p)
+  elif id == "labp_close" then p.ui_remove("labp")
+  elif starts_with(id, "res_") then do_research(p, replace(id, "res_", ""))
+  elif id == "rebirth" then rebirth(p)
+  end
+end
+
+on leave(p)
+  if p.plot == nil then return end
+  let n = p.plot
+  for u in npcs() do
+    if u.base == n then u.destroy() end
+  end
+  for k in 1 to len(ITEMS) do show_item(n, k, false) end
+  bases[n] = nil
+end

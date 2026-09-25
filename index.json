@@ -1668,16 +1668,21 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 89,
-      "cover" : "games\/toy-army-tycoon\/cover-40da470f.png",
+      "blockCount" : 207,
+      "cover" : "games\/toy-army-tycoon\/cover-9029982e.png",
       "id" : "toy-army-tycoon",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/toy-army-tycoon\/data.absc",
+        "games\/toy-army-tycoon\/army.absc",
+        "games\/toy-army-tycoon\/base.absc",
+        "games\/toy-army-tycoon\/common.absc",
+        "games\/toy-army-tycoon\/raids.absc",
         "games\/toy-army-tycoon\/main.absc"
       ],
-      "summary" : "おもちゃの兵隊を買って基地を大きくするタイクーン。定期的におそってくる敵軍から、兵隊とタレットでコアを守れ。",
+      "summary" : "おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！",
       "tags" : [
         "tycoon",
         "army",
