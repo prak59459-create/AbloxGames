@@ -1,0 +1,67 @@
+-- data.absc — 家具・売り場・武器・食べ物・サービスカウンター・日ごとの設定
+
+let DAY_SECS = 100
+let NIGHT_SECS = 75
+let LAST_DAY = 7             -- 7日目の朝、閉店のアナウンスで出口が開く
+let ESCAPE_SECS = 90
+
+-- 家具。hp は店員に何回たたかれるとこわれるか
+let FURNITURE = {
+  sofa: {name: "ソファ", size: {x: 3, y: 1, z: 1.2}, color: "#2563EB", shape: "box", hp: 6},
+  shelf: {name: "本だな", size: {x: 2, y: 3, z: 0.8}, color: "#F5F5F4", shape: "box", hp: 7},
+  bed: {name: "ベッド", size: {x: 2.2, y: 0.7, z: 3.2}, color: "#FDE68A", shape: "box", hp: 6},
+  table: {name: "テーブル", size: {x: 2.4, y: 1, z: 1.4}, color: "#A16207", shape: "box", hp: 5},
+  lamp: {name: "ランプ", size: {x: 0.6, y: 1.8, z: 0.6}, color: "#FDE68A", shape: "cylinder", hp: 2},
+  wardrobe: {name: "たんす", size: {x: 2, y: 2.6, z: 1}, color: "#78350F", shape: "box", hp: 9},
+  plant: {name: "観葉植物", size: {x: 1, y: 1.8, z: 1}, color: "#16A34A", shape: "cone", hp: 2},
+  fridge: {name: "冷蔵庫", size: {x: 1.2, y: 2.2, z: 1.2}, color: "#E5E7EB", shape: "box", hp: 10},
+  counter: {name: "カウンター", size: {x: 3, y: 1.1, z: 1}, color: "#D6D3D1", shape: "box", hp: 8},
+  desk: {name: "つくえ", size: {x: 2, y: 1, z: 1.2}, color: "#92400E", shape: "box", hp: 6},
+  cabinet: {name: "キャビネット", size: {x: 1, y: 1.8, z: 0.8}, color: "#6B7280", shape: "box", hp: 8},
+  toybox: {name: "おもちゃ箱", size: {x: 1.4, y: 1, z: 1}, color: "#F472B6", shape: "box", hp: 4},
+  bunk: {name: "二段ベッド", size: {x: 2, y: 2.4, z: 3}, color: "#60A5FA", shape: "box", hp: 8},
+  planter: {name: "プランター", size: {x: 2, y: 0.9, z: 1}, color: "#A16207", shape: "box", hp: 5},
+  bench: {name: "ベンチ", size: {x: 2.6, y: 0.8, z: 0.8}, color: "#15803D", shape: "box", hp: 4},
+  crate: {name: "段ボール箱", size: {x: 1.2, y: 1.2, z: 1.2}, color: "#D97706", shape: "box", hp: 3},
+  tub: {name: "バスタブ", size: {x: 2.2, y: 1, z: 1.2}, color: "#F8FAFC", shape: "box", hp: 9},
+  locker: {name: "ロッカー", size: {x: 1.2, y: 2.4, z: 1}, color: "#94A3B8", shape: "box", hp: 11}
+}
+
+-- 売り場。kinds はそこに置いてある家具
+let DEPARTMENTS = [
+  {id: "living", name: "🛋 リビング", x: -70, z: -70, kinds: ["sofa", "table", "lamp", "shelf", "plant"], sign: "#2563EB"},
+  {id: "bedroom", name: "🛏 ベッドルーム", x: 0, z: -70, kinds: ["bed", "wardrobe", "lamp", "cabinet"], sign: "#A855F7"},
+  {id: "kitchen", name: "🍳 キッチン", x: 70, z: -70, kinds: ["fridge", "counter", "table", "cabinet"], sign: "#F97316"},
+  {id: "kids", name: "🧸 キッズ", x: -70, z: 0, kinds: ["toybox", "bunk", "table", "lamp"], sign: "#F472B6"},
+  {id: "food", name: "🍽 フードコート", x: 0, z: 0, kinds: [], sign: "#FACC15"},
+  {id: "office", name: "💼 オフィス", x: 70, z: 0, kinds: ["desk", "cabinet", "shelf", "lamp"], sign: "#0EA5E9"},
+  {id: "garden", name: "🌿 ガーデン", x: -70, z: 70, kinds: ["planter", "bench", "plant"], sign: "#16A34A"},
+  {id: "warehouse", name: "📦 倉庫", x: 0, z: 70, kinds: ["crate", "crate", "shelf", "locker"], sign: "#D97706"},
+  {id: "bath", name: "🛁 バス", x: 70, z: 70, kinds: ["tub", "cabinet", "locker", "plant"], sign: "#38BDF8"}
+]
+
+-- 武器（店の中の箱から）
+let WEAPONS = [
+  {id: "バット", damage: 25, rate: 1.8, reach: 5, rank: 1},
+  {id: "モップ", damage: 28, rate: 1.8, reach: 6.5, rank: 2},
+  {id: "フライパン", damage: 38, rate: 1.6, reach: 4.5, rank: 3},
+  {id: "ホッケースティック", damage: 42, rate: 1.7, reach: 6, rank: 4},
+  {id: "ゴルフクラブ", damage: 52, rate: 1.5, reach: 5, rank: 5}
+]
+
+let FOODS = ["🌭 ホットドッグ", "🍝 ミートボール", "🧃 ジュース", "🍦 ソフトクリーム", "🥐 シナモンロール"]
+
+-- サービスカウンター（クーポンで）
+let SERVICES = [
+  {id: "cart", name: "🛒 大きなカート", price: 80, text: "家具を15こまで持てる"},
+  {id: "vest", name: "🦺 店員よけベスト", price: 120, text: "受けるダメージ -30%"},
+  {id: "sneakers", name: "👟 スニーカー", price: 90, text: "足が速くなる"},
+  {id: "whistle", name: "📯 ホイッスル", price: 100, text: "ボタンでまわりの店員を3秒止める"},
+  {id: "toolkit", name: "🧰 工具セット", price: 70, text: "置いた家具がこわれにくい（+50%）"}
+]
+
+-- 夜ごとの店員。boss: 店長が来る夜
+let NIGHTS = [
+  {staff: 4, boss: false}, {staff: 6, boss: false}, {staff: 8, boss: true},
+  {staff: 9, boss: false}, {staff: 11, boss: false}, {staff: 13, boss: true}
+]

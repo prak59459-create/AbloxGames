@@ -1,0 +1,108 @@
+-- build.absc — 家具を拾う・置く・回す。置いた家具には丈夫さがあり、店員にたたかれるとこわれる。
+
+func pick_up(p, b)
+  if not ready(p) or not p.alive then return end
+  let kind = kind_of(b)
+  if kind == nil then return end
+  if len(p.bag) >= bag_max(p) then
+    if quiet_ready(p, "bag_full", 2) then p.message("🪑 もう持てない（" + bag_max(p) + " こまで）", 1) end
+    return
+  end
+  placed_hp[b.id] = nil
+  gone(b)
+  append(p.bag, kind)
+  p.sound("collect")
+  kit_quest_progress(p, "collect", 1)
+  hud(p)
+end
+
+-- いちばん近い家具（4.5m以内）
+func nearest_furniture(p)
+  let best = nil
+  let best_d = 4.5
+  for b in blocks("furniture") do
+    let d = distance(p, b.position)
+    if d < best_d then
+      best = b
+      best_d = d
+    end
+  end
+  return best
+end
+
+func grab(p)
+  let b = nearest_furniture(p)
+  if b == nil then
+    p.message("✋ 近くに家具がない（4.5m以内）", 1)
+    return
+  end
+  pick_up(p, b)
+end
+
+-- 目の前に置く。向きは90度ずつにそろえる
+func place(p)
+  if not p.alive then return end
+  if len(p.bag) == 0 then
+    p.message("🪑 家具を持っていない（✋ で拾う）", 1.2)
+    return
+  end
+  let kind = p.bag[len(p.bag)]
+  remove(p.bag, len(p.bag))
+  let f = FURNITURE[kind]
+  let spot = p.position + {x: p.look.x, y: 0, z: p.look.z} * 2.4
+  let yaw = round(p.yaw / 90) * 90
+  let b = create_block({name: f.name, shape: f.shape, position: {x: spot.x, y: f.size.y / 2, z: spot.z}, size: f.size,
+                        color: f.color, rotation: {x: 0, y: yaw, z: 0}, tags: ["furniture", "placed", kind]})
+  let hp = f.hp
+  if has_service(p, "toolkit") then hp = ceil(hp * 1.5) end
+  placed_hp[b.id] = hp
+  p.last_placed = b
+  p.sound("tick")
+  kit_quest_progress(p, "place", 1)
+  p.score = p.score + 1
+  hud(p)
+end
+
+func turn(p)
+  let b = p.last_placed
+  if not still(b) then
+    b = nearest_furniture(p)
+  end
+  if b == nil then return end
+  b.rotate({x: 0, y: 90, z: 0})
+  p.sound("tick")
+end
+
+-- 店員が家具をたたく。こわれたら true
+func hit_furniture(b, amount)
+  if not still(b) then return true end
+  let hp = placed_hp[b.id]
+  if hp == nil then hp = FURNITURE[kind_of(b)].hp end
+  hp = hp - amount
+  if hp <= 0 then
+    placed_hp[b.id] = nil
+    let pos = b.position
+    gone(b)
+    let puff = create_block({name: "Dust", shape: "sphere", position: pos, size: 2, color: "#D6D3D1", solid: false, opacity: 0.5})
+    after(0.4, func() gone(puff) end)
+    sound("hit")
+    return true
+  end
+  placed_hp[b.id] = hp
+  -- たたかれた家具は少し暗くなる
+  b.opacity = clamp(0.5 + hp * 0.07, 0.5, 1)
+  return false
+end
+
+on tap(p, b)
+  if not ready(p) then return end
+  if contains(b.tags, "furniture") and distance(p, b.position) < 6 then pick_up(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "grab" then grab(p)
+  elif id == "place" then place(p)
+  elif id == "turn" then turn(p)
+  end
+end

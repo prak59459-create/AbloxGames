@@ -1,0 +1,259 @@
+-- store.absc — 店の一日: 昼と夜・食べ物とおなか・武器の箱・落とし物・サービスカウンター・閉店と出口
+
+let store_clock = 0
+let exit_block = nil
+
+-- MARK: 昼と夜
+
+func start_day()
+  phase = "day"
+  phase_ends = time() + DAY_SECS
+  clear_staff()
+  world.sky_top = "#E5E7EB"
+  world.sky_bottom = "#F3F4F6"
+  world.light = 0.8
+  for i in 1 to 9 do block("Ceiling Light " + i).material = "neon" end
+  spawn_food()
+  spawn_crates()
+  spawn_lost_item()
+  announce("📢 「" + day + " 日目の開店です。ごゆっくりお買い物ください」 ☀️ 家具を集めて基地を作ろう", 4)
+  clock_hud()
+end
+
+func start_night()
+  phase = "night"
+  phase_ends = time() + NIGHT_SECS
+  world.sky_top = "#030712"
+  world.sky_bottom = "#111827"
+  world.light = 0.12
+  for i in 1 to 9 do block("Ceiling Light " + i).material = "plastic" end
+  let nt = NIGHTS[min(day, len(NIGHTS))]
+  for i in 1 to nt.staff + len(players()) do spawn_staff(false) end
+  if nt.boss then
+    spawn_staff(true)
+    announce("📢 「…店長が見回りをいたします」 👔 大きな店長が来る！", 4)
+  else
+    announce("📢 「閉店時間です。お客様は…」 🌙 店員たちが動き出した。基地にこもれ！", 4)
+  end
+  clock_hud()
+end
+
+func end_night()
+  clear_staff()
+  for p in players() do
+    if ready(p) then
+      if p.alive then
+        kit_give(p, 20 + day * 5)
+        kit_quest_progress(p, "nights", 1)
+      else
+        p.respawn()
+      end
+    end
+  end
+  day = day + 1
+  if day >= LAST_DAY then start_escape() else start_day() end
+end
+
+-- MARK: 閉店と出口（7日目の朝）
+
+func start_escape()
+  phase = "escape"
+  phase_ends = time() + ESCAPE_SECS
+  world.light = 0.45
+  let spot = block("Exit Spot " + random(1, 4)).position
+  exit_block = create_block({name: "Exit", position: spot + {x: 0, y: 2, z: 0}, size: {x: 4, y: 4, z: 1}, color: "#22C55E", material: "neon",
+                             solid: false, behavior: "trigger", tags: ["exit"]})
+  let beam = create_block({name: "Exit Beam", shape: "cylinder", position: spot + {x: 0, y: 20, z: 0}, size: {x: 1, y: 40, z: 1},
+                           color: "#4ADE80", material: "neon", solid: false, opacity: 0.4})
+  for i in 1 to 4 + len(players()) do spawn_staff(false) end
+  announce("📢 「本日をもちまして閉店いたします。お出口はこちら」 🚪 緑の光の柱が出口！ " + ESCAPE_SECS + "びょうで逃げろ！", 5)
+end
+
+func escape_player(p)
+  if phase != "escape" or p.escaped then return end
+  p.escaped = true
+  p.frozen = true
+  kit_give(p, 200)
+  p.score = p.score + 50
+  kit_quest_progress(p, "escape", 1)
+  kit_badge(p, "escaped", "終わらない家具店から出た")
+  announce("🚪 " + p.name + " が出口から外へ出た！", 3)
+  let left = filter(players(), func(q) return ready(q) and not q.escaped end)
+  if len(left) == 0 then finish() end
+end
+
+func finish()
+  if phase == "over" then return end
+  phase = "over"
+  let out = len(filter(players(), func(q) return ready(q) and q.escaped end))
+  if out > 0 then
+    kit_finish("🚪 " + out + " 人が終わらない家具店から脱出した！", 10)
+  else
+    kit_finish("🏬 だれも出られなかった… 店はまた開店する", 10)
+  end
+end
+
+-- MARK: 食べ物とおなか
+
+func spawn_food()
+  for b in blocks("food") do gone(b) end
+  for i in 1 to 12 do
+    let spot = block("Food Spot " + i)
+    if spot != nil then
+      create_block({name: random(FOODS), shape: "sphere", position: spot.position + {x: 0, y: 1.2, z: 0}, size: 0.7, color: "#F59E0B",
+                    material: "neon", solid: false, behavior: "trigger", tags: ["food"]})
+    end
+  end
+end
+
+func eat(p, b)
+  gone(b)
+  p.hunger = min(100, p.hunger + 40)
+  p.heal(25)
+  p.sound("collect")
+  p.message("🍽 " + b.name + "！ おいしい", 1)
+  kit_quest_progress(p, "eat", 1)
+  hud(p)
+end
+
+func hunger_step(p, secs)
+  let rate = 0.3
+  if phase == "night" then rate = 0.45 end
+  p.hunger = max(0, p.hunger - rate * secs)
+  if p.hunger <= 0 then
+    p.damage(2 * secs)
+    if quiet_ready(p, "starve", 6) then p.message("🍽 おなかがすいて力が出ない… フードコートへ", 1.5) end
+  end
+end
+
+-- MARK: 武器の箱と落とし物
+
+func spawn_crates()
+  for b in blocks("weapon_crate") do gone(b) end
+  let spots = shuffle(range(1, 9))
+  for i in 1 to 3 do
+    let d = DEPARTMENTS[spots[i]]
+    if d.id != "food" then
+      create_block({name: "Weapon Crate", position: {x: d.x + random(-12, 12), y: 0.6, z: d.z + random(-12, 12)}, size: 1.1, color: "#7C3AED",
+                    material: "neon", solid: false, behavior: "trigger", tags: ["weapon_crate"]})
+    end
+  end
+end
+
+func open_weapon(p, b)
+  gone(b)
+  let pool = filter(WEAPONS, func(w) return w.rank >= 2 and w.rank <= min(5, 2 + floor(day / 2)) end)
+  let w = random(pool)
+  if weapon_rank(w.id) > weapon_rank(p.weapon_name) then
+    p.weapon_name = w.id
+    p.give(w.id)
+    p.message("🗡 " + w.id + " を手に入れた！", 1.5)
+    kit_quest_progress(p, "weapon", 1)
+  else
+    kit_give(p, 15)
+    p.message("🗡 " + w.id + "… 今の武器のほうが強い（クーポン +15）", 1.5)
+  end
+  p.sound("collect")
+  hud(p)
+end
+
+func spawn_lost_item()
+  for b in blocks("lost") do gone(b) end
+  let d = random(filter(DEPARTMENTS, func(x) return x.id != "food" end))
+  create_block({name: "Lost Item", shape: "sphere", position: {x: d.x + random(-20, 20), y: 0.6, z: d.z + random(-20, 20)}, size: 0.8,
+                color: "#FACC15", material: "neon", solid: false, behavior: "trigger", tags: ["lost"]})
+end
+
+func take_lost(p, b)
+  if p.lost_item then return end
+  gone(b)
+  p.lost_item = true
+  p.message("💛 落とし物を拾った！ フードコートの「落とし物センター」へとどけよう", 2)
+  hud(p)
+end
+
+func return_lost(p)
+  if not p.lost_item then return end
+  p.lost_item = false
+  kit_give(p, 60)
+  p.score = p.score + 10
+  kit_quest_progress(p, "lost", 1)
+  p.sound("goal")
+  announce("💛 " + p.name + " が落とし物をとどけた！", 2)
+end
+
+-- MARK: サービスカウンター
+
+func service_panel(p)
+  let h = 110 + len(SERVICES) * 48
+  p.ui_remove("svc")
+  p.ui_panel("svc", {at: "center", w: 480, h: h, bg: "#1E3A8AF2", radius: 20, layer: 30})
+  p.ui_text("svc_t", "🛎 サービスカウンター   🎟 " + kit_money(p), {parent: "svc", y: 26 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in SERVICES do
+    i = i + 1
+    let label = s.name + "  " + s.text
+    let bg = "#2563EB"
+    if has_service(p, s.id) then
+      label = label + "  ✅"
+      bg = "#475569"
+    else
+      label = label + "   🎟" + s.price
+    end
+    p.ui_button("svc_" + s.id, label, {parent: "svc", y: (30 + i * 48) / h, w: 440, h: 40, size: 12, bg: bg})
+  end
+  p.ui_button("svc_close", "閉じる", {parent: "svc", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy_service(p, id)
+  for s in SERVICES do
+    if s.id == id and not has_service(p, id) and kit_pay(p, s.price) then
+      p.services[id] = true
+      if id == "sneakers" then p.speed = 1.15 end
+      if id == "whistle" then p.ui_button("whistle", "📯", {at: "bottom_right", dx: -240, dy: -236, w: 90, h: 56, size: 24, bg: "#0E7490", radius: 16}) end
+      p.sound("collect")
+      kit_quest_progress(p, "service", 1)
+    end
+  end
+  service_panel(p)
+  hud(p)
+end
+
+on tick(dt)
+  store_clock = store_clock + dt
+  if store_clock < 0.5 then return end
+  let secs = store_clock
+  store_clock = 0
+  if phase == "over" then return end
+  for p in players() do
+    if ready(p) and p.alive and not p.escaped then
+      hunger_step(p, secs)
+      hud(p)
+    end
+  end
+  if time() >= phase_ends then
+    if phase == "day" then start_night()
+    elif phase == "night" then end_night()
+    elif phase == "escape" then finish()
+    end
+  end
+  clock_hud()
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "food") then eat(p, b)
+  elif contains(b.tags, "weapon_crate") then open_weapon(p, b)
+  elif contains(b.tags, "lost") then take_lost(p, b)
+  elif contains(b.tags, "lost_found") then return_lost(p)
+  elif contains(b.tags, "service") and quiet_ready(p, "svc", 2) then service_panel(p)
+  elif contains(b.tags, "exit") then escape_player(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "svc_") and id != "svc_close" then buy_service(p, replace(id, "svc_", ""))
+  elif id == "svc_close" then p.ui_remove("svc")
+  end
+end

@@ -1,0 +1,133 @@
+-- staff.absc — 夜の店員たち。プレイヤーを追い、行く手をふさぐ家具はたたいてこわす。
+-- 3日目と6日目の夜は、大きな「店長」が来る。
+
+let staff_clock = 0
+
+func spawn_staff(boss)
+  let door = block("Staff Door " + random(1, 8)).position
+  let hp = 80 + day * 18
+  let n = nil
+  if boss then
+    n = create_npc({name: "👔 店長", position: door + {x: random(-2, 2), y: 1, z: random(-2, 2)}, color: "#1E3A8A", head_color: "#F5F5F4",
+                    size: 2.6, health: 600 + day * 60, speed: 0.8, team: "staff"})
+    n.boss = true
+    n.hat = "crown"
+  else
+    n = create_npc({name: "店員", position: door + {x: random(-3, 3), y: 1, z: random(-3, 3)}, color: "#FACC15", head_color: "#1D4ED8",
+                    size: 1.6, health: hp, speed: 0.75 + day * 0.03, team: "staff"})
+  end
+  n.staff = true
+  n.stun_until = 0
+  n.last_pos = n.position
+  n.stuck = 0
+  n.say(random(["ご来店ありがとうございます", "閉店時間です", "お客様、お帰りください", "…"]))
+  return n
+end
+
+func clear_staff()
+  for n in npcs() do
+    if n.staff then n.destroy() end
+  end
+end
+
+func hurt(p, amount, by)
+  if has_service(p, "vest") then amount = amount * 0.7 end
+  p.damage(amount, by)
+end
+
+-- 近くの置いた家具（ふさいでいるもの）
+func blocking_furniture(n)
+  let best = nil
+  let best_d = 3.2
+  for b in blocks("placed") do
+    let d = distance(n, b.position)
+    if d < best_d then
+      best = b
+      best_d = d
+    end
+  end
+  return best
+end
+
+func staff_step(n, secs)
+  if time() < n.stun_until then
+    n.stop()
+    return
+  end
+  let target = nil
+  let best_d = 60
+  for p in players() do
+    if ready(p) and p.alive and distance(n, p) < best_d then
+      target = p
+      best_d = distance(n, p)
+    end
+  end
+  if target == nil then
+    n.stop()
+    return
+  end
+  n.follow(target)
+  let dps = 18
+  if n.boss then dps = 35 end
+  if best_d < 2.2 + n.size * 0.3 then
+    hurt(target, dps * secs, n)
+    n.stuck = 0
+    return
+  end
+  -- 1秒でほとんど動けていなければ、行く手の家具をたたく
+  let moved = distance(n.position, n.last_pos)
+  n.last_pos = n.position
+  if moved < 0.4 * secs * 2 then n.stuck = n.stuck + secs else n.stuck = 0 end
+  if n.stuck >= 1 then
+    let b = blocking_furniture(n)
+    if b != nil then
+      let power = 1
+      if n.boss then power = 3 end
+      n.look_at(b.position)
+      if hit_furniture(b, power * secs * 1.2) then n.stuck = 0 end
+    end
+  end
+end
+
+func whistle(p)
+  if not has_service(p, "whistle") or not kit_ready(p, "whistle", 12) then return end
+  let k = 0
+  for n in npcs() do
+    if n.staff and distance(n, p) < 12 then
+      n.stun_until = time() + 3
+      n.stop()
+      k = k + 1
+    end
+  end
+  p.sound("bounce")
+  p.message("📯 ピーーッ！ " + k + " 人の店員が止まった", 1.2)
+end
+
+on tick(dt)
+  staff_clock = staff_clock + dt
+  if staff_clock < 0.5 then return end
+  let secs = staff_clock
+  staff_clock = 0
+  for n in npcs() do
+    if n.staff then staff_step(n, secs) end
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc and victim.staff and killer != nil and not killer.is_npc then
+    let reward = 6 + day
+    if victim.boss then
+      reward = 120
+      kit_badge(killer, "manager", "店長をたおした")
+      announce("👔 " + killer.name + " が店長をたおした！", 3)
+    end
+    kit_give(killer, reward)
+    killer.score = killer.score + 3
+    kit_quest_progress(killer, "fight", 1)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "whistle" then whistle(p) end
+end

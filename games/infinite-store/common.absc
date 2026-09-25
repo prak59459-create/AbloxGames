@@ -1,0 +1,80 @@
+-- common.absc — 日と夜の状態・小さな道具・画面
+
+let phase = "day"          -- day / night / escape / over
+let day = 1
+let phase_ends = 0
+let placed_hp = {}         -- 置いた家具の id → のこりの丈夫さ
+
+func ready(p)
+  return p.bag != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func has_service(p, id)
+  return p.services[id] == true
+end
+
+func bag_max(p)
+  if has_service(p, "cart") then return 15 end
+  return 10
+end
+
+func left_secs()
+  return max(0, ceil(phase_ends - time()))
+end
+
+func kind_of(b)
+  for t in b.tags do
+    if FURNITURE[t] != nil then return t end
+  end
+  return nil
+end
+
+func weapon_rank(name)
+  for w in WEAPONS do
+    if w.id == name then return w.rank end
+  end
+  return 0
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let c = "#FDE68A"
+  if p.hunger < 25 then c = "#F87171" end
+  p.ui_text("bag", "🪑 家具 " + len(p.bag) + " / " + bag_max(p) + "   🗡 " + p.weapon_name, {at: "top_left", dy: 36, size: 15, bold: true, color: "#FDE68A"})
+  p.ui_text("hunger_t", "🍽 おなか", {at: "top_left", dy: 58, size: 13, color: c})
+  p.ui_bar("hunger", {at: "top_left", dy: 62, dx: 76, w: 140, h: 10, value: p.hunger, max: 100, color: c, bg: "#00000088"})
+end
+
+func clock_hud()
+  let t = ""
+  if phase == "day" then t = "☀️ " + day + " 日目の昼  ⏱ " + kit_clock(left_secs())
+  elif phase == "night" then t = "🌙 " + day + " 日目の夜  ⏱ " + kit_clock(left_secs()) + "  店員 " + len(filter(npcs(), func(n) return n.staff end))
+  elif phase == "escape" then t = "🚪 閉店！ 出口へ  ⏱ " + kit_clock(left_secs())
+  end
+  ui_text("clock", t, {at: "top", dy: 26, size: 19, bold: true})
+end

@@ -34,7 +34,7 @@ let horrorGames: [Game] = [
          summary: "黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！",
          tags: ["horror", "maze", "explore"], maxPlayers: 8, build: endlessRooms),
     Game(number: 56, id: "infinite-store", title: "Infinite Store",
-         summary: "終わりのない巨大家具店。昼は家具を集めて基地を作り、夜は店員の怪物から基地を守れ。何日生きのびられる？",
+         summary: "終わりのない巨大家具店。9つの売り場で家具を拾って基地を作り、夜は家具をこわしてくる店員（3日目と6日目は店長！）から守れ。おなか・武器の箱・落とし物・サービスカウンター。7日目の閉店で出口が開く！",
          tags: ["survival", "build", "horror"], maxPlayers: 10, build: infiniteStore),
     Game(number: 57, id: "smile-outbreak", title: "Smile Outbreak",
          summary: "笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！",
@@ -1373,28 +1373,86 @@ func endlessRooms(_ m: MapBuilder) {
 // MARK: 56 Infinite Store
 
 func infiniteStore(_ m: MapBuilder) {
-    m.indoor(ground: "#000000")
     m.sky("#E5E7EB", "#F3F4F6", light: 0.8, showGround: false)
-    m.ground(200, 200, color: "#9CA3AF", name: "Store Floor")
-    m.spawnRing(0, 0, radius: 5, count: 10, color: "#FACC15")
+    m.ground(240, 240, color: "#9CA3AF", name: "Store Floor")
+    m.walls(0, 0, w: 240, d: 240, h: 10, color: "#6B7280", name: "Store Edge")
+    m.part("Cover Focus", at: (-30, 2, -30), size: (84, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
+    // (kind, name, size, colour, shape) — the same table the script uses.
+    let kinds: [String: (V, String, BlockShape)] = [
+        "sofa": ((3, 1, 1.2), "#2563EB", .box), "shelf": ((2, 3, 0.8), "#F5F5F4", .box), "bed": ((2.2, 0.7, 3.2), "#FDE68A", .box),
+        "table": ((2.4, 1, 1.4), "#A16207", .box), "lamp": ((0.6, 1.8, 0.6), "#FDE68A", .cylinder), "wardrobe": ((2, 2.6, 1), "#78350F", .box),
+        "plant": ((1, 1.8, 1), "#16A34A", .cone), "fridge": ((1.2, 2.2, 1.2), "#E5E7EB", .box), "counter": ((3, 1.1, 1), "#D6D3D1", .box),
+        "desk": ((2, 1, 1.2), "#92400E", .box), "cabinet": ((1, 1.8, 0.8), "#6B7280", .box), "toybox": ((1.4, 1, 1), "#F472B6", .box),
+        "bunk": ((2, 2.4, 3), "#60A5FA", .box), "planter": ((2, 0.9, 1), "#A16207", .box), "bench": ((2.6, 0.8, 0.8), "#15803D", .box),
+        "crate": ((1.2, 1.2, 1.2), "#D97706", .box), "tub": ((2.2, 1, 1.2), "#F8FAFC", .box), "locker": ((1.2, 2.4, 1), "#94A3B8", .box)
+    ]
+    let departments: [(String, Float, Float, [String], String, String)] = [
+        ("Living", -70, -70, ["sofa", "table", "lamp", "shelf", "plant"], "#2563EB", "#BFDBFE"),
+        ("Bedroom", 0, -70, ["bed", "wardrobe", "lamp", "cabinet"], "#A855F7", "#E9D5FF"),
+        ("Kitchen", 70, -70, ["fridge", "counter", "table", "cabinet"], "#F97316", "#FED7AA"),
+        ("Kids", -70, 0, ["toybox", "bunk", "table", "lamp"], "#F472B6", "#FBCFE8"),
+        ("Food Court", 0, 0, [], "#FACC15", "#FEF08A"),
+        ("Office", 70, 0, ["desk", "cabinet", "shelf", "lamp"], "#0EA5E9", "#BAE6FD"),
+        ("Garden", -70, 70, ["planter", "bench", "plant"], "#16A34A", "#BBF7D0"),
+        ("Warehouse", 0, 70, ["crate", "crate", "shelf", "locker"], "#D97706", "#FDE68A"),
+        ("Bath", 70, 70, ["tub", "cabinet", "locker", "plant"], "#38BDF8", "#E0F2FE")
+    ]
     var r = Seeded("store")
-    let items: [(String, V, String, BlockShape)] = [("Sofa", (3, 1, 1.2), "#2563EB", .box), ("Shelf", (2, 3, 0.8), "#F5F5F4", .box),
-                                                    ("Bed", (2.2, 0.7, 3.2), "#FDE68A", .box), ("Table", (2.4, 1, 1.4), "#A16207", .box),
-                                                    ("Lamp", (0.6, 1.8, 0.6), "#FDE68A", .cylinder), ("Wardrobe", (2, 2.6, 1), "#78350F", .box),
-                                                    ("Plant", (1, 1.8, 1), "#16A34A", .cone), ("Fridge", (1.2, 2.2, 1.2), "#E5E7EB", .box)]
-    for i in 0..<70 {
-        let it = r.pick(items)
-        let x = r.range(-90, 90), z = r.range(-90, 90)
-        if abs(x) < 8 && abs(z) < 8 { continue }
-        m.part("\(it.0) \(i + 1)", at: (x, it.1.1 / 2, z), size: it.1, color: it.2, shape: it.3, tags: ["furniture"])
+    for (di, d) in departments.enumerated() {
+        m.slab("\(d.0) Floor", x: d.1, y: 0, z: d.2, w: 58, h: 0.04, d: 58, color: d.5)
+        m.part("\(d.0) Sign", at: (d.1, 7.5, d.2 - 26), size: (16, 2, 0.3), color: d.4, material: .neon, solid: false)
+        m.part("Ceiling Light \(di + 1)", at: (d.1, 9.6, d.2), size: (10, 0.2, 10), color: "#F8FAFC", material: .neon, solid: false)
+        guard !d.3.isEmpty else { continue }
+        // Showroom rows: four rows of five, a little jitter.
+        for row in 0..<4 {
+            for col in 0..<5 {
+                let kind = d.3[(row * 5 + col + di) % d.3.count]
+                guard let k = kinds[kind] else { continue }
+                let x = d.1 - 20 + Float(col) * 10 + r.range(-1.5, 1.5)
+                let z = d.2 - 17 + Float(row) * 11 + r.range(-1.5, 1.5)
+                m.part(kind.capitalized, at: (x, k.0.1 / 2, z), size: k.0, color: k.1, shape: k.2, tags: ["furniture", kind],
+                       rotation: (0, r.pick([0, 90]), 0))
+            }
+        }
+        m.slab("\(d.0) Rug", x: d.1 + 20, y: 0.04, z: d.2 + 20, w: 8, h: 0.03, d: 6, color: d.4)
     }
-    for gx in stride(from: Float(-80), through: 80, by: 40) {
-        for gz in stride(from: Float(-80), through: 80, by: 40) {
-            m.pillar("Store Pillar", x: gx, z: gz, height: 10, radius: 1, color: "#D1D5DB")
+    // The food court in the middle: tables, the food counter, customer service, lost and found.
+    for p in [(-12, -8), (0, -12), (12, -8), (-12, 8), (12, 8)] as [(Float, Float)] {
+        m.slab("Food Table", x: p.0, y: 0, z: p.1, w: 3, h: 0.9, d: 3, color: "#F8FAFC")
+        m.part("Tray", at: (p.0, 0.95, p.1), size: (1, 0.05, 0.7), color: "#DC2626", solid: false)
+    }
+    m.slab("Food Counter", x: 0, y: 0, z: 22, w: 16, h: 1.2, d: 2, color: "#FACC15")
+    m.part("Food Menu", at: (0, 4, 23.5), size: (14, 2, 0.2), color: "#DC2626", material: .neon, solid: false)
+    m.slab("Service Desk", x: -22, y: 0, z: 18, w: 6, h: 1.2, d: 2, color: "#1E3A8A")
+    m.pad("Customer Service", x: -22, z: 15.5, size: 2.4, color: "#3B82F6", tags: ["service"])
+    m.slab("Lost Desk", x: 22, y: 0, z: 18, w: 6, h: 1.2, d: 2, color: "#A16207")
+    m.pad("Lost and Found", x: 22, z: 15.5, size: 2.4, color: "#FACC15", tags: ["lost_found"])
+    m.spawnRing(0, 0, radius: 5, count: 10, color: "#FACC15")
+    let food: [(Float, Float)] = [(-12, -8), (0, -12), (12, -8), (-12, 8), (12, 8), (-5, 20), (5, 20), (0, 18),
+                                  (64, -76), (76, -64), (58, -58), (82, -82)]
+    for (i, p) in food.enumerated() {
+        m.part("Food Spot \(i + 1)", at: (p.0, 0.1, p.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    // Pillars down the aisles.
+    for gx in stride(from: Float(-105), through: 105, by: 35) {
+        for gz in stride(from: Float(-105), through: 105, by: 35) {
+            if abs(gx) < 20 && abs(gz) < 20 { continue }
+            m.pillar("Store Pillar", x: gx, z: gz, height: 10, radius: 0.9, color: "#D1D5DB")
         }
     }
-    m.markers("Food Spot", points: (0..<10).map { _ in (r.range(-80, 80), r.range(-80, 80)) }, color: "#000000", visible: false, behavior: .none)
-    m.markers("Employee Spawn", points: ring(6, radius: 85), color: "#000000", visible: false, behavior: .none)
+    // Staff doors in the outer walls, and the four places the exit can open.
+    let doors: [(Float, Float, Float, Float)] = [(-60, -119.6, 0, 3), (60, -119.6, 0, 3), (-60, 119.6, 0, -3), (60, 119.6, 0, -3),
+                                                 (-119.6, -40, 3, 0), (-119.6, 40, 3, 0), (119.6, -40, -3, 0), (119.6, 40, -3, 0)]
+    for (i, d) in doors.enumerated() {
+        let alongX = d.3 != 0
+        m.part("Staff Only Door", at: (d.0, 1.6, d.1), size: alongX ? (3, 3.2, 0.3) : (0.3, 3.2, 3), color: "#374151")
+        m.part("Staff Only Sign", at: (d.0 + d.2 * 0.08, 3.6, d.1 + d.3 * 0.08), size: alongX ? (2.4, 0.5, 0.1) : (0.1, 0.5, 2.4), color: "#DC2626",
+               material: .neon, solid: false)
+        m.part("Staff Door \(i + 1)", at: (d.0 + d.2, 0.1, d.1 + d.3), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    for (i, p) in ([(-108, -108), (108, -108), (-108, 108), (108, 108)] as [(Float, Float)]).enumerated() {
+        m.part("Exit Spot \(i + 1)", at: (p.0, 0.1, p.1), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
 }
 
 // MARK: 57 Smile Outbreak

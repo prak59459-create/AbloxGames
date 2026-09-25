@@ -92,7 +92,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/toy-factory-night-shift/cover-57a3ef17.png" width="200"> | 53 | **Toy Factory Night Shift** | おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！ |
 | <img src="games/midnight-guard/cover-0f79591d.png" width="200"> | 54 | **Midnight Guard** | 真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。 |
 | <img src="games/endless-rooms/cover-ae6d92c2.png" width="200"> | 55 | **Endless Rooms** | 黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！ |
-| <img src="games/infinite-store/cover-7a6542f5.png" width="200"> | 56 | **Infinite Store** | 終わりのない巨大家具店。昼は家具を集めて基地を作り、夜は店員の怪物から基地を守れ。何日生きのびられる？ |
+| <img src="games/infinite-store/cover-cd54cfea.png" width="200"> | 56 | **Infinite Store** | 終わりのない巨大家具店。9つの売り場で家具を拾って基地を作り、夜は家具をこわしてくる店員（3日目と6日目は店長！）から守れ。おなか・武器の箱・落とし物・サービスカウンター。7日目の閉店で出口が開く！ |
 | <img src="games/smile-outbreak/cover-66218789.png" width="200"> | 57 | **Smile Outbreak** | 笑顔に感染した人が追いかけてくるパンデミック鬼ごっこ。ワクチンを見つけて感染者を元にもどせ！ |
 | <img src="games/watch-the-house/cover-fa9ff674.png" width="200"> | 58 | **Watch The House** | ひとけのない家で、窓やドアに近づく何かを見張る。カメラと懐中電灯で追い払い、5夜を乗り切れ。 |
 
