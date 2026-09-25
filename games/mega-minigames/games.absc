@@ -30,6 +30,7 @@ func keep(x)
 end
 
 func reset_tiles()
+  cracking = {}
   let i = 0
   for t in tiles() do
     i = i + 1
@@ -97,11 +98,44 @@ end
 
 -- MARK: 0.25秒ごと
 
+-- MARK: 足もとのタイル
+-- 床のタイルは乗れるふつうのブロック（さわったら知らせるブロックは通りぬけてしまう）。
+-- だれがどのタイルに乗っているかは位置で調べる。
+
+let cracking = {}
+
+func tile_under(p)
+  if p.y < -0.4 or p.y > 1.4 then return nil end
+  let gx = round((p.x + 18) / 4)
+  let gz = round((p.z + 18) / 4)
+  if gx < 0 or gx > 9 or gz < 0 or gz > 9 then return nil end
+  return block("Tile " + gx + "-" + gz)
+end
+
+func step_tile(p, b, id)
+  if not b.visible then return end
+  if id == "spleef" and cracking[b.name] != true then
+    cracking[b.name] = true
+    b.color = "#F8FAFC"
+    after(0.5, func()
+      b.visible = false
+      b.solid = false
+      cracking[b.name] = nil
+    end)
+  elif id == "paint" and tile_owner[b.name] != p.id then
+    tile_owner[b.name] = p.id
+    b.color = p.paint
+  end
+end
+
 func game_step(g)
   let id = g.id
   for p in in_game() do
     if p.y < -5 then
       if g.kind == "survive" then knock_out(p, "💦 落ちた！") else p.teleport(arena_spot()) end
+    elif id == "spleef" or id == "paint" then
+      let t = tile_under(p)
+      if t != nil then step_tile(p, t, id) end
     end
   end
   if id == "hill" then
@@ -350,18 +384,7 @@ end
 on touch(p, b)
   if p.is_npc or not ready(p) or not p.playing or phase != "play" or current == nil then return end
   let id = current.id
-  if contains(b.tags, "tile") then
-    if id == "spleef" and b.visible then
-      b.color = "#F8FAFC"
-      after(0.5, func()
-        b.visible = false
-        b.solid = false
-      end)
-    elif id == "paint" and tile_owner[b.name] != p.id then
-      tile_owner[b.name] = p.id
-      b.color = p.paint
-    end
-  elif contains(b.tags, "ball") and id == "dodge" then knock_out(p, "☄️ 当たった！")
+  if contains(b.tags, "ball") and id == "dodge" then knock_out(p, "☄️ 当たった！")
   elif contains(b.tags, "egg") and id == "eggs" then
     if contains(made, b) then remove(made, index_of(made, b)) end
     p.g_score = p.g_score + (b.name == "Gold Egg" and 3 or 1)

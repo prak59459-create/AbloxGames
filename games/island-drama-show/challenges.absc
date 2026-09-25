@@ -228,16 +228,21 @@ end
 
 -- MARK: 氷のゆか割り
 
+let cracking = {}
+
 func crack(b)
-  if not b.visible then return end
+  if not b.visible or cracking[b.name] == true then return end
+  cracking[b.name] = true
   b.color = "#E0F2FE"
   after(0.45, func()
     b.visible = false
     b.solid = false
+    cracking[b.name] = nil
   end)
 end
 
 func reset_spleef()
+  cracking = {}
   for t in tile_list("spleef") do
     t.visible = true
     t.solid = true
@@ -266,7 +271,8 @@ func make_path()
 end
 
 func mem_touch(b)
-  if contains(mem_path, b.name) or not b.visible then return end
+  if contains(mem_path, b.name) or not b.visible or cracking[b.name] == true then return end
+  cracking[b.name] = true
   b.color = "#EF4444"
   after(0.25, func()
     b.visible = false
@@ -276,7 +282,50 @@ func mem_touch(b)
     b.visible = true
     b.solid = true
     b.color = "#E9D5FF"
+    cracking[b.name] = nil
   end)
+end
+
+-- MARK: 足もとのタイル
+-- 氷と記憶の道のタイルは乗れるふつうのブロック（さわったら知らせるブロックは通りぬけてしまう）。
+-- だれがどのタイルに乗っているかは位置で調べる。
+
+func spleef_under(p)
+  if p.y < -0.4 or p.y > 1.2 then return nil end
+  let col = round((p.x + 77.5) / 2.5)
+  let row = round((p.z + 77.5) / 2.5)
+  if col < 0 or col > 6 or row < 0 or row > 6 then return nil end
+  if abs(p.x - (-77.5 + col * 2.5)) > 1.3 or abs(p.z - (-77.5 + row * 2.5)) > 1.3 then return nil end
+  return block("Spleef " + (row * 7 + col + 1))
+end
+
+func mem_under(p)
+  if p.y < -0.4 or p.y > 1.2 then return nil end
+  let col = round((p.x + 5) / 2.5)
+  let row = round((p.z + 80) / 2.5)
+  if col < 0 or col > 4 or row < 0 or row > 7 then return nil end
+  if abs(p.x - (-5 + col * 2.5)) > 1.25 or abs(p.z - (-80 + row * 2.5)) > 1.25 then return nil end
+  return block("Mem " + (row + 1) + " " + (col + 1))
+end
+
+let under_clock = 0
+
+on tick(dt)
+  if challenge == nil or (challenge.id != "spleef" and challenge.id != "memory") then return end
+  under_clock = under_clock + dt
+  if under_clock < 0.1 then return end
+  under_clock = 0
+  for p in players() do
+    if ready(p) and p.in_challenge then
+      if challenge.id == "spleef" then
+        let b = spleef_under(p)
+        if b != nil then crack(b) end
+      else
+        let m = mem_under(p)
+        if m != nil then mem_touch(m) end
+      end
+    end
+  end
 end
 
 -- MARK: おわり
@@ -287,6 +336,7 @@ func cleanup_challenge()
   for p in players() do p.ui_remove("quiz") end
   reset_color_floor()
   reset_spleef()
+  cracking = {}
   for t in tile_list("memtile") do
     t.visible = true
     t.solid = true
@@ -332,8 +382,6 @@ on touch(p, b)
     gone(b)
     p.c_score = p.c_score + 1
     p.sound("collect")
-  elif contains(b.tags, "spleef") and challenge.id == "spleef" then crack(b)
-  elif contains(b.tags, "memtile") and challenge.id == "memory" then mem_touch(b)
   end
 end
 

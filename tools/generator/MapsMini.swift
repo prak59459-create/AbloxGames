@@ -337,7 +337,7 @@ func dramaShow(_ m: MapBuilder) {
     for row in 0..<7 {
         for col in 0..<7 {
             m.slab("Spleef \(row * 7 + col + 1)", x: -70 - 7.5 + Float(col) * 2.5, y: -0.5, z: -70 - 7.5 + Float(row) * 2.5, w: 2.4, h: 0.5, d: 2.4, color: "#BAE6FD",
-                   material: .glass, behavior: .trigger, tags: ["spleef"])
+                   material: .glass, tags: ["spleef"])
         }
     }
     m.part("Spleef Floor", at: (-70, 0.1, -70), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
@@ -345,7 +345,7 @@ func dramaShow(_ m: MapBuilder) {
     m.slab("Memory Start", x: 0, y: -1, z: -84, w: 14, h: 1, d: 5, color: "#A78BFA")
     for row in 0..<8 {
         for col in 0..<5 {
-            m.slab("Mem \(row + 1) \(col + 1)", x: -5 + Float(col) * 2.5, y: -0.5, z: -80 + Float(row) * 2.5, w: 2.3, h: 0.5, d: 2.3, color: "#E9D5FF", behavior: .trigger, tags: ["memtile"])
+            m.slab("Mem \(row + 1) \(col + 1)", x: -5 + Float(col) * 2.5, y: -0.5, z: -80 + Float(row) * 2.5, w: 2.3, h: 0.5, d: 2.3, color: "#E9D5FF", tags: ["memtile"])
         }
     }
     m.slab("Memory End", x: 0, y: -1, z: -59, w: 14, h: 1, d: 5, color: "#A78BFA")
@@ -443,7 +443,7 @@ func megaMinigames(_ m: MapBuilder) {
     for gx in 0..<10 {
         for gz in 0..<10 {
             m.part("Tile \(gx)-\(gz)", at: (-18 + Float(gx) * 4, -0.5, -18 + Float(gz) * 4), size: (3.9, 1, 3.9),
-                   color: colors[(gx + gz * 3) % 4], behavior: .trigger, tags: ["tile"])
+                   color: colors[(gx + gz * 3) % 4], tags: ["tile"])
         }
     }
     for side in 0..<4 {
@@ -457,7 +457,7 @@ func megaMinigames(_ m: MapBuilder) {
         m.pad("Corner \(i + 1)", x: c.0, z: c.1, size: 3.4, color: ["#EF4444", "#3B82F6", "#22C55E", "#FACC15"][i], tags: ["corner"])
         m.part("Corner Flag \(i + 1)", at: (c.0, 3, c.1), size: (0.2, 6, 0.2), color: "#F8FAFC", solid: false)
     }
-    m.part("Hill", at: (0, 1, 0), size: (6, 2, 6), color: "#FDE047", shape: .cylinder, material: .neon, behavior: .trigger, tags: ["hill"], visible: false)
+    m.part("Hill", at: (0, 1, 0), size: (6, 2, 6), color: "#FDE047", shape: .cylinder, material: .neon, tags: ["hill"], visible: false)
     m.part("Arena Center", at: (0, 1, 0), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
     m.slab("Bridge", x: 0, y: -1, z: -32, w: 6, h: 1, d: 15, color: "#F5F5F4")
     for p in ring(12, radius: 34) {
