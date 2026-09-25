@@ -24,6 +24,14 @@ func gone(x)
   if still(x) then x.destroy() end
 end
 
+-- id でプレイヤーをさがす（find_player は名前でさがすので）
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
 func quiet_ready(p, key, seconds)
   if p.cds == nil then p.cds = {} end
   let last = p.cds[key]

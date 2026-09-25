@@ -31,7 +31,7 @@ let horrorGames: [Game] = [
          summary: "真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。",
          tags: ["horror", "guard", "coop"], maxPlayers: 8, build: midnightGuard),
     Game(number: 55, id: "endless-rooms", title: "Endless Rooms",
-         summary: "どこまでも続く黄色い部屋の迷路。徘徊する何かから逃げながら出口を探し、次のレベルへ進め。",
+         summary: "黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！",
          tags: ["horror", "maze", "explore"], maxPlayers: 8, build: endlessRooms),
     Game(number: 56, id: "infinite-store", title: "Infinite Store",
          summary: "終わりのない巨大家具店。昼は家具を集めて基地を作り、夜は店員の怪物から基地を守れ。何日生きのびられる？",
@@ -1170,34 +1170,204 @@ func midnightGuard(_ m: MapBuilder) {
 // MARK: 55 Endless Rooms
 
 func endlessRooms(_ m: MapBuilder) {
-    m.indoor(ground: "#000000")
-    m.sky("#1A1606", "#2A2408", light: 0.55, showGround: false)
-    m.ground(160, 160, color: "#8B7D3A", name: "Carpet")
-    m.slab("Ceiling", x: 0, y: 4, z: 0, w: 160, h: 0.3, d: 160, color: "#CFC48A")
-    // A maze of yellow walls on a grid, with openings.
-    var r = Seeded("backrooms")
-    let cell: Float = 8
-    for gx in -9...9 {
-        for gz in -9...9 {
-            let x = Float(gx) * cell, z = Float(gz) * cell
-            if abs(gx) <= 1 && abs(gz) <= 1 { continue }
-            let kind = r.int(0, 5)
-            if kind == 0 { m.slab("Wall", x: x, y: 0, z: z + cell / 2, w: cell, h: 4, d: 0.4, color: "#D9C66B") }
-            if kind == 1 { m.slab("Wall", x: x + cell / 2, y: 0, z: z, w: 0.4, h: 4, d: cell, color: "#D9C66B") }
-            if kind == 2 {
-                m.slab("Wall", x: x, y: 0, z: z + cell / 2, w: cell, h: 4, d: 0.4, color: "#D9C66B")
-                m.slab("Wall", x: x + cell / 2, y: 0, z: z, w: 0.4, h: 4, d: cell, color: "#D9C66B")
-            }
-            if kind == 3 && r.unit() < 0.3 {
-                m.part("Buzzing Light", at: (x, 3.85, z), size: (1.6, 0.1, 0.6), color: "#FFFBEB", material: .neon, solid: false)
-            }
+    m.sky("#1A1606", "#2A2408", light: 0.5, showGround: false)
+    m.part("Cover Focus", at: (0, 1, 0), size: (70, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
+    func marker(_ name: String, _ x: Float, _ z: Float, y: Float = 0) {
+        m.part(name, at: (x, y + 0.1, z), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+    }
+    func far(_ cells: [(Float, Float)], from c: (Float, Float)) -> [(Float, Float)] {
+        cells.sorted { ($0.0 - c.0) * ($0.0 - c.0) + ($0.1 - c.1) * ($0.1 - c.1) > ($1.0 - c.0) * ($1.0 - c.0) + ($1.1 - c.1) * ($1.1 - c.1) }
+    }
+    var r = Seeded("endless")
+
+    // MARK: Level 0 — the yellow rooms (a maze of 11 × 11 rooms).
+    m.slab("L0 Carpet", x: 0, y: -0.05, z: 0, w: 90, h: 0.1, d: 90, color: "#8B7D3A")
+    m.slab("L0 Ceiling", x: 0, y: 3.6, z: 0, w: 90, h: 0.3, d: 90, color: "#CFC48A")
+    let maze0 = Maze(cols: 11, rows: 11, seed: "level0", braid: 0.35)
+    let cells0 = m.build(maze0, cx: 0, cz: 0, cell: 8, height: 3.6, color: "#D9C66B", name: "L0 Wall")
+    let flat0 = cells0.flatMap { $0 }
+    for (i, c) in flat0.enumerated() where i % 4 == 1 {
+        m.part("L0 Light", at: (c.0, 3.5, c.1), size: (1.8, 0.1, 0.6), color: "#FFFBEB", material: .neon, solid: false)
+    }
+    m.spawnRing(0, 0, radius: 2, count: 8, color: "#FDE68A")
+    marker("Start 0", 0, 0)
+    // Dead ends first, then the farthest rooms, so there are always enough.
+    let ends0 = far(maze0.deadEnds.map { cells0[$0.1][$0.0] }, from: (0, 0)) + far(flat0, from: (0, 0))
+    for (i, c) in ends0.prefix(6).enumerated() { marker("L0 Exit Spot \(i + 1)", c.0, c.1) }
+    let shuffled0 = flat0.filter { abs($0.0) + abs($0.1) > 10 }.sorted { _, _ in r.unit() < 0.5 }
+    for i in 0..<10 { marker("L0 Item \(i + 1)", shuffled0[i].0, shuffled0[i].1) }
+    for i in 0..<3 { marker("L0 Den \(i + 1)", shuffled0[10 + i].0, shuffled0[10 + i].1) }
+    marker("Note 1", ends0[7].0, ends0[7].1)
+
+    // MARK: Level 1 — the warehouse. Three fuses start the freight lift.
+    let w1: (Float, Float) = (200, 0)
+    m.slab("L1 Floor", x: w1.0, y: -0.05, z: w1.1, w: 100, h: 0.1, d: 76, color: "#57534E")
+    m.slab("L1 Wall", x: w1.0, y: 0, z: w1.1 - 38, w: 100.5, h: 8, d: 0.5, color: "#78716C")
+    m.slab("L1 Wall", x: w1.0, y: 0, z: w1.1 + 38, w: 100.5, h: 8, d: 0.5, color: "#78716C")
+    m.slab("L1 Wall", x: w1.0 - 50, y: 0, z: w1.1, w: 0.5, h: 8, d: 76, color: "#78716C")
+    m.slab("L1 Wall", x: w1.0 + 50, y: 0, z: w1.1 - 20.5, w: 0.5, h: 8, d: 35, color: "#78716C")
+    m.slab("L1 Wall", x: w1.0 + 50, y: 0, z: w1.1 + 20.5, w: 0.5, h: 8, d: 35, color: "#78716C")
+    m.slab("L1 Wall", x: w1.0 + 50, y: 5, z: w1.1, w: 0.5, h: 3, d: 6, color: "#78716C")
+    for z: Float in [-26, -16, -6, 6, 16, 26] {
+        for seg in [(162, 182), (188, 212), (218, 238)] as [(Float, Float)] {
+            m.slab("Shelf", x: (seg.0 + seg.1) / 2, y: 0, z: z, w: seg.1 - seg.0, h: 5, d: 2, color: "#9A3412")
+            m.part("Shelf Boxes", at: ((seg.0 + seg.1) / 2, 5.4, z), size: (seg.1 - seg.0 - 2, 0.8, 1.6), color: "#A16207", solid: false)
         }
     }
-    m.walls(0, 0, w: 160, d: 160, h: 4, color: "#D9C66B", name: "Edge")
-    m.spawnRing(0, 0, radius: 3, count: 8, color: "#FDE68A")
-    m.markers("Exit Spot", points: [(-68, -68), (68, -68), (-68, 68), (68, 68), (0, 70), (0, -70), (70, 0), (-70, 0)],
-              color: "#000000", visible: false, behavior: .none)
-    m.markers("Entity Spawn", points: [(-60, 0), (60, 0), (0, 60), (0, -60)], color: "#000000", visible: false, behavior: .none)
+    for p in [(170, 11), (205, -21), (228, 1), (190, 31)] as [(Float, Float)] {
+        m.part("Puddle", at: (p.0, 0.02, p.1), size: (4, 0.02, 3), color: "#67E8F9", shape: .cylinder, material: .glass, solid: false, opacity: 0.5)
+    }
+    let lamps1: [(Float, Float)] = [(158, 0), (185, 11), (215, -11), (200, 21), (238, 0), (175, -31)]
+    for (i, p) in lamps1.enumerated() {
+        m.part("L1 Lamp \(i + 1)", at: (p.0, 6.5, p.1), size: (1.2, 0.4, 1.2), color: "#FEF3C7", shape: .sphere, material: .neon, solid: false)
+        m.part("Lamp Cord", at: (p.0, 7.4, p.1), size: (0.05, 1.4, 0.05), color: "#1C1917", solid: false)
+    }
+    marker("Start 1", 155, 0)
+    // The freight lift: a car behind the east wall, its door shut until the fuses are in.
+    m.slab("L1 Lift Car", x: 254, y: -0.05, z: 0, w: 8, h: 0.1, d: 8, color: "#374151")
+    m.slab("L1 Lift Wall", x: 254, y: 0, z: -4, w: 8, h: 5, d: 0.4, color: "#4B5563")
+    m.slab("L1 Lift Wall", x: 254, y: 0, z: 4, w: 8, h: 5, d: 0.4, color: "#4B5563")
+    m.slab("L1 Lift Wall", x: 258, y: 0, z: 0, w: 0.4, h: 5, d: 8, color: "#4B5563")
+    m.part("Elevator Door", at: (250, 2.5, 0), size: (0.6, 5, 6), color: "#9CA3AF", material: .metal)
+    m.pad("Fuse Box", x: 246, z: -7, size: 2, color: "#FACC15", tags: ["fusebox"])
+    m.slab("Fuse Panel", x: 249, y: 0, z: -7, w: 0.6, h: 2.2, d: 1.6, color: "#44403C")
+    m.pad("L1 Exit", x: 254, z: 0, size: 3, color: "#F8FAFC", tags: ["exit"])
+    let fuse1: [(Float, Float)] = [(165, -21), (185, -1), (200, -31), (215, 11), (232, -21), (172, 31), (205, 1), (235, 21)]
+    for (i, p) in fuse1.enumerated() { marker("L1 Fuse Spot \(i + 1)", p.0, p.1) }
+    for (i, p) in ([(160, -11), (192, 21), (222, -31), (212, 31), (180, -21), (240, 11)] as [(Float, Float)]).enumerated() { marker("L1 Item \(i + 1)", p.0, p.1) }
+    for (i, p) in ([(230, 31), (230, -31), (200, 11)] as [(Float, Float)]).enumerated() { marker("L1 Den \(i + 1)", p.0, p.1) }
+    marker("Note 2", 245, 31)
+
+    // MARK: Level 2 — the pipes. Three valves open the boiler door.
+    let c2: (Float, Float) = (400, 0)
+    m.slab("L2 Floor", x: c2.0, y: -0.05, z: c2.1, w: 84, h: 0.1, d: 84, color: "#27272A")
+    var maze2 = Maze(cols: 8, rows: 8, seed: "level2", braid: 0.25)
+    maze2.vertical[7][8] = false
+    let cells2 = m.build(maze2, cx: c2.0, cz: c2.1, cell: 10, height: 4, thickness: 2, color: "#44403C", name: "L2 Wall")
+    let flat2 = cells2.flatMap { $0 }
+    for (i, c) in flat2.enumerated() where i % 3 == 0 {
+        m.part("Pipe", at: (c.0, 3.5, c.1), size: (0.5, 10, 0.5), color: i % 2 == 0 ? "#B91C1C" : "#78716C", shape: .cylinder, material: .metal,
+               solid: false, rotation: (90, 0, 0))
+    }
+    for (i, c) in flat2.enumerated() where i % 5 == 2 {
+        m.part("L2 Light", at: (c.0, 3.8, c.1), size: (0.5, 0.3, 0.5), color: "#FCA5A5", shape: .sphere, material: .neon, solid: false)
+    }
+    marker("Start 2", cells2[0][0].0, cells2[0][0].1)
+    let exitCell = cells2[7][7]
+    m.part("Boiler Door", at: (exitCell.0 + 5, 2, exitCell.1), size: (0.8, 4, 6), color: "#B45309", material: .metal)
+    m.slab("L2 Exit Room", x: exitCell.0 + 9, y: -0.05, z: exitCell.1, w: 8, h: 0.1, d: 8, color: "#7C2D12")
+    m.slab("L2 Exit Wall", x: exitCell.0 + 9, y: 0, z: exitCell.1 - 4, w: 8, h: 4, d: 0.5, color: "#44403C")
+    m.slab("L2 Exit Wall", x: exitCell.0 + 9, y: 0, z: exitCell.1 + 4, w: 8, h: 4, d: 0.5, color: "#44403C")
+    m.slab("L2 Exit Wall", x: exitCell.0 + 13, y: 0, z: exitCell.1, w: 0.5, h: 4, d: 8, color: "#44403C")
+    m.pad("L2 Exit", x: exitCell.0 + 10, z: exitCell.1, size: 3, color: "#F8FAFC", tags: ["exit"])
+    let ends2 = (far(maze2.deadEnds.map { cells2[$0.1][$0.0] }, from: cells2[0][0]) + far(flat2, from: cells2[0][0]))
+        .filter { $0 != exitCell && $0 != cells2[0][0] }
+    for i in 0..<3 {
+        let v = ends2[i]
+        m.pad("Valve \(i + 1)", x: v.0, z: v.1, size: 2, color: "#DC2626", tags: ["valve"])
+        m.part("Valve Wheel \(i + 1)", at: (v.0, 1.4, v.1), size: (1.2, 0.15, 1.2), color: "#EF4444", shape: .cylinder, material: .metal, solid: false,
+               rotation: (90, 0, 0))
+    }
+    let mid2 = flat2.filter { c in !ends2.prefix(3).contains { $0 == c } && c != exitCell && c != cells2[0][0] }.sorted { _, _ in r.unit() < 0.5 }
+    for i in 0..<6 {
+        m.pad("Steam Vent \(i + 1)", x: mid2[i].0, z: mid2[i].1, size: 2.4, color: "#57534E", tags: ["steam"])
+        m.part("Steam \(i + 1)", at: (mid2[i].0, 1.6, mid2[i].1), size: (2.4, 3.2, 2.4), color: "#F5F5F4", shape: .cylinder, solid: false,
+               visible: false, opacity: 0.5)
+    }
+    for i in 0..<6 { marker("L2 Item \(i + 1)", mid2[6 + i].0, mid2[6 + i].1) }
+    for i in 0..<3 { marker("L2 Den \(i + 1)", mid2[12 + i].0, mid2[12 + i].1) }
+    marker("Note 3", ends2[4].0, ends2[4].1)
+
+    // MARK: Level 3 — the electrical rooms. Three breakers bring back the light.
+    let c3: (Float, Float) = (0, 200)
+    m.slab("L3 Floor", x: c3.0, y: -0.05, z: c3.1, w: 72, h: 0.1, d: 72, color: "#111827")
+    m.slab("L3 Wall", x: c3.0, y: 0, z: c3.1 - 36, w: 72.5, h: 4.5, d: 0.5, color: "#1F2937")
+    m.slab("L3 Wall", x: c3.0 - 36, y: 0, z: c3.1, w: 0.5, h: 4.5, d: 72, color: "#1F2937")
+    m.slab("L3 Wall", x: c3.0 + 36, y: 0, z: c3.1, w: 0.5, h: 4.5, d: 72, color: "#1F2937")
+    m.slab("L3 Wall", x: c3.0 - 19.25, y: 0, z: c3.1 + 36, w: 34, h: 4.5, d: 0.5, color: "#1F2937")
+    m.slab("L3 Wall", x: c3.0 + 19.25, y: 0, z: c3.1 + 36, w: 34, h: 4.5, d: 0.5, color: "#1F2937")
+    for k in [-12, 12] as [Float] {
+        // Walls between the 3 × 3 rooms, each with a doorway in the middle of every room side.
+        for seg in [(-36, -26), (-22, -2), (2, 22), (26, 36)] as [(Float, Float)] {
+            m.slab("L3 Wall", x: c3.0 + k, y: 0, z: c3.1 + (seg.0 + seg.1) / 2, w: 0.5, h: 4.5, d: seg.1 - seg.0, color: "#1F2937")
+            m.slab("L3 Wall", x: c3.0 + (seg.0 + seg.1) / 2, y: 0, z: c3.1 + k, w: seg.1 - seg.0, h: 4.5, d: 0.5, color: "#1F2937")
+        }
+    }
+    for gx in [-24, 0, 24] as [Float] {
+        for gz in [-24, 0, 24] as [Float] {
+            let i = Int((gx + 24) / 24) * 3 + Int((gz + 24) / 24)
+            m.part("L3 Lamp \(i + 1)", at: (c3.0 + gx, 4.2, c3.1 + gz), size: (3, 0.2, 3), color: "#1F2937", solid: false)
+            m.slab("Transformer", x: c3.0 + gx + 7, y: 0, z: c3.1 + gz - 7, w: 3, h: 2.4, d: 2, color: "#374151")
+        }
+    }
+    let breakers: [(Float, Float)] = [(-30, -30), (30, -6), (-30, 30)]
+    for (i, b) in breakers.enumerated() {
+        m.pad("Breaker \(i + 1)", x: c3.0 + b.0, z: c3.1 + b.1, size: 2, color: "#F97316", tags: ["breaker"])
+        m.slab("Breaker Panel", x: c3.0 + b.0 + (b.0 < 0 ? -4 : 4), y: 0, z: c3.1 + b.1, w: 0.6, h: 2.4, d: 1.8, color: "#52525B")
+    }
+    marker("Start 3", c3.0, c3.1 - 30)
+    m.part("L3 Door", at: (c3.0, 2.2, c3.1 + 36), size: (4.6, 4.4, 0.8), color: "#374151", material: .metal)
+    m.slab("L3 Exit Room", x: c3.0, y: -0.05, z: c3.1 + 41, w: 8, h: 0.1, d: 10, color: "#1E3A8A")
+    m.slab("L3 Exit Wall", x: c3.0 - 4, y: 0, z: c3.1 + 41, w: 0.5, h: 4, d: 10, color: "#1F2937")
+    m.slab("L3 Exit Wall", x: c3.0 + 4, y: 0, z: c3.1 + 41, w: 0.5, h: 4, d: 10, color: "#1F2937")
+    m.slab("L3 Exit Wall", x: c3.0, y: 0, z: c3.1 + 46, w: 8.5, h: 4, d: 0.5, color: "#1F2937")
+    m.pad("L3 Exit", x: c3.0, z: c3.1 + 42, size: 3, color: "#F8FAFC", tags: ["exit"])
+    for (i, p) in ([(-24, 6), (24, 24), (0, 6), (24, -24), (-6, 24), (6, -18)] as [(Float, Float)]).enumerated() { marker("L3 Item \(i + 1)", c3.0 + p.0, c3.1 + p.1) }
+    for (i, p) in ([(24, 24), (-24, 0), (24, -24)] as [(Float, Float)]).enumerated() { marker("L3 Den \(i + 1)", c3.0 + p.0 + 4, c3.1 + p.1 + 4) }
+    marker("Note 4", c3.0 + 30, c3.1 + 30)
+
+    // MARK: Level 4 — the empty office. Safe; vending machines.
+    let c4: (Float, Float) = (200, 200)
+    m.slab("L4 Floor", x: c4.0, y: -0.05, z: c4.1, w: 70, h: 0.1, d: 50, color: "#64748B")
+    m.walls(c4.0, c4.1, w: 70, d: 50, h: 4, color: "#E7E5E4", name: "L4 Wall")
+    for gx in [-24, -12, 0, 12] as [Float] {
+        for gz in [-12, 6] as [Float] {
+            m.slab("Partition", x: c4.0 + gx, y: 0, z: c4.1 + gz, w: 0.2, h: 1.6, d: 6, color: "#94A3B8")
+            m.slab("Partition", x: c4.0 + gx + 3, y: 0, z: c4.1 + gz - 3, w: 6, h: 1.6, d: 0.2, color: "#94A3B8")
+            m.slab("Office Desk", x: c4.0 + gx + 3, y: 0, z: c4.1 + gz - 1.8, w: 3, h: 0.8, d: 1.2, color: "#A16207")
+            m.part("Computer", at: (c4.0 + gx + 3, 1.2, c4.1 + gz - 2.1), size: (1, 0.7, 0.1), color: "#0EA5E9", material: .neon, solid: false)
+        }
+    }
+    for (i, p) in ([(-20, -20), (0, -20), (20, -20), (-20, 20), (0, 20), (20, 20)] as [(Float, Float)]).enumerated() {
+        m.part("L4 Light \(i + 1)", at: (c4.0 + p.0, 3.8, c4.1 + p.1), size: (4, 0.1, 1), color: "#F8FAFC", material: .neon, solid: false)
+    }
+    for z: Float in [-6, -2] {
+        m.slab("Vending Machine", x: c4.0 + 32, y: 0, z: c4.1 + z, w: 1.6, h: 2.6, d: 2, color: z < -4 ? "#DC2626" : "#2563EB")
+    }
+    m.pad("Vending", x: c4.0 + 29.5, z: c4.1 - 4, size: 2.4, color: "#22D3EE", tags: ["vending"])
+    m.part("Water Cooler", at: (c4.0 + 32, 1, c4.1 + 6), size: (0.8, 2, 0.8), color: "#BAE6FD", shape: .cylinder)
+    marker("Start 4", c4.0 - 30, c4.1)
+    m.part("Stairwell Sign", at: (c4.0 + 34.6, 3, c4.1 + 16), size: (0.1, 0.6, 2.4), color: "#22C55E", material: .neon, solid: false)
+    m.pad("L4 Exit", x: c4.0 + 32, z: c4.1 + 16, size: 3, color: "#F8FAFC", tags: ["exit"])
+    for (i, p) in ([(-28, 18), (-6, 0), (18, -16), (26, 16)] as [(Float, Float)]).enumerated() { marker("L4 Item \(i + 1)", c4.0 + p.0, c4.1 + p.1) }
+    marker("Note 5", c4.0 + 15, c4.1 + 4)
+
+    // MARK: Level 5 — the endless hallway. Something follows you to the door.
+    let x5: Float = 400
+    m.slab("L5 Carpet", x: x5, y: -0.05, z: 200, w: 8, h: 0.1, d: 144, color: "#7F1D1D")
+    m.slab("L5 Wall", x: x5 - 4, y: 0, z: 200, w: 0.4, h: 4, d: 144, color: "#FDE68A")
+    m.slab("L5 Wall", x: x5 + 4, y: 0, z: 200, w: 0.4, h: 4, d: 144, color: "#FDE68A")
+    m.slab("L5 Wall", x: x5, y: 0, z: 128, w: 8.4, h: 4, d: 0.4, color: "#FDE68A")
+    m.slab("L5 Wall", x: x5, y: 0, z: 272, w: 8.4, h: 4, d: 0.4, color: "#FDE68A")
+    m.slab("L5 Ceiling", x: x5, y: 4, z: 200, w: 8.4, h: 0.3, d: 144, color: "#FEF3C7")
+    for z in stride(from: Float(136), through: 264, by: 8) {
+        m.part("Hotel Door", at: (x5 - 3.75, 1.3, z), size: (0.12, 2.6, 1.4), color: "#78350F", solid: false)
+        m.part("Hotel Door", at: (x5 + 3.75, 1.3, z + 4), size: (0.12, 2.6, 1.4), color: "#78350F", solid: false)
+        m.part("Sconce", at: (x5 - 3.7, 2.8, z + 2), size: (0.2, 0.4, 0.4), color: "#FDBA74", material: .neon, solid: false)
+    }
+    marker("Start 5", x5, 132)
+    m.part("Exit Door", at: (x5, 1.6, 271.6), size: (2.4, 3.2, 0.2), color: "#FFFFFF", material: .neon, solid: false)
+    m.pad("L5 Exit", x: x5, z: 268, size: 3, color: "#F8FAFC", tags: ["exit"])
+    for (i, z) in ([160, 190, 220, 250] as [Float]).enumerated() { marker("L5 Item \(i + 1)", x5, z) }
+    marker("Note 6", x5 + 2, 240)
+
+    // MARK: Outside.
+    m.slab("Outside Grass", x: 0, y: -0.05, z: 400, w: 60, h: 0.1, d: 60, color: "#65A30D")
+    for p in [(-18, 388), (16, 412), (-10, 418), (20, 386)] as [(Float, Float)] { m.tree(p.0, p.1, height: 5) }
+    m.slab("Bench", x: 4, y: 0, z: 404, w: 3, h: 0.6, d: 0.8, color: "#92400E")
+    m.lamp(8, 400)
+    m.part("Setting Sun", at: (0, 30, 470), size: (20, 20, 20), color: "#FDBA74", shape: .sphere, material: .neon, tags: ["sky"], solid: false)
+    marker("Outside", 0, 400)
 }
 
 // MARK: 56 Infinite Store

@@ -93,7 +93,7 @@ end
 
 func shade_step(n, secs)
   if n.exposed >= 1.6 then
-    let p = find_player(n.last_lit_by)
+    let p = player_by_id(n.last_lit_by)
     if p != nil then
       kit_give(p, 8)
       p.score = p.score + 2
@@ -183,7 +183,7 @@ end
 
 func child_step(n)
   if in_hub(n.position) then
-    let p = find_player(n.lead)
+    let p = player_by_id(n.lead)
     n.say("ありがとう！")
     trust = min(TRUST_START, trust + 10)
     if p != nil then
@@ -207,7 +207,7 @@ func child_step(n)
     end
     return
   end
-  let lead = find_player(n.lead)
+  let lead = player_by_id(n.lead)
   if lead == nil or not lead.alive then
     lead = nil
     for p in players() do

@@ -1,0 +1,160 @@
+-- common.absc — しかけの状態・小さな道具・正気度・画面
+-- 一人ひとりが自分のレベルにいる（p.level）。しかけ（ヒューズ・バルブ・ブレーカー）はみんなで共有。
+
+let fuses_in = 0
+let valves = [false, false, false]      -- 回したバルブ
+let breakers = [false, false, false]
+let lift_open = false
+let boiler_open = false
+let power_on = false
+let first_out_at = 0
+let steam_on = [false, false, false, false, false, false]   -- いま蒸気が出ているか
+
+func ready(p)
+  return p.level != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+-- id でプレイヤーをさがす（find_player は名前でさがすので）
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func has_item(p, id)
+  return p.items[id] == true
+end
+
+func start_pos(level)
+  if level >= LAST_LEVEL then return block("Outside").position + {x: random(-3, 3), y: 1, z: random(-3, 3)} end
+  if level == 0 then return block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0} end
+  return block("Start " + level).position + {x: random(-1, 1), y: 1, z: random(-1, 1)}
+end
+
+func players_on(level)
+  return filter(players(), func(p) return ready(p) and p.alive and p.level == level end)
+end
+
+-- 方角（+z を北として）
+func direction_name(from, goal)
+  let dx = goal.x - from.x
+  let dz = goal.z - from.z
+  let a = atan2(dx, dz)
+  if a < 0 then a = a + 360 end
+  let names = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"]
+  return names[(floor((a + 22.5) / 45) % 8) + 1]
+end
+
+-- MARK: 正気度
+
+func add_sanity(p, amount)
+  if not ready(p) or not p.alive or p.level >= LAST_LEVEL then return end
+  let before = p.sanity
+  p.sanity = clamp(p.sanity + amount, 0, 100)
+  if before >= 30 and p.sanity < 30 then p.message("😵 頭がくらくらする… アーモンド水を飲もう", 2) end
+  if p.sanity <= 0 then lose_mind(p) end
+end
+
+-- 正気を失うと Level 0 にもどされる（おまもりがあれば、いまのレベルの入口で目をさます）
+func lose_mind(p)
+  if has_item(p, "charm") then
+    p.items.charm = false
+    p.sanity = 60
+    p.teleport(start_pos(p.level))
+    p.message("🧿 おまもりが守ってくれた… レベルの入口で目をさました", 2.5)
+    hud(p)
+    return
+  end
+  p.sanity = 70
+  p.level = 0
+  p.teleport(start_pos(0))
+  p.shake(0.6, 1)
+  p.message("🌀 正気を失った… 気がつくとまた黄色い部屋にいた", 3)
+  p.noclips = p.noclips + 1
+  hud(p)
+end
+
+-- MARK: 画面
+
+func objective_pos(p)
+  let lv = p.level
+  if lv == 0 then
+    let e = block("L0 Exit")
+    if e != nil then return e.position end
+  elif lv == 1 then
+    if lift_open then return block("L1 Exit").position end
+    if p.fuses > 0 then return block("Fuse Box").position end
+    let fs = blocks("fuse")
+    if len(fs) > 0 then return nearest_block(p, fs).position end
+    return block("Fuse Box").position
+  elif lv == 2 then
+    if boiler_open then return block("L2 Exit").position end
+    for i in 1 to 3 do
+      if not valves[i] then return block("Valve " + i).position end
+    end
+  elif lv == 3 then
+    if power_on then return block("L3 Exit").position end
+    for i in 1 to 3 do
+      if not breakers[i] then return block("Breaker " + i).position end
+    end
+  elif lv == 4 then
+    return block("L4 Exit").position
+  elif lv == 5 then
+    return block("L5 Exit").position
+  end
+  return nil
+end
+
+func nearest_block(p, list)
+  let best = list[1]
+  let best_d = 99999
+  for b in list do
+    let d = distance(p, b.position)
+    if d < best_d then
+      best = b
+      best_d = d
+    end
+  end
+  return best
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let lv = LEVELS[p.level + 1]
+  p.ui_text("level", "🟨 " + lv.name, {at: "top", dy: 26, size: 19, bold: true})
+  p.ui_text("goal", lv.goal, {at: "top", dy: 52, size: 13, color: "#FDE68A"})
+  let c = "#A7F3D0"
+  if p.sanity < 30 then c = "#F87171" end
+  p.ui_text("sanity_t", "🧠 正気度", {at: "top_left", dy: 58, size: 13, color: c})
+  p.ui_bar("sanity", {at: "top_left", dy: 62, dx: 80, w: 150, h: 10, value: p.sanity, max: 100, color: c, bg: "#00000088"})
+  let bag = "💧" + p.water
+  if p.fuses > 0 then bag = bag + "  🔌 ヒューズ " + p.fuses end
+  if has_item(p, "lantern") then bag = bag + "  🏮" end
+  if has_item(p, "charm") then bag = bag + "  🧿" end
+  p.ui_text("bag", bag, {at: "top_left", dy: 36, size: 15, bold: true, color: "#FDE68A"})
+  if has_item(p, "compass") and p.level < LAST_LEVEL then
+    let goal = objective_pos(p)
+    if goal != nil then
+      p.ui_text("compass", "🧭 " + direction_name(p.position, goal) + " " + floor(distance(p, goal)) + "m", {at: "top_left", dy: 84, size: 14, color: "#93C5FD"})
+    end
+  else
+    p.ui_remove("compass")
+  end
+end

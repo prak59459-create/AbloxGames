@@ -1486,16 +1486,20 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 253,
-      "cover" : "games\/endless-rooms\/cover-d6946cbf.png",
+      "blockCount" : 499,
+      "cover" : "games\/endless-rooms\/cover-ae6d92c2.png",
       "id" : "endless-rooms",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "games\/endless-rooms\/data.absc",
+        "games\/endless-rooms\/common.absc",
+        "games\/endless-rooms\/entities.absc",
+        "games\/endless-rooms\/levels.absc",
         "games\/endless-rooms\/main.absc"
       ],
-      "summary" : "どこまでも続く黄色い部屋の迷路。徘徊する何かから逃げながら出口を探し、次のレベルへ進め。",
+      "summary" : "黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！",
       "tags" : [
         "horror",
         "maze",

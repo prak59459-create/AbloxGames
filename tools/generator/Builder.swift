@@ -360,3 +360,106 @@ struct Seeded {
     mutating func int(_ a: Int, _ b: Int) -> Int { a + Int(next() % UInt64(b - a + 1)) }
     mutating func pick<T>(_ list: [T]) -> T { list[int(0, list.count - 1)] }
 }
+
+// MARK: Mazes
+
+/// A maze on a grid of square cells, carved with a depth-first walk and
+/// then opened up a little (`braid` of the inner walls knocked out) so it
+/// has loops. Walls in a straight line are merged into one block.
+struct Maze {
+    let cols: Int, rows: Int
+    /// vertical[r][c]: the wall on the west side of cell (c, r); c == cols is the east edge.
+    var vertical: [[Bool]]
+    /// horizontal[r][c]: the wall on the south side of cell (c, r); r == rows is the north edge.
+    var horizontal: [[Bool]]
+
+    init(cols: Int, rows: Int, seed: String, braid: Float) {
+        self.cols = cols
+        self.rows = rows
+        vertical = Array(repeating: Array(repeating: true, count: cols + 1), count: rows)
+        horizontal = Array(repeating: Array(repeating: true, count: cols), count: rows + 1)
+        var r = Seeded(seed)
+        var seen = Array(repeating: Array(repeating: false, count: cols), count: rows)
+        var stack = [(0, 0)]
+        seen[0][0] = true
+        while let (c, row) = stack.last {
+            var next: [(Int, Int)] = []
+            if c > 0 && !seen[row][c - 1] { next.append((c - 1, row)) }
+            if c < cols - 1 && !seen[row][c + 1] { next.append((c + 1, row)) }
+            if row > 0 && !seen[row - 1][c] { next.append((c, row - 1)) }
+            if row < rows - 1 && !seen[row + 1][c] { next.append((c, row + 1)) }
+            if next.isEmpty {
+                stack.removeLast()
+                continue
+            }
+            let (nc, nr) = r.pick(next)
+            if nc != c { vertical[row][max(c, nc)] = false } else { horizontal[max(row, nr)][c] = false }
+            seen[nr][nc] = true
+            stack.append((nc, nr))
+        }
+        for row in 0..<rows {
+            for c in 1..<cols where vertical[row][c] && r.unit() < braid { vertical[row][c] = false }
+        }
+        for row in 1..<rows {
+            for c in 0..<cols where horizontal[row][c] && r.unit() < braid { horizontal[row][c] = false }
+        }
+    }
+
+    /// Cells with walls on three sides.
+    var deadEnds: [(Int, Int)] {
+        var list: [(Int, Int)] = []
+        for row in 0..<rows {
+            for c in 0..<cols {
+                let walls = [vertical[row][c], vertical[row][c + 1], horizontal[row][c], horizontal[row + 1][c]].filter { $0 }.count
+                if walls == 3 { list.append((c, row)) }
+            }
+        }
+        return list
+    }
+}
+
+extension MapBuilder {
+    /// Builds `maze` centred on (cx, cz). Returns the centre of every cell,
+    /// row by row, for placing things in it.
+    @discardableResult
+    func build(_ maze: Maze, cx: Float, cz: Float, cell: Float, height: Float, thickness: Float = 0.4, color: String,
+               name: String = "Maze Wall") -> [[(Float, Float)]] {
+        let x0 = cx - Float(maze.cols) * cell / 2, z0 = cz - Float(maze.rows) * cell / 2
+        // Vertical lines: runs of wall along z at each x boundary.
+        for c in 0...maze.cols {
+            var run: Int? = nil
+            for row in 0...maze.rows {
+                let on = row < maze.rows && maze.vertical[row][c]
+                if on && run == nil { run = row }
+                if !on, let start = run {
+                    let za = z0 + Float(start) * cell, zb = z0 + Float(row) * cell
+                    slab(name, x: x0 + Float(c) * cell, y: 0, z: (za + zb) / 2, w: thickness, h: height, d: zb - za + thickness, color: color)
+                    run = nil
+                }
+            }
+        }
+        for row in 0...maze.rows {
+            var run: Int? = nil
+            for c in 0...maze.cols {
+                let on = c < maze.cols && maze.horizontal[row][c]
+                if on && run == nil { run = c }
+                if !on, let start = run {
+                    let xa = x0 + Float(start) * cell, xb = x0 + Float(c) * cell
+                    slab(name, x: (xa + xb) / 2, y: 0, z: z0 + Float(row) * cell, w: xb - xa + thickness, h: height, d: thickness, color: color)
+                    run = nil
+                }
+            }
+        }
+        var centres: [[(Float, Float)]] = []
+        for row in 0..<maze.rows {
+            var line: [(Float, Float)] = []
+            for c in 0..<maze.cols {
+                let x: Float = x0 + (Float(c) + 0.5) * cell
+                let z: Float = z0 + (Float(row) + 0.5) * cell
+                line.append((x, z))
+            }
+            centres.append(line)
+        }
+        return centres
+    }
+}

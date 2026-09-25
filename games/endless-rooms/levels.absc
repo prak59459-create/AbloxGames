@@ -1,0 +1,327 @@
+-- levels.absc — レベルの出入り・しかけ（出口・ヒューズ・バルブ・蒸気・ブレーカー）・アイテム・メモ・自動販売機・脱出
+
+let item_clock = 0
+let steam_clock = 0
+
+-- MARK: レベルの出入り
+
+func setup_notes()
+  for i in 1 to len(NOTES) do
+    create_block({name: "Note " + i, position: block("Note " + i).position + {x: 0, y: 0.9, z: 0}, size: {x: 0.6, y: 0.8, z: 0.05},
+                  color: "#FEF3C7", material: "neon", solid: false, behavior: "trigger", tags: ["note"]})
+  end
+end
+
+func setup_exits()
+  -- Level 0 の出口は、毎回ちがう行き止まりに
+  let spot = block("L0 Exit Spot " + random(1, 6)).position
+  create_block({name: "L0 Exit", position: spot + {x: 0, y: 1.5, z: 0}, size: {x: 2, y: 3, z: 2}, color: "#FFFFFF", material: "neon",
+                opacity: 0.85, solid: false, behavior: "trigger", tags: ["exit"]})
+  let fspots = shuffle(range(1, 8))
+  for i in 1 to FUSES do
+    create_block({name: "Fuse", position: block("L1 Fuse Spot " + fspots[i]).position + {x: 0, y: 0.6, z: 0}, size: {x: 0.4, y: 0.7, z: 0.4},
+                  color: "#FACC15", material: "neon", solid: false, behavior: "trigger", tags: ["fuse"]})
+  end
+end
+
+func enter_level(p, level)
+  p.level = level
+  p.teleport(start_pos(level))
+  p.best = max(p.best, level)
+  p.sound("teleport")
+  p.fade("#FFFFFF", 0.2)
+  kit_later(p, 0.4, func() p.fade(nil, 0.8) end)
+  kit_give(p, 20)
+  p.score = p.score + 10
+  if level < LAST_LEVEL then
+    p.message("🚪 " + LEVELS[level + 1].name + " — " + LEVELS[level + 1].goal, 4)
+    kit_quest_progress(p, "levels", 1)
+  end
+  if level == 5 then start_chase(p) end
+  if level >= LAST_LEVEL then escape(p) end
+  hud(p)
+end
+
+func exit_touch(p, b)
+  let lv = p.level
+  if b.name == "L0 Exit" and lv == 0 then enter_level(p, 1)
+  elif b.name == "L1 Exit" and lv == 1 and lift_open then enter_level(p, 2)
+  elif b.name == "L2 Exit" and lv == 2 and boiler_open then enter_level(p, 3)
+  elif b.name == "L3 Exit" and lv == 3 and power_on then enter_level(p, 4)
+  elif b.name == "L4 Exit" and lv == 4 then enter_level(p, 5)
+  elif b.name == "L5 Exit" and lv == 5 then enter_level(p, LAST_LEVEL)
+  end
+end
+
+func escape(p)
+  kit_give(p, 100)
+  p.score = p.score + 50
+  kit_quest_progress(p, "escape", 1)
+  kit_badge(p, "escaped", "終わらない部屋から脱出した")
+  if p.noclips == 0 then kit_badge(p, "steady", "一度も正気を失わずに脱出") end
+  announce("🌞 " + p.name + " が外の世界に出た！", 3)
+  if first_out_at == 0 then first_out_at = time() end
+  check_all_out()
+end
+
+func check_all_out()
+  let inside = filter(players(), func(p) return ready(p) and p.level < LAST_LEVEL end)
+  if len(inside) == 0 and len(players()) > 0 then kit_finish("🌞 全員が外の世界に出た！ 終わらない部屋からの脱出成功！", 10) end
+end
+
+-- MARK: Level 1 ヒューズとエレベーター
+
+func pick_fuse(p, b)
+  if p.level != 1 then return end
+  gone(b)
+  p.fuses = p.fuses + 1
+  p.sound("collect")
+  p.message("🔌 ヒューズを拾った！ 東の黄色いヒューズ箱へ", 1.5)
+  hud(p)
+end
+
+func insert_fuses(p)
+  if p.fuses <= 0 then
+    if quiet_ready(p, "fuse_hint", 3) and not lift_open then p.message("🔌 ヒューズが " + (FUSES - fuses_in) + " 本たりない（倉庫のどこかに光っている）", 1.5) end
+    return
+  end
+  fuses_in = fuses_in + p.fuses
+  kit_quest_progress(p, "fuse", p.fuses)
+  p.fuses = 0
+  p.sound("checkpoint")
+  if fuses_in >= FUSES and not lift_open then
+    lift_open = true
+    let d = block("Elevator Door")
+    d.visible = false
+    d.solid = false
+    announce("🛗 貨物エレベーターが動いた！（Level 1）", 3)
+  else
+    p.message("🔌 ヒューズ " + fuses_in + " / " + FUSES, 1.5)
+  end
+  hud(p)
+end
+
+-- MARK: Level 2 バルブと蒸気
+
+func turn_valve(p, b)
+  let i = num(replace(b.name, "Valve ", ""))
+  if i == nil or valves[i] then return end
+  valves[i] = true
+  block("Valve Wheel " + i).color = "#22C55E"
+  b.color = "#22C55E"
+  p.sound("tick")
+  kit_quest_progress(p, "valve", 1)
+  let done = len(filter(valves, func(v) return v end))
+  if done >= 3 and not boiler_open then
+    boiler_open = true
+    let d = block("Boiler Door")
+    d.visible = false
+    d.solid = false
+    announce("♨️ バルブが全部回った！ ボイラーの扉が開いた（Level 2）", 3)
+  else
+    p.message("♨️ バルブを回した（" + done + " / 3）", 1.5)
+  end
+end
+
+func steam_step()
+  for i in 1 to 6 do
+    let puff = random() < 0.45
+    steam_on[i] = puff
+    block("Steam " + i).visible = puff
+  end
+end
+
+func steam_hurt(secs)
+  for p in players_on(2) do
+    for i in 1 to 6 do
+      if steam_on[i] and distance(p, block("Steam Vent " + i).position) < 1.6 then
+        p.damage(30 * secs)
+        if quiet_ready(p, "steam", 1.5) then p.message("♨️ あつっ！ 蒸気だ！", 0.8) end
+      end
+    end
+  end
+end
+
+-- MARK: Level 3 ブレーカー
+
+func flip_breaker(p, b)
+  let i = num(replace(b.name, "Breaker ", ""))
+  if i == nil or breakers[i] then return end
+  breakers[i] = true
+  b.color = "#22C55E"
+  p.sound("tick")
+  kit_quest_progress(p, "breaker", 1)
+  let done = len(filter(breakers, func(v) return v end))
+  if done >= 3 and not power_on then
+    power_on = true
+    for k in 1 to 9 do
+      let l = block("L3 Lamp " + k)
+      l.color = "#FEF9C3"
+      l.material = "neon"
+    end
+    let d = block("L3 Door")
+    d.visible = false
+    d.solid = false
+    clear_level_entities(3)
+    announce("💡 電気がもどった！ 暗がりのものが消えた（Level 3）", 3)
+  else
+    p.message("💡 ブレーカーを入れた（" + done + " / 3）", 1.5)
+  end
+end
+
+-- MARK: アイテム
+
+func spawn_items()
+  let counts = [10, 6, 6, 6, 4, 4]
+  for lv in 0 to 5 do
+    for i in 1 to counts[lv + 1] do
+      let spot = block("L" + lv + " Item " + i)
+      if spot != nil and random() < 0.6 then
+        let kind = random(["water", "water", "fragment"])
+        if kind == "water" then
+          create_block({name: "Almond Water", shape: "cylinder", position: spot.position + {x: 0, y: 0.45, z: 0}, size: {x: 0.35, y: 0.8, z: 0.35},
+                        color: "#E0F2FE", material: "neon", solid: false, behavior: "trigger", tags: ["water"]})
+        else
+          create_block({name: "Fragment", shape: "sphere", position: spot.position + {x: 0, y: 0.8, z: 0}, size: 0.5,
+                        color: "#C4B5FD", material: "neon", solid: false, behavior: "trigger", tags: ["fragment"]})
+        end
+      end
+    end
+  end
+end
+
+func pick_water(p, b)
+  if p.water >= WATER_MAX then
+    if quiet_ready(p, "water_full", 3) then p.message("💧 もう持てない（ボタンで飲もう）", 1) end
+    return
+  end
+  gone(b)
+  p.water = p.water + 1
+  p.sound("collect")
+  hud(p)
+end
+
+func drink(p)
+  if p.water <= 0 then
+    p.message("💧 アーモンド水がない", 1)
+    return
+  end
+  p.water = p.water - 1
+  add_sanity(p, 40)
+  p.heal(25)
+  p.message("💧 アーモンド水を飲んだ。少し落ちついた", 1.2)
+  kit_quest_progress(p, "water", 1)
+  hud(p)
+end
+
+func pick_fragment(p, b)
+  gone(b)
+  kit_give(p, 8)
+  p.sound("collect")
+  kit_quest_progress(p, "fragment", 1)
+end
+
+func note_count(p)
+  return len(filter(p.notes, func(v) return v end))
+end
+
+func read_note(p, b)
+  let i = num(replace(b.name, "Note ", ""))
+  if i == nil then return end
+  if not p.notes[i] then
+    p.notes[i] = true
+    kit_give(p, 10)
+    kit_quest_progress(p, "notes", 1)
+    if note_count(p) >= len(NOTES) then kit_badge(p, "all_notes", "メモを6枚すべて読んだ") end
+  end
+  p.ui_remove("note")
+  p.ui_panel("note", {at: "center", w: 460, h: 150, bg: "#FEF3C7F2", radius: 10, layer: 35})
+  p.ui_text("note_t", NOTES[i], {parent: "note", y: 0.45, w: 420, size: 14, color: "#1C1917"})
+  p.ui_text("note_n", "（メモ " + note_count(p) + " / " + len(NOTES) + "）", {parent: "note", y: 0.85, size: 11, color: "#78716C"})
+  kit_later(p, 6, func() p.ui_remove("note") end)
+end
+
+-- MARK: 自動販売機
+
+func vending_panel(p)
+  let h = 110 + len(VENDING) * 48
+  p.ui_remove("vend")
+  p.ui_panel("vend", {at: "center", w: 480, h: h, bg: "#0F172AF2", radius: 20, layer: 30})
+  p.ui_text("vend_t", "🥤 自動販売機   💜 かけら " + kit_money(p), {parent: "vend", y: 26 / h, size: 18, bold: true, color: "#C4B5FD"})
+  let i = 0
+  for v in VENDING do
+    i = i + 1
+    let label = v.name + "  " + v.text + "   💜" + v.price
+    let bg = "#1D4ED8"
+    if v.id != "water" and has_item(p, v.id) then
+      label = v.name + "  ✅"
+      bg = "#475569"
+    end
+    p.ui_button("vend_" + v.id, label, {parent: "vend", y: (30 + i * 48) / h, w: 440, h: 40, size: 12, bg: bg})
+  end
+  p.ui_button("vend_close", "閉じる", {parent: "vend", y: (h - 22) / h, w: 110, h: 32, size: 13, bg: "gray"})
+end
+
+func buy(p, id)
+  for v in VENDING do
+    if v.id == id then
+      if id == "water" and p.water >= WATER_MAX then
+        p.message("💧 もう持てない", 1)
+      elif id != "water" and has_item(p, id) then
+        p.message("もう持っている", 1)
+      elif kit_pay(p, v.price) then
+        if id == "water" then p.water = p.water + 1 else p.items[id] = true end
+        if id == "sneakers" then p.speed = 1.15 end
+        p.sound("collect")
+        kit_quest_progress(p, "vending", 1)
+      end
+    end
+  end
+  vending_panel(p)
+  hud(p)
+end
+
+on tick(dt)
+  item_clock = item_clock + dt
+  steam_clock = steam_clock + dt
+  steam_hurt(dt)
+  if steam_clock >= 3 then
+    steam_clock = 0
+    if not boiler_open then steam_step() else
+      for i in 1 to 6 do
+        steam_on[i] = false
+        block("Steam " + i).visible = false
+      end
+    end
+  end
+  if item_clock >= 60 then
+    item_clock = 0
+    if len(blocks("water")) + len(blocks("fragment")) < 20 then spawn_items() end
+  end
+  if first_out_at > 0 and time() - first_out_at > 150 then
+    first_out_at = -1
+    kit_finish("🌞 外に出られた人がいる… 残りの人はまだ、終わらない部屋の中", 10)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) or not p.alive then return end
+  if contains(b.tags, "exit") then exit_touch(p, b)
+  elif contains(b.tags, "fuse") then pick_fuse(p, b)
+  elif contains(b.tags, "fusebox") then insert_fuses(p)
+  elif contains(b.tags, "valve") then turn_valve(p, b)
+  elif contains(b.tags, "breaker") then flip_breaker(p, b)
+  elif contains(b.tags, "water") then pick_water(p, b)
+  elif contains(b.tags, "fragment") then pick_fragment(p, b)
+  elif contains(b.tags, "note") and quiet_ready(p, "note_" + b.name, 4) then read_note(p, b)
+  elif contains(b.tags, "vending") and quiet_ready(p, "vend", 2) then vending_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "drink" then drink(p)
+  elif starts_with(id, "vend_") and id != "vend_close" then buy(p, replace(id, "vend_", ""))
+  elif id == "vend_close" then p.ui_remove("vend")
+  end
+end

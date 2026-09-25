@@ -241,7 +241,7 @@ end
 -- MARK: 夜の影（外にいると追ってくる）
 
 func stalker_step(n, secs)
-  let p = find_player(n.prey)
+  let p = player_by_id(n.prey)
   if p == nil or not p.alive or in_house(p.position) or phase != "night" then
     n.destroy()
     return

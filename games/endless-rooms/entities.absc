@@ -1,0 +1,192 @@
+-- entities.absc — レベルごとの「何か」と、正気度のへり方・まぼろし
+--   Level 0  のそのそ    うろつき、見つけると追ってくる
+--   Level 1  にこにこ    暗がりにいる人にだけ近づく。明かりの下は安全
+--   Level 2  顔なし      ふだんはうろつくだけ。ときどき1体が赤くなって追ってくる
+--   Level 3  にこにこ    電気がもどるまで暗やみで追ってくる
+--   Level 5  くずれ顔    廊下に入った人のうしろから追ってくる
+
+let ent_clock = 0
+let sanity_clock = 0
+let rage_clock = 0
+
+func clear_level_entities(level)
+  for n in npcs() do
+    if n.level == level then n.destroy() end
+  end
+end
+
+func spawn_entity(level, kind, name, color, head, size, speed)
+  let den = block("L" + level + " Den " + random(1, 3)).position
+  let n = create_npc({name: name, position: den + {x: random(-2, 2), y: 1, z: random(-2, 2)}, color: color, head_color: head,
+                      size: size, health: 999999, speed: speed, team: "entity"})
+  n.level = level
+  n.kind = kind
+  n.wander_at = 0
+  n.rage_until = 0
+  return n
+end
+
+func spawn_all_entities()
+  for i in 1 to 3 do spawn_entity(0, "lurker", "のそのそ", "#1C1917", "#1C1917", 1.8, 1.15) end
+  for i in 1 to 3 do spawn_entity(1, "grinner", "にこにこ", "#0A0A0A", "#FFFFFF", 1.6, 0.9) end
+  for i in 1 to 4 do spawn_entity(2, "faceless", "顔なし", "#D6D3D1", "#F5F5F4", 1.1, 0.6) end
+  if not power_on then
+    for i in 1 to 3 do spawn_entity(3, "grinner", "にこにこ", "#0A0A0A", "#FFFFFF", 1.6, 1.0) end
+  end
+end
+
+func nearest_on(n, level, range)
+  let best = nil
+  let best_d = range
+  for p in players_on(level) do
+    let d = distance(n, p)
+    if d < best_d then
+      best = p
+      best_d = d
+    end
+  end
+  return best
+end
+
+func wander(n)
+  if time() < n.wander_at then return end
+  n.wander_at = time() + random(5, 10)
+  let spot = block("L" + n.level + " Item " + random(1, 4))
+  if spot != nil then n.move_to(spot.position) end
+end
+
+-- 明かりの下か（Level 1 はランプ、Level 3 は電気）
+func in_dark(p)
+  if p.level == 1 then
+    for i in 1 to 6 do
+      let l = block("L1 Lamp " + i).position
+      if abs(p.x - l.x) < 11 and abs(p.z - l.z) < 11 then return false end
+    end
+    return true
+  end
+  if p.level == 3 then return not power_on end
+  return false
+end
+
+func entity_step(n, secs)
+  if n.kind == "lurker" then
+    let p = nearest_on(n, 0, 14)
+    if p != nil then
+      n.follow(p)
+      if distance(n, p) < 2.2 then p.damage(18 * secs, n) end
+    else
+      wander(n)
+    end
+  elif n.kind == "grinner" then
+    let p = nearest_on(n, n.level, 30)
+    if p != nil and in_dark(p) then
+      n.follow(p)
+      if distance(n, p) < 2.2 then p.damage(22 * secs, n) end
+    elif p != nil then
+      -- 明かりの下の人には近づけない
+      n.stop()
+    else
+      wander(n)
+    end
+  elif n.kind == "faceless" then
+    let p = nearest_on(n, 2, 20)
+    if time() < n.rage_until and p != nil then
+      n.follow(p)
+      if distance(n, p) < 2 then p.damage(20 * secs, n) end
+    else
+      if n.head_color != "#F5F5F4" then n.head_color = "#F5F5F4" end
+      n.speed = 0.6
+      wander(n)
+      if p != nil and distance(n, p) < 1.8 and quiet_ready(p, "faceless_" + n.id, 6) then
+        add_sanity(p, -10)
+        p.message("😶 顔なしがじっとこちらを見ている…", 1.5)
+      end
+    end
+  elif n.kind == "chaser" then
+    let p = player_by_id(n.prey)
+    if p == nil or not p.alive or p.level != 5 then
+      n.destroy()
+      return
+    end
+    n.follow(p)
+    if distance(n, p) < 2.2 then p.damage(45 * secs, n) end
+  end
+end
+
+-- MARK: Level 5 の追ってくるもの
+
+func start_chase(p)
+  let pid = p.id
+  kit_later(p, 3, func()
+    if p.level != 5 or not p.alive then return end
+    let n = create_npc({name: "くずれ顔", position: {x: 400, y: 1, z: 130}, color: "#450A0A", head_color: "#FCA5A5", size: 1.8,
+                        health: 999999, speed: 1.25, team: "entity"})
+    n.level = 5
+    n.kind = "chaser"
+    n.prey = pid
+    p.shake(0.4, 0.8)
+    p.message("👣 うしろから足音が… ふりかえるな、走れ！", 2.5)
+  end)
+end
+
+-- MARK: 正気度とまぼろし
+
+func sanity_step(p, secs)
+  if p.level >= LAST_LEVEL then return end
+  let drain = LEVELS[p.level + 1].drain
+  if in_dark(p) then drain = drain + 0.8 end
+  if drain > 0 and has_item(p, "lantern") then drain = drain * 0.5 end
+  for n in npcs() do
+    if n.level == p.level and n.kind != nil and n.kind != "mirage" and distance(n, p) < 8 then drain = drain + 2.5 end
+  end
+  for q in players_on(p.level) do
+    if q.id != p.id and distance(p, q) < 8 then drain = drain - 0.5 end
+  end
+  add_sanity(p, -drain * secs)
+  -- 正気度が低いと、ありもしないものが見える
+  if p.sanity < 30 and p.alive and random() < 0.04 then
+    let a = random(0, 359)
+    let m = create_npc({name: "？？？", position: p.position + {x: cos(a) * 7, y: 0, z: sin(a) * 7}, color: "#111111", head_color: "#111111",
+                        size: 1.9, health: 999999, speed: 0, team: "entity"})
+    m.kind = "mirage"
+    m.level = p.level
+    m.look_at(p)
+    p.shake(0.2, 0.3)
+    after(2.5, func() gone(m) end)
+  end
+end
+
+on tick(dt)
+  ent_clock = ent_clock + dt
+  sanity_clock = sanity_clock + dt
+  rage_clock = rage_clock + dt
+  if ent_clock >= 0.25 then
+    let secs = ent_clock
+    ent_clock = 0
+    for n in npcs() do
+      if n.kind != nil and n.kind != "mirage" then entity_step(n, secs) end
+    end
+  end
+  if sanity_clock >= 0.5 then
+    let secs = sanity_clock
+    sanity_clock = 0
+    for p in players() do
+      if ready(p) and p.alive then
+        sanity_step(p, secs)
+        hud(p)
+      end
+    end
+  end
+  -- 顔なしのどれかが、ときどき赤くなる
+  if rage_clock >= 20 then
+    rage_clock = 0
+    let fs = filter(npcs(), func(n) return n.kind == "faceless" end)
+    if len(fs) > 0 and len(players_on(2)) > 0 then
+      let f = random(fs)
+      f.rage_until = time() + 8
+      f.head_color = "#DC2626"
+      f.speed = 1.2
+      f.say("…")
+    end
+  end
+end
