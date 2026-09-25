@@ -1,0 +1,32 @@
+-- data.absc — 災害15種・装備
+
+-- 災害。hint: 警報のときのヒント
+let DISASTERS = [
+  {id: "flood", name: "🌊 洪水", hint: "水がどんどん上がる！ 高いところへ"},
+  {id: "tsunami", name: "🌊 津波", hint: "大波が来る！ 高い建物の上へ"},
+  {id: "meteor", name: "☄️ いん石", hint: "赤い影の下からにげろ。屋根の下も安心じゃない"},
+  {id: "volcano", name: "🌋 火山噴火", hint: "溶岩の玉と、ふもとの溶岩に注意"},
+  {id: "tornado", name: "🌪 たつまき", hint: "近づくと飛ばされる。走ってにげろ"},
+  {id: "earthquake", name: "🫨 地震", hint: "建物がくずれる！ 広い場所へ"},
+  {id: "acid", name: "🧪 酸性雨", hint: "屋根の下にかくれろ"},
+  {id: "blizzard", name: "🧊 吹雪", hint: "屋根の下なら寒くない"},
+  {id: "lightning", name: "⚡ 雷の嵐", hint: "屋根の下が安全"},
+  {id: "sandstorm", name: "🏜 砂嵐", hint: "風におされる。屋根の下へ"},
+  {id: "fire", name: "🔥 火事", hint: "燃えている建物からはなれろ"},
+  {id: "giant", name: "🗿 巨人", hint: "赤い円からにげろ"},
+  {id: "aliens", name: "🛸 宇宙人", hint: "UFOのビームをよけろ"},
+  {id: "blackhole", name: "🕳 ブラックホール", hint: "すいこまれる！ 反対に走れ"},
+  {id: "heatwave", name: "☀️ 熱波", hint: "日かげか、池の水の中へ"}
+]
+
+-- 装備（ずっと使える）と、救急箱（使うとなくなる）
+let GEAR = [
+  {id: "helmet", name: "⛑ ヘルメット", price: 150, text: "いん石・溶岩の玉・雷のダメージ半分"},
+  {id: "shoes", name: "👟 ランニングシューズ", price: 200, text: "足が 25% 速くなる"},
+  {id: "balloon", name: "🎈 風船", price: 300, text: "ふわっとジャンプ（ボタンでオン・オフ）"},
+  {id: "medkit", name: "🩹 救急箱", price: 40, text: "HPを60回復（ボタン）"}
+]
+
+let LOBBY_TIME = 15
+let WARN_TIME = 8
+let LIVE_TIME = 45

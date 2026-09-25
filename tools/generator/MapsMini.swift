@@ -4,7 +4,7 @@ import Foundation
 
 let miniGames: [Game] = [
     Game(number: 71, id: "disaster-island", title: "Disaster Island",
-         summary: "島に次々とおそいかかる自然災害！洪水、いん石、たつまき、地震、酸性雨…生きのびるたびにポイント。",
+         summary: "15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！",
          tags: ["survival", "disasters", "classic"], maxPlayers: 16, build: disasterIsland),
     Game(number: 72, id: "chaos-golf", title: "Chaos Golf",
          summary: "へんてこなコースを回るゴルフ対戦。パワーをえらんで打って、少ない打数でカップイン！全6ホール。",
@@ -40,19 +40,59 @@ let miniGames: [Game] = [
 func disasterIsland(_ m: MapBuilder) {
     m.ocean()
     m.environment.killPlaneHeight = -20
+    m.part("Cover Focus", at: (0, 4, 4), size: (118, 1, 1), color: "#000000", tags: ["yaw=215"], solid: false, visible: false)
     m.part("Island", at: (0, -1, 0), size: (120, 2, 120), color: "#65A30D", shape: .cylinder, material: .matte, tags: ["ground"])
     m.part("Beach", at: (0, -1.2, 0), size: (132, 2, 132), color: "#FDE68A", shape: .cylinder, material: .matte)
-    m.slab("Lobby", x: 0, y: 30, z: -90, w: 20, h: 1, d: 20, color: "#E5E7EB")
-    m.spawnRing(0, -90, y: 31, radius: 4, count: 8, name: "Lobby Spawn", color: "#FDE68A")
+    // The lobby floats above the sea, with the gear shop.
+    m.slab("Lobby", x: 0, y: 30, z: -95, w: 26, h: 1, d: 22, color: "#E5E7EB")
+    m.walls(0, -95, w: 26, d: 22, h: 1.2, y: 31, color: "#94A3B8", name: "Lobby Rail")
+    m.spawnRing(0, -95, y: 31, radius: 4, count: 8, name: "Lobby Spawn", color: "#FDE68A")
+    m.pad("Shop Pad", x: 8, z: -88, y: 31, size: 2.6, color: "#0EA5E9", tags: ["shop"])
+    m.slab("Shop Counter", x: 8, y: 31, z: -86.4, w: 4, h: 1.1, d: 0.8, color: "#0369A1")
+    m.part("Lobby Board", at: (-8, 33.5, -105.6), size: (8, 3, 0.2), color: "#1E3A8A", material: .neon, solid: false)
     m.spawnRing(0, 0, radius: 12, count: 8, name: "Island Spawn", color: "#22D3EE")
-    // Buildings to shelter in.
+    // Buildings to shelter in (and to crumble or burn).
     m.house("Cabin", x: -28, z: -20, w: 12, d: 10, h: 4, wall: "#D6B98C", roof: "#7C2D12", floor: "#A16207", door: false, tags: ["building"])
     m.house("Store", x: 28, z: -18, w: 14, d: 10, h: 4, wall: "#E5E7EB", roof: "#1E3A8A", floor: "#CBD5E1", door: false, tags: ["building"])
+    m.house("Hut", x: -25, z: 28, w: 10, d: 8, h: 3.4, wall: "#A16207", roof: "#57534E", floor: "#78350F", door: false, tags: ["building"])
+    m.house("Bunker", x: 6, z: -40, w: 10, d: 8, h: 2.6, wall: "#57534E", roof: "#44403C", floor: "#292524", door: false, tags: ["building"])
+    // The lookout tower with a staircase.
     m.slab("Tower", x: 20, y: 0, z: 30, w: 8, h: 14, d: 8, color: "#94A3B8", tags: ["building"])
     m.stairs(12, 30, steps: 23, rise: 0.6, run: 0.35, width: 3, color: "#CBD5E1", name: "Tower Step")
-    m.house("Hut", x: -25, z: 28, w: 10, d: 8, h: 3.4, wall: "#A16207", roof: "#57534E", floor: "#78350F", door: false, tags: ["building"])
-    for p in ring(10, radius: 44) { m.tree(p.0, p.1, height: 6) }
-    m.part("Volcano Peak", at: (0, 0, 70), size: (1, 1, 1), color: "#000000", visible: false)
+    m.slab("Tower Top Rail", x: 20, y: 14, z: 30, w: 8, h: 0.8, d: 0.4, color: "#64748B", tags: ["building"])
+    // The lighthouse: tall, with a spiral of steps.
+    let lh: (Float, Float) = (-44, -8)
+    m.pillar("Lighthouse", x: lh.0, z: lh.1, height: 20, radius: 3, color: "#F8FAFC", tags: ["building"])
+    for k in 0..<3 { m.part("Lighthouse Stripe", at: (lh.0, 3 + Float(k) * 6, lh.1), size: (6.1, 1.2, 6.1), color: "#DC2626", shape: .cylinder, solid: false) }
+    for k in 0..<26 {
+        let a = Float(k) * 0.55
+        m.slab("Lighthouse Step", x: lh.0 + cos(a) * 4.2, y: Float(k) * 0.78, z: lh.1 + sin(a) * 4.2, w: 1.8, h: 0.35, d: 1.8, color: "#CBD5E1")
+    }
+    m.slab("Lighthouse Top", x: lh.0, y: 20, z: lh.1, w: 8, h: 0.5, d: 8, color: "#475569", tags: ["building"])
+    m.part("Lighthouse Lamp", at: (lh.0, 21.6, lh.1), size: (2.4, 2.4, 2.4), color: "#FDE047", shape: .sphere, material: .neon, solid: false)
+    // The treehouse on stilts.
+    for q in [(-6, 38), (2, 38), (-6, 44), (2, 44)] as [(Float, Float)] {
+        m.part("Treehouse Leg", at: (q.0, 3.5, q.1), size: (0.8, 7, 0.8), color: "#78350F", shape: .cylinder, tags: ["building"])
+    }
+    m.slab("Treehouse Floor", x: -2, y: 7, z: 41, w: 10, h: 0.5, d: 8, color: "#A16207", tags: ["building"])
+    m.slab("Treehouse Roof", x: -2, y: 10, z: 41, w: 11, h: 0.5, d: 9, color: "#166534", tags: ["building"])
+    m.stairs(-11, 41, steps: 14, rise: 0.5, run: 0.6, width: 2.4, color: "#92400E", name: "Treehouse Step")
+    // The windmill.
+    m.pillar("Windmill", x: 42, z: 6, height: 12, radius: 2.6, color: "#FEF3C7", tags: ["building"])
+    m.part("Windmill Cap", at: (42, 13.2, 6), size: (6, 2.8, 6), color: "#B91C1C", shape: .cone, tags: ["building"])
+    for a: Float in [0, 90] {
+        m.part("Windmill Blade", at: (42, 10, 3.2), size: (1, 11, 0.2), color: "#F8FAFC", solid: false, rotation: (0, 0, a + 45))
+    }
+    // The volcano on the north shore, the lava basin at its foot, and the pond.
+    m.part("Volcano", at: (32, 8, 50), size: (26, 16, 22), color: "#57534E", shape: .cone, material: .matte)
+    m.part("Volcano Crater", at: (32, 15.6, 50), size: (5, 1, 4.4), color: "#F97316", shape: .cylinder, material: .neon, solid: false)
+    m.part("Volcano Peak", at: (32, 17, 50), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.part("Lava Basin", at: (18, 0, 44), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.water(-30, -42, w: 12, d: 10, y: 0.06, name: "Pond")
+    for q in [(-35, -38), (-25, -46), (-24, -37)] as [(Float, Float)] { m.rock(q.0, q.1, size: 1.4) }
+    // A grassy hill in the middle-west.
+    m.part("Hill", at: (-20, 0, 0), size: (22, 8, 20), color: "#4D7C0F", shape: .sphere, material: .matte)
+    for p in ring(12, radius: 50, phase: 0.3) { m.tree(p.0, p.1, height: 6) }
 }
 
 // MARK: 72 Chaos Golf

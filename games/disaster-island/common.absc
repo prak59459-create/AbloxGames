@@ -1,0 +1,72 @@
+-- common.absc — 小さな道具・屋根の下？・ダメージ・画面
+
+let phase = "lobby"      -- lobby / warn / live / after
+let current = []         -- いまの災害（1つか2つ）
+let round_no = 0
+
+func ready(p)
+  return p.owned != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func disaster_of(id)
+  for d in DISASTERS do
+    if d.id == id then return d end
+  end
+  return DISASTERS[1]
+end
+
+func happening(id)
+  return phase == "live" and contains(current, id)
+end
+
+func survivors()
+  return filter(players(), func(p) return ready(p) and p.in_round and p.alive end)
+end
+
+-- 頭の上に屋根があるか
+func sheltered(p)
+  let hit = raycast(p, {x: 0, y: 1, z: 0}, 30)
+  return hit != nil and hit.block != nil
+end
+
+-- kind: rock / bolt ならヘルメットで半分
+func hurt(p, amount, kind)
+  if not p.alive or not p.in_round then return end
+  let a = amount
+  if (kind == "rock" or kind == "bolt") and p.owned["helmet"] then a = a / 2 end
+  p.damage(a)
+end
+
+func flat_dist(a, b)
+  let dx = a.x - b.x
+  let dz = a.z - b.z
+  return sqrt(dx * dx + dz * dz)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let gear = ""
+  for g in GEAR do
+    if g.id != "medkit" and p.owned[g.id] then gear = gear + slice(g.name, 1, 1) end
+  end
+  p.ui_text("stats", "🏅 生きのびた " + p.survived + " 回   🔥 連続 " + p.streak + "   📖 " + len(keys(p.seen)) + "/" + len(DISASTERS) + "   " + gear + "  🩹" + p.medkits,
+            {at: "top", dy: 30, size: 15, bold: true})
+end

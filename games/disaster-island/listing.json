@@ -1,15 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 97,
-  "cover" : "games\/disaster-island\/cover-ca439d64.png",
+  "blockCount" : 185,
+  "cover" : "games\/disaster-island\/cover-e9547e3e.png",
   "id" : "disaster-island",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/disaster-island\/data.absc",
+    "games\/disaster-island\/common.absc",
+    "games\/disaster-island\/disasters.absc",
+    "games\/disaster-island\/round.absc",
+    "games\/disaster-island\/shop.absc",
     "games\/disaster-island\/main.absc"
   ],
-  "summary" : "島に次々とおそいかかる自然災害！洪水、いん石、たつまき、地震、酸性雨…生きのびるたびにポイント。",
+  "summary" : "15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！",
   "tags" : [
     "survival",
     "disasters",

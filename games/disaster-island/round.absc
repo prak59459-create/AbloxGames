@@ -1,0 +1,176 @@
+-- round.absc — ラウンド: ロビー → 島へ（警報）→ 災害 → 結果。建物は毎回もとどおり
+
+let phase_until = 0
+let snapshot = []        -- 建物のもとの形
+let round_clock = 0
+let step_clock = 0
+
+func take_snapshot()
+  snapshot = []
+  for b in blocks("building") do
+    append(snapshot, {b: b, pos: b.position, color: b.color, material: b.material, solid: b.solid, visible: b.visible})
+  end
+end
+
+func restore_island()
+  for s in snapshot do
+    if still(s.b) then
+      s.b.position = s.pos
+      s.b.color = s.color
+      s.b.material = s.material
+      s.b.solid = s.solid
+      s.b.visible = s.visible
+    end
+  end
+end
+
+func lobby_spot()
+  return block("Lobby Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0}
+end
+
+func pick_disasters()
+  let first = random(DISASTERS).id
+  let list = [first]
+  -- 5ラウンドめからは、ときどき2つ同時
+  if round_no >= 5 and random() < 0.35 then
+    let second = random(DISASTERS).id
+    let tries = 0
+    while (second == first or (second == "flood" and first == "tsunami") or (second == "tsunami" and first == "flood")) and tries < 10 do
+      second = random(DISASTERS).id
+      tries = tries + 1
+    end
+    if second != first then append(list, second) end
+  end
+  return list
+end
+
+func start_warning()
+  phase = "warn"
+  round_no = round_no + 1
+  phase_until = time() + WARN_TIME
+  current = pick_disasters()
+  for p in players() do
+    if ready(p) then
+      if not p.alive then p.respawn() end
+      p.in_round = true
+      p.heal(p.max_health)
+      apply_gear(p)
+      p.teleport(block("Island Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0})
+    end
+  end
+  let names = join(map(current, func(id) return disaster_of(id).name end), " と ")
+  let hints = join(map(current, func(id) return disaster_of(id).hint end), " / ")
+  if len(current) > 1 then announce("🚨 ダブル災害！ " + names + " — " + hints, WARN_TIME) else announce("🚨 警報: " + names + " — " + hints, WARN_TIME) end
+  sound("tick")
+end
+
+func start_live()
+  phase = "live"
+  let secs = LIVE_TIME
+  if len(current) > 1 then secs = LIVE_TIME + 15 end
+  phase_until = time() + secs
+  for id in current do begin(id) end
+  shake(0.3, 1)
+  sound("goal")
+end
+
+func finish_round()
+  phase = "after"
+  phase_until = time() + 5
+  let alive = survivors()
+  for p in alive do
+    p.survived = p.survived + 1
+    p.streak = p.streak + 1
+    let coins = 20 + p.streak * 5
+    if len(current) > 1 then coins = coins * 2 end
+    kit_give(p, coins)
+    p.score = p.score + 1
+    kit_quest_progress(p, "survive3", 1)
+    kit_quest_progress(p, "survive30", 1)
+    for id in current do
+      if p.seen[id] == nil then
+        p.seen[id] = true
+        kit_quest_progress(p, "seen", 1)
+      end
+    end
+    if len(current) > 1 then kit_badge(p, "double", "ダブル災害を生きのびた") end
+    if p.streak >= 5 then kit_badge(p, "streak5", "5連続サバイバー") end
+    if p.streak >= 10 then
+      kit_badge(p, "streak10", "10連続サバイバー")
+      p.hat = "crown"
+    end
+    p.message("✅ 生きのびた！ 💰+" + coins + "（連続 " + p.streak + "）", 3)
+  end
+  for p in players() do
+    if ready(p) then
+      if p.in_round and not p.alive then p.streak = 0 end
+      if not p.in_round then kit_give(p, 5) end
+      hud(p)
+    end
+  end
+  let names = join(map(alive, func(p) return p.name end), "、")
+  if len(alive) == 0 then announce("💀 だれも生きのこれなかった…", 4)
+  else announce("✅ 生きのびた人（" + len(alive) + "）: " + names, 4) end
+end
+
+func back_to_lobby()
+  phase = "lobby"
+  phase_until = time() + LOBBY_TIME
+  cleanup()
+  restore_island()
+  current = []
+  for p in players() do
+    if ready(p) then
+      p.in_round = false
+      p.speed = gear_speed(p)
+      if p.alive then p.teleport(lobby_spot()) else p.respawn() end
+    end
+  end
+end
+
+on start()
+  game.respawn_time = -1
+  take_snapshot()
+  phase_until = time() + LOBBY_TIME
+  every(0.5, func()
+    let text = ""
+    if phase == "lobby" then text = "⏳ 次の災害まで " + max(0, ceil(phase_until - time())) + " 秒（🛒で装備を買えるよ）"
+    elif phase == "warn" then text = "🚨 " + max(0, ceil(phase_until - time())) + " 秒後に来る！"
+    elif phase == "live" then text = join(map(current, func(id) return disaster_of(id).name end), " + ") + "  のこり " + max(0, ceil(phase_until - time())) + " 秒  生存 " + len(survivors())
+    else text = "🏁 ラウンド " + round_no + " おしまい" end
+    ui_text("phase", text, {at: "top", dy: 56, size: 15, bold: true, color: "#FFFFFF"})
+  end)
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if phase == "live" then fast_step(dt) end
+  if round_clock < 0.25 then return end
+  round_clock = 0
+  if phase == "lobby" and time() >= phase_until and len(filter(players(), func(p) return ready(p) end)) > 0 then start_warning()
+  elif phase == "warn" and time() >= phase_until then start_live()
+  elif phase == "live" then
+    step_clock = step_clock + 0.25
+    if step_clock >= 1 then
+      step_clock = 0
+      for id in current do disaster_step(id) end
+    end
+    if time() >= phase_until or len(survivors()) == 0 then finish_round() end
+  elif phase == "after" and time() >= phase_until then back_to_lobby()
+  end
+end
+
+on death(victim, killer)
+  if victim.is_npc or not ready(victim) or not victim.in_round then return end
+  victim.message("💀 やられた… 次のラウンドまでロビーで待とう", 3)
+  kit_later(victim, 3, func()
+    victim.in_round = false
+    victim.respawn()
+  end)
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  if not p.in_round or phase == "lobby" or phase == "after" then p.teleport(lobby_spot()) end
+  p.speed = gear_speed(p)
+end

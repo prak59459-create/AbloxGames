@@ -1,172 +1,47 @@
--- Disaster Island — 次々に来る自然災害を生きのびる
+-- Disaster Island — 次々に来る15種類の自然災害を生きのびる
+--
+-- ファイル:
+--   data.absc       災害15種・装備
+--   common.absc     屋根の下？・ダメージ・画面
+--   disasters.absc  災害のしくみ
+--   round.absc      ラウンドの流れ・建物のもとどおり
+--   shop.absc       装備と救急箱
+--   main.absc       このファイル
 
 kit_setup("Disaster Island", "何が来ても、生きのびろ", [
-  "ロビーで待っていると、島に送られて災害が始まる",
-  "🌊洪水: 高いところへ！ ☄️いん石: 落ちてくる岩をよけろ",
-  "🌪たつまき: 近づくと飛ばされる ⚡雷: 屋根の下が安全",
-  "🌋火山: 溶岩の玉に注意 🧊吹雪: 屋根の下なら寒くない",
-  "災害を生きのびると1ポイント。連続で生きのびると実績！"
+  "⏳ ロビーで待つと島へ。🚨 警報のヒントを見て、どこへ行くか決めよう",
+  "🌊 洪水・津波は高いところ、🧪 酸性雨・🧊 吹雪・⚡ 雷・🏜 砂嵐は屋根の下",
+  "☄️ いん石・🗿 巨人・🛸 UFO・🌋 火山は赤い影からにげる",
+  "🫨 地震は建物からはなれる、🔥 火事は燃えている建物に近づかない",
+  "🕳 ブラックホールは反対に走る、☀️ 熱波は日かげか池の中",
+  "5ラウンドめからはダブル災害も！ 連続で生きのびるとコインがふえる",
+  "🛒 ロビーのお店でヘルメット・シューズ・風船・救急箱"
 ])
-
-let disasters = ["flood", "meteor", "tornado", "earthquake", "acid", "volcano", "blizzard", "lightning"]
-let names = {flood: "🌊 洪水", meteor: "☄️ いん石", tornado: "🌪 たつまき", earthquake: "🫨 地震", acid: "🧪 酸性雨",
-             volcano: "🌋 火山噴火", blizzard: "🧊 吹雪", lightning: "⚡ 雷の嵐"}
-let current = nil
-let live = false
-let flood_block = nil
-let twister = nil
-let round_no = 0
+kit_currency = "コイン"
 
 kit_quest("survive3", "3回生きのびる", 3, 100)
-kit_quest("all", "5種類の災害を生きのびる", 5, 300)
-
-func sheltered(p)
-  let hit = raycast(p, {x: 0, y: 1, z: 0}, 30)
-  return hit != nil and hit.block != nil
-end
-
-func in_round()
-  return filter(players(), func(p) return p.in_round and p.alive end)
-end
-
-func start_round()
-  round_no = round_no + 1
-  current = random(disasters)
-  for p in players() do
-    if not p.alive then p.respawn() end
-    p.in_round = true
-    p.teleport(block("Island Spawn " + random(1, 8)))
-  end
-  announce("🏝 島へ… 何かが起きそうだ", 3)
-  after(8, func()
-    live = true
-    announce(names[current] + " が来た！", 3)
-    shake(0.3, 1)
-    begin_disaster()
-    after(45, func() end_round() end)
-  end)
-end
-
-func begin_disaster()
-  if current == "flood" then
-    flood_block = create_block({name: "Flood", position: {x: 0, y: -2, z: 0}, size: {x: 200, y: 2, z: 200}, color: "#1D4ED8",
-                                material: "glass", opacity: 0.7, solid: false})
-    flood_block.move(0, 7, 0, 30)
-  elif current == "tornado" then
-    twister = create_block({name: "Tornado", shape: "cone", position: {x: -50, y: 8, z: -50}, size: {x: 8, y: 18, z: 8}, color: "#6B7280",
-                            material: "glass", opacity: 0.6, solid: false, rotation: {x: 180, y: 0, z: 0}})
-  elif current == "earthquake" then
-    for b in blocks("building") do
-      if random() < 0.25 then
-        b.solid = false
-        b.move(0, -6, 0, 3)
-      end
-    end
-  elif current == "blizzard" then
-    world.sky = "#CBD5E1"
-    world.light = 0.5
-  elif current == "acid" then
-    world.sky = "#65A30D"
-  elif current == "lightning" then
-    world.sky = "#1F2937"
-    world.light = 0.3
-  end
-end
-
-func end_round()
-  live = false
-  let survivors = in_round()
-  for p in survivors do
-    p.score = p.score + 1
-    p.streak = (p.streak or 0) + 1
-    kit_quest_progress(p, "survive3", 1)
-    if p.seen == nil then p.seen = [] end
-    if not contains(p.seen, current) then
-      append(p.seen, current)
-      kit_quest_progress(p, "all", 1)
-    end
-    if p.streak >= 5 then kit_badge(p, "streak5", "5連続サバイバー") end
-  end
-  announce("✅ 生きのびた人: " + len(survivors) + " 人", 4)
-  for p in players() do
-    if not p.alive or not p.in_round then p.streak = 0 end
-    p.in_round = false
-  end
-  -- 島を元にもどす
-  after(5, func() restart_round() end)
-end
+kit_quest("survive30", "30回生きのびる", 30, 2000)
+kit_quest("seen", "10種類の災害を生きのびる", 10, 1500)
+kit_quest("gear", "装備を3つ買う", 3, 300)
 
 on start()
-  game.respawn_time = -1
-  after(5, func() start_round() end)
-  every(0.5, func()
-    if not live then return end
-    if current == "meteor" or current == "volcano" then
-      for k in 1 to 3 do
-        let from = current == "volcano" and block("Volcano Peak").position + {x: 0, y: 30, z: 0} or {x: random(-55, 55), y: 60, z: random(-55, 55)}
-        let rock = create_block({name: "Meteor", shape: "sphere", position: from, size: random(2, 4), color: current == "volcano" and "#EA580C" or "#44403C",
-                                 material: "neon", solid: false, behavior: "trigger", tags: ["meteor"]})
-        let land = {x: random(-55, 55), y: 0, z: random(-55, 55)}
-        rock.move_to(land, 2)
-        after(2.6, func() kit_gone(rock) end)
-      end
-    end
-  end)
-  every(1, func()
-    if not live then return end
-    for p in in_round() do
-      if current == "acid" and not sheltered(p) then p.damage(4) end
-      if current == "blizzard" and not sheltered(p) then p.damage(2) end
-      if current == "lightning" and random() < 0.08 and not sheltered(p) then
-        p.damage(45)
-        p.shake(0.5, 0.3)
-        p.message("⚡ 雷が落ちた！", 1)
-      end
-      if current == "flood" and flood_block != nil and p.y < flood_block.y + 0.5 then p.damage(8) end
-    end
-  end)
+  every(10, func() kit_leaderboard("🏅") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  p.owned = {}
+  p.seen = {}
+  p.survived = 0
+  p.streak = 0
+  p.medkits = 1
+  p.balloon_on = false
   p.in_round = false
-  p.teleport(block("Lobby Spawn " + random(1, 8)))
-  if live then p.message("次の災害から参加！", 2) end
-end
-
-on respawn(p)
-  if not p.in_round then p.teleport(block("Lobby Spawn " + random(1, 8))) end
-end
-
-on tick(dt)
-  if live and current == "tornado" and twister != nil then
-    let target = kit_nearest_player(twister)
-    if target != nil then
-      let drift = normalize(target.position - twister.position) * 7 * dt
-      twister.position = twister.position + {x: drift.x, y: 0, z: drift.z}
-      if distance({x: twister.x, y: target.y, z: twister.z}, target) < 6 then
-        target.launch(random(-15, 15), 22, random(-15, 15))
-        target.damage(10)
-      end
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "meteor") and p.in_round then
-    p.damage(60)
-    b.destroy()
-  end
-end
-
-on death(victim, killer)
-  if not victim.is_npc and victim.in_round then
-    victim.message("やられた… 次の災害まで待とう", 2)
-    kit_later(victim, 3, func()
-      victim.in_round = false
-      victim.respawn()
-    end)
-  end
+  kit_give(p, 50)
+  p.ui_button("open_shop", "🛒 お店", {at: "right", dy: -40, w: 130, h: 44, size: 15, bg: "#0369A1"})
+  p.ui_button("medkit", "🩹", {at: "bottom_right", dx: -110, dy: -170, w: 70, h: 50, size: 20, bg: "#16A34A", radius: 14})
+  p.teleport(lobby_spot())
+  hud(p)
+  if phase == "live" or phase == "warn" then p.message("🏝 いまラウンド中。次の災害から参加！", 3) end
 end
