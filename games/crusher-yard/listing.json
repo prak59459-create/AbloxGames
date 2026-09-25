@@ -1,15 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 28,
-  "cover" : "games\/crusher-yard\/cover-ff3e3424.png",
+  "blockCount" : 244,
+  "cover" : "games\/crusher-yard\/cover-e77ece03.png",
   "id" : "crusher-yard",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/crusher-yard\/data.absc",
+    "games\/crusher-yard\/cars.absc",
+    "games\/crusher-yard\/common.absc",
+    "games\/crusher-yard\/lanes.absc",
+    "games\/crusher-yard\/shop.absc",
     "games\/crusher-yard\/main.absc"
   ],
-  "summary" : "車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。",
+  "summary" : "自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！",
   "tags" : [
     "simulator",
     "cars",

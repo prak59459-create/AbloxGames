@@ -1,0 +1,193 @@
+-- lanes.absc — 自分のレーン: もらう・機械を置く・車をのせる・ベルトで運ぶ・つぶす
+
+let lane_clock = 0
+
+func claim_lane(p, n)
+  if p.lane != nil then
+    if p.lane != n and quiet_ready(p, "lane_msg", 3) then p.message("あなたのレーンは " + p.lane + " ばん", 1.5) end
+    return
+  end
+  let lane = lanes[n]
+  if lane.owner != nil then
+    if quiet_ready(p, "lane_msg", 3) then p.message("このレーンはほかの人のもの", 1.2) end
+    return
+  end
+  lane.owner = p.id
+  p.lane = n
+  lane_block(n, "Claim").color = "#22C55E"
+  build_machine(n, p.machine)
+  p.message("🏭 レーン " + n + " があなたのもの！ 緑のボタンで車をのせよう", 3)
+  p.sound("goal")
+  hud(p)
+end
+
+func free_lane(n)
+  let lane = lanes[n]
+  if lane.car != nil then
+    for pt in lane.car.parts do gone(pt.b) end
+  end
+  for b in lane.mach do gone(b) end
+  lanes[n] = {owner: nil, car: nil, mach: [], head: nil, tool: nil}
+  lane_block(n, "Claim").color = "#FACC15"
+end
+
+-- MARK: 機械の見た目
+
+func mblock(lane, opts)
+  let b = create_block(opts)
+  append(lane.mach, b)
+  return b
+end
+
+func build_machine(n, mid)
+  let lane = lanes[n]
+  for b in lane.mach do gone(b) end
+  lane.mach = []
+  lane.head = nil
+  lane.tool = nil
+  let s = lane_block(n, "Stop").position
+  let m = machine_of(mid)
+  if mid == "press" then
+    for dx in [-3.4, 3.4] do mblock(lane, {name: "Press Post", position: s + {x: dx, y: 3.5, z: 0}, size: {x: 0.8, y: 7, z: 0.8}, color: m.color, material: "metal"}) end
+    mblock(lane, {name: "Press Beam", position: s + {x: 0, y: 7.3, z: 0}, size: {x: 7.6, y: 0.8, z: 1.2}, color: m.color, material: "metal"})
+    lane.head = mblock(lane, {name: "Press Head", position: s + {x: 0, y: 6.2, z: 0}, size: {x: 5.6, y: 1.2, z: 5}, color: "#9CA3AF", material: "metal", solid: false})
+  elif mid == "shredder" then
+    mblock(lane, {name: "Shredder Box", position: s + {x: 0, y: 0.6, z: 3.2}, size: {x: 6, y: 1.2, z: 1}, color: m.color, material: "metal"})
+    mblock(lane, {name: "Shredder Box", position: s + {x: 0, y: 0.6, z: -3.2}, size: {x: 6, y: 1.2, z: 1}, color: m.color, material: "metal"})
+    lane.tool = mblock(lane, {name: "Shredder Roller", shape: "cylinder", position: s + {x: 0, y: 0.3, z: -0.8}, size: {x: 1.2, y: 5.6, z: 1.2}, color: "#4B5563",
+                              material: "metal", solid: false, rotation: {x: 0, y: 0, z: 90}})
+    lane.head = mblock(lane, {name: "Shredder Roller", shape: "cylinder", position: s + {x: 0, y: 0.3, z: 0.8}, size: {x: 1.2, y: 5.6, z: 1.2}, color: "#4B5563",
+                              material: "metal", solid: false, rotation: {x: 0, y: 0, z: 90}})
+  elif mid == "lava" then
+    mblock(lane, {name: "Lava Pool", position: s + {x: 0, y: 0.04, z: 0}, size: {x: 7, y: 0.08, z: 9}, color: "#F97316", material: "neon", solid: false})
+    for dx in [-3.8, 3.8] do mblock(lane, {name: "Lava Rim", position: s + {x: dx, y: 0.4, z: 0}, size: {x: 0.6, y: 0.8, z: 9.4}, color: "#44403C"}) end
+  elif mid == "laser" then
+    for dx in [-3.4, 3.4] do mblock(lane, {name: "Laser Post", position: s + {x: dx, y: 2, z: 0}, size: {x: 0.6, y: 4, z: 0.6}, color: "#1F2937", material: "metal"}) end
+    lane.tool = mblock(lane, {name: "Laser Beam", position: s + {x: 0, y: 2.2, z: -3}, size: {x: 6.8, y: 0.15, z: 0.15}, color: m.color, material: "neon", solid: false})
+  elif mid == "ball" then
+    mblock(lane, {name: "Crane Post", position: s + {x: 5, y: 5, z: 0}, size: {x: 1, y: 10, z: 1}, color: "#EAB308", material: "metal"})
+    mblock(lane, {name: "Crane Arm", position: s + {x: 2.5, y: 10, z: 0}, size: {x: 6, y: 0.8, z: 0.8}, color: "#EAB308", material: "metal"})
+    lane.head = mblock(lane, {name: "Wrecking Ball", shape: "sphere", position: s + {x: 0, y: 6, z: -4}, size: {x: 2.6, y: 2.6, z: 2.6}, color: m.color,
+                              material: "metal", solid: false})
+  else
+    lane.head = mblock(lane, {name: "Black Hole", shape: "sphere", position: s + {x: 0, y: 4, z: 0}, size: {x: 2.2, y: 2.2, z: 2.2}, color: "#020617",
+                              material: "matte", solid: false})
+    lane.tool = mblock(lane, {name: "Hole Ring", shape: "cylinder", position: s + {x: 0, y: 4, z: 0}, size: {x: 4.4, y: 0.12, z: 4.4}, color: "#A855F7",
+                              material: "neon", solid: false, rotation: {x: 70, y: 0, z: 0}})
+  end
+end
+
+-- 1回たたく見た目
+func machine_fx(lane, mid, s)
+  if mid == "press" and still(lane.head) then
+    lane.head.move(0, -4.6, 0, 0.18)
+    let head = lane.head
+    after(0.35, func() if still(head) then head.move(0, 4.6, 0, 0.4) end end)
+  elif mid == "shredder" then
+    if still(lane.head) then lane.head.rotate(40, 0, 0) end
+    if still(lane.tool) then lane.tool.rotate(-40, 0, 0) end
+    spark(s + {x: random(-2, 2), y: 1, z: 0}, "#FACC15")
+  elif mid == "lava" then
+    spark(s + {x: random(-3, 3), y: 0.6, z: random(-3, 3)}, "#FDE047")
+  elif mid == "laser" and still(lane.tool) then
+    let beam = lane.tool
+    beam.move_to(s + {x: 0, y: 1.2 + random() * 1.5, z: random(-30, 30) / 10}, 0.2)
+    spark(s + {x: 0, y: 1.4, z: 0}, "#EF4444")
+  elif mid == "ball" and still(lane.head) then
+    let ball = lane.head
+    ball.move_to(s + {x: 0, y: 2.2, z: 0}, 0.3)
+    after(0.5, func() if still(ball) then ball.move_to(s + {x: 0, y: 6, z: -4}, 0.7) end end)
+  elif mid == "hole" and still(lane.tool) then
+    lane.tool.rotate(0, 35, 0)
+  end
+end
+
+func spark(pos, color)
+  let b = create_block({name: "Spark", shape: "sphere", position: pos, size: {x: 0.5, y: 0.5, z: 0.5}, color: color, material: "neon", solid: false})
+  b.move_to(pos + {x: random(-10, 10) / 10, y: 1.2, z: random(-10, 10) / 10}, 0.3)
+  after(0.35, func() gone(b) end)
+end
+
+-- MARK: 車をのせる・運ぶ
+
+func load_car(p)
+  let lane = lane_of(p)
+  if lane == nil then
+    p.message("先に黄色いパッドでレーンをもらおう", 1.5)
+    return
+  end
+  if lane.car != nil then
+    if quiet_ready(p, "busy", 2) then p.message("いまの車をつぶしてから！", 1) end
+    return
+  end
+  let v = vehicle_of(p.car)
+  let gold = rushing() and random() < 0.15
+  let start = lane_block(p.lane, "Start").position + {x: 0, y: 0.3, z: 0}
+  let car = {v: v, parts: build_car(v, start, gold), center: start, hp: v.hp, max: v.hp, arrive_at: time() + belt_time(p), next_hit: 0, color: v.color,
+             gold: gold, tier: index_of(VEHICLES, v)}
+  if gold then
+    car.hp = car.hp * 2
+    car.max = car.hp
+    p.message("✨ 金の車だ！ 価値 ×5", 2)
+  end
+  lane.car = car
+  move_car(car, lane_block(p.lane, "Stop").position + {x: 0, y: 0.3, z: 0}, belt_time(p))
+end
+
+-- 機械が車をたたく
+func crush_step(p, lane)
+  let car = lane.car
+  if car == nil or time() < car.arrive_at or time() < car.next_hit then return end
+  let m = machine_of(p.machine)
+  car.next_hit = time() + m.every
+  car.hp = car.hp - m.power * power_mult(p)
+  let s = lane_block(p.lane, "Stop").position
+  machine_fx(lane, m.id, s)
+  let f = min(1, 1 - car.hp / car.max)
+  shape_car(car, m.id, f)
+  if car.hp > 0 then return end
+  -- こわれた
+  lane.car = nil
+  let value = car.v.value * m.mult * value_mult(p)
+  if car.gold then value = value * 5 end
+  burst(car, p.id, value, lane_block(p.lane, "Bin").position)
+  p.crushed = p.crushed + 1
+  kit_quest_progress(p, "crush", 1)
+  kit_quest_progress(p, "crush500", 1)
+  if car.v.id == "ufo" then kit_badge(p, "ufo", "UFO をつぶした") end
+  if car.gold then kit_badge(p, "gold", "金の車をつぶした") end
+  p.message("💥 " + car.v.name + " をつぶした！ スクラップを集めよう（" + kit_short(value) + "）", 1.5)
+  hud(p)
+  if lvl(p, "auto") > 0 then after(0.8, func() if still(p) and p.auto_on then load_car(p) end end) end
+end
+
+on start()
+  for n in 1 to LANE_COUNT do lanes["" + n] = {owner: nil, car: nil, mach: [], head: nil, tool: nil} end
+end
+
+on tick(dt)
+  lane_clock = lane_clock + dt
+  if lane_clock < 0.1 then return end
+  lane_clock = 0
+  for p in players() do
+    let lane = lane_of(p)
+    if lane != nil then crush_step(p, lane) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim_lane(p, replace(replace(b.name, "Lane ", ""), " Claim", ""))
+  elif contains(b.tags, "load") and quiet_ready(p, "load", 1) then
+    let n = replace(replace(b.name, "Lane ", ""), " Load", "")
+    if n == p.lane then load_car(p) elif quiet_ready(p, "lane_msg", 3) then p.message("自分のレーンのボタンを使おう", 1.2) end
+  elif contains(b.tags, "scrap") then collect_scrap(p, b)
+  end
+end
+
+on leave(p)
+  if p.lane != nil then free_lane(p.lane) end
+  for id in keys(scrap_info) do
+    if scrap_info[id].owner == p.id then scrap_info[id].owner = "" end
+  end
+end

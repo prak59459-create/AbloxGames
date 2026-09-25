@@ -1,0 +1,220 @@
+-- shop.absc — ガレージ（車）・機械屋・強化・転生・スクラップラッシュ・磁石
+
+let shop_clock = 0
+let rush_next = 0
+
+-- MARK: ガレージ
+
+func garage_panel(p)
+  let h = 110 + len(VEHICLES) * 38
+  p.ui_remove("garage")
+  p.ui_panel("garage", {at: "center", w: 520, h: h, bg: "#1C1917F2", radius: 20, layer: 30})
+  p.ui_text("garage_t", "🚗 ガレージ   💰 " + kit_short(kit_money(p)), {parent: "garage", y: 22 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for v in VEHICLES do
+    i = i + 1
+    let owned = contains(p.owned, v.id)
+    let label = v.name + "  価値 " + kit_short(v.value) + " / かたさ " + kit_short(v.hp)
+    if p.car == v.id then label = "✅ " + label
+    elif not owned then label = "🔒 " + v.name + "  💰" + kit_short(v.price) end
+    let bg = "#374151"
+    if owned then bg = "#57534E" end
+    p.ui_button("car_" + v.id, label, {parent: "garage", y: (30 + i * 38) / h, w: 480, h: 32, size: 13, bg: bg})
+  end
+  p.ui_button("garage_close", "閉じる", {parent: "garage", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func pick_car(p, id)
+  let v = vehicle_of(id)
+  if not contains(p.owned, id) then
+    if not kit_pay(p, v.price) then
+      p.message("💰 " + kit_short(v.price) + " いる", 1.2)
+      return
+    end
+    append(p.owned, id)
+    p.sound("goal")
+    kit_quest_progress(p, "cars", 1)
+    if id == "bus" then kit_badge(p, "bus", "バスを解放した") end
+  end
+  p.car = id
+  garage_panel(p)
+  hud(p)
+end
+
+-- MARK: 機械屋
+
+func machine_panel(p)
+  let h = 110 + len(MACHINES) * 46
+  p.ui_remove("mach")
+  p.ui_panel("mach", {at: "center", w: 540, h: h, bg: "#111827F2", radius: 20, layer: 30})
+  p.ui_text("mach_t", "🏭 機械屋   💰 " + kit_short(kit_money(p)), {parent: "mach", y: 22 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for m in MACHINES do
+    i = i + 1
+    let label = m.name + "  パワー " + m.power + "/" + m.every + "秒  もうけ ×" + m.mult
+    if p.machine == m.id then label = "✅ " + label
+    elif not contains(p.machines, m.id) then label = "🔒 " + m.name + " ×" + m.mult + "  💰" + kit_short(m.price) end
+    p.ui_button("mach_" + m.id, label, {parent: "mach", y: (30 + i * 46) / h, w: 500, h: 40, size: 13, bg: m.color})
+  end
+  p.ui_button("mach_close", "閉じる", {parent: "mach", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func pick_machine(p, id)
+  let m = machine_of(id)
+  if not contains(p.machines, id) then
+    if not kit_pay(p, m.price) then
+      p.message("💰 " + kit_short(m.price) + " いる", 1.2)
+      return
+    end
+    append(p.machines, id)
+    p.sound("goal")
+    kit_quest_progress(p, "machines", 1)
+    announce("🏭 " + p.name + " が " + m.name + " を手に入れた！", 3)
+  end
+  p.machine = id
+  if p.lane != nil and lanes[p.lane].car == nil then build_machine(p.lane, id)
+  elif p.lane != nil then p.next_machine = id end
+  machine_panel(p)
+  hud(p)
+end
+
+-- MARK: 強化
+
+func up_price(p, u)
+  return floor(u.base * pow(u.grow, lvl(p, u.id)))
+end
+
+func upgrade_panel(p)
+  let h = 110 + len(UPGRADES) * 46
+  p.ui_remove("ups")
+  p.ui_panel("ups", {at: "center", w: 540, h: h, bg: "#1E3A8AF2", radius: 20, layer: 30})
+  p.ui_text("ups_t", "🔧 強化   💰 " + kit_short(kit_money(p)), {parent: "ups", y: 22 / h, size: 17, bold: true, color: "#BFDBFE"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let l = lvl(p, u.id)
+    let label = u.name + " Lv" + l + "/" + u.max + "（" + u.text + "）  💰" + kit_short(up_price(p, u))
+    if l >= u.max then label = u.name + " MAX" end
+    p.ui_button("up_" + u.id, label, {parent: "ups", y: (30 + i * 46) / h, w: 500, h: 40, size: 13, bg: "#2563EB"})
+  end
+  p.ui_button("ups_close", "閉じる", {parent: "ups", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func buy_up(p, id)
+  let u = find(UPGRADES, id)
+  if u == nil or lvl(p, id) >= u.max then return end
+  if kit_pay(p, up_price(p, u)) then
+    p.ups[id] = lvl(p, id) + 1
+    p.sound("collect")
+    kit_quest_progress(p, "upgrade", 1)
+    if id == "auto" then
+      p.auto_on = true
+      auto_button(p)
+    end
+  end
+  upgrade_panel(p)
+end
+
+func auto_button(p)
+  if lvl(p, "auto") <= 0 then return end
+  let label = "🤖 自動 OFF"
+  if p.auto_on then label = "🤖 自動 ON" end
+  p.ui_button("auto", label, {at: "right", dy: 60, w: 140, h: 44, size: 14, bg: "#0E7490"})
+end
+
+-- MARK: 転生
+
+func prestige_panel(p)
+  let h = 200
+  p.ui_remove("pres")
+  p.ui_panel("pres", {at: "center", w: 520, h: h, bg: "#4C1D95F2", radius: 20, layer: 30})
+  p.ui_text("pres_t", "⭐ 転生（いま " + p.prestige + " 回）", {parent: "pres", y: 26 / h, size: 18, bold: true, color: "#F0ABFC"})
+  p.ui_text("pres_h", "お金・機械・強化・車がリセット。スクラップの価値がずっと +50%", {parent: "pres", y: 62 / h, size: 13, color: "#E9D5FF"})
+  p.ui_button("prestige", "⭐ 転生する  💰" + kit_short(prestige_price(p)), {parent: "pres", y: 110 / h, w: 440, h: 46, size: 16, bg: "#A21CAF"})
+  p.ui_button("pres_close", "閉じる", {parent: "pres", y: (h - 22) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func do_prestige(p)
+  let price = prestige_price(p)
+  if kit_money(p) < price then
+    p.message("💰 " + kit_short(price) + " たまったら転生できる", 1.5)
+    return
+  end
+  kit_pay(p, kit_money(p))
+  p.prestige = p.prestige + 1
+  p.owned = ["bike", "junk"]
+  p.car = "junk"
+  p.machines = ["press"]
+  p.machine = "press"
+  p.ups = {}
+  p.auto_on = false
+  p.ui_remove("auto")
+  if p.lane != nil and lanes[p.lane].car == nil then build_machine(p.lane, "press") end
+  kit_give(p, 50)
+  kit_quest_progress(p, "prestige", 1)
+  kit_badge(p, "prestige" + min(p.prestige, 3), "転生 " + p.prestige + " 回")
+  if p.prestige >= 3 then p.hat = "crown" end
+  announce("⭐ " + p.name + " が転生した！（" + p.prestige + " 回目）", 3)
+  prestige_panel(p)
+  hud(p)
+end
+
+-- MARK: スクラップラッシュ（ときどき、みんな価値 ×2）
+
+func rush_check()
+  if time() < rush_next then return end
+  rush_next = time() + RUSH_EVERY
+  rush_until = time() + RUSH_TIME
+  announce("🔥 スクラップラッシュ！ " + RUSH_TIME + "秒間 価値 ×2、金の車も出る！", 4)
+  sound("goal")
+end
+
+on start()
+  rush_next = time() + 90
+end
+
+on tick(dt)
+  shop_clock = shop_clock + dt
+  if shop_clock < 0.5 then return end
+  shop_clock = 0
+  rush_check()
+  scrap_expire()
+  for p in players() do
+    if ready(p) then
+      magnet_step(p)
+      -- 車がないときに機械を入れかえる
+      if p.next_machine != nil and p.lane != nil and lanes[p.lane].car == nil then
+        build_machine(p.lane, p.next_machine)
+        p.next_machine = nil
+      end
+      if rushing() then hud(p) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "garage") and quiet_ready(p, "garage", 2) then garage_panel(p)
+  elif contains(b.tags, "machines") and quiet_ready(p, "machines", 2) then machine_panel(p)
+  elif contains(b.tags, "upgrades") and quiet_ready(p, "upgrades", 2) then upgrade_panel(p)
+  elif contains(b.tags, "prestige") and quiet_ready(p, "prestige", 2) then prestige_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "car_") then pick_car(p, replace(id, "car_", ""))
+  elif id == "garage_close" then p.ui_remove("garage")
+  elif starts_with(id, "mach_") and id != "mach_close" then pick_machine(p, replace(id, "mach_", ""))
+  elif id == "mach_close" then p.ui_remove("mach")
+  elif starts_with(id, "up_") then buy_up(p, replace(id, "up_", ""))
+  elif id == "ups_close" then p.ui_remove("ups")
+  elif id == "prestige" then do_prestige(p)
+  elif id == "pres_close" then p.ui_remove("pres")
+  elif id == "auto" then
+    p.auto_on = not p.auto_on
+    auto_button(p)
+    if p.auto_on then load_car(p) end
+  elif id == "load" then load_car(p)
+  end
+end

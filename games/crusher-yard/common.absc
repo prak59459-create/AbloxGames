@@ -1,0 +1,104 @@
+-- common.absc — 小さな道具・レーン・強さ・画面
+
+let lanes = {}           -- "1"〜"6" → {owner, car, mach, busy}
+let rush_until = 0
+let LANE_COUNT = 6
+
+func ready(p)
+  return p.owned != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func find(list, id)
+  for x in list do
+    if x.id == id then return x end
+  end
+  return nil
+end
+
+func vehicle_of(id)
+  return find(VEHICLES, id) or VEHICLES[1]
+end
+
+func machine_of(id)
+  return find(MACHINES, id) or MACHINES[1]
+end
+
+func lvl(p, id)
+  return p.ups[id] or 0
+end
+
+func lane_of(p)
+  if p.lane == nil then return nil end
+  return lanes[p.lane]
+end
+
+func lane_block(n, what)
+  return block("Lane " + n + " " + what)
+end
+
+func rushing()
+  return time() < rush_until
+end
+
+-- MARK: 強さ
+
+func power_mult(p)
+  return 1 + lvl(p, "power") * 0.25
+end
+
+func belt_time(p)
+  return 4 * pow(0.9, lvl(p, "belt"))
+end
+
+func value_mult(p)
+  let m = (1 + lvl(p, "value") * 0.15) * (1 + p.prestige * 0.5)
+  if rushing() then m = m * 2 end
+  return m
+end
+
+func magnet_radius(p)
+  return lvl(p, "magnet") * 3
+end
+
+func prestige_price(p)
+  return 1000000 * pow(5, p.prestige)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let v = vehicle_of(p.car)
+  let m = machine_of(p.machine)
+  let lane = "レーンなし（黄色いパッドでもらう）"
+  if p.lane != nil then lane = "レーン " + p.lane end
+  p.ui_text("sel", v.name + "  →  " + m.name + "   " + lane, {at: "top", dy: 30, size: 16, bold: true})
+  let extra = ""
+  if p.prestige > 0 then extra = "   ⭐ 転生 " + p.prestige end
+  if rushing() then extra = extra + "   🔥 スクラップラッシュ ×2！ " + ceil(rush_until - time()) + "秒" end
+  p.ui_text("stats", "💥 " + p.crushed + " 台   💰 合計 " + kit_short(p.total) + extra, {at: "top", dy: 54, size: 14, color: "#FDE68A"})
+  p.score = floor(p.total)
+end

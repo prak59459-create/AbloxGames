@@ -28,7 +28,7 @@ let idleGames: [Game] = [
          summary: "召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！",
          tags: ["idle", "summon", "collect"], maxPlayers: 12, build: bladeSummon),
     Game(number: 67, id: "crusher-yard", title: "Crusher Yard",
-         summary: "車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。",
+         summary: "自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！",
          tags: ["simulator", "cars", "satisfying"], maxPlayers: 10, build: crusherYard),
     Game(number: 68, id: "slime-merge", title: "Slime Merge",
          summary: "草原のスライムをつかまえて、同じレベルどうしを合体！台にのせるとお金を生む。最強スライムを作りだせ。",
@@ -757,19 +757,68 @@ func bladeSummon(_ m: MapBuilder) {
 // MARK: 67 Crusher Yard
 
 func crusherYard(_ m: MapBuilder) {
-    m.sky("#94A3B8", "#CBD5E1", light: 0.75, ground: "#57534E")
-    m.ground(160, 120, color: "#78716C", name: "Yard")
-    m.spawnRing(0, -40, radius: 5, count: 10, color: "#FACC15")
-    m.pad("Car Menu", x: 0, z: -28, size: 3, color: "#F59E0B", tags: ["menu"])
-    let crushers: [(String, Float, String)] = [("Press", -40, "#6B7280"), ("Shredder", 0, "#B91C1C"), ("Lava Pit", 40, "#F97316")]
-    for c in crushers {
-        m.slab("\(c.0) Conveyor", x: c.1, y: 0, z: 0, w: 5, h: 0.6, d: 36, color: "#374151")
-        m.part("\(c.0) Start", at: (c.1, 1.5, -14), size: (1, 1, 1), color: "#000000", visible: false)
-        m.part("\(c.0) End", at: (c.1, 1.5, 16), size: (1, 1, 1), color: "#000000", visible: false)
-        m.slab("\(c.0) Machine", x: c.1, y: 0, z: 22, w: 8, h: 6, d: 8, color: c.2)
-        m.pad("\(c.0) Load", x: c.1, z: -20, size: 3, color: "#22C55E", tags: ["load"])
+    m.sky("#94A3B8", "#E2E8F0", light: 0.8, ground: "#57534E")
+    m.ground(170, 130, color: "#78716C", name: "Yard", z: -2)
+    m.part("Cover Focus", at: (0, 2, 4), size: (116, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
+    var r = Seeded("crusher")
+    // The hub: spawns, the garage, the machine shop, the upgrade bench and the prestige statue.
+    m.slab("Hub Floor", x: 0, y: 0, z: -42, w: 70, h: 0.06, d: 20, color: "#A8A29E")
+    m.spawnRing(0, -40, radius: 5, count: 8, color: "#FACC15")
+    m.shop("Garage", x: -26, z: -44, w: 12, d: 8, color: "#1D4ED8", sign: "#FDE68A")
+    m.pad("Garage Pad", x: -26, z: -41.8, size: 2.4, color: "#60A5FA", tags: ["garage"])
+    m.shop("Machine Shop", x: 26, z: -44, w: 12, d: 8, color: "#B91C1C", sign: "#FDE68A")
+    m.pad("Machine Pad", x: 26, z: -41.8, size: 2.4, color: "#F87171", tags: ["machines"])
+    m.slab("Upgrade Bench", x: -10, y: 0, z: -48, w: 4, h: 1.1, d: 1.6, color: "#374151")
+    m.part("Upgrade Wrench", at: (-10, 1.3, -48), size: (1.6, 0.2, 0.3), color: "#9CA3AF", material: .metal, solid: false, rotation: (0, 30, 0))
+    m.pad("Upgrade Pad", x: -10, z: -45.8, size: 2.4, color: "#3B82F6", tags: ["upgrades"])
+    m.part("Prestige Base", at: (10, 0.5, -48), size: (2.6, 1, 2.6), color: "#6D28D9", shape: .cylinder)
+    m.part("Prestige Star", at: (10, 2.6, -48), size: (1.6, 1.6, 1.6), color: "#F0ABFC", shape: .sphere, material: .neon, solid: false)
+    m.pad("Prestige Pad", x: 10, z: -45.6, size: 2.4, color: "#C026D3", tags: ["prestige"])
+    // Six lanes: a claim pad, a load button, the belt, the machine bay and the scrap bin.
+    let colors = ["#EF4444", "#F59E0B", "#22C55E", "#06B6D4", "#6366F1", "#EC4899"]
+    for i in 0..<6 {
+        let n = i + 1
+        let x = -50 + Float(i) * 20
+        m.pad("Lane \(n) Claim", x: x, z: -24, size: 2.6, color: "#FACC15", tags: ["claim"])
+        m.part("Lane \(n) Flag", at: (x - 2.4, 2, -24), size: (0.2, 4, 0.2), color: colors[i], material: .neon, solid: false)
+        m.pad("Lane \(n) Load", x: x + 4, z: -13, size: 2.2, color: "#22C55E", tags: ["load"])
+        m.slab("Lane \(n) Belt", x: x, y: 0, z: 8.5, w: 5, h: 0.6, d: 39, color: "#1F2937")
+        for sx: Float in [-2.6, 2.6] {
+            m.slab("Belt Edge", x: x + sx, y: 0, z: 8.5, w: 0.3, h: 0.8, d: 39, color: colors[i])
+        }
+        for k in 0..<7 {
+            m.part("Belt Stripe", at: (x, 0.62, -9 + Float(k) * 4.5), size: (4.4, 0.03, 0.3), color: "#4B5563", solid: false)
+        }
+        m.part("Lane \(n) Start", at: (x, 0.6, -9), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Lane \(n) Stop", at: (x, 0.6, 22), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.slab("Machine Bay", x: x, y: 0, z: 22, w: 9, h: 0.1, d: 11, color: "#44403C")
+        // The scrap bin behind the machine.
+        m.part("Lane \(n) Bin", at: (x, 0.1, 34), size: (1, 0.1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Bin Floor", at: (x, 0.03, 34), size: (11, 0.06, 8), color: colors[i], material: .matte, solid: false, opacity: 0.6)
+        m.slab("Bin Wall", x: x, y: 0, z: 38.3, w: 11, h: 0.8, d: 0.4, color: "#57534E")
+        for sx: Float in [-5.7, 5.7] { m.slab("Bin Wall", x: x + sx, y: 0, z: 35.5, w: 0.4, h: 0.8, d: 5.5, color: "#57534E") }
     }
-    m.part("Press Head", at: (-40, 6, 16), size: (6, 1.5, 6), color: "#9CA3AF", material: .metal)
+    // Junk piles, tyre stacks and a big crane round the edge of the yard.
+    for q in [(-72, -10), (-72, 20), (72, -10), (72, 20), (-40, 52), (0, 54), (40, 52)] as [(Float, Float)] {
+        var y: Float = 0
+        for k in 0..<4 {
+            let h: Float = 0.8
+            m.part("Junk", at: (q.0 + r.range(-1, 1), y + h / 2, q.1 + r.range(-1, 1)), size: (4 - Float(k) * 0.6, h, 2.6), color: r.pick(["#A8A29E", "#3B82F6", "#DC2626", "#FACC15", "#57534E"]),
+                   material: .metal, rotation: (0, r.range(-30, 30), 0))
+            y += h
+        }
+    }
+    for q in [(-62, -30), (62, -30)] as [(Float, Float)] {
+        for k in 0..<3 {
+            m.part("Tyre", at: (q.0, 0.35 + Float(k) * 0.7, q.1), size: (1.6, 0.6, 1.6), color: "#111827", shape: .cylinder)
+        }
+    }
+    m.slab("Crane Tower", x: 66, y: 0, z: 44, w: 2, h: 16, d: 2, color: "#EAB308")
+    m.slab("Crane Jib", x: 56, y: 16, z: 44, w: 22, h: 1, d: 1.2, color: "#EAB308")
+    m.part("Crane Magnet", at: (48, 11, 44), size: (3, 0.6, 3), color: "#374151", shape: .cylinder, material: .metal, solid: false)
+    for fx in stride(from: Float(-80), through: 80, by: 10) {
+        m.fence(from: (fx, 62), to: (fx + 10, 62), color: "#9CA3AF")
+    }
 }
 
 // MARK: 68 Slime Merge

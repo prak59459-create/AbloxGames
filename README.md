@@ -108,7 +108,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/dungeon-delve/cover-75429a92.png" width="200"> | 64 | **Dungeon Delve** | 4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！ |
 | <img src="games/critter-quest/cover-c2226af0.png" width="200"> | 65 | **Critter Quest** | 草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！ |
 | <img src="games/blade-summon-sim/cover-ee97475f.png" width="200"> | 66 | **Blade Summon Sim** | 召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！ |
-| <img src="games/crusher-yard/cover-ff3e3424.png" width="200"> | 67 | **Crusher Yard** | 車をベルトコンベアにのせて、プレス機やシュレッダーでグシャッ！こわした車で資金をかせいで、もっと大きな車を。 |
+| <img src="games/crusher-yard/cover-e77ece03.png" width="200"> | 67 | **Crusher Yard** | 自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！ |
 | <img src="games/slime-merge/cover-eeb5414a.png" width="200"> | 68 | **Slime Merge** | 草原のスライムをつかまえて、同じレベルどうしを合体！台にのせるとお金を生む。最強スライムを作りだせ。 |
 | <img src="games/mansion-builder-tycoon/cover-5099ed93.png" width="200"> | 69 | **Mansion Builder Tycoon** | 小さな家から大豪邸へ。お金をためて部屋、プール、ガレージ、ヘリポートを順番に建てていくタイクーン。 |
 | <img src="games/plus-one-speed-escape/cover-f172e31e.png" width="200"> | 70 | **+1 Speed Wall Escape** | 1秒ごとにスピードが+1！うしろからせまる巨大なかべから逃げて、どこまで遠くへ行けるか。転生でさらに速く。 |
