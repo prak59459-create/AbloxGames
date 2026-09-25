@@ -1,0 +1,211 @@
+-- runner.absc — ダッシュとスタミナ・倒れる・助け起こす・アイテム
+-- 🏃 ダッシュ: スタミナを使って速く走る
+-- 😵 倒れると這うことしかできない。30びょう以内に仲間が「🤝 助ける」を3びょう続けると復活
+-- 🎒 アイテム: ステージに落ちている。拾って「使う」
+
+let run_clock = 0
+
+func move_speed(p)
+  if p.downed then return 0.18 end
+  let s = 1 + (p.speed_bonus or 0)
+  if p.sprinting then s = s * 1.45 end
+  if p.cola_until != nil and time() < p.cola_until then s = s * 1.3 end
+  return s
+end
+
+func refresh_speed(p)
+  let s = move_speed(p)
+  if p.mv_speed != s then
+    p.speed = s
+    p.mv_speed = s
+  end
+end
+
+-- MARK: ダッシュ
+
+func toggle_sprint(p)
+  if not running(p) then return end
+  if p.sprinting then
+    p.sprinting = false
+  elif p.stamina > 15 then
+    p.sprinting = true
+  else
+    p.message("😮‍💨 息が切れている…", 0.8)
+  end
+  refresh_speed(p)
+end
+
+-- MARK: 倒れる・助ける
+
+func down(p)
+  p.downed = true
+  p.down_at = time()
+  p.times_downed = (p.times_downed or 0) + 1
+  p.sprinting = false
+  p.reviving = nil
+  p.shake(0.6, 0.5)
+  p.message("😵 倒れた！ 仲間に助けてもらおう（" + BLEED_SECS + "びょう）", 2.5)
+  refresh_speed(p)
+  kit_quest_progress(p, "downed", 1)
+  announce("😵 " + p.name + " が倒れた！", 1.5)
+  hud(p)
+  check_all_down()
+end
+
+func get_up(p, helper)
+  p.downed = false
+  p.down_at = nil
+  p.stamina = max(p.stamina, 40)
+  refresh_speed(p)
+  p.ui_remove("bleed")
+  p.message("🙌 " + helper.name + " が助けてくれた！", 2)
+  hud(p)
+end
+
+func go_out(p)
+  p.downed = false
+  p.out = true
+  p.ui_remove("bleed")
+  let spot = block("Lobby Spot")
+  if spot != nil then p.teleport(spot.position + {x: 0, y: 1, z: 0}) end
+  p.message("👀 リタイア… 次のラウンドまで見学", 2)
+  refresh_speed(p)
+  hud(p)
+  check_all_down()
+end
+
+func start_revive(p)
+  if not running(p) then return end
+  let best = nil
+  for q in players() do
+    if ready(q) and q.downed and q.id != p.id and distance(p, q) < 4.5 then best = q end
+  end
+  if best == nil then
+    p.message("🤝 近くに倒れた仲間はいない", 1)
+    return
+  end
+  -- もう助けている途中なら、そのまま続ける
+  if p.reviving == best.id then return end
+  p.reviving = best.id
+  p.revive_t = 0
+  p.message("🤝 助けている… はなれないで", 1)
+end
+
+func revive_step(p, dt)
+  if p.reviving == nil then return end
+  let q = player_by_id(p.reviving)
+  if q == nil or not q.downed or not running(p) or distance(p, q) > 5 then
+    p.reviving = nil
+    p.ui_remove("rev")
+    return
+  end
+  p.revive_t = p.revive_t + dt * (1 + (p.revive_bonus or 0))
+  p.ui_bar("rev", {at: "center", dy: 80, w: 200, h: 14, value: p.revive_t, max: REVIVE_SECS, color: "#22C55E", bg: "#00000088"})
+  if p.revive_t >= REVIVE_SECS then
+    get_up(q, p)
+    p.reviving = nil
+    p.ui_remove("rev")
+    reward(p, 25, 15, "🤝 助けた！")
+    kit_quest_progress(p, "revive", 1)
+  end
+end
+
+-- MARK: アイテム
+
+func spawn_pickups()
+  for b in blocks("pickup") do gone(b) end
+  let centre = block(stage.start + " 1").position
+  for i in 1 to 10 do
+    let it = random(ITEMS)
+    create_block({name: "Pickup", shape: "sphere", position: {x: centre.x + random(-60, 60), y: centre.y + 1.2, z: centre.z + random(-60, 60)},
+                  size: 1, color: it.color, material: "neon", solid: false, behavior: "trigger", tags: ["pickup", it.id]})
+  end
+end
+
+func grab(p, b)
+  if not running(p) then return end
+  if p.item != nil then
+    if quiet_ready(p, "full", 3) then p.message("🎒 もう持っている。先に使おう", 1) end
+    return
+  end
+  for it in ITEMS do
+    if contains(b.tags, it.id) then p.item = it.id end
+  end
+  gone(b)
+  p.sound("collect")
+  p.message("🎒 " + item_by_id(p.item).name + "（" + item_by_id(p.item).text + "）", 1.8)
+  hud(p)
+end
+
+func use_item(p)
+  if p.item == nil or not running(p) then
+    p.message("🎒 何も持っていない", 0.8)
+    return
+  end
+  let id = p.item
+  p.item = nil
+  if id == "cola" then
+    p.cola_until = time() + 8
+    refresh_speed(p)
+    kit_later(p, 8.1, func() refresh_speed(p) end)
+  elif id == "bar" then
+    p.stamina = STAMINA + (p.extra_stamina or 0)
+  elif id == "smoke" then
+    for q in players() do
+      if ready(q) and distance(p, q) < 8 then q.smoked_until = time() + 4 end
+    end
+    p.message("💨 けむりに隠れた！", 1)
+  elif id == "balloon" then
+    p.launch(0, 22, 0)
+  elif id == "shield" then
+    p.shield = true
+  end
+  kit_quest_progress(p, "items", 1)
+  p.sound("bounce")
+  hud(p)
+end
+
+-- MARK: 毎0.1びょう
+
+on tick(dt)
+  run_clock = run_clock + dt
+  if run_clock < 0.1 then return end
+  let secs = run_clock
+  run_clock = 0
+  for p in players() do
+    if ready(p) then
+      let cap = STAMINA + (p.extra_stamina or 0)
+      if p.sprinting then
+        p.stamina = p.stamina - SPRINT_COST * secs
+        if p.stamina <= 0 then
+          p.stamina = 0
+          p.sprinting = false
+          p.message("😮‍💨 息切れ！", 0.8)
+        end
+      elif p.stamina < cap then
+        p.stamina = min(cap, p.stamina + STAMINA_REGEN * secs)
+      end
+      refresh_speed(p)
+      revive_step(p, secs)
+      if p.downed and phase == "run" then
+        let left = BLEED_SECS - (time() - p.down_at)
+        p.ui_text("bleed", "😵 助けを待っている… " + max(0, ceil(left)) + "s", {at: "center", dy: -60, size: 18, bold: true, color: "#FCA5A5"})
+        if left <= 0 then go_out(p) end
+      end
+      if quiet_ready(p, "hud_tick", 0.5) then hud(p) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "pickup") then grab(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "sprint" then toggle_sprint(p)
+  elif id == "revive" then start_revive(p)
+  elif id == "use" then use_item(p)
+  end
+end

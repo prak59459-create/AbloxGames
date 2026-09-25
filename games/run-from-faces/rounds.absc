@@ -1,0 +1,172 @@
+-- rounds.absc — ロビー・ステージ投票・ラウンド・結果
+
+let votes = {}             -- プレイヤー id → ステージ id
+let choices = []           -- 投票できるステージ（3つ）
+let vote_ends = 0
+let round_clock = 0
+
+func stage_by_id(id)
+  for s in STAGES do
+    if s.id == id then return s end
+  end
+  return STAGES[1]
+end
+
+func open_vote()
+  phase = "vote"
+  votes = {}
+  vote_ends = time() + VOTE_SECS
+  choices = slice(shuffle(copy(STAGES)), 1, 3)
+  for p in players() do
+    if ready(p) then vote_panel(p) end
+  end
+  announce("🗳 次のステージを投票！（" + VOTE_SECS + "びょう）", 3)
+end
+
+func vote_panel(p)
+  let h = 110 + len(choices) * 58
+  p.ui_remove("vote")
+  p.ui_panel("vote", {at: "center", w: 380, h: h, bg: "#1E1B4BF0", radius: 20, layer: 30})
+  p.ui_text("vote_t", "🗳 次はどこで逃げる？", {parent: "vote", y: 28 / h, size: 18, bold: true, color: "#FDE68A"})
+  let i = 0
+  for s in choices do
+    i = i + 1
+    let n = len(filter(keys(votes), func(k) return votes[k] == s.id end))
+    let label = s.name + "  " + n + "票"
+    if votes[p.id] == s.id then label = "✅ " + label end
+    p.ui_button("vote_" + s.id, label, {parent: "vote", y: (40 + i * 58) / h, w: 320, h: 48, size: 16, bg: "#4338CA"})
+  end
+end
+
+func cast_vote(p, id)
+  if phase != "vote" then return end
+  votes[p.id] = id
+  for q in players() do
+    if ready(q) then vote_panel(q) end
+  end
+end
+
+func winning_stage()
+  let best = choices[1]
+  let best_n = -1
+  for s in choices do
+    let n = len(filter(keys(votes), func(k) return votes[k] == s.id end))
+    if n > best_n then
+      best = s
+      best_n = n
+    end
+  end
+  return best
+end
+
+func start_run()
+  stage = winning_stage()
+  round_no = round_no + 1
+  phase = "run"
+  ends_at = time() + ROUND_SECS
+  let k = 0
+  for p in players() do
+    if ready(p) then
+      p.ui_remove("vote")
+      k = k + 1
+      p.in_round = true
+      p.out = false
+      p.downed = false
+      p.down_at = nil
+      p.sprinting = false
+      p.reviving = nil
+      p.shield = p.start_shield == true
+      p.stamina = STAMINA + (p.extra_stamina or 0)
+      let s = block(stage.start + " " + ((k - 1) % 8 + 1))
+      p.teleport(s.position + {x: 0, y: 1.5, z: 0})
+      p.run_from = p.position
+      p.meters = 0
+      refresh_speed(p)
+      hud(p)
+    end
+  end
+  spawn_pickups()
+  after(3, func()
+    if phase == "run" then spawn_faces() end
+  end)
+  announce("😱 ラウンド " + round_no + "「" + stage.name + "」！ 3びょう後に顔が来る！ " + ROUND_SECS + "びょう逃げきれ！", 4)
+end
+
+func check_all_down()
+  if phase != "run" then return end
+  let left = filter(players(), func(p) return running(p) end)
+  if len(left) == 0 then end_run(false) end
+end
+
+func end_run(survived)
+  if phase != "run" then return end
+  phase = "result"
+  clear_faces()
+  for b in blocks("pickup") do gone(b) end
+  let winners = []
+  for p in players() do
+    if ready(p) and p.in_round then
+      if running(p) then
+        append(winners, p.name)
+        reward(p, 60 + round_no * 10, 40, "🎉 逃げきった！")
+        kit_quest_progress(p, "survive", 1)
+        if p.times_downed == 0 then kit_badge(p, "untouched", "一度も倒れずに逃げきった") end
+      else
+        reward(p, 10, 5, nil)
+      end
+      p.in_round = false
+      p.downed = false
+      p.out = false
+      p.times_downed = 0
+      p.ui_remove("bleed")
+      p.ui_remove("rev")
+    end
+  end
+  if survived and len(winners) > 0 then
+    announce("🎉 生きのびた: " + join(winners, "・"), 4)
+  else
+    announce("💀 全員つかまった… 顔の勝ち", 4)
+  end
+  after(5, func()
+    let spot = block("Lobby Spot")
+    for p in players() do
+      if ready(p) then
+        p.teleport(spot.position + {x: random(-6, 6), y: 1, z: random(-6, 6)})
+        refresh_speed(p)
+        hud(p)
+      end
+    end
+    open_vote()
+  end)
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if round_clock < 1 then return end
+  round_clock = 0
+  if phase == "vote" then
+    ui_text("clock", "🗳 投票 のこり " + max(0, ceil(vote_ends - time())) + "s", {at: "top", dy: 26, size: 18, bold: true})
+    if time() >= vote_ends then start_run() end
+  elif phase == "run" then
+    round_hud()
+    if time() >= ends_at then end_run(true) end
+    -- 走った距離のごほうび（10mごと）
+    for p in players() do
+      if running(p) and p.last_pos != nil then
+        let dx = p.x - p.last_pos.x
+        let dz = p.z - p.last_pos.z
+        let d = sqrt(dx * dx + dz * dz)
+        if d < 40 then
+          p.meters = (p.meters or 0) + d
+          kit_quest_progress(p, "run", d)
+        end
+      end
+      if ready(p) then p.last_pos = p.position end
+    end
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "vote_") then cast_vote(p, replace(id, "vote_", "")) end
+end

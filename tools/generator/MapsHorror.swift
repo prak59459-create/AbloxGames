@@ -10,7 +10,7 @@ let horrorGames: [Game] = [
          summary: "毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！",
          tags: ["horror", "puzzle", "escape"], maxPlayers: 8, build: porkysHouse),
     Game(number: 48, id: "run-from-faces", title: "Run From The Faces",
-         summary: "巨大な顔がものすごい速さで追いかけてくる！全力で逃げて、つかまった仲間は助け起こそう。3分生きのびたら勝ち。",
+         summary: "5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！",
          tags: ["chase", "coop", "funny"], maxPlayers: 12, build: runFaces),
     Game(number: 49, id: "anomaly-hallway", title: "Anomaly Hallway",
          summary: "終わらない病院の廊下。いつもとちがう「異変」があれば引き返し、なければ進む。8回続けて正解すれば出口へ。",
@@ -249,19 +249,92 @@ func porkysHouse(_ m: MapBuilder) {
 
 func runFaces(_ m: MapBuilder) {
     m.sky("#FDE68A", "#FEF3C7", light: 0.8, ground: "#A8A29E")
-    m.ground(180, 180, color: "#D6D3D1", name: "Mall Floor")
-    m.walls(0, 0, w: 180, d: 180, h: 12, color: "#78716C", name: "Mall Wall")
-    m.spawnRing(0, 0, radius: 6, count: 12, color: "#60A5FA")
+    m.ground(900, 900, color: "#A8A29E", name: "Ground")
     var r = Seeded("faces")
-    for i in 0..<24 {
-        m.slab("Kiosk \(i + 1)", x: r.range(-80, 80), y: 0, z: r.range(-80, 80), w: r.range(3, 8), h: r.range(1, 4), d: r.range(3, 8),
-               color: r.pick(["#F472B6", "#60A5FA", "#FBBF24", "#34D399"]))
+
+    // The lobby, where everyone waits and votes between rounds.
+    m.slab("Lobby Floor", x: -220, y: 0, z: 0, w: 40, h: 0.2, d: 40, color: "#E0E7FF")
+    m.walls(-220, 0, w: 40, d: 40, h: 3, y: 0.2, color: "#A5B4FC", name: "Lobby Wall")
+    m.spawnRing(-220, 0, y: 0.2, radius: 7, count: 12, color: "#60A5FA")
+    m.part("Lobby Sign", at: (-220, 6, -19), size: (18, 2, 0.4), color: "#F472B6", material: .neon, solid: false)
+    m.pad("Lobby Spot", x: -220, z: 12, y: 0.2, size: 3, color: "#C7D2FE", tags: ["lobbyspot"])
+
+    // Stage 1: the mall.
+    let mall: (Float, Float) = (0, 0)
+    m.slab("Mall Floor", x: mall.0, y: 0, z: mall.1, w: 160, h: 0.2, d: 160, color: "#D6D3D1")
+    m.walls(mall.0, mall.1, w: 160, d: 160, h: 12, y: 0.2, color: "#78716C", name: "Mall Wall")
+    for i in 0..<22 {
+        m.slab("Kiosk \(i + 1)", x: mall.0 + r.range(-68, 68), y: 0.2, z: mall.1 + r.range(-68, 68), w: r.range(3, 8), h: r.range(1, 3.5),
+               d: r.range(3, 8), color: r.pick(["#F472B6", "#60A5FA", "#FBBF24", "#34D399"]))
     }
-    for i in 0..<6 {
-        let x = r.range(-70, 70), z = r.range(-70, 70)
-        m.part("Bounce \(i + 1)", at: (x, 0.15, z), size: (3, 0.3, 3), color: "#22C55E", shape: .cylinder, material: .neon, behavior: .bounce)
+    m.water(mall.0, mall.1, w: 10, d: 10, y: 0.25, name: "Fountain")
+    m.stairs(mall.0 - 50, mall.1 + 40, y: 0.2, steps: 8, rise: 0.6, run: 1.5, width: 5, color: "#94A3B8", name: "Mall Stair")
+    m.slab("Mall Balcony", x: mall.0 - 30, y: 0.2, z: mall.1 + 40, w: 16, h: 4.8, d: 10, color: "#CBD5E1")
+    for (i, p) in [(-40, -40), (40, -40), (40, 40), (0, -60)].enumerated() {
+        m.part("Mall Jump \(i + 1)", at: (mall.0 + Float(p.0), 0.35, mall.1 + Float(p.1)), size: (3, 0.3, 3), color: "#22C55E",
+               shape: .cylinder, material: .neon, behavior: .bounce)
     }
-    m.markers("Face Spawn", points: ring(6, radius: 80), color: "#000000", visible: false, behavior: .none)
+    m.markers("Mall Start", points: ring(8, radius: 10).map { (mall.0 + $0.0, mall.1 + $0.1) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
+    m.markers("Mall Face", points: ring(6, radius: 70).map { (mall.0 + $0.0, mall.1 + $0.1) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
+
+    // Stage 2: rooftops — blocks of different heights, bridges and jump pads.
+    let roof: (Float, Float) = (300, 0)
+    m.slab("Street", x: roof.0, y: 0, z: roof.1, w: 160, h: 0.2, d: 160, color: "#374151")
+    var tops: [(Float, Float, Float)] = []
+    for gx in stride(from: Float(-60), through: 60, by: 30) {
+        for gz in stride(from: Float(-60), through: 60, by: 30) {
+            let hgt = r.range(4, 12)
+            tops.append((roof.0 + gx, roof.1 + gz, hgt))
+            m.slab("Building", x: roof.0 + gx, y: 0.2, z: roof.1 + gz, w: 20, h: hgt, d: 20,
+                   color: r.pick(["#64748B", "#475569", "#94A3B8", "#7C2D12"]))
+            // A fire stair along the south face, climbing east to the roof.
+            let steps = Int((hgt / 0.8).rounded(.up))
+            m.stairs(roof.0 + gx - 10, roof.1 + gz - 11.6, y: 0.2, steps: steps, rise: hgt / Float(steps), run: 18 / Float(steps),
+                     width: 3, color: "#FBBF24", name: "Fire Stair")
+        }
+    }
+    for t in tops where r.range(0, 1) > 0.45 {
+        m.part("Roof Jump", at: (t.0 - 5, 0.2 + t.2 + 0.15, t.1 + 5), size: (3, 0.3, 3), color: "#22C55E", shape: .cylinder,
+               material: .neon, behavior: .bounce)
+    }
+    m.markers("Roof Start", points: ring(8, radius: 6).map { (roof.0 + $0.0 + 15, roof.1 + $0.1 + 15) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
+    m.markers("Roof Face", points: ring(6, radius: 72).map { (roof.0 + $0.0, roof.1 + $0.1) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
+
+    // Stage 3: the endless yellow rooms — a maze.
+    let maze: (Float, Float) = (0, 300)
+    m.slab("Maze Floor", x: maze.0, y: 0, z: maze.1, w: 150, h: 0.2, d: 150, color: "#CA8A04")
+    m.walls(maze.0, maze.1, w: 150, d: 150, h: 5, y: 0.2, color: "#EAB308", name: "Maze Wall")
+    for gx in stride(from: Float(-60), through: 60, by: 15) {
+        for gz in stride(from: Float(-60), through: 60, by: 15) {
+            if abs(gx) < 10 && abs(gz) < 10 { continue }
+            if r.range(0, 1) > 0.5 {
+                m.slab("Maze Wall", x: maze.0 + gx, y: 0.2, z: maze.1 + gz, w: 12, h: 4, d: 0.8, color: "#FACC15")
+            } else {
+                m.slab("Maze Wall", x: maze.0 + gx, y: 0.2, z: maze.1 + gz, w: 0.8, h: 4, d: 12, color: "#FACC15")
+            }
+        }
+    }
+    for i in 0..<9 { m.part("Maze Light", at: (maze.0 - 60 + Float(i % 3) * 60, 4.4, maze.1 - 60 + Float(i / 3) * 60), size: (3, 0.2, 3),
+                             color: "#FEF9C3", material: .neon, solid: false) }
+    m.markers("Maze Start", points: ring(8, radius: 5).map { (maze.0 + $0.0, maze.1 + $0.1) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
+    m.markers("Maze Face", points: ring(6, radius: 66).map { (maze.0 + $0.0, maze.1 + $0.1) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
+
+    // Stage 4: the park — trees, a pond with bridges, hills and a playground.
+    let park: (Float, Float) = (300, 300)
+    m.slab("Park Lawn", x: park.0, y: 0, z: park.1, w: 170, h: 0.2, d: 170, color: "#4D7C0F")
+    m.water(park.0 + 20, park.1 - 10, w: 50, d: 30, y: 0.25, name: "Pond")
+    m.slab("Bridge", x: park.0 + 20, y: 0.2, z: park.1 - 10, w: 54, h: 1, d: 4, color: "#92400E")
+    for i in 0..<30 { m.tree(park.0 + r.range(-75, 75), park.1 + r.range(-75, 75), y: 0.2, height: r.range(4, 7)) }
+    for (i, h) in [(-50, 50), (50, 55), (-55, -45)].enumerated() {
+        for k in 0..<4 {
+            m.slab("Hill \(i + 1) Step \(k + 1)", x: park.0 + Float(h.0), y: 0.2 + Float(k) * 1.2, z: park.1 + Float(h.1), w: 26 - Float(k) * 6, h: 1.2,
+                   d: 26 - Float(k) * 6, color: ["#65A30D", "#4D7C0F", "#3F6212", "#365314"][k])
+        }
+    }
+    m.slab("Playground", x: park.0 - 20, y: 0.2, z: park.1 + 30, w: 20, h: 0.1, d: 14, color: "#DB2777")
+    m.part("Park Jump", at: (park.0 - 20, 0.45, park.1 + 30), size: (3, 0.3, 3), color: "#22C55E", shape: .cylinder, material: .neon, behavior: .bounce)
+    m.markers("Park Start", points: ring(8, radius: 6).map { (park.0 + $0.0 - 30, park.1 + $0.1 - 30) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
+    m.markers("Park Face", points: ring(6, radius: 75).map { (park.0 + $0.0, park.1 + $0.1) }, y: 0.2, color: "#000000", visible: false, behavior: .none)
 }
 
 // MARK: 49 Anomaly Hallway

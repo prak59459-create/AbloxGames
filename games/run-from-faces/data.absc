@@ -1,0 +1,41 @@
+-- data.absc — Run From The Faces の表
+-- ステージ・顔の種類・アイテム・レベル・定数
+
+let STAGES = [
+  {id: "mall", name: "🛍 ショッピングモール", start: "Mall Start", face: "Mall Face"},
+  {id: "roof", name: "🏙 屋上", start: "Roof Start", face: "Roof Face"},
+  {id: "maze", name: "🟨 黄色い部屋", start: "Maze Start", face: "Maze Face"},
+  {id: "park", name: "🌳 公園", start: "Park Start", face: "Park Face"}
+]
+
+-- 顔: kind ごとに動きがちがう
+let FACES = [
+  {kind: "grin", name: "😁 にやけ顔", color: "#FDE68A", head: "#FEF3C7", speed: 1.35, size: 2.6},
+  {kind: "dash", name: "😠 ダッシュ顔", color: "#F87171", head: "#FECACA", speed: 0.7, size: 2.4},
+  {kind: "warp", name: "👁 ワープ顔", color: "#A78BFA", head: "#DDD6FE", speed: 1.05, size: 2.5},
+  {kind: "hop", name: "😝 ジャンプ顔", color: "#4ADE80", head: "#BBF7D0", speed: 1.3, size: 2.2},
+  {kind: "split", name: "🤪 ふえる顔", color: "#60A5FA", head: "#BFDBFE", speed: 1.15, size: 2.6}
+]
+
+-- 拾えるアイテム（1つまで）。「🎒 使う」で使う
+let ITEMS = [
+  {id: "cola", name: "🥤 コーラ", color: "#B91C1C", text: "8びょう速くなる"},
+  {id: "bar", name: "🍫 エナジーバー", color: "#92400E", text: "スタミナ満タン"},
+  {id: "smoke", name: "💨 けむり玉", color: "#94A3B8", text: "近くの顔が見失う"},
+  {id: "balloon", name: "🎈 風船", color: "#F472B6", text: "空へふわっと"},
+  {id: "shield", name: "⭐ お守り", color: "#FACC15", text: "1回だけ倒れない"}
+]
+
+let LEVELS = [
+  {need: 0, name: "にげ足ビギナー"}, {need: 150, name: "ランナー"}, {need: 400, name: "スプリンター"},
+  {need: 800, name: "パルクール師"}, {need: 1500, name: "逃げの達人"}, {need: 2500, name: "顔より速い人"}
+]
+
+let ROUND_SECS = 180
+let VOTE_SECS = 12
+let BLEED_SECS = 30        -- 倒れてから、助けがなければリタイアになるまで
+let REVIVE_SECS = 3
+let STAMINA = 100
+let SPRINT_COST = 28       -- 1びょうあたり
+let STAMINA_REGEN = 14
+let CATCH_RANGE = 2.6

@@ -1,0 +1,98 @@
+-- common.absc — 小さな道具・レベル・画面
+
+let phase = "lobby"        -- lobby / vote / run / result
+let stage = nil
+let round_no = 0
+let ends_at = 0
+
+func ready(p)
+  return p.xp != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func item_by_id(id)
+  for it in ITEMS do
+    if it.id == id then return it end
+  end
+  return nil
+end
+
+-- まだ走っている人（倒れていない・リタイアしていない）
+func running(p)
+  return ready(p) and p.in_round and not p.downed and not p.out
+end
+
+func level_i(p)
+  let i = 1
+  let k = 0
+  for l in LEVELS do
+    k = k + 1
+    if p.xp >= l.need then i = k end
+  end
+  return i
+end
+
+func add_xp(p, amount)
+  let before = level_i(p)
+  p.xp = p.xp + amount
+  if level_i(p) > before then
+    announce("🏅 " + p.name + " が「" + LEVELS[level_i(p)].name + "」に！", 3)
+    kit_give(p, 50 * level_i(p))
+    kit_quest_progress(p, "level", 1)
+  end
+end
+
+func reward(p, coins, xp, why)
+  kit_give(p, coins)
+  p.score = p.score + coins
+  add_xp(p, xp)
+  if why != nil then p.message(why + " +" + coins, 1.6) end
+  hud(p)
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  let line = "🏅 " + LEVELS[level_i(p)].name
+  if p.item != nil then line = line + "   🎒 " + item_by_id(p.item).name end
+  if p.shield then line = line + "   ⭐" end
+  if p.downed then line = line + "   😵 倒れている" end
+  if p.out then line = line + "   👀 見学中" end
+  p.ui_text("me", line, {at: "top_left", dy: 34, size: 15, bold: true, color: "#FDE68A"})
+  p.ui_bar("stamina", {at: "bottom", dy: -30, w: 220, h: 12, value: max(0, p.stamina), max: STAMINA + (p.extra_stamina or 0),
+                       color: "#38BDF8", bg: "#00000088"})
+end
+
+func round_hud()
+  if phase != "run" then
+    ui_remove("clock")
+    return
+  end
+  let alive = len(filter(players(), func(p) return running(p) end))
+  let down = len(filter(players(), func(p) return ready(p) and p.downed end))
+  ui_text("clock", stage.name + "   ⏱ " + kit_clock(ends_at - time()) + "   🏃 " + alive + "   😵 " + down + "   😱 " + len(npcs()),
+          {at: "top", dy: 26, size: 18, bold: true})
+end

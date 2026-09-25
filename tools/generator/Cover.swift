@@ -132,9 +132,29 @@ enum Cover {
     /// Three-quarters from above, around the middle of what was built. The
     /// middle is taken from the middle 80% of the blocks, so one far-off
     /// marker or a lone pillar at the edge does not shrink everything else.
-    private static func frame(centres: [Vec3], tops: [Float], spawn: Vec3?) -> Camera {
+    private static func frame(centres all: [Vec3], tops: [Float], spawn: Vec3?) -> Camera {
         var target = spawn ?? .zero
         var radius: Float = 20
+        // A world made of several far-apart areas (stages, islands) is drawn
+        // around its busiest one, not as specks across an empty plain.
+        var centres = all
+        if all.count >= 12 {
+            var cells: [String: (count: Int, sum: Vec3)] = [:]
+            for c in all {
+                let key = "\(Int((c.x / 50).rounded(.down))),\(Int((c.z / 50).rounded(.down)))"
+                let cell = cells[key] ?? (0, .zero)
+                cells[key] = (cell.count + 1, cell.sum + c)
+            }
+            if let busiest = cells.values.max(by: { $0.count < $1.count }) {
+                let middle = busiest.sum * (1 / Float(busiest.count))
+                let near = all.filter { c -> Bool in
+                    let dx: Float = c.x - middle.x
+                    let dz: Float = c.z - middle.z
+                    return dx * dx + dz * dz < 9025
+                }
+                if near.count >= 3 { centres = near }
+            }
+        }
         if centres.count >= 3 {
             func range(_ values: [Float]) -> (Float, Float) {
                 let s = values.sorted()

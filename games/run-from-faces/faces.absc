@@ -1,0 +1,141 @@
+-- faces.absc — 追いかけてくる顔
+-- 😁 にやけ顔: まっすぐ追う   😠 ダッシュ顔: 3びょう爆走して2びょう休む
+-- 👁 ワープ顔: ときどき、だれかのうしろにワープ   😝 ジャンプ顔: 高いところにも跳んでくる
+-- 🤪 ふえる顔: だれかを倒すと小さな顔がふえる
+
+let face_clock = 0
+let minis = 0
+
+func face_spec(kind)
+  for f in FACES do
+    if f.kind == kind then return f end
+  end
+  return FACES[1]
+end
+
+func spawn_face(spec, at, small)
+  let size = spec.size
+  let speed = spec.speed + round_no * 0.03
+  let name = spec.name
+  if small then
+    size = size * 0.55
+    speed = speed + 0.15
+    name = "ちび" + spec.name
+  end
+  let n = create_npc({name: name, position: at + {x: 0, y: 2, z: 0}, color: spec.color, head_color: spec.head, leg_color: spec.color,
+                      size: size, speed: speed, health: 999999, hat: "none"})
+  n.kind = spec.kind
+  n.base_speed = speed
+  n.cycle_at = time() + 3
+  n.charging = false
+  n.warp_at = time() + random(10, 14)
+  n.hop_at = time() + 1.5
+  n.small = small
+  return n
+end
+
+func clear_faces()
+  for n in npcs() do n.destroy() end
+  minis = 0
+end
+
+-- ラウンドが進むほど、顔の数と種類がふえる
+func spawn_faces()
+  clear_faces()
+  let people = len(filter(players(), func(p) return ready(p) and p.in_round end))
+  let count = min(7, 1 + floor(round_no / 2) + floor(people / 3))
+  let kinds = ["grin"]
+  if round_no >= 2 then append(kinds, "dash") end
+  if round_no >= 3 then append(kinds, "hop") end
+  if round_no >= 4 then append(kinds, "warp") end
+  if round_no >= 5 then append(kinds, "split") end
+  for i in 1 to count do
+    let spot = block(stage.face + " " + random(1, 6))
+    let kind = kinds[(i - 1) % len(kinds) + 1]
+    if i > len(kinds) then kind = random(kinds) end
+    spawn_face(face_spec(kind), spot.position, false)
+  end
+  let names = map(kinds, func(k) return face_spec(k).name end)
+  announce("😱 顔が " + count + " 体！ " + join(names, " "), 4)
+end
+
+func nearest_runner(n)
+  let best = nil
+  let best_d = 9999
+  for p in players() do
+    if running(p) and (p.smoked_until == nil or time() > p.smoked_until) then
+      let d = distance(n, p)
+      if d < best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func face_step(n)
+  let now = time()
+  -- ダッシュ顔: 爆走と休けい
+  if n.kind == "dash" and now > n.cycle_at then
+    n.charging = not n.charging
+    if n.charging then
+      n.speed = 2.5 + round_no * 0.04
+      n.cycle_at = now + 3
+    else
+      n.speed = 0.5
+      n.cycle_at = now + 2
+    end
+  end
+  let target = nearest_runner(n)
+  if target == nil then
+    n.stop()
+    return
+  end
+  -- ワープ顔: だれかのうしろへ
+  if n.kind == "warp" and now > n.warp_at then
+    n.warp_at = now + random(10, 14)
+    let p = random(filter(players(), func(q) return running(q) end))
+    n.teleport({x: p.x - p.look.x * 14, y: p.y + 1, z: p.z - p.look.z * 14})
+    p.message("👁 …うしろに何かいる", 1.2)
+  end
+  -- ジャンプ顔: 高いところにいる人にも跳んでくる
+  if n.kind == "hop" and now > n.hop_at then
+    n.hop_at = now + 1.2
+    if target.y > n.y + 0.8 or random() < 0.4 then n.jump_now() end
+  end
+  n.follow(target)
+  let dx = target.x - n.x
+  let dz = target.z - n.z
+  let flat = sqrt(dx * dx + dz * dz)
+  if flat < CATCH_RANGE * max(0.6, n.size / 2.6) + 0.4 and abs(target.y - n.y) < 3 then
+    catch(n, target)
+  end
+end
+
+func catch(n, p)
+  if not running(p) then return end
+  if p.shield then
+    p.shield = false
+    p.message("⭐ お守りが守ってくれた！", 1.5)
+    n.teleport({x: n.x - (p.x - n.x) * 3, y: n.y + 1, z: n.z - (p.z - n.z) * 3})
+    hud(p)
+    return
+  end
+  down(p)
+  if n.kind == "split" and not n.small and minis < 3 then
+    minis = minis + 1
+    spawn_face(face_spec("split"), n.position, true)
+    announce("🤪 顔がふえた！", 1.5)
+  end
+end
+
+on tick(dt)
+  if phase != "run" then return end
+  face_clock = face_clock + dt
+  if face_clock < 0.2 then return end
+  face_clock = 0
+  for n in npcs() do
+    if kit_here(n) then face_step(n) end
+  end
+end

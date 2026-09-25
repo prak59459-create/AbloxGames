@@ -1,132 +1,81 @@
--- Run From The Faces — 巨大な顔から逃げる。倒れた仲間は助け起こせ
+-- Run From The Faces — 巨大な顔から逃げる協力サバイバル
+-- 4ステージの投票、5種類の顔、ダッシュとスタミナ、倒れた仲間の救助、アイテム、レベル、お店。
+--
+-- ファイル:
+--   data.absc      表（ステージ・顔・アイテム・レベル）
+--   common.absc    道具・レベル・画面
+--   faces.absc     顔の動き
+--   rounds.absc    ロビー・投票・ラウンド・結果
+--   runner.absc    ダッシュ・倒れる・助ける・アイテム
+--   main.absc      このファイル
 
-kit_setup("Run From The Faces", "走れ！つかまった仲間は助けろ", [
-  "巨大な顔がものすごい速さで追ってくる！",
-  "つかまると倒れる。倒れた仲間の近くで「助ける」を3秒",
-  "緑のパッドでジャンプ。高いところに逃げるのも手",
-  "3分間、1人でも生きのこれば勝ち",
-  "ラウンドが進むほど顔が増えて速くなる"
+kit_setup("Run From The Faces", "走れ！ 倒れた仲間は助けろ", [
+  "😱 巨大な顔が追いかけてくる！ 3分間、1人でも逃げきればみんなの勝ち",
+  "🏃 ダッシュボタンで速く走る（スタミナを使う）。緑のパッドで大ジャンプ",
+  "😵 つかまると倒れる。近くで🤝「助ける」を3びょう続けると起こせる。30びょうでリタイア",
+  "🎒 ステージの光る玉を拾って「使う」: 🥤速く 🍫スタミナ 💨見失わせる 🎈空へ ⭐1回守る",
+  "😠ダッシュ顔は休むときがチャンス。👁ワープ顔はうしろに。😝ジャンプ顔は高い所にも来る"
 ])
 
-let round_no = 0
-let ends_at = 0
-let live = false
-let names = ["にやけ顔", "ぎょろ目", "おこり顔", "笑い男", "ぼうし顔"]
+kit_shop_title = "ランナーショップ"
+kit_shop_add("lungs", "🫁 大きな肺（スタミナ +40）", 150, func(p)
+  p.extra_stamina = (p.extra_stamina or 0) + 40
+  kit_quest_progress(p, "shop", 1)
+end)
+kit_shop_add("shoes", "👟 はやい靴（速さ +8%）", 200, func(p)
+  p.speed_bonus = min(0.24, (p.speed_bonus or 0) + 0.08)
+  refresh_speed(p)
+  kit_quest_progress(p, "shop", 1)
+end)
+kit_shop_add("medic", "🩹 救助の手（助けるのが速い）", 180, func(p)
+  p.revive_bonus = min(1, (p.revive_bonus or 0) + 0.5)
+  kit_quest_progress(p, "shop", 1)
+end)
+kit_shop_add("charm", "⭐ 最初からお守り", 250, func(p)
+  p.start_shield = true
+  kit_quest_progress(p, "shop", 1)
+end)
+kit_shop_add("hat_crown", "👑 王冠", 500, func(p) p.hat = "crown" end)
+kit_shop_add("look_neon", "💚 ネオンジャージ", 120, func(p)
+  p.color = "#22C55E"
+  p.leg_color = "#14532D"
+end)
 
-kit_quest("survive", "1ラウンド生きのこる", 1, 150)
-kit_quest("revive", "3回助ける", 3, 120)
-
-func downed_list()
-  return filter(players(), func(p) return p.downed end)
-end
-
-func start_round()
-  round_no = round_no + 1
-  live = true
-  ends_at = time() + 180
-  for p in players() do
-    p.downed = false
-    p.speed = 1
-    if not p.alive then p.respawn() end
-  end
-  for n in npcs() do n.destroy() end
-  let count = min(8, 1 + round_no)
-  for i in 1 to count do
-    let spot = block("Face Spawn " + random(1, 6))
-    create_npc({name: random(names), position: spot.position + {x: 0, y: 2, z: 0}, color: "#FDE68A", head_color: "#FEF3C7",
-                size: 2.6, health: 999999, speed: 1.35 + round_no * 0.05, team: "faces"})
-  end
-  announce("😱 ラウンド " + round_no + "！逃げろ！", 3)
-end
-
-func end_round(win)
-  if not live then return end
-  live = false
-  if win then
-    for p in players() do
-      if not p.downed then
-        p.score = p.score + 1
-        kit_quest_progress(p, "survive", 1)
-      end
-    end
-    announce("🎉 生きのびた！", 3)
-  else
-    announce("💀 全員つかまった…", 3)
-  end
-  after(6, func() start_round() end)
-end
+kit_quest("survive", "ラウンドを逃げきる", 1, 150)
+kit_quest("survive5", "5ラウンド逃げきる", 5, 500)
+kit_quest("revive", "仲間を3人助ける", 3, 150)
+kit_quest("items", "アイテムを5回使う", 5, 100)
+kit_quest("run", "1km 走る", 1000, 150)
+kit_quest("downed", "倒れる", 1, 20)
+kit_quest("shop", "お店で2回買う", 2, 100)
+kit_quest("level", "レベルを2回上げる", 2, 200)
 
 on start()
-  after(4, func() start_round() end)
-  every(1, func()
-    if live then
-      let left = ends_at - time()
-      ui_text("clock", "⏱ " + kit_clock(left) + "   😱 " + len(npcs()), {at: "top", dy: 26, size: 22, bold: true})
-      if left <= 0 then end_round(true) end
-    end
-  end)
+  every(10, func() kit_leaderboard("🏃") end)
+  after(5, func() open_vote() end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_give(p, 30)
+  p.xp = 0
+  p.in_round = false
   p.downed = false
-  p.ui_button("revive", "🤝 助ける", {at: "bottom_right", dx: -120, dy: -160, w: 120, h: 64, size: 18, bg: "#16A34A", radius: 16})
+  p.out = false
+  p.item = nil
+  p.stamina = STAMINA
+  p.times_downed = 0
+  p.ui_button("sprint", "🏃", {at: "bottom_right", dx: -120, dy: -160, w: 100, h: 70, size: 30, bg: "#0EA5E9", radius: 18})
+  p.ui_button("revive", "🤝 助ける", {at: "bottom_right", dx: -240, dy: -160, w: 110, h: 56, size: 16, bg: "#16A34A", radius: 16})
+  p.ui_button("use", "🎒 使う", {at: "right", dy: 180, w: 150, h: 46, size: 16, bg: "#B45309"})
+  if phase == "vote" then vote_panel(p) end
+  if phase == "run" then p.message("👀 ラウンド中… 次のラウンドから参加", 2.5) end
+  hud(p)
 end
 
-on tick(dt)
-  if not live then return end
-  for n in npcs() do
-    let target = nil
-    for p in players() do
-      if not p.downed and (target == nil or distance(n, p) < distance(n, target)) then target = p end
-    end
-    if target != nil then
-      n.follow(target)
-      if distance(n, target) < 2.6 then
-        target.downed = true
-        target.speed = 0.15
-        target.message("😵 倒れた！仲間に助けてもらおう", 2)
-        target.shake(0.5, 0.4)
-        if len(filter(players(), func(p) return not p.downed end)) == 0 then end_round(false) end
-      end
-    end
-  end
-  -- 助けている途中
-  for p in players() do
-    if p.reviving != nil then
-      let other = nil
-      for q in players() do
-        if q.id == p.reviving then other = q end
-      end
-      if other == nil or not other.downed or distance(p, other) > 4 then
-        p.reviving = nil
-        p.ui_remove("rev")
-      else
-        p.rev_time = p.rev_time + dt
-        p.ui_bar("rev", p.rev_time, 3, {at: "center", dy: 80, w: 200, h: 14, color: "#22C55E"})
-        if p.rev_time >= 3 then
-          other.downed = false
-          other.speed = 1
-          other.message("🙌 " + p.name + " が助けてくれた！", 2)
-          kit_quest_progress(p, "revive", 1)
-          p.reviving = nil
-          p.ui_remove("rev")
-        end
-      end
-    end
-  end
-end
-
-on button(p, id)
-  if id == "revive" and not p.downed then
-    for q in downed_list() do
-      if q.id != p.id and distance(p, q) < 4 then
-        p.reviving = q.id
-        p.rev_time = 0
-        return
-      end
-    end
-    p.message("近くに倒れた仲間はいない", 1)
-  end
+on leave(p)
+  after(0.5, func() check_all_down() end)
 end
