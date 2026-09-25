@@ -1,0 +1,231 @@
+-- ranch.absc — 牧場: もらう・台に置く・重ねて合体・拾う・自動合体・かせぎ
+
+let ranch_clock = 0
+
+func pad_block(n, k)
+  return block("Plot " + n + " Pad " + k)
+end
+
+func empty_pads()
+  let list = []
+  for k in 1 to MAX_PADS do append(list, nil) end
+  return list
+end
+
+func claim_plot(p, n)
+  if p.plot != nil then
+    if p.plot != n and quiet_ready(p, "plot_msg", 3) then p.message("あなたの牧場は " + p.plot + " ばん", 1.5) end
+    return
+  end
+  let plot = plots[n]
+  if plot.owner != nil then
+    if quiet_ready(p, "plot_msg", 3) then p.message("ここはほかの人の牧場", 1.2) end
+    return
+  end
+  plot.owner = p.id
+  p.plot = n
+  block("Plot " + n + " Claim").color = "#22C55E"
+  paint_pads(p)
+  p.message("🏡 牧場 " + n + " があなたのもの！ 台にのるとスライムを置ける", 3)
+  hud(p)
+end
+
+-- 使える台は明るく、まだの台は暗く
+func paint_pads(p)
+  if p.plot == nil then return end
+  for k in 1 to MAX_PADS do
+    let b = pad_block(p.plot, k)
+    if b != nil then
+      if k <= pad_count(p) then b.color = "#BBF7D0" else b.color = "#A8A29E" end
+    end
+  end
+end
+
+func free_plot(n)
+  let plot = plots[n]
+  for s in plot.pads do hide_slime(s) end
+  plots[n] = {owner: nil, pads: empty_pads()}
+  block("Plot " + n + " Claim").color = "#FACC15"
+  for k in 1 to MAX_PADS do
+    let b = pad_block(n, k)
+    if b != nil then b.color = "#D6D3D1" end
+  end
+end
+
+-- 台の上のスライム（見た目）。NPC の数を使わないようにブロックで作る
+func show_pad(n, k)
+  let plot = plots[n]
+  let s = plot.pads[k]
+  if s == nil then return end
+  hide_slime(s)
+  let t = type_of(s.type)
+  let b = pad_block(n, k)
+  let size = slime_size(s.level)
+  let base = b.position + {x: 0, y: 0.2 + size * 0.42, z: 0}
+  let parts = []
+  append(parts, create_block({name: "Ranch Slime", shape: "sphere", position: base, size: {x: size * 1.15, y: size * 0.85, z: size * 1.15}, color: t.color,
+                              solid: false}))
+  for dx in [-0.22, 0.22] do
+    append(parts, create_block({name: "Slime Eye", shape: "sphere", position: base + {x: dx * size, y: size * 0.12, z: 0 - size * 0.5},
+                                size: {x: size * 0.14, y: size * 0.2, z: size * 0.1}, color: "#111827", solid: false}))
+  end
+  if s.level >= 9 then
+    append(parts, create_block({name: "Slime Crown", shape: "cone", position: base + {x: 0, y: size * 0.55, z: 0}, size: {x: size * 0.45, y: size * 0.35, z: size * 0.45},
+                                color: "#FACC15", material: "metal", solid: false}))
+  end
+  if s.type == "rainbow" or s.type == "crystal" or s.type == "ghost" then parts[1].material = "neon" end
+  s.parts = parts
+end
+
+func hide_slime(s)
+  if s == nil or s.parts == nil then return end
+  for b in s.parts do gone(b) end
+  s.parts = nil
+end
+
+-- ぴょんとはねる
+func hop_slime(s)
+  if s.parts == nil then return end
+  for b in s.parts do
+    if still(b) then b.move(0, 1.2, 0, 0.18) end
+  end
+  let parts = s.parts
+  after(0.22, func()
+    for b in parts do
+      if still(b) then b.move(0, -1.2, 0, 0.25) end
+    end
+  end)
+end
+
+-- 選んでいるスライム
+func selected(p)
+  if len(p.hand) == 0 then return nil end
+  if p.sel == nil or p.sel > len(p.hand) or p.sel < 1 then p.sel = 1 end
+  return p.hand[p.sel]
+end
+
+func take_selected(p)
+  let s = selected(p)
+  if s == nil then return nil end
+  remove(p.hand, p.sel)
+  if p.sel > len(p.hand) then p.sel = max(1, len(p.hand)) end
+  return s
+end
+
+func pad_touch(p, n, k)
+  if n != p.plot then
+    if p.plot == nil and quiet_ready(p, "plot_msg", 3) then p.message("先に黄色いパッドで牧場をもらおう", 1.5) end
+    return
+  end
+  if k > pad_count(p) then
+    if quiet_ready(p, "pad_lock", 3) then p.message("🔒 この台はまだ使えない（強化で台をふやそう）", 1.5) end
+    return
+  end
+  let plot = plots[n]
+  let here = plot.pads[k]
+  let s = selected(p)
+  if here == nil then
+    if s == nil then return end
+    take_selected(p)
+    plot.pads[k] = {type: s.type, level: s.level, parts: nil}
+    show_pad(n, k)
+    p.sound("collect")
+  elif s != nil and s.type == here.type and s.level == here.level and here.level < MAX_LEVEL then
+    take_selected(p)
+    merge_on(p, n, k)
+  else
+    -- 拾う
+    if len(p.hand) >= hand_max(p) then
+      if quiet_ready(p, "full", 2) then p.message("🎒 いっぱい", 1) end
+      return
+    end
+    hide_slime(here)
+    plot.pads[k] = nil
+    append(p.hand, {type: here.type, level: here.level})
+    p.sel = len(p.hand)
+  end
+  hand_ui(p)
+  hud(p)
+end
+
+-- 台のスライムがレベルアップ
+func merge_on(p, n, k)
+  let plot = plots[n]
+  let s = plot.pads[k]
+  s.level = s.level + 1
+  show_pad(n, k)
+  hop_slime(s)
+  p.message("✨ 合体！ " + label(s), 1.5)
+  p.sound("goal")
+  p.merges = p.merges + 1
+  kit_quest_progress(p, "merge", 1)
+  kit_quest_progress(p, "merge100", 1)
+  discover(p, s)
+  if s.level >= 5 then kit_quest_progress(p, "lv5", 1) end
+end
+
+-- 自動合体: 台の上の同じスライムどうし
+func auto_merge(p)
+  if lvl(p, "automerge") <= 0 or p.plot == nil then return end
+  let plot = plots[p.plot]
+  for a in 1 to pad_count(p) do
+    let sa = plot.pads[a]
+    if sa != nil and sa.level < MAX_LEVEL then
+      for b in 1 to pad_count(p) do
+        let sb = plot.pads[b]
+        if b != a and sb != nil and plot.pads[a] != nil and sb.type == sa.type and sb.level == sa.level then
+          hide_slime(sb)
+          plot.pads[b] = nil
+          merge_on(p, p.plot, a)
+          return
+        end
+      end
+    end
+  end
+end
+
+-- 2秒ごとにかせぐ
+func earn_step(p)
+  let c = ranch_income(p)
+  if c <= 0 then return end
+  kit_give(p, floor(c))
+  p.earned = p.earned + c
+end
+
+on start()
+  for n in 1 to PLOT_COUNT do plots["" + n] = {owner: nil, pads: empty_pads()} end
+end
+
+on tick(dt)
+  ranch_clock = ranch_clock + dt
+  if ranch_clock < 2 then return end
+  ranch_clock = 0
+  for p in players() do
+    if ready(p) and p.plot != nil then
+      earn_step(p)
+      auto_merge(p)
+      hud(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "claim") then claim_plot(p, replace(replace(b.name, "Plot ", ""), " Claim", ""))
+  elif contains(b.tags, "pad") and quiet_ready(p, "pad_" + b.name, 1.2) then
+    let parts = split(b.name, " ")
+    pad_touch(p, parts[2], num(parts[4]))
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "hand_") then
+    p.sel = num(replace(id, "hand_", ""))
+    hand_ui(p)
+  end
+end
+
+on leave(p)
+  if p.plot != nil then free_plot(p.plot) end
+end

@@ -1,173 +1,55 @@
--- Slime Merge — スライムをつかまえて、同じレベルどうしを合体
+-- Slime Merge — スライムをすいこんで、牧場の台で合体させて、かせいで、もっと遠くのバイオームへ
+--
+-- ファイル:
+--   data.absc    スライム8種・レベル・バイオーム・強化
+--   common.absc  スライムの強さ・図鑑・画面
+--   ranch.absc   牧場の台・置く・合体・かせぎ
+--   wild.absc    野生のスライム・すいこむ・ゲート・スライムの雨
+--   shop.absc    たまご屋・市場・強化・図鑑
+--   main.absc    このファイル
 
-kit_setup("Slime Merge", "合体させて、最強スライムを", [
-  "草原のスライムに近づいて「🫳 つかまえる」",
-  "同じレベルのスライムが2ひきいたら「✨ 合体」でレベルアップ",
-  "牧場の黄色い台にさわると、いちばん強いスライムを台にのせる",
-  "台のスライムは5秒ごとにお金を生む（レベルが高いほど多い）",
-  "台は3つまで。🛒で台をふやせる"
+kit_setup("Slime Merge", "すいこんで、合体して、レジェンドスライムを", [
+  "🌀 野生のスライムに近づいて「すいこむ」",
+  "🏡 黄色いパッドで牧場をもらって、台にのるとスライムを置ける",
+  "✨ 同じ種類・同じレベルのスライムを重ねると合体してレベルアップ（最大 Lv.10）",
+  "💰 台のスライムは2秒ごとにコインをかせぐ。レベルが高いほどたくさん",
+  "🔓 ゲートでバイオームを開けると、もっとかせぐスライムに会える",
+  "🌧 ときどきスライムの雨。にじいろスライムはにげ足が速い！",
+  "下のボタンで持っているスライムをえらぶ。台の上のスライムをもう一度さわると拾える"
 ])
+kit_currency = "コイン"
 
-let colors = ["#86EFAC", "#4ADE80", "#22D3EE", "#60A5FA", "#A78BFA", "#F472B6", "#FB923C", "#FACC15", "#F43F5E", "#FFFFFF"]
-let names = ["プチ", "ミニ", "ふつう", "ビッグ", "ジャンボ", "メガ", "ギガ", "テラ", "キング", "レジェンド"]
-let pens = {}         -- 台の名前 → {owner, level, npc}
-
-kit_shop_add("pen", "台の数 +1", 500, func(p) p.max_pens = p.max_pens + 1 end)
-kit_shop_add("net", "大きなあみ（つかまえる距離 ×2）", 200, func(p) p.reach = 10 end)
-kit_shop_add("lure", "エサ（レアなスライムが出やすくなる）", 800, func(p) p.lure = true end)
-
-kit_quest("catch", "10ぴきつかまえる", 10, 60)
-kit_quest("lv5", "レベル5のスライムを作る", 1, 200)
-kit_quest("pens", "台に3びきのせる", 1, 150)
-
-func label(level)
-  return names[min(len(names), level)] + "スライム Lv." + level
-end
-
-func show(p)
-  let counts = {}
-  for l in p.slimes do counts[str(l)] = (counts[str(l)] or 0) + 1 end
-  let parts = []
-  for k in sort(map(keys(counts), func(x) return num(x) end)) do append(parts, "Lv" + k + "×" + counts[str(k)]) end
-  p.ui_text("inv", "🫧 " + (len(parts) > 0 and join(parts, "  ") or "スライムなし"), {at: "top", dy: 30, size: 16, bold: true})
-end
-
-func spawn_wild()
-  let spot = block("Wild Spot " + random(1, 12))
-  let level = 1
-  if random() < 0.25 then level = 2 end
-  if random() < 0.06 then level = 3 end
-  let n = create_npc({name: label(level), position: spot.position + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: colors[level],
-                      head_color: colors[level], size: 0.4 + level * 0.1, health: 999999, speed: 0.3, team: "wild"})
-  n.level = level
-end
-
-func merge(p)
-  if len(p.slimes) < 2 then
-    p.message("スライムが2ひき以上いないと合体できない", 1)
-    return
-  end
-  let merged = false
-  let changed = true
-  while changed do
-    changed = false
-    let seen = {}
-    for i in 1 to len(p.slimes) do
-      let l = p.slimes[i]
-      if seen[str(l)] != nil then
-        remove(p.slimes, i)
-        remove(p.slimes, seen[str(l)])
-        append(p.slimes, l + 1)
-        merged = true
-        changed = true
-        if l + 1 >= 5 then kit_quest_progress(p, "lv5", 1) end
-        if l + 1 >= 8 then announce("👑 " + p.name + " が " + label(l + 1) + " を作った！", 3) end
-        break
-      end
-      seen[str(l)] = i
-    end
-  end
-  if merged then
-    p.message("✨ 合体！", 1)
-    p.sound("goal")
-    p.score = max(p.score, max_level(p))
-  else
-    p.message("同じレベルが2ひきいない", 1)
-  end
-  show(p)
-end
-
-func max_level(p)
-  let best = 0
-  for l in p.slimes do best = max(best, l) end
-  return best
-end
+kit_quest("catch", "スライムを10ぴきすいこむ", 10, 60)
+kit_quest("merge", "10回合体する", 10, 200)
+kit_quest("merge100", "100回合体する", 100, 20000)
+kit_quest("lv5", "Lv.5 のスライムを作る", 1, 500)
+kit_quest("biomes", "バイオームを3つ開ける", 3, 5000)
+kit_quest("upgrade", "10回強化する", 10, 2000)
+kit_quest("pedia", "図鑑を30こうめる", 30, 30000)
 
 on start()
-  for i in 1 to 8 do spawn_wild() end
-  every(4, func()
-    if len(filter(npcs(), func(n) return n.team == "wild" end)) < 12 then spawn_wild() end
-    for n in npcs() do
-      if n.team == "wild" and random() < 0.3 then n.move_to(n.position + {x: random(-5, 5), y: 0, z: random(-5, 5)}) end
-    end
-  end)
-  every(5, func()
-    for key in keys(pens) do
-      let pen = pens[key]
-      for p in players() do
-        if p.id == pen.owner then kit_give(p, floor(pow(2.2, pen.level))) end
-      end
-    end
-  end)
-  every(10, func() kit_leaderboard("🫧 最高Lv") end)
+  every(10, func() kit_leaderboard("💰/2秒") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  kit_shop_button(p)
-  p.slimes = [1]
-  p.max_pens = 3
-  p.reach = 5
-  kit_give(p, 0)
-  p.ui_button("catch", "🫳 つかまえる", {at: "bottom_right", dx: -120, dy: -160, w: 140, h: 64, size: 17, bg: "#10B981", radius: 16})
-  p.ui_button("merge", "✨ 合体", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#A855F7"})
-  show(p)
-end
-
-on leave(p)
-  for key in keys(pens) do
-    if pens[key].owner == p.id then
-      if kit_here(pens[key].npc) then pens[key].npc.destroy() end
-      remove(pens, key)
-    end
+  p.hand = [{type: "pink", level: 1}]
+  p.sel = 1
+  p.ups = {}
+  p.biomes = ["meadow"]
+  p.pedia = {}
+  p.best = 1
+  p.merges = 0
+  p.catches = 0
+  p.earned = 0
+  discover(p, p.hand[1])
+  kit_give(p, 30)
+  p.ui_button("vacuum", "🌀 すいこむ", {at: "bottom_right", dx: -110, dy: -170, w: 160, h: 64, size: 18, bg: "#10B981", radius: 16})
+  p.ui_button("open_pedia", "📖 図鑑", {at: "right", dy: -40, w: 130, h: 44, size: 15, bg: "#4338CA"})
+  hand_ui(p)
+  hud(p)
+  for n in 1 to PLOT_COUNT do
+    if p.plot == nil and plots["" + n].owner == nil then claim_plot(p, "" + n) end
   end
-end
-
-on button(p, id)
-  if id == "catch" then
-    for n in npcs() do
-      if n.team == "wild" and distance(p, n) < p.reach then
-        append(p.slimes, n.level)
-        n.destroy()
-        kit_quest_progress(p, "catch", 1)
-        p.message("🫳 " + label(n.level) + " をつかまえた！", 1.2)
-        show(p)
-        return
-      end
-    end
-    p.message("近くにスライムがいない", 1)
-  elif id == "merge" then
-    merge(p)
-  end
-end
-
-on touch(p, b)
-  if p.is_npc or not contains(b.tags, "pen") then return end
-  if not kit_ready(p, "pen", 2) then return end
-  let pen = pens[b.name]
-  if pen != nil and pen.owner != p.id then
-    p.message("ほかの人の台", 1)
-    return
-  end
-  let mine = len(filter(keys(pens), func(k) return pens[k].owner == p.id end))
-  if pen == nil and mine >= p.max_pens then
-    p.message("台は " + p.max_pens + " つまで", 1.5)
-    return
-  end
-  if len(p.slimes) == 0 then return end
-  let best = max_level(p)
-  if pen != nil and pen.level >= best then return end
-  remove(p.slimes, index_of(p.slimes, best))
-  if pen != nil then
-    append(p.slimes, pen.level)
-    if kit_here(pen.npc) then pen.npc.destroy() end
-  end
-  let n = create_npc({name: label(best), position: b.position + {x: 0, y: 1, z: 0}, color: colors[min(10, best)],
-                      head_color: colors[min(10, best)], size: 0.4 + best * 0.12, health: 999999, speed: 0, team: "pens"})
-  n.frozen = true
-  pens[b.name] = {owner: p.id, level: best, npc: n}
-  p.message("🏠 " + label(best) + " を台にのせた", 1.5)
-  if mine + 1 >= 3 then kit_quest_progress(p, "pens", 1) end
-  show(p)
 end

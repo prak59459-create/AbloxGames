@@ -1,0 +1,165 @@
+-- shop.absc — たまご屋・市場（売る）・強化・図鑑
+
+-- MARK: たまご屋
+
+func egg_price(t)
+  return floor(t.base * 120)
+end
+
+func egg_panel(p)
+  let list = filter(TYPES, func(t) return t.biome != "" and unlocked(p, t.biome) end)
+  let h = 120 + len(list) * 46
+  p.ui_remove("eggs")
+  p.ui_panel("eggs", {at: "center", w: 520, h: h, bg: "#831843F2", radius: 20, layer: 30})
+  p.ui_text("eggs_t", "🥚 たまご屋   💰 " + kit_short(kit_money(p)), {parent: "eggs", y: 22 / h, size: 17, bold: true, color: "#FBCFE8"})
+  let i = 0
+  for t in list do
+    i = i + 1
+    p.ui_button("egg_" + t.id, "🥚 " + t.name + "スライムのたまご（Lv.1〜3）  💰" + kit_short(egg_price(t)), {parent: "eggs", y: (30 + i * 46) / h, w: 480, h: 40,
+                size: 13, bg: t.color, color: "#111111"})
+  end
+  p.ui_text("eggs_h", "バイオームを開けると、たまごの種類がふえる", {parent: "eggs", y: (h - 48) / h, size: 11, color: "#FCE7F3"})
+  p.ui_button("eggs_close", "閉じる", {parent: "eggs", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func buy_egg(p, id)
+  let t = type_of(id)
+  if t.biome == "" or not unlocked(p, t.biome) then return end
+  if len(p.hand) >= hand_max(p) then
+    p.message("🎒 いっぱい", 1)
+    return
+  end
+  if kit_pay(p, egg_price(t)) then
+    let level = 1
+    if random() < 0.3 then level = 2 end
+    if random() < 0.1 then level = 3 end
+    let s = {type: id, level: level}
+    append(p.hand, s)
+    p.sel = len(p.hand)
+    discover(p, s)
+    p.message("🐣 " + label(s) + " がうまれた！", 1.5)
+    p.sound("collect")
+    hand_ui(p)
+  end
+  egg_panel(p)
+end
+
+-- MARK: 市場
+
+func sell_price(s)
+  return floor(income_of(s) * 25)
+end
+
+func market_panel(p)
+  let total = 0
+  for s in p.hand do total = total + sell_price(s) end
+  let h = 220
+  p.ui_remove("market")
+  p.ui_panel("market", {at: "center", w: 500, h: h, bg: "#14532DF2", radius: 20, layer: 30})
+  p.ui_text("market_t", "🏪 スライム市場", {parent: "market", y: 26 / h, size: 18, bold: true, color: "#BBF7D0"})
+  let s = selected(p)
+  let one = "えらんでいるスライムがいない"
+  if s != nil then one = "▶ " + label(s) + " を売る  💰" + kit_short(sell_price(s)) end
+  p.ui_button("sell_one", one, {parent: "market", y: 80 / h, w: 450, h: 42, size: 14, bg: "#16A34A"})
+  p.ui_button("sell_all", "🎒 持っているの全部を売る  💰" + kit_short(total), {parent: "market", y: 132 / h, w: 450, h: 42, size: 14, bg: "#15803D"})
+  p.ui_button("market_close", "閉じる", {parent: "market", y: (h - 22) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func sell_one(p)
+  let s = take_selected(p)
+  if s == nil then return end
+  let c = sell_price(s)
+  kit_give(p, c)
+  p.message("💰 " + label(s) + " を売った +" + kit_short(c), 1.2)
+  hand_ui(p)
+  market_panel(p)
+end
+
+func sell_all(p)
+  let total = 0
+  for s in p.hand do total = total + sell_price(s) end
+  p.hand = []
+  p.sel = 1
+  if total > 0 then kit_give(p, total) end
+  p.message("💰 全部売った +" + kit_short(total), 1.5)
+  hand_ui(p)
+  market_panel(p)
+end
+
+-- MARK: 強化
+
+func up_price(p, u)
+  return floor(u.base * pow(u.grow, lvl(p, u.id)))
+end
+
+func upgrade_panel(p)
+  let h = 110 + len(UPGRADES) * 46
+  p.ui_remove("ups")
+  p.ui_panel("ups", {at: "center", w: 540, h: h, bg: "#1E3A8AF2", radius: 20, layer: 30})
+  p.ui_text("ups_t", "🔧 強化   💰 " + kit_short(kit_money(p)), {parent: "ups", y: 22 / h, size: 17, bold: true, color: "#BFDBFE"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let l = lvl(p, u.id)
+    let label_text = u.name + " Lv" + l + "/" + u.max + "（" + u.text + "）  💰" + kit_short(up_price(p, u))
+    if l >= u.max then label_text = u.name + " MAX" end
+    p.ui_button("up_" + u.id, label_text, {parent: "ups", y: (30 + i * 46) / h, w: 500, h: 40, size: 13, bg: "#2563EB"})
+  end
+  p.ui_button("ups_close", "閉じる", {parent: "ups", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func buy_up(p, id)
+  let u = find(UPGRADES, id)
+  if u == nil or lvl(p, id) >= u.max then return end
+  if kit_pay(p, up_price(p, u)) then
+    p.ups[id] = lvl(p, id) + 1
+    p.sound("collect")
+    kit_quest_progress(p, "upgrade", 1)
+    if id == "pads" then paint_pads(p) end
+    hand_ui(p)
+    hud(p)
+  end
+  upgrade_panel(p)
+end
+
+-- MARK: 図鑑
+
+func pedia_panel(p)
+  let h = 130 + len(TYPES) * 38
+  p.ui_remove("pedia")
+  p.ui_panel("pedia", {at: "center", w: 600, h: h, bg: "#1E1B4BF2", radius: 20, layer: 30})
+  p.ui_text("pedia_t", "📖 スライム図鑑  " + len(keys(p.pedia)) + " / " + (len(TYPES) * MAX_LEVEL), {parent: "pedia", y: 22 / h, size: 17, bold: true, color: "#C4B5FD"})
+  let i = 0
+  for t in TYPES do
+    i = i + 1
+    let line = t.name + "  "
+    for l in 1 to MAX_LEVEL do
+      if p.pedia[t.id + "_" + l] then line = line + "●" else line = line + "○" end
+    end
+    p.ui_text("pedia_" + i, line, {parent: "pedia", y: (40 + i * 38) / h, size: 15, color: t.color})
+  end
+  p.ui_button("pedia_close", "閉じる", {parent: "pedia", y: (h - 22) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "eggs") and quiet_ready(p, "eggs", 2) then egg_panel(p)
+  elif contains(b.tags, "market") and quiet_ready(p, "market", 2) then market_panel(p)
+  elif contains(b.tags, "upgrades") and quiet_ready(p, "upgrades", 2) then upgrade_panel(p)
+  elif contains(b.tags, "pedia") and quiet_ready(p, "pedia", 2) then pedia_panel(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "egg_") then buy_egg(p, replace(id, "egg_", ""))
+  elif id == "eggs_close" then p.ui_remove("eggs")
+  elif id == "sell_one" then sell_one(p)
+  elif id == "sell_all" then sell_all(p)
+  elif id == "market_close" then p.ui_remove("market")
+  elif starts_with(id, "up_") then buy_up(p, replace(id, "up_", ""))
+  elif id == "ups_close" then p.ui_remove("ups")
+  elif id == "open_pedia" then pedia_panel(p)
+  elif id == "pedia_close" then p.ui_remove("pedia")
+  end
+end

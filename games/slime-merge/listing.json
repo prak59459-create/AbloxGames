@@ -1,15 +1,20 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 54,
-  "cover" : "games\/slime-merge\/cover-eeb5414a.png",
+  "blockCount" : 408,
+  "cover" : "games\/slime-merge\/cover-acc8b0a2.png",
   "id" : "slime-merge",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/slime-merge\/data.absc",
+    "games\/slime-merge\/common.absc",
+    "games\/slime-merge\/ranch.absc",
+    "games\/slime-merge\/shop.absc",
+    "games\/slime-merge\/wild.absc",
     "games\/slime-merge\/main.absc"
   ],
-  "summary" : "草原のスライムをつかまえて、同じレベルどうしを合体！台にのせるとお金を生む。最強スライムを作りだせ。",
+  "summary" : "スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！",
   "tags" : [
     "merge",
     "idle",

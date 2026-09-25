@@ -31,7 +31,7 @@ let idleGames: [Game] = [
          summary: "自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！",
          tags: ["simulator", "cars", "satisfying"], maxPlayers: 10, build: crusherYard),
     Game(number: 68, id: "slime-merge", title: "Slime Merge",
-         summary: "草原のスライムをつかまえて、同じレベルどうしを合体！台にのせるとお金を生む。最強スライムを作りだせ。",
+         summary: "スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！",
          tags: ["merge", "idle", "cute"], maxPlayers: 10, build: slimeMerge),
     Game(number: 69, id: "mansion-builder-tycoon", title: "Mansion Builder Tycoon",
          summary: "小さな家から大豪邸へ。お金をためて部屋、プール、ガレージ、ヘリポートを順番に建てていくタイクーン。",
@@ -825,14 +825,86 @@ func crusherYard(_ m: MapBuilder) {
 
 func slimeMerge(_ m: MapBuilder) {
     m.sky("#A7F3D0", "#ECFDF5", light: 0.85, ground: "#6EE7B7")
-    m.ground(140, 140, color: "#86EFAC", name: "Slime Field")
-    m.spawnRing(0, 0, radius: 5, count: 10, color: "#34D399")
-    m.slab("Ranch", x: 0, y: 0, z: -35, w: 40, h: 0.3, d: 14, color: "#D6B98C")
-    for i in 0..<10 {
-        m.pad("Pen \(i + 1)", x: -18 + Float(i % 5) * 9, z: i < 5 ? -38 : -32, y: 0.3, size: 3, color: "#FDE68A", tags: ["pen"])
+    m.ground(220, 280, color: "#86EFAC", name: "Slime Field", z: 50)
+    m.part("Cover Focus", at: (0, 2, 22), size: (120, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
+    var r = Seeded("slimes")
+    // Big decorative slimes around the hub and the meadow.
+    let deco: [(Float, Float, Float, String)] = [(-24, 14, 2.4, "#F9A8D4"), (24, 14, 2, "#38BDF8"), (-10, 34, 1.6, "#FBBF24"), (12, 40, 2.8, "#A78BFA"),
+                                                 (-18, 52, 1.8, "#F97316"), (20, 56, 1.4, "#F0ABFC"), (0, 48, 3.4, "#F9A8D4")]
+    for d in deco {
+        m.part("Deco Slime", at: (d.0, d.2 * 0.42, d.1), size: (d.2 * 1.15, d.2 * 0.85, d.2 * 1.15), color: d.3, shape: .sphere, solid: false)
+        for dx: Float in [-0.22, 0.22] {
+            m.part("Deco Slime Eye", at: (d.0 + dx * d.2, d.2 * 0.54, d.1 - d.2 * 0.5), size: (d.2 * 0.14, d.2 * 0.2, d.2 * 0.1), color: "#111827", shape: .sphere, solid: false)
+        }
     }
-    m.markers("Wild Spot", points: grid(4, 3, spacing: 14, cx: 0, cz: 30), color: "#000000", visible: false, behavior: .none)
-    for p in ring(10, radius: 62) { m.tree(p.0, p.1, height: 4, leaves: "#10B981") }
+    // The hub: spawns, the egg shop, the market, the upgrade stand and the slime book.
+    m.slab("Hub Plaza", x: 0, y: 0, z: 2, w: 44, h: 0.06, d: 22, color: "#FEF3C7")
+    m.spawnRing(0, 2, radius: 5, count: 8, color: "#34D399")
+    m.part("Hub Slime Statue", at: (0, 1.4, 2), size: (2.6, 2, 2.6), color: "#F9A8D4", shape: .sphere)
+    let stalls: [(String, Float, Float, String, String)] = [("Egg", -16, 8, "#EC4899", "eggs"), ("Market", 16, 8, "#16A34A", "market"),
+                                                            ("Upgrade", -16, -4, "#2563EB", "upgrades"), ("Pedia", 16, -4, "#6D28D9", "pedia")]
+    for st in stalls {
+        m.slab("\(st.0) Counter", x: st.1, y: 0, z: st.2 + 1.6, w: 4.4, h: 1.1, d: 1, color: "#92400E")
+        for dx: Float in [-2, 2] { m.part("\(st.0) Pole", at: (st.1 + dx, 1.7, st.2 + 2.2), size: (0.2, 3.4, 0.2), color: "#A16207", solid: false) }
+        m.slab("\(st.0) Awning", x: st.1, y: 3.4, z: st.2 + 1.8, w: 5, h: 0.2, d: 2.4, color: st.3)
+        m.pad("\(st.0) Pad", x: st.1, z: st.2 - 0.4, size: 2.4, color: st.3, tags: [st.4])
+    }
+    // Six ranch plots south of the hub, each with a 4 × 4 grid of pads.
+    let plotSpots: [(Float, Float)] = [(-40, -30), (0, -30), (40, -30), (-40, -60), (0, -60), (40, -60)]
+    for (i, q) in plotSpots.enumerated() {
+        let n = i + 1
+        m.slab("Plot \(n) Floor", x: q.0, y: 0, z: q.1, w: 30, h: 0.08, d: 26, color: "#D9F99D")
+        m.pad("Plot \(n) Claim", x: q.0, z: q.1 + 11.5, size: 2.6, color: "#FACC15", tags: ["claim"])
+        for (k, g) in grid(4, 4, spacing: 5, cx: q.0, cz: q.1 - 1).enumerated() {
+            m.part("Plot \(n) Pad \(k + 1)", at: (g.0, 0.15, g.1), size: (3.2, 0.14, 3.2), color: "#D6D3D1", behavior: .trigger, tags: ["pad"])
+        }
+        for sx: Float in [-15, 15] { m.fence(from: (q.0 + sx, q.1 - 13), to: (q.0 + sx, q.1 + 13), color: "#FBBF24") }
+        m.fence(from: (q.0 - 15, q.1 - 13), to: (q.0 + 15, q.1 - 13), color: "#FBBF24")
+        m.part("Plot \(n) Sign", at: (q.0 + 4, 1.4, q.1 + 12.6), size: (2.4, 1.2, 0.2), color: "#FEF3C7", solid: false)
+    }
+    // Seven biomes to the north; the meadow is open, the rest have a gate.
+    let biomes: [(String, Float, Float, Float, Float, String, Float, Float)] = [
+        ("meadow", 0, 45, 56, 34, "#BBF7D0", 0, 0), ("lake", -66, 45, 44, 34, "#7DD3FC", -40, 45), ("canyon", 66, 45, 44, 34, "#D6B98C", 40, 45),
+        ("forest", -66, 97, 44, 40, "#4D7C0F", -66, 70), ("volcano", 66, 97, 44, 40, "#57534E", 66, 70),
+        ("cave", 0, 101, 50, 40, "#4C1D95", 0, 71), ("graveyard", 0, 152, 50, 40, "#475569", 0, 126)]
+    for b in biomes {
+        m.part("Biome \(b.0)", at: (b.1, 0.03, b.2), size: (b.3, 0.06, b.4), color: b.5, material: .matte, solid: false)
+        let spots = grid(3, 2, spacing: 12, cx: b.1, cz: b.2)
+        m.markers("Wild \(b.0)", points: spots, color: "#000000", visible: false, behavior: .none)
+        if b.0 != "meadow" {
+            m.pad("Gate \(b.0)", x: b.6, z: b.7, size: 3, color: "#F59E0B", tags: ["gate"])
+            let alongX = abs(b.6 - b.1) > abs(b.7 - b.2)
+            for k: Float in [-1, 1] {
+                m.pillar("Gate Post", x: b.6 + (alongX ? 0 : k * 2.4), z: b.7 + (alongX ? k * 2.4 : 0), height: 4.5, radius: 0.35, color: "#B45309")
+            }
+            m.part("Gate Glow", at: (b.6, 4.8, b.7), size: (alongX ? 0.4 : 5.2, 0.5, alongX ? 5.2 : 0.4), color: "#FDE68A", material: .neon, solid: false)
+        }
+        for _ in 0..<12 {
+            let x = b.1 + r.range(-b.3 / 2 + 2, b.3 / 2 - 2), z = b.2 + r.range(-b.4 / 2 + 2, b.4 / 2 - 2)
+            switch b.0 {
+            case "meadow": m.part("Flower", at: (x, 0.35, z), size: (0.6, 0.6, 0.6), color: r.pick(["#F472B6", "#FDE047", "#FFFFFF", "#C084FC"]), shape: .sphere, solid: false)
+            case "lake": m.part("Reed", at: (x, 0.8, z), size: (0.2, 1.6, 0.2), color: "#15803D", shape: .cylinder, solid: false)
+            case "canyon": m.part("Mesa", at: (x, 1.5, z), size: (r.range(2, 4), 3, r.range(2, 4)), color: "#B45309", material: .matte)
+            case "forest": m.tree(x, z, height: r.range(4, 6), leaves: "#15803D")
+            case "volcano": m.part("Lava Crack", at: (x, 0.07, z), size: (r.range(1.5, 3), 0.04, 0.5), color: "#F97316", material: .neon, solid: false,
+                                   rotation: (0, r.range(0, 180), 0))
+            case "cave": m.part("Crystal", at: (x, 1.2, z), size: (1, 2.4, 1), color: r.pick(["#A78BFA", "#F0ABFC", "#67E8F9"]), shape: .cone, material: .neon, solid: false)
+            default: m.slab("Tombstone", x: x, y: 0, z: z, w: 1.2, h: 1.6, d: 0.4, color: "#9CA3AF")
+            }
+        }
+    }
+    m.water(-66, 45, w: 18, d: 12, y: 0.07, name: "Lake Water")
+    m.part("Volcano Cone", at: (80, 7, 110), size: (18, 14, 18), color: "#44403C", shape: .cone, material: .matte)
+    m.part("Volcano Lava", at: (80, 13.6, 110), size: (4, 1, 4), color: "#F97316", shape: .cylinder, material: .neon, solid: false)
+    for q in [(-80, 110), (-52, 112)] as [(Float, Float)] {
+        m.part("Beehive", at: (q.0, 3.5, q.1), size: (1.4, 1.8, 1.4), color: "#F59E0B", shape: .sphere, solid: false)
+    }
+    for q in [(-20, 165), (20, 165), (-18, 140)] as [(Float, Float)] {
+        m.part("Dead Tree", at: (q.0, 2.5, q.1), size: (0.6, 5, 0.6), color: "#44403C", shape: .cylinder)
+    }
+    for p in ring(16, radius: 105, cx: 0, cz: 40) {
+        if abs(p.0) < 100 { m.tree(p.0, p.1, height: 5, leaves: "#10B981") }
+    }
 }
 
 // MARK: 69 Mansion Builder Tycoon

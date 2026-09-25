@@ -1,0 +1,43 @@
+-- data.absc — スライム8種・レベル10段階・バイオーム・強化
+
+-- スライムの種類。base: レベル1のかせぎ（2秒ごと）/ biome: すんでいる場所
+let TYPES = [
+  {id: "pink", name: "ピンク", color: "#F9A8D4", head: "#FBCFE8", base: 1, biome: "meadow"},
+  {id: "water", name: "みず", color: "#38BDF8", head: "#BAE6FD", base: 3, biome: "lake"},
+  {id: "rock", name: "いわ", color: "#A8A29E", head: "#D6D3D1", base: 8, biome: "canyon"},
+  {id: "honey", name: "はちみつ", color: "#FBBF24", head: "#FDE68A", base: 20, biome: "forest"},
+  {id: "fire", name: "ほのお", color: "#F97316", head: "#FDBA74", base: 55, biome: "volcano"},
+  {id: "crystal", name: "クリスタル", color: "#A78BFA", head: "#E9D5FF", base: 150, biome: "cave"},
+  {id: "ghost", name: "ゴースト", color: "#E0E7FF", head: "#FFFFFF", base: 400, biome: "graveyard"},
+  {id: "rainbow", name: "にじいろ", color: "#F0ABFC", head: "#A5F3FC", base: 1000, biome: ""}
+]
+
+let LEVEL_NAMES = ["プチ", "ミニ", "ふつう", "ビッグ", "ジャンボ", "メガ", "ギガ", "テラ", "キング", "レジェンド"]
+let MAX_LEVEL = 10
+let GROW = 2.4
+
+-- バイオーム。price: 入るのに必要なコイン
+let BIOMES = [
+  {id: "meadow", name: "🌸 お花の草原", price: 0},
+  {id: "lake", name: "💧 みずうみ", price: 500},
+  {id: "canyon", name: "🪨 いわの谷", price: 3000},
+  {id: "forest", name: "🍯 はちみつの森", price: 15000},
+  {id: "volcano", name: "🔥 かざん", price: 80000},
+  {id: "cave", name: "💎 クリスタルのどうくつ", price: 400000},
+  {id: "graveyard", name: "👻 おばけの墓地", price: 2000000}
+]
+
+-- 強化
+let UPGRADES = [
+  {id: "bag", name: "🎒 すいこみタンク", text: "持てる数 +2", max: 8, base: 60, grow: 2.3},
+  {id: "reach", name: "🌀 すいこむ距離", text: "+1.5m", max: 6, base: 80, grow: 2.2},
+  {id: "pads", name: "🟩 牧場の台", text: "+2つ（最大16）", max: 6, base: 150, grow: 2.6},
+  {id: "income", name: "💰 かせぎ", text: "+20%", max: 10, base: 200, grow: 2.3},
+  {id: "automerge", name: "🤖 自動合体", text: "台の上の同じスライムが勝手に合体", max: 1, base: 2500, grow: 1},
+  {id: "lure", name: "🍬 エサ", text: "野生のレベルが高くなる", max: 3, base: 1500, grow: 4}
+]
+
+let START_PADS = 4
+let MAX_PADS = 16
+let RAIN_EVERY = 300
+let RAIN_TIME = 30

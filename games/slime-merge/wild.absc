@@ -1,0 +1,171 @@
+-- wild.absc — 野生のスライム（バイオームごと）・すいこむ・バイオームのゲート・スライムの雨
+
+let wild_clock = 0
+let rain_until = 0
+let rain_next = 0
+let WILD_PER_BIOME = 5
+
+func biome_at(p)
+  for bm in BIOMES do
+    let f = block("Biome " + bm.id)
+    if f != nil and abs(p.x - f.x) < f.size.x / 2 and abs(p.z - f.z) < f.size.z / 2 then return bm end
+  end
+  return nil
+end
+
+func unlocked(p, id)
+  return contains(p.biomes, id)
+end
+
+func spawn_wild(bm, rare)
+  let k = random(1, 6)
+  let spot = block("Wild " + bm.id + " " + k)
+  if spot == nil then return end
+  let t = find(TYPES, "pink")
+  for x in TYPES do
+    if x.biome == bm.id then t = x end
+  end
+  let level = 1
+  if random() < 0.3 then level = 2 end
+  if random() < 0.08 then level = 3 end
+  if rare then t = type_of("rainbow") end
+  let s = {type: t.id, level: level}
+  let n = create_npc({name: "野生の" + label(s), position: spot.position + {x: random(-4, 4), y: 1, z: random(-4, 4)}, color: t.color, head_color: t.head,
+                      size: slime_size(level), health: 999999, speed: 0.5, team: "wild"})
+  n.wild = true
+  n.biome = bm.id
+  n.stype = t.id
+  n.slevel = level
+  if rare then
+    n.rare = true
+    n.hat = "crown"
+  end
+end
+
+func wild_count(id)
+  return len(filter(npcs(), func(n) return n.wild and n.biome == id end))
+end
+
+func wander()
+  for n in npcs() do
+    if n.wild and random() < 0.35 then
+      n.move_to(n.position + {x: random(-5, 5), y: 0, z: random(-5, 5)})
+      if random() < 0.4 then n.jump_now() end
+    end
+  end
+end
+
+-- すいこむ: いちばん近い野生のスライム
+func vacuum(p)
+  if len(p.hand) >= hand_max(p) then
+    p.message("🎒 いっぱい！ 牧場に置くか、市場で売ろう", 1.5)
+    return
+  end
+  let best = nil
+  let best_d = reach_of(p)
+  for n in npcs() do
+    if n.wild and distance(p, n) < best_d then
+      best = n
+      best_d = distance(n, p)
+    end
+  end
+  if best == nil then
+    p.message("近くにスライムがいない（" + fixed(reach_of(p), 1) + "m）", 1)
+    return
+  end
+  -- にじいろはにげることがある
+  if best.rare and random() < 0.4 then
+    best.say("ぴょん！")
+    best.position = best.position + {x: random(-6, 6), y: 1, z: random(-6, 6)}
+    p.message("🌈 にげられた！ もう一回！", 1)
+    return
+  end
+  let level = best.slevel
+  if lvl(p, "lure") > 0 and random() < lvl(p, "lure") * 0.15 then level = level + 1 end
+  let s = {type: best.stype, level: level}
+  append(p.hand, s)
+  p.sel = len(p.hand)
+  best.destroy()
+  p.catches = p.catches + 1
+  discover(p, s)
+  kit_quest_progress(p, "catch", 1)
+  if s.type == "rainbow" then
+    kit_badge(p, "rainbow", "にじいろスライムをつかまえた")
+    announce("🌈 " + p.name + " がにじいろスライムをつかまえた！", 3)
+  end
+  p.message("🫧 " + label(s) + " をすいこんだ！", 1.2)
+  p.sound("collect")
+  hand_ui(p)
+end
+
+-- MARK: バイオームのゲート
+
+func gate_touch(p, b)
+  let id = replace(b.name, "Gate ", "")
+  let bm = biome_of(id)
+  if bm == nil or unlocked(p, id) then return end
+  if not quiet_ready(p, "gate", 1.5) then return end
+  if kit_pay(p, bm.price) then
+    append(p.biomes, id)
+    p.message("🔓 " + bm.name + " に入れるようになった！", 2.5)
+    p.sound("goal")
+    kit_quest_progress(p, "biomes", 1)
+  else
+    p.message("🔒 " + bm.name + " は 💰" + kit_short(bm.price), 2)
+  end
+end
+
+-- 開けていないバイオームに入ったら、入口にもどす
+func guard(p)
+  let bm = biome_at(p)
+  if bm == nil or unlocked(p, bm.id) then return end
+  let g = block("Gate " + bm.id)
+  if g != nil then p.teleport(g.position + {x: 0, y: 1, z: -3}) end
+  if quiet_ready(p, "guard", 2) then p.message("🔒 " + bm.name + " は 💰" + kit_short(bm.price) + "（ゲートで開ける）", 2) end
+end
+
+-- MARK: スライムの雨
+
+func rain_step()
+  if time() >= rain_next and rain_until < time() then
+    rain_until = time() + RAIN_TIME
+    rain_next = time() + RAIN_EVERY
+    announce("🌧 スライムの雨！ 草原にスライムがいっぱい。にじいろスライムも…？", 4)
+    sound("goal")
+  end
+  if time() < rain_until then
+    let meadow = biome_of("meadow")
+    if wild_count("meadow") < 14 then spawn_wild(meadow, random() < 0.12) end
+  end
+end
+
+on start()
+  rain_next = time() + 120
+  for bm in BIOMES do
+    for i in 1 to 3 do spawn_wild(bm, false) end
+  end
+end
+
+on tick(dt)
+  wild_clock = wild_clock + dt
+  if wild_clock < 1 then return end
+  wild_clock = 0
+  for bm in BIOMES do
+    if wild_count(bm.id) < WILD_PER_BIOME and random() < 0.5 then spawn_wild(bm, false) end
+  end
+  if random() < 0.5 then wander() end
+  rain_step()
+  for p in players() do
+    if ready(p) then guard(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "gate") then gate_touch(p, b) end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if id == "vacuum" and quiet_ready(p, "vacuum", 0.4) then vacuum(p) end
+end

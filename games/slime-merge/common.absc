@@ -1,0 +1,135 @@
+-- common.absc — 小さな道具・スライムの強さ・画面
+
+let plots = {}           -- "1"〜"6" → {owner, pads: [16こ: nil か {type, level, npc}]}
+let PLOT_COUNT = 6
+
+func ready(p)
+  return p.hand != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func player_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func find(list, id)
+  for x in list do
+    if x.id == id then return x end
+  end
+  return nil
+end
+
+func type_of(id)
+  return find(TYPES, id) or TYPES[1]
+end
+
+func biome_of(id)
+  return find(BIOMES, id)
+end
+
+func lvl(p, id)
+  return p.ups[id] or 0
+end
+
+func label(s)
+  return LEVEL_NAMES[min(MAX_LEVEL, s.level)] + type_of(s.type).name + "スライム Lv." + s.level
+end
+
+-- 1匹が2秒でかせぐコイン
+func income_of(s)
+  return type_of(s.type).base * pow(GROW, s.level - 1)
+end
+
+func slime_size(level)
+  return 0.5 + level * 0.16
+end
+
+func hand_max(p)
+  return 4 + lvl(p, "bag") * 2
+end
+
+func reach_of(p)
+  return 5 + lvl(p, "reach") * 1.5
+end
+
+func pad_count(p)
+  return min(MAX_PADS, START_PADS + lvl(p, "pads") * 2)
+end
+
+func income_mult(p)
+  return 1 + lvl(p, "income") * 0.2
+end
+
+func plot_of(p)
+  if p.plot == nil then return nil end
+  return plots[p.plot]
+end
+
+-- 牧場で2秒ごとにかせぐ合計
+func ranch_income(p)
+  let plot = plot_of(p)
+  if plot == nil then return 0 end
+  let t = 0
+  for s in plot.pads do
+    if s != nil then t = t + income_of(s) end
+  end
+  return t * income_mult(p)
+end
+
+-- MARK: 図鑑
+
+func discover(p, s)
+  let key = s.type + "_" + s.level
+  if p.pedia[key] == nil then
+    p.pedia[key] = true
+    kit_quest_progress(p, "pedia", 1)
+    if s.level == MAX_LEVEL then
+      kit_badge(p, "legend_" + s.type, "レジェンド" + type_of(s.type).name + "スライム")
+      announce("👑 " + p.name + " が レジェンド" + type_of(s.type).name + "スライム を作った！", 4)
+    end
+  end
+  p.best = max(p.best, s.level)
+end
+
+-- MARK: 画面
+
+func hand_ui(p)
+  p.ui_text("hand_t", "🎒 " + len(p.hand) + "/" + hand_max(p) + "（台にのると置く・同じのに重ねると合体）", {at: "bottom", dy: -118, size: 13, color: "#ECFDF5"})
+  for i in 1 to hand_max(p) + 2 do p.ui_remove("hand_" + i) end
+  let n = len(p.hand)
+  let i = 0
+  for s in p.hand do
+    i = i + 1
+    let bg = type_of(s.type).color
+    let label_text = "Lv" + s.level
+    if i == p.sel then label_text = "▶Lv" + s.level end
+    p.ui_button("hand_" + i, label_text, {at: "bottom", dx: (i - (n + 1) / 2) * 62, dy: -70, w: 56, h: 44, size: 13, bg: bg, color: "#111111", radius: 12})
+  end
+end
+
+func hud(p)
+  if not ready(p) then return end
+  let where = "牧場なし"
+  if p.plot != nil then where = "牧場 " + p.plot end
+  p.ui_text("info", "💰 " + kit_short(ranch_income(p) / 2) + "/秒   🫧 最高 Lv." + p.best + "   📖 " + len(keys(p.pedia)) + "/" + (len(TYPES) * MAX_LEVEL) + "   " + where,
+            {at: "top", dy: 30, size: 16, bold: true})
+  p.score = floor(ranch_income(p))
+end
