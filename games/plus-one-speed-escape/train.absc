@@ -1,0 +1,182 @@
+-- train.absc — 毎秒スピード+・トレッドミル・スピード強化・たまごとペット・転生・コースのしかけ
+
+let train_clock = 0
+let mover_clock = 0
+
+-- MARK: スピード
+
+func speed_step(p)
+  if p.tread_until == nil or time() > p.tread_until then p.treadmill = 0 end
+  p.spd = p.spd + gain_per_sec(p)
+  let want = walk_mult(p.spd)
+  if abs(p.speed - want) > 0.05 then p.speed = want end
+  if p.spd >= 1000 then kit_quest_progress(p, "speed1000", 1) end
+  if p.spd >= 100000 then kit_quest_progress(p, "speed100k", 1) end
+  hud(p)
+end
+
+func treadmill_touch(p, b)
+  let k = num(replace(b.name, "Treadmill ", ""))
+  let t = TREADMILLS[k]
+  if t == nil then return end
+  if p.rebirths < t.need then
+    if quiet_ready(p, "tread_msg", 3) then p.message("🔒 このトレッドミルは転生 " + t.need + " 回から", 1.5) end
+    return
+  end
+  if p.treadmill != t.mult and quiet_ready(p, "tread_on", 3) then p.message("🏃 トレッドミル ×" + t.mult + "！ のっているあいだスピードがふえる", 1.5) end
+  p.treadmill = t.mult
+  p.tread_until = time() + 1.2
+end
+
+-- MARK: スピード強化
+
+func gains_panel(p)
+  let h = 110 + len(GAINS) * 42
+  p.ui_remove("gains")
+  p.ui_panel("gains", {at: "center", w: 480, h: h, bg: "#1E3A8AF2", radius: 20, layer: 30})
+  p.ui_text("gains_t", "⚡ スピード強化（いま +" + p.per_sec + "/秒）  💰 " + kit_short(kit_money(p)), {parent: "gains", y: 22 / h, size: 16, bold: true, color: "#BFDBFE"})
+  let i = 0
+  for g in GAINS do
+    i = i + 1
+    let label = "+" + g.per + "/秒  💰" + kit_short(g.price)
+    if p.per_sec >= g.per then label = "✅ +" + g.per + "/秒" end
+    p.ui_button("gain_" + i, label, {parent: "gains", y: (30 + i * 42) / h, w: 420, h: 36, size: 14, bg: "#2563EB"})
+  end
+  p.ui_button("gains_close", "閉じる", {parent: "gains", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func buy_gain(p, i)
+  let g = GAINS[i]
+  if g == nil or p.per_sec >= g.per then return end
+  if kit_pay(p, g.price) then
+    p.per_sec = g.per
+    p.sound("goal")
+    kit_quest_progress(p, "gain", 1)
+    hud(p)
+  end
+  gains_panel(p)
+end
+
+-- MARK: たまごとペット
+
+func egg_panel(p)
+  let h = 120 + len(EGGS) * 52
+  p.ui_remove("eggs")
+  p.ui_panel("eggs", {at: "center", w: 540, h: h, bg: "#422006F2", radius: 20, layer: 30})
+  p.ui_text("eggs_t", "🥚 たまご（ペットはスピードのふえ方を×）  💰 " + kit_short(kit_money(p)), {parent: "eggs", y: 22 / h, size: 15, bold: true, color: "#FDE68A"})
+  let i = 0
+  for e in EGGS do
+    i = i + 1
+    let best = e.pets[len(e.pets)]
+    p.ui_button("egg_" + e.id, e.name + "  💰" + kit_short(e.price) + "（最高 " + best.name + " ×" + best.mult + "）", {parent: "eggs", y: (32 + i * 52) / h, w: 500, h: 44,
+                size: 13, bg: "#A16207"})
+  end
+  p.ui_text("eggs_h", "強いペット3びきが自動でついてくる。持てるのは20ぴきまで（弱いのから手放す）", {parent: "eggs", y: (h - 48) / h, size: 11, color: "#FED7AA"})
+  p.ui_button("eggs_close", "閉じる", {parent: "eggs", y: (h - 20) / h, w: 120, h: 28, size: 12, bg: "gray"})
+end
+
+func hatch(p, id)
+  let e = nil
+  for x in EGGS do
+    if x.id == id then e = x end
+  end
+  if e == nil then return end
+  if not kit_pay(p, e.price) then return end
+  let pet = kit_pick(e.pets, 1)
+  append(p.pets, {name: pet.name, mult: pet.mult, color: pet.color})
+  if len(p.pets) > 20 then
+    let sorted = sort(copy(p.pets), func(a, b) return a.mult > b.mult end)
+    p.pets = slice(sorted, 1, 20)
+  end
+  p.message("🐣 " + pet.name + "（×" + pet.mult + "）がうまれた！", 2)
+  if pet.weight <= 2 then
+    announce("🌟 " + p.name + " が " + pet.name + " を当てた！", 3)
+    kit_badge(p, "pet_" + pet.name, pet.name + " を手に入れた")
+  end
+  kit_quest_progress(p, "pets", 1)
+  p.sound("collect")
+  refresh_pets(p)
+  hud(p)
+  egg_panel(p)
+end
+
+-- ついてくるペット（見た目）
+func refresh_pets(p)
+  for n in p.pet_npcs or [] do gone(n) end
+  let made = []
+  for pet in equipped_pets(p) do
+    let n = create_npc({name: pet.name, position: p.position + {x: random(-2, 2), y: 0.5, z: random(-2, 2)}, color: pet.color, head_color: pet.color, size: 0.5,
+                        health: 999999, speed: 10, team: "pets"})
+    n.follow(p)
+    append(made, n)
+  end
+  p.pet_npcs = made
+end
+
+-- MARK: 転生
+
+func rebirth(p)
+  let need = rebirth_need(p)
+  if p.spd < need then
+    p.message("♻️ 転生にはスピード " + kit_short(need) + "（いま " + kit_short(p.spd) + "）", 2)
+    return
+  end
+  p.rebirths = p.rebirths + 1
+  p.spd = 0
+  p.speed = 1
+  kit_quest_progress(p, "rebirth", 1)
+  kit_badge(p, "rebirth" + min(p.rebirths, 5), "転生 " + p.rebirths + " 回")
+  if p.rebirths >= 5 then p.hat = "crown" end
+  announce("♻️ " + p.name + " が転生！ スピードのふえ方 ×" + fixed(rebirth_mult(p), 2), 3)
+  p.sound("goal")
+  hud(p)
+end
+
+-- MARK: コースのしかけ（動くかべ・スライダー・加速床）
+
+func movers_step()
+  for b in blocks("mover") do b.move_to({x: 0 - b.x, y: b.y, z: b.z}, 1.1) end
+end
+
+on tick(dt)
+  train_clock = train_clock + dt
+  mover_clock = mover_clock + dt
+  if mover_clock >= 1.3 then
+    mover_clock = 0
+    movers_step()
+  end
+  if train_clock < 1 then return end
+  train_clock = 0
+  for p in players() do
+    if ready(p) then speed_step(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "treadmill") then treadmill_touch(p, b)
+  elif contains(b.tags, "boost") and quiet_ready(p, "boost", 0.5) then p.launch(0, 5, 45)
+  elif contains(b.tags, "gains") and quiet_ready(p, "gains", 2) then gains_panel(p)
+  elif contains(b.tags, "eggs") and quiet_ready(p, "eggs", 2) then egg_panel(p)
+  elif contains(b.tags, "rebirth") and quiet_ready(p, "rebirth", 2) then rebirth(p)
+  end
+end
+
+on button(p, id)
+  if not ready(p) then return end
+  if starts_with(id, "gain_") then buy_gain(p, num(replace(id, "gain_", "")))
+  elif id == "gains_close" then p.ui_remove("gains")
+  elif id == "open_gains" then gains_panel(p)
+  elif starts_with(id, "egg_") then hatch(p, replace(id, "egg_", ""))
+  elif id == "eggs_close" then p.ui_remove("eggs")
+  elif id == "open_eggs" then egg_panel(p)
+  end
+end
+
+on respawn(p)
+  if ready(p) then refresh_pets(p) end
+end
+
+on leave(p)
+  for n in p.pet_npcs or [] do gone(n) end
+end

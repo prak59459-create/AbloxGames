@@ -111,7 +111,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/crusher-yard/cover-e77ece03.png" width="200"> | 67 | **Crusher Yard** | 自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！ |
 | <img src="games/slime-merge/cover-acc8b0a2.png" width="200"> | 68 | **Slime Merge** | スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！ |
 | <img src="games/mansion-builder-tycoon/cover-2c87ceb3.png" width="200"> | 69 | **Mansion Builder Tycoon** | 土台から26段階で大豪邸が立ち上がるタイクーン。家賃は郵便受けに、執事で自動回収、投資、壁と屋根のペンキ、パーティーのゲストのチップ、豪邸コンテスト、完成したら売って転生！ |
-| <img src="games/plus-one-speed-escape/cover-f172e31e.png" width="200"> | 70 | **+1 Speed Wall Escape** | 1秒ごとにスピードが+1！うしろからせまる巨大なかべから逃げて、どこまで遠くへ行けるか。転生でさらに速く。 |
+| <img src="games/plus-one-speed-escape/cover-9350deb8.png" width="200"> | 70 | **+1 Speed Wall Escape** | 1秒ごとにスピード+1！ ラウンドごとに巨大なかべから逃げて1500m先のゴールへ。ハードル・すきま・溶岩・動くかべ・ジャンプ台・氷の橋・加速床の10ゾーン、トレッドミル、ペット、強化、転生！ |
 
 ### 🏃 アスレチック・ミニゲーム
 

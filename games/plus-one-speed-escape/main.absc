@@ -1,106 +1,52 @@
--- +1 Speed Wall Escape — 1秒ごとに速くなって、巨大なかべから逃げる
+-- +1 Speed Wall Escape — 1秒ごとにスピード+1。ラウンドごとに巨大なかべから逃げて、1500m先のゴールへ
+--
+-- ファイル:
+--   data.absc    ゾーン・スピード強化・トレッドミル・たまごとペット
+--   common.absc  スピードの計算・画面
+--   round.absc   ラウンド・かべ・ゾーンのごほうび・ゴール
+--   train.absc   スピード・トレッドミル・強化・ペット・転生・コースのしかけ
+--   main.absc    このファイル
 
-kit_setup("+1 Speed Wall Escape", "毎秒スピード+1！かべから逃げきれ", [
-  "1秒ごとにスピード値が +1。スピード値が高いほど速く走れる",
-  "うしろから巨大なかべがせまってくる。追いつかれたらスタートへ",
-  "白いゲートを通るたびにコイン",
-  "🛒で「+2/秒」などの強化が買える",
-  "スピード500で紫の祭壇にさわると転生。スピードはリセット、ずっと×1.5"
+kit_setup("+1 Speed Wall Escape", "毎秒スピード+1！ かべから逃げきれ", [
+  "⚡ 1秒ごとにスピードがふえて、どんどん速く走れる（最大10倍）",
+  "🏁 ラウンドが始まるとスタートへ。うしろから巨大なかべがせまってくる",
+  "🧱 かべにつかまるか、落ちたらロビーにもどる。ゾーンを越えるたびにコイン",
+  "🏆 1500m先のゴールまで逃げきると大きな賞金",
+  "🏃 ロビーのトレッドミルにのると、スピードのふえ方が何倍にも",
+  "🥚 たまごからペット（ふえ方×）。⚡ 強化で +/秒 アップ",
+  "♻️ スピードがたまったら転生。ふえ方がずっと ×1.5"
 ])
+kit_currency = "コイン"
 
-let wall = nil
-let wall_z = -40
-let wall_speed = 4
-
-kit_shop_add("plus2", "+1 → +2/秒", 100, func(p) p.per_sec = max(p.per_sec, 2) end)
-kit_shop_add("plus5", "+5/秒", 800, func(p) p.per_sec = max(p.per_sec, 5) end)
-kit_shop_add("plus20", "+20/秒", 6000, func(p) p.per_sec = max(p.per_sec, 20) end)
-
-kit_quest("far", "500m 進む", 1, 200)
-kit_quest("rebirth", "転生する", 1, 500)
-kit_quest("speed", "スピード値1000", 1, 300)
-
-func show(p)
-  p.ui_text("spd", "⚡ スピード " + kit_short(p.spd) + "   ♻️ 転生 " + p.rebirths + "   🏃 最高 " + floor(p.best) + "m", {at: "top", dy: 30, size: 18, bold: true})
-end
-
-func reset_wall()
-  let start = block("Wall Start")
-  wall_z = start.position.z
-  wall_speed = 4
-  if wall == nil then
-    wall = create_block({name: "Giant Wall", position: start.position, size: {x: 30, y: 16, z: 3}, color: "#111827", material: "matte", solid: false})
-  end
-  wall.z = wall_z
-end
+kit_quest("far500", "500m 逃げる", 1, 300)
+kit_quest("far1000", "1000m 逃げる", 1, 1500)
+kit_quest("finish", "ゴールする", 1, 3000)
+kit_quest("speed1000", "スピード1000", 1, 300)
+kit_quest("speed100k", "スピード10万", 1, 20000)
+kit_quest("gain", "スピード強化を3回買う", 3, 1000)
+kit_quest("pets", "たまごを5こかえす", 5, 1500)
+kit_quest("rebirth", "転生する", 1, 2000)
 
 on start()
-  reset_wall()
-  every(1, func()
-    for p in players() do
-      p.spd = p.spd + p.per_sec * pow(1.5, p.rebirths)
-      let want = min(10, 1 + sqrt(p.spd) / 6)
-      if abs(p.speed - want) > 0.05 then p.speed = want end
-      if p.spd >= 1000 then kit_quest_progress(p, "speed", 1) end
-      show(p)
-    end
-  end)
-  every(10, func() kit_leaderboard("🏃 m") end)
+  every(10, func() kit_leaderboard("🏃 最高m") end)
 end
 
 on join(p)
   kit_welcome(p)
   kit_quest_button(p)
-  kit_shop_button(p)
   p.spd = 0
   p.per_sec = 1
   p.rebirths = 0
   p.best = 0
-  p.gate = 0
-  kit_give(p, 0)
-  show(p)
-end
-
-on tick(dt)
-  wall_speed = wall_speed + dt * 0.08
-  wall_z = wall_z + wall_speed * dt
-  if wall_z > 1520 then
-    announce("🧱 かべがスタートにもどった", 2)
-    reset_wall()
-  end
-  wall.z = wall_z
-  for p in players() do
-    if p.z > p.best then
-      p.best = p.z
-      p.score = floor(p.best)
-      if p.best >= 500 then kit_quest_progress(p, "far", 1) end
-    end
-    -- ゲート（100mごと）を通るとコイン
-    let g = floor(p.z / 100)
-    if g > p.gate then
-      p.gate = g
-      kit_give(p, g * 5)
-    end
-    if p.z < wall_z + 2 and p.z > wall_z - 6 then
-      p.teleport(block("Spawn " + random(1, 12)))
-      p.gate = 0
-      p.message("🧱 かべにつかまった！", 1.5)
-    end
-  end
-end
-
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "rebirth") and kit_ready(p, "rebirth", 3) then
-    if p.spd < 500 then
-      p.message("転生にはスピード500が必要", 1.5)
-      return
-    end
-    p.rebirths = p.rebirths + 1
-    p.spd = 0
-    p.speed = 1
-    kit_quest_progress(p, "rebirth", 1)
-    announce("♻️ " + p.name + " が転生！（×" + fixed(pow(1.5, p.rebirths), 1) + "）", 3)
-    show(p)
-  end
+  p.run_best = 0
+  p.wins = 0
+  p.pets = []
+  p.treadmill = 0
+  p.running = false
+  p.zone = 0
+  kit_give(p, 30)
+  p.ui_button("open_gains", "⚡ 強化", {at: "right", dy: -40, w: 130, h: 44, size: 15, bg: "#2563EB"})
+  p.ui_button("open_eggs", "🥚 たまご", {at: "right", dy: 10, w: 130, h: 44, size: 15, bg: "#A16207"})
+  hud(p)
+  if phase == "run" then p.message("🏁 いまラウンド中。次のラウンドまでロビーで準備しよう", 3) end
 end

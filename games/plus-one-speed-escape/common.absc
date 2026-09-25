@@ -1,0 +1,69 @@
+-- common.absc — 小さな道具・スピードの計算・画面
+
+let phase = "lobby"      -- lobby / run / results
+let round_n = 0
+
+func ready(p)
+  return p.spd != nil
+end
+
+func still(x)
+  return x != nil and x.destroy != nil
+end
+
+func gone(x)
+  if still(x) then x.destroy() end
+end
+
+func quiet_ready(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func rebirth_mult(p)
+  return pow(1.5, p.rebirths)
+end
+
+-- 装備しているペット（強いほうから3つ）
+func equipped_pets(p)
+  let list = sort(copy(p.pets), func(a, b) return a.mult > b.mult end)
+  return slice(list, 1, min(PET_SLOTS, len(list)))
+end
+
+func pet_mult(p)
+  let m = 1
+  for pet in equipped_pets(p) do m = m * pet.mult end
+  return m
+end
+
+-- 1秒にふえるスピード
+func gain_per_sec(p)
+  let g = p.per_sec * rebirth_mult(p) * pet_mult(p)
+  if p.treadmill > 0 then g = g * p.treadmill end
+  return g
+end
+
+-- スピードの数 → 走る速さの倍率（最大10倍）
+func walk_mult(spd)
+  return min(10, 1 + sqrt(spd) / 6)
+end
+
+func rebirth_need(p)
+  return floor(500 * pow(2.5, p.rebirths))
+end
+
+-- MARK: 画面
+
+func hud(p)
+  if not ready(p) then return end
+  p.ui_text("spd", "⚡ スピード " + kit_short(p.spd) + "（+" + kit_short(gain_per_sec(p)) + "/秒・×" + fixed(walk_mult(p.spd), 1) + "）   ♻️ " + p.rebirths + "   🏆 " + p.wins,
+            {at: "top", dy: 30, size: 16, bold: true})
+  let pets = map(equipped_pets(p), func(x) return slice(x.name, 1, 1) end)
+  let tread = ""
+  if p.treadmill > 0 then tread = "   🏃 トレッドミル ×" + p.treadmill end
+  p.ui_text("pets", "🐾 " + (len(pets) > 0 and join(pets, "") or "—") + " ×" + fixed(pet_mult(p), 1) + "   🏃 最高 " + floor(p.best) + "m" + tread,
+            {at: "top", dy: 54, size: 14, color: "#FDE68A"})
+end

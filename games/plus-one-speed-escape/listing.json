@@ -1,15 +1,19 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 69,
-  "cover" : "games\/plus-one-speed-escape\/cover-f172e31e.png",
+  "blockCount" : 183,
+  "cover" : "games\/plus-one-speed-escape\/cover-9350deb8.png",
   "id" : "plus-one-speed-escape",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "games\/plus-one-speed-escape\/data.absc",
+    "games\/plus-one-speed-escape\/common.absc",
+    "games\/plus-one-speed-escape\/round.absc",
+    "games\/plus-one-speed-escape\/train.absc",
     "games\/plus-one-speed-escape\/main.absc"
   ],
-  "summary" : "1秒ごとにスピードが+1！うしろからせまる巨大なかべから逃げて、どこまで遠くへ行けるか。転生でさらに速く。",
+  "summary" : "1秒ごとにスピード+1！ ラウンドごとに巨大なかべから逃げて1500m先のゴールへ。ハードル・すきま・溶岩・動くかべ・ジャンプ台・氷の橋・加速床の10ゾーン、トレッドミル、ペット、強化、転生！",
   "tags" : [
     "runner",
     "speed",

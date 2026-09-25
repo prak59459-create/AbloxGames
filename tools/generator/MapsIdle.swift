@@ -37,7 +37,7 @@ let idleGames: [Game] = [
          summary: "土台から26段階で大豪邸が立ち上がるタイクーン。家賃は郵便受けに、執事で自動回収、投資、壁と屋根のペンキ、パーティーのゲストのチップ、豪邸コンテスト、完成したら売って転生！",
          tags: ["tycoon", "build", "rich"], maxPlayers: 8, build: mansionTycoon),
     Game(number: 70, id: "plus-one-speed-escape", title: "+1 Speed Wall Escape",
-         summary: "1秒ごとにスピードが+1！うしろからせまる巨大なかべから逃げて、どこまで遠くへ行けるか。転生でさらに速く。",
+         summary: "1秒ごとにスピード+1！ ラウンドごとに巨大なかべから逃げて1500m先のゴールへ。ハードル・すきま・溶岩・動くかべ・ジャンプ台・氷の橋・加速床の10ゾーン、トレッドミル、ペット、強化、転生！",
          tags: ["runner", "speed", "idle"], maxPlayers: 12, build: speedEscape),
 ]
 
@@ -1022,21 +1022,106 @@ func mansionTycoon(_ m: MapBuilder) {
 // MARK: 70 +1 Speed Wall Escape
 
 func speedEscape(_ m: MapBuilder) {
-    m.sky("#F472B6", "#FDE68A", light: 0.8, showGround: false, fall: -30)
-    m.slab("Start Pad", x: 0, y: -1, z: -20, w: 30, h: 1, d: 30, color: "#FFFFFF")
-    m.spawnRing(0, -20, radius: 6, count: 12, color: "#F472B6")
-    // A very long track in colored segments with gates every 100 m.
-    let colors = ["#F87171", "#FB923C", "#FACC15", "#4ADE80", "#22D3EE", "#818CF8", "#E879F9"]
-    for i in 0..<30 {
-        let z = Float(i) * 50 + 20
-        m.slab("Track \(i + 1)", x: 0, y: -1, z: z, w: 24, h: 1, d: 50, color: colors[i % colors.count], tags: ["track"])
-        if i % 2 == 1 {
-            m.part("Marker \(i / 2 + 1)", at: (0, 4, z + 25), size: (26, 0.6, 0.6), color: "#FFFFFF", material: .neon, solid: false)
+    m.sky("#F472B6", "#FDE68A", light: 0.85, showGround: false, fall: -30)
+    m.part("Cover Focus", at: (0, 4, 10), size: (90, 1, 1), color: "#000000", tags: ["yaw=140"], solid: false, visible: false)
+    // The lobby behind the start: spawns, four treadmills, the shops and the rebirth altar.
+    m.slab("Lobby", x: 0, y: -1, z: -66, w: 60, h: 1, d: 56, color: "#FFFFFF")
+    m.spawnRing(0, -72, radius: 5, count: 8, color: "#F472B6")
+    let treads: [(Float, String)] = [(-21, "#22C55E"), (-7, "#3B82F6"), (7, "#A855F7"), (21, "#F59E0B")]
+    for (i, t) in treads.enumerated() {
+        m.part("Treadmill \(i + 1)", at: (t.0, 0.15, -50), size: (6, 0.3, 9), color: t.1, behavior: .trigger, tags: ["treadmill"])
+        m.part("Treadmill Belt", at: (t.0, 0.32, -50), size: (5, 0.04, 8.4), color: "#1F2937", solid: false)
+        for sx: Float in [-3.2, 3.2] { m.slab("Treadmill Rail", x: t.0 + sx, y: 0, z: -50, w: 0.3, h: 1.2, d: 9, color: t.1) }
+        m.part("Treadmill Screen", at: (t.0, 2.2, -54.8), size: (4, 1.6, 0.2), color: t.1, material: .neon, solid: false)
+    }
+    m.pad("Gains Pad", x: -22, z: -80, size: 3, color: "#2563EB", tags: ["gains"])
+    m.slab("Gains Stand", x: -22, y: 0, z: -83, w: 5, h: 2.4, d: 1, color: "#1E3A8A")
+    m.pad("Eggs Pad", x: 22, z: -80, size: 3, color: "#F59E0B", tags: ["eggs"])
+    for (k, c) in ["#FFFBEB", "#FACC15", "#A78BFA"].enumerated() {
+        m.part("Egg Display", at: (18.5 + Float(k) * 3.5, 1.2, -84), size: (1.6, 2.2, 1.6), color: c, shape: .sphere, material: .neon, solid: false)
+    }
+    m.pad("Rebirth Altar", x: 0, z: -90, size: 3.4, color: "#A855F7", tags: ["rebirth"])
+    m.part("Rebirth Crystal", at: (0, 2.6, -92.6), size: (1.6, 3.2, 1.6), color: "#E9D5FF", shape: .cone, material: .neon, solid: false)
+    // The start area, where the wall appears.
+    m.slab("Start Area", x: 0, y: -1, z: -20, w: 24, h: 1, d: 40, color: "#F8FAFC")
+    m.part("Start Line", at: (0, 0.02, -6), size: (24, 0.04, 1), color: "#111827", solid: false)
+    m.part("Wall Start", at: (0, 8, -30), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    // The giant wall waiting behind the start line (the real one appears when a round starts).
+    m.part("Waiting Wall", at: (0, 9, -37.5), size: (34, 18, 2), color: "#111827", material: .matte, solid: false, opacity: 0.55)
+    for dx: Float in [-8, 8] {
+        m.part("Waiting Wall Eye", at: (dx, 12, -36.4), size: (4, 3, 0.2), color: "#EF4444", material: .neon, solid: false)
+    }
+    // Ten zones of 150 m.
+    let colors = ["#F9A8D4", "#FDBA74", "#FDE047", "#FCA5A5", "#86EFAC", "#67E8F9", "#A5B4FC", "#E0F2FE", "#F0ABFC", "#FEF08A"]
+    for zi in 0..<10 {
+        let z0 = Float(zi) * 150
+        let c = colors[zi]
+        // The gate at the start of each zone.
+        for sx: Float in [-12.5, 12.5] { m.slab("Zone Post", x: sx, y: 0, z: z0, w: 1, h: 8, d: 1, color: c) }
+        m.part("Zone Arch", at: (0, 8.3, z0), size: (26, 0.8, 0.8), color: c, material: .neon, solid: false)
+        switch zi {
+        case 2:
+            // Gaps to jump.
+            var z = z0
+            while z < z0 + 150 {
+                let len: Float = 16
+                m.slab("Track", x: 0, y: -1, z: z + len / 2, w: 24, h: 1, d: len, color: c, tags: ["track"])
+                z += len + 5
+            }
+        case 7:
+            // A narrow zig-zag ice bridge.
+            m.slab("Track", x: 0, y: -1, z: z0 + 6, w: 24, h: 1, d: 12, color: c)
+            for k in 0..<9 {
+                let x: Float = k % 2 == 0 ? -5 : 5
+                m.slab("Ice Bridge", x: x, y: -1, z: z0 + 16 + Float(k) * 15, w: 4, h: 1, d: 15.5, color: "#BAE6FD", material: .glass)
+                m.slab("Ice Link", x: 0, y: -1, z: z0 + 23.5 + Float(k) * 15, w: 14, h: 1, d: 3, color: "#BAE6FD", material: .glass)
+            }
+            m.slab("Track", x: 0, y: -1, z: z0 + 147, w: 24, h: 1, d: 7, color: c)
+        case 8:
+            // Speed pads and short gaps.
+            var z = z0
+            while z < z0 + 150 {
+                m.slab("Track", x: 0, y: -1, z: z + 11, w: 24, h: 1, d: 22, color: c)
+                m.part("Speed Pad", at: (0, 0.06, z + 16), size: (8, 0.1, 3), color: "#22D3EE", material: .neon, behavior: .trigger, tags: ["boost"])
+                z += 30
+            }
+        default:
+            m.slab("Track", x: 0, y: -1, z: z0 + 75, w: 24, h: 1, d: 150, color: c, tags: ["track"])
         }
-        if i > 2 && i % 3 == 0 {
-            m.slab("Hurdle \(i + 1)", x: Float(i % 5) * 3 - 6, y: 0, z: z, w: 6, h: 1, d: 1, color: "#111827")
+        if zi != 7 {
+            for sx: Float in [-12.3, 12.3] { m.slab("Rail", x: sx, y: 0, z: z0 + 75, w: 0.6, h: 0.8, d: 150, color: "#FFFFFF") }
+        }
+        switch zi {
+        case 1:
+            for k in 1...8 { m.slab("Hurdle", x: 0, y: 0, z: z0 + Float(k) * 17, w: 24, h: 1.1, d: 0.8, color: "#111827") }
+        case 3:
+            for k in 0..<7 {
+                let safeLeft = k % 2 == 0
+                m.part("Lava", at: (safeLeft ? 3 : -3, 0.05, z0 + 12 + Float(k) * 20), size: (18, 0.1, 5), color: "#F97316", material: .neon, behavior: .hazard)
+            }
+        case 4:
+            for k in 0..<7 {
+                m.part("Mover", at: (k % 2 == 0 ? -6 : 6, 1.5, z0 + 14 + Float(k) * 19), size: (10, 3, 1.2), color: "#7C3AED", tags: ["mover"])
+            }
+        case 5:
+            for k in 0..<8 {
+                m.part("Slider", at: (k % 2 == 0 ? -7 : 7, 0.5, z0 + 12 + Float(k) * 17), size: (9, 1, 1), color: "#0891B2", tags: ["mover"])
+            }
+        case 6:
+            for k in 0..<5 {
+                let wz = z0 + 22 + Float(k) * 26
+                m.part("Jump Pad", at: (0, 0.1, wz - 5), size: (22, 0.2, 3), color: "#22C55E", material: .neon, behavior: .bounce)
+                m.slab("Tall Wall", x: 0, y: 0, z: wz, w: 24, h: 4.5, d: 1, color: "#1F2937")
+            }
+        case 9:
+            m.part("Finish", at: (0, 0.2, 1496), size: (24, 0.4, 6), color: "#FACC15", material: .neon, behavior: .trigger, tags: ["finish"])
+            m.slab("Finish Post", x: -12.5, y: 0, z: 1496, w: 1, h: 10, d: 1, color: "#FACC15")
+            m.slab("Finish Post", x: 12.5, y: 0, z: 1496, w: 1, h: 10, d: 1, color: "#FACC15")
+            m.part("Finish Banner", at: (0, 9.5, 1496), size: (26, 1.6, 0.4), color: "#111827", solid: false)
+            m.part("Trophy", at: (0, 3, 1502), size: (2, 3, 2), color: "#FACC15", shape: .cone, material: .metal, solid: false)
+        default:
+            break
         }
     }
-    m.part("Wall Start", at: (0, 8, -40), size: (1, 1, 1), color: "#000000", visible: false)
-    m.pad("Rebirth Altar", x: 10, z: -28, size: 3, color: "#A855F7", tags: ["rebirth"])
+    m.slab("Finish Plaza", x: 0, y: -1, z: 1508, w: 30, h: 1, d: 16, color: "#FEF08A")
 }

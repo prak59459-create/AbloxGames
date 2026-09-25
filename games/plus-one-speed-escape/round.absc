@@ -1,0 +1,153 @@
+-- round.absc — ラウンド: ロビー → スタート → かべが追いかけてくる → 結果。ゾーンのごほうび・ゴール
+
+let wall = nil
+let wall_z = -30
+let wall_speed = 6
+let phase_until = 0
+let run_started = 0
+let finish_order = 0
+let round_clock = 0
+
+func runners()
+  return filter(players(), func(p) return ready(p) and p.running end)
+end
+
+func to_lobby(p)
+  p.running = false
+  p.ui_remove("dist")
+  p.teleport(block("Spawn " + random(1, 8)).position + {x: 0, y: 1, z: 0})
+end
+
+func start_round()
+  phase = "run"
+  round_n = round_n + 1
+  finish_order = 0
+  run_started = time()
+  wall_z = block("Wall Start").z
+  wall_speed = min(14, WALL_START_SPEED + (round_n - 1) * 0.3)
+  if still(wall) then gone(wall) end
+  wall = create_block({name: "Giant Wall", position: {x: 0, y: 8, z: wall_z}, size: {x: 34, y: 18, z: 3}, color: "#111827", material: "matte", solid: false})
+  let i = 0
+  for p in players() do
+    if ready(p) and p.alive then
+      i = i + 1
+      p.running = true
+      p.zone = 0
+      p.run_best = 0
+      p.teleport(block("Start Line").position + {x: (i % 7) * 3 - 9, y: 1, z: 0})
+    end
+  end
+  announce("🏁 ラウンド " + round_n + " スタート！ かべ（" + fixed(wall_speed, 1) + "m/秒）から逃げろ！", 3)
+  sound("goal")
+end
+
+func end_round()
+  phase = "results"
+  phase_until = time() + RESULT_TIME
+  let best = nil
+  for p in players() do
+    if ready(p) and (best == nil or p.run_best > best.run_best) then best = p end
+  end
+  if best != nil and best.run_best > 0 then announce("🏆 ラウンド " + round_n + " いちばん遠く: " + best.name + "（" + floor(best.run_best) + "m）", 4) end
+  for p in runners() do to_lobby(p) end
+  if still(wall) then gone(wall) end
+  wall = nil
+end
+
+func caught(p)
+  p.message("🧱 かべにつかまった！ " + floor(p.run_best) + "m（最高 " + floor(p.best) + "m）", 2.5)
+  to_lobby(p)
+end
+
+func finish(p)
+  if not p.running then return end
+  finish_order = finish_order + 1
+  let prize = floor(1000 * rebirth_mult(p) / finish_order)
+  kit_give(p, prize)
+  p.wins = p.wins + 1
+  p.score = p.score + 10
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "finish", "ゴールまで逃げきった")
+  if finish_order == 1 then
+    announce("🥇 " + p.name + " がゴール！ 1ばん！", 3)
+    kit_badge(p, "first", "1位でゴール")
+  else
+    announce("🏁 " + p.name + " が " + finish_order + " ばんめにゴール！", 2)
+  end
+  p.message("🏆 ゴール！ 💰+" + kit_short(prize), 3)
+  p.best = max(p.best, TRACK_LEN)
+  to_lobby(p)
+end
+
+-- 走っている人: 最高記録・ゾーンのごほうび・かべ
+func runner_step(p)
+  let z = p.z
+  if z > p.run_best then p.run_best = z end
+  if z > p.best then
+    p.best = z
+    if p.best >= 500 then kit_quest_progress(p, "far500", 1) end
+    if p.best >= 1000 then kit_quest_progress(p, "far1000", 1) end
+  end
+  let zone = floor(max(0, z) / ZONE_LEN) + 1
+  if zone > p.zone and zone >= 2 and zone - 1 <= len(ZONES) then
+    let passed = ZONES[zone - 1]
+    let c = floor(passed.coins * rebirth_mult(p))
+    kit_give(p, c)
+    p.message("✅ " + passed.name + " 突破！ 💰+" + c, 1.2)
+  end
+  if zone > p.zone then p.zone = zone end
+  if z >= TRACK_LEN - 4 then
+    finish(p)
+    return
+  end
+  if z < wall_z + 1.6 then caught(p) end
+end
+
+on tick(dt)
+  round_clock = round_clock + dt
+  if round_clock < 0.1 then return end
+  let secs = round_clock
+  round_clock = 0
+  if phase == "run" then
+    wall_speed = wall_speed + WALL_ACCEL * secs
+    wall_z = wall_z + wall_speed * secs
+    if still(wall) then wall.z = wall_z end
+    for p in runners() do runner_step(p) end
+    if len(runners()) == 0 or time() - run_started > 200 or wall_z > TRACK_LEN then end_round() end
+  elif phase == "results" then
+    if time() >= phase_until then
+      phase = "lobby"
+      phase_until = time() + LOBBY_TIME
+    end
+  else
+    if phase_until == 0 then phase_until = time() + LOBBY_TIME end
+    if time() >= phase_until and len(filter(players(), func(p) return ready(p) end)) > 0 then start_round() end
+  end
+end
+
+on start()
+  every(0.5, func()
+    let text = ""
+    if phase == "lobby" then text = "⏳ ラウンド " + (round_n + 1) + " まで " + max(0, ceil(phase_until - time())) + " 秒（トレッドミルやたまごで準備！）"
+    elif phase == "run" then text = "🧱 かべ " + floor(max(0, wall_z)) + "m・" + fixed(wall_speed, 1) + "m/秒   走っている人 " + len(runners())
+    else text = "🏆 結果発表" end
+    ui_text("round", text, {at: "top", dy: 78, size: 14, bold: true, color: "#FFFFFF"})
+    for p in runners() do
+      p.ui_text("dist", "🏃 " + floor(max(0, p.z)) + "m / " + TRACK_LEN + "m   かべまで " + floor(max(0, p.z - wall_z)) + "m", {at: "bottom", dy: -110, size: 16, bold: true, color: "#FDE68A"})
+    end
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc or not ready(p) then return end
+  if contains(b.tags, "finish") then finish(p) end
+end
+
+on respawn(p)
+  if not ready(p) then return end
+  if p.running then
+    p.running = false
+    p.message("💫 落ちちゃった！ " + floor(p.run_best) + "m", 2)
+  end
+  p.ui_remove("dist")
+end
