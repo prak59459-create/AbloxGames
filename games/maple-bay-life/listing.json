@@ -16,6 +16,10 @@
     "games\/maple-bay-life\/vehicles.absc",
     "games\/maple-bay-life\/main.absc"
   ],
+  "shots" : [
+    "games\/maple-bay-life\/shot1-df49918d.png",
+    "games\/maple-bay-life\/shot2-d318aa64.png"
+  ],
   "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",
   "tags" : [
     "rp",

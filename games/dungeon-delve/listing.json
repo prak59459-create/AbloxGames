@@ -18,6 +18,10 @@
     "games\/dungeon-delve\/loot.absc",
     "games\/dungeon-delve\/main.absc"
   ],
+  "shots" : [
+    "games\/dungeon-delve\/shot1-dcfae4f6.png",
+    "games\/dungeon-delve\/shot2-f8d8cd3e.png"
+  ],
   "summary" : "4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！",
   "tags" : [
     "dungeon",

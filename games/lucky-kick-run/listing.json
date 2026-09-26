@@ -14,6 +14,10 @@
     "games\/lucky-kick-run\/tsunami.absc",
     "games\/lucky-kick-run\/main.absc"
   ],
+  "shots" : [
+    "games\/lucky-kick-run\/shot1-8e82842e.png",
+    "games\/lucky-kick-run\/shot2-5757478d.png"
+  ],
   "summary" : "ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！",
   "tags" : [
     "luck",

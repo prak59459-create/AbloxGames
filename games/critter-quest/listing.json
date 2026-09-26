@@ -13,6 +13,10 @@
     "games\/critter-quest\/world.absc",
     "games\/critter-quest\/main.absc"
   ],
+  "shots" : [
+    "games\/critter-quest\/shot1-ee53571a.png",
+    "games\/critter-quest\/shot2-b3431bf5.png"
+  ],
   "summary" : "草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！",
   "tags" : [
     "monsters",

@@ -14,6 +14,10 @@
     "games\/crusher-yard\/shop.absc",
     "games\/crusher-yard\/main.absc"
   ],
+  "shots" : [
+    "games\/crusher-yard\/shot1-391fd440.png",
+    "games\/crusher-yard\/shot2-d5b202c2.png"
+  ],
   "summary" : "自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！",
   "tags" : [
     "simulator",

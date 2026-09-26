@@ -14,6 +14,10 @@
     "games\/disaster-island\/shop.absc",
     "games\/disaster-island\/main.absc"
   ],
+  "shots" : [
+    "games\/disaster-island\/shot1-c6987adb.png",
+    "games\/disaster-island\/shot2-12579611.png"
+  ],
   "summary" : "15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！",
   "tags" : [
     "survival",

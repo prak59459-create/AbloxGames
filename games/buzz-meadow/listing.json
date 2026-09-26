@@ -15,6 +15,10 @@
     "games\/buzz-meadow\/mobs.absc",
     "games\/buzz-meadow\/main.absc"
   ],
+  "shots" : [
+    "games\/buzz-meadow\/shot1-d88bce0e.png",
+    "games\/buzz-meadow\/shot2-4cd042d7.png"
+  ],
   "summary" : "ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！",
   "tags" : [
     "simulator",

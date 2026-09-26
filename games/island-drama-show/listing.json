@@ -13,6 +13,10 @@
     "games\/island-drama-show\/show.absc",
     "games\/island-drama-show\/main.absc"
   ],
+  "shots" : [
+    "games\/island-drama-show\/shot1-fe4a0621.png",
+    "games\/island-drama-show\/shot2-3ad9735e.png"
+  ],
   "summary" : "無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！",
   "tags" : [
     "minigames",

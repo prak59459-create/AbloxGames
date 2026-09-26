@@ -14,6 +14,10 @@
     "games\/raft-to-treasure\/river.absc",
     "games\/raft-to-treasure\/main.absc"
   ],
+  "shots" : [
+    "games\/raft-to-treasure\/shot1-211604ac.png",
+    "games\/raft-to-treasure\/shot2-52e4395b.png"
+  ],
   "summary" : "ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！",
   "tags" : [
     "build",

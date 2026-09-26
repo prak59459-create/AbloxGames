@@ -17,6 +17,10 @@
     "games\/oni-blade\/village.absc",
     "games\/oni-blade\/main.absc"
   ],
+  "shots" : [
+    "games\/oni-blade\/shot1-d8c47ca4.png",
+    "games\/oni-blade\/shot2-0b8a509b.png"
+  ],
   "summary" : "夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。",
   "tags" : [
     "swords",

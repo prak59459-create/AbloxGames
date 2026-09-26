@@ -14,6 +14,10 @@
     "games\/style-boxing\/styles.absc",
     "games\/style-boxing\/main.absc"
   ],
+  "shots" : [
+    "games\/style-boxing\/shot1-21811781.png",
+    "games\/style-boxing\/shot2-9ac1ead1.png"
+  ],
   "summary" : "スピード、パワー、タンク、カウンター。自分のスタイルを選んで、必殺技ゲージをためて殴り合うボクシングバトル。",
   "tags" : [
     "boxing",

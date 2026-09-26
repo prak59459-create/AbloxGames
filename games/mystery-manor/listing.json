@@ -14,6 +14,10 @@
     "games\/mystery-manor\/round.absc",
     "games\/mystery-manor\/main.absc"
   ],
+  "shots" : [
+    "games\/mystery-manor\/shot1-4912792e.png",
+    "games\/mystery-manor\/shot2-93ebdfd1.png"
+  ],
   "summary" : "市民・保安官・犯人に分かれる推理サバイバル。犯人は正体をかくして全員を、保安官は犯人を見つけてたおせ。市民は生きのこれ！",
   "tags" : [
     "mystery",

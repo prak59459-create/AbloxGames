@@ -17,6 +17,10 @@
     "games\/meme-heist\/steal.absc",
     "games\/meme-heist\/main.absc"
   ],
+  "shots" : [
+    "games\/meme-heist\/shot1-d9162774.png",
+    "games\/meme-heist\/shot2-9b3a3c3d.png"
+  ],
   "summary" : "ランウェイを歩くヘンなミームキャラを買って自分の基地へ。キャラはお金を生み出す。ほかの人の基地からこっそり盗み出せ！",
   "tags" : [
     "simulator",

@@ -20,6 +20,10 @@
     "games\/crystal-wars\/upgrades.absc",
     "games\/crystal-wars\/main.absc"
   ],
+  "shots" : [
+    "games\/crystal-wars\/shot1-025e78e5.png",
+    "games\/crystal-wars\/shot2-8c71c94b.png"
+  ],
   "summary" : "浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。",
   "tags" : [
     "pvp",

@@ -16,6 +16,10 @@
     "games\/street-drive-empire\/world.absc",
     "games\/street-drive-empire\/main.absc"
   ],
+  "shots" : [
+    "games\/street-drive-empire\/shot1-ce178eda.png",
+    "games\/street-drive-empire\/shot2-8f01f897.png"
+  ],
   "summary" : "車を集めて街を走るドライブゲーム。16台の車を買って色とパーツをカスタム。4つのレース（サーキット・ドラッグ・市街地・ラリー）でライバルと勝負、配達とタクシーでかせいでライセンスを上げよう！",
   "tags" : [
     "cars",

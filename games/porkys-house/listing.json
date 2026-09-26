@@ -15,6 +15,10 @@
     "games\/porkys-house\/round.absc",
     "games\/porkys-house\/main.absc"
   ],
+  "shots" : [
+    "games\/porkys-house\/shot1-c8946487.png",
+    "games\/porkys-house\/shot2-127e221e.png"
+  ],
   "summary" : "毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！",
   "tags" : [
     "horror",

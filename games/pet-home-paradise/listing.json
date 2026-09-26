@@ -15,6 +15,10 @@
     "games\/pet-home-paradise\/trade.absc",
     "games\/pet-home-paradise\/main.absc"
   ],
+  "shots" : [
+    "games\/pet-home-paradise\/shot1-15e4e809.png",
+    "games\/pet-home-paradise\/shot2-149db4e2.png"
+  ],
   "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
   "tags" : [
     "pets",

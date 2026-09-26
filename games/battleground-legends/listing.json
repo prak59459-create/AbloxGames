@@ -14,6 +14,10 @@
     "games\/battleground-legends\/heroes.absc",
     "games\/battleground-legends\/main.absc"
   ],
+  "shots" : [
+    "games\/battleground-legends\/shot1-dcab5d8b.png",
+    "games\/battleground-legends\/shot2-4183f53d.png"
+  ],
   "summary" : "パンチ、アッパー、衝撃波、そして必殺の覚醒！技を組み合わせてオープンフィールドで戦う爽快バトル。",
   "tags" : [
     "pvp",

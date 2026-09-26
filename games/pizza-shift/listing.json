@@ -13,6 +13,10 @@
     "games\/pizza-shift\/shop.absc",
     "games\/pizza-shift\/main.absc"
   ],
+  "shots" : [
+    "games\/pizza-shift\/shot1-db86123f.png",
+    "games\/pizza-shift\/shot2-84eda788.png"
+  ],
   "summary" : "ピザ屋でみんなで働こう。レジで注文、レシピどおりに具をのせて、こげる前にオーブンから出して手わたし・配達！ ★評価と店のお金で店を強化、昇進で給料アップ。",
   "tags" : [
     "jobs",

@@ -14,6 +14,10 @@
     "games\/coaster-park-tycoon\/rides.absc",
     "games\/coaster-park-tycoon\/main.absc"
   ],
+  "shots" : [
+    "games\/coaster-park-tycoon\/shot1-122ef9f4.png",
+    "games\/coaster-park-tycoon\/shot2-1b435ddc.png"
+  ],
   "summary" : "遊園地を作ろう。14のアトラクションと屋台、お客さんの楽しさ・空腹・のど・トイレ、入場料、故障の修理とゴミそうじ、スタッフ、ベストパーク賞。自分でも乗れる！",
   "tags" : [
     "tycoon",

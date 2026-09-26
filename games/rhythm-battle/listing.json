@@ -12,6 +12,10 @@
     "games\/rhythm-battle\/stage.absc",
     "games\/rhythm-battle\/main.absc"
   ],
+  "shots" : [
+    "games\/rhythm-battle\/shot1-4330a12a.png",
+    "games\/rhythm-battle\/shot2-db76caf2.png"
+  ],
   "summary" : "8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ",
   "tags" : [
     "rhythm",

@@ -18,6 +18,10 @@
     "games\/willow-hospital\/surgery.absc",
     "games\/willow-hospital\/main.absc"
   ],
+  "shots" : [
+    "games\/willow-hospital\/shot1-5bb55e53.png",
+    "games\/willow-hospital\/shot2-5b1e13dc.png"
+  ],
   "summary" : "病院のお仕事RP。医者・看護師・外科医・薬剤師・救急隊・患者に。トリアージ、バイタル、12の病気の診断、薬の調合、手術、救急車の出動。病院の資金でベッドや設備を強化！",
   "tags" : [
     "rp",

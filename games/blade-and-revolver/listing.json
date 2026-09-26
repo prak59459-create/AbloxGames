@@ -13,6 +13,10 @@
     "games\/blade-and-revolver\/match.absc",
     "games\/blade-and-revolver\/main.absc"
   ],
+  "shots" : [
+    "games\/blade-and-revolver\/shot1-dad93d8f.png",
+    "games\/blade-and-revolver\/shot2-2cd1b469.png"
+  ],
   "summary" : "ナイフとリボルバーだけのデスマッチ。ナイフは投げることもできる。先に20キルした人の勝ち。",
   "tags" : [
     "pvp",

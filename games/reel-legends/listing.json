@@ -15,6 +15,10 @@
     "games\/reel-legends\/world.absc",
     "games\/reel-legends\/main.absc"
   ],
+  "shots" : [
+    "games\/reel-legends\/shot1-3f5c3630.png",
+    "games\/reel-legends\/shot2-534c2c65.png"
+  ],
   "summary" : "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",
   "tags" : [
     "fishing",

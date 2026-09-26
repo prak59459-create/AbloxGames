@@ -14,6 +14,10 @@
     "games\/ridgeport-cops\/robbery.absc",
     "games\/ridgeport-cops\/main.absc"
   ],
+  "shots" : [
+    "games\/ridgeport-cops\/shot1-2e4afdda.png",
+    "games\/ridgeport-cops\/shot2-d8360bb3.png"
+  ],
   "summary" : "警察と強盗の街アクション。ガソスタ・宝石店・銀行の暗証番号・銃砲店・現金輸送車をねらう強盗と、テーザーと手錠で追う警察。階級・武器・車・脱獄・保釈も！",
   "tags" : [
     "cops",

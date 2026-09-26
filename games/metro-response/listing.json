@@ -16,6 +16,10 @@
     "games\/metro-response\/police.absc",
     "games\/metro-response\/main.absc"
   ],
+  "shots" : [
+    "games\/metro-response\/shot1-20f97afd.png",
+    "games\/metro-response\/shot2-e1e3477d.png"
+  ],
   "summary" : "警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。",
   "tags" : [
     "rp",

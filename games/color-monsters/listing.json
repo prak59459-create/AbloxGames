@@ -16,6 +16,10 @@
     "games\/color-monsters\/nights.absc",
     "games\/color-monsters\/main.absc"
   ],
+  "shots" : [
+    "games\/color-monsters\/shot1-07290493.png",
+    "games\/color-monsters\/shot2-74a3f308.png"
+  ],
   "summary" : "夜のおもちゃ倉庫で5色のモンスターから隠れて、夜ごとの任務（ブロック・ヒューズ・電池・ガス・ロケットの部品）を集めよう。箱やロッカーに隠れ、つかまった仲間は檻から助けて、5夜目にロケットで脱出！",
   "tags" : [
     "horror",

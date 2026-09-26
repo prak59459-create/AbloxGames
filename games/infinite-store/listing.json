@@ -14,6 +14,10 @@
     "games\/infinite-store\/store.absc",
     "games\/infinite-store\/main.absc"
   ],
+  "shots" : [
+    "games\/infinite-store\/shot1-7c6b14d6.png",
+    "games\/infinite-store\/shot2-91fa3637.png"
+  ],
   "summary" : "終わりのない巨大家具店。9つの売り場で家具を拾って基地を作り、夜は家具をこわしてくる店員（3日目と6日目は店長！）から守れ。おなか・武器の箱・落とし物・サービスカウンター。7日目の閉店で出口が開く！",
   "tags" : [
     "survival",

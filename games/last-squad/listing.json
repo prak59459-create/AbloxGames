@@ -15,6 +15,10 @@
     "games\/last-squad\/supply.absc",
     "games\/last-squad\/main.absc"
   ],
+  "shots" : [
+    "games\/last-squad\/shot1-b6ba4e14.png",
+    "games\/last-squad\/shot2-3d499483.png"
+  ],
   "summary" : "人間チームとゾンビの大群のサバイバル。やられた人間はゾンビになる！3分間生きのびて、ヘリで脱出せよ。",
   "tags" : [
     "zombies",

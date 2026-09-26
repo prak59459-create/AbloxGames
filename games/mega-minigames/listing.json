@@ -13,6 +13,10 @@
     "games\/mega-minigames\/match.absc",
     "games\/mega-minigames\/main.absc"
   ],
+  "shots" : [
+    "games\/mega-minigames\/shot1-7fbc5677.png",
+    "games\/mega-minigames\/shot2-ff09c971.png"
+  ],
   "summary" : "投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！",
   "tags" : [
     "minigames",

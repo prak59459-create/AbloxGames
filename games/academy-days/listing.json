@@ -13,6 +13,10 @@
     "games\/academy-days\/common.absc",
     "games\/academy-days\/main.absc"
   ],
+  "shots" : [
+    "games\/academy-days\/shot1-7817cec1.png",
+    "games\/academy-days\/shot2-f01d1ec1.png"
+  ],
   "summary" : "4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！",
   "tags" : [
     "school",

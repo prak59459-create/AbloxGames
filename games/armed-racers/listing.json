@@ -14,6 +14,10 @@
     "games\/armed-racers\/race.absc",
     "games\/armed-racers\/main.absc"
   ],
+  "shots" : [
+    "games\/armed-racers\/shot1-9cbd0d34.png",
+    "games\/armed-racers\/shot2-a60c1a54.png"
+  ],
   "summary" : "武装したレースカーでコースを3周。アイテム箱からミサイル、オイル、ブーストを手に入れて、ライバルをじゃましろ！",
   "tags" : [
     "racing",

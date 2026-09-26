@@ -14,6 +14,10 @@
     "games\/obby-maker\/motion.absc",
     "games\/obby-maker\/main.absc"
   ],
+  "shots" : [
+    "games\/obby-maker\/shot1-55c1465b.png",
+    "games\/obby-maker\/shot2-553c8632.png"
+  ],
   "summary" : "自分だけのアスレチックコースを作って公開しよう。17種のパーツ（動く床・回る溶岩バー・ワープ・コインも）、グリッドと回転、テストでクリアして公開、タイムといいね。お手本コースやみんなのコースに挑戦！",
   "tags" : [
     "obby",

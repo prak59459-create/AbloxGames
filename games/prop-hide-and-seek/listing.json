@@ -11,6 +11,10 @@
     "games\/prop-hide-and-seek\/tools.absc",
     "games\/prop-hide-and-seek\/main.absc"
   ],
+  "shots" : [
+    "games\/prop-hide-and-seek\/shot1-85066831.png",
+    "games\/prop-hide-and-seek\/shot2-68d3a6cb.png"
+  ],
   "summary" : "家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！",
   "tags" : [
     "hide-and-seek",

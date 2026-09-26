@@ -14,6 +14,10 @@
     "games\/smile-outbreak\/round.absc",
     "games\/smile-outbreak\/main.absc"
   ],
+  "shots" : [
+    "games\/smile-outbreak\/shot1-8255cfa6.png",
+    "games\/smile-outbreak\/shot2-fe218c5c.png"
+  ],
   "summary" : "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
   "tags" : [
     "tag",

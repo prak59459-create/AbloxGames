@@ -13,6 +13,10 @@
     "games\/chaos-golf\/physics.absc",
     "games\/chaos-golf\/main.absc"
   ],
+  "shots" : [
+    "games\/chaos-golf\/shot1-f7097fec.png",
+    "games\/chaos-golf\/shot2-e733528c.png"
+  ],
   "summary" : "ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！",
   "tags" : [
     "golf",

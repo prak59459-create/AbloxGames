@@ -14,6 +14,10 @@
     "games\/aura-roll\/roll.absc",
     "games\/aura-roll\/main.absc"
   ],
+  "shots" : [
+    "games\/aura-roll\/shot1-10ed0203.png",
+    "games\/aura-roll\/shot2-5d0ce0ec.png"
+  ],
   "summary" : "ボタンでオーラを引く運だめし。32種のオーラ、8つの天気（その天気だけのオーラ）、素材とオーラでギアをクラフト、旅の商人のポーション、運の塔。10回ごとのボーナスで1億分の1を引き当てろ！",
   "tags" : [
     "rng",

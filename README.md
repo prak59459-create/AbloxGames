@@ -156,6 +156,7 @@ ABLOX=../Ablox tools/build.sh           # 全部（数分）
 ABLOX=../Ablox tools/build.sh --only 12 # 1本だけ
 ABLOX=../Ablox tools/build.sh --quick   # 自動プレイを短く
 ABLOX=../Ablox tools/build.sh --covers  # カバー画像を全部描き直す（遊ばない）
+ABLOX=../Ablox tools/build.sh --shots   # ゲームページ用の追加画像を全部描き直す（遊ばない）
 ```
 
 `build.sh` はアプリと同じ `AbloxCore` を一緒にコンパイルして、
@@ -169,6 +170,8 @@ ABLOX=../Ablox tools/build.sh --covers  # カバー画像を全部描き直す�
 5. カバー画像を描く — そのゲームのマップを斜め上から見た絵に、スポーン地点のプレイヤーを数人。
    ネットから拾った画像ではなくマップそのものなので、遊ぶ中身といつも一致して、マップを直せば絵も変わる。
    ファイル名に絵の「指紋」が入るので、絵が変わるとアプリは新しいカバーを取りに行く
+6. ゲームページ用の追加画像を2枚描く（`shot1-…png` は反対側から、`shot2-…png` はスタート地点の近くから）。
+   リスティングの `shots` に入り、アプリのゲームページに並ぶ
 
 ## オリジナルについて
 

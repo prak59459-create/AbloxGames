@@ -13,6 +13,10 @@
     "games\/dinner-rush-tycoon\/shop.absc",
     "games\/dinner-rush-tycoon\/main.absc"
   ],
+  "shots" : [
+    "games\/dinner-rush-tycoon\/shot1-31835d9c.png",
+    "games\/dinner-rush-tycoon\/shot2-28a17b27.png"
+  ],
   "summary" : "レストランを経営。19の設備で6品のメニューを増やし、シェフとウェイターをやとって自動化。評判と料理評論家、2号店（リバース）で永久ボーナス！",
   "tags" : [
     "tycoon",

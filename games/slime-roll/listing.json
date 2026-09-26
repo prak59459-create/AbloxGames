@@ -19,6 +19,10 @@
     "games\/slime-roll\/zones.absc",
     "games\/slime-roll\/main.absc"
   ],
+  "shots" : [
+    "games\/slime-roll\/shot1-04c04ee2.png",
+    "games\/slime-roll\/shot2-947ee768.png"
+  ],
   "summary" : "運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？",
   "tags" : [
     "rng",

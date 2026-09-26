@@ -43,7 +43,14 @@ enum Cover {
         var unlit: Bool
     }
 
-    static func render(_ world: WorldDocument, characters: [PlayerSnapshot], seed: String) -> Picture {
+    /// Which picture: the cover, or one of the extra pictures on a game's
+    /// page — the far side of the same scene, and a closer look lower down
+    /// where the players start.
+    enum Angle: Int, CaseIterable {
+        case cover, otherSide, closeUp
+    }
+
+    static func render(_ world: WorldDocument, characters: [PlayerSnapshot], seed: String, angle: Angle = .cover) -> Picture {
         var random = SeededRandom(seed: seed)
         let lookup = Dictionary(world.blocks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
@@ -116,6 +123,22 @@ enum Cover {
                 ? fitted(at: middle, radius: radius, yawDegrees: yaw, pitchDegrees: pitch, points: inside,
                          summit: Vec3(middle.x, tallest, middle.z), widest: 1)
                 : look(at: middle, radius: radius, yawDegrees: yaw, pitchDegrees: pitch)
+        }
+        switch angle {
+        case .cover:
+            break
+        case .otherSide:
+            // Round the other way, from a little higher.
+            let back = camera.eye - camera.focus
+            let yaw = atan2(back.x, back.z) * 180 / .pi
+            camera = look(at: camera.focus, radius: camera.radius * 0.9, yawDegrees: yaw + 150, pitchDegrees: 28)
+        case .closeUp:
+            // Where the players stand, nearer and lower, facing into the map.
+            let start = spawns.isEmpty ? camera.focus : world.spawnPosition(forPlayerIndex: 0)
+            let toMiddle = camera.focus - start
+            let yaw = toMiddle.lengthSquared > 1 ? atan2(-toMiddle.x, -toMiddle.z) * 180 / .pi : 200
+            let middle = start + Vec3(0, 1.5, 0) + (toMiddle.lengthSquared > 1 ? toMiddle.normalized * min(8, toMiddle.length * 0.3) : .zero)
+            camera = look(at: middle, radius: max(9, min(22, camera.radius * 0.35)), yawDegrees: yaw, pitchDegrees: 19)
         }
         var canvas = Canvas(width: width * supersample, height: height * supersample, camera: camera, environment: environment)
         // The sun's view first: everything solid casts a shadow.

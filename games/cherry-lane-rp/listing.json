@@ -15,6 +15,10 @@
     "games\/cherry-lane-rp\/work.absc",
     "games\/cherry-lane-rp\/main.absc"
   ],
+  "shots" : [
+    "games\/cherry-lane-rp\/shot1-0ab43a88.png",
+    "games\/cherry-lane-rp\/shot2-4d87fa83.png"
+  ],
   "summary" : "学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。",
   "tags" : [
     "rp",

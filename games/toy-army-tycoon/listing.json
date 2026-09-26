@@ -14,6 +14,10 @@
     "games\/toy-army-tycoon\/raids.absc",
     "games\/toy-army-tycoon\/main.absc"
   ],
+  "shots" : [
+    "games\/toy-army-tycoon\/shot1-88d4ec2d.png",
+    "games\/toy-army-tycoon\/shot2-b3ff9374.png"
+  ],
   "summary" : "おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！",
   "tags" : [
     "tycoon",

@@ -17,6 +17,10 @@
     "games\/clash-duels\/team.absc",
     "games\/clash-duels\/main.absc"
   ],
+  "shots" : [
+    "games\/clash-duels\/shot1-994a043d.png",
+    "games\/clash-duels\/shot2-373f6eec.png"
+  ],
   "summary" : "1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。",
   "tags" : [
     "fps",

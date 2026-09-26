@@ -13,6 +13,10 @@
     "games\/endless-rooms\/levels.absc",
     "games\/endless-rooms\/main.absc"
   ],
+  "shots" : [
+    "games\/endless-rooms\/shot1-c6c1db81.png",
+    "games\/endless-rooms\/shot2-ec6790ea.png"
+  ],
   "summary" : "黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！",
   "tags" : [
     "horror",

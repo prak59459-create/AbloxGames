@@ -8,6 +8,7 @@ import Foundation
 //   tools/build.sh --only 12    one game
 //   tools/build.sh --quick      skip the long robot play
 //   tools/build.sh --covers     draw every cover again, write the index, no play
+//   tools/build.sh --shots      draw every game's extra pictures again, likewise
 //   tools/build.sh --preview DIR 3 17 42
 //                               draw those games' covers into DIR and stop;
 //                               nothing in the catalogue changes
@@ -19,6 +20,7 @@ let verbose = arguments.contains("--verbose")
 let reachOnly = arguments.contains("--reach")
 let only: Int? = arguments.firstIndex(of: "--only").flatMap { i in i + 1 < arguments.count ? Int(arguments[i + 1]) : nil }
 let coversOnly = arguments.contains("--covers")
+let shotsOnly = arguments.contains("--shots")
 let previewDirectory: URL? = arguments.firstIndex(of: "--preview").flatMap { i in
     i + 1 < arguments.count ? URL(fileURLWithPath: arguments[i + 1]) : nil
 }
@@ -60,17 +62,44 @@ func savePNG(_ picture: Cover.Picture, to url: URL, id: String) -> Bool {
 /// Draws the cover and saves it under a name that changes with the picture,
 /// so the app — which keeps covers it has fetched — sees a new file instead
 /// of its old copy. Older covers in the folder are removed.
-func drawCover(_ world: WorldDocument, id: String, folder: String) -> String? {
-    let settled = Harness.settle(world)
-    let picture = Cover.render(settled.world, characters: settled.characters, seed: id)
-    let path = "\(folder)/cover-\(picture.fingerprint).png"
+/// A world a few seconds in, with everyone in it (`Harness.settle`).
+typealias Settled = (world: WorldDocument, characters: [PlayerSnapshot])
+
+func drawCover(_ settled: Settled, id: String, folder: String) -> String? {
+    savePicture(Cover.render(settled.world, characters: settled.characters, seed: id), prefix: "cover", id: id, folder: folder)
+}
+
+/// Saves `picture` as `<prefix>-<fingerprint>.png` and removes the older
+/// ones with that prefix.
+func savePicture(_ picture: Cover.Picture, prefix: String, id: String, folder: String) -> String? {
+    let path = "\(folder)/\(prefix)-\(picture.fingerprint).png"
     if FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path) { return path }
     guard savePNG(picture, to: root.appendingPathComponent(path), id: id) else { return nil }
     let names = (try? FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent(folder).path)) ?? []
-    for name in names where name.hasPrefix("cover-") && name.hasSuffix(".png") && "\(folder)/\(name)" != path {
+    for name in names where name.hasPrefix("\(prefix)-") && name.hasSuffix(".png") && "\(folder)/\(name)" != path {
         try? FileManager.default.removeItem(at: root.appendingPathComponent(folder).appendingPathComponent(name))
     }
     return path
+}
+
+/// The extra pictures for a game's page: the far side, and a close look
+/// where the players start. `shot1-…png` and `shot2-…png`.
+let shotAngles: [Cover.Angle] = [.otherSide, .closeUp]
+
+func existingShots(in folder: String) -> [String]? {
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent(folder).path)) ?? []
+    let found = shotAngles.indices.compactMap { index in
+        names.filter { $0.hasPrefix("shot\(index + 1)-") && $0.hasSuffix(".png") }.sorted().first.map { "\(folder)/\($0)" }
+    }
+    return found.count == shotAngles.count ? found : nil
+}
+
+func drawShots(_ settled: Settled, id: String, folder: String) -> [String]? {
+    let paths = shotAngles.enumerated().compactMap { index, angle in
+        savePicture(Cover.render(settled.world, characters: settled.characters, seed: id, angle: angle),
+                    prefix: "shot\(index + 1)", id: id, folder: folder)
+    }
+    return paths.count == shotAngles.count ? paths : nil
 }
 
 var listings: [GameListing] = []
@@ -98,10 +127,13 @@ for game in Catalogue.games {
             return ScriptFile(name: name, source: path == Catalogue.kitPath ? kit : (read(path) ?? ""))
         }
         let settled = Harness.settle(scripted)
-        let picture = Cover.render(settled.world, characters: settled.characters, seed: game.id)
         try? FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true)
-        let url = previewDirectory.appendingPathComponent(String(format: "%02d-%@.png", game.number, game.id))
-        print(savePNG(picture, to: url, id: game.id) ? "🖼 \(url.path)" : "✗ \(game.id)")
+        for angle in Cover.Angle.allCases {
+            let picture = Cover.render(settled.world, characters: settled.characters, seed: game.id, angle: angle)
+            let suffix = angle == .cover ? "" : "-\(angle.rawValue + 1)"
+            let url = previewDirectory.appendingPathComponent(String(format: "%02d-%@%@.png", game.number, game.id, suffix))
+            print(savePNG(picture, to: url, id: game.id) ? "🖼 \(url.path)" : "✗ \(game.id)")
+        }
         continue
     }
 
@@ -114,26 +146,31 @@ for game in Catalogue.games {
     // Drawn again for the game being worked on, for every game with
     // --covers, and for any game that has none yet.
     var cover = existingCover(in: game.folder)
-    if coversOnly || only == game.number || cover == nil {
+    var shots = existingShots(in: game.folder)
+    let needsCover = coversOnly || only == game.number || cover == nil
+    let needsShots = shotsOnly || coversOnly || only == game.number || shots == nil
+    if needsCover || needsShots {
         var scripted = world
         scripted.scripts = paths.map { path in
             let name = String(path.split(separator: "/").last ?? "main.absc")
             return ScriptFile(name: name, source: path == Catalogue.kitPath ? kit : (read(path) ?? ""))
         }
-        cover = drawCover(scripted, id: game.id, folder: game.folder) ?? cover
+        let settled = Harness.settle(scripted)
+        if needsCover { cover = drawCover(settled, id: game.id, folder: game.folder) ?? cover }
+        if needsShots { shots = drawShots(settled, id: game.id, folder: game.folder) ?? shots }
     }
 
     let listing = GameListing(
         id: game.id, title: game.title, author: Catalogue.author, summary: game.summary,
-        world: "\(game.folder)/world.ablox", cover: cover, scripts: paths,
+        world: "\(game.folder)/world.ablox", cover: cover, shots: shots, scripts: paths,
         tags: game.tags, blockCount: world.blocks.count, maxPlayers: game.maxPlayers,
         schemaVersion: WorldDocument.currentSchemaVersion, updatedAt: Catalogue.date
     )
     listings.append(listing)
 
-    if coversOnly {
+    if coversOnly || shotsOnly {
         write(Data((listing.indexEntryJSON() + "\n").utf8), to: "\(game.folder)/listing.json")
-        print("🖼 \(String(format: "%2d", game.number)) \(game.id) — \(cover ?? "no cover")")
+        print("🖼 \(String(format: "%2d", game.number)) \(game.id) — \(cover ?? "no cover"), \(shots?.count ?? 0) more")
         continue
     }
     if let only, only != game.number { continue }

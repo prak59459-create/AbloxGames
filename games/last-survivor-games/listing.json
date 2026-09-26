@@ -17,6 +17,10 @@
     "games\/last-survivor-games\/tug.absc",
     "games\/last-survivor-games\/main.absc"
   ],
+  "shots" : [
+    "games\/last-survivor-games\/shot1-f119247f.png",
+    "games\/last-survivor-games\/shot2-ae3c3614.png"
+  ],
   "summary" : "24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！",
   "tags" : [
     "survival",

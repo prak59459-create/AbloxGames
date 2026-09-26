@@ -17,6 +17,10 @@
     "games\/99-nights-camp\/survival.absc",
     "games\/99-nights-camp\/main.absc"
   ],
+  "shots" : [
+    "games\/99-nights-camp\/shot1-cab0dc83.png",
+    "games\/99-nights-camp\/shot2-e07ba1bf.png"
+  ],
   "summary" : "森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。",
   "tags" : [
     "survival",

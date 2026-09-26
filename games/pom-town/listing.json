@@ -15,6 +15,10 @@
     "games\/pom-town\/poms.absc",
     "games\/pom-town\/main.absc"
   ],
+  "shots" : [
+    "games\/pom-town\/shot1-b26f3717.png",
+    "games\/pom-town\/shot2-4e4ad11d.png"
+  ],
   "summary" : "家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！",
   "tags" : [
     "rp",

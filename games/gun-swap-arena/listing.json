@@ -15,6 +15,10 @@
     "games\/gun-swap-arena\/match.absc",
     "games\/gun-swap-arena\/main.absc"
   ],
+  "shots" : [
+    "games\/gun-swap-arena\/shot1-637f87fc.png",
+    "games\/gun-swap-arena\/shot2-0a010d51.png"
+  ],
   "summary" : "たおすたびに武器が変わるスピードFPS。12の武器を順番にクリアして、最後の黄金ナイフで決めた人の勝ち。",
   "tags" : [
     "fps",

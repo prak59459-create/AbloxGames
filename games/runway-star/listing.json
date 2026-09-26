@@ -13,6 +13,10 @@
     "games\/runway-star\/wardrobe.absc",
     "games\/runway-star\/main.absc"
   ],
+  "shots" : [
+    "games\/runway-star\/shot1-a7331a7c.png",
+    "games\/runway-star\/shot2-71cee4e4.png"
+  ],
   "summary" : "テーマに合わせて服の色や帽子をコーディネートしてランウェイへ。みんなで星をつけ合って、トップモデルを決めよう。",
   "tags" : [
     "fashion",

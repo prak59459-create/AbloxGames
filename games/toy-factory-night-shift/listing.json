@@ -15,6 +15,10 @@
     "games\/toy-factory-night-shift\/toys.absc",
     "games\/toy-factory-night-shift\/main.absc"
   ],
+  "shots" : [
+    "games\/toy-factory-night-shift\/shot1-028c63b5.png",
+    "games\/toy-factory-night-shift\/shot2-30c65f5a.png"
+  ],
   "summary" : "おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！",
   "tags" : [
     "horror",

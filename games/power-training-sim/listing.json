@@ -16,6 +16,10 @@
     "games\/power-training-sim\/train.absc",
     "games\/power-training-sim\/main.absc"
   ],
+  "shots" : [
+    "games\/power-training-sim\/shot1-590aef72.png",
+    "games\/power-training-sim\/shot2-d6be3e01.png"
+  ],
   "summary" : "力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。",
   "tags" : [
     "training",

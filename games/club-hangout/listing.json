@@ -14,6 +14,10 @@
     "games\/club-hangout\/family.absc",
     "games\/club-hangout\/main.absc"
   ],
+  "shots" : [
+    "games\/club-hangout\/shot1-64e3a46d.png",
+    "games\/club-hangout\/shot2-d089d44a.png"
+  ],
   "summary" : "空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。",
   "tags" : [
     "rp",

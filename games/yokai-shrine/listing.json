@@ -14,6 +14,10 @@
     "games\/yokai-shrine\/yokai.absc",
     "games\/yokai-shrine\/main.absc"
   ],
+  "shots" : [
+    "games\/yokai-shrine\/shot1-674f1fdd.png",
+    "games\/yokai-shrine\/shot2-10c7bf1c.png"
+  ],
   "summary" : "夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！",
   "tags" : [
     "horror",

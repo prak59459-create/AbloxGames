@@ -17,6 +17,10 @@
     "games\/domain-clash\/styles.absc",
     "games\/domain-clash\/main.absc"
   ],
+  "shots" : [
+    "games\/domain-clash\/shot1-5a694ee5.png",
+    "games\/domain-clash\/shot2-b1038780.png"
+  ],
   "summary" : "炎・雷・重力・影の術で戦うバトル。ゲージがたまったら「領域展開」で相手を閉じこめろ！地面や柱もこわれる。",
   "tags" : [
     "pvp",

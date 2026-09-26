@@ -16,6 +16,10 @@
     "games\/ring-boxing-league\/punches.absc",
     "games\/ring-boxing-league\/main.absc"
   ],
+  "shots" : [
+    "games\/ring-boxing-league\/shot1-9853f1f7.png",
+    "games\/ring-boxing-league\/shot2-147d4237.png"
+  ],
   "summary" : "リングで1対1のボクシング。ジャブ、ストレート、アッパー、ガード。スタミナを考えて打ち合い、ランキングを上げよう。",
   "tags" : [
     "boxing",

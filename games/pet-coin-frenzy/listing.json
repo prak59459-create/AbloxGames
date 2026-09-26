@@ -13,6 +13,10 @@
     "games\/pet-coin-frenzy\/world.absc",
     "games\/pet-coin-frenzy\/main.absc"
   ],
+  "shots" : [
+    "games\/pet-coin-frenzy\/shot1-83031966.png",
+    "games\/pet-coin-frenzy\/shot2-f122d87e.png"
+  ],
   "summary" : "コインの山をタップしてこわし、たまごからペットを出してパワーアップ。新しいエリアを開いて、巨大ペットを引き当てろ！",
   "tags" : [
     "pets",

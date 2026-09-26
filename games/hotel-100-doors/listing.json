@@ -14,6 +14,10 @@
     "games\/hotel-100-doors\/items.absc",
     "games\/hotel-100-doors\/main.absc"
   ],
+  "shots" : [
+    "games\/hotel-100-doors\/shot1-4cf94932.png",
+    "games\/hotel-100-doors\/shot2-ec4748b3.png"
+  ],
   "summary" : "なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。",
   "tags" : [
     "horror",

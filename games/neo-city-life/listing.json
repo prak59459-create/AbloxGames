@@ -15,6 +15,10 @@
     "games\/neo-city-life\/race.absc",
     "games\/neo-city-life\/main.absc"
   ],
+  "shots" : [
+    "games\/neo-city-life\/shot1-db40ed03.png",
+    "games\/neo-city-life\/shot2-3ccfad12.png"
+  ],
   "summary" : "未来都市のRP。6つの仕事（修理・救助・逮捕・料理・空の配達・ハッキング）でかせぎ、乗り物を集めて空の家をスマートホームに。指名手配と刑務所、ドローンレース、ネオンナイトも。",
   "tags" : [
     "rp",

@@ -13,6 +13,10 @@
     "games\/speed-worlds\/run.absc",
     "games\/speed-worlds\/main.absc"
   ],
+  "shots" : [
+    "games\/speed-worlds\/shot1-86ecf68e.png",
+    "games\/speed-worlds\/shot2-66b41175.png"
+  ],
   "summary" : "8つのワールド（草原・氷・溶岩・宇宙・おかし・砂漠・雲・ネオン）を超スピードで走るスピードラン。金銀銅メダル、自分のベスト走りの👻ゴースト、レース大会、シューズ・ブーツ・グライダー！",
   "tags" : [
     "obby",

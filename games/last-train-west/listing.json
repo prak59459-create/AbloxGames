@@ -14,6 +14,10 @@
     "games\/last-train-west\/train.absc",
     "games\/last-train-west\/main.absc"
   ],
+  "shots" : [
+    "games\/last-train-west\/shot1-f1e13267.png",
+    "games\/last-train-west\/shot2-ef159a06.png"
+  ],
   "summary" : "荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！",
   "tags" : [
     "survival",

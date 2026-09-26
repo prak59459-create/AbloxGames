@@ -15,6 +15,10 @@
     "games\/shark-attack-bay\/shark.absc",
     "games\/shark-attack-bay\/main.absc"
   ],
+  "shots" : [
+    "games\/shark-attack-bay\/shot1-c137815f.png",
+    "games\/shark-attack-bay\/shot2-2d550e8e.png"
+  ],
   "summary" : "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",
   "tags" : [
     "pvp",

@@ -16,6 +16,10 @@
     "games\/deflect-ball\/stats.absc",
     "games\/deflect-ball\/main.absc"
   ],
+  "shots" : [
+    "games\/deflect-ball\/shot1-33fd0399.png",
+    "games\/deflect-ball\/shot2-1f1f19e3.png"
+  ],
   "summary" : "ねらった相手を追いかける光のボール。ギリギリで「はじく」を押して打ち返せ！最後まで残った人の勝ち。",
   "tags" : [
     "pvp",

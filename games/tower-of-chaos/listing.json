@@ -15,6 +15,10 @@
     "games\/tower-of-chaos\/tower.absc",
     "games\/tower-of-chaos\/main.absc"
   ],
+  "shots" : [
+    "games\/tower-of-chaos\/shot1-c5e24303.png",
+    "games\/tower-of-chaos\/shot2-320645b1.png"
+  ],
   "summary" : "チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！",
   "tags" : [
     "obby",

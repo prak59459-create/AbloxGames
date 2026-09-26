@@ -14,6 +14,10 @@
     "games\/warrior-brawl\/items.absc",
     "games\/warrior-brawl\/main.absc"
   ],
+  "shots" : [
+    "games\/warrior-brawl\/shot1-b78e278d.png",
+    "games\/warrior-brawl\/shot2-2e2038e0.png"
+  ],
   "summary" : "やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。",
   "tags" : [
     "melee",

@@ -14,6 +14,10 @@
     "games\/night-lockdown\/night.absc",
     "games\/night-lockdown\/main.absc"
   ],
+  "shots" : [
+    "games\/night-lockdown\/shot1-c5cffd8b.png",
+    "games\/night-lockdown\/shot2-a60082d0.png"
+  ],
   "summary" : "昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！",
   "tags" : [
     "survival",

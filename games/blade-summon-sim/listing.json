@@ -14,6 +14,10 @@
     "games\/blade-summon-sim\/shops.absc",
     "games\/blade-summon-sim\/main.absc"
   ],
+  "shots" : [
+    "games\/blade-summon-sim\/shot1-d9bcec42.png",
+    "games\/blade-summon-sim\/shot2-dac685d7.png"
+  ],
   "summary" : "召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！",
   "tags" : [
     "idle",

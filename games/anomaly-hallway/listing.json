@@ -13,6 +13,10 @@
     "games\/anomaly-hallway\/man.absc",
     "games\/anomaly-hallway\/main.absc"
   ],
+  "shots" : [
+    "games\/anomaly-hallway\/shot1-f1955797.png",
+    "games\/anomaly-hallway\/shot2-0172c064.png"
+  ],
   "summary" : "終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！",
   "tags" : [
     "horror",

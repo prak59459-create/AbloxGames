@@ -15,6 +15,10 @@
     "games\/tip-jar-plaza\/tips.absc",
     "games\/tip-jar-plaza\/main.absc"
   ],
+  "shots" : [
+    "games\/tip-jar-plaza\/shot1-c2872c18.png",
+    "games\/tip-jar-plaza\/shot2-43d3b405.png"
+  ],
   "summary" : "広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです）",
   "tags" : [
     "social",

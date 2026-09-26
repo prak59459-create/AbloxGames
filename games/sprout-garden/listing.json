@@ -15,6 +15,10 @@
     "games\/sprout-garden\/weather.absc",
     "games\/sprout-garden\/main.absc"
   ],
+  "shots" : [
+    "games\/sprout-garden\/shot1-02d5aad4.png",
+    "games\/sprout-garden\/shot2-079d6d26.png"
+  ],
   "summary" : "自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。",
   "tags" : [
     "farming",

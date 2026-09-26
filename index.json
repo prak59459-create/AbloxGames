@@ -19,6 +19,10 @@
         "games\/maple-bay-life\/vehicles.absc",
         "games\/maple-bay-life\/main.absc"
       ],
+      "shots" : [
+        "games\/maple-bay-life\/shot1-df49918d.png",
+        "games\/maple-bay-life\/shot2-d318aa64.png"
+      ],
       "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",
       "tags" : [
         "rp",
@@ -49,6 +53,10 @@
         "games\/fruit-seas\/pvp.absc",
         "games\/fruit-seas\/main.absc"
       ],
+      "shots" : [
+        "games\/fruit-seas\/shot1-7b5c4aac.png",
+        "games\/fruit-seas\/shot2-c2b5b8d2.png"
+      ],
       "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",
       "tags" : [
         "rpg",
@@ -76,6 +84,10 @@
         "games\/pet-home-paradise\/town.absc",
         "games\/pet-home-paradise\/trade.absc",
         "games\/pet-home-paradise\/main.absc"
+      ],
+      "shots" : [
+        "games\/pet-home-paradise\/shot1-15e4e809.png",
+        "games\/pet-home-paradise\/shot2-149db4e2.png"
       ],
       "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
       "tags" : [
@@ -107,6 +119,10 @@
         "games\/meme-heist\/steal.absc",
         "games\/meme-heist\/main.absc"
       ],
+      "shots" : [
+        "games\/meme-heist\/shot1-d9162774.png",
+        "games\/meme-heist\/shot2-9b3a3c3d.png"
+      ],
       "summary" : "ランウェイを歩くヘンなミームキャラを買って自分の基地へ。キャラはお金を生み出す。ほかの人の基地からこっそり盗み出せ！",
       "tags" : [
         "simulator",
@@ -134,6 +150,10 @@
         "games\/reel-legends\/shops.absc",
         "games\/reel-legends\/world.absc",
         "games\/reel-legends\/main.absc"
+      ],
+      "shots" : [
+        "games\/reel-legends\/shot1-3f5c3630.png",
+        "games\/reel-legends\/shot2-534c2c65.png"
       ],
       "summary" : "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",
       "tags" : [
@@ -165,6 +185,10 @@
         "games\/clash-duels\/team.absc",
         "games\/clash-duels\/main.absc"
       ],
+      "shots" : [
+        "games\/clash-duels\/shot1-994a043d.png",
+        "games\/clash-duels\/shot2-373f6eec.png"
+      ],
       "summary" : "1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。",
       "tags" : [
         "fps",
@@ -193,6 +217,10 @@
         "games\/sprout-garden\/weather.absc",
         "games\/sprout-garden\/main.absc"
       ],
+      "shots" : [
+        "games\/sprout-garden\/shot1-02d5aad4.png",
+        "games\/sprout-garden\/shot2-079d6d26.png"
+      ],
       "summary" : "自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。",
       "tags" : [
         "farming",
@@ -218,6 +246,10 @@
         "games\/runway-star\/show.absc",
         "games\/runway-star\/wardrobe.absc",
         "games\/runway-star\/main.absc"
+      ],
+      "shots" : [
+        "games\/runway-star\/shot1-a7331a7c.png",
+        "games\/runway-star\/shot2-71cee4e4.png"
       ],
       "summary" : "テーマに合わせて服の色や帽子をコーディネートしてランウェイへ。みんなで星をつけ合って、トップモデルを決めよう。",
       "tags" : [
@@ -245,6 +277,10 @@
         "games\/mystery-manor\/roles.absc",
         "games\/mystery-manor\/round.absc",
         "games\/mystery-manor\/main.absc"
+      ],
+      "shots" : [
+        "games\/mystery-manor\/shot1-4912792e.png",
+        "games\/mystery-manor\/shot2-93ebdfd1.png"
       ],
       "summary" : "市民・保安官・犯人に分かれる推理サバイバル。犯人は正体をかくして全員を、保安官は犯人を見つけてたおせ。市民は生きのこれ！",
       "tags" : [
@@ -276,6 +312,10 @@
         "games\/99-nights-camp\/survival.absc",
         "games\/99-nights-camp\/main.absc"
       ],
+      "shots" : [
+        "games\/99-nights-camp\/shot1-cab0dc83.png",
+        "games\/99-nights-camp\/shot2-e07ba1bf.png"
+      ],
       "summary" : "森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。",
       "tags" : [
         "survival",
@@ -302,6 +342,10 @@
         "games\/lucky-kick-run\/kick.absc",
         "games\/lucky-kick-run\/tsunami.absc",
         "games\/lucky-kick-run\/main.absc"
+      ],
+      "shots" : [
+        "games\/lucky-kick-run\/shot1-8e82842e.png",
+        "games\/lucky-kick-run\/shot2-5757478d.png"
       ],
       "summary" : "ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！",
       "tags" : [
@@ -330,6 +374,10 @@
         "games\/battleground-legends\/heroes.absc",
         "games\/battleground-legends\/main.absc"
       ],
+      "shots" : [
+        "games\/battleground-legends\/shot1-dcab5d8b.png",
+        "games\/battleground-legends\/shot2-4183f53d.png"
+      ],
       "summary" : "パンチ、アッパー、衝撃波、そして必殺の覚醒！技を組み合わせてオープンフィールドで戦う爽快バトル。",
       "tags" : [
         "pvp",
@@ -357,6 +405,10 @@
         "games\/hotel-100-doors\/items.absc",
         "games\/hotel-100-doors\/main.absc"
       ],
+      "shots" : [
+        "games\/hotel-100-doors\/shot1-4cf94932.png",
+        "games\/hotel-100-doors\/shot2-ec4748b3.png"
+      ],
       "summary" : "なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。",
       "tags" : [
         "horror",
@@ -382,6 +434,10 @@
         "games\/pet-coin-frenzy\/pets.absc",
         "games\/pet-coin-frenzy\/world.absc",
         "games\/pet-coin-frenzy\/main.absc"
+      ],
+      "shots" : [
+        "games\/pet-coin-frenzy\/shot1-83031966.png",
+        "games\/pet-coin-frenzy\/shot2-f122d87e.png"
       ],
       "summary" : "コインの山をタップしてこわし、たまごからペットを出してパワーアップ。新しいエリアを開いて、巨大ペットを引き当てろ！",
       "tags" : [
@@ -410,6 +466,10 @@
         "games\/tower-of-chaos\/style.absc",
         "games\/tower-of-chaos\/tower.absc",
         "games\/tower-of-chaos\/main.absc"
+      ],
+      "shots" : [
+        "games\/tower-of-chaos\/shot1-c5e24303.png",
+        "games\/tower-of-chaos\/shot2-320645b1.png"
       ],
       "summary" : "チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！",
       "tags" : [
@@ -444,6 +504,10 @@
         "games\/crystal-wars\/upgrades.absc",
         "games\/crystal-wars\/main.absc"
       ],
+      "shots" : [
+        "games\/crystal-wars\/shot1-025e78e5.png",
+        "games\/crystal-wars\/shot2-8c71c94b.png"
+      ],
       "summary" : "浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。",
       "tags" : [
         "pvp",
@@ -476,6 +540,10 @@
         "games\/slime-roll\/zones.absc",
         "games\/slime-roll\/main.absc"
       ],
+      "shots" : [
+        "games\/slime-roll\/shot1-04c04ee2.png",
+        "games\/slime-roll\/shot2-947ee768.png"
+      ],
       "summary" : "運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？",
       "tags" : [
         "rng",
@@ -505,6 +573,10 @@
         "games\/hero-tower-defense\/stats.absc",
         "games\/hero-tower-defense\/waves.absc",
         "games\/hero-tower-defense\/main.absc"
+      ],
+      "shots" : [
+        "games\/hero-tower-defense\/shot1-c9d61f2e.png",
+        "games\/hero-tower-defense\/shot2-81f8ab4f.png"
       ],
       "summary" : "道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。",
       "tags" : [
@@ -536,6 +608,10 @@
         "games\/domain-clash\/styles.absc",
         "games\/domain-clash\/main.absc"
       ],
+      "shots" : [
+        "games\/domain-clash\/shot1-5a694ee5.png",
+        "games\/domain-clash\/shot2-b1038780.png"
+      ],
       "summary" : "炎・雷・重力・影の術で戦うバトル。ゲージがたまったら「領域展開」で相手を閉じこめろ！地面や柱もこわれる。",
       "tags" : [
         "pvp",
@@ -563,6 +639,10 @@
         "games\/tsunami-dash\/stats.absc",
         "games\/tsunami-dash\/track.absc",
         "games\/tsunami-dash\/main.absc"
+      ],
+      "shots" : [
+        "games\/tsunami-dash\/shot1-3ffa171f.png",
+        "games\/tsunami-dash\/shot2-05a73eff.png"
       ],
       "summary" : "うしろからせまる巨大な津波！障害物をかわし、アイテムを拾いながらゴールまで走りぬけろ。ミームだらけのにぎやかコース。",
       "tags" : [
@@ -593,6 +673,10 @@
         "games\/power-training-sim\/train.absc",
         "games\/power-training-sim\/main.absc"
       ],
+      "shots" : [
+        "games\/power-training-sim\/shot1-590aef72.png",
+        "games\/power-training-sim\/shot2-d6be3e01.png"
+      ],
       "summary" : "力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。",
       "tags" : [
         "training",
@@ -621,6 +705,10 @@
         "games\/deflect-ball\/stats.absc",
         "games\/deflect-ball\/main.absc"
       ],
+      "shots" : [
+        "games\/deflect-ball\/shot1-33fd0399.png",
+        "games\/deflect-ball\/shot2-1f1f19e3.png"
+      ],
       "summary" : "ねらった相手を追いかける光のボール。ギリギリで「はじく」を押して打ち返せ！最後まで残った人の勝ち。",
       "tags" : [
         "pvp",
@@ -648,6 +736,10 @@
         "games\/gun-swap-arena\/match.absc",
         "games\/gun-swap-arena\/main.absc"
       ],
+      "shots" : [
+        "games\/gun-swap-arena\/shot1-637f87fc.png",
+        "games\/gun-swap-arena\/shot2-0a010d51.png"
+      ],
       "summary" : "たおすたびに武器が変わるスピードFPS。12の武器を順番にクリアして、最後の黄金ナイフで決めた人の勝ち。",
       "tags" : [
         "fps",
@@ -673,6 +765,10 @@
         "games\/warrior-brawl\/common.absc",
         "games\/warrior-brawl\/items.absc",
         "games\/warrior-brawl\/main.absc"
+      ],
+      "shots" : [
+        "games\/warrior-brawl\/shot1-b78e278d.png",
+        "games\/warrior-brawl\/shot2-2e2038e0.png"
       ],
       "summary" : "やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。",
       "tags" : [
@@ -702,6 +798,10 @@
         "games\/ring-boxing-league\/punches.absc",
         "games\/ring-boxing-league\/main.absc"
       ],
+      "shots" : [
+        "games\/ring-boxing-league\/shot1-9853f1f7.png",
+        "games\/ring-boxing-league\/shot2-147d4237.png"
+      ],
       "summary" : "リングで1対1のボクシング。ジャブ、ストレート、アッパー、ガード。スタミナを考えて打ち合い、ランキングを上げよう。",
       "tags" : [
         "boxing",
@@ -727,6 +827,10 @@
         "games\/power-roulette\/round.absc",
         "games\/power-roulette\/shop.absc",
         "games\/power-roulette\/main.absc"
+      ],
+      "shots" : [
+        "games\/power-roulette\/shot1-674c94d0.png",
+        "games\/power-roulette\/shot2-825cd7c5.png"
       ],
       "summary" : "ラウンドごとにルーレットで能力が決まる！炎、巨大化、ワープ、分身…運と工夫で最後まで生きのこれ。",
       "tags" : [
@@ -754,6 +858,10 @@
         "games\/armed-racers\/race.absc",
         "games\/armed-racers\/main.absc"
       ],
+      "shots" : [
+        "games\/armed-racers\/shot1-9cbd0d34.png",
+        "games\/armed-racers\/shot2-a60c1a54.png"
+      ],
       "summary" : "武装したレースカーでコースを3周。アイテム箱からミサイル、オイル、ブーストを手に入れて、ライバルをじゃましろ！",
       "tags" : [
         "racing",
@@ -778,6 +886,10 @@
         "games\/blade-and-revolver\/crate.absc",
         "games\/blade-and-revolver\/match.absc",
         "games\/blade-and-revolver\/main.absc"
+      ],
+      "shots" : [
+        "games\/blade-and-revolver\/shot1-dad93d8f.png",
+        "games\/blade-and-revolver\/shot2-2cd1b469.png"
       ],
       "summary" : "ナイフとリボルバーだけのデスマッチ。ナイフは投げることもできる。先に20キルした人の勝ち。",
       "tags" : [
@@ -806,6 +918,10 @@
         "games\/last-squad\/supply.absc",
         "games\/last-squad\/main.absc"
       ],
+      "shots" : [
+        "games\/last-squad\/shot1-b6ba4e14.png",
+        "games\/last-squad\/shot2-3d499483.png"
+      ],
       "summary" : "人間チームとゾンビの大群のサバイバル。やられた人間はゾンビになる！3分間生きのびて、ヘリで脱出せよ。",
       "tags" : [
         "zombies",
@@ -831,6 +947,10 @@
         "games\/style-boxing\/moves.absc",
         "games\/style-boxing\/styles.absc",
         "games\/style-boxing\/main.absc"
+      ],
+      "shots" : [
+        "games\/style-boxing\/shot1-21811781.png",
+        "games\/style-boxing\/shot2-9ac1ead1.png"
       ],
       "summary" : "スピード、パワー、タンク、カウンター。自分のスタイルを選んで、必殺技ゲージをためて殴り合うボクシングバトル。",
       "tags" : [
@@ -863,6 +983,10 @@
         "games\/hero-academy-sim\/villains.absc",
         "games\/hero-academy-sim\/main.absc"
       ],
+      "shots" : [
+        "games\/hero-academy-sim\/shot1-781219ab.png",
+        "games\/hero-academy-sim\/shot2-72c21657.png"
+      ],
       "summary" : "ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。",
       "tags" : [
         "heroes",
@@ -892,6 +1016,10 @@
         "games\/oni-blade\/village.absc",
         "games\/oni-blade\/main.absc"
       ],
+      "shots" : [
+        "games\/oni-blade\/shot1-d8c47ca4.png",
+        "games\/oni-blade\/shot2-0b8a509b.png"
+      ],
       "summary" : "夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。",
       "tags" : [
         "swords",
@@ -918,6 +1046,10 @@
         "games\/pom-town\/menus.absc",
         "games\/pom-town\/poms.absc",
         "games\/pom-town\/main.absc"
+      ],
+      "shots" : [
+        "games\/pom-town\/shot1-b26f3717.png",
+        "games\/pom-town\/shot2-4e4ad11d.png"
       ],
       "summary" : "家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！",
       "tags" : [
@@ -946,6 +1078,10 @@
         "games\/cherry-lane-rp\/work.absc",
         "games\/cherry-lane-rp\/main.absc"
       ],
+      "shots" : [
+        "games\/cherry-lane-rp\/shot1-0ab43a88.png",
+        "games\/cherry-lane-rp\/shot2-4d87fa83.png"
+      ],
       "summary" : "学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。",
       "tags" : [
         "rp",
@@ -970,6 +1106,10 @@
         "games\/pizza-shift\/kitchen.absc",
         "games\/pizza-shift\/shop.absc",
         "games\/pizza-shift\/main.absc"
+      ],
+      "shots" : [
+        "games\/pizza-shift\/shot1-db86123f.png",
+        "games\/pizza-shift\/shot2-84eda788.png"
       ],
       "summary" : "ピザ屋でみんなで働こう。レジで注文、レシピどおりに具をのせて、こげる前にオーブンから出して手わたし・配達！ ★評価と店のお金で店を強化、昇進で給料アップ。",
       "tags" : [
@@ -998,6 +1138,10 @@
         "games\/neo-city-life\/race.absc",
         "games\/neo-city-life\/main.absc"
       ],
+      "shots" : [
+        "games\/neo-city-life\/shot1-db40ed03.png",
+        "games\/neo-city-life\/shot2-3ccfad12.png"
+      ],
       "summary" : "未来都市のRP。6つの仕事（修理・救助・逮捕・料理・空の配達・ハッキング）でかせぎ、乗り物を集めて空の家をスマートホームに。指名手配と刑務所、ドローンレース、ネオンナイトも。",
       "tags" : [
         "rp",
@@ -1023,6 +1167,10 @@
         "games\/club-hangout\/common.absc",
         "games\/club-hangout\/family.absc",
         "games\/club-hangout\/main.absc"
+      ],
+      "shots" : [
+        "games\/club-hangout\/shot1-64e3a46d.png",
+        "games\/club-hangout\/shot2-d089d44a.png"
       ],
       "summary" : "空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。",
       "tags" : [
@@ -1050,6 +1198,10 @@
         "games\/ridgeport-cops\/robbery.absc",
         "games\/ridgeport-cops\/main.absc"
       ],
+      "shots" : [
+        "games\/ridgeport-cops\/shot1-2e4afdda.png",
+        "games\/ridgeport-cops\/shot2-d8360bb3.png"
+      ],
       "summary" : "警察と強盗の街アクション。ガソスタ・宝石店・銀行の暗証番号・銃砲店・現金輸送車をねらう強盗と、テーザーと手錠で追う警察。階級・武器・車・脱獄・保釈も！",
       "tags" : [
         "cops",
@@ -1074,6 +1226,10 @@
         "games\/dinner-rush-tycoon\/service.absc",
         "games\/dinner-rush-tycoon\/shop.absc",
         "games\/dinner-rush-tycoon\/main.absc"
+      ],
+      "shots" : [
+        "games\/dinner-rush-tycoon\/shot1-31835d9c.png",
+        "games\/dinner-rush-tycoon\/shot2-28a17b27.png"
       ],
       "summary" : "レストランを経営。19の設備で6品のメニューを増やし、シェフとウェイターをやとって自動化。評判と料理評論家、2号店（リバース）で永久ボーナス！",
       "tags" : [
@@ -1101,6 +1257,10 @@
         "games\/coaster-park-tycoon\/rides.absc",
         "games\/coaster-park-tycoon\/main.absc"
       ],
+      "shots" : [
+        "games\/coaster-park-tycoon\/shot1-122ef9f4.png",
+        "games\/coaster-park-tycoon\/shot2-1b435ddc.png"
+      ],
       "summary" : "遊園地を作ろう。14のアトラクションと屋台、お客さんの楽しさ・空腹・のど・トイレ、入場料、故障の修理とゴミそうじ、スタッフ、ベストパーク賞。自分でも乗れる！",
       "tags" : [
         "tycoon",
@@ -1125,6 +1285,10 @@
         "games\/life-ville\/jobs.absc",
         "games\/life-ville\/life.absc",
         "games\/life-ville\/main.absc"
+      ],
+      "shots" : [
+        "games\/life-ville\/shot1-99836838.png",
+        "games\/life-ville\/shot2-a0da77ca.png"
       ],
       "summary" : "5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。",
       "tags" : [
@@ -1154,6 +1318,10 @@
         "games\/metro-response\/police.absc",
         "games\/metro-response\/main.absc"
       ],
+      "shots" : [
+        "games\/metro-response\/shot1-20f97afd.png",
+        "games\/metro-response\/shot2-e1e3477d.png"
+      ],
       "summary" : "警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。",
       "tags" : [
         "rp",
@@ -1178,6 +1346,10 @@
         "games\/academy-days\/classes.absc",
         "games\/academy-days\/common.absc",
         "games\/academy-days\/main.absc"
+      ],
+      "shots" : [
+        "games\/academy-days\/shot1-7817cec1.png",
+        "games\/academy-days\/shot2-f01d1ec1.png"
       ],
       "summary" : "4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！",
       "tags" : [
@@ -1209,6 +1381,10 @@
         "games\/willow-hospital\/surgery.absc",
         "games\/willow-hospital\/main.absc"
       ],
+      "shots" : [
+        "games\/willow-hospital\/shot1-5bb55e53.png",
+        "games\/willow-hospital\/shot2-5b1e13dc.png"
+      ],
       "summary" : "病院のお仕事RP。医者・看護師・外科医・薬剤師・救急隊・患者に。トリアージ、バイタル、12の病気の診断、薬の調合、手術、救急車の出動。病院の資金でベッドや設備を強化！",
       "tags" : [
         "rp",
@@ -1236,6 +1412,10 @@
         "games\/street-drive-empire\/race.absc",
         "games\/street-drive-empire\/world.absc",
         "games\/street-drive-empire\/main.absc"
+      ],
+      "shots" : [
+        "games\/street-drive-empire\/shot1-ce178eda.png",
+        "games\/street-drive-empire\/shot2-8f01f897.png"
       ],
       "summary" : "車を集めて街を走るドライブゲーム。16台の車を買って色とパーツをカスタム。4つのレース（サーキット・ドラッグ・市街地・ラリー）でライバルと勝負、配達とタクシーでかせいでライセンスを上げよう！",
       "tags" : [
@@ -1265,6 +1445,10 @@
         "games\/color-monsters\/nights.absc",
         "games\/color-monsters\/main.absc"
       ],
+      "shots" : [
+        "games\/color-monsters\/shot1-07290493.png",
+        "games\/color-monsters\/shot2-74a3f308.png"
+      ],
       "summary" : "夜のおもちゃ倉庫で5色のモンスターから隠れて、夜ごとの任務（ブロック・ヒューズ・電池・ガス・ロケットの部品）を集めよう。箱やロッカーに隠れ、つかまった仲間は檻から助けて、5夜目にロケットで脱出！",
       "tags" : [
         "horror",
@@ -1292,6 +1476,10 @@
         "games\/porkys-house\/round.absc",
         "games\/porkys-house\/main.absc"
       ],
+      "shots" : [
+        "games\/porkys-house\/shot1-c8946487.png",
+        "games\/porkys-house\/shot2-127e221e.png"
+      ],
       "summary" : "毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！",
       "tags" : [
         "horror",
@@ -1318,6 +1506,10 @@
         "games\/run-from-faces\/runner.absc",
         "games\/run-from-faces\/main.absc"
       ],
+      "shots" : [
+        "games\/run-from-faces\/shot1-bdf86c70.png",
+        "games\/run-from-faces\/shot2-934487b9.png"
+      ],
       "summary" : "5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！",
       "tags" : [
         "chase",
@@ -1342,6 +1534,10 @@
         "games\/anomaly-hallway\/loop.absc",
         "games\/anomaly-hallway\/man.absc",
         "games\/anomaly-hallway\/main.absc"
+      ],
+      "shots" : [
+        "games\/anomaly-hallway\/shot1-f1955797.png",
+        "games\/anomaly-hallway\/shot2-0172c064.png"
       ],
       "summary" : "終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！",
       "tags" : [
@@ -1369,6 +1565,10 @@
         "games\/last-train-west\/train.absc",
         "games\/last-train-west\/main.absc"
       ],
+      "shots" : [
+        "games\/last-train-west\/shot1-f1e13267.png",
+        "games\/last-train-west\/shot2-ef159a06.png"
+      ],
       "summary" : "荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！",
       "tags" : [
         "survival",
@@ -1395,6 +1595,10 @@
         "games\/yokai-shrine\/yokai.absc",
         "games\/yokai-shrine\/main.absc"
       ],
+      "shots" : [
+        "games\/yokai-shrine\/shot1-674f1fdd.png",
+        "games\/yokai-shrine\/shot2-10c7bf1c.png"
+      ],
       "summary" : "夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！",
       "tags" : [
         "horror",
@@ -1420,6 +1624,10 @@
         "games\/night-lockdown\/house.absc",
         "games\/night-lockdown\/night.absc",
         "games\/night-lockdown\/main.absc"
+      ],
+      "shots" : [
+        "games\/night-lockdown\/shot1-c5cffd8b.png",
+        "games\/night-lockdown\/shot2-a60082d0.png"
       ],
       "summary" : "昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！",
       "tags" : [
@@ -1448,6 +1656,10 @@
         "games\/toy-factory-night-shift\/toys.absc",
         "games\/toy-factory-night-shift\/main.absc"
       ],
+      "shots" : [
+        "games\/toy-factory-night-shift\/shot1-028c63b5.png",
+        "games\/toy-factory-night-shift\/shot2-30c65f5a.png"
+      ],
       "summary" : "おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！",
       "tags" : [
         "horror",
@@ -1474,6 +1686,10 @@
         "games\/midnight-guard\/power.absc",
         "games\/midnight-guard\/main.absc"
       ],
+      "shots" : [
+        "games\/midnight-guard\/shot1-11593393.png",
+        "games\/midnight-guard\/shot2-70254bed.png"
+      ],
       "summary" : "真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。",
       "tags" : [
         "horror",
@@ -1498,6 +1714,10 @@
         "games\/endless-rooms\/entities.absc",
         "games\/endless-rooms\/levels.absc",
         "games\/endless-rooms\/main.absc"
+      ],
+      "shots" : [
+        "games\/endless-rooms\/shot1-c6c1db81.png",
+        "games\/endless-rooms\/shot2-ec6790ea.png"
       ],
       "summary" : "黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！",
       "tags" : [
@@ -1525,6 +1745,10 @@
         "games\/infinite-store\/store.absc",
         "games\/infinite-store\/main.absc"
       ],
+      "shots" : [
+        "games\/infinite-store\/shot1-7c6b14d6.png",
+        "games\/infinite-store\/shot2-91fa3637.png"
+      ],
       "summary" : "終わりのない巨大家具店。9つの売り場で家具を拾って基地を作り、夜は家具をこわしてくる店員（3日目と6日目は店長！）から守れ。おなか・武器の箱・落とし物・サービスカウンター。7日目の閉店で出口が開く！",
       "tags" : [
         "survival",
@@ -1550,6 +1774,10 @@
         "games\/smile-outbreak\/infection.absc",
         "games\/smile-outbreak\/round.absc",
         "games\/smile-outbreak\/main.absc"
+      ],
+      "shots" : [
+        "games\/smile-outbreak\/shot1-8255cfa6.png",
+        "games\/smile-outbreak\/shot2-fe218c5c.png"
       ],
       "summary" : "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
       "tags" : [
@@ -1578,6 +1806,10 @@
         "games\/watch-the-house\/visitors.absc",
         "games\/watch-the-house\/main.absc"
       ],
+      "shots" : [
+        "games\/watch-the-house\/shot1-26356182.png",
+        "games\/watch-the-house\/shot2-10935b9a.png"
+      ],
       "summary" : "田中さん一家の家で5日間の留守番。窓にひびを入れにくるものをカメラで探してライトで追い払い、玄関の来客はご近所リストとくらべてニセものを見やぶれ。家のしごと・猫のタマ・停電・スマホ通販も！",
       "tags" : [
         "horror",
@@ -1603,6 +1835,10 @@
         "games\/aura-roll\/merchant.absc",
         "games\/aura-roll\/roll.absc",
         "games\/aura-roll\/main.absc"
+      ],
+      "shots" : [
+        "games\/aura-roll\/shot1-10ed0203.png",
+        "games\/aura-roll\/shot2-5d0ce0ec.png"
       ],
       "summary" : "ボタンでオーラを引く運だめし。32種のオーラ、8つの天気（その天気だけのオーラ）、素材とオーラでギアをクラフト、旅の商人のポーション、運の塔。10回ごとのボーナスで1億分の1を引き当てろ！",
       "tags" : [
@@ -1630,6 +1866,10 @@
         "games\/raft-to-treasure\/river.absc",
         "games\/raft-to-treasure\/main.absc"
       ],
+      "shots" : [
+        "games\/raft-to-treasure\/shot1-211604ac.png",
+        "games\/raft-to-treasure\/shot2-52e4395b.png"
+      ],
       "summary" : "ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！",
       "tags" : [
         "build",
@@ -1655,6 +1895,10 @@
         "games\/obby-maker\/courses.absc",
         "games\/obby-maker\/motion.absc",
         "games\/obby-maker\/main.absc"
+      ],
+      "shots" : [
+        "games\/obby-maker\/shot1-55c1465b.png",
+        "games\/obby-maker\/shot2-553c8632.png"
       ],
       "summary" : "自分だけのアスレチックコースを作って公開しよう。17種のパーツ（動く床・回る溶岩バー・ワープ・コインも）、グリッドと回転、テストでクリアして公開、タイムといいね。お手本コースやみんなのコースに挑戦！",
       "tags" : [
@@ -1682,6 +1926,10 @@
         "games\/toy-army-tycoon\/raids.absc",
         "games\/toy-army-tycoon\/main.absc"
       ],
+      "shots" : [
+        "games\/toy-army-tycoon\/shot1-88d4ec2d.png",
+        "games\/toy-army-tycoon\/shot2-b3ff9374.png"
+      ],
       "summary" : "おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！",
       "tags" : [
         "tycoon",
@@ -1708,6 +1956,10 @@
         "games\/buzz-meadow\/hive.absc",
         "games\/buzz-meadow\/mobs.absc",
         "games\/buzz-meadow\/main.absc"
+      ],
+      "shots" : [
+        "games\/buzz-meadow\/shot1-d88bce0e.png",
+        "games\/buzz-meadow\/shot2-4cd042d7.png"
       ],
       "summary" : "ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！",
       "tags" : [
@@ -1739,6 +1991,10 @@
         "games\/dungeon-delve\/loot.absc",
         "games\/dungeon-delve\/main.absc"
       ],
+      "shots" : [
+        "games\/dungeon-delve\/shot1-dcfae4f6.png",
+        "games\/dungeon-delve\/shot2-f8d8cd3e.png"
+      ],
       "summary" : "4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！",
       "tags" : [
         "dungeon",
@@ -1763,6 +2019,10 @@
         "games\/critter-quest\/critters.absc",
         "games\/critter-quest\/world.absc",
         "games\/critter-quest\/main.absc"
+      ],
+      "shots" : [
+        "games\/critter-quest\/shot1-ee53571a.png",
+        "games\/critter-quest\/shot2-b3431bf5.png"
       ],
       "summary" : "草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！",
       "tags" : [
@@ -1790,6 +2050,10 @@
         "games\/blade-summon-sim\/shops.absc",
         "games\/blade-summon-sim\/main.absc"
       ],
+      "shots" : [
+        "games\/blade-summon-sim\/shot1-d9bcec42.png",
+        "games\/blade-summon-sim\/shot2-dac685d7.png"
+      ],
       "summary" : "召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！",
       "tags" : [
         "idle",
@@ -1815,6 +2079,10 @@
         "games\/crusher-yard\/lanes.absc",
         "games\/crusher-yard\/shop.absc",
         "games\/crusher-yard\/main.absc"
+      ],
+      "shots" : [
+        "games\/crusher-yard\/shot1-391fd440.png",
+        "games\/crusher-yard\/shot2-d5b202c2.png"
       ],
       "summary" : "自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！",
       "tags" : [
@@ -1842,6 +2110,10 @@
         "games\/slime-merge\/wild.absc",
         "games\/slime-merge\/main.absc"
       ],
+      "shots" : [
+        "games\/slime-merge\/shot1-5c1d02e1.png",
+        "games\/slime-merge\/shot2-e1d6ce9f.png"
+      ],
       "summary" : "スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！",
       "tags" : [
         "merge",
@@ -1868,6 +2140,10 @@
         "games\/mansion-builder-tycoon\/party.absc",
         "games\/mansion-builder-tycoon\/main.absc"
       ],
+      "shots" : [
+        "games\/mansion-builder-tycoon\/shot1-78439314.png",
+        "games\/mansion-builder-tycoon\/shot2-b7bbc461.png"
+      ],
       "summary" : "土台から26段階で大豪邸が立ち上がるタイクーン。家賃は郵便受けに、執事で自動回収、投資、壁と屋根のペンキ、パーティーのゲストのチップ、豪邸コンテスト、完成したら売って転生！",
       "tags" : [
         "tycoon",
@@ -1892,6 +2168,10 @@
         "games\/plus-one-speed-escape\/round.absc",
         "games\/plus-one-speed-escape\/train.absc",
         "games\/plus-one-speed-escape\/main.absc"
+      ],
+      "shots" : [
+        "games\/plus-one-speed-escape\/shot1-4451d0b5.png",
+        "games\/plus-one-speed-escape\/shot2-f692c6be.png"
       ],
       "summary" : "1秒ごとにスピード+1！ ラウンドごとに巨大なかべから逃げて1500m先のゴールへ。ハードル・すきま・溶岩・動くかべ・ジャンプ台・氷の橋・加速床の10ゾーン、トレッドミル、ペット、強化、転生！",
       "tags" : [
@@ -1919,6 +2199,10 @@
         "games\/disaster-island\/shop.absc",
         "games\/disaster-island\/main.absc"
       ],
+      "shots" : [
+        "games\/disaster-island\/shot1-c6987adb.png",
+        "games\/disaster-island\/shot2-12579611.png"
+      ],
       "summary" : "15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！",
       "tags" : [
         "survival",
@@ -1943,6 +2227,10 @@
         "games\/chaos-golf\/items.absc",
         "games\/chaos-golf\/physics.absc",
         "games\/chaos-golf\/main.absc"
+      ],
+      "shots" : [
+        "games\/chaos-golf\/shot1-f7097fec.png",
+        "games\/chaos-golf\/shot2-e733528c.png"
       ],
       "summary" : "ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！",
       "tags" : [
@@ -1969,6 +2257,10 @@
         "games\/speed-worlds\/run.absc",
         "games\/speed-worlds\/main.absc"
       ],
+      "shots" : [
+        "games\/speed-worlds\/shot1-86ecf68e.png",
+        "games\/speed-worlds\/shot2-66b41175.png"
+      ],
       "summary" : "8つのワールド（草原・氷・溶岩・宇宙・おかし・砂漠・雲・ネオン）を超スピードで走るスピードラン。金銀銅メダル、自分のベスト走りの👻ゴースト、レース大会、シューズ・ブーツ・グライダー！",
       "tags" : [
         "obby",
@@ -1994,6 +2286,10 @@
         "games\/island-drama-show\/show.absc",
         "games\/island-drama-show\/main.absc"
       ],
+      "shots" : [
+        "games\/island-drama-show\/shot1-fe4a0621.png",
+        "games\/island-drama-show\/shot2-3ad9735e.png"
+      ],
       "summary" : "無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！",
       "tags" : [
         "minigames",
@@ -2016,6 +2312,10 @@
         "games\/prop-hide-and-seek\/game.absc",
         "games\/prop-hide-and-seek\/tools.absc",
         "games\/prop-hide-and-seek\/main.absc"
+      ],
+      "shots" : [
+        "games\/prop-hide-and-seek\/shot1-85066831.png",
+        "games\/prop-hide-and-seek\/shot2-68d3a6cb.png"
       ],
       "summary" : "家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！",
       "tags" : [
@@ -2042,6 +2342,10 @@
         "games\/mega-minigames\/match.absc",
         "games\/mega-minigames\/main.absc"
       ],
+      "shots" : [
+        "games\/mega-minigames\/shot1-7fbc5677.png",
+        "games\/mega-minigames\/shot2-ff09c971.png"
+      ],
       "summary" : "投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！",
       "tags" : [
         "minigames",
@@ -2065,6 +2369,10 @@
         "games\/rhythm-battle\/play.absc",
         "games\/rhythm-battle\/stage.absc",
         "games\/rhythm-battle\/main.absc"
+      ],
+      "shots" : [
+        "games\/rhythm-battle\/shot1-4330a12a.png",
+        "games\/rhythm-battle\/shot2-db76caf2.png"
       ],
       "summary" : "8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ",
       "tags" : [
@@ -2095,6 +2403,10 @@
         "games\/last-survivor-games\/tug.absc",
         "games\/last-survivor-games\/main.absc"
       ],
+      "shots" : [
+        "games\/last-survivor-games\/shot1-f119247f.png",
+        "games\/last-survivor-games\/shot2-ae3c3614.png"
+      ],
       "summary" : "24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！",
       "tags" : [
         "survival",
@@ -2122,6 +2434,10 @@
         "games\/shark-attack-bay\/shark.absc",
         "games\/shark-attack-bay\/main.absc"
       ],
+      "shots" : [
+        "games\/shark-attack-bay\/shot1-c137815f.png",
+        "games\/shark-attack-bay\/shot2-2d550e8e.png"
+      ],
       "summary" : "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",
       "tags" : [
         "pvp",
@@ -2148,6 +2464,10 @@
         "games\/tip-jar-plaza\/plaza.absc",
         "games\/tip-jar-plaza\/tips.absc",
         "games\/tip-jar-plaza\/main.absc"
+      ],
+      "shots" : [
+        "games\/tip-jar-plaza\/shot1-c2872c18.png",
+        "games\/tip-jar-plaza\/shot2-43d3b405.png"
       ],
       "summary" : "広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです）",
       "tags" : [

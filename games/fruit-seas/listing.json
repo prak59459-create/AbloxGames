@@ -17,6 +17,10 @@
     "games\/fruit-seas\/pvp.absc",
     "games\/fruit-seas\/main.absc"
   ],
+  "shots" : [
+    "games\/fruit-seas\/shot1-7b5c4aac.png",
+    "games\/fruit-seas\/shot2-c2b5b8d2.png"
+  ],
   "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",
   "tags" : [
     "rpg",
