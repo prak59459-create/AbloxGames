@@ -378,6 +378,9 @@ func anomalyHallway(_ m: MapBuilder) {
     m.part("Anomaly Spot", at: (0, 1, 4), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
     m.part("Man Start", at: (0, 0.5, 28), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
     m.part("Man End", at: (-2.6, 0.5, -30), size: (0.5, 0.5, 0.5), color: "#000000", visible: false)
+    // The cover looks into the corridor from above one side, so its length
+    // runs across the picture.
+    m.part("Cover Focus", at: (0, 1, 4), size: (36, 1, 1), color: "#000000", tags: ["yaw=110", "pitch=40"], solid: false, visible: false)
     m.spawnRing(0, -27, radius: 1.5, count: 4, color: "#FDE68A")
     m.pad("Go Forward", x: 0, z: 30.5, size: 3, color: "#22C55E", tags: ["forward"], shape: .box)
     m.pad("Go Back", x: 0, z: -30.8, size: 2, color: "#EF4444", tags: ["back"], shape: .box)

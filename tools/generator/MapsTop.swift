@@ -719,6 +719,7 @@ func nightsCamp(_ m: MapBuilder) {
     m.part("Campfire", at: (0, 0.5, 0), size: (3, 1, 3), color: "#F97316", shape: .cone, material: .neon, behavior: .trigger, tags: ["fire"])
     m.part("Fire Ring", at: (0, 0.15, 0), size: (4.2, 0.3, 4.2), color: "#57534E", shape: .cylinder)
     m.spawnRing(0, 0, radius: 7, count: 8, color: "#FDBA74")
+    m.part("Cover Focus", at: (0, 1, -2), size: (54, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
     for p in ring(4, radius: 11, phase: 0.4) {
         m.part("Tent", at: (p.0, 1.2, p.1), size: (3.4, 2.4, 3.4), color: "#1D4ED8", shape: .cone, material: .matte)
     }
@@ -844,6 +845,8 @@ func hotelDoors(_ m: MapBuilder) {
     m.slab("Hallway Wall", x: 2.2, y: 0, z: 0, w: 0.4, h: 4, d: 6, color: "#3F2A1F")
     m.spawnRing(0, -12, radius: 3, count: 6, color: "#FDE68A")
     m.part("Reception", at: (0, 0.6, -15), size: (6, 1.2, 1.2), color: "#7C2D12")
+    // The cover: the lobby and the first rooms, seen from behind the desk.
+    m.part("Cover Focus", at: (0, 1, 6), size: (40, 1, 1), color: "#000000", tags: ["yaw=200"], solid: false, visible: false)
     let roomLength: Float = 12
     var r = Seeded("hotel")
     for n in 1...100 {

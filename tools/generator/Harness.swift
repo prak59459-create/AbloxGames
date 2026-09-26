@@ -18,6 +18,11 @@ struct HarnessReport {
     var blocksAtEnd = 0
     var roundEnded = false
     var output: [String] = []
+    /// What the host spends running the game (rules, scripts, NPCs) per
+    /// 0.1 s step, on average and at worst: the number to keep low, since
+    /// the host is also someone's iPad drawing the game.
+    var stepMilliseconds: Double = 0
+    var worstStepMilliseconds: Double = 0
 }
 
 enum Harness {
@@ -80,9 +85,16 @@ enum Harness {
         var lateJoined = false
         var left = false
         var restarts = 0
+        var steps = 0
+        var spent: UInt64 = 0
         while time < seconds {
             time += 0.1
+            let before = DispatchTime.now().uptimeNanoseconds
             _ = game.advance(to: time)
+            let took = DispatchTime.now().uptimeNanoseconds - before
+            spent += took
+            steps += 1
+            report.worstStepMilliseconds = max(report.worstStepMilliseconds, Double(took) / 1_000_000)
 
             if !lateJoined, time > 20 {
                 lateJoined = true
@@ -175,6 +187,7 @@ enum Harness {
         }
         report.output = game.drainOutput()
         report.blocksAtEnd = game.world.blocks.count
+        if steps > 0 { report.stepMilliseconds = Double(spent) / Double(steps) / 1_000_000 }
         return report
     }
 

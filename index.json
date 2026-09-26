@@ -4,7 +4,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 510,
-      "cover" : "games\/maple-bay-life\/cover-e7846d82.png",
+      "cover" : "games\/maple-bay-life\/cover-fe6b9675.png",
       "id" : "maple-bay-life",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -33,7 +33,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 291,
-      "cover" : "games\/fruit-seas\/cover-d91ccf1c.png",
+      "cover" : "games\/fruit-seas\/cover-799355aa.png",
       "id" : "fruit-seas",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -63,7 +63,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 308,
-      "cover" : "games\/pet-home-paradise\/cover-18b870b5.png",
+      "cover" : "games\/pet-home-paradise\/cover-bc137390.png",
       "id" : "pet-home-paradise",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -91,7 +91,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 191,
-      "cover" : "games\/meme-heist\/cover-76bceb17.png",
+      "cover" : "games\/meme-heist\/cover-d3dacb50.png",
       "id" : "meme-heist",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -121,7 +121,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 140,
-      "cover" : "games\/reel-legends\/cover-ab9c2431.png",
+      "cover" : "games\/reel-legends\/cover-b5e14315.png",
       "id" : "reel-legends",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -149,7 +149,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 118,
-      "cover" : "games\/clash-duels\/cover-f9816c35.png",
+      "cover" : "games\/clash-duels\/cover-708781ad.png",
       "id" : "clash-duels",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -179,7 +179,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 277,
-      "cover" : "games\/sprout-garden\/cover-8c202016.png",
+      "cover" : "games\/sprout-garden\/cover-571f726c.png",
       "id" : "sprout-garden",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -207,7 +207,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 67,
-      "cover" : "games\/runway-star\/cover-807a7ab1.png",
+      "cover" : "games\/runway-star\/cover-9827a7d3.png",
       "id" : "runway-star",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -233,7 +233,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 163,
-      "cover" : "games\/mystery-manor\/cover-0a598e89.png",
+      "cover" : "games\/mystery-manor\/cover-756a1df5.png",
       "id" : "mystery-manor",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -259,8 +259,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 252,
-      "cover" : "games\/99-nights-camp\/cover-4f3a879e.png",
+      "blockCount" : 253,
+      "cover" : "games\/99-nights-camp\/cover-325c0e39.png",
       "id" : "99-nights-camp",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -290,7 +290,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 103,
-      "cover" : "games\/lucky-kick-run\/cover-1c731251.png",
+      "cover" : "games\/lucky-kick-run\/cover-6a8e2876.png",
       "id" : "lucky-kick-run",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -317,7 +317,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 41,
-      "cover" : "games\/battleground-legends\/cover-e799d501.png",
+      "cover" : "games\/battleground-legends\/cover-b92161e3.png",
       "id" : "battleground-legends",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -343,8 +343,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 1344,
-      "cover" : "games\/hotel-100-doors\/cover-70d1f669.png",
+      "blockCount" : 1345,
+      "cover" : "games\/hotel-100-doors\/cover-a1eb89ca.png",
       "id" : "hotel-100-doors",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -371,7 +371,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 166,
-      "cover" : "games\/pet-coin-frenzy\/cover-ba90d671.png",
+      "cover" : "games\/pet-coin-frenzy\/cover-42850825.png",
       "id" : "pet-coin-frenzy",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -397,7 +397,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 18,
-      "cover" : "games\/tower-of-chaos\/cover-b76fcc9f.png",
+      "cover" : "games\/tower-of-chaos\/cover-054858ae.png",
       "id" : "tower-of-chaos",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -425,7 +425,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 154,
-      "cover" : "games\/crystal-wars\/cover-fe8e3180.png",
+      "cover" : "games\/crystal-wars\/cover-e2badc92.png",
       "id" : "crystal-wars",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -458,7 +458,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 128,
-      "cover" : "games\/slime-roll\/cover-8aa6744a.png",
+      "cover" : "games\/slime-roll\/cover-6e363cea.png",
       "id" : "slime-roll",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -490,7 +490,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 100,
-      "cover" : "games\/hero-tower-defense\/cover-991912fa.png",
+      "cover" : "games\/hero-tower-defense\/cover-23a256b8.png",
       "id" : "hero-tower-defense",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -520,7 +520,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 58,
-      "cover" : "games\/domain-clash\/cover-69ecfd76.png",
+      "cover" : "games\/domain-clash\/cover-3c1f1717.png",
       "id" : "domain-clash",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -550,7 +550,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 296,
-      "cover" : "games\/tsunami-dash\/cover-52b3b73e.png",
+      "cover" : "games\/tsunami-dash\/cover-a33973d9.png",
       "id" : "tsunami-dash",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -578,7 +578,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 181,
-      "cover" : "games\/power-training-sim\/cover-a676dc31.png",
+      "cover" : "games\/power-training-sim\/cover-d056f1f1.png",
       "id" : "power-training-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -606,7 +606,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 44,
-      "cover" : "games\/deflect-ball\/cover-8b572b6d.png",
+      "cover" : "games\/deflect-ball\/cover-e14bc4e1.png",
       "id" : "deflect-ball",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -634,7 +634,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 212,
-      "cover" : "games\/gun-swap-arena\/cover-16065046.png",
+      "cover" : "games\/gun-swap-arena\/cover-1ef2966f.png",
       "id" : "gun-swap-arena",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -661,7 +661,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 77,
-      "cover" : "games\/warrior-brawl\/cover-5671a526.png",
+      "cover" : "games\/warrior-brawl\/cover-c8a7f55b.png",
       "id" : "warrior-brawl",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -687,7 +687,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 69,
-      "cover" : "games\/ring-boxing-league\/cover-9c3a78da.png",
+      "cover" : "games\/ring-boxing-league\/cover-67a4e0a2.png",
       "id" : "ring-boxing-league",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -715,7 +715,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 39,
-      "cover" : "games\/power-roulette\/cover-e8bf80f6.png",
+      "cover" : "games\/power-roulette\/cover-2e950cfc.png",
       "id" : "power-roulette",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -741,7 +741,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 389,
-      "cover" : "games\/armed-racers\/cover-a7762037.png",
+      "cover" : "games\/armed-racers\/cover-9f7ac916.png",
       "id" : "armed-racers",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -767,7 +767,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 57,
-      "cover" : "games\/blade-and-revolver\/cover-8c1824c7.png",
+      "cover" : "games\/blade-and-revolver\/cover-3b0c7383.png",
       "id" : "blade-and-revolver",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -792,7 +792,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 54,
-      "cover" : "games\/last-squad\/cover-ef0c6a83.png",
+      "cover" : "games\/last-squad\/cover-11f1674d.png",
       "id" : "last-squad",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -819,7 +819,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 51,
-      "cover" : "games\/style-boxing\/cover-ba39bd9f.png",
+      "cover" : "games\/style-boxing\/cover-86903e41.png",
       "id" : "style-boxing",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -845,7 +845,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 251,
-      "cover" : "games\/hero-academy-sim\/cover-1e99c154.png",
+      "cover" : "games\/hero-academy-sim\/cover-037510ae.png",
       "id" : "hero-academy-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -876,7 +876,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 256,
-      "cover" : "games\/oni-blade\/cover-10f64cb9.png",
+      "cover" : "games\/oni-blade\/cover-68e76fd0.png",
       "id" : "oni-blade",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -905,7 +905,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 291,
-      "cover" : "games\/pom-town\/cover-2c622c02.png",
+      "cover" : "games\/pom-town\/cover-3207dc56.png",
       "id" : "pom-town",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -932,7 +932,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 325,
-      "cover" : "games\/cherry-lane-rp\/cover-64f3da4d.png",
+      "cover" : "games\/cherry-lane-rp\/cover-3f94fb5c.png",
       "id" : "cherry-lane-rp",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -959,7 +959,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 155,
-      "cover" : "games\/pizza-shift\/cover-30d89fb8.png",
+      "cover" : "games\/pizza-shift\/cover-6c3f14ea.png",
       "id" : "pizza-shift",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -984,7 +984,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 138,
-      "cover" : "games\/neo-city-life\/cover-70cca706.png",
+      "cover" : "games\/neo-city-life\/cover-8820042d.png",
       "id" : "neo-city-life",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1011,7 +1011,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 66,
-      "cover" : "games\/club-hangout\/cover-c7fd684a.png",
+      "cover" : "games\/club-hangout\/cover-6af370b0.png",
       "id" : "club-hangout",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1037,7 +1037,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 270,
-      "cover" : "games\/ridgeport-cops\/cover-a12b8965.png",
+      "cover" : "games\/ridgeport-cops\/cover-72ec609e.png",
       "id" : "ridgeport-cops",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1062,8 +1062,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 177,
-      "cover" : "games\/dinner-rush-tycoon\/cover-e1a6685d.png",
+      "blockCount" : 201,
+      "cover" : "games\/dinner-rush-tycoon\/cover-ff04d183.png",
       "id" : "dinner-rush-tycoon",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1087,8 +1087,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 137,
-      "cover" : "games\/coaster-park-tycoon\/cover-17116d05.png",
+      "blockCount" : 156,
+      "cover" : "games\/coaster-park-tycoon\/cover-84af2a72.png",
       "id" : "coaster-park-tycoon",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1113,8 +1113,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 253,
-      "cover" : "games\/life-ville\/cover-22642ac3.png",
+      "blockCount" : 254,
+      "cover" : "games\/life-ville\/cover-38e62185.png",
       "id" : "life-ville",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1139,7 +1139,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 277,
-      "cover" : "games\/metro-response\/cover-fffafe6a.png",
+      "cover" : "games\/metro-response\/cover-3572ef31.png",
       "id" : "metro-response",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1167,7 +1167,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 99,
-      "cover" : "games\/academy-days\/cover-419d5f13.png",
+      "cover" : "games\/academy-days\/cover-c1256194.png",
       "id" : "academy-days",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1192,7 +1192,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 51,
-      "cover" : "games\/willow-hospital\/cover-07fe14aa.png",
+      "cover" : "games\/willow-hospital\/cover-28670bac.png",
       "id" : "willow-hospital",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1222,7 +1222,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 822,
-      "cover" : "games\/street-drive-empire\/cover-edec4a1d.png",
+      "cover" : "games\/street-drive-empire\/cover-2068d4de.png",
       "id" : "street-drive-empire",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1250,7 +1250,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 215,
-      "cover" : "games\/color-monsters\/cover-b59d54d7.png",
+      "cover" : "games\/color-monsters\/cover-6e16b7bf.png",
       "id" : "color-monsters",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1278,7 +1278,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 119,
-      "cover" : "games\/porkys-house\/cover-ffb3d940.png",
+      "cover" : "games\/porkys-house\/cover-e6344ecc.png",
       "id" : "porkys-house",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1305,7 +1305,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 594,
-      "cover" : "games\/run-from-faces\/cover-79287542.png",
+      "cover" : "games\/run-from-faces\/cover-a4f6a952.png",
       "id" : "run-from-faces",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1330,8 +1330,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 47,
-      "cover" : "games\/anomaly-hallway\/cover-b5bc7a1e.png",
+      "blockCount" : 48,
+      "cover" : "games\/anomaly-hallway\/cover-539ab900.png",
       "id" : "anomaly-hallway",
       "maxPlayers" : 6,
       "schemaVersion" : 1,
@@ -1356,7 +1356,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 280,
-      "cover" : "games\/last-train-west\/cover-67fe6da3.png",
+      "cover" : "games\/last-train-west\/cover-f16359c8.png",
       "id" : "last-train-west",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1382,7 +1382,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 651,
-      "cover" : "games\/yokai-shrine\/cover-6f19b57d.png",
+      "cover" : "games\/yokai-shrine\/cover-4932a09e.png",
       "id" : "yokai-shrine",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1408,7 +1408,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 676,
-      "cover" : "games\/night-lockdown\/cover-b2d5390d.png",
+      "cover" : "games\/night-lockdown\/cover-190d3a3d.png",
       "id" : "night-lockdown",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1434,7 +1434,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 151,
-      "cover" : "games\/toy-factory-night-shift\/cover-57a3ef17.png",
+      "cover" : "games\/toy-factory-night-shift\/cover-fe88ac40.png",
       "id" : "toy-factory-night-shift",
       "maxPlayers" : 6,
       "schemaVersion" : 1,
@@ -1461,7 +1461,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 222,
-      "cover" : "games\/midnight-guard\/cover-0f79591d.png",
+      "cover" : "games\/midnight-guard\/cover-f0fc2780.png",
       "id" : "midnight-guard",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1487,7 +1487,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 499,
-      "cover" : "games\/endless-rooms\/cover-ae6d92c2.png",
+      "cover" : "games\/endless-rooms\/cover-a234369a.png",
       "id" : "endless-rooms",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1512,7 +1512,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 315,
-      "cover" : "games\/infinite-store\/cover-cd54cfea.png",
+      "cover" : "games\/infinite-store\/cover-4f5b8a5a.png",
       "id" : "infinite-store",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -1538,7 +1538,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 218,
-      "cover" : "games\/smile-outbreak\/cover-bd5df63a.png",
+      "cover" : "games\/smile-outbreak\/cover-21b3817b.png",
       "id" : "smile-outbreak",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1564,7 +1564,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 214,
-      "cover" : "games\/watch-the-house\/cover-f0c517e7.png",
+      "cover" : "games\/watch-the-house\/cover-20532b4b.png",
       "id" : "watch-the-house",
       "maxPlayers" : 6,
       "schemaVersion" : 1,
@@ -1591,7 +1591,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 110,
-      "cover" : "games\/aura-roll\/cover-ce6b74f4.png",
+      "cover" : "games\/aura-roll\/cover-96aca629.png",
       "id" : "aura-roll",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1617,7 +1617,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 133,
-      "cover" : "games\/raft-to-treasure\/cover-c4e323d2.png",
+      "cover" : "games\/raft-to-treasure\/cover-e88fd58f.png",
       "id" : "raft-to-treasure",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -1643,7 +1643,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 79,
-      "cover" : "games\/obby-maker\/cover-a54d06e8.png",
+      "cover" : "games\/obby-maker\/cover-5fdbb1a6.png",
       "id" : "obby-maker",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1669,7 +1669,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 207,
-      "cover" : "games\/toy-army-tycoon\/cover-9029982e.png",
+      "cover" : "games\/toy-army-tycoon\/cover-0017ccc3.png",
       "id" : "toy-army-tycoon",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1695,7 +1695,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 856,
-      "cover" : "games\/buzz-meadow\/cover-8b3182b5.png",
+      "cover" : "games\/buzz-meadow\/cover-f2d25aa4.png",
       "id" : "buzz-meadow",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1722,7 +1722,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 272,
-      "cover" : "games\/dungeon-delve\/cover-75429a92.png",
+      "cover" : "games\/dungeon-delve\/cover-9bb989ca.png",
       "id" : "dungeon-delve",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1752,7 +1752,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 398,
-      "cover" : "games\/critter-quest\/cover-c2226af0.png",
+      "cover" : "games\/critter-quest\/cover-e33e63e0.png",
       "id" : "critter-quest",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1777,7 +1777,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 310,
-      "cover" : "games\/blade-summon-sim\/cover-ee97475f.png",
+      "cover" : "games\/blade-summon-sim\/cover-58e4a27c.png",
       "id" : "blade-summon-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1803,7 +1803,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 244,
-      "cover" : "games\/crusher-yard\/cover-e77ece03.png",
+      "cover" : "games\/crusher-yard\/cover-fe5d7b18.png",
       "id" : "crusher-yard",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -1829,7 +1829,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 408,
-      "cover" : "games\/slime-merge\/cover-acc8b0a2.png",
+      "cover" : "games\/slime-merge\/cover-dd745757.png",
       "id" : "slime-merge",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -1855,7 +1855,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 825,
-      "cover" : "games\/mansion-builder-tycoon\/cover-2c87ceb3.png",
+      "cover" : "games\/mansion-builder-tycoon\/cover-c8844d41.png",
       "id" : "mansion-builder-tycoon",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1881,7 +1881,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 183,
-      "cover" : "games\/plus-one-speed-escape\/cover-9350deb8.png",
+      "cover" : "games\/plus-one-speed-escape\/cover-e9fc3578.png",
       "id" : "plus-one-speed-escape",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1906,7 +1906,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 185,
-      "cover" : "games\/disaster-island\/cover-e9547e3e.png",
+      "cover" : "games\/disaster-island\/cover-7827d12c.png",
       "id" : "disaster-island",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1932,7 +1932,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 162,
-      "cover" : "games\/chaos-golf\/cover-480692cc.png",
+      "cover" : "games\/chaos-golf\/cover-3cdce0ba.png",
       "id" : "chaos-golf",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1957,7 +1957,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 234,
-      "cover" : "games\/speed-worlds\/cover-210e034f.png",
+      "cover" : "games\/speed-worlds\/cover-0a1c060a.png",
       "id" : "speed-worlds",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1982,7 +1982,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 232,
-      "cover" : "games\/island-drama-show\/cover-0db6bdd0.png",
+      "cover" : "games\/island-drama-show\/cover-ee70cda8.png",
       "id" : "island-drama-show",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2007,7 +2007,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 168,
-      "cover" : "games\/prop-hide-and-seek\/cover-c35150d0.png",
+      "cover" : "games\/prop-hide-and-seek\/cover-61d5140b.png",
       "id" : "prop-hide-and-seek",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2030,7 +2030,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 158,
-      "cover" : "games\/mega-minigames\/cover-f7cd88f3.png",
+      "cover" : "games\/mega-minigames\/cover-320873fe.png",
       "id" : "mega-minigames",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -2055,7 +2055,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 83,
-      "cover" : "games\/rhythm-battle\/cover-7ea56992.png",
+      "cover" : "games\/rhythm-battle\/cover-81d9b098.png",
       "id" : "rhythm-battle",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -2079,7 +2079,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 421,
-      "cover" : "games\/last-survivor-games\/cover-1060dd5c.png",
+      "cover" : "games\/last-survivor-games\/cover-f8f551c1.png",
       "id" : "last-survivor-games",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -2108,7 +2108,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 175,
-      "cover" : "games\/shark-attack-bay\/cover-a6c15e4a.png",
+      "cover" : "games\/shark-attack-bay\/cover-b023a82c.png",
       "id" : "shark-attack-bay",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2135,7 +2135,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 201,
-      "cover" : "games\/tip-jar-plaza\/cover-c91c876e.png",
+      "cover" : "games\/tip-jar-plaza\/cover-3b7cc0f0.png",
       "id" : "tip-jar-plaza",
       "maxPlayers" : 16,
       "schemaVersion" : 1,

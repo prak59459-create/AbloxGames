@@ -8,6 +8,9 @@ import Foundation
 //   tools/build.sh --only 12    one game
 //   tools/build.sh --quick      skip the long robot play
 //   tools/build.sh --covers     draw every cover again, write the index, no play
+//   tools/build.sh --preview DIR 3 17 42
+//                               draw those games' covers into DIR and stop;
+//                               nothing in the catalogue changes
 
 let arguments = CommandLine.arguments
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -16,6 +19,12 @@ let verbose = arguments.contains("--verbose")
 let reachOnly = arguments.contains("--reach")
 let only: Int? = arguments.firstIndex(of: "--only").flatMap { i in i + 1 < arguments.count ? Int(arguments[i + 1]) : nil }
 let coversOnly = arguments.contains("--covers")
+let previewDirectory: URL? = arguments.firstIndex(of: "--preview").flatMap { i in
+    i + 1 < arguments.count ? URL(fileURLWithPath: arguments[i + 1]) : nil
+}
+let previewNumbers: Set<Int> = arguments.firstIndex(of: "--preview").map { i in
+    Set(arguments.dropFirst(i + 2).compactMap { Int($0) })
+} ?? []
 
 func read(_ path: String) -> String? {
     try? String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
@@ -35,6 +44,19 @@ func existingCover(in folder: String) -> String? {
     return names.filter { $0.hasPrefix("cover-") && $0.hasSuffix(".png") }.sorted().first.map { "\(folder)/\($0)" }
 }
 
+func savePNG(_ picture: Cover.Picture, to url: URL, id: String) -> Bool {
+    let raw = FileManager.default.temporaryDirectory.appendingPathComponent("ablox-cover-\(id).rgb")
+    do { try Data(picture.rgb).write(to: raw) } catch { return false }
+    defer { try? FileManager.default.removeItem(at: raw) }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["python3", root.appendingPathComponent("tools/png.py").path, raw.path,
+                         String(picture.width), String(picture.height), url.path]
+    do { try process.run() } catch { return false }
+    process.waitUntilExit()
+    return process.terminationStatus == 0
+}
+
 /// Draws the cover and saves it under a name that changes with the picture,
 /// so the app — which keeps covers it has fetched — sees a new file instead
 /// of its old copy. Older covers in the folder are removed.
@@ -43,16 +65,7 @@ func drawCover(_ world: WorldDocument, id: String, folder: String) -> String? {
     let picture = Cover.render(settled.world, characters: settled.characters, seed: id)
     let path = "\(folder)/cover-\(picture.fingerprint).png"
     if FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path) { return path }
-    let raw = FileManager.default.temporaryDirectory.appendingPathComponent("ablox-cover-\(id).rgb")
-    do { try Data(picture.rgb).write(to: raw) } catch { return nil }
-    defer { try? FileManager.default.removeItem(at: raw) }
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["python3", root.appendingPathComponent("tools/png.py").path, raw.path,
-                         String(picture.width), String(picture.height), root.appendingPathComponent(path).path]
-    do { try process.run() } catch { return nil }
-    process.waitUntilExit()
-    guard process.terminationStatus == 0 else { return nil }
+    guard savePNG(picture, to: root.appendingPathComponent(path), id: id) else { return nil }
     let names = (try? FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent(folder).path)) ?? []
     for name in names where name.hasPrefix("cover-") && name.hasSuffix(".png") && "\(folder)/\(name)" != path {
         try? FileManager.default.removeItem(at: root.appendingPathComponent(folder).appendingPathComponent(name))
@@ -77,6 +90,21 @@ for game in Catalogue.games {
         failures += 1
         continue
     }
+    if let previewDirectory {
+        guard previewNumbers.contains(game.number) else { continue }
+        var scripted = world
+        scripted.scripts = paths.map { path in
+            let name = String(path.split(separator: "/").last ?? "main.absc")
+            return ScriptFile(name: name, source: path == Catalogue.kitPath ? kit : (read(path) ?? ""))
+        }
+        let settled = Harness.settle(scripted)
+        let picture = Cover.render(settled.world, characters: settled.characters, seed: game.id)
+        try? FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true)
+        let url = previewDirectory.appendingPathComponent(String(format: "%02d-%@.png", game.number, game.id))
+        print(savePNG(picture, to: url, id: game.id) ? "🖼 \(url.path)" : "✗ \(game.id)")
+        continue
+    }
+
     var playable = world
     playable.scripts = paths.map { path in
         let name = String(path.split(separator: "/").last ?? "main.absc")
@@ -148,6 +176,7 @@ for game in Catalogue.games {
         let lines = playable.scripts.dropFirst().reduce(0) { $0 + $1.source.split(separator: "\n", omittingEmptySubsequences: false).count }
         note = "\(playable.scripts.count - 1) files, \(lines) lines, \(world.blocks.count) blocks, \(report.buttonsPressed.count) buttons, \(report.touches) touches, "
             + "\(report.npcsSeen) npcs max, \(report.blocksAtEnd) blocks after" + (report.roundEnded ? ", round ended" : "")
+            + String(format: ", host %.2f ms/step (worst %.0f)", report.stepMilliseconds, report.worstStepMilliseconds)
     }
 
     write(data, to: "\(game.folder)/world.ablox")
@@ -162,6 +191,8 @@ for game in Catalogue.games {
         for problem in problems.prefix(12) { print("    \(problem)") }
     }
 }
+
+if previewDirectory != nil { exit(0) }
 
 // The index, checked the way the app will check it.
 let catalogue = GameCatalogue(updatedAt: Catalogue.date, games: listings)

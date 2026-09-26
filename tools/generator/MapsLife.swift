@@ -359,6 +359,20 @@ func tycoonPlot(_ m: MapBuilder, n: Int, x: Float, z: Float, color: String, item
     }
 }
 
+/// A finished plot on show by the spawn, so everyone sees what they are
+/// building toward — and the cover shows a restaurant or a park rather than
+/// four empty floors.
+func tycoonShowcase(_ m: MapBuilder, items: [(String, Float, Float, V, String, BlockShape)], x: Float, z: Float, sign: String) {
+    m.slab("Showcase Floor", x: x, y: 0, z: z, w: 30, h: 0.2, d: 30, color: "#E7E5E4")
+    for item in items {
+        m.part("Showcase \(item.0)", at: (x + item.1, 0.2 + item.3.1 / 2, z + item.2), size: item.3, color: item.4, shape: item.5)
+    }
+    m.part("Showcase Sign", at: (x, 3.4, z + 15.2), size: (8, 1.2, 0.3), color: sign, material: .neon, solid: false)
+    m.part("Showcase Sign Post L", at: (x - 3.6, 1.4, z + 15.2), size: (0.3, 2.8, 0.3), color: "#57534E")
+    m.part("Showcase Sign Post R", at: (x + 3.6, 1.4, z + 15.2), size: (0.3, 2.8, 0.3), color: "#57534E")
+    m.part("Cover Focus", at: (x, 2, z + 6), size: (46, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
+}
+
 func dinnerRush(_ m: MapBuilder) {
     m.day(ground: "#A3A3A3")
     m.ground(200, 200, color: "#D6D3D1", name: "Food Street")
@@ -377,6 +391,7 @@ func dinnerRush(_ m: MapBuilder) {
         ("Table 8", -10, -1, (2.4, 1, 2.4), "#7C2D12", .cylinder), ("Neon Sign", 0, 13, (8, 1.4, 0.3), "#F472B6", .box),
         ("Piano", 11, 13, (2.5, 1.2, 1.5), "#111827", .box)
     ]
+    tycoonShowcase(m, items: items, x: 0, z: -30, sign: "#FB923C")
     for (i, p) in [(-50, -40), (50, -40), (-50, 40), (50, 40)].enumerated() {
         tycoonPlot(m, n: i + 1, x: Float(p.0), z: Float(p.1), color: ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"][i], items: items)
         m.part("Plot \(i + 1) Door", at: (Float(p.0), 0.5, Float(p.1) + 14), size: (1, 0.1, 1), color: "#000000", visible: false)
@@ -400,6 +415,7 @@ func coasterPark(_ m: MapBuilder) {
         ("Roller Coaster", -13.5, 3, (2, 7, 18), "#F97316", .box), ("Log Flume", 12, 12, (4, 1.5, 5), "#0EA5E9", .box),
         ("Fountain", 0, 11, (3, 2, 3), "#38BDF8", .sphere), ("Fireworks Tower", -4, 12, (1.2, 6, 1.2), "#F43F5E", .cylinder)
     ]
+    tycoonShowcase(m, items: items, x: 0, z: -30, sign: "#FDE047")
     for (i, p) in [(-55, -55), (55, -55), (-55, 55), (55, 55)].enumerated() {
         tycoonPlot(m, n: i + 1, x: Float(p.0), z: Float(p.1), color: ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"][i], items: items)
         m.part("Plot \(i + 1) Gate", at: (Float(p.0), 0.5, Float(p.1) + 14), size: (1, 0.1, 1), color: "#000000", visible: false)
@@ -414,6 +430,7 @@ func lifeVille(_ m: MapBuilder) {
     m.ground(180, 180, color: "#BEF264", name: "Village")
     m.road(from: (-90, 0), to: (90, 0), width: 7)
     m.spawnRing(0, 8, radius: 4, count: 8, color: "#FDE68A")
+    m.part("Cover Focus", at: (-21, 2, 4), size: (84, 1, 1), color: "#000000", tags: ["yaw=35"], solid: false, visible: false)
     for i in 0..<8 {
         let x = -63 + Float(i % 4) * 42
         let z: Float = i < 4 ? 28 : -28
