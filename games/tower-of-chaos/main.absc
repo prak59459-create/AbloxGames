@@ -23,6 +23,10 @@ kit_setup("Tower of Chaos", "チェックポイントなし。落ちたら下か
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["best", "gear", "wins", "skins", "skin"])
+
+
 kit_quest("floors", "20階ぶん登る", 20, 30)
 kit_quest("top", "てっぺんに着く", 1, 80)
 kit_quest("nogear", "道具なしでクリア", 1, 150)

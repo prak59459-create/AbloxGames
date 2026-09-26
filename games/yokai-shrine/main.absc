@@ -20,6 +20,10 @@ kit_setup("Yokai Shrine", "お札を納めて、三つの夜をこえよ", [
 ])
 
 kit_currency = "銭"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["dex", "charms"])
+
 kit_shop_title = "着せかえ"
 kit_shop_add("horns", "👹 鬼のつの", 80, func(p)
   p.hat = "antenna"

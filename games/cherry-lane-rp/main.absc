@@ -22,6 +22,10 @@ kit_setup("Cherry Lane RP", "役割を選んで、街でくらそう", [
   "🚗 カーショップ（水色）で乗り物。/home で家へ"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["grades", "friends", "outfits", "cars"])
+
 kit_quest("roles", "役割を3回かえる", 3, 40)
 kit_quest("attend", "朝の会に3回出る", 3, 60)
 kit_quest("class", "授業に5回出る", 5, 100)

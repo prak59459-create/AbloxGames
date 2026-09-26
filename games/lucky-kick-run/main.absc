@@ -20,6 +20,10 @@ kit_setup("Lucky Kick Run", "けって、拾って、運んで、にげろ！", 
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["up", "index", "rebirth"])
+
+
 kit_quest("kick", "ブロックを10回ける", 10, 50)
 kit_quest("bank", "金庫に預ける", 1, 30)
 kit_quest("bank10k", "合計1万コイン預ける", 10000, 2000)

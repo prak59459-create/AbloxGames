@@ -22,6 +22,10 @@ kit_setup("Pom Town", "家をかざって、ポムとなかよく", [
   "🎉 パーティーを開いたら、みんなはチャットで /party"
 ])
 kit_currency = "スター"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["bag", "likes", "fishdex", "job_xp", "poms", "egg"])
+
 kit_shop_title = "家具屋"
 
 for f in FURNITURE do

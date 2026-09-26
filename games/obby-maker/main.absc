@@ -17,6 +17,10 @@ kit_setup("Obby Maker", "作って、遊んで、いいねをもらおう", [
 ])
 
 kit_currency = "コイン"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["unlocked"])
+
 kit_shop_title = "服"
 kit_shop_add("cap", "🧢 ビルダー帽", 40, func(p) p.hat = "cap" end)
 kit_shop_add("crown", "👑 コース王", 300, func(p) p.hat = "crown" end)

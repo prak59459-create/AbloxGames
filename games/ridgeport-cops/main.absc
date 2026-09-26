@@ -20,6 +20,10 @@ kit_setup("Ridgeport Cops & Robbers", "ぬすむか、つかまえるか", [
   "🎖 階級が上がると強い武器。🚗 車庫で車、🎒 ブラックマーケットでバッグ"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["arrests", "loot_total", "bag", "gun_tier", "guns_police", "guns_crime", "cars"])
+
 kit_quest("rob_any", "金庫をやぶる", 1, 100)
 kit_quest("stash", "3回山分けする", 3, 300)
 kit_quest("jewels", "宝石を5つぬすむ", 5, 250)

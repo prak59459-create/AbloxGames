@@ -16,6 +16,10 @@ kit_setup("Rhythm Battle", "リズムに乗って、相手に勝て！", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["fans", "best"])
+
+
 kit_quest("perfect", "PERFECTを50回", 50, 200)
 kit_quest("combo", "50コンボ", 1, 300)
 kit_quest("songs", "10曲あそぶ", 10, 300)

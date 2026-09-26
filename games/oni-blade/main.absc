@@ -24,6 +24,10 @@ kit_setup("Oni Blade", "流派の型をきわめ、鬼の大将を討て", [
   "🛡 鎧の鬼はしびれさせるか岩砕流派でくだくと斬りやすい"
 ])
 kit_currency = "両"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "points", "stats", "smxp", "kills", "boss_kills", "horns", "stones", "blade"])
+
 kit_level_base = 40
 for b in BLADES do kit_melee(b.name, b.dmg, 2.4, 6) end
 

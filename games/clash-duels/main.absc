@@ -24,6 +24,10 @@ kit_setup("Clash Duels", "タイマン・チーム戦・乱戦。うでをみが
 ])
 kit_currency = "カギ"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "kills", "deaths", "wins", "owned", "load", "wrap"])
+
+
 -- MARK: クエスト
 
 kit_quest("kill", "相手をたおす", 1, 20)

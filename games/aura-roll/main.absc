@@ -17,6 +17,10 @@ kit_setup("Aura Roll", "天気を読んで、1億分の1を引け", [
 ])
 
 kit_currency = "コイン"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["rolls", "storage", "seen", "mats", "gear", "has_auto"])
+
 kit_shop_title = "ポーション屋"
 kit_shop_add("auto", "🔁 オートロール（ボタンでON/OFF）", 200, func(p)
   p.has_auto = true

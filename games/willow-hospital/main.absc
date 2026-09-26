@@ -22,6 +22,10 @@ kit_setup("Willow Hospital", "チームで患者さんを元気に", [
 ])
 
 kit_currency = "コイン"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["role_pts"])
+
 kit_shop_title = "売店"
 kit_shop_add("c_white", "まっ白な白衣", 60, func(p) p.color = "#F8FAFC" end)
 kit_shop_add("c_blue", "スクラブ（ブルー）", 60, func(p)

@@ -16,6 +16,10 @@ kit_setup("Mega Minigames", "投票して、遊んで、⭐を集めよう", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["game_wins"])
+
+
 kit_quest("win3", "ミニゲームで3回1位", 3, 200)
 kit_quest("play10", "10ゲーム遊ぶ", 10, 150)
 kit_quest("champ", "総合優勝する", 1, 800)

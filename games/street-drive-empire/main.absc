@@ -20,6 +20,10 @@ kit_setup("Street Drive Empire", "走ってかせいで、夢の車へ", [
   "📦 デポ（オレンジ）で配達、🚕 黄色い乗り場でタクシー。📸 スピードカメラ、🦘 ジャンプ台、🤝 カーミートも！"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["garage", "car", "paints", "tunes", "photos", "tracks_done", "pb", "xp"])
+
 kit_shop_title = "カーショップ"
 kit_shop_add("jerrycan", "⛽ 携行缶（その場で満タン）", 120, func(p)
   let car = car_now(p)

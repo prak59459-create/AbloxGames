@@ -19,6 +19,10 @@ kit_setup("Disaster Island", "何が来ても、生きのびろ", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["owned", "seen", "survived", "medkits"])
+
+
 kit_quest("survive3", "3回生きのびる", 3, 100)
 kit_quest("survive30", "30回生きのびる", 30, 2000)
 kit_quest("seen", "10種類の災害を生きのびる", 10, 1500)

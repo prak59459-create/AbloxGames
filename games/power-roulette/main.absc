@@ -19,6 +19,10 @@ kit_setup("Power Roulette", "運命のルーレットで戦え", [
   "🏆 90びょうでいちばんたおした人の勝ち"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["tickets", "index", "mastery"])
+
 kit_quest("win", "1ラウンド勝つ", 1, 150)
 kit_quest("ko", "10人たおす", 10, 150)
 kit_quest("use", "能力を50回使う", 50, 150)

@@ -17,6 +17,10 @@ kit_setup("Toy Army Tycoon", "兵隊を増やして、コアを守れ", [
 ])
 
 kit_currency = "コイン"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["weapon_level", "rebirths"])
+
 kit_shop_title = "武器屋"
 kit_shop_add("shotgun", "💥 ショットガン", 300, func(p) p.give("shotgun") end)
 kit_shop_add("rifle", "🎯 ライフル", 800, func(p) p.give("rifle") end)

@@ -16,6 +16,10 @@ kit_setup("Academy Days", "寮のために、学園のスターに", [
   "🏆 1学期（8コマ）ごとに寮杯。🗳 そのあと生徒会選挙（投票箱）"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["gpa", "club_done"])
+
 kit_shop_title = "購買部"
 kit_shop_add("u_blazer", "ブレザー", 60, func(p) p.color = "#1E3A8A" end)
 kit_shop_add("u_sailor", "セーラー服", 60, func(p) p.color = "#F8FAFC" end)

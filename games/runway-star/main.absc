@@ -20,6 +20,11 @@ kit_setup("Runway Star", "お題に合わせてコーデ → ランウェイ →
 ])
 kit_currency = "ジェム"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "wins", "palettes", "palette", "accs", "looks", "outfit"])
+kit_on_load = func(p) apply_outfit(p, p.outfit) end
+
+
 kit_quest("show", "ショーに出る", 1, 30)
 kit_quest("top3", "3位以内に入る", 1, 80)
 kit_quest("win", "優勝する", 1, 200)
@@ -37,7 +42,7 @@ on join(p)
   p.palettes = ["basic"]
   p.palette = "basic"
   p.accs = ["wings", "cape"]
-  p.saved = {}
+  p.looks = {}
   p.outfit = {color: "#EC4899", head: "#FBCFE8", legs: "#111111", hat: "none", size: 1, acc: []}
   apply_outfit(p, p.outfit)
   kit_welcome(p)

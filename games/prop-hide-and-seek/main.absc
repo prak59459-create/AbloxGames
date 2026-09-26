@@ -15,6 +15,10 @@ kit_setup("Prop Hide & Seek", "家具になりきって、見つかるな！", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["pts", "wins", "found", "survived"])
+
+
 kit_quest("hide", "最後まで見つからない", 1, 200)
 kit_quest("find", "鬼で5人見つける", 5, 300)
 kit_quest("disguise", "10回変身する", 10, 100)

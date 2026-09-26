@@ -18,6 +18,10 @@ kit_setup("Speed Worlds", "最速タイムでゴールへ！", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["best", "medals", "ups", "ghost_on"])
+
+
 kit_quest("finish", "ゴールを5回", 5, 200)
 kit_quest("worlds", "4つのワールドをクリア", 4, 800)
 kit_quest("gold", "金メダルを3こ", 3, 1000)

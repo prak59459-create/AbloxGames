@@ -20,6 +20,10 @@ kit_setup("Gun Swap Arena", "武器をクリアして、黄金ナイフで決め
   "⏱ 6分で時間切れ。いちばん進んだ人の勝ち。🎟 クレジットでスキン"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["credits", "skins", "skin", "tier"])
+
 kit_quest("k5", "5キル", 5, 50)
 kit_quest("k50", "50キル", 50, 500)
 kit_quest("knife", "黄金ナイフまで行く", 1, 100)

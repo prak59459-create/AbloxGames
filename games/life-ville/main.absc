@@ -18,6 +18,10 @@ kit_setup("Life Ville", "くらしを整えて、キャリアを上げよう", [
   "🎪 5分ごとに公園でお祭り。💬 近くの人と話そう"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["skills", "job_xp", "furniture", "earned"])
+
 for key in keys(FURNITURE) do
   let f = FURNITURE[key]
   for t in 2 to len(f.tiers) do

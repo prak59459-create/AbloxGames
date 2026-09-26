@@ -19,6 +19,10 @@ kit_setup("Dinner Rush Tycoon", "店を大きくして、人気レストラン�
   "🏪 設備コンプリート＋売上で2号店。売上がずっと増える"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["sales", "rebirths"])
+
 kit_quest("items", "設備を5つ買う", 5, 150)
 kit_quest("tables", "テーブルを4つにする", 1, 300)
 kit_quest("serve", "10人に料理を出す", 10, 200)

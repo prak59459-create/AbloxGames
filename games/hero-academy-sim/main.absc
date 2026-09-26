@@ -26,6 +26,10 @@ kit_setup("Hero Academy Sim", "個性をみがいて、街を守るか、ねら�
   "👹 ときどき改造怪人ゴウラが出る。みんなで戦えばごほうび",
   "📊 レベルアップでポイント。🛡 装備でさらに強く"
 ])
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "points", "stats", "gear", "mxp", "owned", "tickets", "hero_pts", "fame", "license"])
+
 kit_melee("パンチ", 10, 3, 5)
 kit_level_base = 40
 

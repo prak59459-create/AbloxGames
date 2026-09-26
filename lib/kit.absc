@@ -471,3 +471,74 @@ on chat(p, text)
     chat("👋 " + p.name + " が手をふっている")
   end
 end
+
+-- MARK: セーブ（進みぐあいを自分のiPadに保存）
+--
+-- 新しいAbloxでは、遊ぶ人のセーブデータが届くと on loaded が来て p.saved が読める。
+-- キットはそこでコイン・クエスト・実績・レベルと、ゲームが kit_keep(["fans", "best"]) で
+-- 登録した項目をもとにもどし、そのあとは2秒ごとに保存する（変わったところだけが送られる）。
+-- 古いAbloxでは on loaded が来ないので、なにも起きない（今までどおり）。
+-- 読みこんだあとに画面などを直したいゲームは kit_on_load = func(p) ... end を入れる。
+-- 保存できるのは数・文字・true/false・リスト・マップだけ。プレイヤーやブロックは入れないこと。
+
+let kit_keep_keys = []
+let kit_on_load = nil
+-- コインが1回の試合の中だけのお金（タワーディフェンスなど）なら、ゲームが false にする
+let kit_save_coins = true
+let kit_base_keys = ["quests", "quests_done", "badges"]
+
+func kit_keep(names)
+  for k in names do
+    if not contains(kit_keep_keys, k) then append(kit_keep_keys, k) end
+  end
+end
+
+func kit_save_keys()
+  let list = copy(kit_base_keys)
+  if kit_save_coins then append(list, "coins") end
+  for k in kit_keep_keys do append(list, k) end
+  return list
+end
+
+func kit_restore(p)
+  let s = p.saved
+  if s == nil then return end
+  let found = 0
+  for k in kit_save_keys() do
+    if s[k] != nil then
+      p[k] = s[k]
+      found = found + 1
+    end
+  end
+  p.kit_loaded = true
+  if s.coins != nil then kit_show_money(p) end
+  if found > 0 then p.message("💾 つづきから！", 1.5) end
+  if kit_on_load != nil then kit_on_load(p) end
+end
+
+func kit_autosave(p)
+  for k in kit_save_keys() do kit_save_one(p, k) end
+end
+
+-- 1つずつ別の after で保存する。まちがって保存できない値（プレイヤーなど）を
+-- 登録していても、エラーになるのはその項目だけで、ほかの項目は保存される
+func kit_save_one(p, k)
+  after(0, func()
+    if not kit_here(p) then return end
+    let v = p[k]
+    -- nil（まだ無い値）は保存しない。消したいときはゲームが p.save(k) を使う
+    if v != nil then p.save(k, v) end
+  end)
+end
+
+on loaded(p)
+  kit_restore(p)
+end
+
+on start()
+  every(2, func()
+    for p in players() do
+      if p.kit_loaded and p.saved != nil then kit_autosave(p) end
+    end
+  end)
+end

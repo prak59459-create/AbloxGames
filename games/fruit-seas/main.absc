@@ -24,6 +24,10 @@ kit_setup("Fruit Seas", "果実の力で島から島へ。最強の海賊（ま�
 ])
 kit_currency = "ベリー"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "points", "stats", "mastery", "awakened", "bag", "swords", "sword", "guns", "styles", "style", "abilities", "visited", "bounty", "honor", "fruit"])
+
+
 -- MARK: クエスト（📜ボタン: 目標）
 
 kit_quest("lv10", "レベル10になる", 9, 500)

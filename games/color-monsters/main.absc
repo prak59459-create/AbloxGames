@@ -21,6 +21,16 @@ kit_setup("Color Monsters", "箱をかぶって、見つからずに集めろ", 
 ])
 
 kit_currency = "スター"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["perks", "times_caught", "look_body", "look_head"])
+kit_on_load = func(p)
+  if not p.boxed then
+    p.color = p.look_body
+    p.head_color = p.look_head
+  end
+end
+
 kit_shop_title = "おもちゃ屋さん"
 -- 1つずつ関数で包む（ループの変数をそれぞれの道具に閉じこめる）
 func add_perk_item(perk)

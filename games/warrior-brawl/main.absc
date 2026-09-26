@@ -20,6 +20,10 @@ kit_setup("Warrior Brawl", "はじいて、かわして、斬りこめ", [
 ])
 kit_currency = "クレジット"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["owned", "main", "loadout", "uses", "mastery"])
+
+
 kit_quest("kill3", "3人たおす", 3, 60)
 kit_quest("kill50", "50人たおす", 50, 800)
 kit_quest("parry5", "5回はじき成功", 5, 100)

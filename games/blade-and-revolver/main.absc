@@ -18,6 +18,10 @@ kit_setup("Blade & Revolver", "ナイフとリボルバーで勝ちぬけ", [
   "🎁 金色のパッドでスキンガチャ（頭＝ナイフ、足＝リボルバー）"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["skins", "knife_skin", "gun_skin"])
+
 kit_quest("k10", "10キル", 10, 100)
 kit_quest("k100", "100キル", 100, 800)
 kit_quest("melee", "ナイフで10キル", 10, 150)

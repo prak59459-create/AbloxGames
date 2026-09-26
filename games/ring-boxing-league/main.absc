@@ -22,6 +22,10 @@ kit_setup("Ring Boxing League", "スタミナを読んで、打ち勝て", [
   "🟣 観客は応援（💰50）。当たると2倍"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["rp", "career", "train"])
+
 kit_quest("fight", "1試合する", 1, 50)
 kit_quest("win", "3勝する", 3, 200)
 kit_quest("ko", "KO・TKOで勝つ", 1, 150)

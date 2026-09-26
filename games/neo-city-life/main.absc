@@ -20,6 +20,10 @@ kit_setup("Neo City Life", "未来の街で働いて、空の家へ", [
   "🏁 ときどきドローンレース、🌃 ネオンナイトは給料2倍！"
 ])
 kit_currency = "クレジット"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["owned", "tried", "job_count", "home_lv"])
+
 kit_shop_title = "ネオンショップ"
 kit_shop_add("paint", "ネオンカラーに光る", 80, func(p)
   p.color = random(["#22D3EE", "#F472B6", "#A3E635", "#FACC15", "#A78BFA"])

@@ -19,6 +19,10 @@ kit_setup("Shark Attack Bay", "サメを撃退するか、全員を海へ", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["sharks", "pick", "harpoon", "ring", "dynamite", "medkits", "repairs", "human_wins", "shark_wins", "dealt", "kills_total"])
+
+
 kit_quest("hunt", "サメにとどめをさす", 1, 300)
 kit_quest("damage", "サメに合計1500ダメージ", 1500, 300)
 kit_quest("survive", "人間で3回生きのこる", 3, 300)

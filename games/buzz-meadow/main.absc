@@ -19,6 +19,10 @@ kit_setup("Buzz Meadow", "ハチをふやして、ハチミツ長者に", [
 ])
 kit_currency = "ハチミツ"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["bees", "slots", "pollen", "tool", "bag", "treats", "jelly", "honey_made", "bear_i", "bear_count", "bear_done"])
+
+
 kit_shop_title = "服"
 kit_shop_add("antenna", "📡 ハチのしょっかく", 300, func(p) p.hat = "antenna" end)
 kit_shop_add("bee_suit", "🐝 ハチの服", 800, func(p)

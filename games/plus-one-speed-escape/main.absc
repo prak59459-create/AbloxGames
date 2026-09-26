@@ -18,6 +18,10 @@ kit_setup("+1 Speed Wall Escape", "毎秒スピード+1！ かべから逃げき
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["spd", "per_sec", "rebirths", "best", "wins", "pets", "treadmill"])
+
+
 kit_quest("far500", "500m 逃げる", 1, 300)
 kit_quest("far1000", "1000m 逃げる", 1, 1500)
 kit_quest("finish", "ゴールする", 1, 3000)

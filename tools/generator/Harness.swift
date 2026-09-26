@@ -57,6 +57,12 @@ enum Harness {
             people.append(peer)
             _ = game.addPlayer(PlayerSnapshot(peerID: peer, profile: profile, position: world.spawnPosition(forPlayerIndex: people.count - 1)))
             if rich { game.states[peer]?.custom["coins"] = .number(1_000_000) }
+            // Each robot brings saved data, as an iPad does, so the kit's
+            // restore and autosave run here too — a game keeping something
+            // that cannot be saved fails the build instead of a player's
+            // session. Mika is a returning player with a little saved.
+            let saved: [String: SaveValue] = name == "Mika" ? ["coins": .number(500), "quests_done": .number(1)] : [:]
+            _ = game.handle(.saved(SaveData(saved)), from: peer, at: 0)
         }
         arrive("Aoi")
         arrive("Ren")

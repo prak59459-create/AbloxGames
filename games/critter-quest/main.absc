@@ -18,6 +18,10 @@ kit_setup("Critter Quest", "出会って、つかまえて、育てよう", [
 ])
 kit_currency = "円"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["party", "box", "items", "seen", "caught", "beaten", "wins", "catches"])
+
+
 kit_quest("catch5", "クリッターを5ひきつかまえる", 5, 300)
 kit_quest("dex10", "図鑑で10種つかまえる", 10, 800)
 kit_quest("dex20", "図鑑で20種つかまえる", 20, 3000)

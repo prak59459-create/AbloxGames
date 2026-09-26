@@ -19,6 +19,10 @@ kit_setup("Porky's House", "カギを見つけて、にげ出せ！", [
   "🐷 ポーキーに見つかったら逃げろ！ わなに注意。灰色のパッドはクローゼット。命がなくなると👻幽霊"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["perks"])
+
 kit_shop_title = "こっそりショップ"
 func add_perk_item(perk)
   kit_shop_add(perk.id, perk.name + "（" + perk.text + "）", perk.price, func(p)

@@ -22,6 +22,10 @@ kit_setup("Mystery Manor", "犯人を見つけろ。犯人は正体をかくせ"
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "wins", "knives", "guns", "knife", "gun"])
+
+
 kit_quest("win", "ラウンドで勝つ", 1, 20)
 kit_quest("survive", "市民として生きのこる", 3, 40)
 kit_quest("catch", "保安官で犯人をたおす", 1, 60)

@@ -20,6 +20,10 @@ kit_setup("Mansion Builder Tycoon", "小さな土台から、大豪邸へ", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["ups", "earned", "paint"])
+
+
 kit_quest("build5", "パーツを5つ建てる", 5, 150)
 kit_quest("build26", "26パーツ全部建てる", 26, 50000)
 kit_quest("collect", "家賃を20回集める", 20, 500)

@@ -17,6 +17,10 @@ kit_setup("Endless Rooms", "出口を見つけて、外の世界へ", [
 ])
 
 kit_currency = "かけら"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["best", "noclips"])
+
 kit_shop_title = "服"
 kit_shop_add("hazmat", "🦺 防護服", 60, func(p)
   p.color = "#FACC15"

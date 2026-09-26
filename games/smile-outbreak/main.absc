@@ -20,6 +20,10 @@ kit_setup("Smile Outbreak", "笑顔に感染するな！", [
 weapon("ワクチン銃", {model: "pistol", damage: 1, rate: 1.5, range: 35, ammo: 8, reload: 40, spread: 0.5})
 
 kit_currency = "スマイル"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["perks"])
+
 kit_shop_title = "ショップ"
 func add_perk(perk)
   kit_shop_add(perk.id, perk.name + "（" + perk.text + "）", perk.price, func(p) p.perks[perk.id] = true end)

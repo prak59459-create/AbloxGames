@@ -21,6 +21,10 @@ kit_setup("Tip Jar Plaza", "ブースを出して、なかよくチップ", [
 ])
 kit_currency = "チップ"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["tips_given", "tips_got", "cleaned", "best_rx", "likes_given", "thanks_got"])
+
+
 kit_quest("booth", "ブースを出す", 1, 20)
 kit_quest("give", "チップを5回おくる", 5, 60)
 kit_quest("get", "チップを100もらう", 100, 120)

@@ -20,6 +20,10 @@ kit_setup("Pet Coin Frenzy", "タップでこわして、ペットで強くな�
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["pets", "index", "up", "world", "rebirths"])
+
+
 kit_quest("tap", "100回タップ", 100, 100)
 kit_quest("break", "山を50こ こわす", 50, 300)
 kit_quest("chest", "宝箱をこわす", 5, 800)

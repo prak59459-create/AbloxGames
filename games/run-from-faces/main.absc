@@ -17,6 +17,10 @@ kit_setup("Run From The Faces", "走れ！ 倒れた仲間は助けろ", [
   "😠ダッシュ顔は休むときがチャンス。👁ワープ顔はうしろに。😝ジャンプ顔は高い所にも来る"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["xp"])
+
 kit_shop_title = "ランナーショップ"
 kit_shop_add("lungs", "🫁 大きな肺（スタミナ +40）", 150, func(p)
   p.extra_stamina = (p.extra_stamina or 0) + 40

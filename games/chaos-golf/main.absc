@@ -18,6 +18,10 @@ kit_setup("Chaos Golf", "少ない打数でカップイン！", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["colors", "ball_color"])
+
+
 kit_quest("par", "パー以下で5回カップイン", 5, 300)
 kit_quest("ace", "ホールインワン", 1, 1000)
 kit_quest("finish", "9ホールを回る", 1, 300)

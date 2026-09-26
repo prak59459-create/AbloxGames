@@ -21,6 +21,16 @@ kit_setup("Battleground Legends", "コンボをつなげて最強をめざせ", 
 ])
 kit_currency = "KOポイント"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["hero", "heroes", "auras", "aura", "kos"])
+kit_on_load = func(p)
+  let h = hero_by_id(p.hero)
+  p.color = h.color
+  p.head_color = h.head
+  move_buttons(p)
+end
+
+
 kit_quest("ko", "相手をたおす", 1, 30)
 kit_quest("ko50", "50人たおす", 50, 800)
 kit_quest("streak", "5連続KO", 1, 300)

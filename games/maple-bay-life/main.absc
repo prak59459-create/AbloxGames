@@ -23,6 +23,13 @@ kit_setup("Maple Bay Life", "家・仕事・車・スマホ。好きなように
   "チャット: /home /job /phone /car"
 ])
 kit_currency = "コイン"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["job_xp", "jobs_tried", "inventory", "garage", "vehicle", "bank", "friend", "level", "xp"])
+kit_on_load = func(p)
+  if p.level != nil then kit_show_level(p) end
+end
+
 kit_level_base = 40
 
 -- MARK: クエスト（📜ボタン）

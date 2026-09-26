@@ -21,6 +21,10 @@ kit_setup("Metro Response", "緊急出動！街を守れ", [
   "🧑 市民は配達や🚕タクシー。「🚗 車」でのりおり"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["pts"])
+
 kit_quest("calls", "出動を3回解決", 3, 200)
 kit_quest("fires", "火を10個消す", 10, 250)
 kit_quest("rescue", "逃げおくれた人を助ける", 1, 150)

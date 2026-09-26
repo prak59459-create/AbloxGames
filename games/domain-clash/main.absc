@@ -40,6 +40,10 @@ kit_quest("title", "称号を手に入れる", 1, 5)
 -- クエストのごほうびは呪力ポイントとして受けとる
 kit_currency = "呪力ポイント"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["points", "owned", "titles", "title"])
+
+
 let ui_clock = 0
 
 on start()

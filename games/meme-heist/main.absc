@@ -24,6 +24,10 @@ kit_setup("Meme Heist", "ミームキャラを集めて、盗んで、守れ！"
 ])
 kit_currency = "お金"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["gear", "seen", "index", "slots_open", "lock_level", "rebirth", "vault"])
+
+
 -- MARK: クエスト
 
 kit_quest("buy", "キャラを買う", 1, 50)

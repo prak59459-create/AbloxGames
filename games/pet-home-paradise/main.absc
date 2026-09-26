@@ -22,6 +22,10 @@ kit_setup("Pet Home Paradise", "たまごをかえして、ペットをおとな
 ])
 kit_currency = "バックス"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["pets", "equipped", "items", "toys", "dex"])
+
+
 -- MARK: クエスト
 
 kit_quest("egg", "たまごを買う", 1, 100)

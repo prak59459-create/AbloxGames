@@ -23,6 +23,10 @@ kit_setup("Sprout Garden", "タネをまいて、育てて、売って、夢の�
 ])
 kit_currency = "シェケル"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "seeds", "hand", "basket_size", "gear", "items", "fert", "soil_open", "pets"])
+
+
 -- MARK: クエスト
 
 kit_quest("plant", "タネを植える", 1, 20)

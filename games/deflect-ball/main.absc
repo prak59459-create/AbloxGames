@@ -21,6 +21,10 @@ kit_setup("Deflect Ball", "ギリギリで、はじけ！", [
   "✨ ロビーの青いパッドで技、🗡 オレンジのパッドで剣のガチャ"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["owned", "ability", "blades", "rating"])
+
 kit_quest("win1", "1回勝つ", 1, 200)
 kit_quest("win10", "10回勝つ", 10, 1000)
 kit_quest("parry20", "20回はじく", 20, 150)

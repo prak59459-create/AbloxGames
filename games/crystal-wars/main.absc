@@ -27,6 +27,13 @@ kit_setup("Crystal Wars", "自分のクリスタルを守り、相手のをこ�
 ])
 kit_currency = "スター"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["titles", "title", "level", "xp"])
+kit_on_load = func(p)
+  if p.level != nil then kit_show_level(p) end
+end
+
+
 kit_quest("kill", "敵を10人たおす", 10, 30)
 kit_quest("final", "ファイナルキルを3回", 3, 40)
 kit_quest("crystal", "クリスタルをこわす", 1, 50)

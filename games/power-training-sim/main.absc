@@ -21,6 +21,10 @@ kit_setup("Power Training Sim", "修行してランクを上げ、最強をめ�
   "⚔ 闘技場ではロボ・ボス・プレイヤーと戦える（外では平和）",
   "🎁 ときどき修行の宝箱。🛒 で重りや自動修行"
 ])
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["stats", "train_mult", "trains", "rebirths", "tokens", "rshop", "champions", "abilities"])
+
 kit_melee("拳", 5, 3, 5)
 kit_shop_add("weights", "重り（修行 ×2）", 300, func(p)
   p.train_mult = p.train_mult * 2

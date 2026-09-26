@@ -19,6 +19,10 @@ kit_setup("Crusher Yard", "グシャッとつぶして、スクラップを集�
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["owned", "car", "machines", "machine", "ups", "prestige", "crushed", "scraps", "total"])
+
+
 kit_quest("crush", "車を20台つぶす", 20, 150)
 kit_quest("crush500", "車を500台つぶす", 500, 20000)
 kit_quest("scrap", "スクラップを200こ集める", 200, 500)

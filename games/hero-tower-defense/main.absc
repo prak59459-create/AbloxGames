@@ -23,6 +23,11 @@ kit_setup("Hero Tower Defense", "ヒーローを置いて、敵の大群から�
   "💎 試合のおわりにジェム。🏛 ヒーローの館で新しいヒーローを解放"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["gems", "owned", "loadout", "selected"])
+kit_save_coins = false  -- コインは1回の防衛戦の中だけのお金
+
 kit_quest("place", "ヒーローを10体置く", 10, 100)
 kit_quest("upgrade", "強化を10回", 10, 150)
 kit_quest("max", "ヒーローを最大レベルに", 1, 200)

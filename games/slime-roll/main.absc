@@ -24,6 +24,10 @@ kit_setup("Slime Roll", "100万分の1のスライムを引き当てろ", [
   "👑 4分ごとにボス！ こうげきした人みんなでごほうび"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["ups", "pots", "heaven", "bag", "equipped", "auto_equip", "auto_sell", "index", "index_done", "index_luck", "found", "jelly", "charms", "charms_on", "zones", "rolls"])
+
 kit_quest("roll100", "100回ロールする", 100, 100)
 kit_quest("roll1000", "1000回ロールする", 1000, 3000)
 kit_quest("species", "10しゅるい見つける", 10, 1000)

@@ -20,6 +20,10 @@ kit_setup("Tsunami Dash", "止まったら、のまれる！", [
   "⚠ ときどきメガ津波！ 速いけれどミーム2倍"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["ups", "memes", "skins", "skin"])
+
 kit_quest("races", "10レース走る", 10, 10)
 kit_quest("finish", "ゴールする", 1, 5)
 kit_quest("win", "1位になる", 1, 15)

@@ -18,6 +18,10 @@ kit_setup("Midnight Guard", "明かりを消すな。朝6時まで見回れ", [
 ])
 
 kit_currency = "給料"
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["dex"])
+
 kit_shop_title = "制服"
 kit_shop_add("cap", "🧢 警備帽", 50, func(p)
   p.hat = "cap"

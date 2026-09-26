@@ -19,6 +19,10 @@ kit_setup("Style Boxing", "スタイルと必殺技で勝ち上がれ", [
   "👑 リングB: 1人だけ残っているあいだ点が入るキング・オブ・リング"
 ])
 
+
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["owned", "style", "spins", "rating"])
+
 kit_quest("ko5", "5回KO", 5, 150)
 kit_quest("special", "必殺技を3回使う", 3, 100)
 kit_quest("counter", "カウンターを5回決める", 5, 120)

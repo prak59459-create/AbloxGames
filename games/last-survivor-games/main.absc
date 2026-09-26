@@ -21,6 +21,10 @@ kit_setup("Last Survivor Games", "動くな。まちがえるな。生き残れ"
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["wins", "shows", "cleared", "best_ever", "charms", "gloves"])
+
+
 kit_quest("field", "だるまさんがころんだをクリア", 1, 150)
 kit_quest("tug", "つなひきで勝つ", 1, 200)
 kit_quest("huddle", "なかま集めを生きのこる", 2, 250)

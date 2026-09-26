@@ -17,6 +17,10 @@ kit_setup("Island Drama Show", "勝ちぬけ！ 最後の1人はだれだ", [
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["wins"])
+
+
 kit_quest("challenge", "チャレンジで1位", 1, 150)
 kit_quest("win", "チャンピオンになる", 1, 1000)
 kit_quest("season", "シーズンに3回出る", 3, 300)

@@ -23,6 +23,10 @@ kit_setup("Reel Legends", "うまく巻いて、伝説の魚をつり上げろ",
 ])
 kit_currency = "コイン"
 
+-- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
+kit_keep(["level", "xp", "bag", "bag_size", "caught", "zones_done", "tickets", "rods", "rod", "baits", "bait"])
+
+
 -- MARK: クエスト
 
 kit_quest("catch", "魚を1匹つる", 1, 30)

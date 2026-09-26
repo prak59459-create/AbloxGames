@@ -270,7 +270,7 @@ func closet(p)
   p.ui_panel("closet", {at: "center", w: 460, h: 320, bg: "#2E1065F2", radius: 22, layer: 32})
   p.ui_text("closet_t", "💾 クローゼット", {parent: "closet", y: 0.09, size: 20, bold: true, color: "#DDD6FE"})
   for i in 1 to 3 do
-    let saved = p.saved[str(i)]
+    let saved = p.looks[str(i)]
     let label = "スロット " + i + "：（空）"
     if saved != nil then label = "スロット " + i + "：小物 " + len(saved.acc) + "こ・帽子 " + saved.hat end
     p.ui_text("closet_l" + i, label, {parent: "closet", x: 0.33, y: 0.15 + i * 0.2, size: 14})
@@ -310,12 +310,12 @@ on button(p, id)
   elif id == "open_closet" then closet(p)
   elif id == "closet_close" then p.ui_remove("closet")
   elif starts_with(id, "save_") then
-    p.saved[replace(id, "save_", "")] = copy_outfit(p.outfit)
+    p.looks[replace(id, "save_", "")] = copy_outfit(p.outfit)
     p.message("💾 保存しました", 1.2)
     kit_quest_progress(p, "save", 1)
     closet(p)
   elif starts_with(id, "load_") then
-    let saved = p.saved[replace(id, "load_", "")]
+    let saved = p.looks[replace(id, "load_", "")]
     if saved != nil then
       p.outfit = copy_outfit(saved)
       apply_outfit(p, p.outfit)
