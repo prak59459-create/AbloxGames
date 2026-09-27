@@ -164,7 +164,7 @@ for game in Catalogue.games {
         id: game.id, title: game.title, author: Catalogue.author, summary: game.summary,
         world: "\(game.folder)/world.ablox", cover: cover, shots: shots, scripts: paths,
         tags: game.tags, blockCount: world.blocks.count, maxPlayers: game.maxPlayers,
-        schemaVersion: WorldDocument.currentSchemaVersion, updatedAt: Catalogue.date
+        schemaVersion: world.neededSchemaVersion, updatedAt: Catalogue.date
     )
     listings.append(listing)
 
