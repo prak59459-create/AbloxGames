@@ -1,0 +1,136 @@
+-- lab.absc — 発射台とロケット研究所: 自分の発射台をもらって、部品を買うとロケットができていく。月に着いたら生まれかわり。
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func part_info(key)
+  return find(PARTS, func(pt) return pt.key == key end)
+end
+
+func part_lv(p, key)
+  return (p.parts or {})[key] or 0
+end
+
+func stat(p, key)
+  return part_info(key).vals[part_lv(p, key) + 1]
+end
+
+func mult(p)
+  return 1 + (p.rebirths or 0) * REBIRTH_BONUS
+end
+
+func pad_owner(k)
+  return find(players(), func(p) return p.pad == k end)
+end
+
+func claim_pad(p)
+  if p.pad != nil then return end
+  for k in 1 to 8 do
+    if pad_owner(k) == nil then
+      p.pad = k
+      draw_rocket(p)
+      let sign = find(blocks("sign"), func(b) return tag_num(b, "k") == k end)
+      if sign != nil then sign.color = p.color or "#F97316" end
+      return
+    end
+  end
+end
+
+func draw_rocket(p)
+  if p.pad == nil then return end
+  let shown = {body: true, engine: true, tank: part_lv(p, "tank") >= 1, boost: part_lv(p, "boost") >= 1, nose: part_lv(p, "nose") >= 1,
+               fins: part_lv(p, "fins") >= 1}
+  for key in keys(shown) do
+    for b in blocks("rk" + p.pad + "_" + key) do
+      if b.visible != shown[key] then b.visible = shown[key] end
+    end
+  end
+end
+
+func clear_pad(p)
+  if p.pad == nil then return end
+  for key in ["body", "engine", "tank", "boost", "nose", "fins"] do
+    for b in blocks("rk" + p.pad + "_" + key) do b.visible = false end
+  end
+  let k = p.pad
+  let sign = find(blocks("sign"), func(b) return tag_num(b, "k") == k end)
+  if sign != nil then sign.color = "#FFFFFF" end
+  p.pad = nil
+end
+
+func lab(p)
+  claim_pad(p)
+  let h = 200 + len(PARTS) * 48
+  p.ui_remove("lab_box")
+  p.ui_panel("lab_box", {at: "center", w: 680, h: h, bg: "#172554F2", radius: 22, layer: 30})
+  p.ui_text("lab_t", "🔬 ロケット研究所（💰 " + kit_short(kit_money(p)) + "  お金 ×" + mult(p) + "）", {parent: "lab_box", y: 26 / h, size: 18, bold: true,
+            color: "#BFDBFE"})
+  let i = 0
+  for pt in PARTS do
+    i = i + 1
+    let lv = part_lv(p, pt.key)
+    let label = pt.name + " Lv." + lv + "（" + pt.what + " " + pt.vals[lv + 1] + pt.unit + "）"
+    let bg = "#1D4ED8"
+    if lv >= len(PART_PRICES) then
+      label = label + " 最大"
+      bg = "#374151"
+    else
+      label = label + " → " + pt.vals[lv + 2] + "  💰" + kit_short(PART_PRICES[lv + 1])
+    end
+    p.ui_button("partbuy_" + pt.key, label, {parent: "lab_box", y: (30 + i * 48) / h, w: 640, h: 40, size: 14, bg: bg})
+  end
+  p.ui_text("lab_s", "ベスト " + (p.best_h or 0) + "m   🌙 " + (p.moons or 0) + "回   生まれかわり " + (p.rebirths or 0) + "回", {parent: "lab_box",
+            y: (h - 80) / h, size: 15, color: "#FDE68A"})
+  if (p.moons or 0) > (p.rebirths or 0) then
+    p.ui_button("rebirth", "🌟 生まれかわる（部品がLv0に、お金 ずっと +50%）", {parent: "lab_box", x: 0.36, y: (h - 32) / h, w: 420, h: 40, size: 14,
+                bg: "#9333EA"})
+  end
+  p.ui_button("lab_close", "閉じる", {parent: "lab_box", x: 0.84, y: (h - 32) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func buy_part(p, key)
+  let lv = part_lv(p, key)
+  if lv >= len(PART_PRICES) or not kit_pay(p, PART_PRICES[lv + 1]) then return end
+  if p.parts == nil then p.parts = {} end
+  p.parts[key] = lv + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "part", 1)
+  draw_rocket(p)
+  lab(p)
+end
+
+func rebirth(p)
+  if (p.moons or 0) <= (p.rebirths or 0) or p.flight != nil then return end
+  p.rebirths = (p.rebirths or 0) + 1
+  p.parts = {}
+  p.fuel = 0
+  p.coins = 0
+  kit_show_money(p)
+  draw_rocket(p)
+  announce("🌟 " + p.name + " が 生まれかわった！ お金 ×" + mult(p), 3)
+  kit_badge(p, "rebirth" + p.rebirths, "生まれかわり " + p.rebirths)
+  particles("stars", p, {amount: 80})
+  p.sound("magic")
+  lab(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "lab") and kit_ready(p, "lab", 3) then lab(p) end
+end
+
+on button(p, id)
+  if id == "lab" then lab(p)
+  elif id == "lab_close" then p.ui_remove("lab_box")
+  elif id == "rebirth" then rebirth(p)
+  elif starts_with(id, "partbuy_") then buy_part(p, replace(id, "partbuy_", ""))
+  end
+end
+
+on leave(p)
+  clear_pad(p)
+end

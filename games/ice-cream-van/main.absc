@@ -1,0 +1,59 @@
+-- Ice Cream Van — アイスクリームカー
+-- 町の4つの場所（公園・ビーチ・学校・住宅街）で 🔔 チャイムを鳴らすと お客さんが集まる。
+-- 注文どおりに 入れもの・味・トッピング を作って ✅ わたす。早いほどチップ。工場で仕入れ・改造・新しい味。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  車の見た目と速さ
+--   data.absc       味・トッピング・場所・改造
+--   van.absc        場所・チャイム・在庫・工場
+--   customers.absc  お客さん（集まる・ならぶ・帰る）
+--   serve.absc      注文・つくる・わたす
+--   main.absc       このファイル
+
+kit_setup("Ice Cream Van", "🔔♪ アイスクリーム屋さんが来たよ！", [
+  "🚐 町の4つの場所へ行って 🔔 チャイム",
+  "🧒 お客さんがならんだら 注文を見て、入れもの → 味 → トッピング → ✅ わたす",
+  "⏱ 早くわたすほどチップがふえる。まちくたびれると帰っちゃう",
+  "🧊 アイスがへったら 工場の水色のパッドで仕入れ",
+  "🏭 オレンジのパッドで改造・新しい味・トッピング",
+  "📍 同じ場所ばかりだと人気がへる。いろいろな場所をまわろう"
+])
+kit_keep(["ups", "flavors", "tops", "stock", "paint", "served", "earned", "lost"])
+
+kit_quest("chime", "チャイムを鳴らす", 1, 30)
+kit_quest("serve", "アイスを10こ売る", 10, 200)
+kit_quest("fast", "すばやくわたす（チップたっぷり）を5回", 5, 200)
+kit_quest("restock", "仕入れる", 1, 40)
+kit_quest("upgrade", "改造する", 1, 100)
+
+kit_on_load = func(p) drive_on(p) end
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 60 then p.coins = 60 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.flavors = ["vanilla", "choco"]
+  p.tops = ["none", "sprinkle"]
+  p.stock = {vanilla: 15, choco: 15}
+  p.camera_distance = 10
+  drive_on(p)
+  p.ui_button("chime", "🔔 チャイム", {at: "right", dy: -110, w: 140, h: 50, size: 16, bg: "#DB2777"})
+  p.ui_button("factory", "🏭 工場", {at: "right", dy: -54, w: 140, h: 46, size: 15, bg: "#B45309"})
+end
+
+on start()
+  world.music = "shop"
+  every(12, func() kit_leaderboard("🍦 売った数") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.served or 0) != p.score then p.score = p.served or 0 end
+  end
+end

@@ -1,0 +1,256 @@
+-- plow.absc — 除雪: ブレードのまわりの雪をかく → お金と雪がたまる → 雪すて場へ。こおった所は 🧂。ときどき ふぶき。
+
+let zones = []      -- {z, tiles, depth, ice, left}
+let plow_clock = 0
+let storm_clock = 0
+let blizzard_until = 0
+
+func up(p, key)
+  return (p.ups or {})[key] or 0
+end
+
+func up_val(p, key)
+  let u = find(UPGRADES, func(x) return x.key == key end)
+  return u.vals[up(p, key) + 1]
+end
+
+func truck_on(p)
+  ride_set(p, "truck", p.paint or "#F97316", up_val(p, "engine"))
+end
+
+func paint_tile(zn, i)
+  let b = zn.tiles[i]
+  let d = zn.depth[i]
+  if d == 0 and not zn.ice[i] then
+    if b.visible then b.visible = false end
+    return
+  end
+  let h = DEPTH_H[d + 1]
+  let color = "#FFFFFF"
+  if d == 0 then
+    h = 0.06
+    color = "#7DD3FC"
+  end
+  if not b.visible then b.visible = true end
+  b.size = {x: 5.9, y: h, z: 5.9}
+  b.position = {x: b.x, y: 0.05 + h / 2, z: b.z}
+  if b.color != color then b.color = color end
+end
+
+on start()
+  for z in ZONES do
+    let zn = {z: z, tiles: [], depth: [], ice: [], left: z.cols * z.rows}
+    for r in 0 to z.rows - 1 do
+      for c in 0 to z.cols - 1 do
+        append(zn.tiles, block("S " + z.k + "-" + c + "-" + r))
+        append(zn.depth, 2 + random(0, 1))
+        append(zn.ice, false)
+      end
+    end
+    append(zones, zn)
+    for i in 1 to len(zn.tiles) do paint_tile(zn, i) end
+  end
+  start_blizzards()
+end
+
+func zone_at(p)
+  for zn in zones do
+    let z = zn.z
+    if abs(p.x - z.x) < z.cols * 3 and abs(p.z - z.z) < z.rows * 3 then return zn end
+  end
+  return nil
+end
+
+func tile_index(zn, x, zz)
+  let z = zn.z
+  let c = floor((x - (z.x - z.cols * 3)) / 6)
+  let r = floor((zz - (z.z - z.rows * 3)) / 6)
+  if c < 0 or r < 0 or c >= z.cols or r >= z.rows then return nil end
+  return r * z.cols + c + 1
+end
+
+func clear_pct(zn)
+  let n = len(zn.tiles)
+  return floor((n - zn.left) * 100 / n)
+end
+
+func plow_step(p)
+  let zn = zone_at(p)
+  if zn == nil then
+    ride_mult(p, "snow", nil)
+    ride_mult(p, "ice", nil)
+    return
+  end
+  let z = zn.z
+  -- 足もとの雪と氷
+  let here = tile_index(zn, p.x, p.z)
+  if here != nil then
+    ride_mult(p, "snow", SNOW_SLOW[zn.depth[here] + 1])
+    if zn.ice[here] and zn.depth[here] == 0 then
+      ride_mult(p, "ice", 0.8)
+      if chance(8) and kit_ready(p, "slip", 3) then
+        let v = p.velocity
+        p.velocity = {x: v.x + random_float(-5, 5), y: v.y, z: v.z + random_float(-5, 5)}
+        p.message("🧊 つるっ！ 🧂で塩をまこう", 1)
+      end
+    else
+      ride_mult(p, "ice", nil)
+    end
+  end
+  if up(p, "blade") < z.need then
+    if kit_ready(p, "need", 5) then p.message("🪓 ここは ブレード Lv." + z.need + " から（ガレージで強く）", 1.5) end
+    return
+  end
+  let cap = up_val(p, "hopper")
+  if (p.hopper or 0) >= cap then
+    if kit_ready(p, "full", 3) then p.message("🧺 雪がいっぱい！ 雪すて場（茶色のパッド）へ", 1.5) end
+    return
+  end
+  let reach = up_val(p, "blade") / 2 + 1.5
+  let pay = 0
+  let cut = 0
+  for i in 1 to len(zn.tiles) do
+    if zn.depth[i] > 0 and (p.hopper or 0) < cap then
+      let b = zn.tiles[i]
+      if abs(b.x - p.x) < reach + 3 and abs(b.z - p.z) < reach + 3 then
+        let dx = b.x - p.x
+        let dz = b.z - p.z
+        if dx * dx + dz * dz <= (reach + 2) * (reach + 2) then
+          pay = pay + z.pay * zn.depth[i]
+          p.hopper = (p.hopper or 0) + zn.depth[i]
+          zn.depth[i] = 0
+          zn.left = zn.left - 1
+          if chance(ICE_CHANCE) then zn.ice[i] = true end
+          paint_tile(zn, i)
+          cut = cut + 1
+        end
+      end
+    end
+  end
+  if cut > 0 then
+    kit_give(p, pay)
+    p.plowed = (p.plowed or 0) + cut
+    kit_quest_progress(p, "plow", cut)
+    if kit_ready(p, "plowsnd", 0.4) then p.sound("whoosh") end
+    check_jobs(zn)
+  end
+end
+
+func spread_salt(p)
+  let zn = zone_at(p)
+  if zn == nil then return end
+  if (p.salt or 0) <= 0 then
+    p.message("🧂 塩がない！ 水色のパッドで入れよう", 1.5)
+    return
+  end
+  let reach = up_val(p, "blade") / 2 + 4
+  let n = 0
+  for i in 1 to len(zn.tiles) do
+    let b = zn.tiles[i]
+    if zn.ice[i] and (p.salt or 0) > 0 and abs(b.x - p.x) < reach and abs(b.z - p.z) < reach then
+      zn.ice[i] = false
+      p.salt = p.salt - 1
+      paint_tile(zn, i)
+      n = n + 1
+    end
+  end
+  if n > 0 then
+    kit_give(p, n * 2)
+    p.message("🧂 氷を " + n + "こ とかした 💰" + n * 2, 1)
+    particles("sparkles", p, {amount: 20})
+    kit_quest_progress(p, "salt", n)
+  else
+    p.message("🧂 近くに氷がない", 0.8)
+  end
+end
+
+func dump(p)
+  let n = p.hopper or 0
+  if n <= 0 then return end
+  kit_give(p, n * DUMP_PAY)
+  p.hopper = 0
+  p.message("🏔 雪をすてた！ 💰" + n * DUMP_PAY, 1.2)
+  p.sound("coin")
+  kit_quest_progress(p, "dump", 1)
+end
+
+func refill_salt(p)
+  let cap = up_val(p, "salt")
+  let need = cap - (p.salt or 0)
+  if need <= 0 then
+    p.message("🧂 もう満タン", 1)
+    return
+  end
+  if not kit_pay(p, need * SALT_PRICE) then return end
+  p.salt = cap
+  p.message("🧂 塩を入れた（💰" + need * SALT_PRICE + "）", 1.2)
+  p.sound("powerup")
+end
+
+-- ふぶき: 20秒のあいだ 雪がつもる
+func blizzard_step()
+  let now = time()
+  if now < blizzard_until then
+    for zn in zones do
+      let n = max(1, floor(len(zn.tiles) / 10))
+      for j in 1 to n do
+        let i = random(1, len(zn.tiles))
+        if zn.depth[i] < 3 then
+          if zn.depth[i] == 0 then zn.left = zn.left + 1 end
+          zn.depth[i] = zn.depth[i] + 1
+          zn.ice[i] = false
+          paint_tile(zn, i)
+        end
+      end
+    end
+  end
+end
+
+func hud(p)
+  let zn = zone_at(p)
+  let where = "🚚 お仕事の場所へ（📋）"
+  if zn != nil then where = zn.z.name + "  " + clear_pct(zn) + "% きれい" end
+  p.ui_text("sp_hud", "🧺 " + (p.hopper or 0) + "/" + up_val(p, "hopper") + "   🧂 " + (p.salt or 0) + "   " + where, {at: "top", dy: 62, size: 17, bold: true})
+  p.ui_bar("sp_bar", p.hopper or 0, up_val(p, "hopper"), {at: "top", dy: 86, w: 240, h: 8, color: "#E2E8F0"})
+end
+
+on tick(dt)
+  plow_clock = plow_clock + dt
+  storm_clock = storm_clock + dt
+  if plow_clock >= 0.2 then
+    plow_clock = 0
+    for p in players() do
+      if not p.is_npc then
+        plow_step(p)
+        if kit_ready(p, "sphud", 0.5) then hud(p) end
+      end
+    end
+  end
+  if storm_clock >= 2 then
+    storm_clock = storm_clock - 2
+    blizzard_step()
+  end
+end
+
+func start_blizzards()
+  every(BLIZZARD_EVERY, func()
+    blizzard_until = time() + 20
+    world.weather = "storm"
+    announce("❄️ ふぶきだ！ 雪がつもっていく… 除雪車チーム、出動！", 3)
+    after(20, func()
+      world.weather = "snow"
+      announce("🌨 ふぶきがやんだ。雪かきしよう！", 2)
+    end)
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "dump") and kit_ready(p, "dump", 2) then dump(p)
+  elif contains(b.tags, "salt") and kit_ready(p, "saltpad", 2) then refill_salt(p)
+  end
+end
+
+on button(p, id)
+  if id == "spread" and kit_ready(p, "spread", 0.5) then spread_salt(p) end
+end

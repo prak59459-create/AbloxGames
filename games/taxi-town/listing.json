@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 766,
+  "bytes" : 408487,
+  "cover" : "games\/taxi-town\/cover-3a65c281.png",
+  "id" : "taxi-town",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "lib\/kit_move.absc",
+    "games\/taxi-town\/data.absc",
+    "games\/taxi-town\/company.absc",
+    "games\/taxi-town\/fares.absc",
+    "games\/taxi-town\/main.absc"
+  ],
+  "shots" : [
+    "games\/taxi-town\/shot1-e2a423ca.png",
+    "games\/taxi-town\/shot2-27c6fd1e.png"
+  ],
+  "summary" : "タクシーの運転手になって、大きな町でお客さんを運ぼう！ 🙋手をあげている人の前で止まって乗せ、目的地へ。はやく安全に着くとチップ。タクシー会社を大きくして、運転手をやとおう。",
+  "tags" : [
+    "cars",
+    "roleplay",
+    "tycoon"
+  ],
+  "title" : "Taxi Town",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/taxi-town\/world.ablox"
+}

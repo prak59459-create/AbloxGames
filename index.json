@@ -3178,7 +3178,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 317,
-      "bytes" : 186165,
+      "bytes" : 186390,
       "cover" : "games\/build-a-plane\/cover-5e0fea5f.png",
       "id" : "build-a-plane",
       "maxPlayers" : 8,
@@ -3208,7 +3208,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 326,
-      "bytes" : 192785,
+      "bytes" : 193058,
       "cover" : "games\/island-flight-school\/cover-fcd55be5.png",
       "id" : "island-flight-school",
       "maxPlayers" : 12,
@@ -3234,6 +3234,251 @@
       "title" : "Island Flight School",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/island-flight-school\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 499,
+      "bytes" : 280216,
+      "cover" : "games\/county-line-railway\/cover-6ebb9054.png",
+      "id" : "county-line-railway",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "lib\/kit_move.absc",
+        "games\/county-line-railway\/data.absc",
+        "games\/county-line-railway\/drive.absc",
+        "games\/county-line-railway\/line.absc",
+        "games\/county-line-railway\/main.absc"
+      ],
+      "shots" : [
+        "games\/county-line-railway\/shot1-b05acb39.png",
+        "games\/county-line-railway\/shot2-181cca2b.png"
+      ],
+      "summary" : "電車の運転士になろう！ ノッチで加速とブレーキ、信号を守って、6つの駅にぴったり止まる。ドアをあけてお客さんをのせ、時間どおりに次の駅へ。急行・特急にも乗れるようになる。",
+      "tags" : [
+        "trains",
+        "simulator",
+        "driving"
+      ],
+      "title" : "County Line Railway",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/county-line-railway\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 527,
+      "bytes" : 293076,
+      "cover" : "games\/ice-cream-van\/cover-d90ea7dc.png",
+      "id" : "ice-cream-van",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "games\/ice-cream-van\/data.absc",
+        "games\/ice-cream-van\/customers.absc",
+        "games\/ice-cream-van\/serve.absc",
+        "games\/ice-cream-van\/van.absc",
+        "games\/ice-cream-van\/main.absc"
+      ],
+      "shots" : [
+        "games\/ice-cream-van\/shot1-976cd80e.png",
+        "games\/ice-cream-van\/shot2-5019e4aa.png"
+      ],
+      "summary" : "アイスクリームカーで町をまわろう！ 🔔チャイムを鳴らすとお客さんが集まってくる。注文どおりにコーン・味・トッピングを作ってわたそう。公園・ビーチ・学校・住宅街、アイスを仕入れて新しい味も。",
+      "tags" : [
+        "cars",
+        "cooking",
+        "shop"
+      ],
+      "title" : "Ice Cream Van",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/ice-cream-van\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 296,
+      "bytes" : 172870,
+      "cover" : "games\/cabin-crew-service\/cover-895fb426.png",
+      "id" : "cabin-crew-service",
+      "maxPlayers" : 10,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/cabin-crew-service\/data.absc",
+        "games\/cabin-crew-service\/flight.absc",
+        "games\/cabin-crew-service\/passengers.absc",
+        "games\/cabin-crew-service\/main.absc"
+      ],
+      "shots" : [
+        "games\/cabin-crew-service\/shot1-b0dd220f.png",
+        "games\/cabin-crew-service\/shot2-548f308f.png"
+      ],
+      "summary" : "客室乗務員になって、みんなで空の旅をもりあげよう！ 搭乗・安全のデモ・離陸・機内サービス・着陸・おそうじ。お客さんの🔔にこたえて、ジュースやごはんを運ぼう。フライトの⭐をふやせ！",
+      "tags" : [
+        "roleplay",
+        "flying",
+        "teamwork"
+      ],
+      "title" : "Cabin Crew Service",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/cabin-crew-service\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 649,
+      "bytes" : 339260,
+      "cover" : "games\/lawn-mower-kings\/cover-c9b8b99c.png",
+      "id" : "lawn-mower-kings",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "games\/lawn-mower-kings\/data.absc",
+        "games\/lawn-mower-kings\/mow.absc",
+        "games\/lawn-mower-kings\/shop.absc",
+        "games\/lawn-mower-kings\/main.absc"
+      ],
+      "shots" : [
+        "games\/lawn-mower-kings\/shot1-78068708.png",
+        "games\/lawn-mower-kings\/shot2-7b9b6355.png"
+      ],
+      "summary" : "芝かりでお金持ちに！ 草の上を走ると芝がかれてお金が入る。バッグがいっぱいになったら たい肥場へ。刃・エンジン・バッグを強くして、大きな庭やゴルフ場もピカピカに。金色の草はおたから！",
+      "tags" : [
+        "simulator",
+        "vehicles",
+        "idle"
+      ],
+      "title" : "Lawn Mower Kings",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/lawn-mower-kings\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 234,
+      "bytes" : 156242,
+      "cover" : "games\/grapple-cart-duo\/cover-3e77496b.png",
+      "id" : "grapple-cart-duo",
+      "maxPlayers" : 10,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_obby.absc",
+        "lib\/kit_ride.absc",
+        "lib\/kit_move.absc",
+        "games\/grapple-cart-duo\/data.absc",
+        "games\/grapple-cart-duo\/carts.absc",
+        "games\/grapple-cart-duo\/duo.absc",
+        "games\/grapple-cart-duo\/main.absc"
+      ],
+      "shots" : [
+        "games\/grapple-cart-duo\/shot1-65aa4122.png",
+        "games\/grapple-cart-duo\/shot2-40d0467e.png"
+      ],
+      "summary" : "カートでオビー！ すき間は🪝グラップルでびゅーん、ジャンプ台でひとっとび。ふたり組になると、落ちてもロープで引き上げてもらえる。ハンマーをよけて20ステージをゴールまで！",
+      "tags" : [
+        "obby",
+        "cars",
+        "coop"
+      ],
+      "title" : "Grapple Cart Duo",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/grapple-cart-duo\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 214,
+      "bytes" : 147926,
+      "cover" : "games\/blast-off-rockets\/cover-81355711.png",
+      "id" : "blast-off-rockets",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "lib\/kit_move.absc",
+        "games\/blast-off-rockets\/data.absc",
+        "games\/blast-off-rockets\/flight.absc",
+        "games\/blast-off-rockets\/lab.absc",
+        "games\/blast-off-rockets\/main.absc"
+      ],
+      "shots" : [
+        "games\/blast-off-rockets\/shot1-6df5f740.png",
+        "games\/blast-off-rockets\/shot2-ab201efd.png"
+      ],
+      "summary" : "燃料をためて、ロケットを空へ発射！ 高く上がるほどお金が入る。雲をぬけて宇宙ステーション、そして2000m上の月へ。部品を強くして、月に着いたら生まれかわってもっと上へ！",
+      "tags" : [
+        "simulator",
+        "space",
+        "flying"
+      ],
+      "title" : "Blast Off Rockets",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/blast-off-rockets\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 766,
+      "bytes" : 408487,
+      "cover" : "games\/taxi-town\/cover-3a65c281.png",
+      "id" : "taxi-town",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "lib\/kit_move.absc",
+        "games\/taxi-town\/data.absc",
+        "games\/taxi-town\/company.absc",
+        "games\/taxi-town\/fares.absc",
+        "games\/taxi-town\/main.absc"
+      ],
+      "shots" : [
+        "games\/taxi-town\/shot1-e2a423ca.png",
+        "games\/taxi-town\/shot2-27c6fd1e.png"
+      ],
+      "summary" : "タクシーの運転手になって、大きな町でお客さんを運ぼう！ 🙋手をあげている人の前で止まって乗せ、目的地へ。はやく安全に着くとチップ。タクシー会社を大きくして、運転手をやとおう。",
+      "tags" : [
+        "cars",
+        "roleplay",
+        "tycoon"
+      ],
+      "title" : "Taxi Town",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/taxi-town\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 593,
+      "bytes" : 310670,
+      "cover" : "games\/snow-plow-crew\/cover-7fcb03c2.png",
+      "id" : "snow-plow-crew",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "games\/snow-plow-crew\/data.absc",
+        "games\/snow-plow-crew\/jobs.absc",
+        "games\/snow-plow-crew\/plow.absc",
+        "games\/snow-plow-crew\/main.absc"
+      ],
+      "shots" : [
+        "games\/snow-plow-crew\/shot1-acbf58b7.png",
+        "games\/snow-plow-crew\/shot2-0ef47043.png"
+      ],
+      "summary" : "雪の町の除雪車チーム！ 道や駐車場の雪をかいて、お仕事の時間内にピカピカに。ふぶきが来たらまた出動。こおった道には🧂塩をまこう。ブレードやタンクを強くして、空港の滑走路まで！",
+      "tags" : [
+        "vehicles",
+        "simulator",
+        "winter"
+      ],
+      "title" : "Snow Plow Crew",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/snow-plow-crew\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

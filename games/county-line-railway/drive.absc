@@ -1,0 +1,292 @@
+-- drive.absc — 運転: ノッチで速さ、駅の白いぼうの所にぴったり止まる → ドア → お客さん → 次の駅へ
+
+let waiting = [8, 8, 8, 8, 8, 8]
+let wait_npcs = [[], [], [], [], [], []]
+let drv_clock = 0
+let hud_clock = 0
+let wait_clock = 0
+
+func train_info(id)
+  for t in TRAINS do
+    if t.id == id then return t end
+  end
+  return TRAINS[1]
+end
+
+func station(k)
+  return STATIONS[(k - 1) % len(STATIONS) + 1]
+end
+
+func riding(p)
+  let n = 0
+  for k in keys(p.tr.riders) do n = n + p.tr.riders[k].n end
+  return n
+end
+
+-- 次の駅の止まる所まで（+ はまだ先、- は通りすぎた）
+func stop_gap(p)
+  let d = wrap(station(p.tr.next).s - p.tr.s + LOOP / 2, 0, LOOP) - LOOP / 2
+  return d
+end
+
+func board_train(p)
+  if p.tr != nil then return end
+  -- あいている駅から出発
+  let k = 1
+  for st in STATIONS do
+    if not occupied(section_of(st.s), p.id) then
+      k = st.n
+      break
+    end
+  end
+  let t = train_info(p.train)
+  let pt = rail_point(station(k).s)
+  p.tr = {notch: 0, spd: 0, s: station(k).s, next: k, doors: false, riders: {}, due: time() + 30, hold_until: 0, at: 0}
+  ride_set(p, "truck", p.paint or t.color, 0)
+  p.jump = 0
+  p.teleport({x: pt.x, y: 0.6, z: pt.z})
+  p.yaw = YAWS[pt.side]
+  cab_buttons(p)
+  p.message("🚃 " + station(k).name + " 駅から出発！ 🚪 でドアをあけて お客さんをのせよう", 2.5)
+end
+
+func cab_buttons(p)
+  p.ui_button("notch_up", "⏫", {at: "bottom_right", dx: -30, dy: -250, w: 64, h: 64, size: 26, bg: "#16A34A", radius: 32})
+  p.ui_button("notch_down", "⏬", {at: "bottom_right", dx: -30, dy: -176, w: 64, h: 64, size: 26, bg: "#B91C1C", radius: 32})
+  p.ui_button("ebrake", "🛑", {at: "bottom_right", dx: -104, dy: -214, w: 60, h: 60, size: 24, bg: "#7F1D1D", radius: 30})
+  p.ui_button("leave_train", "🚶 おりる", {at: "right", dy: 98, w: 140, h: 40, size: 13, bg: "#57534E"})
+end
+
+func leave_train(p)
+  if p.tr == nil then return end
+  p.tr = nil
+  p.jump = 1
+  ride_off(p)
+  for id in ["notch_up", "notch_down", "ebrake", "leave_train", "doors", "tr_hud", "tr_bar", "tr_next"] do p.ui_remove(id) end
+  let pad = block("Depot Pad")
+  p.teleport(pad.position + {x: 3, y: 1, z: 0})
+end
+
+func set_notch(p, d)
+  let tr = p.tr
+  if tr == nil then return end
+  if tr.doors then
+    p.message("🚪 ドアをしめてから！", 1)
+    return
+  end
+  tr.notch = clamp(tr.notch + d, 0, NOTCHES)
+  p.sound("click")
+end
+
+func emergency(p)
+  if p.tr == nil then return end
+  p.tr.notch = 0
+  p.tr.spd = 0
+  p.speed = 0
+  p.message("🛑 非常ブレーキ！", 1)
+  p.sound("alarm")
+end
+
+func open_doors(p)
+  let tr = p.tr
+  if tr == nil or tr.doors then return end
+  let gap = stop_gap(p)
+  if abs(gap) > 5 or tr.spd > 0.05 then
+    p.message("白いぼうの所で止まってから", 1)
+    return
+  end
+  let k = station(tr.next).n
+  tr.doors = true
+  tr.at = k
+  tr.notch = 0
+  p.sound("door")
+  let mult = 1
+  let notes = []
+  if abs(gap) < 1.5 then
+    mult = mult + 0.2
+    append(notes, "🎯 ぴったり！")
+    kit_quest_progress(p, "exact", 1)
+  end
+  let late = time() - tr.due
+  if late <= 0 then
+    mult = mult + 0.2
+    append(notes, "⏱ 定刻どおり！")
+    kit_quest_progress(p, "ontime", 1)
+  elif late > 20 then
+    mult = mult - 0.2
+    append(notes, "⏱ " + floor(late) + "秒おくれ")
+  end
+  -- おりる
+  let off = tr.riders[str(k)]
+  if off != nil and off.n > 0 then
+    let pay = floor(off.owed * mult)
+    kit_give(p, pay)
+    p.earned = (p.earned or 0) + pay
+    p.carried = (p.carried or 0) + off.n
+    add_xp(p, off.n)
+    kit_quest_progress(p, "pax", off.n)
+    append(notes, "👋 " + off.n + "人おりた 💰" + pay)
+    tr.riders[str(k)] = nil
+  end
+  p.message(station(k).name + " 駅  " + join(notes, "  "), 2.5)
+  -- のる（少しあとで）
+  kit_later(p, 1.5, func() board_riders(p, k) end)
+  kit_later(p, 6, func() close_doors(p) end)
+  p.stops = (p.stops or 0) + 1
+  kit_quest_progress(p, "stop", 1)
+end
+
+func board_riders(p, k)
+  let tr = p.tr
+  if tr == nil or not tr.doors or tr.at != k then return end
+  let room = train_info(p.train).cap - riding(p)
+  let n = min(room, waiting[k])
+  for i in 1 to n do
+    let hops = random(1, 5)
+    let dest = str(station(k + hops).n)
+    if tr.riders[dest] == nil then tr.riders[dest] = {n: 0, owed: 0} end
+    tr.riders[dest].n = tr.riders[dest].n + 1
+    tr.riders[dest].owed = tr.riders[dest].owed + FARE * hops
+  end
+  waiting[k] = waiting[k] - n
+  show_waiting(k)
+  if n > 0 then p.message("🚶 " + n + "人のった（👥 " + riding(p) + "/" + train_info(p.train).cap + "）", 1.5) end
+  if room <= 0 then p.message("満員！ 次の駅でおろそう", 1.5) end
+end
+
+func close_doors(p)
+  let tr = p.tr
+  if tr == nil or not tr.doors then return end
+  tr.doors = false
+  let from = tr.next
+  tr.next = station(from + 1).n
+  let gap = ahead(station(from).s, station(tr.next).s)
+  tr.due = time() + gap / 11 + 10
+  p.sound("bell")
+  let sig = section_of(station(tr.next).s)
+  if occupied(sig, p.id) then
+    p.message("🚪 しまります。次は " + station(tr.next).name + "。🔴 信号が赤、青になるまで まってね", 2.5)
+  else
+    p.message("🚪 しまります。次は " + station(tr.next).name + "。出発進行！ ⏫", 2.5)
+  end
+end
+
+func train_crash(p)
+  if p.tr == nil or not kit_ready(p, "crash", 3) then return end
+  p.tr.hold_until = time() + 3
+  p.tr.notch = 0
+  p.message("💥 ほかの電車にぶつかった！ 信号を守って", 2)
+  p.shake(0.4, 0.5)
+  p.sound("hit")
+  kit_give(p, 0 - min(20, kit_money(p)))
+end
+
+func spad(p, n)
+  if p.tr == nil or not occupied(n, p.id) or not kit_ready(p, "spad", 4) then return end
+  p.tr.hold_until = time() + 3
+  p.tr.notch = 0
+  p.spads = (p.spads or 0) + 1
+  kit_give(p, 0 - min(SPAD_FINE, kit_money(p)))
+  p.message("🚨 赤信号をこえた！ 非常停止  💰-" + SPAD_FINE, 2.5)
+  p.sound("alarm")
+end
+
+func drive_step(p, dt)
+  let tr = p.tr
+  let t = train_info(p.train)
+  let target = t.top * tr.notch / NOTCHES
+  if tr.doors or time() < tr.hold_until then target = 0 end
+  if tr.spd < target then tr.spd = min(target, tr.spd + ACCEL * dt) else tr.spd = max(target, tr.spd - BRAKE * dt) end
+  if abs(p.speed - tr.spd) > 0.01 then p.speed = tr.spd end
+  tr.s = rail_s(p.x, p.z)
+  -- 駅を通りすぎた
+  if not tr.doors and stop_gap(p) < -8 then
+    p.message("⚠️ " + station(tr.next).name + " 駅を通りすぎた…", 2)
+    tr.next = station(tr.next + 1).n
+    tr.due = time() + ahead(tr.s, station(tr.next).s) / 11 + 10
+  end
+end
+
+func show_waiting(k)
+  let want = min(3, ceil(waiting[k] / 12))
+  let list = wait_npcs[k]
+  while len(list) > want do
+    kit_gone(remove(list, len(list)))
+  end
+  while len(list) < want do
+    let spot = block("Wait " + k + "-" + (len(list) + 1))
+    if spot == nil then break end
+    append(list, create_npc({name: "お客さん", position: spot.position + {x: 0, y: 0.5, z: 0}, color: random_color(), speed: 0, health: 100000}))
+  end
+end
+
+func drive_hud(p)
+  let tr = p.tr
+  let t = train_info(p.train)
+  let bars = ""
+  for i in 1 to NOTCHES do
+    if i <= tr.notch then bars = bars + "■" else bars = bars + "□" end
+  end
+  let v = p.velocity
+  let kmh = floor(sqrt(v.x * v.x + v.z * v.z) * 3.6 * 1.6)
+  p.ui_text("tr_hud", "🚃 " + kmh + "km/h   ノッチ " + bars + "   👥 " + riding(p) + "/" + t.cap, {at: "top", dy: 62, size: 17, bold: true})
+  let gap = floor(stop_gap(p))
+  let left = floor(tr.due - time())
+  let clock = "⏱ あと" + left + "秒"
+  if left < 0 then clock = "⏱ " + abs(left) + "秒おくれ" end
+  let line = "次は " + station(tr.next).name + "（" + max(0, gap) + "m）  " + clock
+  if tr.doors then line = "🚪 ドアがあいています… " + station(tr.at).name end
+  p.ui_text("tr_next", line, {at: "top", dy: 88, size: 15, bold: true, color: "#FDE68A"})
+  -- 止まる所にいるときだけ ドアのボタン
+  if not tr.doors and abs(gap) <= 5 and tr.spd <= 0.05 then
+    p.ui_button("doors", "🚪 ドア", {at: "bottom_right", dx: -104, dy: -290, w: 90, h: 50, size: 18, bg: "#0EA5E9", radius: 16})
+  else
+    p.ui_remove("doors")
+  end
+  if not tr.doors and abs(gap) < 60 and gap > 5 and tr.notch >= 3 and kit_ready(p, "slowdown", 5) then
+    p.message("⏬ そろそろブレーキ！ 白いぼうの所で止まろう", 1.5)
+  end
+end
+
+on tick(dt)
+  drv_clock = drv_clock + dt
+  hud_clock = hud_clock + dt
+  wait_clock = wait_clock + dt
+  if drv_clock >= 0.1 then
+    for p in players() do
+      if p.tr != nil then drive_step(p, drv_clock) end
+    end
+    drv_clock = 0
+  end
+  if hud_clock >= 0.4 then
+    hud_clock = 0
+    for p in players() do
+      if p.tr != nil then drive_hud(p) end
+    end
+  end
+  if wait_clock >= 3 then
+    wait_clock = 0
+    for k in 1 to len(STATIONS) do
+      if waiting[k] < WAIT_MAX then waiting[k] = waiting[k] + 1 end
+      show_waiting(k)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "sigline") then spad(p, tag_num(b, "n")) end
+end
+
+on button(p, id)
+  if id == "notch_up" then set_notch(p, 1)
+  elif id == "notch_down" then set_notch(p, -1)
+  elif id == "ebrake" then emergency(p)
+  elif id == "doors" then open_doors(p)
+  elif id == "leave_train" then leave_train(p)
+  end
+end
+
+on leave(p)
+  p.tr = nil
+end

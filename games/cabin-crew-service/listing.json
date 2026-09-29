@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 296,
+  "bytes" : 172870,
+  "cover" : "games\/cabin-crew-service\/cover-895fb426.png",
+  "id" : "cabin-crew-service",
+  "maxPlayers" : 10,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/cabin-crew-service\/data.absc",
+    "games\/cabin-crew-service\/flight.absc",
+    "games\/cabin-crew-service\/passengers.absc",
+    "games\/cabin-crew-service\/main.absc"
+  ],
+  "shots" : [
+    "games\/cabin-crew-service\/shot1-b0dd220f.png",
+    "games\/cabin-crew-service\/shot2-548f308f.png"
+  ],
+  "summary" : "客室乗務員になって、みんなで空の旅をもりあげよう！ 搭乗・安全のデモ・離陸・機内サービス・着陸・おそうじ。お客さんの🔔にこたえて、ジュースやごはんを運ぼう。フライトの⭐をふやせ！",
+  "tags" : [
+    "roleplay",
+    "flying",
+    "teamwork"
+  ],
+  "title" : "Cabin Crew Service",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/cabin-crew-service\/world.ablox"
+}

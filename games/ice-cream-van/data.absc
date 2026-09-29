@@ -1,0 +1,45 @@
+-- data.absc — Ice Cream Van の表
+
+-- 味: price は工場でふやすねだん、value は1すくいの売りね
+let FLAVORS = [
+  {id: "vanilla", name: "バニラ", icon: "🤍", price: 0, value: 10},
+  {id: "choco", name: "チョコ", icon: "🤎", price: 0, value: 10},
+  {id: "straw", name: "いちご", icon: "🩷", price: 200, value: 12},
+  {id: "mint", name: "ミント", icon: "💚", price: 500, value: 14},
+  {id: "mango", name: "マンゴー", icon: "🧡", price: 1200, value: 16},
+  {id: "rainbow", name: "レインボー", icon: "🌈", price: 3000, value: 22}
+]
+let BASES = [
+  {id: "cone", name: "🍦 コーン"},
+  {id: "cup", name: "🥤 カップ"}
+]
+let TOPPINGS = [
+  {id: "none", name: "なし", icon: "", price: 0, value: 0},
+  {id: "sprinkle", name: "スプレー", icon: "🌈", price: 0, value: 3},
+  {id: "cherry", name: "さくらんぼ", icon: "🍒", price: 300, value: 5},
+  {id: "syrup", name: "チョコソース", icon: "🍫", price: 800, value: 6}
+]
+
+-- 町の4つの場所: likes は よく注文される味
+let ZONES = [
+  {n: 1, name: "🌳 公園", likes: ["vanilla", "straw"]},
+  {n: 2, name: "🏖 ビーチ", likes: ["mint", "mango"]},
+  {n: 3, name: "🏫 学校", likes: ["choco", "rainbow"]},
+  {n: 4, name: "🏘 住宅街", likes: ["vanilla", "choco", "straw"]}
+]
+
+-- 車の改造: per は1レベルでふえる量
+let UPGRADES = [
+  {key: "u_freezer", name: "🧊 れいとうこ（+20すくい）", per: 20},
+  {key: "u_engine", name: "🚐 エンジン（速さ）", per: 0.15},
+  {key: "u_chime", name: "🔔 チャイム（お客さん +1人）", per: 1},
+  {key: "u_sign", name: "🪧 かんばん（チップ +10%）", per: 0.1}
+]
+let UP_PRICES = [150, 400, 1000, 2500, 6000]
+
+let BASE_FREEZER = 30
+let BASE_SPEED = 1.8
+let BASE_CROWD = 3
+let SCOOP_COST = 1        -- 仕入れ1すくい
+let PATIENCE = 35         -- お客さんがまってくれる秒数
+let ZONE_RADIUS = 50

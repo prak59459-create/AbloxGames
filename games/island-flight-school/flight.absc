@@ -83,7 +83,7 @@ func throttle(p, d)
   f.target = clamp(f.target + d, 0, THROTTLE_STEPS)
   p.sound("click")
   if d > 0 and not f.air and f.target == 1 then
-    tower(p, "滑走路 " + f.at + "、離陸を許可します。速くなったら ⬆ で上がってください")
+    tower(p, "滑走路 " + f.at + "、離陸を許可します。スティックを前にたおして滑走、速くなったら ⬆")
   end
 end
 
@@ -104,6 +104,9 @@ func fs_step(p, dt)
   let pl = plane_info(p.plane)
   let want = pl.top * f.target / THROTTLE_STEPS
   f.spd = approach(f.spd, want, ACCEL * dt)
+  -- 地面ではスティックで走る: スティックを前にたおしたときの速さを、飛行機の速さにあわせる
+  let ps = max(0.3, f.spd / 9)
+  if abs(p.speed - ps) > 0.05 then p.speed = ps end
   let dir = forward(p.yaw)
   let v = p.velocity
   let vy = v.y

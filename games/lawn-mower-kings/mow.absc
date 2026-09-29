@@ -1,0 +1,191 @@
+-- mow.absc — 芝かり: 芝かり機のまわりの草がかれて、お金と草がバッグへ。草は少しずつ のびてくる。
+
+let lawns = []       -- {y, tiles, level, gold, left, shiny}
+let mow_clock = 0
+let grow_clock = 0
+
+func up(p, key)
+  return (p.ups or {})[key] or 0
+end
+
+func up_val(p, key)
+  for u in UPGRADES do
+    if u.key == key then return u.vals[up(p, key) + 1] end
+  end
+  return 0
+end
+
+func unlocked(p, k)
+  return contains(p.yards or [], k)
+end
+
+func mower_look(p)
+  let lv = up(p, "blade")
+  let color = p.paint or "#16A34A"
+  if lv >= 4 then
+    ride_set(p, "truck", color, up_val(p, "engine"))
+  elif lv >= 2 then
+    ride_set(p, "kart", color, up_val(p, "engine"))
+  else
+    ride_set(p, "scooter", color, up_val(p, "engine"))
+  end
+end
+
+func paint_tile(l, i)
+  let b = l.tiles[i]
+  let lv = l.level[i]
+  let h = GRASS_H[lv + 1]
+  let color = GRASS_COLOR[lv + 1]
+  if l.gold[i] and lv > 0 then color = GOLD_COLOR end
+  b.size = {x: 3.9, y: h, z: 3.9}
+  b.position = {x: b.x, y: 0.05 + h / 2, z: b.z}
+  b.color = color
+end
+
+on start()
+  for y in YARDS do
+    let l = {y: y, tiles: [], level: [], gold: [], left: y.cols * y.rows, shiny: false}
+    for r in 0 to y.rows - 1 do
+      for c in 0 to y.cols - 1 do
+        append(l.tiles, block("G " + y.k + "-" + c + "-" + r))
+        append(l.level, 3)
+        append(l.gold, false)
+      end
+    end
+    append(lawns, l)
+  end
+end
+
+func lawn_at(p)
+  for l in lawns do
+    let y = l.y
+    if abs(p.x - y.x) < y.cols * 2 and abs(p.z - y.z) < y.rows * 2 then return l end
+  end
+  return nil
+end
+
+func mow_step(p)
+  let l = lawn_at(p)
+  if l == nil then return end
+  let y = l.y
+  if not unlocked(p, y.k) then
+    if kit_ready(p, "locked", 4) then p.message("🔒 " + y.name + " は まだ。🗺 で かりる", 1.5) end
+    return
+  end
+  let cap = up_val(p, "bag")
+  if (p.bag or 0) >= cap then
+    if kit_ready(p, "full", 3) then p.message("🧺 バッグがいっぱい！ たい肥場（茶色のパッド）へ", 1.5) end
+    return
+  end
+  let reach = up_val(p, "blade")
+  let x0 = y.x - y.cols * 2
+  let z0 = y.z - y.rows * 2
+  let c0 = max(0, floor((p.x - reach - x0) / 4))
+  let c1 = min(y.cols - 1, floor((p.x + reach - x0) / 4))
+  let r0 = max(0, floor((p.z - reach - z0) / 4))
+  let r1 = min(y.rows - 1, floor((p.z + reach - z0) / 4))
+  let cut = 0
+  let pay = 0
+  for r in r0 to r1 do
+    for c in c0 to c1 do
+      let i = r * y.cols + c + 1
+      if l.level[i] > 0 and (p.bag or 0) < cap then
+        let cx = x0 + 2 + c * 4
+        let cz = z0 + 2 + r * 4
+        if (cx - p.x) * (cx - p.x) + (cz - p.z) * (cz - p.z) <= (reach + 1.5) * (reach + 1.5) then
+          let gain = y.pay * l.level[i]
+          if l.gold[i] then
+            gain = gain * GOLD_PAY
+            p.message("✨ 金の草！ 💰" + gain, 1.2)
+            p.sound("magic")
+            kit_quest_progress(p, "gold", 1)
+          end
+          pay = pay + gain
+          p.bag = (p.bag or 0) + l.level[i]
+          l.level[i] = 0
+          l.gold[i] = false
+          l.left = l.left - 1
+          paint_tile(l, i)
+          cut = cut + 1
+        end
+      end
+    end
+  end
+  if cut > 0 then
+    kit_give(p, pay)
+    p.tiles = (p.tiles or 0) + cut
+    kit_quest_progress(p, "mow", cut)
+    if kit_ready(p, "mowsnd", 0.4) then p.sound("pop") end
+    if l.left <= 0 and not l.shiny then
+      l.shiny = true
+      kit_give(p, y.bonus)
+      announce("✨ " + p.name + " が " + y.name + " をピカピカにした！ ボーナス 💰" + y.bonus, 3)
+      particles("confetti", p, {amount: 60})
+      p.sound("win")
+      kit_quest_progress(p, "perfect", 1)
+      kit_badge(p, "yard" + y.k, y.name + " ピカピカ")
+    end
+  end
+end
+
+func regrow()
+  for l in lawns do
+    let n = max(1, floor(len(l.tiles) / 30))
+    for j in 1 to n do
+      let i = random(1, len(l.tiles))
+      if l.level[i] < 3 then
+        if l.level[i] == 0 then l.left = l.left + 1 end
+        l.level[i] = l.level[i] + 1
+        if l.level[i] == 3 and chance(3) then l.gold[i] = true end
+        paint_tile(l, i)
+      end
+    end
+    if l.shiny and l.left > len(l.tiles) * 0.25 then l.shiny = false end
+  end
+end
+
+func compost(p)
+  let n = p.bag or 0
+  if n <= 0 then
+    p.message("🧺 バッグは からっぽ", 1)
+    return
+  end
+  let pay = floor(n * up_val(p, "sell"))
+  kit_give(p, pay)
+  p.bag = 0
+  p.message("🍂 草を たい肥に！ 💰" + pay, 1.5)
+  p.sound("coin")
+  kit_quest_progress(p, "compost", 1)
+end
+
+func hud(p)
+  let l = lawn_at(p)
+  let where = "🗺 庭へ行こう"
+  if l != nil then
+    let total = len(l.tiles)
+    where = l.y.name + "  " + floor((total - l.left) * 100 / total) + "% かれた"
+  end
+  p.ui_text("mw_hud", "🧺 " + (p.bag or 0) + "/" + up_val(p, "bag") + "   " + where, {at: "top", dy: 62, size: 17, bold: true})
+  p.ui_bar("mw_bag", p.bag or 0, up_val(p, "bag"), {at: "top", dy: 86, w: 240, h: 8, color: "#84CC16"})
+end
+
+on tick(dt)
+  mow_clock = mow_clock + dt
+  grow_clock = grow_clock + dt
+  if mow_clock >= 0.2 then
+    mow_clock = 0
+    for p in players() do
+      if not p.is_npc then mow_step(p) end
+    end
+  end
+  if grow_clock >= REGROW_EVERY then
+    grow_clock = 0
+    regrow()
+    for p in players() do hud(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "compost") and kit_ready(p, "compost", 2) then compost(p) end
+end

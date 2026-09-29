@@ -1,0 +1,114 @@
+-- carts.absc — カートとしかけ: 🪝グラップル・ジャンプ台・⚡ブースト・ハンマー
+
+let cart_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func cart_on(p)
+  if p.ride != "kart" then p.ride = "kart" end
+  p.ride_color = p.cart_color or random(CART_COLORS)
+  p.cart_color = p.ride_color
+  p.obby_speed_mult = CART_SPEED
+  obby_apply_perks(p)
+end
+
+-- target に着地するように、放物線でとばす
+func fling_to(p, target, push)
+  let dx = target.x - p.x
+  let dz = target.z - p.z
+  let d = sqrt(dx * dx + dz * dz)
+  let flight = d / (push * 0.9)
+  let g = 18 * (p.gravity or 1)
+  let rise = (target.y - p.y) / flight
+  let up = g * flight / 2 + rise
+  ride_launch(p, yaw_to(p, target), push, up)
+  p.ride_carry.until = time() + flight
+end
+
+-- 前にある 🪝 のとどく所
+func anchor_near(p)
+  for b in blocks("anchor") do
+    let ahead = b.z - p.z
+    if ahead > -1 and ahead < GRAPPLE_RANGE and abs(b.x - p.x) < 8 and abs(b.y - 8.5 - p.y) < 4 then return b end
+  end
+  return nil
+end
+
+func grapple(p)
+  let a = anchor_near(p)
+  if a == nil then return end
+  let land = block("Land " + tag_num(a, "k"))
+  if land == nil then return end
+  fling_to(p, land.position, GRAPPLE_PUSH)
+  p.sound("whoosh")
+  particles("sparkles", a, {amount: 20})
+  p.grapples = (p.grapples or 0) + 1
+  kit_quest_progress(p, "grapple", 1)
+end
+
+func jump_pad(p, b)
+  if not kit_ready(p, "jumppad", 1.5) then return end
+  let land = block("Jump Land " + tag_num(b, "k"))
+  if land == nil then return end
+  fling_to(p, land.position, 16)
+  p.sound("jump")
+  kit_quest_progress(p, "jump", 1)
+end
+
+func boost(p)
+  if not kit_ready(p, "boost", 1) then return end
+  p.obby_speed_mult = CART_SPEED * BOOST
+  obby_apply_perks(p)
+  p.message("⚡ ブースト！", 0.8)
+  p.sound("powerup")
+  kit_later(p, BOOST_SECS, func()
+    p.obby_speed_mult = CART_SPEED
+    obby_apply_perks(p)
+  end)
+end
+
+func hammer_hit(p, b)
+  if not kit_ready(p, "hammer", 1) then return end
+  let push = 9
+  if p.x < b.x then push = -9 end
+  p.velocity = {x: push, y: 6, z: -3}
+  p.sound("hit")
+  p.message("🔨 ドカン！", 0.8)
+end
+
+on start()
+  for b in blocks("hammer") do
+    mv_patrol(b, {x: tag_num(b, "dx") or 6, y: 0, z: 0}, tag_num(b, "secs") or 1.4, 0.2, func(p, blk) hammer_hit(p, blk) end)
+  end
+end
+
+on tick(dt)
+  cart_clock = cart_clock + dt
+  if cart_clock < 0.2 then return end
+  cart_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      if anchor_near(p) != nil then
+        p.ui_button("grapple", "🪝", {at: "bottom_right", dx: -110, dy: -200, w: 92, h: 92, size: 40, bg: "#DB2777", radius: 46})
+      else
+        p.ui_remove("grapple")
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "jumppad") then jump_pad(p, b)
+  elif contains(b.tags, "boost") then boost(p)
+  end
+end
+
+on button(p, id)
+  if id == "grapple" then grapple(p) end
+end

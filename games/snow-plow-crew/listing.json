@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 593,
+  "bytes" : 310670,
+  "cover" : "games\/snow-plow-crew\/cover-7fcb03c2.png",
+  "id" : "snow-plow-crew",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "games\/snow-plow-crew\/data.absc",
+    "games\/snow-plow-crew\/jobs.absc",
+    "games\/snow-plow-crew\/plow.absc",
+    "games\/snow-plow-crew\/main.absc"
+  ],
+  "shots" : [
+    "games\/snow-plow-crew\/shot1-acbf58b7.png",
+    "games\/snow-plow-crew\/shot2-0ef47043.png"
+  ],
+  "summary" : "雪の町の除雪車チーム！ 道や駐車場の雪をかいて、お仕事の時間内にピカピカに。ふぶきが来たらまた出動。こおった道には🧂塩をまこう。ブレードやタンクを強くして、空港の滑走路まで！",
+  "tags" : [
+    "vehicles",
+    "simulator",
+    "winter"
+  ],
+  "title" : "Snow Plow Crew",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/snow-plow-crew\/world.ablox"
+}

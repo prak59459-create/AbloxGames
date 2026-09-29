@@ -1,0 +1,26 @@
+-- data.absc — Lawn Mower Kings の表
+
+-- 庭: x, z はまん中、cols×rows は 4m のタイルの数（地図と同じ）
+let YARDS = [
+  {k: 1, name: "🏡 となりの庭", x: -40, z: 0, cols: 6, rows: 6, price: 0, pay: 1, bonus: 60},
+  {k: 2, name: "🌳 公園", x: 40, z: 0, cols: 8, rows: 8, price: 300, pay: 2, bonus: 150},
+  {k: 3, name: "🏫 学校の校庭", x: 0, z: 56, cols: 8, rows: 10, price: 1200, pay: 3, bonus: 350},
+  {k: 4, name: "⚽ サッカー場", x: -66, z: 78, cols: 10, rows: 12, price: 4000, pay: 5, bonus: 800},
+  {k: 5, name: "⛳ ゴルフ場", x: 66, z: 86, cols: 12, rows: 12, price: 12000, pay: 8, bonus: 2000}
+]
+
+-- 芝かり機の改造（レベル0〜5）: vals[レベル+1]
+let UPGRADES = [
+  {key: "blade", name: "🔪 刃（かれるはば）", vals: [2.2, 3.2, 4.4, 5.6, 7.0, 8.5], unit: "m"},
+  {key: "engine", name: "🚜 エンジン（速さ）", vals: [1.0, 1.25, 1.5, 1.8, 2.1, 2.5], unit: "ばい"},
+  {key: "bag", name: "🧺 バッグ（草が入る量）", vals: [40, 90, 180, 350, 700, 1400], unit: ""},
+  {key: "sell", name: "💰 たい肥のねだん", vals: [1, 1.5, 2, 3, 4, 6], unit: "ばい"}
+]
+let UP_PRICES = [120, 400, 1200, 3500, 9000]
+
+-- 草の高さ 0（かった）〜 3（ぼうぼう）
+let GRASS_COLOR = ["#D9F99D", "#4ADE80", "#16A34A", "#166534"]
+let GRASS_H = [0.08, 0.25, 0.42, 0.6]
+let GOLD_COLOR = "#FACC15"
+let GOLD_PAY = 25          -- 金の草はふつうの何ばい
+let REGROW_EVERY = 4       -- 秒

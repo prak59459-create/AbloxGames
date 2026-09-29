@@ -1,0 +1,59 @@
+-- Snow Plow Crew — 除雪車チーム
+-- 除雪車で道の雪の上を走ると、ブレードのまわりの雪がかける。お金が入って、雪がたまる → 雪すて場へ。
+-- 📋 お仕事を受けて 時間内に 95% きれいにするとボーナス。ふぶきが来たら また雪がつもる。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  除雪車の見た目と速さ
+--   data.absc   場所5つ・改造・雪
+--   plow.absc   雪かき・氷と塩・雪すて場・ふぶき
+--   jobs.absc   お仕事・ガレージ
+--   main.absc   このファイル
+
+kit_setup("Snow Plow Crew", "雪の町を、除雪車チームで守れ！", [
+  "🚚 白い雪の上を走ると 雪がかける（深い雪ほど お金になる）",
+  "🧺 雪がいっぱいになったら 茶色のパッド（雪すて場）へ",
+  "🧊 かいたあとが こおることがある。🧂 ボタンで塩をまく（水色のパッドで補充）",
+  "📋 青いパッドで お仕事。時間内に 95% きれいでボーナス。みんなで同じお仕事もOK",
+  "🔧 オレンジのパッドで ブレード・エンジン・タンクを強く",
+  "❄️ 2分ごとに ふぶき。また出動！"
+])
+kit_keep(["ups", "hopper", "salt", "paint", "plowed", "jobs_done"])
+
+kit_quest("plow", "雪を50マス かく", 50, 120)
+kit_quest("dump", "雪すて場に すてる", 1, 50)
+kit_quest("salt", "氷を5こ とかす", 5, 100)
+kit_quest("job", "お仕事をやりとげる", 1, 250)
+kit_quest("upgrade", "改造を3回", 3, 200)
+
+kit_on_load = func(p) truck_on(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.ups = {}
+  p.hopper = 0
+  p.salt = 20
+  p.camera_distance = 11
+  truck_on(p)
+  p.ui_button("jobs", "📋 お仕事", {at: "right", dy: -110, w: 140, h: 46, size: 15, bg: "#0369A1"})
+  p.ui_button("garage", "🔧 ガレージ", {at: "right", dy: -58, w: 140, h: 46, size: 15, bg: "#C2410C"})
+  p.ui_button("spread", "🧂 塩", {at: "bottom_right", dx: -40, dy: -220, w: 84, h: 84, size: 22, bg: "#0EA5E9", radius: 42})
+end
+
+on start()
+  world.music = "calm"
+  world.weather = "snow"
+  every(12, func() kit_leaderboard("❄️ かいた雪") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.plowed or 0) != p.score then p.score = p.plowed or 0 end
+  end
+end

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 640,
-  "bytes" : 359366,
+  "bytes" : 358214,
   "cover" : "games\/dusty-road-trip\/cover-3784e7af.png",
   "id" : "dusty-road-trip",
   "maxPlayers" : 8,
@@ -15,7 +15,6 @@
     "games\/dusty-road-trip\/loot.absc",
     "games\/dusty-road-trip\/shop.absc",
     "games\/dusty-road-trip\/trip.absc",
-    "games\/dusty-road-trip\/zz_test.absc",
     "games\/dusty-road-trip\/main.absc"
   ],
   "shots" : [

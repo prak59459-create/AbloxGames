@@ -144,6 +144,9 @@ func fly_step(p, dt)
     grav = f.glide
   end
   if abs(p.gravity - grav) > 0.001 then p.gravity = grav end
+  -- スティックをたおしたときの速さも同じにしておく（空中でスティックが速さを引っぱらないように）
+  let ps = max(0.3, spd / 9)
+  if abs(p.speed - ps) > 0.05 then p.speed = ps end
   let dir = forward(p.yaw)
   let v = p.velocity
   let vy = v.y

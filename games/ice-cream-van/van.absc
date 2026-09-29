@@ -1,0 +1,201 @@
+-- van.absc — アイスクリームカー: 場所・チャイム・れいとうこ（在庫）・工場（仕入れ・改造・新しい味）
+
+let zone_demand = [1, 1, 1, 1]
+let van_clock = 0
+
+func up(p, key)
+  return (p.ups or {})[key] or 0
+end
+
+func up_per(key)
+  for u in UPGRADES do
+    if u.key == key then return u.per end
+  end
+  return 0
+end
+
+func freezer(p)
+  return BASE_FREEZER + up(p, "u_freezer") * up_per("u_freezer")
+end
+
+func stock_total(p)
+  let n = 0
+  for k in keys(p.stock or {}) do n = n + p.stock[k] end
+  return n
+end
+
+func flavor(id)
+  for f in FLAVORS do
+    if f.id == id then return f end
+  end
+  return FLAVORS[1]
+end
+
+func topping(id)
+  for t in TOPPINGS do
+    if t.id == id then return t end
+  end
+  return TOPPINGS[1]
+end
+
+func unlocked(p, id)
+  return contains(p.flavors or [], id)
+end
+
+-- いまいる場所（ZONES の番号。どこでもなければ nil）
+func zone_of(p)
+  for z in ZONES do
+    let b = block("Zone " + z.n)
+    if b != nil and distance(p, b) < ZONE_RADIUS then return z.n end
+  end
+  return nil
+end
+
+func drive_on(p)
+  ride_set(p, "truck", p.paint or "#F9A8D4", BASE_SPEED * (1 + up(p, "u_engine") * up_per("u_engine")))
+end
+
+func chime(p)
+  if not kit_ready(p, "chime", 4) then return end
+  let k = zone_of(p)
+  if k == nil then
+    p.message("🔔 ここには だれもいない… 公園・ビーチ・学校・住宅街へ行こう", 2)
+    return
+  end
+  if stock_total(p) <= 0 then
+    p.message("🧊 アイスがない！ 工場（水色のパッド）で仕入れよう", 2)
+    return
+  end
+  let crowd = BASE_CROWD + up(p, "u_chime") * up_per("u_chime")
+  let n = max(1, floor(crowd * (0.3 + 0.7 * zone_demand[k])) - len(queue_of(p)))
+  sound("bell", {pitch: 1.3})
+  p.message("🔔 ♪ ピロリロリ〜 " + ZONES[k].name + " から お客さんが来るよ", 1.5)
+  p.chime_at = p.position
+  spawn_customers(p, k, n)
+  kit_quest_progress(p, "chime", 1)
+end
+
+func restock(p)
+  let cap = freezer(p)
+  let list = filter(FLAVORS, func(f) return unlocked(p, f.id) end)
+  let each = floor(cap / len(list))
+  let added = 0
+  if p.stock == nil then p.stock = {} end
+  for f in list do
+    let have = p.stock[f.id] or 0
+    if have < each then
+      added = added + (each - have)
+    end
+  end
+  if added <= 0 then
+    p.message("🧊 もういっぱい！", 1)
+    return
+  end
+  let cost = added * SCOOP_COST
+  if not kit_pay(p, cost) then return end
+  for f in list do p.stock[f.id] = max(p.stock[f.id] or 0, each) end
+  p.message("🧊 " + added + "すくい 仕入れた（💰" + cost + "）", 1.5)
+  p.sound("powerup")
+  kit_quest_progress(p, "restock", 1)
+end
+
+func factory(p)
+  let h = 190 + len(UPGRADES) * 46 + 50
+  p.ui_remove("fx_box")
+  p.ui_panel("fx_box", {at: "center", w: 640, h: h, bg: "#831843F2", radius: 22, layer: 30})
+  p.ui_text("fx_t", "🏭 アイス工場（💰 " + kit_short(kit_money(p)) + "）", {parent: "fx_box", y: 26 / h, size: 19, bold: true, color: "#FBCFE8"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = up(p, u.key)
+    let label = u.name + "  Lv." + lv
+    let bg = "#BE185D"
+    if lv >= len(UP_PRICES) then
+      label = label + "（最大）"
+      bg = "#44403C"
+    else
+      label = label + " → " + (lv + 1) + "   💰" + kit_short(UP_PRICES[lv + 1])
+    end
+    p.ui_button("upbuy_" + u.key, label, {parent: "fx_box", y: (30 + i * 46) / h, w: 600, h: 40, size: 14, bg: bg})
+  end
+  -- 新しい味・トッピング
+  let y = 30 + (i + 1) * 46
+  let next = find(FLAVORS, func(f) return not unlocked(p, f.id) end)
+  if next != nil then
+    p.ui_button("newflavor", "🍨 新しい味: " + next.icon + " " + next.name + "  💰" + kit_short(next.price), {parent: "fx_box", x: 0.27, y: y / h, w: 300, h: 40,
+                size: 14, bg: "#7C3AED"})
+  end
+  let nt = find(TOPPINGS, func(t) return not contains(p.tops or [], t.id) end)
+  if nt != nil then
+    p.ui_button("newtop", "✨ トッピング: " + nt.icon + " " + nt.name + "  💰" + kit_short(nt.price), {parent: "fx_box", x: 0.75, y: y / h, w: 290, h: 40,
+                size: 14, bg: "#7C3AED"})
+  end
+  p.ui_button("fx_paint", "🎨 ぬる（💰40）", {parent: "fx_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("fx_close", "閉じる", {parent: "fx_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_up(p, key)
+  let lv = up(p, key)
+  if lv >= len(UP_PRICES) or not kit_pay(p, UP_PRICES[lv + 1]) then return end
+  if p.ups == nil then p.ups = {} end
+  p.ups[key] = lv + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "upgrade", 1)
+  drive_on(p)
+  factory(p)
+end
+
+func buy_flavor(p)
+  let next = find(FLAVORS, func(f) return not unlocked(p, f.id) end)
+  if next == nil or not kit_pay(p, next.price) then return end
+  append(p.flavors, next.id)
+  p.message("🍨 新しい味 " + next.icon + " " + next.name + "！ 仕入れて売ろう", 2)
+  p.sound("win")
+  kit_badge(p, "flavor_" + next.id, next.name)
+  factory(p)
+end
+
+func buy_topping(p)
+  let nt = find(TOPPINGS, func(t) return not contains(p.tops or [], t.id) end)
+  if nt == nil or not kit_pay(p, nt.price) then return end
+  append(p.tops, nt.id)
+  p.sound("win")
+  factory(p)
+end
+
+func van_hud(p)
+  let k = zone_of(p)
+  let where = "🚐 移動中"
+  if k != nil then where = ZONES[k].name + "（人気 " + floor(zone_demand[k] * 100) + "%）" end
+  p.ui_text("ic_hud", where + "   🧊 " + stock_total(p) + "/" + freezer(p) + "   👥 " + len(queue_of(p)), {at: "top", dy: 62, size: 17, bold: true})
+end
+
+on tick(dt)
+  van_clock = van_clock + dt
+  if van_clock < 1 then return end
+  van_clock = 0
+  for k in 1 to len(zone_demand) do zone_demand[k] = min(1, zone_demand[k] + 0.01) end
+  for p in players() do van_hud(p) end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "restock") and kit_ready(p, "restock", 3) then restock(p)
+  elif contains(b.tags, "upgrades") and kit_ready(p, "factory", 3) then factory(p)
+  end
+end
+
+on button(p, id)
+  if id == "chime" then chime(p)
+  elif id == "factory" then factory(p)
+  elif id == "fx_close" then p.ui_remove("fx_box")
+  elif id == "fx_paint" then
+    if kit_pay(p, 40) then
+      p.paint = random_color()
+      p.ride_color = p.paint
+    end
+  elif starts_with(id, "upbuy_") then buy_up(p, replace(id, "upbuy_", ""))
+  elif id == "newflavor" then buy_flavor(p)
+  elif id == "newtop" then buy_topping(p)
+  end
+end

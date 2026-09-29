@@ -1,0 +1,129 @@
+-- duo.absc — ふたり組: スタートの ピンクと水色のパッドに ひとりずつ立つと ロープでつながる。
+-- 落ちても あいぼうの所へ引き上げてもらえる。あいぼうが先にいたら 🪢 で追いつける。いっしょにゴールでボーナス。
+
+let duo_clock = 0
+
+func buddy_of(p)
+  if p.buddy == nil then return nil end
+  for q in players() do
+    if q.id == p.buddy then return q end
+  end
+  return nil
+end
+
+func on_duo_pad(p, side)
+  let b = block("Duo " + upper(side))
+  return b != nil and abs(p.x - b.x) < 1.6 and abs(p.z - b.z) < 1.6
+end
+
+func pair(a, b)
+  a.buddy = b.id
+  b.buddy = a.id
+  for p in [a, b] do
+    let q = buddy_of(p)
+    p.message("🪢 " + q.name + " とロープでつながった！ 落ちても引き上げてもらえるよ", 2.5)
+    p.waypoint(q, "🪢 " + q.name, "pink")
+    p.ui_button("unpair", "✂️ ロープを切る", {at: "right", dy: 98, w: 150, h: 40, size: 13, bg: "#57534E"})
+    kit_quest_progress(p, "pair", 1)
+  end
+  sound("magic")
+  particles("hearts", a, {amount: 20})
+  particles("hearts", b, {amount: 20})
+end
+
+func unpair(p)
+  let q = buddy_of(p)
+  p.buddy = nil
+  p.waypoint(nil)
+  p.ui_remove("unpair")
+  p.ui_remove("catchup")
+  if q != nil then
+    q.buddy = nil
+    q.waypoint(nil)
+    q.ui_remove("unpair")
+    q.ui_remove("catchup")
+    q.message("✂️ ロープが切れた", 1.5)
+  end
+end
+
+func try_pairing()
+  let a = find(players(), func(p) return p.buddy == nil and not p.is_npc and on_duo_pad(p, "a") end)
+  let b = find(players(), func(p) return p.buddy == nil and not p.is_npc and on_duo_pad(p, "b") end)
+  if a != nil and b != nil and a.id != b.id then pair(a, b) end
+end
+
+-- 落ちている あいぼうを 引き上げる
+func rescue(p)
+  let q = buddy_of(p)
+  if q == nil or not q.alive or q.y < RESCUE_Y + 3 then return false end
+  if time() - (p.rescued_at or 0) < RESCUE_WAIT then return false end
+  p.rescued_at = time()
+  p.ride_carry = nil
+  p.velocity = {x: 0, y: 0, z: 0}
+  p.teleport(q.position + {x: 0, y: 1, z: -2})
+  p.message("🪢 " + q.name + " が引き上げてくれた！", 1.5)
+  q.message("🪢 " + p.name + " を引き上げた！ 💰15", 1.5)
+  kit_give(q, 15)
+  q.rescues = (q.rescues or 0) + 1
+  kit_quest_progress(q, "rescue", 1)
+  p.sound("whoosh")
+  return true
+end
+
+func catch_up(p)
+  let q = buddy_of(p)
+  if q == nil or (q.stage or 0) <= (p.stage or 0) then return end
+  let n = q.stage
+  obby_reach(p, n)
+  let b = obby_block(n)
+  if b != nil then p.teleport(b) end
+  p.message("🪢 " + q.name + " のところへ！", 1.2)
+end
+
+-- ゴール: あいぼうも30秒いないにゴールしていたらボーナス
+func duo_finish(p, secs)
+  p.finished_at = time()
+  let q = buddy_of(p)
+  if q != nil and q.finished_at != nil and time() - q.finished_at < 30 then
+    for x in [p, q] do
+      kit_give(x, DUO_BONUS)
+      x.message("🤝 ふたりでゴール！ デュオボーナス 💰" + DUO_BONUS, 2.5)
+      x.duo_wins = (x.duo_wins or 0) + 1
+      kit_quest_progress(x, "duo", 1)
+      kit_badge(x, "duo_finish", "ふたりでゴール")
+    end
+    announce("🤝 " + p.name + " と " + q.name + " が ふたりでゴール！", 3)
+  end
+end
+
+on tick(dt)
+  duo_clock = duo_clock + dt
+  if duo_clock < 0.2 then return end
+  duo_clock = 0
+  try_pairing()
+  for p in players() do
+    if p.buddy != nil then
+      let q = buddy_of(p)
+      if q == nil then
+        unpair(p)
+      else
+        if p.alive and p.y < RESCUE_Y then rescue(p) end
+        if (q.stage or 0) > (p.stage or 0) + 1 then
+          p.ui_button("catchup", "🪢 追いつく", {at: "right", dy: 46, w: 150, h: 46, size: 15, bg: "#DB2777"})
+        else
+          p.ui_remove("catchup")
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "unpair" then unpair(p)
+  elif id == "catchup" then catch_up(p)
+  end
+end
+
+on leave(p)
+  if p.buddy != nil then unpair(p) end
+end

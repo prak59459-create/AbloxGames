@@ -1,0 +1,155 @@
+-- company.absc — タクシー会社: 🏢 事務所を大きくして運転手をやとう（20秒ごとにお金）。🚗 ガレージでタクシーを買う。
+
+let company_clock = 0
+let crew_taxis = []
+
+func drive_on(p)
+  let t = taxi(p)
+  ride_set(p, t.ride, p.paint or "#FACC15", t.speed)
+end
+
+func office(p)
+  let lv = p.office or 1
+  let h = 300
+  p.ui_remove("of_box")
+  p.ui_panel("of_box", {at: "center", w: 600, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("of_t", "🏢 タクシー会社（💰 " + kit_short(kit_money(p)) + "）", {parent: "of_box", y: 0.09, size: 19, bold: true, color: "#FDE68A"})
+  p.ui_text("of_1", "事務所 Lv." + lv + "   運転手 " + (p.drivers or 0) + "/" + OFFICE_DRIVERS[lv] + "人   20秒ごとに 💰" + (p.drivers or 0) * DRIVER_PAY * lv,
+            {parent: "of_box", y: 0.24, size: 16})
+  p.ui_text("of_2", "⭐ 評価 " + rating(p) + "   運んだ " + (p.rides or 0) + "回", {parent: "of_box", y: 0.36, size: 15, color: "#FEF3C7"})
+  if (p.drivers or 0) < OFFICE_DRIVERS[lv] then
+    p.ui_button("hire", "🧑‍✈️ 運転手をやとう  💰" + hire_price(p), {parent: "of_box", y: 0.54, w: 440, h: 44, size: 16, bg: "#B45309"})
+  else
+    p.ui_text("of_full", "運転手がいっぱい。事務所を大きくしよう", {parent: "of_box", y: 0.54, size: 15})
+  end
+  if lv < len(OFFICE_PRICES) then
+    p.ui_button("office_up", "🏗 事務所を大きく → Lv." + (lv + 1) + "  💰" + kit_short(OFFICE_PRICES[lv + 1]), {parent: "of_box", y: 0.72, w: 440, h: 44, size: 16,
+                bg: "#7C2D12"})
+  end
+  p.ui_button("of_close", "閉じる", {parent: "of_box", y: 0.9, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func hire_price(p)
+  return 300 * ((p.drivers or 0) + 1)
+end
+
+func hire(p)
+  let lv = p.office or 1
+  if (p.drivers or 0) >= OFFICE_DRIVERS[lv] or not kit_pay(p, hire_price(p)) then return end
+  p.drivers = (p.drivers or 0) + 1
+  p.sound("win")
+  kit_quest_progress(p, "hire", 1)
+  show_crew()
+  office(p)
+end
+
+func office_up(p)
+  let lv = p.office or 1
+  if lv >= len(OFFICE_PRICES) or not kit_pay(p, OFFICE_PRICES[lv + 1]) then return end
+  p.office = lv + 1
+  p.sound("powerup")
+  kit_badge(p, "office" + p.office, "事務所 Lv." + p.office)
+  office(p)
+end
+
+func garage(p)
+  let h = 150 + len(TAXIS) * 48
+  p.ui_remove("gr_box")
+  p.ui_panel("gr_box", {at: "center", w: 620, h: h, bg: "#14532DF2", radius: 22, layer: 30})
+  p.ui_text("gr_t", "🚗 ガレージ（💰 " + kit_short(kit_money(p)) + "）", {parent: "gr_box", y: 26 / h, size: 19, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for t in TAXIS do
+    i = i + 1
+    let label = t.name + "  💰" + kit_short(t.price) + "  運賃 ×" + t.mult
+    if t.vip then label = label + "  🤵VIP OK" end
+    let bg = "#15803D"
+    if contains(p.taxis or [], t.id) then
+      label = t.name + " にのる  運賃 ×" + t.mult
+      bg = "#0F766E"
+    end
+    if p.taxi == t.id then
+      label = "✅ " + t.name
+      bg = "#374151"
+    end
+    p.ui_button("taxi_" + t.id, label, {parent: "gr_box", y: (30 + i * 48) / h, w: 580, h: 40, size: 15, bg: bg})
+  end
+  p.ui_button("gr_paint", "🎨 ぬる（💰40）", {parent: "gr_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("gr_close", "閉じる", {parent: "gr_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_taxi(p, id)
+  let t = find(TAXIS, func(x) return x.id == id end)
+  if t == nil then return end
+  if not contains(p.taxis or [], id) then
+    if not kit_pay(p, t.price) then return end
+    append(p.taxis, id)
+    kit_quest_progress(p, "taxi", 1)
+    p.sound("win")
+  end
+  p.taxi = id
+  drive_on(p)
+  garage(p)
+end
+
+-- 会社のタクシー（みんなの運転手の合計まで、町を走る）
+func show_crew()
+  let total = 0
+  for p in players() do total = total + (p.drivers or 0) end
+  let n = min(len(crew_taxis), total)
+  for i in 1 to len(crew_taxis) do
+    let b = crew_taxis[i]
+    let shown = i <= n
+    if b.visible != shown then b.visible = shown end
+  end
+end
+
+on start()
+  let route = [{x: -60, y: 0.9, z: -60}, {x: 60, y: 0.9, z: -60}, {x: 60, y: 0.9, z: 60}, {x: -60, y: 0.9, z: 60}]
+  let i = 0
+  for b in blocks("company_taxi") do
+    i = i + 1
+    append(crew_taxis, b)
+    b.visible = false
+    let pts = []
+    for j in 0 to 3 do append(pts, route[(i + j) % 4 + 1]) end
+    mv_path(b, pts, 8, true, nil)
+  end
+end
+
+on tick(dt)
+  company_clock = company_clock + dt
+  if company_clock < 20 then return end
+  company_clock = 0
+  for p in players() do
+    let n = p.drivers or 0
+    if n > 0 then
+      let pay = n * DRIVER_PAY * (p.office or 1)
+      kit_give(p, pay)
+      p.message("🧑‍✈️ 運転手たちが かせいできた 💰" + pay, 1.5)
+    end
+  end
+  show_crew()
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "hq") and kit_ready(p, "hq", 3) then office(p)
+  elif contains(b.tags, "garage") and kit_ready(p, "garage", 3) then garage(p)
+  end
+end
+
+on button(p, id)
+  if id == "office" then office(p)
+  elif id == "of_close" then p.ui_remove("of_box")
+  elif id == "hire" then hire(p)
+  elif id == "office_up" then office_up(p)
+  elif id == "garage" then garage(p)
+  elif id == "gr_close" then p.ui_remove("gr_box")
+  elif id == "gr_paint" then
+    if kit_pay(p, 40) then
+      p.paint = random_color()
+      drive_on(p)
+    end
+  elif starts_with(id, "taxi_") then pick_taxi(p, replace(id, "taxi_", ""))
+  end
+end

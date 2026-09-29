@@ -1,0 +1,32 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 234,
+  "bytes" : 156242,
+  "cover" : "games\/grapple-cart-duo\/cover-3e77496b.png",
+  "id" : "grapple-cart-duo",
+  "maxPlayers" : 10,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "lib\/kit_ride.absc",
+    "lib\/kit_move.absc",
+    "games\/grapple-cart-duo\/data.absc",
+    "games\/grapple-cart-duo\/carts.absc",
+    "games\/grapple-cart-duo\/duo.absc",
+    "games\/grapple-cart-duo\/main.absc"
+  ],
+  "shots" : [
+    "games\/grapple-cart-duo\/shot1-65aa4122.png",
+    "games\/grapple-cart-duo\/shot2-40d0467e.png"
+  ],
+  "summary" : "カートでオビー！ すき間は🪝グラップルでびゅーん、ジャンプ台でひとっとび。ふたり組になると、落ちてもロープで引き上げてもらえる。ハンマーをよけて20ステージをゴールまで！",
+  "tags" : [
+    "obby",
+    "cars",
+    "coop"
+  ],
+  "title" : "Grapple Cart Duo",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/grapple-cart-duo\/world.ablox"
+}

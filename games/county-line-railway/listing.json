@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 499,
+  "bytes" : 280216,
+  "cover" : "games\/county-line-railway\/cover-6ebb9054.png",
+  "id" : "county-line-railway",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "lib\/kit_move.absc",
+    "games\/county-line-railway\/data.absc",
+    "games\/county-line-railway\/drive.absc",
+    "games\/county-line-railway\/line.absc",
+    "games\/county-line-railway\/main.absc"
+  ],
+  "shots" : [
+    "games\/county-line-railway\/shot1-b05acb39.png",
+    "games\/county-line-railway\/shot2-181cca2b.png"
+  ],
+  "summary" : "電車の運転士になろう！ ノッチで加速とブレーキ、信号を守って、6つの駅にぴったり止まる。ドアをあけてお客さんをのせ、時間どおりに次の駅へ。急行・特急にも乗れるようになる。",
+  "tags" : [
+    "trains",
+    "simulator",
+    "driving"
+  ],
+  "title" : "County Line Railway",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/county-line-railway\/world.ablox"
+}

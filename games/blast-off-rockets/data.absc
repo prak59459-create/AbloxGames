@@ -1,0 +1,30 @@
+-- data.absc — Blast Off Rockets の表
+
+-- 部品（レベル0〜5）: vals[レベル+1]
+let PARTS = [
+  {key: "engine", name: "🔥 エンジン", what: "上がる速さ", unit: "m/秒", vals: [15, 22, 30, 40, 50, 62]},
+  {key: "tank", name: "🛢 タンク", what: "燃料が入る量", unit: "", vals: [60, 100, 160, 240, 330, 440]},
+  {key: "pump", name: "⛽ ポンプ", what: "1タップの燃料", unit: "", vals: [5, 8, 12, 18, 26, 40]},
+  {key: "boost", name: "🚀 ブースター", what: "🔥ボタンの回数", unit: "回", vals: [0, 1, 2, 3, 4, 5]},
+  {key: "nose", name: "🛡 ノーズ", what: "ぶつかっても へいきな回数", unit: "回", vals: [0, 1, 2, 3, 4, 5]},
+  {key: "fins", name: "🪽 フィン", what: "よこへ動く速さ", unit: "m/秒", vals: [4, 6, 8, 10, 12, 14]}
+]
+let PART_PRICES = [80, 300, 1000, 3000, 8000]
+
+let BURN = 10              -- 1秒で使う燃料
+let PAY_PER_M = 0.4        -- 1m で 💰（×生まれかわりボーナス）
+let CRYSTAL_FUEL = 15
+let CRYSTAL_BACK = 20      -- 秒
+let MOON = 2000
+let MOON_BONUS = 3000
+let REBIRTH_BONUS = 0.5    -- 生まれかわるたびに お金 +50%
+
+-- 高さの目じるし
+let MILESTONES = [
+  {h: 100, name: "☁️ 雲の上"},
+  {h: 300, name: "🦅 鳥よりも高く"},
+  {h: 600, name: "✈️ ジェット機より高く"},
+  {h: 1000, name: "🛰 宇宙ステーション"},
+  {h: 1500, name: "🌌 宇宙"},
+  {h: 2000, name: "🌙 月"}
+]

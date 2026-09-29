@@ -1,0 +1,134 @@
+-- County Line Railway — 電車の運転士
+-- 車庫の緑のパッドで電車に乗る。⏫⏬ のノッチで速さ、スティックを前にたおして走る。
+-- 信号を守って、駅の白いぼうの所に止まり、🚪 でドアをあける。お客さんをはこぶとお金とXP。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  電車の見た目
+--   ../../lib/kit_move.absc  コンピューターのふつう列車
+--   data.absc   線路・駅・信号・電車
+--   line.absc   線路の位置・区間と信号・ふつう列車
+--   drive.absc  運転・ドア・お客さん
+--   main.absc   このファイル
+
+kit_setup("County Line Railway", "きみは運転士。6つの駅を時間どおりに！", [
+  "🚃 車庫の緑のパッドか 🚃 ボタンで電車に乗る",
+  "⏫ でノッチを上げて、スティックを前にたおして走る。⏬ でブレーキ、🛑 は非常ブレーキ",
+  "🚦 赤信号の先には ほかの電車がいる。赤では止まって まとう",
+  "⚪ 駅の白いぼうの所に止まって 🚪 → お客さんがおりて、のってくる",
+  "🎯 ぴったり止まる・⏱ 時間どおり で お金が ふえる",
+  "🚄 XPがたまると 快速・特急に乗れる（オレンジのパッド）"
+])
+kit_keep(["train", "trains", "paint", "rxp", "carried", "stops", "earned", "spads"])
+
+kit_quest("stop", "駅に3回止まる", 3, 80)
+kit_quest("pax", "お客さんを50人はこぶ", 50, 250)
+kit_quest("exact", "ぴったり停車を3回", 3, 200)
+kit_quest("ontime", "時間どおりに3回", 3, 200)
+kit_quest("train", "電車を買う", 1, 150)
+
+let RANK_NAMES = [{xp: 0, name: "🎓 見ならい"}, {xp: 400, name: "🚃 運転士"}, {xp: 1500, name: "🚄 ベテラン運転士"}, {xp: 4000, name: "👑 名人"}]
+
+func rank_name(p)
+  let name = RANK_NAMES[1].name
+  for r in RANK_NAMES do
+    if (p.rxp or 0) >= r.xp then name = r.name end
+  end
+  return name
+end
+
+func add_xp(p, n)
+  let before = rank_name(p)
+  p.rxp = (p.rxp or 0) + n
+  if rank_name(p) != before then
+    announce("🎖 " + p.name + " が " + rank_name(p) + " になった！", 3)
+    kit_badge(p, "rank_" + rank_name(p), rank_name(p))
+    p.sound("win")
+  end
+end
+
+func train_shop(p)
+  if p.tr != nil then return end
+  let h = 150 + len(TRAINS) * 50
+  p.ui_remove("ts_box")
+  p.ui_panel("ts_box", {at: "center", w: 620, h: h, bg: "#14532DF2", radius: 22, layer: 30})
+  p.ui_text("ts_t", "🚉 車庫（💰 " + kit_short(kit_money(p)) + "  " + rank_name(p) + " " + (p.rxp or 0) + "XP）", {parent: "ts_box", y: 26 / h, size: 18,
+            bold: true, color: "#BBF7D0"})
+  let i = 0
+  for t in TRAINS do
+    i = i + 1
+    let label = t.name + "  💰" + kit_short(t.price) + "  👥" + t.cap
+    let bg = "#15803D"
+    if (p.rxp or 0) < t.xp then
+      label = "🔒 " + t.name + "（" + t.xp + "XP から）"
+      bg = "#44403C"
+    elif contains(p.trains or [], t.id) then
+      label = t.name + " にする  👥" + t.cap
+      bg = "#0F766E"
+    end
+    if p.train == t.id then
+      label = "✅ " + t.name
+      bg = "#374151"
+    end
+    p.ui_button("tbuy_" + t.id, label, {parent: "ts_box", y: (30 + i * 50) / h, w: 580, h: 42, size: 15, bg: bg})
+  end
+  p.ui_button("ts_paint", "🎨 ぬる（💰40）", {parent: "ts_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("ts_close", "閉じる", {parent: "ts_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_train(p, id)
+  let t = train_info(id)
+  if (p.rxp or 0) < t.xp then return end
+  if not contains(p.trains or [], id) then
+    if not kit_pay(p, t.price) then return end
+    append(p.trains, id)
+    kit_quest_progress(p, "train", 1)
+    p.sound("win")
+  end
+  p.train = id
+  p.paint = nil
+  train_shop(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.trains = ["local"]
+  p.train = "local"
+  p.camera_distance = 12
+  p.ui_button("drive", "🚃 運転する", {at: "right", dy: -110, w: 140, h: 46, size: 15, bg: "#15803D"})
+  p.ui_button("shop", "🚉 車庫", {at: "right", dy: -58, w: 140, h: 46, size: 15, bg: "#B45309"})
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("👥 はこんだ人") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.carried or 0) != p.score then p.score = p.carried or 0 end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc or p.tr != nil then return end
+  if contains(b.tags, "depot") and kit_ready(p, "depot", 3) then board_train(p)
+  elif contains(b.tags, "trains") and kit_ready(p, "trains", 3) then train_shop(p)
+  end
+end
+
+on button(p, id)
+  if id == "drive" then board_train(p)
+  elif id == "shop" then train_shop(p)
+  elif id == "ts_close" then p.ui_remove("ts_box")
+  elif id == "ts_paint" then
+    if kit_pay(p, 40) then p.paint = random_color() end
+  elif starts_with(id, "tbuy_") then pick_train(p, replace(id, "tbuy_", ""))
+  end
+end

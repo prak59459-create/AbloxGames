@@ -1,0 +1,66 @@
+-- Blast Off Rockets — ロケット発射シミュレーター
+-- ⛽ をタップ（オレンジのパッドでも）・💎 青いクリスタルで燃料をためて、🚀 で発射。燃料がつきるまで まっすぐ上へ。
+-- 高いほど お金。雲 → 宇宙ステーション（1000m）→ 月（2000m）。月に着いたら 研究所で生まれかわって お金 +50%。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  とぶときの見た目
+--   ../../lib/kit_move.absc  空のじゃまもの
+--   data.absc    部品6つ・目じるし・ねだん
+--   lab.absc     発射台・研究所・ロケットの見た目・生まれかわり
+--   flight.absc  燃料・発射・空・コイン・じゃまもの・月
+--   main.absc    このファイル
+
+kit_setup("Blast Off Rockets", "燃料をためて、宇宙へ、月へ！", [
+  "⛽ ボタン（オレンジのパッド）をタップして燃料をためる。💎 青いクリスタルも燃料",
+  "🚀 で発射！ 燃料がつきるまで 上へ。スティックで よこに動ける",
+  "💰 空のコインをひろう。🐦✈️🛰☄️ にぶつかると燃料がもれる",
+  "🔥 ブースターで加速。🛡 ノーズで ぶつかってもへいき",
+  "🔬 青いパッドの研究所で 部品を強く",
+  "🌙 2000m 上の月に着いたら 生まれかわって お金 +50%"
+])
+kit_keep(["parts", "fuel", "best_h", "moons", "rebirths", "launches", "total_h", "paint"])
+
+kit_quest("pump", "⛽を10回タップ", 10, 40)
+kit_quest("launch", "3回 発射する", 3, 100)
+kit_quest("coin", "空のコインを10こ", 10, 150)
+kit_quest("part", "部品を5回 強くする", 5, 250)
+kit_quest("moon", "月に着く", 1, 1000)
+
+kit_on_load = func(p)
+  draw_rocket(p)
+  fuel_hud(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.parts = {}
+  p.fuel = 0
+  p.camera_distance = 12
+  claim_pad(p)
+  p.ui_button("pump", "⛽ タップ", {at: "bottom_right", dx: -40, dy: -320, w: 120, h: 70, size: 20, bg: "#EA580C", radius: 20})
+  p.ui_button("launch", "🚀 発射", {at: "right", dy: -84, w: 140, h: 50, size: 17, bg: "#DC2626"})
+  p.ui_button("lab", "🔬 研究所", {at: "right", dy: -28, w: 140, h: 46, size: 15, bg: "#1D4ED8"})
+  if p.pad != nil then
+    let pad = block("Launch Pad " + p.pad)
+    kit_later(p, 0.5, func() p.teleport(pad.position + {x: 3, y: 1, z: -3}) end)
+  end
+  fuel_hud(p)
+end
+
+on start()
+  world.music = "space"
+  every(12, func() kit_leaderboard("🚀 ベストの高さ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.best_h or 0) != p.score then p.score = p.best_h or 0 end
+  end
+end

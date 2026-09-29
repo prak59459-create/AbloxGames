@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 527,
+  "bytes" : 293076,
+  "cover" : "games\/ice-cream-van\/cover-d90ea7dc.png",
+  "id" : "ice-cream-van",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "games\/ice-cream-van\/data.absc",
+    "games\/ice-cream-van\/customers.absc",
+    "games\/ice-cream-van\/serve.absc",
+    "games\/ice-cream-van\/van.absc",
+    "games\/ice-cream-van\/main.absc"
+  ],
+  "shots" : [
+    "games\/ice-cream-van\/shot1-976cd80e.png",
+    "games\/ice-cream-van\/shot2-5019e4aa.png"
+  ],
+  "summary" : "アイスクリームカーで町をまわろう！ 🔔チャイムを鳴らすとお客さんが集まってくる。注文どおりにコーン・味・トッピングを作ってわたそう。公園・ビーチ・学校・住宅街、アイスを仕入れて新しい味も。",
+  "tags" : [
+    "cars",
+    "cooking",
+    "shop"
+  ],
+  "title" : "Ice Cream Van",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/ice-cream-van\/world.ablox"
+}

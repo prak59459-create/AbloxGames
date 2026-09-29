@@ -1,0 +1,145 @@
+-- serve.absc — 注文どおりに作ってわたす: 入れもの → 味（1〜2すくい）→ トッピング → ✅
+
+func order_text(o)
+  let parts = []
+  for b in BASES do
+    if b.id == o.base then append(parts, b.name) end
+  end
+  for id in o.scoops do append(parts, flavor(id).icon + flavor(id).name) end
+  if o.top != nil and o.top != "none" then append(parts, topping(o.top).icon + topping(o.top).name) end
+  return join(parts, " ＋ ")
+end
+
+func open_order(p, c)
+  p.serving = c
+  p.build = {base: nil, scoops: [], top: "none"}
+  draw_order(p)
+  p.sound("pop")
+end
+
+func close_order(p)
+  p.serving = nil
+  p.build = nil
+  p.ui_remove("od_box")
+end
+
+func draw_order(p)
+  let c = p.serving
+  if c == nil then return end
+  let h = 330
+  p.ui_panel("od_box", {at: "bottom", dy: -10, w: 700, h: h, bg: "#FDF2F8F2", radius: 22, layer: 30})
+  p.ui_text("od_t", "🧒 ご注文: " + order_text(c.order), {parent: "od_box", y: 0.08, size: 18, bold: true, color: "#831843"})
+  let now = "（まだ なにもない）"
+  if p.build.base != nil or len(p.build.scoops) > 0 then now = order_text(p.build) end
+  p.ui_text("od_now", "つくったもの: " + now, {parent: "od_box", y: 0.19, size: 15, color: "#9D174D"})
+  -- 入れもの
+  let i = 0
+  for b in BASES do
+    i = i + 1
+    let bg = "#F9A8D4"
+    if p.build.base == b.id then bg = "#DB2777" end
+    p.ui_button("icb_" + b.id, b.name, {parent: "od_box", x: 0.1 + i * 0.16, y: 0.33, w: 110, h: 40, size: 14, bg: bg})
+  end
+  -- 味
+  i = 0
+  for f in FLAVORS do
+    if unlocked(p, f.id) then
+      i = i + 1
+      let n = (p.stock or {})[f.id] or 0
+      p.ui_button("icf_" + f.id, f.icon + f.name + " " + n, {parent: "od_box", x: 0.09 + i * 0.137, y: 0.52, w: 90, h: 44, size: 13, bg: "#BE185D"})
+    end
+  end
+  -- トッピング
+  i = 0
+  for t in TOPPINGS do
+    if contains(p.tops or [], t.id) then
+      i = i + 1
+      let bg = "#A78BFA"
+      if p.build.top == t.id then bg = "#6D28D9" end
+      p.ui_button("ict_" + t.id, t.icon + t.name, {parent: "od_box", x: 0.06 + i * 0.17, y: 0.7, w: 110, h: 36, size: 13, bg: bg})
+    end
+  end
+  p.ui_button("ic_give", "✅ わたす", {parent: "od_box", x: 0.62, y: 0.88, w: 150, h: 40, size: 17, bg: "#16A34A"})
+  p.ui_button("ic_reset", "🗑 やりなおし", {parent: "od_box", x: 0.84, y: 0.88, w: 130, h: 40, size: 14, bg: "#78716C"})
+  order_timer(p)
+end
+
+func order_timer(p)
+  let c = p.serving
+  if c == nil then return end
+  p.ui_bar("od_bar", max(0, c.until - time()), PATIENCE, {parent: "od_box", x: 0.25, y: 0.88, w: 260, h: 12, color: "#F472B6"})
+end
+
+func add_scoop(p, id)
+  if p.build == nil then return end
+  if len(p.build.scoops) >= 2 then
+    p.message("2すくいまで！", 0.8)
+    return
+  end
+  if ((p.stock or {})[id] or 0) <= 0 then
+    p.message("🧊 " + flavor(id).name + " がない！ 工場で仕入れよう", 1.5)
+    return
+  end
+  p.stock[id] = p.stock[id] - 1
+  append(p.build.scoops, id)
+  p.sound("pop")
+  draw_order(p)
+end
+
+func same_order(a, b)
+  if a.base != b.base or a.top != b.top or len(a.scoops) != len(b.scoops) then return false end
+  let x = sort(copy(a.scoops))
+  let y = sort(copy(b.scoops))
+  for i in 1 to len(x) do
+    if x[i] != y[i] then return false end
+  end
+  return true
+end
+
+func give_ice(p)
+  let c = p.serving
+  if c == nil or p.build == nil then return end
+  if p.build.base == nil or len(p.build.scoops) == 0 then
+    p.message("入れものと味をえらんでね", 1)
+    return
+  end
+  if same_order(p.build, c.order) then
+    let price = 0
+    for id in c.order.scoops do price = price + flavor(id).value end
+    price = price + topping(c.order.top).value
+    let left = max(0, c.until - time()) / PATIENCE
+    let tip = floor(price * 0.6 * left * (1 + up(p, "u_sign") * up_per("u_sign")))
+    kit_give(p, price + tip)
+    p.earned = (p.earned or 0) + price + tip
+    p.served = (p.served or 0) + 1
+    kit_quest_progress(p, "serve", 1)
+    if tip >= price * 0.4 then kit_quest_progress(p, "fast", 1) end
+    zone_demand[c.zone] = max(0, zone_demand[c.zone] - 0.12)
+    p.message("😋 おいしい！ 💰" + price + " + チップ " + tip, 1.5)
+    p.sound("coin")
+    particles("hearts", c.n, {amount: 10})
+    send_home(c, random(["ありがとう！", "おいしそう〜！", "また来てね！", "最高！"]))
+  else
+    p.message("😢 ちがうよ〜 注文をよく見てね", 1.5)
+    p.sound("error")
+    send_home(c, "ちがうのが ほしかったな…")
+  end
+  close_order(p)
+end
+
+on button(p, id)
+  if p.serving == nil then return end
+  if starts_with(id, "icb_") then
+    p.build.base = replace(id, "icb_", "")
+    draw_order(p)
+  elif starts_with(id, "icf_") then add_scoop(p, replace(id, "icf_", ""))
+  elif starts_with(id, "ict_") then
+    p.build.top = replace(id, "ict_", "")
+    draw_order(p)
+  elif id == "ic_give" then give_ice(p)
+  elif id == "ic_reset" then
+    -- 使ったアイスは もどせない
+    p.build = {base: nil, scoops: [], top: "none"}
+    draw_order(p)
+  end
+end

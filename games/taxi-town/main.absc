@@ -1,0 +1,66 @@
+-- Taxi Town — タクシーの町
+-- 🙋 手をあげている人の前で止まると乗ってくる。黄色い矢印の行き先のパッドへ。はやく・ぶつからずに着くと ⭐ とチップ。
+-- タクシー会社（オレンジのパッド）で運転手をやとうと、20秒ごとにお金が入る。ガレージ（緑）でリムジンなども。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  タクシーの見た目と速さ
+--   ../../lib/kit_move.absc  町の車・会社のタクシー
+--   data.absc     行き先・タクシー・お客さん・会社
+--   fares.absc    お客さん・乗せる・運ぶ・評価・事故
+--   company.absc  タクシー会社・ガレージ
+--   main.absc     このファイル
+
+kit_setup("Taxi Town", "町いちばんの タクシー会社になろう！", [
+  "🙋 手をあげている人の前で止まる（ゆっくりに）と 乗ってくる",
+  "🟨 黄色い矢印の行き先の 黄色いパッドへ",
+  "⏱ はやく着くほどチップ。💥 ぶつかると お客さんがこわがる",
+  "⏰ いそぎの人は時間にきびしい。🤵 VIP は リムジンでないと乗らない",
+  "🏢 オレンジのパッドで運転手をやとう → 20秒ごとにお金",
+  "🚗 緑のパッドのガレージで ワゴン・リムジン・スポーツタクシー"
+])
+kit_keep(["taxi", "taxis", "paint", "office", "drivers", "rides", "stars_sum", "earned"])
+
+kit_quest("pickup", "お客さんを乗せる", 1, 40)
+kit_quest("ride", "10回 運ぶ", 10, 250)
+kit_quest("five", "⭐5つを5回", 5, 250)
+kit_quest("hire", "運転手をやとう", 1, 150)
+kit_quest("taxi", "タクシーを買う", 1, 150)
+
+kit_on_load = func(p)
+  drive_on(p)
+  show_crew()
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.taxis = ["sedan"]
+  p.taxi = "sedan"
+  p.office = 1
+  p.drivers = 0
+  p.camera_distance = 10
+  drive_on(p)
+  p.ui_button("office", "🏢 会社", {at: "right", dy: -110, w: 130, h: 46, size: 15, bg: "#B45309"})
+  p.ui_button("garage", "🚗 ガレージ", {at: "right", dy: -58, w: 130, h: 46, size: 15, bg: "#15803D"})
+end
+
+on leave(p)
+  after(0.5, func() show_crew() end)
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("🚕 運んだ回数") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.rides or 0) != p.score then p.score = p.rides or 0 end
+  end
+end

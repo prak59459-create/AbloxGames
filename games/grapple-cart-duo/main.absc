@@ -1,0 +1,65 @@
+-- Grapple Cart Duo — カートでオビー、ふたりならもっと安心
+-- 20ステージ。すき間は 🪝 グラップル（ピンクの玉が近いとボタンが出る）、水色のジャンプ台、⚡ブースト、🔨ハンマー。
+-- ふたり組（スタートのピンクと水色のパッド）だと、落ちてもロープで引き上げてもらえる。
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  ステージ・チェックポイント・ゴール
+--   ../../lib/kit_ride.absc  とばす（グラップル・ジャンプ台）
+--   ../../lib/kit_move.absc  ハンマー
+--   data.absc   速さ・ゾーン
+--   carts.absc  カート・グラップル・ジャンプ台・ブースト・ハンマー
+--   duo.absc    ふたり組・引き上げ・追いつく・ボーナス
+--   main.absc   このファイル
+
+kit_setup("Grapple Cart Duo", "カートで空の道を。ふたりなら落ちても大丈夫！", [
+  "🛒 スティックでカートを運転。20ステージをゴールまで",
+  "🪝 ピンクの玉の近くで 🪝 ボタン → すき間をびゅーんとこえる",
+  "🟦 水色のジャンプ台は そのまま走りこむ。⚡ 黄色は ブースト",
+  "🔨 赤いハンマーに当たると はじきとばされる",
+  "🪢 スタートの ピンクと水色のパッドに ひとりずつ立つと ふたり組",
+  "🤝 ふたり組は 落ちても引き上げてもらえる。いっしょにゴールでボーナス"
+])
+kit_keep(["cart_color", "grapples", "rescues", "duo_wins"])
+
+obby_setup({stages: 20, fall: -12, coins: 8, finish_coins: 250, skip: 60, board: "cart_time", hud_dy: 26})
+obby_zones = ZONES
+obby_perks_basic()
+obby_on_finish = func(p, secs) duo_finish(p, secs) end
+obby_on_back = func(p) p.ride_carry = nil end
+
+kit_shop_add("cart_paint", "🎨 カートの色をかえる", 50, func(p)
+  p.cart_color = random_color()
+  cart_on(p)
+end)
+
+kit_quest("grapple", "🪝 グラップルを5回", 5, 120)
+kit_quest("jump", "ジャンプ台で とぶ", 3, 80)
+kit_quest("pair", "ふたり組になる", 1, 100)
+kit_quest("rescue", "あいぼうを引き上げる", 1, 150)
+kit_quest("duo", "ふたりでゴール", 1, 400)
+
+kit_on_load = func(p) cart_on(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 10
+  cart_on(p)
+end
+
+on start()
+  world.music = "adventure"
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

@@ -1,0 +1,105 @@
+-- shop.absc — 芝かり機屋さん（改造・色）と、庭のリスト（かりる・行く）
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func shop(p)
+  let h = 170 + len(UPGRADES) * 50
+  p.ui_remove("sh_box")
+  p.ui_panel("sh_box", {at: "center", w: 640, h: h, bg: "#365314F2", radius: 22, layer: 30})
+  p.ui_text("sh_t", "🚜 芝かり機屋さん（💰 " + kit_short(kit_money(p)) + "）", {parent: "sh_box", y: 26 / h, size: 19, bold: true, color: "#ECFCCB"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = up(p, u.key)
+    let label = u.name + " Lv." + lv + "（" + u.vals[lv + 1] + u.unit + "）"
+    let bg = "#4D7C0F"
+    if lv >= len(UP_PRICES) then
+      label = label + " 最大"
+      bg = "#44403C"
+    else
+      label = label + " → " + u.vals[lv + 2] + u.unit + "  💰" + kit_short(UP_PRICES[lv + 1])
+    end
+    p.ui_button("upbuy_" + u.key, label, {parent: "sh_box", y: (30 + i * 50) / h, w: 600, h: 42, size: 14, bg: bg})
+  end
+  p.ui_text("sh_s", "🔪 刃がLv2で のる芝かり機、Lv4で トラクターに！", {parent: "sh_box", y: (h - 72) / h, size: 14, color: "#FDE68A"})
+  p.ui_button("sh_paint", "🎨 ぬる（💰40）", {parent: "sh_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("sh_close", "閉じる", {parent: "sh_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_up(p, key)
+  let lv = up(p, key)
+  if lv >= len(UP_PRICES) or not kit_pay(p, UP_PRICES[lv + 1]) then return end
+  if p.ups == nil then p.ups = {} end
+  p.ups[key] = lv + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "upgrade", 1)
+  mower_look(p)
+  shop(p)
+end
+
+func yard_list(p)
+  let h = 150 + len(YARDS) * 50
+  p.ui_remove("yd_box")
+  p.ui_panel("yd_box", {at: "center", w: 620, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("yd_t", "🗺 芝かりの お仕事", {parent: "yd_box", y: 26 / h, size: 19, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for y in YARDS do
+    i = i + 1
+    let label = y.name + "  1マス 💰" + y.pay + "〜  ピカピカで 💰" + y.bonus + "  ▶ 行く"
+    let bg = "#0369A1"
+    if not unlocked(p, y.k) then
+      label = "🔒 " + y.name + "  💰" + kit_short(y.price) + " で かりる"
+      bg = "#44403C"
+    end
+    p.ui_button("yard_" + y.k, label, {parent: "yd_box", y: (30 + i * 50) / h, w: 580, h: 42, size: 14, bg: bg})
+  end
+  p.ui_button("yd_close", "閉じる", {parent: "yd_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_yard(p, k)
+  let y = YARDS[k]
+  if not unlocked(p, k) then
+    if not kit_pay(p, y.price) then return end
+    append(p.yards, k)
+    p.message("🔓 " + y.name + " で お仕事できるようになった！", 2)
+    p.sound("win")
+    kit_quest_progress(p, "yard", 1)
+    yard_list(p)
+    return
+  end
+  p.ui_remove("yd_box")
+  let sign = block("Yard Sign " + k)
+  if sign != nil then p.teleport(sign.position + {x: -5, y: 1, z: 0}) end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shop") and kit_ready(p, "shop", 3) then shop(p)
+  elif contains(b.tags, "yards") and kit_ready(p, "yards", 3) then yard_list(p)
+  elif contains(b.tags, "yard") and kit_ready(p, "yardsign", 3) then
+    let k = tag_num(b, "k")
+    if not unlocked(p, k) then yard_list(p) end
+  end
+end
+
+on button(p, id)
+  if id == "shop" then shop(p)
+  elif id == "sh_close" then p.ui_remove("sh_box")
+  elif id == "sh_paint" then
+    if kit_pay(p, 40) then
+      p.paint = random_color()
+      mower_look(p)
+    end
+  elif starts_with(id, "upbuy_") then buy_up(p, replace(id, "upbuy_", ""))
+  elif id == "yards" then yard_list(p)
+  elif id == "yd_close" then p.ui_remove("yd_box")
+  elif starts_with(id, "yard_") then pick_yard(p, num(replace(id, "yard_", "")))
+  elif id == "home" then
+    p.teleport(block("Compost Pad").position + {x: -4, y: 1, z: 2})
+  end
+end

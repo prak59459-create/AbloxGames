@@ -1,0 +1,298 @@
+-- flight.absc — 燃料をためて発射: ⛽タップ・青いクリスタルで燃料、🚀で発射。燃料がつきるまで上へ。
+-- 空では 💰コインをひろい、鳥・飛行機・人工衛星・いん石をよける。落ちはじめたら 🪂 で発射台へ。
+
+let fl_clock = 0
+let spawn_clock = 0
+let sky_items = []     -- {b, owner, until}
+let crystals_taken = []
+
+func pump(p)
+  if p.flight != nil then return end
+  let tank = stat(p, "tank")
+  if (p.fuel or 0) >= tank then
+    p.message("🛢 満タン！ 🚀で発射", 1)
+    return
+  end
+  p.fuel = min(tank, (p.fuel or 0) + stat(p, "pump"))
+  p.sound("pop")
+  kit_quest_progress(p, "pump", 1)
+  fuel_hud(p)
+end
+
+func crystal(p, b)
+  if not b.visible or p.flight != nil then return end
+  let tank = stat(p, "tank")
+  if (p.fuel or 0) >= tank then return end
+  p.fuel = min(tank, (p.fuel or 0) + CRYSTAL_FUEL)
+  b.visible = false
+  append(crystals_taken, {b: b, at: time()})
+  p.sound("coin")
+  p.message("💎 燃料 +" + CRYSTAL_FUEL, 0.8)
+  fuel_hud(p)
+end
+
+func fuel_hud(p)
+  if p.flight != nil then return end
+  let tank = stat(p, "tank")
+  p.ui_text("bo_hud", "🛢 燃料 " + floor(p.fuel or 0) + "/" + tank + "   ベスト " + (p.best_h or 0) + "m", {at: "top", dy: 62, size: 17, bold: true})
+  p.ui_bar("bo_bar", p.fuel or 0, tank, {at: "top", dy: 86, w: 240, h: 9, color: "#F97316"})
+end
+
+func launch(p)
+  if p.flight != nil or p.launching then return end
+  claim_pad(p)
+  if p.pad == nil then return end
+  if (p.fuel or 0) < 10 then
+    p.message("🛢 燃料が足りない！ ⛽をタップするか 💎クリスタルをひろおう", 2)
+    return
+  end
+  p.ui_remove("lab_box")
+  p.ui_remove("bo_res")
+  let pad = block("Launch Pad " + p.pad)
+  p.teleport(pad.position + {x: 0, y: 1, z: 0})
+  p.frozen = true
+  p.launching = true
+  ride_set(p, "jetpack", p.paint or "#F8FAFC", 1)
+  for k in 1 to 3 do
+    kit_later(p, k - 1, func()
+      p.message(str(4 - k) + "…", 0.8)
+      p.sound("click")
+    end)
+  end
+  kit_later(p, 3, func() take_off(p) end)
+end
+
+func take_off(p)
+  p.launching = false
+  p.frozen = false
+  p.flight = {fuel_secs: p.fuel / BURN, thrust: stat(p, "engine"), boosts: stat(p, "boost"), shield: stat(p, "nose"), boost_until: 0,
+              top: 0, base_y: p.y, coins: 0, fall_since: 0, t0: time(), mark: 0}
+  p.fuel = 0
+  p.speed = stat(p, "fins") / 9
+  p.gravity = 0
+  p.velocity = {x: 0, y: p.flight.thrust, z: 0}
+  particles("fire", p, {amount: 40})
+  p.shake(0.3, 1)
+  p.sound("explosion")
+  p.message("🚀 発射！ スティックで よこに動いて コインをひろおう", 2)
+  p.launches = (p.launches or 0) + 1
+  kit_quest_progress(p, "launch", 1)
+  boost_button(p)
+end
+
+func boost_button(p)
+  let f = p.flight
+  if f == nil or f.boosts <= 0 then
+    p.ui_remove("boost")
+    return
+  end
+  p.ui_button("boost", "🔥 " + f.boosts, {at: "bottom_right", dx: -40, dy: -220, w: 84, h: 84, size: 26, bg: "#EA580C", radius: 42})
+end
+
+func boost(p)
+  let f = p.flight
+  if f == nil or f.boosts <= 0 or f.fuel_secs <= 0 then return end
+  f.boosts = f.boosts - 1
+  f.fuel_secs = f.fuel_secs + 1
+  f.boost_until = time() + 2
+  particles("fire", p, {amount: 30})
+  p.sound("powerup")
+  boost_button(p)
+end
+
+func hazard_name(h)
+  if h > 1500 then return {name: "☄️ いん石", color: "#78350F", shape: "sphere"} end
+  if h > 900 then return {name: "🛰 人工衛星", color: "#CBD5E1", shape: "box"} end
+  if h > 300 then return {name: "✈️ 飛行機", color: "#F8FAFC", shape: "box"} end
+  return {name: "🐦 鳥", color: "#1E293B", shape: "sphere"}
+end
+
+-- 上のほうに コインと じゃまものを出す
+func spawn_sky(p)
+  let f = p.flight
+  let h = p.y - f.base_y
+  let ahead = 30 + f.thrust * 0.8
+  let pos = {x: p.x + random_float(-6, 6), y: p.y + ahead, z: p.z + random_float(-6, 6)}
+  if chance(70) then
+    let b = create_block({name: "Sky Coin", position: pos, size: {x: 2.4, y: 2.4, z: 0.4}, shape: "cylinder", color: "#FACC15", material: "neon",
+                          behavior: "trigger", solid: false, tags: ["skycoin"]})
+    append(sky_items, {b: b, owner: p.id, until: time() + 6})
+  end
+  if h > 50 and chance(35) then
+    let hz = hazard_name(h)
+    let side = 1
+    if chance(50) then side = -1 end
+    let start = {x: p.x - side * 22, y: p.y + ahead + 6, z: p.z + random_float(-3, 3)}
+    let b = create_block({name: hz.name, position: start, size: {x: 3, y: 2, z: 3}, shape: hz.shape, color: hz.color, solid: false, tags: ["sky_hazard"]})
+    mv_once(b, {x: p.x + side * 22, y: start.y, z: start.z}, 2.6, func(q, blk) hit_hazard(q, blk) end)
+    append(sky_items, {b: b, owner: p.id, until: time() + 3})
+  end
+end
+
+func hit_hazard(p, b)
+  let f = p.flight
+  if f == nil or not kit_ready(p, "hazard", 1) then return end
+  if f.shield > 0 then
+    f.shield = f.shield - 1
+    p.message("🛡 " + b.name + " を はじいた！（あと " + f.shield + "回）", 1)
+    p.sound("click")
+    return
+  end
+  f.fuel_secs = f.fuel_secs * 0.6
+  p.message("💥 " + b.name + " にぶつかった！ 燃料がもれた", 1.2)
+  p.shake(0.4, 0.4)
+  p.sound("hit")
+end
+
+func sky_coin(p, b)
+  let f = p.flight
+  if f == nil then return end
+  let it = find(sky_items, func(x) return x.b == b end)
+  if it == nil then return end
+  remove(sky_items, index_of(sky_items, it))
+  kit_gone(b)
+  let n = floor((5 + (p.y - f.base_y) / 50) * mult(p))
+  f.coins = f.coins + n
+  p.sound("coin")
+  kit_quest_progress(p, "coin", 1)
+end
+
+func arrive_moon(p)
+  let f = p.flight
+  if f == nil or f.moon then return end
+  f.moon = true
+  f.top = max(f.top, MOON)
+  p.moons = (p.moons or 0) + 1
+  let bonus = floor(MOON_BONUS * mult(p))
+  f.coins = f.coins + bonus
+  announce("🌙 " + p.name + " が 月に着いた！", 4)
+  kit_badge(p, "moon", "🌙 月に着いた")
+  kit_quest_progress(p, "moon", 1)
+  particles("stars", p, {amount: 100})
+  p.sound("win")
+  end_flight(p, "🌙 月に着いた！ ボーナス 💰" + bonus + "。研究所で 生まれかわれるよ")
+end
+
+func end_flight(p, why)
+  let f = p.flight
+  if f == nil then return end
+  p.flight = nil
+  let pay = floor(f.top * PAY_PER_M * mult(p)) + f.coins
+  kit_give(p, pay)
+  p.total_h = (p.total_h or 0) + f.top
+  let record = ""
+  if f.top > (p.best_h or 0) then
+    p.best_h = f.top
+    record = "  ⭐ 新記録！"
+  end
+  p.gravity = 1
+  ride_off(p)
+  p.ui_remove("boost")
+  p.ui_panel("bo_res", {at: "center", w: 500, h: 200, bg: "#172554F0", radius: 22, layer: 40})
+  p.ui_text("bo_r1", why, {parent: "bo_res", y: 0.2, size: 18, bold: true, color: "#BFDBFE"})
+  p.ui_text("bo_r2", "📏 " + f.top + "m" + record, {parent: "bo_res", y: 0.45, size: 20, bold: true})
+  p.ui_text("bo_r3", "💰 " + pay + "（高さ ×" + mult(p) + " + コイン " + f.coins + "）", {parent: "bo_res", y: 0.7, size: 16, color: "#FDE68A"})
+  kit_later(p, 5, func() p.ui_remove("bo_res") end)
+  let pad = block("Launch Pad " + (p.pad or 1))
+  p.teleport(pad.position + {x: 3, y: 1, z: -3})
+  p.velocity = {x: 0, y: 0, z: 0}
+  fuel_hud(p)
+end
+
+func fly_step(p, dt)
+  let f = p.flight
+  let v = p.velocity
+  let h = floor(p.y - f.base_y)
+  if h > f.top then f.top = h end
+  if f.fuel_secs > 0 then
+    f.fuel_secs = f.fuel_secs - dt
+    let up = f.thrust
+    if time() < f.boost_until then up = up * 1.6 end
+    if p.gravity != 0 then p.gravity = 0 end
+    p.velocity = {x: v.x, y: up, z: v.z}
+    if f.fuel_secs <= 0 then p.message("🛢 燃料がなくなった！ まだ少し上がるよ", 1.5) end
+  else
+    if p.gravity != 1 then p.gravity = 1 end
+    if v.y < 0 then
+      if f.fall_since == 0 then
+        f.fall_since = time()
+        p.message("🪂 パラシュート！", 1.2)
+      end
+      if time() - f.fall_since > 2 then end_flight(p, "🪂 もどってきた") end
+    end
+  end
+  -- 高さの目じるし
+  for i in 1 to len(MILESTONES) do
+    let ms = MILESTONES[i]
+    if i > f.mark and f.top >= ms.h then
+      f.mark = i
+      p.message(ms.name + "！ " + ms.h + "m", 1.5)
+      p.sound("bell")
+      if i == 4 then kit_badge(p, "station", "🛰 宇宙ステーション") end
+    end
+  end
+  if time() - f.t0 > 150 then end_flight(p, "⏱ 時間ぎれ") end
+end
+
+func fly_hud(p)
+  let f = p.flight
+  p.ui_text("bo_hud", "🚀 " + f.top + "m   🛢 " + fixed(max(0, f.fuel_secs), 1) + "秒   🛡 " + f.shield + "   💰 " + f.coins,
+            {at: "top", dy: 62, size: 18, bold: true})
+  p.ui_bar("bo_bar", max(0, f.fuel_secs), max(1, stat(p, "tank") / BURN), {at: "top", dy: 86, w: 240, h: 9, color: "#F97316"})
+end
+
+on tick(dt)
+  fl_clock = fl_clock + dt
+  spawn_clock = spawn_clock + dt
+  if fl_clock >= 0.1 then
+    let secs = fl_clock
+    fl_clock = 0
+    for p in players() do
+      if p.flight != nil then fly_step(p, secs) end
+      if p.flight != nil and kit_ready(p, "flhud", 0.4) then fly_hud(p) end
+    end
+  end
+  if spawn_clock >= 0.6 then
+    spawn_clock = 0
+    for p in players() do
+      if p.flight != nil and p.flight.fuel_secs > 0 then spawn_sky(p) end
+    end
+    let now = time()
+    let keep = []
+    for it in sky_items do
+      if now > it.until then kit_gone(it.b) else append(keep, it) end
+    end
+    sky_items = keep
+    let back = []
+    for c in crystals_taken do
+      if now - c.at > CRYSTAL_BACK then c.b.visible = true else append(back, c) end
+    end
+    crystals_taken = back
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "skycoin") then sky_coin(p, b)
+  elif contains(b.tags, "moon") then arrive_moon(p)
+  elif contains(b.tags, "crystal") then crystal(p, b)
+  elif contains(b.tags, "pump") and kit_ready(p, "pumppad", 0.3) then pump(p)
+  elif contains(b.tags, "launch") and kit_ready(p, "launchpad", 3) then
+    if p.pad == nil and pad_owner(tag_num(b, "k")) == nil then
+      p.pad = tag_num(b, "k")
+      draw_rocket(p)
+    end
+    if p.pad == tag_num(b, "k") then launch(p) end
+  end
+end
+
+on button(p, id)
+  if id == "pump" then pump(p)
+  elif id == "launch" then launch(p)
+  elif id == "boost" then boost(p)
+  end
+end
+
+on leave(p)
+  p.flight = nil
+end

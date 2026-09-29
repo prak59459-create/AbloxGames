@@ -1,0 +1,20 @@
+-- data.absc — Grapple Cart Duo の表
+
+let CART_SPEED = 1.5       -- カートの速さ（歩く速さの何ばい）
+let BOOST = 1.7            -- ⚡パッドで
+let BOOST_SECS = 2.5
+let GRAPPLE_RANGE = 17     -- 🪝がとどく きょり
+let GRAPPLE_PUSH = 17      -- とんでいく速さ
+let RESCUE_Y = 5           -- ここより落ちたら ロープで引き上げ（ふたり組）
+let RESCUE_WAIT = 8        -- 引き上げは8秒に1回
+let DUO_BONUS = 200
+
+let ZONES = [
+  {from: 1, last: 4, name: "🟢 はじめの道", color: "#22C55E"},
+  {from: 5, last: 8, name: "🔵 空の道", color: "#0EA5E9"},
+  {from: 9, last: 12, name: "🟠 かぜの道", color: "#F59E0B"},
+  {from: 13, last: 16, name: "🟣 ほそい道", color: "#A855F7"},
+  {from: 17, last: 20, name: "🔴 さいごの道", color: "#EF4444"}
+]
+
+let CART_COLORS = ["#EF4444", "#3B82F6", "#22C55E", "#FACC15", "#A855F7", "#F97316", "#EC4899", "#14B8A6"]

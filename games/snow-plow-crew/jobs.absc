@@ -1,0 +1,138 @@
+-- jobs.absc — お仕事（青いパッド）: 場所をえらんで、時間内に 95% きれいにすると ボーナス。何人でも同じお仕事を受けられる。
+
+func jobs_menu(p)
+  let h = 160 + len(ZONES) * 50
+  p.ui_remove("jb_box")
+  p.ui_panel("jb_box", {at: "center", w: 640, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("jb_t", "📋 除雪のお仕事", {parent: "jb_box", y: 26 / h, size: 19, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for zn in zones do
+    i = i + 1
+    let z = zn.z
+    let label = z.name + "  いま " + clear_pct(zn) + "%  ⏱" + z.secs + "秒  ボーナス 💰" + z.bonus
+    let bg = "#0369A1"
+    if up(p, "blade") < z.need then
+      label = "🔒 " + z.name + "（ブレード Lv." + z.need + " から）"
+      bg = "#44403C"
+    elif p.job != nil and p.job.k == z.k then
+      label = "▶ " + z.name + " をやっている（あと " + max(0, ceil(p.job.until - time())) + "秒）"
+      bg = "#15803D"
+    end
+    p.ui_button("job_" + z.k, label, {parent: "jb_box", y: (30 + i * 50) / h, w: 600, h: 42, size: 14, bg: bg})
+  end
+  p.ui_button("jb_close", "閉じる", {parent: "jb_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func take_job(p, k)
+  let zn = zones[k]
+  let z = zn.z
+  if up(p, "blade") < z.need then return end
+  if clear_pct(zn) >= 95 then
+    p.message("✨ " + z.name + " は もうきれい！ ふぶきのあとに また来てね", 2)
+    return
+  end
+  p.job = {k: k, until: time() + z.secs}
+  p.ui_remove("jb_box")
+  p.waypoint(zn.tiles[1], z.name, "orange")
+  p.message("📋 " + z.name + " を " + z.secs + "秒で 95% きれいに！", 2)
+  p.sound("bell")
+end
+
+-- 雪をかくたびに: お仕事の場所が 95% になったら、受けている人ぜんいんにボーナス
+func check_jobs(zn)
+  if clear_pct(zn) < 95 then return end
+  for p in players() do
+    let j = p.job
+    if j != nil and j.k == zn.z.k then
+      p.job = nil
+      p.waypoint(nil)
+      p.ui_remove("sp_job")
+      kit_give(p, zn.z.bonus)
+      p.jobs_done = (p.jobs_done or 0) + 1
+      p.message("🎉 " + zn.z.name + " ピカピカ！ ボーナス 💰" + zn.z.bonus, 2.5)
+      p.sound("win")
+      particles("confetti", p, {amount: 60})
+      kit_quest_progress(p, "job", 1)
+      kit_badge(p, "zone" + zn.z.k, zn.z.name)
+    end
+  end
+end
+
+func job_step(p)
+  let j = p.job
+  if j == nil then return end
+  let left = ceil(j.until - time())
+  if left <= 0 then
+    p.job = nil
+    p.waypoint(nil)
+    p.ui_remove("sp_job")
+    p.message("⏱ 時間ぎれ… また受けてね", 2)
+    return
+  end
+  p.ui_text("sp_job", "📋 " + zones[j.k].z.name + "  " + clear_pct(zones[j.k]) + "% / 95%   ⏱ " + left + "秒", {at: "top", dy: 104, size: 15, bold: true,
+            color: "#FDE68A"})
+end
+
+let job_clock = 0
+on tick(dt)
+  job_clock = job_clock + dt
+  if job_clock < 0.5 then return end
+  job_clock = 0
+  for p in players() do job_step(p) end
+end
+
+func garage(p)
+  let h = 170 + len(UPGRADES) * 50
+  p.ui_remove("gr_box")
+  p.ui_panel("gr_box", {at: "center", w: 640, h: h, bg: "#7C2D12F2", radius: 22, layer: 30})
+  p.ui_text("gr_t", "🔧 ガレージ（💰 " + kit_short(kit_money(p)) + "）", {parent: "gr_box", y: 26 / h, size: 19, bold: true, color: "#FED7AA"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = up(p, u.key)
+    let label = u.name + " Lv." + lv + "（" + u.vals[lv + 1] + u.unit + "）"
+    let bg = "#C2410C"
+    if lv >= len(UP_PRICES) then
+      label = label + " 最大"
+      bg = "#44403C"
+    else
+      label = label + " → " + u.vals[lv + 2] + u.unit + "  💰" + kit_short(UP_PRICES[lv + 1])
+    end
+    p.ui_button("upbuy_" + u.key, label, {parent: "gr_box", y: (30 + i * 50) / h, w: 600, h: 42, size: 14, bg: bg})
+  end
+  p.ui_button("gr_paint", "🎨 ぬる（💰40）", {parent: "gr_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("gr_close", "閉じる", {parent: "gr_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_up(p, key)
+  let lv = up(p, key)
+  if lv >= len(UP_PRICES) or not kit_pay(p, UP_PRICES[lv + 1]) then return end
+  if p.ups == nil then p.ups = {} end
+  p.ups[key] = lv + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "upgrade", 1)
+  truck_on(p)
+  garage(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "jobs") and kit_ready(p, "jobs", 3) then jobs_menu(p)
+  elif contains(b.tags, "garage") and kit_ready(p, "garage", 3) then garage(p)
+  end
+end
+
+on button(p, id)
+  if id == "jobs" then jobs_menu(p)
+  elif id == "jb_close" then p.ui_remove("jb_box")
+  elif starts_with(id, "job_") then take_job(p, num(replace(id, "job_", "")))
+  elif id == "garage" then garage(p)
+  elif id == "gr_close" then p.ui_remove("gr_box")
+  elif id == "gr_paint" then
+    if kit_pay(p, 40) then
+      p.paint = random_color()
+      truck_on(p)
+    end
+  elif starts_with(id, "upbuy_") then buy_up(p, replace(id, "upbuy_", ""))
+  end
+end

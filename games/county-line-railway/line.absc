@@ -1,0 +1,169 @@
+-- line.absc — 線路: 位置（s）の計算、区間と信号、コンピューターのふつう列車
+
+let ai = nil
+let sig_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+-- 線路の上の位置 s（0〜1280）
+func rail_s(x, z)
+  let best_d = 100000
+  let best_s = 0
+  let start = 0
+  for i in 1 to 4 do
+    let a = CORNERS[i]
+    let b = CORNERS[i % 4 + 1]
+    let dx = b.x - a.x
+    let dz = b.z - a.z
+    let len = abs(dx) + abs(dz)
+    let u = clamp(((x - a.x) * dx + (z - a.z) * dz) / (len * len), 0, 1)
+    let px = a.x + dx * u
+    let pz = a.z + dz * u
+    let d = abs(x - px) + abs(z - pz)
+    if d < best_d then
+      best_d = d
+      best_s = start + u * len
+    end
+    start = start + len
+  end
+  return best_s
+end
+
+-- s の場所（と、その線の番号）
+func rail_point(s)
+  let left = wrap(s, 0, LOOP)
+  for i in 1 to 4 do
+    let a = CORNERS[i]
+    let b = CORNERS[i % 4 + 1]
+    let len = abs(b.x - a.x) + abs(b.z - a.z)
+    if left <= len then
+      let t = left / len
+      return {x: a.x + (b.x - a.x) * t, y: 1.6, z: a.z + (b.z - a.z) * t, side: i}
+    end
+    left = left - len
+  end
+  return {x: CORNERS[1].x, y: 1.6, z: CORNERS[1].z, side: 1}
+end
+
+-- a から b まで、進む向きに何m
+func ahead(a, b)
+  return wrap(b - a, 0, LOOP)
+end
+
+func section_of(s)
+  let n = len(SIGNALS)
+  for i in 1 to n do
+    let a = SIGNALS[i]
+    let b = SIGNALS[i % n + 1]
+    if ahead(a, s) < ahead(a, b) then return i end
+  end
+  return 1
+end
+
+-- 区間 i に、but（プレイヤーの id か "ai"）のほかの電車がいるか
+func occupied(i, but)
+  for p in players() do
+    if p.tr != nil and p.id != but and section_of(p.tr.s) == i then return true end
+  end
+  if ai != nil and but != "ai" and (section_of(ai.s) == i or section_of(ai.dest) == i) then return true end
+  return false
+end
+
+func paint_signals()
+  let n = len(SIGNALS)
+  for b in blocks("signal") do
+    let i = tag_num(b, "n")
+    let color = "#22C55E"
+    if occupied(i, nil) then
+      color = "#EF4444"
+    elif occupied(i % n + 1, nil) then
+      color = "#FACC15"
+    end
+    if b.color != color then b.color = color end
+  end
+end
+
+-- MARK: コンピューターのふつう列車
+
+-- 次に止まるところ: 角・駅・（前の区間がふさがっていれば）信号の手前
+func ai_next_stop()
+  let best = LOOP
+  let kind = "corner"
+  for c in [400, 640, 1040, 1280] do
+    let d = ahead(ai.s + 0.5, c) + 0.5
+    if d < best then
+      best = d
+      kind = "corner"
+    end
+  end
+  for st in STATIONS do
+    let d = ahead(ai.s + 0.5, st.s) + 0.5
+    if d < best then
+      best = d
+      kind = "station"
+    end
+  end
+  for i in 1 to len(SIGNALS) do
+    let d = ahead(ai.s, SIGNALS[i])
+    if d > 0.5 and d <= best and occupied(i, "ai") then
+      best = max(0, d - 8)
+      kind = "hold"
+    end
+  end
+  return {d: best, kind: kind}
+end
+
+func ai_leg()
+  if ai == nil or not kit_here(ai.b) then return end
+  let nxt = ai_next_stop()
+  if nxt.d < 1 then
+    -- 信号が赤: 1秒まってもう一度
+    ai.dest = ai.s
+    after(1, func() ai_leg() end)
+    return
+  end
+  ai.dest = wrap(ai.s + nxt.d, 0, LOOP)
+  let pt = rail_point(ai.dest - 0.01)
+  let size = {x: 10, y: 3, z: 3}
+  if pt.side == 2 or pt.side == 4 then size = {x: 3, y: 3, z: 10} end
+  if ai.b.size.x != size.x then ai.b.size = size end
+  let secs = nxt.d / AI_SPEED
+  mv_once(ai.b, {x: pt.x, y: 1.6, z: pt.z}, secs, func(p, blk) ai_hit(p) end)
+  after(secs, func()
+    ai.s = ai.dest
+    if nxt.kind == "station" then
+      after(AI_DWELL, func() ai_leg() end)
+    else
+      ai_leg()
+    end
+  end)
+end
+
+func ai_hit(p)
+  if p.tr != nil then
+    train_crash(p)
+  elif kit_ready(p, "aihit", 2) then
+    p.message("🚃 電車が来るよ！ 線路に入らないで", 1.5)
+    p.velocity = {x: 0, y: 6, z: 0}
+  end
+end
+
+on start()
+  let b = first(blocks("local_train"))
+  if b != nil then
+    ai = {b: b, s: rail_s(b.x, b.z), dest: rail_s(b.x, b.z)}
+    after(2, func() ai_leg() end)
+  end
+end
+
+on tick(dt)
+  sig_clock = sig_clock + dt
+  if sig_clock < 0.5 then return end
+  sig_clock = 0
+  paint_signals()
+end

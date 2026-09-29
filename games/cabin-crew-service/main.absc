@@ -1,0 +1,52 @@
+-- Cabin Crew Service — 客室乗務員
+-- みんなで同じ飛行機の乗務員。搭乗 → 安全のデモ → 離陸 → 機内サービス → 着陸 → おそうじ を くりかえす。
+-- 🔔が光った席のお客さんに、うしろのギャレーで取ったものを運ぶ。フライトのおわりに ⭐ で評価。
+--
+-- ファイル:
+--   data.absc        運ぶもの・場面・行き先・ランク
+--   flight.absc      フライトの進みかた・空と地上・雲・ゆれ
+--   passengers.absc  お客さん・🔔・運ぶ・ゴミ
+--   main.absc        このファイル
+
+kit_setup("Cabin Crew Service", "ようこそ！ きみは空の旅の 客室乗務員", [
+  "🧳 搭乗: オレンジに光る席にさわって 荷物をしまう",
+  "📢 デモ: 通路の黄色いパッドに立つ",
+  "💺 離陸・着陸: 水色のパッド（乗務員の席）へ。すわってないと ころぶ",
+  "🔔 サービス: 黄色に光る席の人の ほしいものを、うしろのギャレーで取って運ぶ（3こまで持てる）",
+  "🧹 おそうじ: 床のゴミをひろって ゴミ箱へ",
+  "⭐ フライトの評価が高いほど、みんなにボーナス"
+])
+kit_keep(["cxp", "served", "flights", "best_stars"])
+
+kit_quest("bag", "荷物を3回しまう", 3, 60)
+kit_quest("demo", "安全のデモをする", 1, 60)
+kit_quest("seat", "離陸・着陸で ちゃんとすわる", 2, 80)
+kit_quest("serve", "10回 サービスする", 10, 200)
+kit_quest("clean", "ゴミを5こ すてる", 5, 100)
+kit_quest("flight", "フライトを3回", 3, 250)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 5
+  p.hat = "beret"
+  p.color = "#1E3A8A"
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("🔔 サービス") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.served or 0) != p.score then p.score = p.served or 0 end
+    p.ui_text("cc_rank", rank_name(p) + "  " + (p.cxp or 0) + "XP", {at: "top_left", dy: 40, size: 14, color: "#E0F2FE"})
+  end
+end

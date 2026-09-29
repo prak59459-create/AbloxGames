@@ -1,0 +1,212 @@
+-- flight.absc — フライトの進みかた: 搭乗 → デモ → 離陸 → 機内サービス → 着陸 → おそうじ → 次の行き先へ
+
+let phase_i = 0
+let phase_left = 3
+let flight_no = 0
+let dest = ""
+let stats = {asked: 0, served: 0, missed: 0, bags: 0, demo: 0, seated: 0, fell: 0, trash: 0}
+let fl_clock = 0
+let cloud_list = []
+
+func phase()
+  return PHASES[max(1, phase_i)]
+end
+
+func on_pad(p, tag)
+  let b = nearest_block(p, tag)
+  return b != nil and abs(p.x - b.x) < 0.9 and abs(p.z - b.z) < 0.9 and abs(p.y - b.y) < 1.5
+end
+
+func show_group(tag, shown)
+  for b in blocks(tag) do
+    if b.visible != shown then
+      b.visible = shown
+      if contains(b.tags, "solid") then b.solid = shown end
+    end
+  end
+end
+
+func rank_name(p)
+  let name = RANKS[1].name
+  for r in RANKS do
+    if (p.cxp or 0) >= r.xp then name = r.name end
+  end
+  return name
+end
+
+func add_xp(p, n)
+  let before = rank_name(p)
+  p.cxp = (p.cxp or 0) + n
+  if rank_name(p) != before then
+    announce("🎖 " + p.name + " が " + rank_name(p) + " になった！", 3)
+    kit_badge(p, "rank_" + rank_name(p), rank_name(p))
+    p.sound("win")
+  end
+end
+
+func crew()
+  return filter(players(), func(p) return not p.is_npc end)
+end
+
+func on_ground(yes)
+  world.ground = yes
+  show_group("airport", yes)
+  show_group("sky", not yes)
+  if yes then
+    world.sky_style = "clouds"
+  else
+    world.sky_style = "gradient"
+  end
+end
+
+func next_phase()
+  end_phase()
+  phase_i = phase_i % len(PHASES) + 1
+  phase_left = phase().secs
+  let id = phase().id
+  if id == "board" then
+    flight_no = flight_no + 1
+    dest = random(DESTS)
+    stats = {asked: 0, served: 0, missed: 0, bags: 0, demo: 0, seated: 0, fell: 0, trash: 0}
+    on_ground(true)
+    show_group("door_closed", false)
+    spawn_passengers()
+    announce("✈️ フライト " + flight_no + "：" + dest + " 行き。" + phase().name + " — " + phase().tip, 4)
+    return
+  end
+  if id == "demo" then
+    show_group("door_closed", true)
+    stow_all_bags()
+  end
+  if id == "cruise" then
+    on_ground(false)
+    start_clouds()
+  end
+  if id == "arrive" then
+    on_ground(true)
+    show_group("door_closed", false)
+    passengers_leave()
+  end
+  if id == "takeoff" or id == "landing" then
+    for p in crew() do p.shake(0.15, 1) end
+  end
+  announce(phase().name + " — " + phase().tip, 3.5)
+  sound("bell")
+end
+
+-- 場面のおわりの チェック
+func end_phase()
+  if phase_i == 0 then return end
+  let id = phase().id
+  if id == "takeoff" or id == "landing" then
+    for p in crew() do
+      if on_pad(p, "jump") then
+        stats.seated = stats.seated + 1
+        add_xp(p, 5)
+        kit_give(p, 10)
+        p.message("💺 着席OK！", 1.2)
+        kit_quest_progress(p, "seat", 1)
+      else
+        stats.fell = stats.fell + 1
+        p.message("😵 ゆれで ころんだ！ 次は💺水色のパッドへ", 2)
+        p.shake(0.6, 0.8)
+        p.velocity = {x: 0, y: 3, z: -8}
+      end
+    end
+  elif id == "demo" then
+    for p in crew() do
+      if (p.demo_secs or 0) >= 8 then
+        stats.demo = stats.demo + 1
+        add_xp(p, 8)
+        kit_give(p, 20)
+        p.message("📢 安全のデモ、ばっちり！", 1.5)
+        kit_quest_progress(p, "demo", 1)
+      end
+      p.demo_secs = 0
+    end
+  elif id == "cruise" then
+    stop_requests()
+  elif id == "arrive" then
+    finish_flight()
+  end
+end
+
+func finish_flight()
+  let asked = max(1, stats.asked)
+  let score = stats.served / asked
+  let stars = 1 + floor(score * 3)
+  if stats.demo > 0 then stars = stars + 1 end
+  if stats.fell > 0 then stars = stars - 1 end
+  stars = clamp(stars, 1, 5)
+  let text = ""
+  for i in 1 to stars do text = text + "⭐" end
+  announce("🛬 " + dest + " に到着！ フライトの評価 " + text + "（サービス " + stats.served + "/" + stats.asked + "）", 4)
+  for p in crew() do
+    kit_give(p, stars * 30)
+    add_xp(p, stars * 5)
+    p.flights = (p.flights or 0) + 1
+    if stars >= (p.best_stars or 0) then p.best_stars = stars end
+    kit_quest_progress(p, "flight", 1)
+    if stars >= 5 then kit_badge(p, "five_star", "⭐5 フライト") end
+  end
+  clear_trash()
+end
+
+-- MARK: 雲（窓の外を流れていく）
+
+func start_clouds()
+  if len(cloud_list) == 0 then
+    for b in blocks("cloud") do append(cloud_list, {b: b, home: b.position, t0: 0, secs: 0}) end
+  end
+  for c in cloud_list do
+    c.b.position = {x: c.home.x, y: c.home.y, z: c.home.z}
+    drift(c)
+  end
+end
+
+func drift(c)
+  -- 前（-z）から後ろ（+z）へ 流れる
+  let to_end = 160 - c.b.position.z
+  c.secs = to_end / 40
+  c.t0 = time()
+  c.b.move(0, 0, to_end, c.secs)
+end
+
+func cloud_step()
+  if phase().id != "cruise" and phase().id != "landing" then return end
+  for c in cloud_list do
+    if time() > c.t0 + c.secs then
+      c.b.position = {x: c.home.x, y: c.home.y, z: -160}
+      drift(c)
+    end
+  end
+end
+
+on tick(dt)
+  phase_left = phase_left - dt
+  fl_clock = fl_clock + dt
+  if phase_left <= 0 then next_phase() end
+  if fl_clock < 1 then return end
+  fl_clock = 0
+  cloud_step()
+  if phase().id == "demo" then
+    for p in crew() do
+      if on_pad(p, "demo") then
+        p.demo_secs = (p.demo_secs or 0) + 1
+        if p.demo_secs == 3 then p.message("📢 「シートベルトは こうして しめます」", 2) end
+      end
+    end
+  end
+  if phase().id == "cruise" and chance(4) then
+    for p in crew() do
+      p.shake(0.25, 1.2)
+      p.message("〰 ゆれています！ 💺ベルトサイン点灯中", 1.5)
+    end
+  end
+  for p in crew() do
+    let ph = phase()
+    p.ui_text("cc_hud", "✈️ " + dest + " 行き  " + ph.name + "  ⏱ " + max(0, ceil(phase_left)) + "秒   🔔 " + stats.served + "/" + stats.asked,
+              {at: "top", dy: 62, size: 17, bold: true})
+    p.ui_text("cc_tip", ph.tip, {at: "top", dy: 88, size: 14, color: "#FDE68A"})
+  end
+end

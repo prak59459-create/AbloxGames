@@ -1,0 +1,178 @@
+-- fares.absc — お客さん: 🙋 手をあげている人の前で止まると乗る。目的地の黄色いパッドへ。はやく・安全でチップ。
+
+let hails = []      -- {n, spot, kind}
+let fare_clock = 0
+let hail_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func taxi(p)
+  return find(TAXIS, func(t) return t.id == p.taxi end) or TAXIS[1]
+end
+
+func rider(id)
+  return find(RIDERS, func(r) return r.id == id end)
+end
+
+func spawn_hail()
+  let want = min(14, 4 + len(players()) * 2)
+  if len(hails) >= want then return end
+  let spot = random(1, 16)
+  if find(hails, func(h) return h.spot == spot end) != nil then return end
+  let b = block("Hail " + spot)
+  if b == nil then return end
+  let kind = RIDERS[pick_weighted(map(RIDERS, func(r) return r.w end))]
+  let n = create_npc({name: kind.icon + " " + kind.name, position: b.position + {x: 0, y: 0.5, z: 0}, color: random_color(),
+                      head_color: random(["#FDE68A", "#FCD34D", "#D6A77A", "#8D5524"]), speed: 0, health: 100000,
+                      hat: random(["none", "cap", "top_hat", "beanie", "bow", "cowboy"])})
+  n.frozen = true
+  if kind.id == "vip" then n.hat = "top_hat" end
+  append(hails, {n: n, spot: spot, kind: kind.id, since: time()})
+end
+
+func pick_up(p, h)
+  let kind = rider(h.kind)
+  if kind.id == "vip" and not taxi(p).vip then
+    if kit_ready(p, "vip" + h.spot, 4) then h.n.say("わたしは リムジンにしか 乗りませんの") end
+    return
+  end
+  remove(hails, index_of(hails, h))
+  let from = h.n.position
+  kit_gone(h.n)
+  let dest = random(1, len(PLACES))
+  let d = distance(from, block("Place " + dest).position)
+  let fare = floor((BASE_FARE + d * PER_M) * kind.pay * taxi(p).mult)
+  let secs = floor(d / EXPECT_SPEED + 12)
+  if kind.id == "rush" then secs = floor(secs * 0.8) end
+  p.fare = {kind: kind.id, dest: dest, fare: fare, t0: time(), secs: secs, crashes: 0}
+  p.waypoint(block("Place " + dest), PLACES[dest], "gold")
+  p.sound("door")
+  let lines = {normal: "〜まで おねがいします", tourist: "〜へ行きたいです！ 町の景色もたのしみ", rush: "〜まで いそいで！", vip: "〜まで。安全運転でね"}
+  p.message(kind.icon + "「" + PLACES[dest] + lines[kind.id] + "」  💰" + fare + "  ⏱ " + secs + "秒", 3)
+  kit_quest_progress(p, "pickup", 1)
+end
+
+func drop_off(p, n)
+  let f = p.fare
+  if f == nil or f.dest != n then return end
+  p.fare = nil
+  p.waypoint(nil)
+  let kind = rider(f.kind)
+  let used = time() - f.t0
+  let left = f.secs - used
+  let pay = f.fare
+  let stars = 5
+  if left < 0 then
+    stars = 3
+    if kind.id == "rush" then
+      pay = floor(pay * 0.5)
+      stars = 2
+    end
+  end
+  stars = max(1, stars - f.crashes)
+  let tip = 0
+  if left > 0 then tip = floor(f.fare * 0.5 * left / f.secs) end
+  if f.crashes > 0 then tip = floor(tip / (1 + f.crashes)) end
+  if kind.id == "vip" and f.crashes == 0 then tip = tip + 100 end
+  kit_give(p, pay + tip)
+  p.earned = (p.earned or 0) + pay + tip
+  p.rides = (p.rides or 0) + 1
+  p.stars_sum = (p.stars_sum or 0) + stars
+  let st = ""
+  for i in 1 to stars do st = st + "⭐" end
+  p.message("🚕 " + PLACES[n] + " に到着！ " + st + "  💰" + pay + " + チップ " + tip, 2.5)
+  p.sound("coin")
+  particles("confetti", p, {amount: 20})
+  kit_quest_progress(p, "ride", 1)
+  if stars == 5 then kit_quest_progress(p, "five", 1) end
+  if kind.id == "vip" then kit_badge(p, "vip", "VIPを運んだ") end
+end
+
+func crash(p)
+  if not kit_ready(p, "crash", 2) then return end
+  p.sound("hit")
+  p.shake(0.3, 0.3)
+  ride_mult(p, "crash", 0.3)
+  kit_later(p, 1.2, func() ride_mult(p, "crash", nil) end)
+  if p.fare != nil then
+    p.fare.crashes = p.fare.crashes + 1
+    p.message("💥 お客さん「きゃー！ こわい〜！」", 1.5)
+  else
+    p.message("💥 ぶつかった！", 1)
+  end
+end
+
+func rating(p)
+  if (p.rides or 0) == 0 then return "—" end
+  return fixed(p.stars_sum / p.rides, 1)
+end
+
+func fare_hud(p)
+  let f = p.fare
+  if f == nil then
+    p.ui_text("tx_hud", "🚕 空車  🙋手をあげている人をさがそう   ⭐ " + rating(p) + "（" + (p.rides or 0) + "回）", {at: "top", dy: 62, size: 16, bold: true})
+    return
+  end
+  let left = ceil(f.secs - (time() - f.t0))
+  let clock = "⏱ あと" + left + "秒"
+  if left < 0 then clock = "⏱ " + abs(left) + "秒おくれ" end
+  p.ui_text("tx_hud", rider(f.kind).icon + " → " + PLACES[f.dest] + "   💰" + f.fare + "   " + clock, {at: "top", dy: 62, size: 17, bold: true,
+            color: "#FDE68A"})
+end
+
+on start()
+  let lp = []
+  for i in 1 to 4 do append(lp, block("Loop " + i).position) end
+  for b in blocks("traffic") do
+    let lane = tag_num(b, "lane") or 1
+    let first = tag_num(b, "start") or 1
+    let pts = []
+    for j in 0 to 3 do
+      let i = (first + j - 1) % 4 + 1
+      if lane < 0 then i = (first - j + 7) % 4 + 1 end
+      let c = lp[i]
+      append(pts, {x: c.x - sign(c.x) * lane * 3, y: 0.9, z: c.z - sign(c.z) * lane * 3})
+    end
+    mv_path(b, pts, 8 + random() * 3, true, func(p, blk) crash(p) end)
+  end
+end
+
+on tick(dt)
+  fare_clock = fare_clock + dt
+  hail_clock = hail_clock + dt
+  if hail_clock >= 3 then
+    hail_clock = 0
+    spawn_hail()
+    for h in hails do
+      if kit_here(h.n) and chance(20) then h.n.say(random(["🙋 タクシー！", "🙋 こっちこっち！", "🙋 のせてー！"])) end
+    end
+  end
+  if fare_clock < 0.25 then return end
+  fare_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      if p.fare == nil then
+        let v = p.velocity
+        if sqrt(v.x * v.x + v.z * v.z) < 3 then
+          for h in hails do
+            if kit_here(h.n) and distance(p, h.n) < 7 then
+              pick_up(p, h)
+              break
+            end
+          end
+        end
+      end
+      if kit_ready(p, "txhud", 0.5) then fare_hud(p) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "place") then drop_off(p, tag_num(b, "n")) end
+end

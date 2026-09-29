@@ -1,0 +1,33 @@
+-- data.absc — County Line Railway の表
+
+let CORNERS = [{x: -200, z: -120}, {x: 200, z: -120}, {x: 200, z: 120}, {x: -200, z: 120}]
+let LOOP = 1280
+let YAWS = [90, 0, 270, 180]            -- 線路の4本の向き（進む方向）
+
+-- 駅: s は線路の上の位置（m）
+let STATIONS = [
+  {n: 1, name: "みどり中央", s: 100},
+  {n: 2, name: "みなと", s: 300},
+  {n: 3, name: "おかの上", s: 520},
+  {n: 4, name: "がっこう前", s: 740},
+  {n: 5, name: "どうぶつえん", s: 940},
+  {n: 6, name: "もりの", s: 1160}
+]
+-- 信号: 駅の25m手前。信号 i から 次の信号までが 区間 i
+let SIGNALS = [75, 275, 495, 715, 915, 1135]
+
+-- 電車: top はノッチ5のときの速さ（倍率）、cap は のれる人数
+let TRAINS = [
+  {id: "local", name: "🚃 ふつう電車", price: 0, xp: 0, top: 1.6, cap: 40, color: "#22C55E"},
+  {id: "rapid", name: "🚆 快速", price: 1500, xp: 400, top: 2.1, cap: 70, color: "#F97316"},
+  {id: "limited", name: "🚄 特急", price: 6000, xp: 1500, top: 2.6, cap: 100, color: "#E2E8F0"}
+]
+
+let NOTCHES = 5
+let ACCEL = 0.35          -- 1秒で速さ（倍率）が上がる量
+let BRAKE = 0.6           -- 1秒で下がる量
+let FARE = 4              -- お客さん1人・1駅ぶん
+let WAIT_MAX = 40
+let AI_SPEED = 10         -- ふつう列車（コンピューター）の速さ m/秒
+let AI_DWELL = 8
+let SPAD_FINE = 30

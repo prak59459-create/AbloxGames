@@ -1,0 +1,32 @@
+-- data.absc — Cabin Crew Service の表
+
+let ITEMS = {
+  juice: {name: "ジュース", icon: "🥤", pay: 12},
+  coffee: {name: "コーヒー", icon: "☕", pay: 12},
+  meal: {name: "ごはん", icon: "🍱", pay: 18},
+  blanket: {name: "ブランケット", icon: "🧸", pay: 10}
+}
+let ITEM_KEYS = ["juice", "coffee", "meal", "blanket"]
+let TRASH = {name: "ゴミ", icon: "🗑"}
+
+-- 1回のフライト: 6つの場面
+let PHASES = [
+  {id: "board", name: "🧳 搭乗", secs: 40, tip: "🧳マークのお客さんの席にさわって、荷物を上の棚へ"},
+  {id: "demo", name: "📢 安全のデモ", secs: 20, tip: "通路の黄色いパッドに立って、シートベルトの説明をしよう"},
+  {id: "takeoff", name: "🛫 離陸", secs: 15, tip: "💺 水色のパッド（乗務員の席）にすわって！"},
+  {id: "cruise", name: "☁️ 機内サービス", secs: 100, tip: "🔔が光った席へ。うしろのギャレーで取って運ぼう"},
+  {id: "landing", name: "🛬 着陸", secs: 15, tip: "💺 水色のパッドにすわって！"},
+  {id: "arrive", name: "🧹 到着・おそうじ", secs: 30, tip: "床のゴミをひろって、うしろのゴミ箱へ"}
+]
+let DESTS = ["🗼 パリ", "🗽 ニューヨーク", "🏝 ハワイ", "🐨 シドニー", "🗻 東京", "🏰 ロンドン", "🌴 ドバイ", "🐼 北京", "🎭 リオ", "🧊 アイスランド"]
+
+let CARRY_MAX = 3
+let WANT_SECS = 35        -- お客さんがまってくれる秒数
+let SEATS = 48
+
+let RANKS = [
+  {xp: 0, name: "🎓 訓練生"},
+  {xp: 150, name: "✈️ 客室乗務員"},
+  {xp: 600, name: "🎖 チーフ"},
+  {xp: 2000, name: "👑 パーサー"}
+]

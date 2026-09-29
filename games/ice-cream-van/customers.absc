@@ -1,0 +1,117 @@
+-- customers.absc — お客さん: チャイムで集まって、車の横にならぶ。まちくたびれると帰ってしまう。
+
+let custs = []      -- {n, owner, zone, state, order, arrive, until}
+let cust_clock = 0
+
+func queue_of(p)
+  return filter(custs, func(c) return c.owner == p.id and c.state != "leave" end)
+end
+
+-- 車の横、ならぶ場所
+func queue_spot(p, i)
+  let side = rotate_y({x: 3, y: 0, z: 0}, p.yaw)
+  let back = rotate_y({x: 0, y: 0, z: -1.6 * (i - 1)}, p.yaw)
+  return p.position + side + back
+end
+
+func pick_flavor(p, zone)
+  let likes = filter(ZONES[zone].likes, func(id) return unlocked(p, id) end)
+  let all = filter(FLAVORS, func(f) return unlocked(p, f.id) end)
+  if len(likes) > 0 and chance(60) then return random(likes) end
+  return random(all).id
+end
+
+func make_order(p, zone)
+  let scoops = [pick_flavor(p, zone)]
+  if (p.served or 0) >= 8 and chance(40) then append(scoops, pick_flavor(p, zone)) end
+  let tops = filter(TOPPINGS, func(t) return contains(p.tops or [], t.id) and t.id != "none" end)
+  let top = "none"
+  if len(tops) > 0 and chance(60) then top = random(tops).id end
+  return {base: random(BASES).id, scoops: scoops, top: top}
+end
+
+func spawn_customers(p, zone, count)
+  for i in 1 to count do
+    let spot = block("Zone " + zone + " Spot " + random(1, 6))
+    if spot != nil then
+      let n = create_npc({name: "お客さん", position: spot.position + {x: random() * 2 - 1, y: 0.5, z: random() * 2 - 1}, color: random_color(),
+                          head_color: random(["#FDE68A", "#FCD34D", "#D6A77A", "#8D5524"]), speed: 1.1, health: 100000,
+                          hat: random(["none", "cap", "beanie", "flower_crown", "bow", "headband"])})
+      let c = {n: n, owner: p.id, zone: zone, state: "walk", order: make_order(p, zone), arrive: 0, until: time() + PATIENCE + 25}
+      append(custs, c)
+      n.move_to(queue_spot(p, len(queue_of(p))))
+    end
+  end
+end
+
+func send_home(c, text)
+  c.state = "leave"
+  c.until = time() + 7
+  if kit_here(c.n) then
+    if text != nil then c.n.say(text) end
+    let spot = block("Zone " + c.zone + " Spot " + random(1, 6))
+    if spot != nil then c.n.move_to(spot) end
+  end
+end
+
+func owner_of(c)
+  for p in players() do
+    if p.id == c.owner then return p end
+  end
+  return nil
+end
+
+func cust_step()
+  let now = time()
+  let keep = []
+  for c in custs do
+    let p = owner_of(c)
+    if c.state == "leave" then
+      if now > c.until or not kit_here(c.n) then kit_gone(c.n) else append(keep, c) end
+    elif p == nil or not kit_here(c.n) then
+      kit_gone(c.n)
+    else
+      -- 車が行ってしまったら帰る
+      if p.chime_at != nil and distance(p, p.chime_at) > 14 then
+        send_home(c, "あれ、行っちゃった…")
+      elif c.state == "walk" then
+        let i = index_of(queue_of(p), c)
+        if distance(c.n, queue_spot(p, i)) < 2 then
+          c.state = "wait"
+          c.arrive = now
+          c.until = now + PATIENCE
+          c.n.say(random(["アイスください！", "こんにちは〜", "どれにしようかな", "暑いね〜！"]))
+        elif kit_ready(p, "custmove" + c.n.id, 2) then
+          c.n.move_to(queue_spot(p, i))
+        end
+      elif c.state == "wait" and now > c.until then
+        send_home(c, random(["おそいよ〜", "もういいや…", "また今度ね"]))
+        p.lost = (p.lost or 0) + 1
+        if p.serving == c then close_order(p) end
+      end
+      append(keep, c)
+    end
+  end
+  custs = keep
+end
+
+on tick(dt)
+  cust_clock = cust_clock + dt
+  if cust_clock < 0.5 then return end
+  cust_clock = 0
+  cust_step()
+  for p in players() do
+    if p.serving == nil then
+      let first_wait = find(queue_of(p), func(c) return c.state == "wait" end)
+      if first_wait != nil then open_order(p, first_wait) end
+    else
+      order_timer(p)
+    end
+  end
+end
+
+on leave(p)
+  for c in custs do
+    if c.owner == p.id then send_home(c, nil) end
+  end
+end

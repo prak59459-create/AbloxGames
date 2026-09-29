@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 649,
+  "bytes" : 339260,
+  "cover" : "games\/lawn-mower-kings\/cover-c9b8b99c.png",
+  "id" : "lawn-mower-kings",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "games\/lawn-mower-kings\/data.absc",
+    "games\/lawn-mower-kings\/mow.absc",
+    "games\/lawn-mower-kings\/shop.absc",
+    "games\/lawn-mower-kings\/main.absc"
+  ],
+  "shots" : [
+    "games\/lawn-mower-kings\/shot1-78068708.png",
+    "games\/lawn-mower-kings\/shot2-7b9b6355.png"
+  ],
+  "summary" : "芝かりでお金持ちに！ 草の上を走ると芝がかれてお金が入る。バッグがいっぱいになったら たい肥場へ。刃・エンジン・バッグを強くして、大きな庭やゴルフ場もピカピカに。金色の草はおたから！",
+  "tags" : [
+    "simulator",
+    "vehicles",
+    "idle"
+  ],
+  "title" : "Lawn Mower Kings",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/lawn-mower-kings\/world.ablox"
+}
