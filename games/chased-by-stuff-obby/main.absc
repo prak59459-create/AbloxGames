@@ -1,0 +1,60 @@
+-- Chased by Stuff Obby — うしろから「なにか」が追いかけてくるオビー
+-- 8つのコース。黄色いゲートを通ると、少しして巨大な「なにか」が走りだす。つかまったらチェックポイントへ。
+-- ボール → アヒル → 食パン → ボウリングの玉 → パイナップル → 目ざまし時計 → ハンバーガー → クマ（だんだん速い）
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   ../../lib/kit_move.absc  追いかけてくる「なにか」の当たり判定
+--   data.absc    コースと「なにか」
+--   chase.absc   追いかけ
+--   main.absc    このファイル
+
+kit_setup("Chased by Stuff Obby", "うしろから なにかが来る！ 走れ！", [
+  "🟨 黄色いゲートを通ると、うしろから巨大な「なにか」が来る",
+  "🏃 ハードル・すきま・ほそい道をこえて、コースの終わりまで走りきれ",
+  "💥 つかまったらチェックポイントからやり直し",
+  "😅 最後までにげきるとコイン",
+  "🎈 ショップのスピードくつ・ふわふわで少し楽になる",
+  "⏭ むずかしかったらスキップも"
+])
+kit_keep(["caught", "escaped_from"])
+
+obby_setup({stages: 8, fall: -8, coins: 15, finish_coins: 300, skip: 35, board: "chased_time"})
+obby_zones = []
+for c in CHASERS do
+  append(obby_zones, {from: c.n, last: c.n, name: c.name, color: "#FDE68A"})
+end
+obby_on_stage = func(p, n) kit_quest_progress(p, "stages", 1) end
+obby_on_finish = func(p, secs)
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "chased", "ぜんぶからにげきった")
+end
+obby_perks_basic()
+
+kit_quest("stages", "4つめのコースまで行く", 4, 100)
+kit_quest("escapes", "5回にげきる", 5, 150)
+kit_quest("caught", "10回つかまる（それでも走る！）", 10, 60)
+kit_quest("finish", "8つのコースをぜんぶクリア", 1, 500)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+end
+
+on start()
+  world.music = "race"
+  every(12, func() kit_leaderboard("🏃 コース") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

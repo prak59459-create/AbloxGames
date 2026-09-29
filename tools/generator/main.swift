@@ -160,11 +160,15 @@ for game in Catalogue.games {
         if needsShots { shots = drawShots(settled, id: game.id, folder: game.folder) ?? shots }
     }
 
+    // What an iPad downloads for this game: the world file and every
+    // script, so the Games tab can say "0.4 / 1.2 MB".
+    let data = try! wireEncoder.encode(world)
+    let downloadBytes = data.count + playable.scripts.reduce(0) { $0 + $1.source.utf8.count }
     let listing = GameListing(
         id: game.id, title: game.title, author: Catalogue.author, summary: game.summary,
         world: "\(game.folder)/world.ablox", cover: cover, shots: shots, scripts: paths,
         tags: game.tags, blockCount: world.blocks.count, maxPlayers: game.maxPlayers,
-        schemaVersion: world.neededSchemaVersion, updatedAt: Catalogue.date
+        schemaVersion: world.neededSchemaVersion, updatedAt: Catalogue.date, bytes: downloadBytes
     )
     listings.append(listing)
 
@@ -186,7 +190,6 @@ for game in Catalogue.games {
 
     // The world file carries no scripts: the listing's `.absc` files are the
     // only copy, so editing one on GitHub changes the game.
-    let data = try! wireEncoder.encode(world)
     if data.count > GameCatalogue.Limits.maximumWorldBytes { problems.append("world is \(data.count) bytes") }
     if let decoded = try? WorldDocument.decoded(from: data) {
         if decoded.blocks.count != listing.blockCount { problems.append("block count mismatch") }

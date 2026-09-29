@@ -1,0 +1,176 @@
+-- rescue.absc — 動物がいる・助ける（持つとおそくなる）・シェルター・コイン
+
+let spots = []
+let shelters = {}
+let shelter_blocks = {}
+let rescue_clock = 0
+
+func animal(id)
+  for a in ANIMALS do
+    if a.id == id then return a end
+  end
+  return ANIMALS[1]
+end
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or 0 end
+  end
+  return 0
+end
+
+func spawn_at(spot)
+  let tier = tag_num(spot, "tier")
+  let pool = filter(ANIMALS, func(a) return a.tier == tier end)
+  if len(pool) == 0 then return end
+  let a = kit_pick(pool, 1)
+  let offset = {x: random() * 2 - 1, y: 0.5, z: random() * 2 - 1}
+  create_block({name: "Animal " + a.id, position: spot.position + offset, size: a.size, color: a.color, shape: a.shape, material: "neon",
+                behavior: "trigger", tags: ["animal", a.id], solid: false})
+end
+
+-- マグマが引いたら、空いた場所にまた動物がくる
+func refill()
+  for spot in spots do
+    let near = false
+    for b in blocks("animal") do
+      if distance(b, spot) < 3 then near = true end
+    end
+    if not near then spawn_at(spot) end
+  end
+end
+
+func carry_show(p)
+  let names = []
+  for id in p.carry or [] do append(names, animal(id).name) end
+  if len(names) == 0 then p.ui_remove("carry") else p.ui_text("carry", "🤲 " + join(names, " "), {at: "top", dy: 80, size: 16, bold: true, color: "#FDE68A"}) end
+  let slow = 1 - len(p.carry or []) * CARRY_SLOW
+  if p.fast then slow = slow * 1.2 end
+  p.speed = slow
+end
+
+func pick(p, b)
+  let kind = ""
+  for a in ANIMALS do
+    if contains(b.tags, a.id) then kind = a.id end
+  end
+  if kind == "" then return end
+  if p.carry == nil then p.carry = [] end
+  if len(p.carry) >= CARRY[(p.up_carry or 0) + 1] then
+    if kit_ready(p, "full", 2) then p.message("🤲 もう持てない！ シェルターへ", 1.5) end
+    return
+  end
+  kit_gone(b)
+  append(p.carry, kind)
+  let a = animal(kind)
+  p.message("🤲 " + a.name + "（" + TIER_NAMES[a.tier] + "）を助けた！ シェルターへ！", 2)
+  p.sound("collect")
+  carry_show(p)
+  if a.tier == 5 then kit_badge(p, "island", "小島から助けだした") end
+end
+
+func claim(p)
+  for i in 1 to 8 do
+    if shelters["s" + i] == nil then
+      shelters["s" + i] = p.id
+      p.shelter = i
+      let pad = block("Shelter " + i)
+      if pad != nil then pad.color = p.color end
+      return
+    end
+  end
+end
+
+func home(p)
+  let pad = nil
+  if p.shelter != nil then pad = block("Shelter " + p.shelter) end
+  if pad != nil then p.teleport(pad) else p.respawn() end
+  p.velocity = {x: 0, y: 0, z: 0}
+end
+
+func income(p)
+  let total = 0
+  for id in p.saved_animals or [] do total = total + animal(id).income end
+  return total
+end
+
+func draw_shelter(p)
+  for b in shelter_blocks[p.id] or [] do kit_gone(b) end
+  shelter_blocks[p.id] = []
+  if p.shelter == nil then return end
+  let pad = block("Shelter " + p.shelter)
+  if pad == nil then return end
+  let list = p.saved_animals or []
+  let i = 0
+  for id in list do
+    i = i + 1
+    let a = animal(id)
+    let ang = i / max(1, len(list)) * 360
+    append(shelter_blocks[p.id], create_block({name: "Sheltered", position: pad.position + {x: sin(ang) * 1.4, y: 0.6, z: cos(ang) * 1.4},
+                                                size: a.size * 0.7, color: a.color, shape: a.shape, material: "neon", solid: false}))
+  end
+  p.ui_text("income", "🏠 シェルター " + len(list) + "/" + SLOTS[(p.up_slots or 0) + 1] + "   💰 " + income(p) + "/秒", {at: "top_left", dy: 90, size: 15, color: "#FED7AA"})
+end
+
+func bring_in(p)
+  if p.carry == nil or len(p.carry) == 0 then return end
+  if p.saved_animals == nil then p.saved_animals = [] end
+  let slots = SLOTS[(p.up_slots or 0) + 1]
+  let n = 0
+  for id in p.carry do
+    n = n + 1
+    kit_give(p, 10 * animal(id).tier)
+    if len(p.saved_animals) < slots then
+      append(p.saved_animals, id)
+    else
+      let worst = 1
+      for k in 1 to len(p.saved_animals) do
+        if animal(p.saved_animals[k]).income < animal(p.saved_animals[worst]).income then worst = k end
+      end
+      if animal(id).income > animal(p.saved_animals[worst]).income then p.saved_animals[worst] = id end
+    end
+  end
+  p.rescued = (p.rescued or 0) + n
+  kit_quest_progress(p, "rescue", n)
+  kit_quest_progress(p, "rescue50", n)
+  p.carry = []
+  carry_show(p)
+  draw_shelter(p)
+  p.message("🏠 " + n + "ひき、シェルターへ！ 1秒に 💰" + income(p), 2)
+  p.sound("goal")
+  particles("hearts", p, {amount: 30})
+end
+
+on start()
+  spots = blocks("spot")
+  refill()
+end
+
+on tick(dt)
+  rescue_clock = rescue_clock + dt
+  if rescue_clock < 1 then return end
+  rescue_clock = 0
+  for p in players() do
+    let inc = income(p)
+    if inc > 0 then kit_give(p, inc) end
+    if p.alive and p.y < -10 then home(p) end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "animal") then pick(p, b)
+  elif contains(b.tags, "shelter") then
+    if p.shelter != nil and b.name == "Shelter " + p.shelter then bring_in(p) end
+  end
+end
+
+on leave(p)
+  for b in shelter_blocks[p.id] or [] do kit_gone(b) end
+  shelter_blocks[p.id] = nil
+  if p.shelter != nil then
+    shelters["s" + p.shelter] = nil
+    let pad = block("Shelter " + p.shelter)
+    if pad != nil then pad.color = "#E7E5E4" end
+  end
+end

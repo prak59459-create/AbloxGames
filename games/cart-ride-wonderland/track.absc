@@ -12,6 +12,7 @@ func launch(p, b)
   let push = tag_number(b, "p", 15) * clamp(GEARS[p.gear or 2] / 2.1, 0.8, 1.4)
   let up = tag_number(b, "u", 8)
   p.velocity = {x: sin(yaw) * push, y: up, z: cos(yaw) * push}
+  p.fly = {dir: {x: sin(yaw), y: 0, z: cos(yaw)}, speed: push * 0.9, until: time() + up / 9}
   p.sound("whoosh")
   p.jumps = (p.jumps or 0) + 1
   kit_quest_progress(p, "jumps", 1)
@@ -63,5 +64,23 @@ on touch(p, b)
   if p.is_npc then return end
   if contains(b.tags, "launch") and quiet(p, "launch", 0.8) then launch(p, b)
   elif contains(b.tags, "boost") and quiet(p, "boost", 1) then boost(p)
+  end
+end
+
+-- 空中でもしばらくジャンプ台の向きへ進む（スティックをはなしていても届く）
+let fly_clock = 0
+on tick(dt)
+  fly_clock = fly_clock + dt
+  if fly_clock < 0.1 then return end
+  fly_clock = 0
+  for p in players() do
+    if p.fly != nil then
+      if time() < p.fly.until and p.alive then
+        let v = p.velocity
+        p.velocity = {x: p.fly.dir.x * p.fly.speed, y: v.y, z: p.fly.dir.z * p.fly.speed}
+      else
+        p.fly = nil
+      end
+    end
   end
 end

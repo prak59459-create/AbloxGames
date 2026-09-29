@@ -1,0 +1,124 @@
+-- water.absc — 水の中か陸か（かわく）・流れ・泡・クラゲ・つり針・電気ウナギ・真珠
+
+let waters = []
+let currents = []
+let bubbles = []
+let eels_on = false
+let w_clock = 0
+
+func in_box(p, b, pad)
+  let half = b.size * 0.5
+  return abs(p.x - b.x) < half.x + pad and abs(p.z - b.z) < half.z + pad and p.y + 0.5 > b.y - half.y and p.y + 0.3 < b.y + half.y
+end
+
+func in_water(p)
+  for w in waters do
+    if in_box(p, w, 0) then return true end
+  end
+  return false
+end
+
+func tag_number(b, key, fallback)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or fallback end
+  end
+  return fallback
+end
+
+func set_fish_move(p, wet)
+  if p.wet == wet then return end
+  p.wet = wet
+  if wet then
+    p.obby_speed_mult = SWIM_SPEED
+    p.obby_jump_mult = 1
+  else
+    p.obby_speed_mult = FLOP_SPEED
+    p.obby_jump_mult = FLOP_JUMP
+  end
+  obby_apply_perks(p)
+end
+
+func hurt(p, why)
+  if not kit_ready(p, "hurt", 1.2) then return end
+  p.message(why, 1.4)
+  p.sound("hit")
+  p.hurts = (p.hurts or 0) + 1
+  obby_back(p)
+end
+
+on start()
+  waters = blocks("water")
+  currents = blocks("current")
+  bubbles = blocks("bubble")
+  for b in blocks("jelly") do
+    mv_patrol(b, {x: 0, y: 1.8, z: 0}, 1.6, 0.4, func(p, blk) hurt(p, "🪼 クラゲにさされた！") end)
+  end
+  for b in blocks("hook") do
+    mv_patrol(b, {x: 0, y: -5.5, z: 0}, 2.2, 1.2, func(p, blk) hurt(p, "🎣 つり針にひっかかった！") end)
+  end
+  every(2, func()
+    eels_on = not eels_on
+    for b in blocks("eel") do b.visible = eels_on end
+  end)
+end
+
+on tick(dt)
+  w_clock = w_clock + dt
+  if w_clock < 0.2 then return end
+  let passed = w_clock
+  w_clock = 0
+  for p in players() do
+    if p.alive then
+      let wet = in_water(p)
+      set_fish_move(p, wet)
+      if wet then
+        if (p.moist or DRY_SECS) < DRY_SECS then
+          p.moist = min(DRY_SECS, (p.moist or 0) + passed * 4)
+          if p.moist >= DRY_SECS then p.ui_remove("moist") end
+        end
+        for c in currents do
+          if in_box(p, c, 0) then
+            let v = p.velocity
+            p.velocity = {x: v.x + tag_number(c, "cx", 0) * 0.5, y: v.y, z: v.z + tag_number(c, "cz", 0) * 0.5}
+          end
+        end
+        for b in bubbles do
+          if in_box(p, b, 0.2) then
+            let v = p.velocity
+            p.velocity = {x: v.x, y: 9, z: v.z}
+          end
+        end
+        if eels_on then
+          for e in blocks("eel") do
+            if in_box(p, e, 0.3) then hurt(p, "⚡ 電気ウナギにビリッ！") end
+          end
+        end
+      else
+        p.moist = (p.moist or DRY_SECS) - passed
+        p.ui_bar("moist", max(0, p.moist), DRY_SECS, {at: "top", dy: 110, w: 220, h: 12, color: "#38BDF8"})
+        if p.moist <= 0 then
+          p.moist = DRY_SECS
+          p.ui_remove("moist")
+          hurt(p, "🥵 かわいちゃった！ 水の中へ！")
+        elif p.moist < 3 and kit_ready(p, "dry_msg", 3) then
+          p.message("💧 からだがかわく！ はやく水へ！", 1.2)
+        end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "pearl") and b.visible then
+    b.visible = false
+    after(30, func()
+      if b.destroy != nil then b.visible = true end
+    end)
+    p.pearls = (p.pearls or 0) + 1
+    kit_give(p, 5)
+    p.message("⚪ 真珠！（" + p.pearls + "こ）", 1.2)
+    p.sound("collect")
+    kit_quest_progress(p, "pearls", 1)
+  end
+end

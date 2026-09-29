@@ -1,0 +1,24 @@
+-- data.absc — Fishy Obby の表
+
+let ZONES = [
+  {first: 1, last: 5, name: "🪷 池", color: "#22C55E"},
+  {first: 6, last: 10, name: "🏞 川", color: "#0EA5E9"},
+  {first: 11, last: 15, name: "🧪 パイプ", color: "#22D3EE"},
+  {first: 16, last: 20, name: "🪸 サンゴ礁", color: "#EC4899"},
+  {first: 21, last: 25, name: "🌑 深海", color: "#6366F1"}
+]
+
+-- 魚のきせかえ（真珠で買う）
+let FISH = [
+  {id: "goldfish", name: "🐟 きんぎょ", price: 0, color: "#F97316", head: "#FDBA74", size: 0.7},
+  {id: "clown", name: "🐠 クマノミ", price: 5, color: "#FB923C", head: "#FFFFFF", size: 0.7},
+  {id: "tang", name: "💙 ナンヨウハギ", price: 10, color: "#2563EB", head: "#FACC15", size: 0.7},
+  {id: "puffer", name: "🐡 フグ", price: 15, color: "#FDE68A", head: "#FEF3C7", size: 0.9},
+  {id: "shark", name: "🦈 こどもザメ", price: 25, color: "#94A3B8", head: "#E5E7EB", size: 0.85},
+  {id: "gold", name: "👑 金のさかな", price: 40, color: "#FACC15", head: "#FEF08A", size: 0.8}
+]
+
+let DRY_SECS = 9          -- 水から出ていられる秒
+let SWIM_SPEED = 1.7
+let FLOP_SPEED = 0.5
+let FLOP_JUMP = 1.25

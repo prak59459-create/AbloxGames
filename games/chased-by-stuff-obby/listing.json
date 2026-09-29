@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 141,
+  "bytes" : 104075,
+  "cover" : "games\/chased-by-stuff-obby\/cover-8390f55c.png",
+  "id" : "chased-by-stuff-obby",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "lib\/kit_move.absc",
+    "games\/chased-by-stuff-obby\/data.absc",
+    "games\/chased-by-stuff-obby\/chase.absc",
+    "games\/chased-by-stuff-obby\/main.absc"
+  ],
+  "shots" : [
+    "games\/chased-by-stuff-obby\/shot1-522eee51.png",
+    "games\/chased-by-stuff-obby\/shot2-93ac777d.png"
+  ],
+  "summary" : "巨大なボール、アヒル、食パン、ボウリングの玉、パイナップル、目ざまし時計、ハンバーガー、クマのぬいぐるみ… 8つのコースで、うしろから追いかけてくる「なにか」から走ってにげろ！",
+  "tags" : [
+    "obby",
+    "chase",
+    "funny"
+  ],
+  "title" : "Chased by Stuff Obby",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/chased-by-stuff-obby\/world.ablox"
+}

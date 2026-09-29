@@ -1,0 +1,102 @@
+-- lava.absc — マグマが上がって下がる。サイレン・画面の表示・マグマにさわったら
+
+let lava = nil
+let lava_state = "calm"
+let lava_next = 0
+let lava_clock = 0
+
+func lava_top()
+  if lava == nil then return -100 end
+  return mv_where(lava).y + lava.size.y / 2
+end
+
+func lava_show()
+  let text = ""
+  let left = max(0, ceil(lava_next - time()))
+  if lava_state == "calm" then
+    text = "🌋 マグマはしずか（あと " + left + "秒）"
+  elif lava_state == "warn" then
+    text = "🚨 マグマが上がる！ 上へにげろ！（" + left + "）"
+  elif lava_state == "rise" then
+    text = "🔥 マグマが上がっている！"
+  elif lava_state == "hold" then
+    text = "🔥 マグマがいっぱい（あと " + left + "秒）"
+  else
+    text = "🌋 マグマが下がっていく…"
+  end
+  ui_text("lava", text, {at: "top", dy: 26, size: 18, bold: true, color: "#FDBA74"})
+end
+
+func lava_step()
+  let now = time()
+  if now < lava_next then return end
+  if lava_state == "calm" then
+    lava_state = "warn"
+    lava_next = now + LAVA_WARN
+    sound("alarm")
+    for p in players() do
+      if p.y < LAVA_PEAK + 1 then p.message("🚨 サイレン！ マグマが来る！ 上のだんへ！", 2.5) end
+    end
+  elif lava_state == "warn" then
+    lava_state = "rise"
+    lava_next = now + LAVA_RISE
+    if lava != nil then mv_once(lava, lava_home() + {x: 0, y: LAVA_PEAK - LAVA_LOW, z: 0}, LAVA_RISE, nil) end
+  elif lava_state == "rise" then
+    lava_state = "hold"
+    lava_next = now + LAVA_HOLD
+  elif lava_state == "hold" then
+    lava_state = "fall"
+    lava_next = now + LAVA_FALL
+    if lava != nil then mv_once(lava, lava_home(), LAVA_FALL, nil) end
+  else
+    lava_state = "calm"
+    lava_next = now + LAVA_CALM
+    for p in players() do p.boots_used = 0 end
+    refill()
+  end
+end
+
+let lava_home_pos = nil
+func lava_home()
+  return lava_home_pos
+end
+
+func burn(p)
+  if not kit_ready(p, "burn", 1.5) then return end
+  let boots = BOOTS[(p.up_boots or 0) + 1]
+  if (p.boots_used or 0) < boots then
+    p.boots_used = (p.boots_used or 0) + 1
+    p.launch(0, 14, 0)
+    p.message("🥾 マグマブーツでセーフ！（のこり " + (boots - p.boots_used) + "）", 1.5)
+    return
+  end
+  p.burns = (p.burns or 0) + 1
+  if p.carry != nil and len(p.carry) > 0 then
+    p.carry = []
+    carry_show(p)
+    p.message("🔥 アチッ！ 動物たちはにげちゃった…", 2)
+  else
+    p.message("🔥 アチッ！ シェルターにもどった", 1.5)
+  end
+  p.sound("hit")
+  home(p)
+end
+
+on start()
+  lava = block("Lava")
+  if lava != nil then lava_home_pos = lava.position end
+  lava_state = "calm"
+  lava_next = time() + LAVA_CALM
+end
+
+on tick(dt)
+  lava_clock = lava_clock + dt
+  if lava_clock < 0.2 then return end
+  lava_clock = 0
+  lava_step()
+  let top = lava_top()
+  for p in players() do
+    if p.alive and p.y < top - 0.2 then burn(p) end
+  end
+  lava_show()
+end

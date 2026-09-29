@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 262,
+  "bytes" : 156563,
+  "cover" : "games\/swing-rope-obby\/cover-5199846f.png",
+  "id" : "swing-rope-obby",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/swing-rope-obby\/data.absc",
+    "games\/swing-rope-obby\/memes.absc",
+    "games\/swing-rope-obby\/swing.absc",
+    "games\/swing-rope-obby\/main.absc"
+  ],
+  "shots" : [
+    "games\/swing-rope-obby\/shot1-29c3d53e.png",
+    "games\/swing-rope-obby\/shot2-b4bd2075.png"
+  ],
+  "summary" : "ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。",
+  "tags" : [
+    "obby",
+    "collect",
+    "swing"
+  ],
+  "title" : "Swing Rope Obby",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/swing-rope-obby\/world.ablox"
+}

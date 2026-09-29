@@ -1,0 +1,24 @@
+-- data.absc — Swing Rope Obby の表
+-- ミームリン（ふしぎ生き物）と強化
+
+-- tier: どの島にいるか（1がいちばん近い）。income: 基地にいると1秒ごとのコイン
+let SPECIES = [
+  {id: "puyo", name: "ぷよりん", tier: 1, weight: 60, income: 1, color: "#86EFAC", shape: "sphere", size: 0.9},
+  {id: "tofu", name: "とうふマン", tier: 1, weight: 40, income: 2, color: "#F8FAFC", shape: "box", size: 0.9},
+  {id: "kappa", name: "カッパっぱ", tier: 2, weight: 55, income: 4, color: "#22C55E", shape: "cylinder", size: 1},
+  {id: "tako", name: "たこタコス", tier: 2, weight: 45, income: 6, color: "#FB7185", shape: "sphere", size: 1},
+  {id: "nabe", name: "おなべ侍", tier: 3, weight: 55, income: 12, color: "#78716C", shape: "cylinder", size: 1.1},
+  {id: "pan", name: "パンダパン", tier: 3, weight: 45, income: 16, color: "#FDE68A", shape: "sphere", size: 1.1},
+  {id: "ufo", name: "UFOうどん", tier: 4, weight: 60, income: 30, color: "#A5B4FC", shape: "cylinder", size: 1.2},
+  {id: "robo", name: "ロボこけし", tier: 4, weight: 40, income: 42, color: "#94A3B8", shape: "box", size: 1.2},
+  {id: "star", name: "ほしぞらクジラ", tier: 5, weight: 75, income: 90, color: "#6366F1", shape: "sphere", size: 1.3},
+  {id: "cosmic", name: "✨コズミックねこ", tier: 5, weight: 25, income: 200, color: "#F0ABFC", shape: "cone", size: 1.3}
+]
+let TIER_NAMES = ["ふつう", "ちょっとレア", "レア", "すごくレア", "ひみつ"]
+
+let ROPE_POWER = [1.0, 1.15, 1.3, 1.45]
+let CARRY = [1, 2, 3, 4]
+let SLOTS = [6, 8, 10, 12]
+let UP_PRICES = [300, 1500, 6000]
+let SWING_SECS = 2.6
+let MEME_BACK = 25        -- 拾われたミームリンがまたわく秒

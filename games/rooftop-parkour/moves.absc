@@ -1,0 +1,128 @@
+-- moves.absc — パルクールの技（ダッシュ・2段ジャンプ・カベキック・スライディング）とフロー
+
+func flat_look(p)
+  return {x: sin(p.yaw), y: 0, z: 0 - cos(p.yaw)}
+end
+
+func in_air(p)
+  return abs(p.velocity.y) > 0.4
+end
+
+func move_ready(p, key)
+  let cool = MOVES[key].cool
+  if key == "dash" and p.dash_up then cool = 0.65 end
+  if p.cools == nil then p.cools = {} end
+  let last = p.cools[key]
+  if last != nil and time() - last < cool then return false end
+  p.cools[key] = time()
+  return true
+end
+
+-- 技を出すたびにフローがたまる。フローが高いほど速い
+func flow_up(p, key)
+  let now = time()
+  if p.flow_at != nil and now - p.flow_at <= FLOW_KEEP then
+    p.flow = min(FLOW_MAX, (p.flow or 0) + 1)
+  else
+    p.flow = 1
+  end
+  p.flow_at = now
+  p.moves_done = (p.moves_done or 0) + 1
+  kit_quest_progress(p, "moves", 1)
+  if p.flow >= 3 then kit_give(p, p.flow - 2) end
+  if p.flow >= FLOW_MAX then kit_badge(p, "flow", "フロー全開") end
+  flow_show(p)
+  apply_speed(p)
+end
+
+func flow_show(p)
+  let f = p.flow or 0
+  let bar = ""
+  for k in 1 to FLOW_MAX do
+    if k <= f then bar = bar + "🔥" else bar = bar + "▫️" end
+  end
+  p.ui_text("flow", "フロー " + bar, {at: "top_left", dy: 90, size: 16, bold: true, color: "#FDBA74"})
+end
+
+func apply_speed(p)
+  let s = 1 + (p.flow or 0) * 0.08
+  if (p.slide_until or 0) > time() then s = s * 1.8 end
+  p.obby_speed_mult = s
+  obby_apply_perks(p)
+end
+
+func dash(p)
+  if not move_ready(p, "dash") then return end
+  let d = flat_look(p)
+  p.velocity = {x: d.x * 16, y: 3, z: d.z * 16}
+  p.sound("whoosh")
+  flow_up(p, "dash")
+end
+
+func double_jump(p)
+  if not in_air(p) then
+    p.message("⤴ は空中で！", 0.8)
+    return
+  end
+  if p.doubled then return end
+  if not move_ready(p, "double") then return end
+  p.doubled = true
+  let v = p.velocity
+  p.velocity = {x: v.x, y: 8.5, z: v.z}
+  particles("dust", p, {amount: 10})
+  flow_up(p, "double")
+end
+
+-- 前にカベがあれば、カベをけって上へ
+func wall_kick(p)
+  if (p.kicks or 0) >= 2 then return end
+  let d = flat_look(p)
+  let hit = raycast(p.position + {x: 0, y: 1, z: 0}, d, 1.8)
+  if hit == nil or hit.block == nil then
+    p.message("🧗 カベの前で！", 0.8)
+    return
+  end
+  if not move_ready(p, "wall") then return end
+  p.kicks = (p.kicks or 0) + 1
+  p.velocity = {x: d.x * 2.5, y: 10, z: d.z * 2.5}
+  p.sound("jump")
+  flow_up(p, "wall")
+end
+
+func slide(p)
+  if in_air(p) then return end
+  if not move_ready(p, "slide") then return end
+  p.slide_until = time() + 1
+  apply_speed(p)
+  kit_later(p, 1.05, func() apply_speed(p) end)
+  flow_up(p, "slide")
+end
+
+let move_clock = 0
+on tick(dt)
+  move_clock = move_clock + dt
+  if move_clock < 0.2 then return end
+  move_clock = 0
+  for p in players() do
+    -- 着地したら 2段ジャンプ・カベキックの回数がもどる
+    if not in_air(p) then
+      p.doubled = false
+      p.kicks = 0
+    end
+    -- しばらく技を出さないとフローが下がる
+    if (p.flow or 0) > 0 and p.flow_at != nil and time() - p.flow_at > FLOW_KEEP + 1 then
+      p.flow = p.flow - 1
+      p.flow_at = time() - FLOW_KEEP
+      flow_show(p)
+      apply_speed(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "mv_dash" then dash(p)
+  elif id == "mv_double" then double_jump(p)
+  elif id == "mv_wall" then wall_kick(p)
+  elif id == "mv_slide" then slide(p)
+  end
+end

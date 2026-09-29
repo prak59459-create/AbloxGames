@@ -1,0 +1,73 @@
+-- Shrink & Grow Obby — 小さくなったり大きくなったりして進むオビー
+-- ステージの前に 🟣ちぢむ・🟢ふつう・🟠のびる のパッド。どれで行くか考えよう。
+--   🐭 小さい: 低いトンネル・ネズミの穴・うすいガラス   🦖 大きい: 高い段差・広いすきま・重いスイッチ
+-- ステージ10でキノコ、20でニンジン（アイテムバーでいつでも大きさをかえられる）。
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   data.absc    ゾーン・大きさ
+--   sizes.absc   大きさ・ガラス・スイッチ・宝石
+--   main.absc    このファイル
+
+kit_setup("Shrink & Grow Obby", "小さく？ 大きく？ 考えて進もう！", [
+  "🟣 ちぢむパッド: 低いトンネルや小さな穴をくぐれる",
+  "🟠 のびるパッド: 高い段差をとびこえ、広いすきまをまたげる",
+  "🟢 ふつうのパッドでもとの大きさ",
+  "🧊 うすいガラスは小さくないとわれる。🔴 重いスイッチは大きくないと押せない",
+  "💎 小さな穴のそばに宝石がかくれているかも",
+  "🍄 ステージ10でキノコ、🥕 20でニンジン（アイテムバーで大きさをかえる）"
+])
+kit_keep(["gems", "changes"])
+
+obby_setup({stages: 30, fall: -8, coins: 8, finish_coins: 400, skip: 30, board: "size_time"})
+obby_zones = []
+for z in ZONES do
+  append(obby_zones, {from: z.first, last: z.last, name: z.name, color: z.color})
+end
+obby_on_stage = func(p, n)
+  kit_quest_progress(p, "stages", 1)
+  items_for(p)
+end
+obby_on_finish = func(p, secs)
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "sizes", "大きさの名人")
+end
+obby_perks_basic()
+
+kit_quest("changes", "大きさを20回かえる", 20, 100)
+kit_quest("gems", "宝石を5こ見つける", 5, 200)
+kit_quest("stages", "チェックポイントを10こ", 10, 120)
+kit_quest("finish", "30ステージをクリア", 1, 600)
+
+kit_on_load = func(p) items_for(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.size_key = nil
+  set_size(p, "normal")
+end
+
+on respawn(p)
+  let key = p.size_key or "normal"
+  p.size_key = nil
+  set_size(p, key)
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("🏁 ステージ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

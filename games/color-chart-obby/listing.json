@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 369,
+  "blockCount" : 373,
+  "bytes" : 219920,
   "cover" : "games\/color-chart-obby\/cover-c5b2a869.png",
   "id" : "color-chart-obby",
   "maxPlayers" : 16,

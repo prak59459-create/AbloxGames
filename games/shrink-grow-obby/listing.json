@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 356,
+  "bytes" : 199283,
+  "cover" : "games\/shrink-grow-obby\/cover-15e93a42.png",
+  "id" : "shrink-grow-obby",
+  "maxPlayers" : 16,
+  "schemaVersion" : 1,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "games\/shrink-grow-obby\/data.absc",
+    "games\/shrink-grow-obby\/sizes.absc",
+    "games\/shrink-grow-obby\/main.absc"
+  ],
+  "shots" : [
+    "games\/shrink-grow-obby\/shot1-2ae80135.png",
+    "games\/shrink-grow-obby\/shot2-a061abb5.png"
+  ],
+  "summary" : "小さくなって穴をくぐり、大きくなって段差とすきまをこえる！ キッチン・お庭・おもちゃの城の30ステージ。小さいとわれないガラス、大きくないと押せないスイッチ。かくれた宝石も。",
+  "tags" : [
+    "obby",
+    "puzzle",
+    "size"
+  ],
+  "title" : "Shrink & Grow Obby",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/shrink-grow-obby\/world.ablox"
+}

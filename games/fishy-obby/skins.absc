@@ -1,0 +1,67 @@
+-- skins.absc — 魚のきせかえ（真珠で買う）
+
+func fish_info(id)
+  for f in FISH do
+    if f.id == id then return f end
+  end
+  return FISH[1]
+end
+
+func wear(p, id)
+  let f = fish_info(id)
+  p.fish = f.id
+  p.color = f.color
+  p.head_color = f.head
+  p.leg_color = f.color
+  p.size = f.size
+  p.hat = "none"
+end
+
+func skins_menu(p)
+  let h = 140 + len(FISH) * 46
+  p.ui_remove("skin_box")
+  p.ui_panel("skin_box", {at: "center", w: 520, h: h, bg: "#0C4A6EF2", radius: 22, layer: 40})
+  p.ui_text("skin_t", "🐟 魚をえらぶ（⚪ 真珠 " + ((p.pearls or 0) - (p.pearls_spent or 0)) + "こ）", {parent: "skin_box", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for f in FISH do
+    i = i + 1
+    let owned = f.price == 0 or (p.fish_owned != nil and contains(p.fish_owned, f.id))
+    let label = f.name + "  ⚪" + f.price
+    let bg = "#2563EB"
+    if owned then
+      label = f.name + " になる"
+      bg = "#0F766E"
+    end
+    if p.fish == f.id then
+      label = "✅ " + f.name
+      bg = "#374151"
+    end
+    p.ui_button("fish_" + f.id, label, {parent: "skin_box", y: (32 + i * 46) / h, w: 470, h: 38, size: 14, bg: bg})
+  end
+  p.ui_button("skin_close", "閉じる", {parent: "skin_box", y: (h - 28) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func pick_fish(p, id)
+  let f = fish_info(id)
+  let owned = f.price == 0 or (p.fish_owned != nil and contains(p.fish_owned, f.id))
+  if not owned then
+    let have = (p.pearls or 0) - (p.pearls_spent or 0)
+    if have < f.price then
+      p.message("⚪ 真珠が足りない（あと " + (f.price - have) + "こ）", 1.5)
+      return
+    end
+    p.pearls_spent = (p.pearls_spent or 0) + f.price
+    if p.fish_owned == nil then p.fish_owned = [] end
+    append(p.fish_owned, f.id)
+    kit_quest_progress(p, "skin", 1)
+  end
+  wear(p, id)
+  skins_menu(p)
+end
+
+on button(p, id)
+  if id == "skins" then skins_menu(p)
+  elif id == "skin_close" then p.ui_remove("skin_box")
+  elif starts_with(id, "fish_") then pick_fish(p, replace(id, "fish_", ""))
+  end
+end

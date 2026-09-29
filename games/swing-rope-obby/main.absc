@@ -1,0 +1,120 @@
+-- Swing Rope Obby — ロープでスイングして、ふしぎ生き物ミームリンを集める
+-- 真ん中の島に自分の基地。4つの方向に島が5つずつ。遠い島ほどレアなミームリン。
+-- ロープにさわるとつかまる → 🟩のタイミングで「はなす」→ 次の島へ。つれて帰って基地にならべるとコイン。
+--
+-- ファイル:
+--   data.absc    ミームリン10種・強化
+--   swing.absc   ロープとタイミング
+--   memes.absc   わく・つかまえる・基地・コイン
+--   main.absc    このファイル
+
+kit_setup("Swing Rope Obby", "ロープでとんで、ミームリンを集めよう！", [
+  "🪢 黄色いロープにさわるとつかまる（水色は帰りのロープ）",
+  "🟩 メーターが緑のときに「はなす」と遠くまでとぶ",
+  "🌟 遠い島ほどレア。5番目の島には ひみつのミームリン",
+  "🎒 さわってつかまえて、自分の基地（色がついたパッド）へ",
+  "💰 基地のミームリンが1秒ごとにコインをくれる",
+  "🟧 オレンジのパッドでロープの力・持てる数・基地を強化"
+])
+kit_keep(["collection", "up_rope", "up_carry", "up_slots", "swings"])
+
+let UPGRADES = [
+  {key: "up_rope", name: "🪢 ロープの力", values: ROPE_POWER},
+  {key: "up_carry", name: "🎒 持てる数", values: CARRY},
+  {key: "up_slots", name: "🏠 基地のひろさ", values: SLOTS}
+]
+
+func up_menu(p)
+  let h = 140 + len(UPGRADES) * 54
+  p.ui_remove("up_box")
+  p.ui_panel("up_box", {at: "center", w: 540, h: h, bg: "#14532DF2", radius: 22, layer: 40})
+  p.ui_text("up_t", "⬆️ 強化（💰 " + kit_short(kit_money(p)) + "）", {parent: "up_box", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let level = p[u.key] or 0
+    let label = u.name + "  " + u.values[level + 1]
+    let bg = "#15803D"
+    if level >= 3 then
+      label = label + "（最大）"
+      bg = "#374151"
+    else
+      label = label + " → " + u.values[level + 2] + "   💰" + kit_short(UP_PRICES[level + 1])
+    end
+    p.ui_button("upbuy_" + u.key, label, {parent: "up_box", y: (36 + i * 54) / h, w: 500, h: 46, size: 15, bg: bg})
+  end
+  p.ui_button("up_close", "閉じる", {parent: "up_box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func up_buy(p, key)
+  let level = p[key] or 0
+  if level >= 3 or not kit_pay(p, UP_PRICES[level + 1]) then return end
+  p[key] = level + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "upgrade", 1)
+  draw_base(p)
+  up_menu(p)
+end
+
+kit_shop_add("speed", "👟 スピードくつ（ずっと 1.2ばい）", 600, func(p)
+  p.fast = true
+  p.speed = 1.2
+end)
+
+kit_quest("swings", "ロープで10回とぶ", 10, 80)
+kit_quest("perfect", "パーフェクトで3回とぶ", 3, 120)
+kit_quest("catch", "ミームリンを10ぴきつかまえる", 10, 150)
+kit_quest("deposit", "基地に5回ならべる", 5, 120)
+kit_quest("upgrade", "強化を3回", 3, 300)
+
+kit_on_load = func(p)
+  if p.fast then p.speed = 1.2 end
+  draw_base(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.carry = []
+  claim_base(p)
+  let pad = base_pad(p)
+  if pad != nil then
+    kit_later(p, 0.5, func()
+      p.teleport(pad)
+    end)
+  end
+  draw_base(p)
+  p.ui_button("upgrades", "⬆️ 強化", {at: "right", dy: -60, w: 140, h: 46, size: 15, bg: "#B45309"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "upgrades") and kit_ready(p, "up_pad", 3) then up_menu(p) end
+  if contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p) end
+end
+
+on button(p, id)
+  if id == "upgrades" then up_menu(p)
+  elif id == "up_close" then p.ui_remove("up_box")
+  elif starts_with(id, "upbuy_") then up_buy(p, replace(id, "upbuy_", ""))
+  end
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("💰 1秒のコイン") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 2 then return end
+  score_clock = 0
+  for p in players() do
+    let inc = income(p)
+    if inc != p.score then p.score = inc end
+  end
+end

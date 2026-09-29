@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 307,
+  "bytes" : 186465,
+  "cover" : "games\/fishy-obby\/cover-e795e82d.png",
+  "id" : "fishy-obby",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "lib\/kit_move.absc",
+    "games\/fishy-obby\/data.absc",
+    "games\/fishy-obby\/skins.absc",
+    "games\/fishy-obby\/water.absc",
+    "games\/fishy-obby\/main.absc"
+  ],
+  "shots" : [
+    "games\/fishy-obby\/shot1-df210433.png",
+    "games\/fishy-obby\/shot2-318b8676.png"
+  ],
+  "summary" : "きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。",
+  "tags" : [
+    "obby",
+    "swim",
+    "fish"
+  ],
+  "title" : "Fishy Obby",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/fishy-obby\/world.ablox"
+}

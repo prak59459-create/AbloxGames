@@ -1,0 +1,16 @@
+-- data.absc — Shrink & Grow Obby の表
+
+let ZONES = [
+  {first: 1, last: 10, name: "🍳 大きなキッチン", color: "#FB923C"},
+  {first: 11, last: 20, name: "🌷 大きなお庭", color: "#22C55E"},
+  {first: 21, last: 30, name: "🏰 おもちゃの城", color: "#8B5CF6"}
+]
+
+-- 大きさごとの動き（size: 見た目と当たり、speed・jump: 倍率）
+let SIZES = {
+  tiny: {size: 0.4, speed: 0.78, jump: 0.86, name: "🐭 ちいさい"},
+  normal: {size: 1, speed: 1, jump: 1, name: "🙂 ふつう"},
+  giant: {size: 2.4, speed: 1.55, jump: 1.42, name: "🦖 おおきい"}
+}
+let GATE_SECS = 7
+let GLASS_BACK = 3

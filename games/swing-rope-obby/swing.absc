@@ -1,0 +1,81 @@
+-- swing.absc — ロープ: つかまる → タイミングメーター → はなす（とぶ）
+
+func tag_number(b, key, fallback)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or fallback end
+  end
+  return fallback
+end
+
+func grab(p, b)
+  if p.swing != nil or (p.grab_at or 0) > time() - 1.2 then return end
+  p.grab_at = time()
+  p.swing = {yaw: tag_number(b, "yaw", 0), tier: tag_number(b, "tier", 1), at: time(), phase: random() * 6}
+  p.frozen = true
+  p.teleport(b.position + {x: 0, y: -1.1, z: 0})
+  p.ui_button("release", "🙌 はなす！", {at: "bottom", dy: -150, w: 220, h: 74, size: 22, bg: "#16A34A", radius: 22})
+  p.ui_text("swing_t", "🟩 のところで はなすと遠くまで！", {at: "center", dy: 70, size: 16, bold: true, color: "#FDE68A"})
+  p.sound("click")
+end
+
+func meter(p)
+  if p.swing == nil then return 0 end
+  return 50 + 50 * sin((time() - p.swing.at) * 290 + p.swing.phase * 57)
+end
+
+func release(p)
+  let s = p.swing
+  if s == nil then return end
+  p.swing = nil
+  p.frozen = false
+  p.ui_remove("release")
+  p.ui_remove("swing_t")
+  p.ui_remove("swing_bar")
+  let timing = clamp(meter(p) / 100, 0.1, 1)
+  let power = ROPE_POWER[(p.up_rope or 0) + 1]
+  let h = (7 + 8 * timing) * power
+  let d = {x: sin(s.yaw), y: 0, z: cos(s.yaw)}
+  p.velocity = {x: d.x * h, y: 7.5, z: d.z * h}
+  -- 空中でもしばらくこの向きへ進む（スティックをはなしていても落ちない）
+  p.fly = {dir: d, speed: h, until: time() + 0.85}
+  p.sound("whoosh")
+  p.swings = (p.swings or 0) + 1
+  kit_quest_progress(p, "swings", 1)
+  if timing > 0.92 then
+    p.message("✨ パーフェクト！", 1)
+    kit_quest_progress(p, "perfect", 1)
+  end
+end
+
+let swing_clock = 0
+on tick(dt)
+  swing_clock = swing_clock + dt
+  if swing_clock < 0.1 then return end
+  swing_clock = 0
+  let now = time()
+  for p in players() do
+    if p.swing != nil then
+      let v = meter(p)
+      let color = "#F87171"
+      if v > 80 then color = "#22C55E" end
+      p.ui_bar("swing_bar", v, 100, {at: "center", dy: 100, w: 300, h: 22, color: color})
+      if now - p.swing.at > SWING_SECS then release(p) end
+    elif p.fly != nil then
+      if now < p.fly.until and p.alive then
+        let v = p.velocity
+        p.velocity = {x: p.fly.dir.x * p.fly.speed, y: v.y, z: p.fly.dir.z * p.fly.speed}
+      else
+        p.fly = nil
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "rope") then grab(p, b) end
+end
+
+on button(p, id)
+  if id == "release" then release(p) end
+end

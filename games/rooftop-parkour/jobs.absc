@@ -1,0 +1,74 @@
+-- jobs.absc — 屋根の配達（水色で受けとって、ピンクへとどける）とレベル・称号
+
+func title_of(p)
+  let name = TITLES[1].name
+  for t in TITLES do
+    if (p.level or 1) >= t.level then name = t.name end
+  end
+  return name
+end
+
+func show_title(p)
+  p.ui_text("title", "🏷 " + title_of(p), {at: "top_left", dy: 114, size: 14, color: "#E9D5FF"})
+end
+
+func take_job(p, b)
+  if p.parcel != nil then
+    p.message("📦 もう荷物を持っているよ", 1)
+    return
+  end
+  let drops = blocks("drop")
+  if len(drops) == 0 then return end
+  let target = drops[random(1, len(drops))]
+  p.parcel = target.name
+  p.parcel_from = b.position
+  p.parcel_until = time() + DELIVERY_SECS
+  p.waypoint(target, "📦 " + target.name)
+  p.message("📦 荷物をあずかった！ " + DELIVERY_SECS + "秒で ピンクのパッドへ", 2.5)
+  p.sound("collect")
+end
+
+func drop_job(p, b)
+  if p.parcel == nil or b.name != p.parcel then return end
+  let left = p.parcel_until - time()
+  let far = distance(p.parcel_from, b.position)
+  let coins = floor(20 + far / 4 + max(0, left) / 2 + (p.flow or 0) * 4)
+  p.parcel = nil
+  p.waypoint(nil)
+  kit_give(p, coins)
+  kit_xp(p, 30)
+  p.deliveries = (p.deliveries or 0) + 1
+  kit_quest_progress(p, "deliver", 1)
+  p.message("✅ 配達かんりょう！ +" + coins, 2)
+  p.sound("goal")
+end
+
+let job_clock = 0
+on tick(dt)
+  job_clock = job_clock + dt
+  if job_clock < 1 then return end
+  job_clock = 0
+  for p in players() do
+    if p.parcel != nil then
+      let left = ceil(p.parcel_until - time())
+      if left <= 0 then
+        p.parcel = nil
+        p.waypoint(nil)
+        p.ui_remove("parcel")
+        p.message("⌛ 時間切れ… 荷物はもどった", 2)
+      else
+        p.ui_text("parcel", "📦 のこり " + left + "秒", {at: "top", dy: 80, size: 18, bold: true, color: "#F9A8D4"})
+      end
+    else
+      p.ui_remove("parcel")
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "pickup") then take_job(p, b)
+  elif contains(b.tags, "drop") then drop_job(p, b)
+  elif contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p)
+  end
+end

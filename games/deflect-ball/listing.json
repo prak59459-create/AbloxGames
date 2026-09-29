@@ -1,6 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 44,
+  "bytes" : 63180,
   "cover" : "games\/deflect-ball\/cover-e14bc4e1.png",
   "id" : "deflect-ball",
   "maxPlayers" : 12,

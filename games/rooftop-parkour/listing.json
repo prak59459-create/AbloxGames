@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 1615,
+  "bytes" : 808385,
+  "cover" : "games\/rooftop-parkour\/cover-e36d6116.png",
+  "id" : "rooftop-parkour",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "games\/rooftop-parkour\/data.absc",
+    "games\/rooftop-parkour\/jobs.absc",
+    "games\/rooftop-parkour\/moves.absc",
+    "games\/rooftop-parkour\/main.absc"
+  ],
+  "shots" : [
+    "games\/rooftop-parkour\/shot1-07219b06.png",
+    "games\/rooftop-parkour\/shot2-1100da38.png"
+  ],
+  "summary" : "街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。",
+  "tags" : [
+    "obby",
+    "parkour",
+    "city"
+  ],
+  "title" : "Rooftop Parkour",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/rooftop-parkour\/world.ablox"
+}

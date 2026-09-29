@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 162,
+  "bytes" : 115034,
+  "cover" : "games\/grapple-ascent\/cover-65c19a96.png",
+  "id" : "grapple-ascent",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "games\/grapple-ascent\/data.absc",
+    "games\/grapple-ascent\/grapple.absc",
+    "games\/grapple-ascent\/upgrades.absc",
+    "games\/grapple-ascent\/main.absc"
+  ],
+  "shots" : [
+    "games\/grapple-ascent\/shot1-26115303.png",
+    "games\/grapple-ascent\/shot2-dae14ac6.png"
+  ],
+  "summary" : "光るフックにグラップルを打って、空高い塔を上へ上へ。フックをタップするか🪝ボタン。風の吹く場所、遠いフック、高さランキング。ロープの長さ・引っぱる力・連続グラップルを強化。",
+  "tags" : [
+    "obby",
+    "grapple",
+    "climb"
+  ],
+  "title" : "Grapple Ascent",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/grapple-ascent\/world.ablox"
+}

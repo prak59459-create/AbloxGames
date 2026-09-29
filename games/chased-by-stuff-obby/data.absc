@@ -1,0 +1,14 @@
+-- data.absc — Chased by Stuff Obby の表
+-- 8つのコースと、追いかけてくる「なにか」
+
+let CHASERS = [
+  {n: 1, name: "🏀 巨大なボール", speed: 5.2, line: "ボヨーン！ ボヨーン！"},
+  {n: 2, name: "🦆 巨大なアヒル", speed: 5.6, line: "グワッ！ グワワッ！"},
+  {n: 3, name: "🍞 巨大な食パン", speed: 5.8, line: "トースト…にしてやる…"},
+  {n: 4, name: "🎳 ボウリングの玉", speed: 6.2, line: "ストライクをねらうぞ！"},
+  {n: 5, name: "🍍 パイナップル", speed: 6.4, line: "チクチクするぞ〜"},
+  {n: 6, name: "⏰ 目ざまし時計", speed: 6.8, line: "ジリリリリ！ おきろ〜！"},
+  {n: 7, name: "🍔 ハンバーガー", speed: 7.0, line: "いただきまーす！"},
+  {n: 8, name: "🧸 クマのぬいぐるみ", speed: 7.4, line: "いっしょに あそぼ…"}
+]
+let HEAD_START = 1.8

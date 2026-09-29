@@ -1,0 +1,84 @@
+-- chase.absc — 「なにか」が追いかけてくる（コースの入口を通ると、少しして走りだす）
+
+let chasers = {}      -- コース番号 → {block, home, busy}
+
+func chaser_info(n)
+  for c in CHASERS do
+    if c.n == n then return c end
+  end
+  return CHASERS[1]
+end
+
+func tag_n(b)
+  for t in b.tags do
+    if starts_with(t, "n=") then return num(replace(t, "n=", "")) or 0 end
+  end
+  return 0
+end
+
+on start()
+  for b in blocks("chaser") do
+    chasers["c" + tag_n(b)] = {block: b, home: b.position, busy: false}
+  end
+end
+
+func caught(p, n)
+  if not kit_ready(p, "caught", 1.5) then return end
+  let c = chaser_info(n)
+  p.message("💥 " + c.name + "につかまった！", 1.5)
+  p.sound("hit")
+  p.caught = (p.caught or 0) + 1
+  kit_quest_progress(p, "caught", 1)
+  obby_back(p)
+end
+
+func run_chaser(n, starter)
+  let ch = chasers["c" + n]
+  if ch == nil or ch.busy then return end
+  ch.busy = true
+  let c = chaser_info(n)
+  for p in players() do
+    if (p.stage or 0) == n then p.message("⚠️ " + c.name + "が来る！ にげろ！", 1.6) end
+  end
+  after(HEAD_START, func()
+    let target = block("Chase Path " + n + " 1")
+    if target == nil or ch.block.destroy == nil then
+      ch.busy = false
+      return
+    end
+    announce_near(n, c.name + "「" + c.line + "」")
+    let secs = distance(ch.home, target.position) / c.speed
+    mv_path(ch.block, [target.position], c.speed, false, func(p, b) caught(p, n) end)
+    after(secs + 0.4, func()
+      mv_stop(ch.block)
+      ch.block.position = ch.home
+      after(2.5, func() ch.busy = false end)
+      for p in players() do
+        if (p.stage or 0) == n and p.alive and p.z > ch.home.z + 10 then escaped(p, n) end
+      end
+    end)
+  end)
+end
+
+func announce_near(n, text)
+  for p in players() do
+    if (p.stage or 0) == n then p.chat(text) end
+  end
+end
+
+-- 「なにか」がコースの終わりまで来たときに、まだ生きのこっている人
+func escaped(p, n)
+  if p.escaped_from == nil then p.escaped_from = [] end
+  if contains(p.escaped_from, n) then return end
+  append(p.escaped_from, n)
+  kit_give(p, 10 + n * 3)
+  p.message("😅 にげきった！ +" + (10 + n * 3), 1.2)
+  kit_quest_progress(p, "escapes", 1)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "chase_start") then run_chaser(tag_n(b), p)
+  elif contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p)
+  end
+end

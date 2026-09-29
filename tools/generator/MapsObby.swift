@@ -5,6 +5,27 @@ import Foundation
 // checkpoints, "Finish", falling back, skips and a stage select.
 
 let obbyGames: [Game] = [
+    Game(number: 95, id: "fishy-obby", title: "Fishy Obby",
+         summary: "きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。",
+         tags: ["obby", "swim", "fish"], maxPlayers: 16, libs: ["obby", "move"], build: fishyObby),
+    Game(number: 94, id: "rising-lava-rescue", title: "Rising Lava Rescue",
+         summary: "火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。",
+         tags: ["obby", "rescue", "lava"], maxPlayers: 8, libs: ["move"], build: risingLavaRescue),
+    Game(number: 93, id: "chased-by-stuff-obby", title: "Chased by Stuff Obby",
+         summary: "巨大なボール、アヒル、食パン、ボウリングの玉、パイナップル、目ざまし時計、ハンバーガー、クマのぬいぐるみ… 8つのコースで、うしろから追いかけてくる「なにか」から走ってにげろ！",
+         tags: ["obby", "chase", "funny"], maxPlayers: 16, libs: ["obby", "move"], build: chasedByStuffObby),
+    Game(number: 92, id: "shrink-grow-obby", title: "Shrink & Grow Obby",
+         summary: "小さくなって穴をくぐり、大きくなって段差とすきまをこえる！ キッチン・お庭・おもちゃの城の30ステージ。小さいとわれないガラス、大きくないと押せないスイッチ。かくれた宝石も。",
+         tags: ["obby", "puzzle", "size"], maxPlayers: 16, libs: ["obby"], build: shrinkGrowObby),
+    Game(number: 91, id: "swing-rope-obby", title: "Swing Rope Obby",
+         summary: "ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。",
+         tags: ["obby", "collect", "swing"], maxPlayers: 8, build: swingRopeObby),
+    Game(number: 90, id: "rooftop-parkour", title: "Rooftop Parkour",
+         summary: "街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。",
+         tags: ["obby", "parkour", "city"], maxPlayers: 16, libs: ["obby"], build: rooftopParkour),
+    Game(number: 89, id: "grapple-ascent", title: "Grapple Ascent",
+         summary: "光るフックにグラップルを打って、空高い塔を上へ上へ。フックをタップするか🪝ボタン。風の吹く場所、遠いフック、高さランキング。ロープの長さ・引っぱる力・連続グラップルを強化。",
+         tags: ["obby", "grapple", "climb"], maxPlayers: 16, libs: ["obby"], build: grappleAscent),
     Game(number: 88, id: "cart-ride-wonderland", title: "Cart Ride Wonderland",
          summary: "カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！",
          tags: ["obby", "cart", "ride"], maxPlayers: 16, libs: ["obby", "move"], build: cartRideWonderland),
@@ -1019,4 +1040,502 @@ func cartRideWonderland(_ m: MapBuilder) {
         m.part("Castle Roof", at: (end.0 + 6 + dx, end.1 + 9, end.2 + dz), size: (4, 3, 4), color: "#DB2777", shape: .cone)
     }
     m.coverFocus(x: 120, y: 4, z: 60, yaw: 150, width: 130)
+}
+
+// MARK: 89 Grapple Ascent (Ascend: Grapple Challenge)
+
+func grappleAscent(_ m: MapBuilder) {
+    m.sky("#38BDF8", "#E0F2FE", light: 0.8, ground: "#65A30D", fall: -30)
+    m.environment.skyStyle = .clouds
+    m.ground(260, 260, color: "#65A30D", material: .grass)
+    // The tower: a tall core the course winds round.
+    m.part("Tower Core", at: (0, 100, 0), size: (10, 200, 10), color: "#64748B", shape: .cylinder, material: .stone)
+    for k in 0..<10 {
+        m.part("Tower Band", at: (0, Float(k) * 20 + 10, 0), size: (10.6, 0.8, 10.6), color: "#F59E0B", shape: .cylinder, material: .neon, solid: false)
+    }
+    m.part("Tower Top", at: (0, 206, 0), size: (24, 1, 24), color: "#FDE68A", shape: .cylinder)
+    m.spawnRing(0, 24, radius: 4, count: 8, color: "#22D3EE")
+    m.pad("Shop Pad", x: -8, z: 30, size: 3, color: "#A855F7", tags: ["shop"])
+    m.pad("Upgrade Pad", x: 8, z: 30, size: 3, color: "#F59E0B", tags: ["upgrades"])
+    var r = Seeded("grapple")
+    let stages = 24
+    func spot(_ n: Int) -> V {
+        let a = Float(n) * 0.72 + 1.57
+        let radius: Float = 17
+        return (cos(a) * radius, Float(n) * 8.2, sin(a) * radius)
+    }
+    for n in 1...stages {
+        let s = spot(n)
+        let size: Float = n % 6 == 0 ? 7 : 4.5
+        m.step("Ledge", x: s.0, y: s.1, z: s.2, w: size, d: size, color: n % 6 == 0 ? "#FDE68A" : "#CBD5E1", material: .stone)
+        m.stagePad(n, x: s.0, y: s.1, z: s.2, size: 3, color: "#22C55E")
+    }
+    m.finishLine(x: 0, y: 206.5, z: 0, size: 8)
+    // Hooks between each ledge and the next: two or three, some high, fewer higher up.
+    var winds = 0
+    for n in 0...stages {
+        let a = n == 0 ? (Float(0), Float(0), Float(24)) : spot(n)
+        let b = n == stages ? (Float(0), Float(207), Float(0)) : spot(n + 1)
+        let count = n < 8 ? 3 : (n < 16 ? 2 : 2)
+        for k in 0..<count {
+            let t = Float(k + 1) / Float(count + 1)
+            let out = r.range(-3, 4) + Float(n) * 0.1
+            let len = max(0.001, (a.0 * a.0 + a.2 * a.2).squareRoot())
+            let x = a.0 + (b.0 - a.0) * t + a.0 / len * out
+            let z = a.2 + (b.2 - a.2) * t + a.2 / len * out
+            let y = a.1 + (b.1 - a.1) * t + 5 + r.range(0, 3)
+            m.part("Hook", at: (x, y, z), size: (1.4, 1.4, 1.4), color: n < 8 ? "#FACC15" : (n < 16 ? "#F97316" : "#EC4899"), shape: .sphere,
+                   material: .neon, tags: ["hook"], solid: false)
+        }
+        if n >= 10 && n % 4 == 2 {
+            winds += 1
+            let mid = ((a.0 + b.0) / 2, (a.1 + b.1) / 2 + 4, (a.2 + b.2) / 2)
+            m.part("Wind \(winds)", at: mid, size: (10, 10, 10), color: "#E0F2FE", material: .glass,
+                   tags: ["wind", "wx=\(Int(-mid.2 / 4))", "wz=\(Int(mid.0 / 4))"], solid: false, opacity: 0.18)
+        }
+    }
+    // Clouds round the tower for the look.
+    for _ in 0..<24 {
+        let a = r.range(0, 6.28), d = r.range(30, 80)
+        m.part("Cloud", at: (cos(a) * d, r.range(40, 190), sin(a) * d), size: (r.range(8, 16), 3, r.range(6, 10)), color: "#FFFFFF", shape: .sphere,
+               material: .matte, solid: false, opacity: 0.85)
+    }
+    m.coverFocus(x: 0, y: 40, z: 0, yaw: 20, width: 60)
+}
+
+// MARK: 90 Rooftop Parkour (Parkour Reborn)
+
+func rooftopParkour(_ m: MapBuilder) {
+    m.sky("#F97316", "#FDE68A", light: 0.7, ground: "#374151", fall: -30)
+    m.environment.skyStyle = .sunset
+    m.ground(420, 420, color: "#374151", material: .stone)
+    for i in 0..<9 {
+        m.road(from: (-180, Float(i) * 40 - 160), to: (180, Float(i) * 40 - 160), width: 8, name: "Street")
+        m.road(from: (Float(i) * 40 - 160, -180), to: (Float(i) * 40 - 160, 180), width: 8, name: "Street")
+    }
+    // The route: 31 roofs, each reached with a move. (gap to the next, height change)
+    let moves: [(String, Float, Float)] = [
+        ("walk", 2, 0), ("walk", 2.5, 0.6), ("dash", 6, -0.5), ("walk", 2, 0.5), ("climb", 1.5, 2.8), ("walk", 2.5, 0),
+        ("double", 3.5, 1.5), ("drop", 3, -4), ("dash", 7, 0), ("climb", 1.5, 3), ("walk", 2, 0.4), ("dash", 7.5, -1),
+        ("double", 3.5, 1.6), ("walk", 2.5, 0), ("climb", 1.5, 3.1), ("dash", 8, -0.5), ("drop", 3, -5), ("walk", 2.5, 0.6),
+        ("double", 4, 1.4), ("climb", 1.5, 3.2), ("dash", 8, 0), ("walk", 2, 0.5), ("double", 4, 1.7), ("dash", 8.5, -1),
+        ("climb", 1.5, 3.2), ("walk", 2.5, 0.3), ("dash", 9, -0.5), ("double", 4, 1.8), ("climb", 1.5, 3.2), ("dash", 9, 0)
+    ]
+    // Round the city: along +x, +z, -x, -z.
+    let dirs: [(Float, Float)] = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    var x: Float = -110, z: Float = -110, top: Float = 10
+    let roof: Float = 8
+    var roofs: [(Float, Float, Float)] = [(x, z, top)]
+    for (i, move) in moves.enumerated() {
+        let d = dirs[min(3, i * 4 / moves.count)]
+        let step = roof + move.1
+        x += d.0 * step
+        z += d.1 * step
+        top = max(6, top + move.2)
+        roofs.append((x, z, top))
+    }
+    let palette = ["#94A3B8", "#A8A29E", "#CBD5E1", "#78716C", "#9CA3AF", "#D6D3D1"]
+    for (i, r) in roofs.enumerated() {
+        m.slab("Building", x: r.0, y: 0, z: r.1, w: roof, h: r.2, d: roof, color: palette[i % palette.count], material: .brick)
+        m.part("Roof Edge", at: (r.0, r.2 + 0.05, r.1), size: (roof + 0.2, 0.1, roof + 0.2), color: "#44403C", solid: false)
+        // Windows down the sides.
+        for k in 0..<Int(r.2 / 4) {
+            m.part("Windows", at: (r.0, Float(k) * 4 + 2.5, r.1 - roof / 2 - 0.05), size: (roof * 0.7, 1.2, 0.05), color: "#FDE68A",
+                   material: .neon, solid: false, opacity: 0.7)
+        }
+        if i == 0 {
+            m.spawnRing(r.0, r.1, y: r.2, radius: 2.4, count: 6, color: "#F97316")
+        } else if i < roofs.count - 1 {
+            m.stagePad(i, x: r.0, y: r.2, z: r.1, size: 3, color: "#22C55E")
+        }
+        if i > 0 && i < moves.count, moves[i - 1].0 == "climb" {
+            // A wall marker on the face you kick up.
+            m.part("Kick Wall", at: (r.0, r.2 - 1.5, r.1), size: (roof + 0.1, 3, roof + 0.1), color: "#F59E0B", material: .neon, solid: false,
+                   opacity: 0.25)
+        }
+    }
+    let last = roofs[roofs.count - 1]
+    m.finishLine(x: last.0, y: last.2, z: last.1, size: 6)
+    m.part("Antenna", at: (last.0 + 3, last.2 + 5, last.1 + 3), size: (0.3, 10, 0.3), color: "#EF4444", material: .metal, solid: false)
+    // Filler buildings round the route, to run over freely (and look like a city).
+    var r = Seeded("rooftops")
+    for i in 0..<60 {
+        let fx = r.range(-160, 160), fz = r.range(-160, 160)
+        if roofs.contains(where: { abs($0.0 - fx) < 16 && abs($0.1 - fz) < 16 }) { continue }
+        let h = r.range(6, 26)
+        m.slab("City Block", x: fx, y: 0, z: fz, w: r.range(8, 14), h: h, d: r.range(8, 14), color: r.pick(palette), material: .brick)
+        if i % 3 == 0 { m.part("Water Tank", at: (fx, h + 1.2, fz), size: (2.4, 2.4, 2.4), color: "#78350F", shape: .cylinder, material: .wood) }
+    }
+    // Delivery pickups and drop-offs on route roofs.
+    for (k, idx) in [2, 8, 13, 19, 24, 28].enumerated() {
+        let rr = roofs[idx]
+        m.pad("Pickup \(k + 1)", x: rr.0 + 2.6, z: rr.1 + 2.6, y: rr.2, size: 1.8, color: "#38BDF8", tags: ["pickup"])
+    }
+    for (k, idx) in [5, 11, 16, 21, 26, 30].enumerated() {
+        let rr = roofs[idx]
+        m.pad("Drop \(k + 1)", x: rr.0 - 2.6, z: rr.1 - 2.6, y: rr.2, size: 1.8, color: "#F472B6", tags: ["drop"])
+    }
+    m.pad("Shop Pad", x: roofs[0].0 - 2.8, z: roofs[0].1 + 2.8, y: roofs[0].2, size: 1.8, color: "#A855F7", tags: ["shop"])
+    m.coverFocus(x: -60, y: 12, z: -110, yaw: 150, width: 90)
+}
+
+// MARK: 91 Swing Rope Obby (Swing Obby for Brainrots!)
+
+func swingRopeObby(_ m: MapBuilder) {
+    m.sky("#22D3EE", "#F0FDFA", light: 0.85, showGround: false, fall: -40)
+    m.environment.skyStyle = .clouds
+    // The hub: eight bases round the middle.
+    m.part("Hub", at: (0, -1, 0), size: (32, 2, 32), color: "#86EFAC", shape: .cylinder, material: .grass)
+    m.spawnRing(0, 0, radius: 3, count: 6, color: "#FB923C")
+    m.pad("Shop Pad", x: 0, z: 6, size: 3, color: "#A855F7", tags: ["shop"])
+    m.pad("Upgrade Pad", x: 0, z: -6, size: 3, color: "#F59E0B", tags: ["upgrades"])
+    for (i, spot) in ring(8, radius: 11.5, phase: 0.39).enumerated() {
+        m.pad("Base \(i + 1)", x: spot.0, z: spot.1, size: 4.4, color: "#E5E7EB", tags: ["base", "b=\(i + 1)"])
+        m.part("Base Flag \(i + 1)", at: (spot.0 * 1.12, 2, spot.1 * 1.12), size: (0.2, 4, 0.2), color: "#78716C", solid: false)
+    }
+    // Four arms of islands, each further and smaller.
+    let radii: [Float] = [6, 5.5, 5, 4.5, 4]
+    let gaps: [Float] = [9, 10, 11.5, 13, 14.5]
+    let colors = ["#BBF7D0", "#BAE6FD", "#FDE68A", "#FBCFE8", "#DDD6FE"]
+    for arm in 0..<4 {
+        let a = Float(arm) * .pi / 2
+        let dx = cos(a), dz = sin(a)
+        let yaw = atan2(dx, dz) * 180 / .pi
+        var edge: Float = 16
+        for k in 0..<5 {
+            let center = edge + gaps[k] + radii[k]
+            let cx = dx * center, cz = dz * center
+            m.part("Island \(arm + 1)-\(k + 1)", at: (cx, -1, cz), size: (radii[k] * 2, 2, radii[k] * 2), color: colors[k], shape: .cylinder,
+                   material: .grass, tags: ["island", "tier=\(k + 1)"])
+            m.part("Meme Spot \(arm + 1)-\(k + 1)", at: (cx, 0.1, cz), size: (1, 0.2, 1), color: "#000000", tags: ["memespot", "tier=\(k + 1)"],
+                   solid: false, visible: false)
+            // A rope out from the edge before this island, and one back from this island's inner edge.
+            let outX = dx * (edge - 1), outZ = dz * (edge - 1)
+            rope(m, x: outX, z: outZ, yaw: yaw, tier: k + 1, out: true)
+            let backX = dx * (center - radii[k] + 1), backZ = dz * (center - radii[k] + 1)
+            rope(m, x: backX, z: backZ, yaw: yaw + 180, tier: k + 1, out: false)
+            if k == 4 {
+                m.part("Crystal", at: (cx, 2, cz), size: (1.4, 3, 1.4), color: "#C084FC", shape: .cone, material: .neon, solid: false)
+            } else {
+                m.tree(cx + radii[k] * 0.5, cz + radii[k] * 0.3, y: 0, height: 2.5, leaves: "#22C55E")
+            }
+            edge = center + radii[k]
+        }
+    }
+    m.coverFocus(x: 0, y: 2, z: 30, yaw: 200, width: 90)
+}
+
+/// A rope to swing from: a post, the rope hanging from its arm, and the
+/// grab zone at the bottom, which carries the way it throws you ("yaw=").
+func rope(_ m: MapBuilder, x: Float, z: Float, yaw: Float, tier: Int, out: Bool) {
+    let back = Quat.yaw(degrees: yaw).act(Vec3(0, 0, -1.2))
+    m.part("Rope Post", at: (x + back.x, 3, z + back.z), size: (0.4, 6, 0.4), color: "#78350F", material: .wood, solid: false)
+    m.part("Rope Arm", at: (x, 6, z), size: (0.3, 0.3, 2.6), color: "#78350F", material: .wood, solid: false, rotation: (0, yaw, 0))
+    m.part("Rope", at: (x, 3.6, z), size: (0.15, 4.6, 0.15), color: out ? "#FDE68A" : "#A5F3FC", shape: .cylinder, solid: false)
+    m.part("Rope Grab", at: (x, 1.2, z), size: (2.2, 2.4, 2.2), color: out ? "#FACC15" : "#22D3EE", material: .neon, behavior: .trigger,
+           tags: ["rope", "yaw=\(Int(yaw.rounded()))", "tier=\(tier)", out ? "out" : "back"], solid: false, opacity: 0.25)
+}
+
+// MARK: 92 Shrink & Grow Obby (Shrink For Brainrots)
+
+enum SizeKind { case tunnel, hole, bigStep, bigGap, glass, plate }
+
+func shrinkGrowObby(_ m: MapBuilder) {
+    m.sky("#FDE68A", "#FFF7ED", light: 0.85, showGround: false, fall: -30)
+    let zones: [(floor: String, wall: String)] = [("#FDBA74", "#FEF3C7"), ("#86EFAC", "#BBF7D0"), ("#C4B5FD", "#EDE9FE")]
+    let kinds: [SizeKind] = [.tunnel, .bigStep, .hole, .bigGap, .glass, .plate, .tunnel, .bigGap, .bigStep, .hole]
+    m.slab("Start", x: 0, y: -1, z: -10, w: 14, h: 1, d: 12, color: "#FDBA74")
+    m.spawnRing(0, -11, radius: 3, count: 6, color: "#F472B6")
+    m.pad("Shop Pad", x: -5, z: -14, size: 2.6, color: "#A855F7", tags: ["shop"])
+    var gates = 0, gems = 0
+    var z: Float = -4
+    for n in 1...30 {
+        let zone = zones[(n - 1) / 10]
+        let kind = kinds[(n - 1 + (n - 1) / 10) % kinds.count]
+        // Floor from the pad to the section.
+        m.slab("Floor", x: 0, y: -1, z: z + 3, w: 8, h: 1, d: 6, color: zone.floor)
+        // The size pads before each section: all three, so you choose.
+        m.pad("Shrink Pad", x: -2.6, z: z + 3, size: 1.8, color: "#A855F7", tags: ["shrink"])
+        m.pad("Normal Pad", x: 0, z: z + 3, size: 1.8, color: "#22C55E", tags: ["normal"])
+        m.pad("Grow Pad", x: 2.6, z: z + 3, size: 1.8, color: "#F97316", tags: ["grow"])
+        let s = z + 6
+        switch kind {
+        case .tunnel:
+            // A long low tunnel: only the tiny fit.
+            m.slab("Floor", x: 0, y: -1, z: s + 4, w: 8, h: 1, d: 8, color: zone.floor)
+            m.slab("Tunnel Wall", x: -2.3, y: 0, z: s + 4, w: 3.4, h: 4, d: 8, color: zone.wall)
+            m.slab("Tunnel Wall", x: 2.3, y: 0, z: s + 4, w: 3.4, h: 4, d: 8, color: zone.wall)
+            m.slab("Tunnel Roof", x: 0, y: 1.0, z: s + 4, w: 8, h: 3, d: 8, color: zone.wall)
+            m.part("Tunnel Mouth", at: (0, 0.5, s - 0.02), size: (1.2, 1, 0.05), color: "#111827", solid: false)
+            z = s + 8
+        case .hole:
+            m.slab("Floor", x: 0, y: -1, z: s + 3, w: 8, h: 1, d: 6, color: zone.floor)
+            m.slab("Wall", x: -2.3, y: 0, z: s + 1, w: 3.4, h: 5, d: 1, color: zone.wall)
+            m.slab("Wall", x: 2.3, y: 0, z: s + 1, w: 3.4, h: 5, d: 1, color: zone.wall)
+            m.slab("Wall", x: 0, y: 0.95, z: s + 1, w: 1.2, h: 4.05, d: 1, color: zone.wall)
+            m.part("Mouse Hole", at: (0, 0.45, s + 0.48), size: (1.1, 0.9, 0.05), color: "#111827", solid: false)
+            // A gem in a tiny nook beside the hole.
+            gems += 1
+            m.part("Gem \(gems)", at: (-3.2, 0.4, s + 2.2), size: (0.5, 0.5, 0.5), color: "#22D3EE", shape: .sphere, material: .neon,
+                   behavior: .trigger, tags: ["gem"], solid: false)
+            z = s + 6
+        case .bigStep:
+            m.slab("Floor", x: 0, y: -1, z: s + 1.5, w: 8, h: 1, d: 3, color: zone.floor)
+            m.slab("Giant Step", x: 0, y: -1, z: s + 5, w: 8, h: 2.8, d: 4, color: zone.wall)
+            m.slab("Floor", x: 0, y: 1.8 - 1, z: s + 9, w: 8, h: 1, d: 4, color: zone.floor)
+            m.slab("Step Down", x: 0, y: -1, z: s + 12, w: 8, h: 1.8, d: 2, color: zone.floor)
+            z = s + 13
+        case .bigGap:
+            m.slab("Floor", x: 0, y: -1, z: s + 1, w: 8, h: 1, d: 2, color: zone.floor)
+            // 6.5 m of nothing: only long legs carry you over.
+            m.slab("Floor", x: 0, y: -1, z: s + 10.5, w: 8, h: 1, d: 4, color: zone.floor)
+            gems += 1
+            m.part("Gem \(gems)", at: (3.2, 0.6, s + 11), size: (0.5, 0.5, 0.5), color: "#22D3EE", shape: .sphere, material: .neon,
+                   behavior: .trigger, tags: ["gem"], solid: false)
+            z = s + 12.5
+        case .glass:
+            // Thin glass over a gap: it holds the tiny and breaks under anyone bigger.
+            for k in 0..<5 {
+                m.part("Glass", at: (0, -0.15, s + 1 + Float(k) * 2), size: (3, 0.3, 2), color: "#BAE6FD", material: .glass, tags: ["fragile"],
+                       opacity: 0.6)
+            }
+            z = s + 10
+        case .plate:
+            // A heavy switch: only the giant presses it, and the gate opens a while.
+            gates += 1
+            m.slab("Floor", x: 0, y: -1, z: s + 4, w: 8, h: 1, d: 8, color: zone.floor)
+            m.part("Plate \(gates)", at: (-2.5, 0.1, s + 2), size: (2.6, 0.2, 2.6), color: "#EF4444", shape: .cylinder, material: .neon,
+                   behavior: .trigger, tags: ["plate", "g=\(gates)"])
+            m.part("Gate \(gates)", at: (0, 2, s + 6.5), size: (8, 4, 0.6), color: "#DC2626", material: .neon, tags: ["gate"], opacity: 0.8)
+            z = s + 8
+        }
+        m.slab("Floor", x: 0, y: -1, z: z + 1.5, w: 8, h: 1, d: 3, color: zone.floor)
+        m.stagePad(n, x: 0, y: 0, z: z + 1.5, size: 3, color: "#FACC15")
+        z += 3
+    }
+    m.finishLine(x: 0, y: 0, z: z + 3, size: 8, color: "#F472B6")
+    m.slab("Finish Floor", x: 0, y: -1, z: z + 3, w: 12, h: 1, d: 8, color: "#FBCFE8")
+    // Giant things beside the course, since you are small.
+    var r = Seeded("shrinkgrow")
+    for i in 0..<18 {
+        let side: Float = i % 2 == 0 ? -1 : 1
+        let pz = Float(i) * (z / 18)
+        switch (i / 6) {
+        case 0:
+            m.part("Giant Cup", at: (side * 12, 3, pz), size: (5, 6, 5), color: r.pick(["#F87171", "#60A5FA", "#FBBF24"]), shape: .cylinder, solid: false)
+        case 1:
+            m.part("Giant Flower", at: (side * 12, 5, pz), size: (0.6, 10, 0.6), color: "#16A34A", shape: .cylinder, solid: false)
+            m.part("Giant Bloom", at: (side * 12, 10.5, pz), size: (5, 1, 5), color: r.pick(["#F472B6", "#FDE047", "#A78BFA"]), shape: .sphere, solid: false)
+        default:
+            m.part("Toy Tower", at: (side * 12, 4, pz), size: (4, 8, 4), color: r.pick(["#A78BFA", "#F472B6", "#38BDF8"]), solid: false)
+            m.part("Toy Roof", at: (side * 12, 9, pz), size: (5, 2.4, 5), color: "#FACC15", shape: .cone, solid: false)
+        }
+    }
+    m.coverFocus(x: 0, y: 1, z: 30, yaw: 160, width: 50)
+}
+
+// MARK: 93 Chased by Stuff Obby (Be chased by random stuff in an obby)
+
+func chasedByStuffObby(_ m: MapBuilder) {
+    m.sky("#A5F3FC", "#FEF9C3", light: 0.85, showGround: false, fall: -30)
+    m.environment.skyStyle = .clouds
+    let chasers: [(shape: BlockShape, size: V, color: String, floor: String)] = [
+        (.sphere, (4, 4, 4), "#F97316", "#FDE68A"), (.sphere, (4.4, 4, 4.4), "#FACC15", "#BAE6FD"), (.box, (4.5, 4.5, 1.4), "#FCD34D", "#FED7AA"),
+        (.sphere, (4.6, 4.6, 4.6), "#111827", "#E5E7EB"), (.cone, (4, 5, 4), "#F59E0B", "#BBF7D0"), (.cylinder, (4.4, 1.4, 4.4), "#EF4444", "#FECACA"),
+        (.cylinder, (5, 2.4, 5), "#92400E", "#FEF3C7"), (.sphere, (5, 5, 5), "#A16207", "#FBCFE8")
+    ]
+    m.slab("Start", x: 0, y: -1, z: -12, w: 14, h: 1, d: 14, color: "#FEF3C7")
+    m.spawnRing(0, -13, radius: 3, count: 6, color: "#F472B6")
+    m.pad("Shop Pad", x: -5, z: -17, size: 2.6, color: "#A855F7", tags: ["shop"])
+    var r = Seeded("chased")
+    var z: Float = -5
+    for (i, c) in chasers.enumerated() {
+        let n = i + 1
+        let len: Float = 36
+        // The section's floor, with its obstacles.
+        m.slab("Section \(n) Start", x: 0, y: -1, z: z + 3, w: 8, h: 1, d: 6, color: c.floor)
+        m.stagePad(n, x: 0, y: 0, z: z + 3, size: 3, color: "#22C55E")
+        m.part("Chase Start \(n)", at: (0, 1.5, z + 6.2), size: (8, 3, 0.4), color: "#FACC15", material: .neon, behavior: .trigger,
+               tags: ["chase_start", "n=\(n)"], solid: false, opacity: 0.2)
+        let s0 = z + 6
+        var k: Float = 0
+        while k < len {
+            let piece: Float = 6
+            let kind = r.int(0, 4)
+            let pz = s0 + k + piece / 2
+            switch kind {
+            case 0:
+                m.slab("Run", x: 0, y: -1, z: pz, w: 8, h: 1, d: piece, color: c.floor)
+                m.slab("Hurdle", x: 0, y: 0, z: pz, w: 8, h: 0.45, d: 0.5, color: "#DC2626")
+            case 1:
+                m.slab("Run", x: 0, y: -1, z: pz - 1.5, w: 8, h: 1, d: piece - 3, color: c.floor)
+                m.slab("Run", x: 0, y: -1, z: pz + 2.5, w: 8, h: 1, d: 1, color: c.floor)
+            case 2:
+                m.slab("Narrow", x: r.range(-2, 2), y: -1, z: pz, w: 2.4, h: 1, d: piece, color: c.color, material: .plastic)
+            case 3:
+                m.slab("Run", x: 0, y: -1, z: pz, w: 8, h: 1, d: piece, color: c.floor)
+                m.slab("Block", x: r.pick([Float(-2.5), 2.5]), y: 0, z: pz, w: 3, h: 2, d: 1.5, color: "#64748B")
+            default:
+                m.slab("Run", x: 0, y: -1, z: pz, w: 8, h: 1, d: piece, color: c.floor)
+            }
+            k += piece
+        }
+        // The chaser, parked behind the start, and the line it follows.
+        m.movingHazard("Chaser \(n)", at: (0, c.size.1 / 2 + 0.05, z - 3), size: c.size, color: c.color, shape: c.shape,
+                       material: .plastic, tags: ["chaser", "n=\(n)"])
+        m.part("Chase Path \(n) 1", at: (0, c.size.1 / 2 + 0.05, s0 + len - 1), size: (0.5, 0.5, 0.5), color: "#000000", solid: false,
+               visible: false)
+        z = s0 + len
+        m.slab("Safe", x: 0, y: -1, z: z + 2, w: 8, h: 1, d: 4, color: "#D1FAE5")
+        z += 4
+    }
+    m.finishLine(x: 0, y: 0, z: z + 3, size: 8)
+    m.slab("Finish Floor", x: 0, y: -1, z: z + 3, w: 12, h: 1, d: 8, color: "#FDE68A")
+    m.coverFocus(x: 0, y: 2, z: 20, yaw: 150, width: 50)
+}
+
+// MARK: 94 Rising Lava Rescue (Survive LAVA for Brainrots!)
+
+func risingLavaRescue(_ m: MapBuilder) {
+    m.sky("#7C2D12", "#FDBA74", light: 0.65, showGround: false, fall: -30)
+    m.environment.skyStyle = .sunset
+    // The mesa, with the shelters on top.
+    m.slab("Mesa", x: 0, y: -2, z: 0, w: 24, h: 22, d: 24, color: "#78350F", material: .stone)
+    m.spawnRing(0, 0, y: 20, radius: 2.6, count: 6, color: "#FB923C")
+    for (i, spot) in ring(8, radius: 8.5, phase: 0.39).enumerated() {
+        m.pad("Shelter \(i + 1)", x: spot.0, z: spot.1, y: 20, size: 3.8, color: "#E7E5E4", tags: ["shelter", "b=\(i + 1)"])
+    }
+    m.pad("Shop Pad", x: 0, z: 3.5, y: 20, size: 2.4, color: "#A855F7", tags: ["shop"])
+    m.pad("Upgrade Pad", x: 0, z: -3.5, y: 20, size: 2.4, color: "#F59E0B", tags: ["upgrades"])
+    // Terraces round the mesa, each 6 m lower and wider; stairs between.
+    let levels: [(Float, Float, String)] = [(14, 18, "#92400E"), (8, 24, "#A16207"), (2, 30, "#B45309")]
+    var tier = 1
+    for (k, level) in levels.enumerated() {
+        let half = level.1, inner = k == 0 ? Float(12) : levels[k - 1].1
+        let width = half - inner
+        for (sx, sz, w, d) in [(0, -(inner + width / 2), half * 2, width), (0, inner + width / 2, half * 2, width),
+                               (-(inner + width / 2), 0, width, inner * 2), (inner + width / 2, 0, width, inner * 2)] as [(Float, Float, Float, Float)] {
+            m.slab("Terrace \(k + 1)", x: sx, y: -1, z: sz, w: w, h: level.0 + 1, d: d, color: level.2, material: .stone)
+        }
+        // Stairs down from the level above, on the east side.
+        let top: Float = k == 0 ? 20 : levels[k - 1].0
+        let startX = k == 0 ? Float(12) : levels[k - 1].1
+        let steps = Int(((top - level.0) / 0.4).rounded())
+        for s in 0..<steps {
+            let h = top - 0.4 * Float(s + 1)
+            m.slab("Stair", x: startX + 0.4 + Float(s) * 0.4, y: h - 1, z: -3 + Float(k) * 3, w: 0.4, h: 1, d: 2.4, color: "#57534E")
+        }
+        // Rescue spots round the terrace: lower is rarer.
+        let mid = (inner + half) / 2
+        for spot in [(mid, -mid * 0.5), (-mid, mid * 0.5), (mid * 0.5, mid), (-mid * 0.5, -mid), (mid, mid), (-mid, -mid)] as [(Float, Float)] {
+            m.part("Critter Spot", at: (spot.0, level.0 + 0.1, spot.1), size: (1, 0.2, 1), color: "#000000", tags: ["spot", "tier=\(tier)"],
+                   solid: false, visible: false)
+        }
+        tier += 1
+    }
+    // The beach at the bottom, and islets off it: the rarest are out there.
+    m.slab("Beach", x: 0, y: -1, z: 0, w: 90, h: 1, d: 90, color: "#D6D3D1", material: .sand)
+    let lastTop = levels[2].1
+    let bsteps = Int((2 / 0.4).rounded())
+    for s in 0..<bsteps {
+        m.slab("Stair", x: lastTop + 0.4 + Float(s) * 0.4, y: 2 - 0.4 * Float(s + 1) - 1, z: 6, w: 0.4, h: 1, d: 2.4, color: "#57534E")
+    }
+    for spot in ring(8, radius: 38, phase: 0.2) {
+        m.part("Critter Spot", at: (spot.0, 0.1, spot.1), size: (1, 0.2, 1), color: "#000000", tags: ["spot", "tier=4"], solid: false, visible: false)
+        m.rock(spot.0 * 1.1, spot.1 * 1.1, size: 2.2, color: "#44403C")
+    }
+    for (x, z) in [(55, 0), (-55, 10), (5, 56), (-8, -56)] as [(Float, Float)] {
+        m.part("Islet", at: (x, -0.5, z), size: (9, 1, 9), color: "#D6D3D1", shape: .cylinder, material: .sand)
+        m.part("Critter Spot", at: (x, 0.1, z), size: (1, 0.2, 1), color: "#000000", tags: ["spot", "tier=5"], solid: false, visible: false)
+        let bridge = (x * 0.8, z * 0.8)
+        m.slab("Bridge", x: bridge.0, y: -0.6, z: bridge.1, w: abs(x) > abs(z) ? 14 : 2.4, h: 0.6, d: abs(x) > abs(z) ? 2.4 : 14, color: "#78350F",
+               material: .wood)
+    }
+    // The lava, under the beach to begin with.
+    m.movingHazard("Lava", at: (0, -2.2 - 20, 0), size: (220, 40, 220), color: "#F97316", material: .neon, tags: ["lava"], opacity: 0.92)
+    m.part("Smoke", at: (0, 26, 0), size: (8, 6, 8), color: "#57534E", shape: .sphere, material: .matte, solid: false, opacity: 0.5)
+    m.coverFocus(x: 0, y: 8, z: 0, yaw: 210, width: 70)
+}
+
+// MARK: 95 Fishy Obby (obby but you're a fish)
+
+func fishyObby(_ m: MapBuilder) {
+    m.sky("#38BDF8", "#E0F2FE", light: 0.85, ground: "#15803D", fall: -30)
+    let sections: [(name: String, rim: String, water: String, bed: String)] = [
+        ("pond", "#65A30D", "#38BDF8", "#A16207"), ("river", "#78716C", "#0EA5E9", "#57534E"), ("pipes", "#94A3B8", "#22D3EE", "#475569"),
+        ("reef", "#FDE68A", "#06B6D4", "#FB7185"), ("deep", "#1E3A8A", "#1D4ED8", "#0F172A")
+    ]
+    m.slab("Start Rock", x: 0, y: -1, z: -8, w: 12, h: 1, d: 10, color: "#A8A29E", material: .stone)
+    m.spawnRing(0, -9, radius: 3, count: 6, color: "#FB923C")
+    m.pad("Shop Pad", x: -4.5, z: -12, size: 2.4, color: "#A855F7", tags: ["shop"])
+    var r = Seeded("fishy")
+    var z: Float = -2
+    var jelly = 0, hooks = 0, eels = 0, pearls = 0
+    for (si, sec) in sections.enumerated() {
+        for k in 0..<5 {
+            let n = si * 5 + k + 1
+            let len: Float = 14
+            let width: Float = sec.name == "pipes" ? 3 : 8
+            let surface: Float = sec.name == "pipes" ? Float(k % 2) * 1.5 : 0
+            let depth: Float = sec.name == "deep" ? 7 : 3.5
+            // Dry land to flop across, then the pool.
+            let dry: Float = [2.5, 3.5, 3, 4, 4.5][k]
+            m.slab("Bank", x: 0, y: surface - 1, z: z + dry / 2, w: width + 2, h: 1, d: dry, color: sec.rim, material: .grass)
+            let pz = z + dry + len / 2
+            m.slab("Bed", x: 0, y: surface - depth - 1, z: pz, w: width + 2, h: 1, d: len, color: sec.bed, material: .sand)
+            for side: Float in [-1, 1] {
+                m.slab(sec.name == "pipes" ? "Glass" : "Rim", x: side * (width / 2 + 0.5), y: surface - depth, z: pz, w: 1, h: depth + 1.2,
+                       d: len, color: sec.name == "pipes" ? "#E0F2FE" : sec.rim, material: sec.name == "pipes" ? .glass : .stone,
+                       opacity: sec.name == "pipes" ? 0.35 : 1)
+            }
+            m.pool("Water \(n)", x: 0, y: surface, z: pz, w: width, d: len, depth: depth, color: sec.water)
+            // The checkpoint is on the bank: every fish flops over it.
+            m.stagePad(n, x: 0, y: surface, z: z + dry / 2, size: min(2.4, dry - 0.2), color: "#FACC15")
+            // A pearl in each pool.
+            pearls += 1
+            m.part("Pearl \(pearls)", at: (r.range(-width / 3, width / 3), surface - depth + 0.6, pz + 3), size: (0.5, 0.5, 0.5), color: "#FDF4FF",
+                   shape: .sphere, material: .neon, behavior: .trigger, tags: ["pearl"], solid: false)
+            switch sec.name {
+            case "river":
+                m.part("Current \(n)", at: (0, surface - depth / 2, pz), size: (width, depth, len * 0.6), color: "#BAE6FD", material: .glass,
+                       tags: ["current", "cz=-5"], solid: false, opacity: 0.12)
+                m.part("River Rock", at: (r.range(-2, 2), surface - depth + 0.8, pz - 2), size: (2, 1.6, 2), color: "#57534E", shape: .sphere, material: .stone)
+            case "pipes":
+                m.part("Bubble \(n)", at: (0, surface - depth / 2, pz + len / 2 - 1.5), size: (2.6, depth, 1.6), color: "#F0F9FF", material: .glass,
+                       tags: ["bubble"], solid: false, opacity: 0.25)
+            case "reef":
+                for c in 0..<3 {
+                    m.killBrick("Coral", at: (Float(c - 1) * 2.6, surface - depth + 0.8, pz - 3 + Float(c) * 3), size: (1.2, 1.6, 1.2), color: "#EC4899",
+                                shape: .cone)
+                }
+                jelly += 1
+                m.movingHazard("Jelly \(jelly)", at: (r.range(-2, 2), surface - depth + 0.8, pz + 2), size: (1.2, 1.2, 1.2), color: "#F0ABFC",
+                               shape: .sphere, tags: ["jelly"], opacity: 0.7)
+            case "deep":
+                hooks += 1
+                m.movingHazard("Hook \(hooks)", at: (r.range(-2.5, 2.5), surface + 1, pz), size: (0.3, 1.2, 0.3), color: "#CBD5E1", material: .metal,
+                               tags: ["hook"])
+                m.part("Line \(hooks)", at: (0, surface + 6, pz), size: (0.05, 10, 0.05), color: "#E5E7EB", solid: false)
+                eels += 1
+                m.part("Eel \(eels)", at: (0, surface - depth + 1.5, pz - 3), size: (width, 0.4, 0.4), color: "#FACC15", material: .neon,
+                       tags: ["eel"], solid: false)
+                m.part("Lantern", at: (r.range(-3, 3), surface - depth + 3, pz + 4), size: (0.6, 0.6, 0.6), color: "#FEF08A", shape: .sphere,
+                       material: .neon, solid: false)
+            default:
+                m.part("Lily Pad", at: (r.range(-3, 3), surface + 0.02, pz), size: (1.6, 0.04, 1.6), color: "#16A34A", shape: .cylinder, solid: false)
+            }
+            z = z + dry + len
+        }
+    }
+    // The aquarium at the end.
+    m.slab("Aquarium Floor", x: 0, y: -1, z: z + 6, w: 16, h: 1, d: 12, color: "#E0F2FE")
+    m.finishLine(x: 0, y: 0, z: z + 6, size: 8, color: "#22D3EE")
+    m.part("Big Fish", at: (0, 4, z + 10), size: (4, 2.4, 6), color: "#F97316", shape: .sphere, solid: false)
+    m.part("Big Fish Tail", at: (0, 4, z + 13.5), size: (0.4, 2.4, 2), color: "#F97316", shape: .cone, solid: false, rotation: (90, 0, 0))
+    for i in 0..<14 {
+        m.tree(r.range(-20, -9), r.range(0, z), height: r.range(3, 5))
+        m.tree(r.range(9, 20), r.range(0, z), height: r.range(3, 5))
+        _ = i
+    }
+    m.coverFocus(x: 0, y: 0, z: 30, yaw: 160, width: 40)
 }

@@ -1,0 +1,86 @@
+-- Rooftop Parkour — 屋根から屋根へのパルクール
+-- 30の屋根をこえてアンテナのビルへ。ダッシュ・2段ジャンプ・カベキック・スライディングの4つの技。
+-- 技をつなぐとフロー（🔥）がたまって速くなる。水色のパッドで荷物をうけとって配達も。
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   data.absc    ゾーン・技・称号
+--   moves.absc   技とフロー
+--   jobs.absc    配達・称号
+--   main.absc    このファイル
+
+kit_setup("Rooftop Parkour", "屋根から屋根へ、技をつないで走れ！", [
+  "💨 ダッシュで遠くの屋根へ（オレンジの矢印の場所）",
+  "⤴ 空中でもう1回ジャンプ。🧗 カベの前でカベキック（2回まで）",
+  "🛝 スライディングで一瞬速く",
+  "🔥 技を3秒以内につなぐとフローが上がって速くなる",
+  "📦 水色のパッドで荷物、ピンクのパッドへとどけるとコイン",
+  "🚩 緑のパッドがチェックポイント。道に落ちたらそこから"
+])
+kit_keep(["deliveries", "moves_done", "level", "xp", "dash_up"])
+
+obby_setup({stages: 30, fall: 3, coins: 10, finish_coins: 500, skip: 40, board: "parkour_time"})
+obby_zones = []
+for z in ZONES do
+  append(obby_zones, {from: z.first, last: z.last, name: z.name, color: z.color})
+end
+obby_on_stage = func(p, n)
+  kit_xp(p, 12)
+  kit_quest_progress(p, "roofs", 1)
+end
+obby_on_finish = func(p, secs)
+  kit_xp(p, 150)
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "skyline", "摩天楼をこえた")
+end
+kit_on_level = func(p)
+  show_title(p)
+  p.message("🏷 称号: " + title_of(p), 2)
+end
+
+obby_perks_basic()
+kit_shop_add("dash_up", "💨 ダッシュの待ち時間が短くなる", 700, func(p) p.dash_up = true end)
+
+kit_quest("moves", "技を50回", 50, 120)
+kit_quest("roofs", "チェックポイントを10こ", 10, 120)
+kit_quest("deliver", "配達を3回", 3, 200)
+kit_quest("finish", "アンテナのビルに着く", 1, 600)
+
+kit_on_load = func(p)
+  p.level = p.level or 1
+  p.xp = p.xp or 0
+  kit_show_level(p)
+  show_title(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.level = p.level or 1
+  p.xp = p.xp or 0
+  kit_show_level(p)
+  show_title(p)
+  flow_show(p)
+  p.ui_button("mv_dash", "💨", {at: "bottom_right", dx: -30, dy: -180, w: 74, h: 74, size: 30, bg: "#F97316", radius: 37})
+  p.ui_button("mv_double", "⤴", {at: "bottom_right", dx: -114, dy: -150, w: 64, h: 64, size: 28, bg: "#0EA5E9", radius: 32})
+  p.ui_button("mv_wall", "🧗", {at: "bottom_right", dx: -30, dy: -266, w: 64, h: 64, size: 26, bg: "#16A34A", radius: 32})
+  p.ui_button("mv_slide", "🛝", {at: "bottom_right", dx: -108, dy: -226, w: 58, h: 58, size: 24, bg: "#7C3AED", radius: 29})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("🏁 屋根") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

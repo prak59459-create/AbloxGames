@@ -1,0 +1,27 @@
+-- data.absc — Rooftop Parkour の表
+
+let ZONES = [
+  {first: 1, last: 8, name: "🌆 東の通り", color: "#F97316"},
+  {first: 9, last: 15, name: "🏙 北の通り", color: "#FBBF24"},
+  {first: 16, last: 23, name: "🌇 西の通り", color: "#F472B6"},
+  {first: 24, last: 30, name: "🌃 摩天楼", color: "#A78BFA"}
+]
+
+-- 技: 待ち時間（秒）と、フローがたまる量
+let MOVES = {
+  dash: {name: "💨 ダッシュ", cool: 1.0},
+  double: {name: "⤴ 2段ジャンプ", cool: 0.2},
+  wall: {name: "🧗 カベキック", cool: 0.5},
+  slide: {name: "🛝 スライディング", cool: 1.2}
+}
+let FLOW_MAX = 5
+let FLOW_KEEP = 3          -- この秒数のうちに次の技を出すとフローが続く
+let DELIVERY_SECS = 70
+
+let TITLES = [
+  {level: 1, name: "ルーキー"},
+  {level: 4, name: "ランナー"},
+  {level: 8, name: "フリーランナー"},
+  {level: 13, name: "トレーサー"},
+  {level: 20, name: "パルクールマスター"}
+]

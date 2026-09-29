@@ -1,0 +1,88 @@
+-- sizes.absc — 小さく・ふつう・大きく、キノコとニンジン、ガラス、スイッチ、宝石
+
+func set_size(p, key)
+  let s = SIZES[key]
+  if s == nil then return end
+  if p.size_key == key then return end
+  p.size_key = key
+  p.size = s.size
+  p.obby_speed_mult = s.speed
+  p.obby_jump_mult = s.jump
+  obby_apply_perks(p)
+  p.ui_text("size", "大きさ: " + s.name, {at: "top_left", dy: 90, size: 16, bold: true, color: "#FDE68A"})
+  p.sound("magic")
+  particles("magic", p, {amount: 16})
+  p.changes = (p.changes or 0) + 1
+  kit_quest_progress(p, "changes", 1)
+end
+
+func items_for(p)
+  let n = p.obby_best or 0
+  if n >= 10 and not p.has_item("🍄 キノコ") then p.give_item("🍄 キノコ", 1, "🍄") end
+  if n >= 20 and not p.has_item("🥕 ニンジン") then p.give_item("🥕 ニンジン", 1, "🥕") end
+end
+
+func break_glass(b)
+  b.visible = false
+  b.solid = false
+  after(GLASS_BACK, func()
+    if b.destroy != nil then
+      b.visible = true
+      b.solid = true
+    end
+  end)
+end
+
+func press_plate(p, b)
+  if p.size_key != "giant" then
+    if kit_ready(p, "plate_msg", 2) then p.message("🔴 重いスイッチ… 大きくならないと押せない", 1.5) end
+    return
+  end
+  let g = 0
+  for t in b.tags do
+    if starts_with(t, "g=") then g = num(replace(t, "g=", "")) or 0 end
+  end
+  let gate = block("Gate " + g)
+  if gate == nil or not gate.visible then return end
+  gate.visible = false
+  gate.solid = false
+  p.message("🔓 ゲートが開いた！ " + GATE_SECS + "秒で しまるよ", 1.8)
+  p.sound("door")
+  after(GATE_SECS, func()
+    gate.visible = true
+    gate.solid = true
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shrink") then set_size(p, "tiny")
+  elif contains(b.tags, "grow") then set_size(p, "giant")
+  elif contains(b.tags, "normal") then set_size(p, "normal")
+  elif contains(b.tags, "fragile") then
+    if p.size_key != "tiny" and b.visible then
+      break_glass(b)
+      if kit_ready(p, "glass_msg", 2) then p.message("💥 重すぎてガラスがわれた！ 小さくなってから", 1.5) end
+    end
+  elif contains(b.tags, "plate") then press_plate(p, b)
+  elif contains(b.tags, "gem") and b.visible then
+    b.visible = false
+    after(40, func()
+      if b.destroy != nil then b.visible = true end
+    end)
+    p.gems = (p.gems or 0) + 1
+    kit_give(p, 15)
+    p.message("💎 かくれた宝石！（" + p.gems + "こ）", 1.5)
+    p.sound("collect")
+    kit_quest_progress(p, "gems", 1)
+  elif contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p)
+  end
+end
+
+on use(p, item)
+  if item == "🍄 キノコ" then
+    if p.size_key == "tiny" then set_size(p, "normal") else set_size(p, "tiny") end
+  elif item == "🥕 ニンジン" then
+    if p.size_key == "giant" then set_size(p, "normal") else set_size(p, "giant") end
+  end
+end

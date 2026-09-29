@@ -1,0 +1,113 @@
+-- Rising Lava Rescue — マグマが上がる前に、動物を助けてシェルターへ
+-- 火山の山のてっぺんに自分のシェルター。まわりのだん・はま・小島に取りのこされた動物（下ほどレア）。
+-- マグマは しずか → 🚨サイレン → 上がる → そのまま → 下がる をくり返す。持つほどおそくなるので気をつけて。
+--
+-- ファイル:
+--   ../../lib/kit_move.absc  マグマの高さ（動いているとちゅうの位置）
+--   data.absc    動物・マグマのスケジュール・強化
+--   lava.absc    マグマ・サイレン・やけど
+--   rescue.absc  動物・助ける・シェルター・コイン
+--   main.absc    このファイル
+
+kit_setup("Rising Lava Rescue", "マグマが来る前に、動物を助けよう！", [
+  "🏠 山のてっぺんの色のついたパッドが きみのシェルター",
+  "🐤 だんを下りて動物にさわると助けられる。下ほどレア、小島にはドラゴン！",
+  "🚨 サイレンが鳴ったら、マグマが上がってくる。上へにげろ！",
+  "🔥 マグマにさわるとシェルターにもどされ、持っていた動物はにげる",
+  "💰 シェルターの動物が1秒ごとにコインをくれる",
+  "🟧 オレンジのパッドで 持てる数・シェルター・マグマブーツ を強化"
+])
+kit_keep(["saved_animals", "up_carry", "up_slots", "up_boots", "rescued", "burns", "fast"])
+
+let UPGRADES = [
+  {key: "up_carry", name: "🤲 持てる数", values: CARRY},
+  {key: "up_slots", name: "🏠 シェルターのひろさ", values: SLOTS},
+  {key: "up_boots", name: "🥾 マグマブーツ（1回の波で）", values: BOOTS}
+]
+
+func up_menu(p)
+  let h = 140 + len(UPGRADES) * 54
+  p.ui_remove("up_box")
+  p.ui_panel("up_box", {at: "center", w: 560, h: h, bg: "#431407F2", radius: 22, layer: 40})
+  p.ui_text("up_t", "⬆️ 強化（💰 " + kit_short(kit_money(p)) + "）", {parent: "up_box", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let level = p[u.key] or 0
+    let label = u.name + "  " + u.values[level + 1]
+    let bg = "#C2410C"
+    if level >= 3 then
+      label = label + "（最大）"
+      bg = "#374151"
+    else
+      label = label + " → " + u.values[level + 2] + "   💰" + kit_short(UP_PRICES[level + 1])
+    end
+    p.ui_button("upbuy_" + u.key, label, {parent: "up_box", y: (36 + i * 54) / h, w: 520, h: 46, size: 15, bg: bg})
+  end
+  p.ui_button("up_close", "閉じる", {parent: "up_box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func up_buy(p, key)
+  let level = p[key] or 0
+  if level >= 3 or not kit_pay(p, UP_PRICES[level + 1]) then return end
+  p[key] = level + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "upgrade", 1)
+  draw_shelter(p)
+  up_menu(p)
+end
+
+kit_shop_add("fast", "👟 スピードくつ（ずっと 1.2ばい）", 600, func(p)
+  p.fast = true
+  carry_show(p)
+end)
+
+kit_quest("rescue", "動物を10ぴき助ける", 10, 150)
+kit_quest("rescue50", "動物を50ぴき助ける", 50, 500)
+kit_quest("upgrade", "強化を3回", 3, 300)
+
+kit_on_load = func(p)
+  carry_show(p)
+  draw_shelter(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.carry = []
+  claim(p)
+  kit_later(p, 0.5, func() home(p) end)
+  draw_shelter(p)
+  p.ui_button("upgrades", "⬆️ 強化", {at: "right", dy: -60, w: 140, h: 46, size: 15, bg: "#B45309"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "upgrades") and kit_ready(p, "up_pad", 3) then up_menu(p) end
+  if contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p) end
+end
+
+on button(p, id)
+  if id == "upgrades" then up_menu(p)
+  elif id == "up_close" then p.ui_remove("up_box")
+  elif starts_with(id, "upbuy_") then up_buy(p, replace(id, "upbuy_", ""))
+  end
+end
+
+on start()
+  world.music = "boss"
+  every(12, func() kit_leaderboard("🐾 助けた数") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 2 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.rescued or 0) != p.score then p.score = p.rescued or 0 end
+  end
+end

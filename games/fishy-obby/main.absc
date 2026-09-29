@@ -1,0 +1,71 @@
+-- Fishy Obby — 魚になってすすむオビー
+-- 水の中はスイスイ、陸ではピチピチはねるだけ（おそいけど高くとぶ）。水の外に長くいると💧かわいてしまう。
+-- 池 → 川（流れ）→ パイプ（泡で上へ）→ サンゴ礁（サンゴとクラゲ）→ 深海（つり針と電気ウナギ）→ 水族館
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   ../../lib/kit_move.absc  クラゲとつり針の当たり判定
+--   data.absc    ゾーン・魚のきせかえ
+--   water.absc   水の中か陸か・かわく・流れ・泡・わな・真珠
+--   skins.absc   きせかえ
+--   main.absc    このファイル
+
+kit_setup("Fishy Obby", "きみは魚！ 水から水へ、すすもう", [
+  "🌊 水の中はスイスイ速い。ジャンプで水面へ",
+  "🐟 陸ではピチピチ… おそいけど高くはねる",
+  "💧 水の外に長くいるとかわいてチェックポイントへ",
+  "🫧 泡の中では上にふき上げられる。川では流れにおされる",
+  "🪸 サンゴ・🪼 クラゲ・🎣 つり針・⚡ 電気ウナギ（光ったとき）に注意",
+  "⚪ 真珠を集めて 🐠 ボタンで魚をきせかえ"
+])
+kit_keep(["pearls", "pearls_spent", "fish", "fish_owned", "hurts"])
+
+obby_setup({stages: 25, fall: -12, coins: 8, finish_coins: 400, skip: 30, board: "fish_time"})
+obby_zones = []
+for z in ZONES do
+  append(obby_zones, {from: z.first, last: z.last, name: z.name, color: z.color})
+end
+obby_on_stage = func(p, n) kit_quest_progress(p, "stages", 1) end
+obby_on_finish = func(p, secs)
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "aquarium", "水族館にたどりついた")
+end
+obby_perks_basic()
+
+kit_quest("stages", "チェックポイントを10こ", 10, 120)
+kit_quest("pearls", "真珠を15こ", 15, 150)
+kit_quest("skin", "魚をきせかえる", 1, 80)
+kit_quest("finish", "水族館に着く", 1, 500)
+
+kit_on_load = func(p) wear(p, p.fish or "goldfish") end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  wear(p, "goldfish")
+  p.moist = DRY_SECS
+  p.wet = nil
+  p.ui_button("skins", "🐠", {at: "top_right", dy: 120, w: 52, h: 52, size: 22, bg: "#0369A1", radius: 26})
+end
+
+on touch(p, b)
+  if not p.is_npc and contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p) end
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("🐟 ステージ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

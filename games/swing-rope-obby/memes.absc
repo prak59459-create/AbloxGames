@@ -1,0 +1,189 @@
+-- memes.absc — ミームリンがわく・つれて帰る・基地にならべる・コイン
+
+let spots = []
+let bases = {}          -- 基地の番号 → プレイヤーのid
+let base_blocks = {}    -- プレイヤーのid → 基地にならべたブロック
+let meme_clock = 0
+
+func species(id)
+  for s in SPECIES do
+    if s.id == id then return s end
+  end
+  return SPECIES[1]
+end
+
+func tier_of(b)
+  return tag_number(b, "tier", 1)
+end
+
+func spawn_meme(spot)
+  let tier = tier_of(spot)
+  let pool = filter(SPECIES, func(s) return s.tier == tier end)
+  let s = kit_pick(pool, 1)
+  let offset = {x: random() * 3 - 1.5, y: 0.6, z: random() * 3 - 1.5}
+  let b = create_block({name: "Memeling " + s.id, position: spot.position + offset, size: s.size, color: s.color, shape: s.shape,
+                        material: "neon", behavior: "trigger", tags: ["meme", s.id], solid: false})
+  return b
+end
+
+func pick_up(p, b)
+  let kind = ""
+  for s in SPECIES do
+    if contains(b.tags, s.id) then kind = s.id end
+  end
+  if kind == "" then return end
+  if p.carry == nil then p.carry = [] end
+  if len(p.carry) >= CARRY[(p.up_carry or 0) + 1] then
+    if kit_ready(p, "full", 2) then p.message("🎒 もう持てない！ 基地にもどろう", 1.5) end
+    return
+  end
+  kit_gone(b)
+  append(p.carry, kind)
+  let s = species(kind)
+  p.message("🎒 " + s.name + "（" + TIER_NAMES[s.tier] + "）をつかまえた！ 基地へもどろう", 2)
+  p.sound("collect")
+  kit_quest_progress(p, "catch", 1)
+  if s.tier == 5 then kit_badge(p, "secret", "ひみつのミームリン") end
+  carry_show(p)
+  after(MEME_BACK, func() refill() end)
+end
+
+func carry_show(p)
+  let names = []
+  for id in p.carry or [] do append(names, species(id).name) end
+  if len(names) == 0 then
+    p.ui_remove("carry")
+  else
+    p.ui_text("carry", "🎒 " + join(names, "・"), {at: "top", dy: 80, size: 16, bold: true, color: "#FDE68A"})
+  end
+end
+
+-- 島ごとに2ひきまで、へったらわく
+func refill()
+  for spot in spots do
+    let near = 0
+    for b in blocks("meme") do
+      if distance(b, spot) < 6 then near = near + 1 end
+    end
+    if near < 2 then spawn_meme(spot) end
+  end
+end
+
+-- MARK: 基地
+
+func claim_base(p)
+  for i in 1 to 8 do
+    if bases["b" + i] == nil then
+      bases["b" + i] = p.id
+      p.base = i
+      let pad = block("Base " + i)
+      if pad != nil then pad.color = p.color end
+      p.message("🏠 きみの基地は " + i + " ばん", 2)
+      return
+    end
+  end
+end
+
+func base_pad(p)
+  if p.base == nil then return nil end
+  return block("Base " + p.base)
+end
+
+func income(p)
+  let total = 0
+  for id in p.collection or [] do total = total + species(id).income end
+  return total
+end
+
+-- 基地のミームリンを並べなおす
+func draw_base(p)
+  for b in base_blocks[p.id] or [] do kit_gone(b) end
+  base_blocks[p.id] = []
+  let pad = base_pad(p)
+  if pad == nil then return end
+  let list = p.collection or []
+  let n = len(list)
+  let i = 0
+  for id in list do
+    i = i + 1
+    let s = species(id)
+    let a = i / max(1, n) * 360
+    let spot = pad.position + {x: sin(a) * 1.6, y: 0.7, z: cos(a) * 1.6}
+    let b = create_block({name: "Base Memeling", position: spot, size: s.size * 0.8, color: s.color, shape: s.shape, material: "neon",
+                          solid: false})
+    append(base_blocks[p.id], b)
+  end
+  p.ui_text("income", "🏠 基地 " + n + "/" + SLOTS[(p.up_slots or 0) + 1] + "   💰 " + income(p) + "/秒", {at: "top_left", dy: 90, size: 15, color: "#BBF7D0"})
+end
+
+func deposit(p)
+  if p.carry == nil or len(p.carry) == 0 then return end
+  if p.collection == nil then p.collection = [] end
+  let slots = SLOTS[(p.up_slots or 0) + 1]
+  for id in p.carry do
+    if len(p.collection) < slots then
+      append(p.collection, id)
+    else
+      -- いっぱいなら、いちばん弱いのと入れかえ
+      let worst = 1
+      for k in 1 to len(p.collection) do
+        if species(p.collection[k]).income < species(p.collection[worst]).income then worst = k end
+      end
+      if species(id).income > species(p.collection[worst]).income then p.collection[worst] = id end
+    end
+  end
+  p.carry = []
+  carry_show(p)
+  draw_base(p)
+  p.sound("goal")
+  kit_quest_progress(p, "deposit", 1)
+  p.message("🏠 基地にならべた！ 1秒に 💰" + income(p), 2)
+end
+
+on start()
+  spots = blocks("memespot")
+  for spot in spots do
+    spawn_meme(spot)
+    spawn_meme(spot)
+  end
+end
+
+on tick(dt)
+  meme_clock = meme_clock + dt
+  if meme_clock < 1 then return end
+  meme_clock = 0
+  for p in players() do
+    let inc = income(p)
+    if inc > 0 then kit_give(p, inc) end
+    -- 落ちたら基地へ（持っていたミームリンはにげる）
+    if p.alive and p.y < -15 then
+      if p.carry != nil and len(p.carry) > 0 then
+        p.carry = []
+        carry_show(p)
+        p.message("💨 落ちて、ミームリンがにげちゃった…", 2)
+        after(2, func() refill() end)
+      end
+      let pad = base_pad(p)
+      if pad != nil then p.teleport(pad) else p.respawn() end
+      p.velocity = {x: 0, y: 0, z: 0}
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "meme") then pick_up(p, b)
+  elif contains(b.tags, "base") then
+    if p.base != nil and b.name == "Base " + p.base then deposit(p) end
+  end
+end
+
+on leave(p)
+  for b in base_blocks[p.id] or [] do kit_gone(b) end
+  base_blocks[p.id] = nil
+  if p.base != nil then
+    bases["b" + p.base] = nil
+    let pad = block("Base " + p.base)
+    if pad != nil then pad.color = "#E5E7EB" end
+  end
+end

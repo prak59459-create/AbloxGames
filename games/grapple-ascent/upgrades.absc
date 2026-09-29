@@ -1,0 +1,53 @@
+-- upgrades.absc — グラップルの強化（長さ・力・待ち時間・連続）
+
+let UPGRADES = [
+  {key: "up_range", name: "🪢 ロープの長さ", values: RANGE, unit: "m"},
+  {key: "up_pull", name: "💪 引っぱる力", values: PULL, unit: ""},
+  {key: "up_cool", name: "⏱ 待ち時間", values: COOLDOWN, unit: "秒"},
+  {key: "up_chain", name: "🔁 連続グラップル", values: CHAIN, unit: "回"}
+]
+
+func up_menu(p)
+  let h = 140 + len(UPGRADES) * 52
+  p.ui_remove("up_box")
+  p.ui_panel("up_box", {at: "center", w: 560, h: h, bg: "#0C4A6EF2", radius: 22, layer: 40})
+  p.ui_text("up_t", "🪝 グラップル強化（💰 " + kit_short(kit_money(p)) + "）", {parent: "up_box", y: 28 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let level = (p[u.key] or 0)
+    let label = u.name + "  " + u.values[level + 1] + u.unit
+    let bg = "#2563EB"
+    if level >= 3 then
+      label = label + "（最大）"
+      bg = "#374151"
+    else
+      label = label + " → " + u.values[level + 2] + u.unit + "   💰" + PRICES[level + 1]
+    end
+    p.ui_button("upbuy_" + u.key, label, {parent: "up_box", y: (36 + i * 52) / h, w: 520, h: 44, size: 14, bg: bg})
+  end
+  p.ui_button("up_close", "閉じる", {parent: "up_box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func up_buy(p, key)
+  let level = p[key] or 0
+  if level >= 3 then return end
+  if not kit_pay(p, PRICES[level + 1]) then return end
+  p[key] = level + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "upgrade", 1)
+  up_menu(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "upgrades") and kit_ready(p, "up_pad", 3) then up_menu(p) end
+  if contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p) end
+end
+
+on button(p, id)
+  if id == "upgrades" then up_menu(p)
+  elif id == "up_close" then p.ui_remove("up_box")
+  elif starts_with(id, "upbuy_") then up_buy(p, replace(id, "upbuy_", ""))
+  end
+end

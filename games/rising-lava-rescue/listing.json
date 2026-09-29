@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 129,
+  "bytes" : 96603,
+  "cover" : "games\/rising-lava-rescue\/cover-ba32dabd.png",
+  "id" : "rising-lava-rescue",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_move.absc",
+    "games\/rising-lava-rescue\/data.absc",
+    "games\/rising-lava-rescue\/lava.absc",
+    "games\/rising-lava-rescue\/rescue.absc",
+    "games\/rising-lava-rescue\/main.absc"
+  ],
+  "shots" : [
+    "games\/rising-lava-rescue\/shot1-2f480564.png",
+    "games\/rising-lava-rescue\/shot2-3faf8a18.png"
+  ],
+  "summary" : "火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。",
+  "tags" : [
+    "obby",
+    "rescue",
+    "lava"
+  ],
+  "title" : "Rising Lava Rescue",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/rising-lava-rescue\/world.ablox"
+}

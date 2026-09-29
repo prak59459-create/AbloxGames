@@ -140,6 +140,13 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/speeding-wall-survival/cover-838ca2f9.png" width="200"> | 86 | **Speeding Wall Survival** | どんどん速くなるカベがつっこんでくる！ すきまに入る・とびこえる・キノコで小さくなって穴をくぐる。ニセモノのカベにだまされるな。最後の1人まで生きのこれ。 |
 | <img src="games/easy-peasy-obby/cover-60a66188.png" width="200"> | 87 | **Easy Peasy Obby** | 小さい子でもクリアできる、とってもやさしい100ステージ。草原・おかし・ビーチ・雪・宇宙など10のワールド。ついてくるペット、ワールドごとのシールとぼうし、コイン集め。 |
 | <img src="games/cart-ride-wonderland/cover-a54f8f02.png" width="200"> | 88 | **Cart Ride Wonderland** | カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！ |
+| <img src="games/grapple-ascent/cover-65c19a96.png" width="200"> | 89 | **Grapple Ascent** | 光るフックにグラップルを打って、空高い塔を上へ上へ。フックをタップするか🪝ボタン。風の吹く場所、遠いフック、高さランキング。ロープの長さ・引っぱる力・連続グラップルを強化。 |
+| <img src="games/rooftop-parkour/cover-e36d6116.png" width="200"> | 90 | **Rooftop Parkour** | 街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。 |
+| <img src="games/swing-rope-obby/cover-5199846f.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
+| <img src="games/shrink-grow-obby/cover-15e93a42.png" width="200"> | 92 | **Shrink & Grow Obby** | 小さくなって穴をくぐり、大きくなって段差とすきまをこえる！ キッチン・お庭・おもちゃの城の30ステージ。小さいとわれないガラス、大きくないと押せないスイッチ。かくれた宝石も。 |
+| <img src="games/chased-by-stuff-obby/cover-8390f55c.png" width="200"> | 93 | **Chased by Stuff Obby** | 巨大なボール、アヒル、食パン、ボウリングの玉、パイナップル、目ざまし時計、ハンバーガー、クマのぬいぐるみ… 8つのコースで、うしろから追いかけてくる「なにか」から走ってにげろ！ |
+| <img src="games/rising-lava-rescue/cover-ba32dabd.png" width="200"> | 94 | **Rising Lava Rescue** | 火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。 |
+| <img src="games/fishy-obby/cover-e795e82d.png" width="200"> | 95 | **Fishy Obby** | きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。 |
 
 <!-- games:end -->
 

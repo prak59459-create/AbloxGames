@@ -1,0 +1,66 @@
+-- Grapple Ascent — グラップルで空高い塔をのぼる
+-- 光るフックをタップするか 🪝 ボタンで、フックへ ぐいっと引っぱられる。
+-- 24のチェックポイント、てっぺん（200m）がゴール。上に行くほどフックが遠く、風も吹く。
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   data.absc      ゾーン・強化の値
+--   grapple.absc   グラップル・ロープ・風・高さの記録
+--   upgrades.absc  強化メニュー
+--   main.absc      このファイル
+
+kit_setup("Grapple Ascent", "グラップルで塔のてっぺんへ！", [
+  "🪝 光るフックをタップ（または 🪝 ボタンで見ている方のフック）",
+  "🟡→🟠→🩷 上に行くほどフックが遠い。ロープの長さに注意",
+  "🔁 着地するまでに打てる回数がある（強化でふえる）",
+  "🌬 すけた箱の中は風がふく",
+  "🟩 緑のパッドがチェックポイント。落ちたらそこから",
+  "🟧 オレンジのパッドでグラップルを強化"
+])
+kit_keep(["up_range", "up_pull", "up_cool", "up_chain", "best_height", "grapples"])
+
+obby_setup({stages: 24, fall: -20, coins: 12, finish_coins: 600, skip: 50, board: "grapple_time"})
+obby_zones = []
+for z in ZONES do
+  append(obby_zones, {from: z.first, last: z.last, name: z.name, color: z.color})
+end
+obby_on_stage = func(p, n)
+  kit_quest_progress(p, "stages", 1)
+  leaderboard("grapple_height", p, p.best_height or 0)
+end
+obby_on_finish = func(p, secs)
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "summit", "塔のてっぺん")
+end
+obby_perks_basic()
+
+kit_quest("grapples", "グラップルを50回", 50, 100)
+kit_quest("stages", "チェックポイントを8こ", 8, 150)
+kit_quest("upgrade", "強化を3回", 3, 150)
+kit_quest("finish", "てっぺんに着く", 1, 800)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 11
+  p.ui_button("grapple", "🪝", {at: "bottom_right", dx: -40, dy: -170, w: 84, h: 84, size: 34, bg: "#0EA5E9", radius: 42})
+  p.ui_button("upgrades", "⬆️ 強化", {at: "right", dy: -60, w: 140, h: 46, size: 15, bg: "#B45309"})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("⛰ 最高ステージ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

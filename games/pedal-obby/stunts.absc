@@ -14,6 +14,7 @@ func launch(p, b)
   let up = tag_number(b, "u", 8)
   let speed = bike_info(p.bike or "kids").speed / 1.8
   p.velocity = {x: sin(yaw) * push * speed, y: up, z: cos(yaw) * push * speed}
+  p.fly = {dir: {x: sin(yaw), y: 0, z: cos(yaw)}, speed: push * speed * 0.9, until: time() + up / 9}
   p.air_until = time() + 1.3
   p.air_tricks = 0
   p.air_stage = p.stage or 0
@@ -116,4 +117,22 @@ end
 
 on button(p, id)
   if id == "trick" then trick(p) end
+end
+
+-- 空中でもしばらくジャンプ台の向きへ進む（スティックをはなしていても届く）
+let fly_clock = 0
+on tick(dt)
+  fly_clock = fly_clock + dt
+  if fly_clock < 0.1 then return end
+  fly_clock = 0
+  for p in players() do
+    if p.fly != nil then
+      if time() < p.fly.until and p.alive then
+        let v = p.velocity
+        p.velocity = {x: p.fly.dir.x * p.fly.speed, y: v.y, z: p.fly.dir.z * p.fly.speed}
+      else
+        p.fly = nil
+      end
+    end
+  end
 end

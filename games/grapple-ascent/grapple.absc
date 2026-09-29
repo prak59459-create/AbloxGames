@@ -1,0 +1,170 @@
+-- grapple.absc — グラップル（フックをタップ・🪝ボタン）・ロープ・風・高さの記録
+
+func lv(p, key)
+  return clamp((p[key] or 0) + 1, 1, 4)
+end
+
+func g_range(p)
+  return RANGE[lv(p, "up_range")]
+end
+
+func g_pull(p)
+  return PULL[lv(p, "up_pull")]
+end
+
+func g_cooldown(p)
+  return COOLDOWN[lv(p, "up_cool")]
+end
+
+func g_chain(p)
+  return CHAIN[lv(p, "up_chain")]
+end
+
+-- 見ている方向に近くて、上のほうにあるフック
+func best_hook(p)
+  let best = nil
+  let best_score = -100
+  for h in blocks_near_hooks(p) do
+    let d = distance(p, h)
+    if d <= g_range(p) and d > 1.5 then
+      let dir = normalize(h.position - p.position)
+      let score = dot(dir, p.look) * 2 + (h.y - p.y) / 10 - d / 40
+      if h.y < p.y - 2 then score = score - 3 end
+      if score > best_score then
+        best = h
+        best_score = score
+      end
+    end
+  end
+  return best
+end
+
+-- フックはたくさんあるので、近いものだけ見る
+func blocks_near_hooks(p)
+  let near = []
+  for h in hooks do
+    if abs(h.y - p.y) < 45 then append(near, h) end
+  end
+  return near
+end
+
+func grapple(p, h)
+  if h == nil then
+    p.message("とどくフックがない…（とどく長さ " + g_range(p) + "m）", 1)
+    return
+  end
+  let d = distance(p, h)
+  if d > g_range(p) then
+    p.message("遠すぎる！ " + floor(d) + "m（とどく長さ " + g_range(p) + "m）", 1)
+    return
+  end
+  let now = time()
+  if (p.g_ready_at or 0) > now then return end
+  -- 着地するまでに打てる回数
+  if p.g_chain_used == nil then p.g_chain_used = 0 end
+  if p.g_chain_used >= g_chain(p) then
+    p.message("🪝 着地してから！", 0.8)
+    return
+  end
+  p.g_chain_used = p.g_chain_used + 1
+  p.g_ready_at = now + g_cooldown(p)
+  let target = h.position + {x: 0, y: 1.2, z: 0}
+  -- 1.2秒まで、フックへ引きよせつづける（着いたら終わり）
+  p.reel = {target: target, until: now + 1.2}
+  reel_step(p)
+  p.sound("whoosh")
+  p.grapples = (p.grapples or 0) + 1
+  kit_quest_progress(p, "grapples", 1)
+  rope(p, target)
+end
+
+func reel_step(p)
+  let r = p.reel
+  if r == nil then return end
+  let d = distance(p.position + {x: 0, y: 1, z: 0}, r.target)
+  if time() > r.until or d < 2.2 or not p.alive then
+    p.reel = nil
+    return
+  end
+  let v = normalize(r.target - p.position) * g_pull(p)
+  if v.y < 3 then v = {x: v.x, y: 3, z: v.z} end
+  p.velocity = v
+end
+
+-- ロープ（すぐ消える細い線）
+func rope(p, target)
+  let from = p.position + {x: 0, y: 1.2, z: 0}
+  let d = target - from
+  let flat = sqrt(d.x * d.x + d.z * d.z)
+  let yaw = atan2(d.x, d.z)
+  let pitch = 0 - atan2(d.y, flat)
+  let b = create_block({name: "Rope", position: from + d * 0.5, size: {x: 0.08, y: 0.08, z: magnitude(d)}, rotation: {x: pitch, y: yaw, z: 0},
+                        color: "#FDE68A", material: "neon", solid: false})
+  after(0.35, func() kit_gone(b) end)
+end
+
+let hooks = []
+let winds = []
+let g_clock = 0
+
+on start()
+  hooks = blocks("hook")
+  winds = blocks("wind")
+end
+
+func tag_number(b, key, fallback)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or fallback end
+  end
+  return fallback
+end
+
+func slow_tick()
+  for p in players() do
+    if p.alive then
+      -- 着地したら連続グラップルの回数をもどす
+      if abs(p.velocity.y) < 0.2 then p.g_chain_used = 0 end
+      -- 高さの記録
+      if p.y > (p.best_height or 0) + 1 then
+        p.best_height = floor(p.y)
+        p.ui_text("height", "⛰ " + floor(p.y) + "m（最高 " + p.best_height + "m）", {at: "top_left", dy: 90, size: 16, color: "#BAE6FD"})
+      end
+      -- 落ちすぎたらチェックポイントへ
+      let pad = obby_block(p.stage or 0)
+      if pad != nil and p.y < pad.y - 12 then obby_back(p) end
+      -- 風
+      for w in winds do
+        let half = w.size * 0.5
+        if abs(p.x - w.x) < half.x and abs(p.y - w.y) < half.y and abs(p.z - w.z) < half.z then
+          let v = p.velocity
+          p.velocity = {x: v.x + tag_number(w, "wx", 0) * 0.5, y: v.y, z: v.z + tag_number(w, "wz", 0) * 0.5}
+          if kit_ready(p, "wind_msg", 4) then p.message("🌬 風だ！", 0.8) end
+        end
+      end
+    end
+  end
+end
+
+let reel_clock = 0
+on tick(dt)
+  reel_clock = reel_clock + dt
+  g_clock = g_clock + dt
+  if reel_clock >= 0.1 then
+    reel_clock = 0
+    for p in players() do
+      if p.reel != nil then reel_step(p) end
+    end
+  end
+  if g_clock >= 0.2 then
+    g_clock = 0
+    slow_tick()
+  end
+end
+
+on tap(p, b)
+  if contains(b.tags, "hook") then grapple(p, b) end
+end
+
+on button(p, id)
+  if id == "grapple" then grapple(p, best_hook(p)) end
+end
