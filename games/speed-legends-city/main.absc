@@ -1,0 +1,39 @@
+-- Speed Legends City — 走れば走るほど速くなる
+-- 走っているとステップがたまり（くつ×土地×ペット）、ステップが多いほど足が速くなる。
+-- 光る玉・リングでボーナス。オレンジ／赤のパッドで さばく・ようがんの谷へ（ステップが いる）。🏁 レースで1位をねらえ。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  ステップ・ショップ・たまご・ペット・生まれかわり
+--   data.absc   くつ・たまご・土地
+--   run.absc    走る・速さ・ダッシュ・玉・リング・移動
+--   race.absc   レース
+--   main.absc   このファイル
+
+kit_setup("Speed Legends City", "走って、走って、光の速さへ！", [
+  "🏃 走ると ステップがたまる。ステップが多いほど 足が速くなる",
+  "⚡ ダッシュ ボタンで びゅん（4秒に1回）",
+  "🔴 光る玉は ステップ、💎 水色の玉は お金。⭕ リングも",
+  "🛒 ショップの くつで 1歩のステップがふえる",
+  "🟧 オレンジのパッドで さばく（×3）、🟥 赤で ようがんの谷（×8）へ",
+  "🏁 町の南の 赤いパッドで レースに参加"
+])
+kit_keep(["races", "race_wins"])
+
+kit_quest("orb", "玉を20こ", 20, 100)
+kit_quest("hoop", "リングを3回", 3, 100)
+kit_quest("sim_tool", "くつを買う", 1, 60)
+kit_quest("land", "新しい土地へ", 1, 300)
+kit_quest("race", "レースで1位", 1, 300)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 10
+end
+
+on start()
+  world.music = "race"
+  every(12, func() kit_leaderboard("👟 ステップ") end)
+end

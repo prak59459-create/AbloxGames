@@ -1,0 +1,135 @@
+-- ninja.absc — ランクと空中ジャンプ、空の島（修行ボーナス・ほこら・たからばこ）
+
+let nj_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func rank_of(p)
+  let r = RANKS[1]
+  for k in RANKS do
+    if (p.sim_value or 0) >= k.need then r = k end
+  end
+  return r
+end
+
+sim_on_gain = func(p, amount)
+  if kit_ready(p, "slash", 0.6) then
+    p.sound("whoosh")
+    particles("sparkles", p, {amount: 4})
+  end
+end
+
+-- 空中ジャンプ: ランクの回数まで。地面におりたら もどる
+func air_jump(p)
+  let left = p.jumps_left
+  if left == nil then left = rank_of(p).jumps end
+  if left <= 0 then
+    if kit_ready(p, "nojump", 1) then p.message("💨 もうとべない！ ランクを上げると回数がふえる", 1) end
+    return
+  end
+  p.jumps_left = left - 1
+  let v = p.velocity
+  p.velocity = {x: v.x, y: AIR_VY, z: v.z}
+  p.air_time = time()
+  particles("smoke", p, {amount: 6})
+  p.sound("jump")
+end
+
+func island_at(p)
+  for isl in ISLANDS do
+    let c = block("Train " + isl.k)
+    if c != nil and abs(p.x - c.x) < 8 and abs(p.z - c.z) < 8 and abs(p.y - c.y) < 3 then return isl end
+  end
+  return nil
+end
+
+func sell_at(p, k)
+  let fill = floor(p.sim_fill or 0)
+  if fill <= 0 then
+    if kit_ready(p, "empty", 3) then p.message("🥋 帯は からっぽ。⚔️ ふる をタップ！", 1.2) end
+    return
+  end
+  let before = rank_of(p).name
+  let mult = SELL_MULT[k] or 1
+  let pay = floor(fill * mult * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  p.sim_fill = 0
+  p.sim_value = (p.sim_value or 0) + fill
+  kit_give(p, pay)
+  p.message("⛩ にんじゅつ " + kit_short(fill) + " → 💰" + kit_short(pay) + "（×" + mult + "）", 1.8)
+  p.sound("coin")
+  kit_quest_progress(p, "sell", 1)
+  let now = rank_of(p)
+  if now.name != before then
+    announce("🥷 " + p.name + " が " + now.name + " になった！ 空中ジャンプ " + now.jumps + "回", 3)
+    kit_badge(p, "rank_" + now.name, now.name)
+    kit_quest_progress(p, "rank", 1)
+    particles("stars", p, {amount: 50})
+    p.sound("win")
+  end
+end
+
+func chest(p, k)
+  let isl = ISLANDS[k]
+  let key = "c" + k
+  let last = (p.chests or {})[key] or -1000
+  if time() - last < CHEST_WAIT then
+    if kit_ready(p, "cw", 3) then p.message("🧰 あと " + ceil(CHEST_WAIT - (time() - last)) + "秒", 1) end
+    return
+  end
+  if p.chests == nil then p.chests = {} end
+  p.chests[key] = time()
+  let pay = floor(isl.chest * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  kit_give(p, pay)
+  p.message("🧰 " + isl.name + " のたからばこ！ 💰" + kit_short(pay), 1.8)
+  p.sound("win")
+  particles("confetti", p, {amount: 40})
+  if not contains(p.isles or [], k) then
+    if p.isles == nil then p.isles = [] end
+    append(p.isles, k)
+    kit_badge(p, "isle" + k, isl.name)
+    kit_quest_progress(p, "island", 1)
+  end
+end
+
+on tick(dt)
+  nj_clock = nj_clock + dt
+  if nj_clock < 0.15 then return end
+  nj_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      -- 地面（や島）に立っていたら ジャンプの回数をもどす
+      if abs(p.velocity.y) < 0.05 and time() - (p.air_time or 0) > 0.3 then
+        let full = rank_of(p).jumps
+        if p.jumps_left != full then p.jumps_left = full end
+      end
+      if kit_ready(p, "njhud", 0.5) then
+        let isl = island_at(p)
+        let bonus = 1
+        if isl != nil then bonus = isl.bonus end
+        if p.sim_zone_bonus != bonus then p.sim_zone_bonus = bonus end
+        let r = rank_of(p)
+        let place = "⛩ 道場"
+        if isl != nil then place = isl.name + "（修行 ×" + isl.bonus + "）" end
+        p.ui_text("nj_rank", r.name + "   💨 " + (p.jumps_left or r.jumps) + "/" + r.jumps + "   " + place, {at: "top", dy: 62, size: 16, bold: true})
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "nsell") and kit_ready(p, "nsell", 1) then sell_at(p, tag_num(b, "k"))
+  elif contains(b.tags, "nchest") then chest(p, tag_num(b, "k"))
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end
+
+on button(p, id)
+  if id == "air_jump" then air_jump(p) end
+end

@@ -1,0 +1,38 @@
+-- Mega Muscle Legends — きたえて ムキムキ
+-- 💪 をタップするとパワーがつく（ダンベルがいいほど たくさん）。パワーがつくと 体が大きく、足も速く。
+-- ジムの中できたえると ×ボーナス。強いジムは パワーが足りないと入れない。岩をこわしてお金、アリーナでパンチ勝負。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  タップ・ショップ・たまご・ペット・生まれかわり・ゲート
+--   data.absc   ダンベル・たまご・ジム・岩
+--   gym.absc    ジムのボーナス・体の大きさ・岩・アリーナ
+--   main.absc   このファイル
+
+kit_setup("Mega Muscle Legends", "きたえて、きたえて、最強のマッチョへ！", [
+  "💪 右下のボタンをタップして きたえる（お金も少し入る）",
+  "🏋 ショップで重いダンベル（1回でたくさん パワー）",
+  "🏖 ジムの中できたえると ×1.5〜×20。強いジムはパワーが足りないと入れない",
+  "🪨 赤いパッドで 岩をこわすと お金（強い岩ほど たくさん）",
+  "🥊 まん中の赤い丸（アリーナ）では パンチ勝負。強いほうが ふっとばす",
+  "🌟 パワーがたまったら 生まれかわり。ずっと ×1.5"
+])
+kit_keep(["rock_times", "knockouts"])
+
+kit_quest("sim_tool", "ダンベルを買う", 1, 60)
+kit_quest("rock", "岩を3回こわす", 3, 150)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+kit_quest("punch", "アリーナで ふっとばす", 1, 150)
+kit_quest("sim_rebirth", "生まれかわる", 1, 1500)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 9
+end
+
+on start()
+  world.music = "boss"
+  every(12, func() kit_leaderboard("💪 パワー") end)
+end

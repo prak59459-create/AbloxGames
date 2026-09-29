@@ -1,0 +1,41 @@
+-- Bubble Gum Legends — バブルガムでふくらませて売る
+-- 🫧 をタップして あわをためる（ガムがいいほど 1回でたくさん）。黄色いパッドで売ると お金。
+-- ピンクのパッドの バブルジャンプで 上の島へ。上の島ほど 高く売れる。たまごでペット、生まれかわりで ずっと強く。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc   タップ・バッグ・ショップ・たまご・ペット・生まれかわり
+--   ../../lib/kit_ride.absc  バブルジャンプ
+--   data.absc    ガム・あわ・たまご・島
+--   bubble.absc  売る・たからばこ・キャンディ・バブルジャンプ
+--   main.absc    このファイル
+
+kit_setup("Bubble Gum Legends", "ふくらませて、売って、空の島へ！", [
+  "🫧 右下のボタンをタップして あわをふくらませる",
+  "🟨 黄色いパッドで売る。上の島ほど 高く売れる（×2・×4・×8・×16）",
+  "🛒 ショップで いいガム（1回でたくさん）と 大きなあわ（たくさん入る）",
+  "💗 ピンクのパッドで 上の島へ バブルジャンプ（売った あわ の合計で行ける）",
+  "🥚 たまごでペット。ペットは ×で あわをふやす",
+  "🧰 たからばこ と 🍬 キャンディ もわすれずに"
+])
+kit_keep(["visited", "chests"])
+
+kit_quest("sell", "あわを5回 売る", 5, 80)
+kit_quest("sim_tool", "ガムを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+kit_quest("island", "新しい島へ行く", 1, 200)
+kit_quest("chest", "たからばこを3回", 3, 150)
+kit_quest("sim_rebirth", "生まれかわる", 1, 1000)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.visited = [1]
+  p.camera_distance = 9
+end
+
+on start()
+  world.music = "party"
+  every(12, func() kit_leaderboard("🫧 売ったあわ") end)
+end

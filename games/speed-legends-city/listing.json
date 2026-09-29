@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 621,
+  "bytes" : 343734,
+  "cover" : "games\/speed-legends-city\/cover-61c5dc19.png",
+  "id" : "speed-legends-city",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "games\/speed-legends-city\/data.absc",
+    "games\/speed-legends-city\/race.absc",
+    "games\/speed-legends-city\/run.absc",
+    "games\/speed-legends-city\/zz_test.absc",
+    "games\/speed-legends-city\/main.absc"
+  ],
+  "shots" : [
+    "games\/speed-legends-city\/shot1-99e7f658.png",
+    "games\/speed-legends-city\/shot2-7ed9d37e.png"
+  ],
+  "summary" : "走れば走るほど速くなる！ 町を走ってステップをため、光る玉とリングを集めよう。くつを強くしてもっと速く、さばくの町・ようがんの谷へ。🏁レースで1位をねらえ！",
+  "tags" : [
+    "simulator",
+    "running",
+    "racing"
+  ],
+  "title" : "Speed Legends City",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/speed-legends-city\/world.ablox"
+}

@@ -1,0 +1,111 @@
+-- race.absc — タップタイム → レース → 結果 をくり返す。タップした分だけ レースで速くなる。
+
+func race_speed(p)
+  let s = p.round_power or 0
+  return clamp(1 + sqrt(s) / 8, 1, 10)
+end
+
+-- タップ: タップタイムだけ たまる
+sim_on_tap = func(p, amount)
+  if not rnd_waiting() then
+    if kit_ready(p, "tapwait", 3) then p.message("🏃 レース中！ スティックを前にたおして走れ", 1) end
+    return true
+  end
+  p.round_power = (p.round_power or 0) + amount
+  sim_gain(p, amount)
+  if kit_ready(p, "tapfx", 0.5) then particles("sparkles", p, {amount: 4}) end
+  return true
+end
+
+rnd_on_prepare = func()
+  let start = block("Race Start")
+  let i = 0
+  for p in rnd_players() do
+    i = i + 1
+    p.teleport(start.position + {x: -6 + (i % 7) * 2, y: 0, z: -floor(i / 7) * 2})
+    p.yaw = 0
+    p.frozen = true
+    p.race_gate = 0
+    p.race_wins_now = 0
+    p.speed = race_speed(p)
+    p.message("⚡ 速さ ×" + fixed(race_speed(p), 1) + "  スティックを前にたおして走れ！", 2.5)
+  end
+end
+
+rnd_on_begin = func()
+  for p in rnd_players() do p.frozen = false end
+  sound("bell")
+end
+
+func pass_gate(p, n)
+  if not rnd_playing() or not rnd_in(p) or n <= (p.race_gate or 0) then return end
+  p.race_gate = n
+  let pay = floor(n * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  p.race_wins_now = (p.race_wins_now or 0) + pay
+  kit_give(p, pay)
+  p.sound("coin")
+  if n % 5 == 0 then
+    p.message("🚩 " + n * 50 + "m！", 1)
+    particles("confetti", p, {amount: 20})
+  end
+  if n >= GATES then
+    kit_badge(p, "full_course", "1500m 完走")
+    kit_quest_progress(p, "finish", 1)
+  end
+end
+
+rnd_on_end = func(reason)
+  let lines = []
+  let order = sort_by(rnd_players(), func(q) return 0 - (q.race_gate or 0) end)
+  let place = 0
+  for p in order do
+    place = place + 1
+    let d = (p.race_gate or 0) * 50
+    if d > (p.best_m or 0) then
+      p.best_m = d
+      p.message("⭐ 新記録 " + d + "m！", 2)
+    end
+    p.races = (p.races or 0) + 1
+    kit_quest_progress(p, "race", 1)
+    if place <= 5 then append(lines, place + ". " + p.name + "  " + d + "m  💰" + (p.race_wins_now or 0)) end
+    p.round_power = 0
+    p.speed = 1
+  end
+  rnd_results("🏁 レースけっか", lines)
+  -- タップタイムはロビーで
+  after(2, func()
+    let lobby = block("Spawn 1")
+    for p in players() do
+      if not p.is_npc and lobby != nil then p.teleport(lobby) end
+    end
+  end)
+end
+
+rnd_on_wait = func(left)
+  for p in players() do
+    if not p.is_npc then
+      p.ui_text("tr_hud", "👆 タップタイム！ あと " + left + "秒   ⚡ いまの速さ ×" + fixed(race_speed(p), 1), {at: "top", dy: 90, size: 17, bold: true,
+                color: "#FDE68A"})
+    end
+  end
+end
+
+rnd_on_second = func(left)
+  for p in players() do
+    if not p.is_npc then
+      p.ui_text("tr_hud", "🏃 " + (p.race_gate or 0) * 50 + "m   ⚡ ×" + fixed(race_speed(p), 1) + "   💰 +" + (p.race_wins_now or 0), {at: "top", dy: 90,
+                size: 17, bold: true, color: "#FDE68A"})
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "rgate") then
+    for t in b.tags do
+      if starts_with(t, "n=") then pass_gate(p, num(replace(t, "n=", ""))) end
+    end
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end

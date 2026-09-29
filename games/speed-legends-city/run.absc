@@ -1,0 +1,123 @@
+-- run.absc — 走るとステップ（くつ×土地×ペット）、ステップで足が速くなる。玉・リング・土地のあいだの移動・ダッシュ
+
+let orbs_taken = []
+let run_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func tag_text(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return replace(t, key + "=", "") end
+  end
+  return nil
+end
+
+func land_of(p)
+  if p.z > 200 then return LANDS[2] end
+  if p.x > 260 then return LANDS[3] end
+  return LANDS[1]
+end
+
+func run_speed(p)
+  let s = p.sim_value or 0
+  return clamp(1 + log(s + 1) / log(10) * 0.22, 1, 3.2) * (p.dash_mult or 1)
+end
+
+-- ⚡: 4秒に1回 ダッシュ。それ以外のタップ（オート）は その場でステップ
+sim_on_tap = func(p, amount)
+  if kit_ready(p, "dash", DASH_WAIT) then
+    p.dash_mult = 1.8
+    let f = forward(p.yaw)
+    p.velocity = {x: f.x * 24, y: 4, z: f.z * 24}
+    particles("smoke", p, {amount: 12})
+    p.sound("whoosh")
+    sim_gain(p, amount * 5 * land_of(p).area)
+    kit_later(p, 2, func() p.dash_mult = 1 end)
+    return true
+  end
+  sim_gain(p, amount * land_of(p).area)
+  return true
+end
+
+func orb(p, b)
+  if not b.visible then return end
+  let land = LANDS[tag_num(b, "area") or 1]
+  let mult = sim_mult(p)
+  if tag_text(b, "kind") == "gem" then
+    let pay = floor(land.orb * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+    kit_give(p, pay)
+    p.message("💎 +💰" + kit_short(pay), 0.6)
+  else
+    sim_gain(p, floor(land.orb * mult))
+    p.message("🔴 +" + kit_short(floor(land.orb * mult)) + " ステップ", 0.6)
+  end
+  p.sound("pop")
+  b.visible = false
+  append(orbs_taken, {b: b, at: time()})
+  kit_quest_progress(p, "orb", 1)
+end
+
+func hoop(p, b)
+  if not kit_ready(p, "hoop" + b.id, HOOP_WAIT) then return end
+  let land = LANDS[tag_num(b, "area") or 1]
+  let pay = land.orb * 5
+  kit_give(p, pay)
+  sim_gain(p, floor(land.orb * 3 * sim_mult(p)))
+  p.message("⭕ リング！ 💰" + kit_short(pay), 1)
+  p.sound("coin")
+  particles("sparkles", p, {amount: 20})
+  kit_quest_progress(p, "hoop", 1)
+end
+
+func go_land(p, n)
+  if not kit_ready(p, "goto", 2) then return end
+  let land = LANDS[n]
+  if (p.sim_value or 0) < land.need then
+    p.message("🔒 " + land.name + " は ステップ " + kit_short(land.need) + " から（いま " + kit_short(p.sim_value or 0) + "）", 2)
+    return
+  end
+  p.teleport(block("Arrive " + n))
+  p.message(land.name + " へ！ ステップ ×" + land.area, 2)
+  if n > 1 then
+    kit_badge(p, "land" + n, land.name)
+    kit_quest_progress(p, "land", 1)
+  end
+end
+
+on tick(dt)
+  run_clock = run_clock + dt
+  if run_clock < 0.5 then return end
+  run_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      let v = p.velocity
+      if sqrt(v.x * v.x + v.z * v.z) > 3 then sim_gain(p, sim_amount(p) * land_of(p).area) end
+      let sp = run_speed(p)
+      if abs((p.speed or 1) - sp) > 0.02 then p.speed = sp end
+      if kit_ready(p, "runhud", 1) then
+        p.ui_text("run_hud", land_of(p).name + "   🏃 速さ ×" + fixed(run_speed(p), 2), {at: "top", dy: 62, size: 16, bold: true})
+      end
+    end
+  end
+  let now = time()
+  let keep = []
+  for o in orbs_taken do
+    if now - o.at > ORB_BACK then o.b.visible = true else append(keep, o) end
+  end
+  orbs_taken = keep
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "orb") then orb(p, b)
+  elif contains(b.tags, "hoop") then hoop(p, b)
+  elif contains(b.tags, "goto") then go_land(p, tag_num(b, "n"))
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end

@@ -1,0 +1,119 @@
+-- bubble.absc — あわを売る（島ごとの売り場）、たからばこ、キャンディ、バブルジャンプで上の島へ
+
+let candies_taken = []
+let bub_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+-- タップのたびに あわの つぶ
+sim_on_gain = func(p, amount)
+  if kit_ready(p, "bubfx", 0.8) then particles("bubbles", p, {amount: 6}) end
+end
+
+func sell_here(p, k)
+  let isl = ISLANDS[k]
+  let fill = floor(p.sim_fill or 0)
+  if fill <= 0 then
+    if kit_ready(p, "empty", 3) then p.message("🫧 あわがない。🫧 ふくらませる をタップ！", 1.2) end
+    return
+  end
+  let pay = floor(fill * isl.sell * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  p.sim_fill = 0
+  p.sim_value = (p.sim_value or 0) + fill
+  kit_give(p, pay)
+  p.message("💰 あわ " + kit_short(fill) + " → 💰" + kit_short(pay) + "（" + isl.name + " ×" + isl.sell + "）", 1.8)
+  p.sound("coin")
+  particles("sparkles", p, {amount: 25})
+  kit_quest_progress(p, "sell", 1)
+end
+
+func open_chest(p, k)
+  let isl = ISLANDS[k]
+  let key = "chest" + k
+  let last = (p.chests or {})[key] or -1000
+  let wait = CHEST_WAIT - (time() - last)
+  if wait > 0 then
+    if kit_ready(p, "chestwait", 3) then p.message("🧰 あと " + ceil(wait) + "秒で また あけられる", 1.2) end
+    return
+  end
+  if p.chests == nil then p.chests = {} end
+  p.chests[key] = time()
+  let pay = floor(isl.chest * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  kit_give(p, pay)
+  p.message("🧰 たからばこ！ 💰" + kit_short(pay), 1.5)
+  p.sound("win")
+  particles("confetti", p, {amount: 40})
+  kit_quest_progress(p, "chest", 1)
+end
+
+func candy(p, b)
+  if not b.visible then return end
+  let k = tag_num(b, "k") or 1
+  let pay = floor(5 * ISLANDS[k].sell * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  kit_give(p, pay)
+  b.visible = false
+  append(candies_taken, {b: b, at: time()})
+  p.sound("pop")
+end
+
+-- ねらった所に着地するように とばす
+func fling_to(p, target, push)
+  let dx = target.x - p.x
+  let dz = target.z - p.z
+  let d = sqrt(dx * dx + dz * dz)
+  let flight = max(0.6, d / (push * 0.9))
+  let g = 18 * (p.gravity or 1)
+  let up = g * flight / 2 + (target.y - p.y) / flight
+  ride_launch(p, yaw_to(p, target), push, up)
+  p.ride_carry.until = time() + flight
+end
+
+func bubble_jump(p, k)
+  if not kit_ready(p, "bjump", 2) then return end
+  let next = ISLANDS[k + 1]
+  if (p.sim_value or 0) < next.need then
+    p.message("🔒 " + next.name + " は あわ " + kit_short(next.need) + " 売ってから（いま " + kit_short(p.sim_value or 0) + "）", 2)
+    p.velocity = {x: 0, y: 6, z: 0}
+    return
+  end
+  let land = block("Land " + (k + 1))
+  if land == nil then return end
+  fling_to(p, land.position, 14)
+  p.sound("whoosh")
+  particles("bubbles", p, {amount: 30})
+  if not contains(p.visited or [], k + 1) then
+    if p.visited == nil then p.visited = [1] end
+    append(p.visited, k + 1)
+    kit_badge(p, "island" + (k + 1), next.name)
+    kit_quest_progress(p, "island", 1)
+    kit_later(p, 2.5, func() p.message("🎉 " + next.name + " に来た！ ここでは あわが ×" + next.sell + " で売れる", 2.5) end)
+  end
+end
+
+on tick(dt)
+  bub_clock = bub_clock + dt
+  if bub_clock < 2 then return end
+  bub_clock = 0
+  let now = time()
+  let keep = []
+  for c in candies_taken do
+    if now - c.at > CANDY_BACK then c.b.visible = true else append(keep, c) end
+  end
+  candies_taken = keep
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "bsell") and kit_ready(p, "bsell", 1) then sell_here(p, tag_num(b, "k"))
+  elif contains(b.tags, "chest") then open_chest(p, tag_num(b, "k"))
+  elif contains(b.tags, "candy") then candy(p, b)
+  elif contains(b.tags, "bjump") then bubble_jump(p, tag_num(b, "k"))
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end

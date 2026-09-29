@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 261,
+  "bytes" : 172760,
+  "cover" : "games\/tap-race-clicker\/cover-9e1f89d0.png",
+  "id" : "tap-race-clicker",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "lib\/kit_rounds.absc",
+    "games\/tap-race-clicker\/data.absc",
+    "games\/tap-race-clicker\/race.absc",
+    "games\/tap-race-clicker\/zz_test.absc",
+    "games\/tap-race-clicker\/main.absc"
+  ],
+  "shots" : [
+    "games\/tap-race-clicker\/shot1-fa087d43.png",
+    "games\/tap-race-clicker\/shot2-46d6b7b6.png"
+  ],
+  "summary" : "タップタイムに いっぱいタップして速さをためて、レースで いっきに走れ！ 50mごとのゲートをくぐるたびに ごほうび。ペットと生まれかわりで、1500mのコースを走りきろう。",
+  "tags" : [
+    "simulator",
+    "clicker",
+    "racing"
+  ],
+  "title" : "Tap Race Clicker",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/tap-race-clicker\/world.ablox"
+}

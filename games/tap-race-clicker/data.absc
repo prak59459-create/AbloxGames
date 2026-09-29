@@ -1,0 +1,36 @@
+-- data.absc — Tap Race Clicker の表
+
+sim_setup({name: "⚡ ためた速さ", tap: "👆 タップ！", bag: false, secs: 0.12, rebirth: 60000, grow: 3, slots: 3, auto: 1500})
+
+-- クリックパワー（1タップでたまる速さ）
+sim_tools = [
+  {id: "c1", name: "👆 ゆび1本", price: 0, power: 1},
+  {id: "c2", name: "✌️ ゆび2本", price: 60, power: 2},
+  {id: "c3", name: "🖐 手のひら", price: 300, power: 5},
+  {id: "c4", name: "🥊 グローブ", price: 1500, power: 12},
+  {id: "c5", name: "🦾 ロボアーム", price: 7000, power: 30},
+  {id: "c6", name: "⚡ いなずまの手", price: 30000, power: 80},
+  {id: "c7", name: "🌌 ぎんがの手", price: 150000, power: 220}
+]
+
+sim_eggs = [
+  {id: "grass", name: "🌱 草原のたまご", price: 100, pets: [
+    {name: "かたつむり", icon: "🐌", mult: 0.1, w: 60, color: "#A16207"},
+    {name: "うさぎ", icon: "🐇", mult: 0.25, w: 30, color: "#F8FAFC"},
+    {name: "チーター", icon: "🐆", mult: 0.6, w: 9, color: "#FACC15"},
+    {name: "はやぶさ", icon: "🦅", mult: 2, w: 1, color: "#78350F"}]},
+  {id: "turbo", name: "🏎 ターボのたまご", price: 2000, pets: [
+    {name: "ミニカー", icon: "🚗", mult: 0.5, w: 55, color: "#EF4444"},
+    {name: "ロケットねこ", icon: "🚀", mult: 1, w: 33, color: "#F97316"},
+    {name: "いなずまいぬ", icon: "⚡", mult: 2.5, w: 10, color: "#FACC15"},
+    {name: "ソニックドラゴン", icon: "🐉", mult: 6, w: 2, color: "#3B82F6"}]},
+  {id: "light", name: "🌟 光のたまご", price: 30000, pets: [
+    {name: "ほし", icon: "⭐", mult: 2, w: 55, color: "#FDE047"},
+    {name: "すいせい", icon: "☄️", mult: 3.5, w: 33, color: "#38BDF8"},
+    {name: "ひかりの鳥", icon: "🕊", mult: 8, w: 10, color: "#F8FAFC"},
+    {name: "光速ユニコーン", icon: "🦄", mult: 20, w: 2, color: "#F0ABFC"}]}
+]
+
+let TAP_SECS = 18          -- タップタイム
+let RACE_SECS = 15         -- レース
+let GATES = 30             -- 50m ごと

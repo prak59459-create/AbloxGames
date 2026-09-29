@@ -1,0 +1,53 @@
+-- data.absc — Mega Muscle Legends の表
+
+sim_setup({name: "💪 パワー", tap: "💪 きたえる", bag: false, secs: 0.35, rebirth: 50000, grow: 4, slots: 3, auto: 800})
+
+-- ダンベル（1タップでつくパワー）
+sim_tools = [
+  {id: "d1", name: "🏋 1kgダンベル", price: 0, power: 1},
+  {id: "d2", name: "🏋 5kgダンベル", price: 80, power: 4},
+  {id: "d3", name: "🏋 20kgダンベル", price: 500, power: 12},
+  {id: "d4", name: "🏋 バーベル", price: 2500, power: 35},
+  {id: "d5", name: "🪨 岩のダンベル", price: 12000, power: 100},
+  {id: "d6", name: "🧊 氷のバーベル", price: 60000, power: 300},
+  {id: "d7", name: "🌟 神話のダンベル", price: 300000, power: 900}
+]
+
+sim_eggs = [
+  {id: "beach", name: "🏖 ビーチのたまご", price: 200, pets: [
+    {name: "カニ", icon: "🦀", mult: 0.1, w: 60, color: "#EF4444"},
+    {name: "カメ", icon: "🐢", mult: 0.2, w: 30, color: "#16A34A"},
+    {name: "イルカ", icon: "🐬", mult: 0.5, w: 9, color: "#38BDF8"},
+    {name: "ゴリラ", icon: "🦍", mult: 1.5, w: 1, color: "#44403C"}]},
+  {id: "frost", name: "🧊 こおりのたまご", price: 3000, pets: [
+    {name: "ペンギン", icon: "🐧", mult: 0.5, w: 55, color: "#1E293B"},
+    {name: "しろくま", icon: "🐻‍❄️", mult: 0.9, w: 33, color: "#F8FAFC"},
+    {name: "オオカミ", icon: "🐺", mult: 2, w: 10, color: "#94A3B8"},
+    {name: "マンモス", icon: "🦣", mult: 5, w: 2, color: "#78350F"}]},
+  {id: "myth", name: "🌟 神話のたまご", price: 40000, pets: [
+    {name: "グリフォン", icon: "🦅", mult: 2, w: 55, color: "#CA8A04"},
+    {name: "ペガサス", icon: "🦄", mult: 3, w: 33, color: "#F0ABFC"},
+    {name: "フェニックス", icon: "🔥", mult: 7, w: 10, color: "#F97316"},
+    {name: "りゅうおう", icon: "🐲", mult: 18, w: 2, color: "#22C55E"}]}
+]
+
+-- ジム: 中できたえると ×bonus
+sim_zones = [
+  {n: 1, name: "🏖 浜辺のジム", need: 0, bonus: 1.5},
+  {n: 2, name: "🧊 氷のジム", need: 5000, bonus: 3},
+  {n: 3, name: "🔮 神話のジム", need: 150000, bonus: 8},
+  {n: 4, name: "♾ 永遠のジム", need: 3000000, bonus: 20}
+]
+let GYM_HALF = 17
+
+-- 岩: need のパワーでこわせる。coins がもらえる（30秒に1回）
+let ROCKS = [
+  {n: 1, name: "🪨 小さな岩", need: 100, coins: 20},
+  {n: 2, name: "🪨 かたい岩", need: 1000, coins: 150},
+  {n: 3, name: "🪨 大岩", need: 10000, coins: 1200},
+  {n: 4, name: "🌋 ようがん岩", need: 100000, coins: 9000},
+  {n: 5, name: "💎 クリスタル岩", need: 1000000, coins: 70000},
+  {n: 6, name: "🌌 うちゅう岩", need: 10000000, coins: 500000}
+]
+let ROCK_WAIT = 30
+let COIN_RATE = 0.2        -- きたえるたびに パワーの2割のお金

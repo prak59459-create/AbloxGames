@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 120,
+  "bytes" : 102367,
+  "cover" : "games\/shadow-ninja-legends\/cover-c906d3e7.png",
+  "id" : "shadow-ninja-legends",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "games\/shadow-ninja-legends\/data.absc",
+    "games\/shadow-ninja-legends\/ninja.absc",
+    "games\/shadow-ninja-legends\/zz_test.absc",
+    "games\/shadow-ninja-legends\/main.absc"
+  ],
+  "shots" : [
+    "games\/shadow-ninja-legends\/shot1-fcc8a41c.png",
+    "games\/shadow-ninja-legends\/shot2-878a48df.png"
+  ],
+  "summary" : "刀をふって にんじゅつ をためよう！ 帯がいっぱいになったら ほこらで売ってお金に。ランクが上がると空中ジャンプの回数がふえて、空の修行島へ。刀・帯・ペットで、影の忍者をめざせ！",
+  "tags" : [
+    "simulator",
+    "ninja",
+    "pets"
+  ],
+  "title" : "Shadow Ninja Legends",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/shadow-ninja-legends\/world.ablox"
+}

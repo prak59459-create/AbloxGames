@@ -1,0 +1,54 @@
+-- data.absc — Bubble Gum Legends の表
+
+sim_setup({name: "🫧 あわ", tap: "🫧 ふくらませる", bag: true, bag_word: "🫧 あわ", sell: 1, secs: 0.3, rebirth: 20000, grow: 4, slots: 3, auto: 600})
+
+-- ガム（1タップでふくらむ量）
+sim_tools = [
+  {id: "plain", name: "🍬 ふつうのガム", price: 0, power: 1},
+  {id: "straw", name: "🍓 いちごガム", price: 60, power: 3},
+  {id: "choco", name: "🍫 チョコガム", price: 300, power: 8},
+  {id: "melon", name: "🍉 スイカガム", price: 1200, power: 20},
+  {id: "rainbow", name: "🌈 レインボーガム", price: 5000, power: 50},
+  {id: "galaxy", name: "🌌 ギャラクシーガム", price: 20000, power: 130},
+  {id: "gold", name: "✨ ゴールドガム", price: 80000, power: 350}
+]
+
+-- あわの大きさ（ためられる量）
+sim_bags = [
+  {id: "b1", name: "🫧 小さなあわ", price: 0, size: 20},
+  {id: "b2", name: "🫧 中くらいのあわ", price: 100, size: 60},
+  {id: "b3", name: "🫧 大きなあわ", price: 500, size: 150},
+  {id: "b4", name: "🎈 ビッグバブル", price: 2500, size: 400},
+  {id: "b5", name: "🎈 メガバブル", price: 10000, size: 1000},
+  {id: "b6", name: "🪐 ギガバブル", price: 40000, size: 2800},
+  {id: "b7", name: "♾ むげんバブル", price: 150000, size: 8000}
+]
+
+sim_eggs = [
+  {id: "common", name: "🥚 ふつうのたまご", price: 150, pets: [
+    {name: "ねこ", icon: "🐱", mult: 0.1, w: 60, color: "#F59E0B"},
+    {name: "いぬ", icon: "🐶", mult: 0.15, w: 30, color: "#A16207"},
+    {name: "うさぎ", icon: "🐰", mult: 0.3, w: 9, color: "#F8FAFC"},
+    {name: "ユニコーン", icon: "🦄", mult: 1, w: 1, color: "#F0ABFC"}]},
+  {id: "spring", name: "🌸 はるのたまご", price: 1500, pets: [
+    {name: "ひよこ", icon: "🐥", mult: 0.4, w: 50, color: "#FDE047"},
+    {name: "かえる", icon: "🐸", mult: 0.6, w: 35, color: "#4ADE80"},
+    {name: "ちょうちょ", icon: "🦋", mult: 1.2, w: 13, color: "#60A5FA"},
+    {name: "ドラゴン", icon: "🐉", mult: 3, w: 2, color: "#22C55E"}]},
+  {id: "space", name: "🌌 うちゅうのたまご", price: 15000, pets: [
+    {name: "エイリアン", icon: "👽", mult: 1.5, w: 55, color: "#A3E635"},
+    {name: "ロボ", icon: "🤖", mult: 2.2, w: 35, color: "#94A3B8"},
+    {name: "ほしのこ", icon: "🌟", mult: 4, w: 9, color: "#FACC15"},
+    {name: "わくせいクジラ", icon: "🪐", mult: 10, w: 1, color: "#6366F1"}]}
+]
+
+-- 島: need は 行くのに いる あわ（売った合計）、sell は 売りねの倍率
+let ISLANDS = [
+  {k: 1, name: "🌿 はじまりの草原", need: 0, sell: 1, chest: 50},
+  {k: 2, name: "☁️ 雲の島", need: 500, sell: 2, chest: 250},
+  {k: 3, name: "🌈 にじの島", need: 5000, sell: 4, chest: 1200},
+  {k: 4, name: "🍭 おかしの島", need: 40000, sell: 8, chest: 6000},
+  {k: 5, name: "🌌 うちゅうの島", need: 300000, sell: 16, chest: 30000}
+]
+let CHEST_WAIT = 90
+let CANDY_BACK = 25

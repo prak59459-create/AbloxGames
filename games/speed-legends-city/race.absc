@@ -1,0 +1,88 @@
+-- race.absc — 🏁 レース: 赤いパッドにのると 15秒後にスタート。300m先のゴールへ。1〜3位にごほうび。
+
+let race_state = "idle"     -- idle / gather / run
+let race_at = 0
+let racers = []
+let finished = []
+
+func race_join(p)
+  if race_state == "run" then
+    if kit_ready(p, "racebusy", 3) then p.message("🏁 いまレース中。おわったら また参加してね", 1.5) end
+    return
+  end
+  if contains(racers, p) then return end
+  if race_state == "idle" then
+    race_state = "gather"
+    race_at = time() + RACE_GATHER
+    announce("🏁 " + RACE_GATHER + "秒後にレース！ 町の南の 赤いパッドで参加", 3)
+  end
+  append(racers, p)
+  p.message("🏁 レースに参加！ スタートを まってね", 1.5)
+end
+
+func race_start()
+  race_state = "run"
+  race_at = time() + 60
+  finished = []
+  let start = block("Race Start")
+  let i = 0
+  for p in racers do
+    if kit_here(p) then
+      i = i + 1
+      p.teleport(start.position + {x: 0, y: 0, z: -6 + (i % 7) * 2})
+      p.yaw = 90
+      p.frozen = true
+      p.message("3…2…1…", 2.5)
+    end
+  end
+  after(3, func()
+    for p in racers do
+      if kit_here(p) then
+        p.frozen = false
+        p.message("🏁 GO!", 1)
+      end
+    end
+    sound("bell")
+  end)
+end
+
+func race_finish(p)
+  if race_state != "run" or not contains(racers, p) or contains(finished, p) then return end
+  append(finished, p)
+  let place = len(finished)
+  let prize = RACE_PRIZES[place] or 20
+  kit_give(p, prize)
+  p.races = (p.races or 0) + 1
+  if place == 1 then
+    p.race_wins = (p.race_wins or 0) + 1
+    kit_badge(p, "race_win", "レースで1位")
+    kit_quest_progress(p, "race", 1)
+  end
+  announce("🏁 " + place + "位 " + p.name + "！ 💰" + prize, 2.5)
+  particles("confetti", p, {amount: 40})
+  p.sound("win")
+  if len(finished) >= len(filter(racers, func(q) return kit_here(q) end)) then race_end() end
+end
+
+func race_end()
+  race_state = "idle"
+  racers = []
+  finished = []
+end
+
+on tick(dt)
+  if race_state == "gather" and time() > race_at then
+    racers = filter(racers, func(q) return kit_here(q) end)
+    if len(racers) == 0 then race_end() else race_start() end
+  elif race_state == "run" and time() > race_at then
+    announce("🏁 レースおわり！", 2)
+    race_end()
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "race_join") and kit_ready(p, "racejoin", 2) then race_join(p)
+  elif contains(b.tags, "race_finish") then race_finish(p)
+  end
+end

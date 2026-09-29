@@ -168,6 +168,16 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/taxi-town/cover-3a65c281.png" width="200"> | 109 | **Taxi Town** | タクシーの運転手になって、大きな町でお客さんを運ぼう！ 🙋手をあげている人の前で止まって乗せ、目的地へ。はやく安全に着くとチップ。タクシー会社を大きくして、運転手をやとおう。 |
 | <img src="games/snow-plow-crew/cover-7fcb03c2.png" width="200"> | 110 | **Snow Plow Crew** | 雪の町の除雪車チーム！ 道や駐車場の雪をかいて、お仕事の時間内にピカピカに。ふぶきが来たらまた出動。こおった道には🧂塩をまこう。ブレードやタンクを強くして、空港の滑走路まで！ |
 
+### 💪 シミュレーター
+
+| | # | ゲーム | 内容 |
+|---|---|---|---|
+| <img src="games/bubble-gum-legends/cover-9ac4d63d.png" width="200"> | 111 | **Bubble Gum Legends** | ガムをかんで大きなあわをふくらませて売ろう！ あわが大きいほどお金に。空にうかぶ島へバブルジャンプで上がると、もっと高く売れる。たまごからペット、生まれかわってもっと大きく！ |
+| <img src="games/mega-muscle-legends/cover-b382aea5.png" width="200"> | 112 | **Mega Muscle Legends** | タップでトレーニング、きんにくムキムキ！ パワーがつくほど体が大きくなる。浜辺のジムから、氷・神話・永遠のジムへ。岩をこわしてお金、アリーナでパンチ勝負。ペットと生まれかわりで最強へ！ |
+| <img src="games/shadow-ninja-legends/cover-c906d3e7.png" width="200"> | 113 | **Shadow Ninja Legends** | 刀をふって にんじゅつ をためよう！ 帯がいっぱいになったら ほこらで売ってお金に。ランクが上がると空中ジャンプの回数がふえて、空の修行島へ。刀・帯・ペットで、影の忍者をめざせ！ |
+| <img src="games/speed-legends-city/cover-61c5dc19.png" width="200"> | 114 | **Speed Legends City** | 走れば走るほど速くなる！ 町を走ってステップをため、光る玉とリングを集めよう。くつを強くしてもっと速く、さばくの町・ようがんの谷へ。🏁レースで1位をねらえ！ |
+| <img src="games/tap-race-clicker/cover-9e1f89d0.png" width="200"> | 115 | **Tap Race Clicker** | タップタイムに いっぱいタップして速さをためて、レースで いっきに走れ！ 50mごとのゲートをくぐるたびに ごほうび。ペットと生まれかわりで、1500mのコースを走りきろう。 |
+
 <!-- games:end -->
 
 ## しくみ

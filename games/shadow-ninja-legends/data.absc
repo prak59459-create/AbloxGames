@@ -1,0 +1,65 @@
+-- data.absc — Shadow Ninja Legends の表
+
+sim_setup({name: "🥷 にんじゅつ", tap: "⚔️ ふる", bag: true, bag_word: "🥋 帯", sell: 1, secs: 0.3, rebirth: 100000, grow: 4, slots: 3, auto: 700})
+
+-- 刀（1回ふると ためられる にんじゅつ）
+sim_tools = [
+  {id: "wood", name: "🗡 木の刀", price: 0, power: 1},
+  {id: "iron", name: "⚔️ 鉄の刀", price: 70, power: 3},
+  {id: "twin", name: "⚔️ ふたふりの刀", price: 400, power: 9},
+  {id: "flame", name: "🔥 ほのおの刀", price: 2000, power: 25},
+  {id: "storm", name: "⚡ いかずちの刀", price: 9000, power: 70},
+  {id: "shadow", name: "🌑 影の刀", price: 40000, power: 200},
+  {id: "dragon", name: "🐉 りゅうの刀", price: 180000, power: 600}
+]
+
+-- 帯（ためられる量）
+sim_bags = [
+  {id: "white", name: "⬜ 白い帯", price: 0, size: 30},
+  {id: "yellow", name: "🟨 黄色の帯", price: 120, size: 90},
+  {id: "green", name: "🟩 緑の帯", price: 700, size: 250},
+  {id: "blue", name: "🟦 青い帯", price: 3500, size: 700},
+  {id: "red", name: "🟥 赤い帯", price: 15000, size: 2000},
+  {id: "black", name: "⬛ 黒い帯", price: 70000, size: 6000},
+  {id: "gold", name: "🟧 金の帯", price: 300000, size: 18000}
+]
+
+sim_eggs = [
+  {id: "bamboo", name: "🎋 竹のたまご", price: 200, pets: [
+    {name: "パンダ", icon: "🐼", mult: 0.1, w: 60, color: "#F8FAFC"},
+    {name: "きつね", icon: "🦊", mult: 0.2, w: 30, color: "#F97316"},
+    {name: "たぬき", icon: "🦝", mult: 0.5, w: 9, color: "#78716C"},
+    {name: "しろへび", icon: "🐍", mult: 1.5, w: 1, color: "#E5E7EB"}]},
+  {id: "shadow", name: "🌑 影のたまご", price: 3000, pets: [
+    {name: "こうもり", icon: "🦇", mult: 0.5, w: 55, color: "#1C1917"},
+    {name: "くろねこ", icon: "🐈‍⬛", mult: 0.9, w: 33, color: "#111827"},
+    {name: "からす天狗", icon: "🐦‍⬛", mult: 2, w: 10, color: "#0F172A"},
+    {name: "影りゅう", icon: "🐲", mult: 5, w: 2, color: "#312E81"}]},
+  {id: "sky", name: "☁️ 空のたまご", price: 40000, pets: [
+    {name: "つる", icon: "🕊", mult: 2, w: 55, color: "#F8FAFC"},
+    {name: "かみなり鳥", icon: "⚡", mult: 3, w: 33, color: "#FACC15"},
+    {name: "ほうおう", icon: "🔥", mult: 7, w: 10, color: "#F97316"},
+    {name: "天のりゅう", icon: "🌈", mult: 18, w: 2, color: "#A855F7"}]}
+]
+
+-- ランク（売った にんじゅつ の合計）: jumps は 空中ジャンプの回数
+let RANKS = [
+  {need: 0, name: "🎓 見ならい", jumps: 2},
+  {need: 1000, name: "🥷 下忍", jumps: 3},
+  {need: 12000, name: "🥷 中忍", jumps: 4},
+  {need: 120000, name: "🥷 上忍", jumps: 5},
+  {need: 1000000, name: "🌑 影", jumps: 6},
+  {need: 10000000, name: "👑 伝説の忍", jumps: 8}
+]
+let AIR_VY = 15
+
+-- 空の島: 修行のボーナスと、売りねの倍率
+let ISLANDS = [
+  {k: 1, name: "🍃 風の島", bonus: 2, chest: 150},
+  {k: 2, name: "💧 水の島", bonus: 4, chest: 900},
+  {k: 3, name: "🌸 桜の島", bonus: 8, chest: 5000},
+  {k: 4, name: "⚡ 雷の島", bonus: 16, chest: 30000},
+  {k: 5, name: "🌌 星の島", bonus: 32, chest: 200000}
+]
+let SELL_MULT = [1, 2, 4, 8, 16, 32]
+let CHEST_WAIT = 90

@@ -1,0 +1,485 @@
+-- kit_sim.absc — シミュレーターの共通エンジン（Ablox Games）
+--
+-- 「タップで きたえる／集める → 売る → 道具を買う → たまごでペット → 生まれかわる」の型。
+-- 数字は p.sim_value（パワー・集めた量など、ゲームの一番だいじな数）。バッグ型のゲームは p.sim_fill にためて売る。
+--
+--   sim_setup({name: "💪 パワー", tap: "💪 きたえる", bag: false, secs: 0.35})
+--   sim_tools = [{id: "d1", name: "🏋 ダンベル", price: 0, power: 1}, …]       -- 1タップのつよさ
+--   sim_bags = [{id: "b1", name: "🎒 小さいバッグ", price: 0, size: 50}, …]    -- バッグ型のとき
+--   sim_eggs = [{id: "e1", name: "🥚 たまご", price: 100, pets: [{name: "ねこ", icon: "🐱", mult: 0.2, w: 60, color: "#F59E0B"}, …]}]
+--   sim_zones = [{n: 1, name: "ビーチ", need: 0}, …]      -- 地図の「Gate n」（sim_gate タグ）は need までとおれない
+--   sim_on_tap = func(p, amount) … return true end        -- タップを自分であつかうとき
+--   sim_on_gain = func(p, amount) … end                    -- ふえたとき
+--   sim_sell(p)                                             -- バッグを売る（売り場のパッドで）
+
+let sim_name = "💪 パワー"
+let sim_tap_label = "💪 きたえる"
+let sim_use_bag = false
+let sim_bag_word = "🎒"
+let sim_sell_rate = 1
+let sim_tap_secs = 0.35
+let sim_tools = []
+let sim_bags = []
+let sim_eggs = []
+let sim_zones = []
+let sim_rebirth_need = 1000
+let sim_rebirth_grow = 3
+let sim_rebirth_bonus = 0.5
+let sim_pet_slots = 3
+let sim_pet_max = 30
+let sim_auto_price = 800
+let sim_on_tap = nil
+let sim_on_gain = nil
+let sim_on_rebirth = nil
+let sim_clock = 0
+let sim_followers = {}
+
+kit_keep(["sim_value", "sim_total", "sim_fill", "sim_tool", "sim_tools_owned", "sim_bag", "sim_bags_owned", "sim_pets", "sim_rebirths",
+          "sim_auto_owned", "sim_hatched"])
+
+func sim_setup(o)
+  if o.name != nil then sim_name = o.name end
+  if o.tap != nil then sim_tap_label = o.tap end
+  if o.bag != nil then sim_use_bag = o.bag end
+  if o.bag_word != nil then sim_bag_word = o.bag_word end
+  if o.sell != nil then sim_sell_rate = o.sell end
+  if o.secs != nil then sim_tap_secs = o.secs end
+  if o.rebirth != nil then sim_rebirth_need = o.rebirth end
+  if o.grow != nil then sim_rebirth_grow = o.grow end
+  if o.slots != nil then sim_pet_slots = o.slots end
+  if o.auto != nil then sim_auto_price = o.auto end
+end
+
+-- MARK: 数
+
+func sim_tool(p)
+  let t = find(sim_tools, func(x) return x.id == p.sim_tool end)
+  if t == nil then return sim_tools[1] end
+  return t
+end
+
+func sim_bag_size(p)
+  let b = find(sim_bags, func(x) return x.id == p.sim_bag end)
+  if b == nil then b = sim_bags[1] end
+  if b == nil then return 100 end
+  return b.size * (1 + (p.sim_rebirths or 0) * 0.25)
+end
+
+func sim_pet_mult(p)
+  let m = 1
+  for pet in p.sim_pets or [] do
+    if pet.equip then m = m + pet.mult end
+  end
+  return m
+end
+
+func sim_mult(p)
+  return (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus) * sim_pet_mult(p) * (p.sim_boost or 1) * (p.sim_zone_bonus or 1)
+end
+
+func sim_amount(p)
+  let t = sim_tool(p)
+  let power = 1
+  if t != nil then power = t.power end
+  return max(1, floor(power * sim_mult(p)))
+end
+
+-- MARK: タップ・ふえる・売る
+
+func sim_tap(p)
+  if not kit_ready(p, "sim_tap", sim_tap_secs * 0.9) then return end
+  let amount = sim_amount(p)
+  if sim_on_tap != nil and sim_on_tap(p, amount) then return end
+  sim_gain(p, amount)
+end
+
+func sim_gain(p, amount)
+  if sim_use_bag then
+    let size = sim_bag_size(p)
+    let fill = p.sim_fill or 0
+    if fill >= size then
+      if kit_ready(p, "sim_full", 3) then p.message(sim_bag_word + " いっぱい！ 売り場で売ろう", 1.5) end
+      return false
+    end
+    p.sim_fill = min(size, fill + amount)
+  else
+    p.sim_value = (p.sim_value or 0) + amount
+  end
+  p.sim_total = (p.sim_total or 0) + amount
+  if sim_on_gain != nil then sim_on_gain(p, amount) end
+  return true
+end
+
+func sim_sell(p)
+  let fill = floor(p.sim_fill or 0)
+  if fill <= 0 then
+    if kit_ready(p, "sim_empty", 3) then p.message(sim_bag_word + " は からっぽ", 1) end
+    return 0
+  end
+  let pay = floor(fill * sim_sell_rate * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  p.sim_fill = 0
+  p.sim_value = (p.sim_value or 0) + fill
+  kit_give(p, pay)
+  p.message("💰 " + kit_short(fill) + " を売って 💰" + kit_short(pay), 1.5)
+  p.sound("coin")
+  particles("sparkles", p, {amount: 20})
+  return pay
+end
+
+-- MARK: ゲート（つよさが足りないと通れない）
+
+func sim_gate(p, b)
+  let n = 0
+  for t in b.tags do
+    if starts_with(t, "n=") then n = num(replace(t, "n=", "")) end
+  end
+  let z = find(sim_zones, func(x) return x.n == n end)
+  if z == nil then return end
+  let have = p.sim_value or 0
+  if have >= z.need then
+    if kit_ready(p, "sim_gate_ok" + n, 20) then p.message("🚪 " + z.name + " へようこそ！", 1.5) end
+    return
+  end
+  let away = normalize({x: p.x - b.x, y: 0, z: p.z - b.z})
+  p.velocity = {x: away.x * 14, y: 5, z: away.z * 14}
+  if kit_ready(p, "sim_gate_no" + n, 2) then p.message("🔒 " + z.name + " は " + sim_name + " " + kit_short(z.need) + " から（いま " + kit_short(have) + "）", 2) end
+end
+
+-- MARK: ショップ（道具・バッグ）
+
+func sim_open_shop(p)
+  let rows = len(sim_tools)
+  if sim_use_bag then rows = rows + len(sim_bags) end
+  let h = 130 + rows * 44
+  p.ui_remove("sim_shop")
+  p.ui_panel("sim_shop", {at: "center", w: 640, h: h, bg: "#0F172AF2", radius: 22, layer: 40})
+  p.ui_text("sim_shop_t", "🛒 ショップ（💰 " + kit_short(kit_money(p)) + "）", {parent: "sim_shop", y: 26 / h, size: 19, bold: true, color: "gold"})
+  let y = 30
+  for t in sim_tools do
+    y = y + 44
+    let label = t.name + "  1タップ +" + kit_short(t.power) + "  💰" + kit_short(t.price)
+    let bg = "#1D4ED8"
+    if contains(p.sim_tools_owned or [], t.id) then
+      label = t.name + " を使う  1タップ +" + kit_short(t.power)
+      bg = "#0F766E"
+    end
+    if sim_tool(p).id == t.id then
+      label = "✅ " + t.name + "  1タップ +" + kit_short(t.power)
+      bg = "#374151"
+    end
+    p.ui_button("simtool_" + t.id, label, {parent: "sim_shop", y: y / h, w: 600, h: 38, size: 14, bg: bg})
+  end
+  if sim_use_bag then
+    for b in sim_bags do
+      y = y + 44
+      let label = b.name + "  " + kit_short(b.size) + " 入る  💰" + kit_short(b.price)
+      let bg = "#7C2D12"
+      if contains(p.sim_bags_owned or [], b.id) then
+        label = b.name + " を使う  " + kit_short(b.size) + " 入る"
+        bg = "#0F766E"
+      end
+      if p.sim_bag == b.id then
+        label = "✅ " + b.name + "  " + kit_short(b.size) + " 入る"
+        bg = "#374151"
+      end
+      p.ui_button("simbag_" + b.id, label, {parent: "sim_shop", y: y / h, w: 600, h: 38, size: 14, bg: bg})
+    end
+  end
+  p.ui_button("sim_shop_close", "閉じる", {parent: "sim_shop", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func sim_pick_tool(p, id)
+  let t = find(sim_tools, func(x) return x.id == id end)
+  if t == nil then return end
+  if not contains(p.sim_tools_owned or [], id) then
+    if not kit_pay(p, t.price) then return end
+    if p.sim_tools_owned == nil then p.sim_tools_owned = [] end
+    append(p.sim_tools_owned, id)
+    p.sound("powerup")
+    kit_quest_progress(p, "sim_tool", 1)
+  end
+  p.sim_tool = id
+  sim_open_shop(p)
+end
+
+func sim_pick_bag(p, id)
+  let b = find(sim_bags, func(x) return x.id == id end)
+  if b == nil then return end
+  if not contains(p.sim_bags_owned or [], id) then
+    if not kit_pay(p, b.price) then return end
+    if p.sim_bags_owned == nil then p.sim_bags_owned = [] end
+    append(p.sim_bags_owned, id)
+    p.sound("powerup")
+    kit_quest_progress(p, "sim_bag", 1)
+  end
+  p.sim_bag = id
+  sim_open_shop(p)
+end
+
+-- MARK: たまごとペット
+
+func sim_open_eggs(p)
+  let h = 130 + len(sim_eggs) * 50
+  p.ui_remove("sim_eggs")
+  p.ui_panel("sim_eggs", {at: "center", w: 620, h: h, bg: "#3B0764F2", radius: 22, layer: 40})
+  p.ui_text("sim_eggs_t", "🥚 たまご（💰 " + kit_short(kit_money(p)) + "  ペット " + len(p.sim_pets or []) + "/" + sim_pet_max + "）",
+            {parent: "sim_eggs", y: 26 / h, size: 19, bold: true, color: "#F5D0FE"})
+  let i = 0
+  for e in sim_eggs do
+    i = i + 1
+    let best = max_by(e.pets, func(x) return x.mult end)
+    p.ui_button("simegg_" + e.id, e.name + "  💰" + kit_short(e.price) + "   （" + best.icon + " " + best.name + " ×" + best.mult + " も）",
+                {parent: "sim_eggs", y: (30 + i * 50) / h, w: 580, h: 42, size: 14, bg: "#7E22CE"})
+  end
+  p.ui_button("sim_eggs_close", "閉じる", {parent: "sim_eggs", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func sim_hatch(p, id)
+  let e = find(sim_eggs, func(x) return x.id == id end)
+  if e == nil then return end
+  if len(p.sim_pets or []) >= sim_pet_max then
+    p.message("🐾 ペットがいっぱい！ 🐾 で にがしてね", 1.5)
+    return
+  end
+  if not kit_pay(p, e.price) then return end
+  let pet = e.pets[pick_weighted(map(e.pets, func(x) return x.w end))]
+  if p.sim_pets == nil then p.sim_pets = [] end
+  let mine = {name: pet.name, icon: pet.icon, mult: pet.mult, color: pet.color or "#FACC15", equip: false}
+  append(p.sim_pets, mine)
+  p.sim_hatched = (p.sim_hatched or 0) + 1
+  kit_quest_progress(p, "sim_hatch", 1)
+  let rare = pet.w <= 5
+  p.message("🐣 " + pet.icon + " " + pet.name + " が生まれた！ （" + sim_name + " ×" + pet.mult + "）", 2.5)
+  if rare then
+    announce("🌟 " + p.name + " が レアな " + pet.icon + " " + pet.name + " を当てた！", 3)
+    particles("stars", p, {amount: 60})
+    p.sound("win")
+  else
+    particles("confetti", p, {amount: 25})
+    p.sound("magic")
+  end
+  sim_equip_best(p)
+  sim_open_eggs(p)
+end
+
+func sim_equip_best(p)
+  let pets = p.sim_pets or []
+  for pet in pets do pet.equip = false end
+  let order = sort_by(pets, func(x) return 0 - x.mult end)
+  let n = 0
+  for pet in order do
+    if n < sim_pet_slots then
+      pet.equip = true
+      n = n + 1
+    end
+  end
+  sim_follow(p)
+end
+
+func sim_open_pets(p)
+  let pets = sort_by(p.sim_pets or [], func(x) return 0 - x.mult end)
+  let shown = slice(pets, 1, 10)
+  let h = 170 + max(1, len(shown)) * 38
+  p.ui_remove("sim_pets")
+  p.ui_panel("sim_pets", {at: "center", w: 560, h: h, bg: "#1E1B4BF2", radius: 22, layer: 40})
+  p.ui_text("sim_pets_t", "🐾 ペット（つれて歩けるのは " + sim_pet_slots + "ひき。ぜんぶで ×" + fixed(sim_pet_mult(p), 1) + "）",
+            {parent: "sim_pets", y: 26 / h, size: 17, bold: true, color: "#C7D2FE"})
+  if len(shown) == 0 then
+    p.ui_text("sim_pets_none", "まだいない。🥚 たまごを買おう", {parent: "sim_pets", y: 76 / h, size: 16})
+  end
+  let i = 0
+  for pet in shown do
+    i = i + 1
+    let mark = "　"
+    if pet.equip then mark = "✅" end
+    p.ui_text("sim_pet_" + i, mark + " " + pet.icon + " " + pet.name + "  ×" + pet.mult, {parent: "sim_pets", y: (40 + i * 38) / h, size: 16})
+  end
+  p.ui_button("sim_pets_best", "⭐ いちばん強いのをつれていく", {parent: "sim_pets", x: 0.3, y: (h - 72) / h, w: 280, h: 38, size: 14, bg: "#4F46E5"})
+  p.ui_button("sim_pets_free", "🍃 弱いのを にがす", {parent: "sim_pets", x: 0.74, y: (h - 72) / h, w: 200, h: 38, size: 14, bg: "#57534E"})
+  p.ui_button("sim_pets_close", "閉じる", {parent: "sim_pets", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func sim_free_weak(p)
+  let pets = p.sim_pets or []
+  if len(pets) <= sim_pet_slots then return end
+  let order = sort_by(pets, func(x) return x.mult end)
+  let weak = order[1]
+  remove(pets, index_of(pets, weak))
+  kit_give(p, 10)
+  p.message("🍃 " + weak.icon + " " + weak.name + " を にがした（💰10）", 1.2)
+  sim_equip_best(p)
+  sim_open_pets(p)
+end
+
+-- いちばん強いペットが ついてくる
+func sim_follow(p)
+  let old = sim_followers[p.id]
+  if old != nil then kit_gone(old) end
+  sim_followers[p.id] = nil
+  let best = max_by(filter(p.sim_pets or [], func(x) return x.equip end), func(x) return x.mult end)
+  if best == nil or not kit_here(p) then return end
+  let n = create_npc({name: best.icon + " " + best.name, position: p.position + {x: 1.5, y: 0.5, z: -1.5}, color: best.color, head_color: best.color,
+                      speed: 1.6, size: 0.5, health: 100000})
+  n.follow(p)
+  sim_followers[p.id] = n
+end
+
+-- MARK: 生まれかわり
+
+func sim_rebirth_cost(p)
+  return floor(sim_rebirth_need * pow(sim_rebirth_grow, p.sim_rebirths or 0))
+end
+
+func sim_open_rebirth(p)
+  let need = sim_rebirth_cost(p)
+  let now = (p.sim_rebirths or 0)
+  p.ui_remove("sim_rb")
+  p.ui_panel("sim_rb", {at: "center", w: 540, h: 260, bg: "#422006F2", radius: 22, layer: 40})
+  p.ui_text("sim_rb_t", "🌟 生まれかわり（いま " + now + "回）", {parent: "sim_rb", y: 0.13, size: 20, bold: true, color: "gold"})
+  p.ui_text("sim_rb_1", sim_name + " " + kit_short(need) + " で生まれかわれる（いま " + kit_short(p.sim_value or 0) + "）", {parent: "sim_rb", y: 0.33, size: 16})
+  p.ui_text("sim_rb_2", "もらえるもの: ずっと ×" + fixed(1 + (now + 1) * sim_rebirth_bonus, 1) + "  （いま ×" + fixed(1 + now * sim_rebirth_bonus, 1) + "）",
+            {parent: "sim_rb", y: 0.47, size: 15, color: "#FDE68A"})
+  p.ui_text("sim_rb_3", "なくなるもの: " + sim_name + " と お金（道具とペットは のこる）", {parent: "sim_rb", y: 0.6, size: 14, color: "#FED7AA"})
+  if (p.sim_value or 0) >= need then
+    p.ui_button("sim_rb_go", "🌟 生まれかわる！", {parent: "sim_rb", x: 0.32, y: 0.83, w: 220, h: 42, size: 17, bg: "#CA8A04"})
+  end
+  p.ui_button("sim_rb_close", "閉じる", {parent: "sim_rb", x: 0.74, y: 0.83, w: 130, h: 42, size: 15, bg: "gray"})
+end
+
+func sim_rebirth(p)
+  if (p.sim_value or 0) < sim_rebirth_cost(p) then return end
+  p.sim_rebirths = (p.sim_rebirths or 0) + 1
+  p.sim_value = 0
+  p.sim_fill = 0
+  p.coins = 0
+  kit_show_money(p)
+  p.ui_remove("sim_rb")
+  announce("🌟 " + p.name + " が 生まれかわった！（" + p.sim_rebirths + "回目）", 3)
+  kit_badge(p, "sim_rebirth" + p.sim_rebirths, "生まれかわり " + p.sim_rebirths)
+  kit_quest_progress(p, "sim_rebirth", 1)
+  particles("stars", p, {amount: 80})
+  p.sound("win")
+  if sim_on_rebirth != nil then sim_on_rebirth(p) end
+end
+
+-- MARK: オート
+
+func sim_auto_button(p)
+  if not p.sim_auto_owned then
+    p.ui_button("sim_auto", "🤖 オート 💰" + kit_short(sim_auto_price), {at: "right", dy: 150, w: 150, h: 40, size: 13, bg: "#334155"})
+  elif p.sim_auto then
+    p.ui_button("sim_auto", "🤖 オート ON", {at: "right", dy: 150, w: 150, h: 40, size: 14, bg: "#16A34A"})
+  else
+    p.ui_button("sim_auto", "🤖 オート OFF", {at: "right", dy: 150, w: 150, h: 40, size: 14, bg: "#475569"})
+  end
+end
+
+func sim_toggle_auto(p)
+  if not p.sim_auto_owned then
+    if not kit_pay(p, sim_auto_price) then return end
+    p.sim_auto_owned = true
+    p.sound("powerup")
+  end
+  p.sim_auto = not p.sim_auto
+  sim_auto_button(p)
+end
+
+-- MARK: 画面
+
+func sim_hud(p)
+  let line = sim_name + " " + kit_short(p.sim_value or 0) + "   ×" + fixed(sim_mult(p), 1)
+  if (p.sim_rebirths or 0) > 0 then line = line + "   🌟" + p.sim_rebirths end
+  p.ui_text("sim_hud", line, {at: "top_left", dy: 40, dx: 4, size: 17, bold: true, color: "#FDE68A"})
+  if sim_use_bag then
+    let size = sim_bag_size(p)
+    p.ui_text("sim_bag_t", sim_bag_word + " " + kit_short(p.sim_fill or 0) + "/" + kit_short(size), {at: "top_left", dy: 64, dx: 4, size: 15, color: "#E0F2FE"})
+    p.ui_bar("sim_bag_bar", p.sim_fill or 0, size, {at: "top_left", dy: 84, dx: 4, w: 170, h: 8, color: "#38BDF8"})
+  end
+end
+
+func sim_buttons(p)
+  p.ui_button("sim_tap_btn", sim_tap_label, {at: "bottom_right", dx: -30, dy: -200, w: 130, h: 96, size: 18, bg: "#DC2626", radius: 26})
+  p.ui_button("sim_shop_btn", "🛒 ショップ", {at: "right", dy: -110, w: 150, h: 44, size: 15, bg: "#1D4ED8"})
+  if len(sim_eggs) > 0 then
+    p.ui_button("sim_eggs_btn", "🥚 たまご", {at: "right", dy: -60, w: 150, h: 44, size: 15, bg: "#7E22CE"})
+    p.ui_button("sim_pets_btn", "🐾 ペット", {at: "right", dy: -10, w: 150, h: 44, size: 15, bg: "#4F46E5"})
+  end
+  p.ui_button("sim_rb_btn", "🌟 生まれかわり", {at: "right", dy: 40, w: 150, h: 44, size: 14, bg: "#A16207"})
+  sim_auto_button(p)
+end
+
+-- MARK: イベント
+
+on join(p)
+  p.sim_value = 0
+  p.sim_fill = 0
+  if len(sim_tools) > 0 then
+    p.sim_tool = sim_tools[1].id
+    p.sim_tools_owned = [sim_tools[1].id]
+  end
+  if len(sim_bags) > 0 then
+    p.sim_bag = sim_bags[1].id
+    p.sim_bags_owned = [sim_bags[1].id]
+  end
+  p.sim_pets = []
+  sim_buttons(p)
+  sim_hud(p)
+end
+
+on loaded(p)
+  kit_later(p, 0.5, func()
+    sim_equip_best(p)
+    sim_auto_button(p)
+    sim_hud(p)
+  end)
+end
+
+on leave(p)
+  let n = sim_followers[p.id]
+  if n != nil then kit_gone(n) end
+  sim_followers[p.id] = nil
+end
+
+on tick(dt)
+  sim_clock = sim_clock + dt
+  if sim_clock < sim_tap_secs * 1.3 then return end
+  sim_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      if p.sim_auto then sim_tap(p) end
+      if kit_ready(p, "sim_hud", 0.5) then
+        sim_hud(p)
+        if (p.sim_value or 0) != p.score then p.score = floor(p.sim_value or 0) end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "sim_gate") then sim_gate(p, b)
+  elif contains(b.tags, "sim_sell") and kit_ready(p, "sim_sellpad", 1) then sim_sell(p)
+  end
+end
+
+on button(p, id)
+  if id == "sim_tap_btn" then sim_tap(p)
+  elif id == "sim_shop_btn" then sim_open_shop(p)
+  elif id == "sim_shop_close" then p.ui_remove("sim_shop")
+  elif starts_with(id, "simtool_") then sim_pick_tool(p, replace(id, "simtool_", ""))
+  elif starts_with(id, "simbag_") then sim_pick_bag(p, replace(id, "simbag_", ""))
+  elif id == "sim_eggs_btn" then sim_open_eggs(p)
+  elif id == "sim_eggs_close" then p.ui_remove("sim_eggs")
+  elif starts_with(id, "simegg_") then sim_hatch(p, replace(id, "simegg_", ""))
+  elif id == "sim_pets_btn" then sim_open_pets(p)
+  elif id == "sim_pets_close" then p.ui_remove("sim_pets")
+  elif id == "sim_pets_best" then
+    sim_equip_best(p)
+    sim_open_pets(p)
+  elif id == "sim_pets_free" then sim_free_weak(p)
+  elif id == "sim_rb_btn" then sim_open_rebirth(p)
+  elif id == "sim_rb_close" then p.ui_remove("sim_rb")
+  elif id == "sim_rb_go" then sim_rebirth(p)
+  elif id == "sim_auto" then sim_toggle_auto(p)
+  end
+end

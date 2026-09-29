@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 144,
+  "bytes" : 112954,
+  "cover" : "games\/mega-muscle-legends\/cover-b382aea5.png",
+  "id" : "mega-muscle-legends",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "games\/mega-muscle-legends\/data.absc",
+    "games\/mega-muscle-legends\/gym.absc",
+    "games\/mega-muscle-legends\/zz_test.absc",
+    "games\/mega-muscle-legends\/main.absc"
+  ],
+  "shots" : [
+    "games\/mega-muscle-legends\/shot1-dc2b1f8f.png",
+    "games\/mega-muscle-legends\/shot2-03c166ca.png"
+  ],
+  "summary" : "タップでトレーニング、きんにくムキムキ！ パワーがつくほど体が大きくなる。浜辺のジムから、氷・神話・永遠のジムへ。岩をこわしてお金、アリーナでパンチ勝負。ペットと生まれかわりで最強へ！",
+  "tags" : [
+    "simulator",
+    "training",
+    "pets"
+  ],
+  "title" : "Mega Muscle Legends",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/mega-muscle-legends\/world.ablox"
+}

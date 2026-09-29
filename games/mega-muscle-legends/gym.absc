@@ -1,0 +1,128 @@
+-- gym.absc — ジム（中では ×ボーナス）、体が大きくなる、岩をこわす、アリーナでパンチ
+
+let gym_clock = 0
+let arena = nil
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+-- きたえるたびに お金も少し
+sim_on_gain = func(p, amount)
+  kit_give(p, max(1, floor(amount * COIN_RATE)))
+  if kit_ready(p, "liftfx", 1.2) then particles("sparkles", p, {amount: 5}) end
+end
+
+func gym_at(p)
+  for z in sim_zones do
+    let c = block("Zone " + z.n)
+    if c != nil and abs(p.x - c.x) < GYM_HALF and abs(p.z - c.z) < GYM_HALF then return z end
+  end
+  return nil
+end
+
+-- パワーで体の大きさ（1〜1.8ばい）と 足の速さ・ジャンプ
+func grow(p)
+  let s = p.sim_value or 0
+  let size = clamp(1 + log(s + 1) / log(10) * 0.1, 1, 1.8)
+  if abs((p.size or 1) - size) > 0.02 then p.size = size end
+  let speed = clamp(1 + log(s + 1) / log(10) * 0.06, 1, 1.5)
+  if abs((p.speed or 1) - speed) > 0.02 then p.speed = speed end
+end
+
+func smash(p, n)
+  let rk = ROCKS[n]
+  if rk == nil then return end
+  if (p.sim_value or 0) < rk.need then
+    if kit_ready(p, "rockneed" + n, 3) then p.message("💥 " + rk.name + " は パワー " + kit_short(rk.need) + " でこわせる", 1.5) end
+    return
+  end
+  let key = "rock" + n
+  let last = (p.rock_times or {})[key] or -1000
+  if time() - last < ROCK_WAIT then
+    if kit_ready(p, "rockwait" + n, 3) then p.message("🪨 あと " + ceil(ROCK_WAIT - (time() - last)) + "秒", 1) end
+    return
+  end
+  if p.rock_times == nil then p.rock_times = {} end
+  p.rock_times[key] = time()
+  let pay = floor(rk.coins * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  kit_give(p, pay)
+  p.message("💥 " + rk.name + " をこわした！ 💰" + kit_short(pay), 1.5)
+  p.shake(0.3, 0.3)
+  p.sound("explosion")
+  particles("dust", p, {amount: 30})
+  kit_quest_progress(p, "rock", 1)
+end
+
+func in_arena(p)
+  return arena != nil and distance({x: p.x, y: 0, z: p.z}, {x: arena.x, y: 0, z: arena.z}) < 13
+end
+
+-- アリーナの中で: 近くの人より強ければ はじきとばす
+func punch(p)
+  if not in_arena(p) or not kit_ready(p, "punch", 1) then return end
+  let target = nil
+  for q in players_near(p, 5) do
+    if q.id != p.id and not q.is_npc and in_arena(q) and target == nil then target = q end
+  end
+  p.sound("hit")
+  if target == nil then
+    p.message("🥊 シュッ！（近くに相手がいない）", 0.6)
+    return
+  end
+  let mine = p.sim_value or 0
+  let theirs = target.sim_value or 0
+  if mine > theirs then
+    let away = normalize({x: target.x - p.x, y: 0, z: target.z - p.z})
+    target.velocity = {x: away.x * 22, y: 10, z: away.z * 22}
+    target.message("🥊 " + p.name + " のパンチ！ ふっとばされた", 1.5)
+    let pay = 25 + floor(theirs / 1000)
+    kit_give(p, pay)
+    p.message("🥊 " + target.name + " を ふっとばした！ 💰" + pay, 1.5)
+    p.knockouts = (p.knockouts or 0) + 1
+    kit_quest_progress(p, "punch", 1)
+  else
+    let away = normalize({x: p.x - target.x, y: 0, z: p.z - target.z})
+    p.velocity = {x: away.x * 12, y: 6, z: away.z * 12}
+    p.message("😵 " + target.name + " のほうが強かった！", 1.2)
+  end
+end
+
+on start()
+  arena = block("Arena Mark")
+end
+
+on tick(dt)
+  gym_clock = gym_clock + dt
+  if gym_clock < 0.5 then return end
+  gym_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      let g = gym_at(p)
+      let bonus = 1
+      if g != nil then bonus = g.bonus end
+      if p.sim_zone_bonus != bonus then p.sim_zone_bonus = bonus end
+      grow(p)
+      if in_arena(p) then
+        p.ui_button("punch", "🥊 パンチ", {at: "bottom_right", dx: -180, dy: -200, w: 110, h: 80, size: 18, bg: "#B91C1C", radius: 24})
+      else
+        p.ui_remove("punch")
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "rock") then smash(p, tag_num(b, "n"))
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end
+
+on button(p, id)
+  if id == "punch" then punch(p) end
+end

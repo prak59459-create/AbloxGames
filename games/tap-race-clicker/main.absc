@@ -1,0 +1,40 @@
+-- Tap Race Clicker — タップしてレース
+-- 👆 タップタイム（18秒）に いっぱいタップすると 速さがたまる。レース（15秒）でスティックを前に、いっきに走る。
+-- 50mごとのゲートで 💰。クリックパワー・ペット・生まれかわりで もっと速く。1500mを走りきれ！
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc     タップ・ショップ・たまご・ペット・生まれかわり
+--   ../../lib/kit_rounds.absc  タップタイム → レース → 結果
+--   data.absc   クリックパワー・たまご・時間
+--   race.absc   タップタイム・レース・ゲート・結果
+--   main.absc   このファイル
+
+kit_setup("Tap Race Clicker", "タップして、ためて、いっきに走れ！", [
+  "👆 タップタイムに 右下のボタンを いっぱいタップ（速さがたまる）",
+  "🏃 レースが始まったら スティックを前にたおして走る",
+  "🚩 50mごとのゲートを くぐるたびに 💰（遠いゲートほど たくさん）",
+  "🛒 クリックパワーを買うと 1タップで たくさんたまる",
+  "🥚 ペットで ×、🌟 生まれかわりで ずっと ×",
+  "🏁 1500m（ゲート30）完走をめざせ！"
+])
+kit_keep(["best_m", "races"])
+
+rnd_setup({wait: TAP_SECS, count: 3, play: RACE_SECS, results: 5, label: "レース"})
+
+kit_quest("race", "3回 レースする", 3, 80)
+kit_quest("sim_tool", "クリックパワーを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+kit_quest("finish", "1500m 完走", 1, 1000)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 9
+end
+
+on start()
+  world.music = "race"
+  every(12, func() kit_leaderboard("⚡ ためた速さ") end)
+end
