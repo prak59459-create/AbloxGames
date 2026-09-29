@@ -1,0 +1,62 @@
+-- Dusty Road Trip — 砂漠の一本道を、どこまで行ける？
+-- スタートラインをこえると旅が始まる。ガソリン・エンジン・水がなくならないように、
+-- とちゅうの廃墟で道具や部品をひろう。夜は盗賊、昼は砂あらし。2420m先のオアシスの町がゴール。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  車の見た目と速さ
+--   ../../lib/kit_move.absc  転がる草
+--   data.absc     改造・道具・ねだん
+--   trip.absc     旅（ガソリン・エンジン・水・きょり・道具・わける）
+--   loot.absc     ひろうもの・石・転がる草・オアシス
+--   bandits.absc  夜の盗賊・砂あらし
+--   shop.absc     ガレージ・交易所・記録
+--   main.absc     このファイル
+
+kit_setup("Dusty Road Trip", "砂漠の一本道。オアシスの町まで たどりつけるか？", [
+  "🏁 ガレージの前のスタートラインをこえると旅が始まる",
+  "⛽ ガソリン・🔧 エンジン・💧 水 が0にならないように（水が0でたおれる）",
+  "📦 赤=ガソリン缶・青=水・黄緑=修理キット・灰色=部品（お金）。下の道具をタップで使う",
+  "🪨 道の石・🌾 転がる草にぶつかるとエンジンがいたむ",
+  "🦹 夜は盗賊！ 止まっているとねらわれる。📣 クラクションで追いはらう",
+  "🏪 黄色のパッドの交易所で買いもの。🔧 ガレージの改造はずっと残る"
+])
+kit_keep(["ups", "paint", "best_dist", "best_time", "arrivals", "trips", "found"])
+
+kit_quest("trip", "旅に出る", 1, 50)
+kit_quest("loot", "10こ ひろう", 10, 150)
+kit_quest("horn", "盗賊を3人 追いはらう", 3, 150)
+kit_quest("share", "なかまに道具をわける", 1, 100)
+kit_quest("upgrade", "改造を3回", 3, 200)
+kit_quest("arrive", "オアシスの町に着く", 1, 500)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.ups = {}
+  p.camera_distance = 10
+  ride_set(p, "truck", "#C2410C", 1.4)
+  p.ui_button("garage", "🔧 ガレージ", {at: "right", dy: -110, w: 150, h: 46, size: 15, bg: "#C2410C"})
+  p.ui_button("records", "🏆 記録", {at: "right", dy: -58, w: 150, h: 46, size: 15, bg: "#A16207"})
+end
+
+kit_on_load = func(p)
+  if p.trip == nil then ride_set(p, "truck", p.paint or "#C2410C", 1.4) end
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("🏜 ベストきょり") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = max(p.best_dist or 0, (p.trip or {}).best or 0)
+    if s != p.score then p.score = s end
+  end
+end

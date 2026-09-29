@@ -1,0 +1,124 @@
+-- garage.absc — ディーラー（車）・チューニング・ライバル表
+
+func car_info(id)
+  for c in CARS do
+    if c.id == id then return c end
+  end
+  return CARS[1]
+end
+
+func tune(p, key)
+  return (p.tunes or {})[key] or 0
+end
+
+func car_apply(p)
+  let c = car_info(p.car or "kei")
+  ride_set(p, c.ride, p.paint or c.color, c.top * (1 + tune(p, "t_engine") * 0.04))
+end
+
+func dealer(p)
+  let h = 150 + len(CARS) * 46
+  p.ui_remove("deal_box")
+  p.ui_panel("deal_box", {at: "center", w: 600, h: h, bg: "#1E1B4BF2", radius: 22, layer: 30})
+  p.ui_text("deal_t", "🚗 ディーラー（💰 " + kit_short(kit_money(p)) + "）", {parent: "deal_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in CARS do
+    i = i + 1
+    let label = c.name + "  💰" + kit_short(c.price) + "  最高 " + c.top
+    let bg = "#6D28D9"
+    if contains(p.cars or [], c.id) then
+      label = c.name + " に乗る"
+      bg = "#0F766E"
+    end
+    if p.car == c.id then
+      label = "✅ " + c.name
+      bg = "#374151"
+    end
+    p.ui_button("car_" + c.id, label, {parent: "deal_box", y: (30 + i * 46) / h, w: 560, h: 38, size: 14, bg: bg})
+  end
+  p.ui_button("car_paint", "🎨 ぬる（💰30）", {parent: "deal_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("deal_close", "閉じる", {parent: "deal_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_car(p, id)
+  let c = car_info(id)
+  if not contains(p.cars or [], id) then
+    if not kit_pay(p, c.price) then return end
+    append(p.cars, id)
+    kit_quest_progress(p, "car", 1)
+  end
+  p.car = id
+  p.paint = nil
+  car_apply(p)
+  dealer(p)
+end
+
+func tune_menu(p)
+  let h = 150 + len(TUNES) * 52
+  p.ui_remove("tune_box")
+  p.ui_panel("tune_box", {at: "center", w: 600, h: h, bg: "#083344F2", radius: 22, layer: 30})
+  p.ui_text("tune_t", "🔩 チューニング（💰 " + kit_short(kit_money(p)) + "）", {parent: "tune_box", y: 26 / h, size: 19, bold: true, color: "#A5F3FC"})
+  let i = 0
+  for t in TUNES do
+    i = i + 1
+    let lv = tune(p, t.key)
+    let label = t.name + "  Lv." + lv
+    let bg = "#0E7490"
+    if lv >= 5 then
+      label = label + "（最大）"
+      bg = "#374151"
+    else
+      label = label + " → " + (lv + 1) + "   💰" + kit_short(TUNE_PRICES[lv + 1])
+    end
+    p.ui_button("tuneup_" + t.key, label, {parent: "tune_box", y: (32 + i * 52) / h, w: 560, h: 44, size: 14, bg: bg})
+  end
+  p.ui_button("tune_close", "閉じる", {parent: "tune_box", y: (h - 28) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func tune_up(p, key)
+  let lv = tune(p, key)
+  if lv >= 5 or not kit_pay(p, TUNE_PRICES[lv + 1]) then return end
+  if p.tunes == nil then p.tunes = {} end
+  p.tunes[key] = lv + 1
+  kit_quest_progress(p, "tune", 1)
+  car_apply(p)
+  tune_menu(p)
+end
+
+func rival_board(p)
+  let h = 120 + len(RIVALS) * 28
+  p.ui_remove("riv_box")
+  p.ui_panel("riv_box", {at: "center", w: 600, h: h, bg: "#450A0AF2", radius: 22, layer: 30})
+  p.ui_text("riv_t", "🏁 ライバル（REP Lv." + rep_level(p) + "）", {parent: "riv_box", y: 26 / h, size: 19, bold: true, color: "#FECACA"})
+  let i = 0
+  for r in RIVALS do
+    i = i + 1
+    let mark = "⬜"
+    if contains(p.beaten or [], r.n) then mark = "✅" elif r.level > rep_level(p) + 1 then mark = "🔒" end
+    p.ui_text("riv_" + i, mark + " " + r.name + "（" + r.team + "）  Lv." + r.level + "  💰" + kit_short(r.prize), {parent: "riv_box", y: (34 + i * 28) / h, size: 13})
+  end
+  p.ui_button("riv_close", "閉じる", {parent: "riv_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "dealer") and kit_ready(p, "dealer", 3) then dealer(p)
+  elif contains(b.tags, "tune") and kit_ready(p, "tune", 3) then tune_menu(p)
+  elif contains(b.tags, "rivals") and kit_ready(p, "rivals", 3) then rival_board(p)
+  end
+end
+
+on button(p, id)
+  if id == "dealer" then dealer(p)
+  elif id == "deal_close" then p.ui_remove("deal_box")
+  elif id == "car_paint" then
+    if kit_pay(p, 30) then
+      p.paint = random_color()
+      car_apply(p)
+    end
+  elif starts_with(id, "car_") then pick_car(p, replace(id, "car_", ""))
+  elif id == "tune_close" then p.ui_remove("tune_box")
+  elif starts_with(id, "tuneup_") then tune_up(p, replace(id, "tuneup_", ""))
+  elif id == "riv_close" then p.ui_remove("riv_box")
+  end
+end

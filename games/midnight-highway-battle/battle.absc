@@ -1,0 +1,182 @@
+-- battle.absc — パッシング🔦でバトル。うしろのほうのSPがへる。先に0になったら負け
+
+let battle_clock = 0
+
+func sp_bar(p)
+  let b = p.battle
+  if b == nil then
+    p.ui_remove("sp_me")
+    p.ui_remove("sp_them")
+    p.ui_remove("sp_t")
+    return
+  end
+  p.ui_text("sp_t", "⚔ " + p.name + "  vs  " + b.name, {at: "top", dy: 80, size: 16, bold: true, color: "#FDE68A"})
+  p.ui_bar("sp_me", b.me, 100, {at: "top", dy: 104, dx: -130, w: 240, h: 16, color: "#22D3EE"})
+  p.ui_bar("sp_them", b.them, 100, {at: "top", dy: 104, dx: 130, w: 240, h: 16, color: "#F43F5E"})
+end
+
+func nearest_rival(p)
+  let best = nil
+  let best_d = 35
+  for n in rival_npcs do
+    if kit_here(n) and n.battle_with == nil then
+      let d = distance(p, n)
+      if d < best_d then
+        best = n
+        best_d = d
+      end
+    end
+  end
+  for q in players() do
+    if q.id != p.id and q.battle == nil and on_highway(q) then
+      let d = distance(p, q)
+      if d < best_d then
+        best = q
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func flash(p)
+  if p.battle != nil then return end
+  if not on_highway(p) then
+    p.message("高速道路の上で！", 1)
+    return
+  end
+  if not kit_ready(p, "flash", 3) then return end
+  particles("sparkles", p.position + p.look * 3, {amount: 20})
+  let t = nearest_rival(p)
+  if t == nil then
+    p.message("🔦 近くにバトルの相手がいない", 1.2)
+    return
+  end
+  if t.is_npc then
+    start_battle(p, t, rival_info(t.rival_n).name)
+    t.battle_with = p.id
+    t.say("…いいだろう。ついてこい！")
+  else
+    t.challenge_from = p
+    t.ui_button("accept", "⚔ " + p.name + " のバトルを受ける", {at: "center", dy: 120, w: 320, h: 56, size: 17, bg: "#B91C1C"})
+    p.message("🔦 " + t.name + " にパッシングした…", 1.5)
+    kit_later(t, 6, func() t.ui_remove("accept") end)
+  end
+end
+
+func start_battle(p, other, name)
+  p.battle = {with: other, name: name, me: 100, them: 100, at: time() + 3, npc: other.is_npc, boosts: 1 + tune(p, "t_boost")}
+  p.message("⚔ バトル開始まで 3…", 1)
+  kit_later(p, 1, func() p.message("2…", 0.8) end)
+  kit_later(p, 2, func() p.message("1…", 0.8) end)
+  kit_later(p, 3, func() p.message("GO!", 0.8) end)
+  p.ui_button("boost", "💨 ブースト", {at: "bottom_right", dx: -30, dy: -170, w: 120, h: 70, size: 18, bg: "#7C3AED", radius: 18})
+  sp_bar(p)
+end
+
+func end_battle(p, won)
+  let b = p.battle
+  if b == nil then return end
+  p.battle = nil
+  p.ui_remove("boost")
+  sp_bar(p)
+  if b.npc and kit_here(b.with) then b.with.battle_with = nil end
+  if won then
+    let prize = 100
+    if b.npc then
+      let r = rival_info(b.with.rival_n)
+      prize = r.prize
+      if p.beaten == nil then p.beaten = [] end
+      if not contains(p.beaten, r.n) then append(p.beaten, r.n) end
+      if r.n == len(RIVALS) then kit_badge(p, "king", "ミッドナイトキング") end
+      kit_gone(b.with)
+    end
+    p.wins = (p.wins or 0) + 1
+    p.rep = (p.rep or 0) + 10
+    kit_give(p, prize)
+    kit_quest_progress(p, "wins", 1)
+    kit_quest_progress(p, "wins10", 1)
+    p.message("🏆 " + b.name + " に勝った！ +" + prize + "  REP Lv." + rep_level(p), 3)
+    p.sound("goal")
+  else
+    p.losses = (p.losses or 0) + 1
+    p.rep = (p.rep or 0) + 2
+    kit_give(p, 15)
+    p.message("💨 " + b.name + " に負けた… +15", 2)
+  end
+  rep_show(p)
+end
+
+func rep_level(p)
+  return floor(sqrt((p.rep or 0) / 10)) + 1
+end
+
+func rep_show(p)
+  p.ui_text("rep", "🏁 REP Lv." + rep_level(p) + "  勝ち " + (p.wins or 0), {at: "top_left", dy: 90, size: 15, color: "#C4B5FD"})
+end
+
+on tick(dt)
+  battle_clock = battle_clock + dt
+  if battle_clock < 0.2 then return end
+  let passed = battle_clock
+  battle_clock = 0
+  for p in players() do
+    p.ui_text("spd", ride_kmh(p) + " km/h", {at: "bottom", dy: -110, size: 22, bold: true, color: "#FDE68A"})
+    let b = p.battle
+    if b != nil and time() >= b.at then
+      if not kit_here(b.with) then
+        end_battle(p, true)
+      else
+        let g = gap(p, b.with)
+        if g > 0 then
+          b.me = max(0, b.me - min(g, 150) * SP_DRAIN * passed)
+        else
+          b.them = max(0, b.them - min(0 - g, 150) * SP_DRAIN * passed)
+        end
+        -- 相手がプレイヤーなら、相手の画面も同じ数字
+        if not b.npc and b.with.battle != nil then
+          b.with.battle.me = b.them
+          b.with.battle.them = b.me
+          sp_bar(b.with)
+        end
+        sp_bar(p)
+        if b.me <= 0 then
+          end_battle(p, false)
+          if not b.npc and b.with.battle != nil then end_battle(b.with, true) end
+        elif b.them <= 0 then
+          end_battle(p, true)
+          if not b.npc and b.with.battle != nil then end_battle(b.with, false) end
+        elif time() - b.at > BATTLE_MAX then
+          let won = b.me >= b.them
+          end_battle(p, won)
+          if not b.npc and b.with.battle != nil then end_battle(b.with, not won) end
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "flash" then flash(p)
+  elif id == "accept" then
+    p.ui_remove("accept")
+    let c = p.challenge_from
+    if c != nil and kit_here(c) and c.battle == nil and p.battle == nil then
+      start_battle(c, p, p.name)
+      start_battle(p, c, c.name)
+    end
+  elif id == "boost" then
+    let b = p.battle
+    if b != nil and b.boosts > 0 then
+      b.boosts = b.boosts - 1
+      ride_boost(p, 1.35, 3)
+      particles("fire", p, {amount: 16})
+    end
+  end
+end
+
+on leave(p)
+  for q in players() do
+    if q.battle != nil and q.battle.with != nil and q.battle.with.id == p.id then end_battle(q, true) end
+  end
+end

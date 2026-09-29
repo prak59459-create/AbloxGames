@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 82,
+  "bytes" : 82522,
+  "cover" : "games\/drag-strip-kings\/cover-3cd478cf.png",
+  "id" : "drag-strip-kings",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_rounds.absc",
+    "lib\/kit_ride.absc",
+    "games\/drag-strip-kings\/data.absc",
+    "games\/drag-strip-kings\/garage.absc",
+    "games\/drag-strip-kings\/race.absc",
+    "games\/drag-strip-kings\/main.absc"
+  ],
+  "shots" : [
+    "games\/drag-strip-kings\/shot1-b23a1f78.png",
+    "games\/drag-strip-kings\/shot2-c10517c7.png"
+  ],
+  "summary" : "400mのドラッグレース！ メーターが🟩のときにシフトアップ、ここぞでニトロ。エンジン・ターボ・タイヤをチューニングして、10人のライバルに勝ちすすめ。ウイリーも。",
+  "tags" : [
+    "racing",
+    "cars",
+    "tuning"
+  ],
+  "title" : "Drag Strip Kings",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/drag-strip-kings\/world.ablox"
+}

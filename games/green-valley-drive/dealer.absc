@@ -1,0 +1,71 @@
+-- dealer.absc — 車屋さん: 車を買う・のりかえる・ぬる
+
+func dealer(p)
+  let h = 160 + len(CARS) * 46
+  p.ui_remove("dl_box")
+  p.ui_panel("dl_box", {at: "center", w: 640, h: h, bg: "#450A0AF2", radius: 22, layer: 30})
+  p.ui_text("dl_t", "🚗 車屋さん（💰 " + kit_short(kit_money(p)) + "  " + license_info(p.license).name + "）",
+            {parent: "dl_box", y: 26 / h, size: 19, bold: true, color: "#FECACA"})
+  let i = 0
+  for c in CARS do
+    i = i + 1
+    let label = c.name + "  💰" + kit_short(c.price) + "  ⛽" + c.tank + "L  📦" + c.load
+    let bg = "#991B1B"
+    if (p.license or 1) < c.license then
+      label = "🔒 " + c.name + "（" + license_info(c.license).name + " がいる）"
+      bg = "#44403C"
+    elif contains(p.cars or [], c.id) then
+      label = c.name + " にのりかえる  ⛽" + c.tank + "L  📦" + c.load
+      bg = "#0F766E"
+    end
+    if p.car == c.id then
+      label = "✅ " + c.name
+      bg = "#374151"
+    end
+    p.ui_button("dlcar_" + c.id, label, {parent: "dl_box", y: (30 + i * 46) / h, w: 600, h: 38, size: 14, bg: bg})
+  end
+  p.ui_button("dl_paint", "🎨 ぬる（💰" + PAINT_PRICE + "）", {parent: "dl_box", x: 0.3, y: (h - 30) / h, w: 190, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("dl_close", "閉じる", {parent: "dl_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_car(p, id)
+  let c = car_info(id)
+  if (p.license or 1) < c.license then
+    p.message("🔒 " + license_info(c.license).name + " がいるよ。免許センター（むらさきのパッド）で試験を！", 2)
+    return
+  end
+  if not contains(p.cars or [], id) then
+    if not kit_pay(p, c.price) then return end
+    append(p.cars, id)
+    kit_quest_progress(p, "car", 1)
+    p.sound("win")
+    particles("confetti", p, {amount: 40})
+  end
+  if p.car != id then
+    p.car = id
+    p.paint = nil
+    p.fuel = c.tank
+    p.dirt = 0
+  end
+  exam_quit(p, "車をのりかえた")
+  get_in(p)
+  dealer(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "dealer") and kit_ready(p, "dealer", 3) then dealer(p) end
+end
+
+on button(p, id)
+  if id == "dealer" then dealer(p)
+  elif id == "dl_close" then p.ui_remove("dl_box")
+  elif id == "dl_paint" then
+    if kit_pay(p, PAINT_PRICE) then
+      p.paint = random_color()
+      paint_car(p)
+      p.sound("magic")
+    end
+  elif starts_with(id, "dlcar_") then pick_car(p, replace(id, "dlcar_", ""))
+  end
+end

@@ -148,6 +148,18 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/rising-lava-rescue/cover-ba32dabd.png" width="200"> | 94 | **Rising Lava Rescue** | 火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。 |
 | <img src="games/fishy-obby/cover-e795e82d.png" width="200"> | 95 | **Fishy Obby** | きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。 |
 
+### 🏎️ 乗り物・ドライブ
+
+| | # | ゲーム | 内容 |
+|---|---|---|---|
+| <img src="games/drag-strip-kings/cover-3cd478cf.png" width="200"> | 96 | **Drag Strip Kings** | 400mのドラッグレース！ メーターが🟩のときにシフトアップ、ここぞでニトロ。エンジン・ターボ・タイヤをチューニングして、10人のライバルに勝ちすすめ。ウイリーも。 |
+| <img src="games/midnight-highway-battle/cover-a417ca04.png" width="200"> | 97 | **Midnight Highway Battle** | 真夜中の高速道路。ライバルのうしろでパッシング🔦するとバトル開始！ はなされるほどSPがへって、先に0になったほうの負け。一般車をよけながら走れ。パーキングで車とチューニング。 |
+| <img src="games/dream-car-dealership/cover-a118f320.png" width="200"> | 98 | **Dream Car Dealership** | 自分の車屋さんをひらこう！ 工場から車を仕入れて並べると、お客さんが見に来て買っていく。店を大きく、スタッフをやとって、スーパーカーまで。自分の車はテストコースで試乗も。 |
+| <img src="games/green-valley-drive/cover-3f4c0245.png" width="200"> | 99 | **Green Valley Drive** | 緑の谷の町をドライブ！ ガソリンを入れて、信号とスピードを守って、宅配やピザ配達でお金をかせごう。免許試験に合格すると乗れる車がふえる。洗車もできるよ。 |
+| <img src="games/dusty-road-trip/cover-3784e7af.png" width="200"> | 100 | **Dusty Road Trip** | 砂漠の一本道を、どこまで行ける？ ガソリン・エンジン・水に気をつけて、とちゅうの廃墟でガソリン缶や部品をひろおう。夜は盗賊、昼は砂あらし。2.4km先のオアシスの町をめざせ！ |
+| <img src="games/build-a-plane/cover-5e0fea5f.png" width="200"> | 101 | **Build a Plane & Fly** | がけの上の格納庫で飛行機を組み立てて、海の向こうへ飛ばそう！ 遠くへ飛ぶほどお金が入る。つばさ・エンジン・タンク・しっぽ・ブースターを強くして、4つの島を見つけよう。 |
+| <img src="games/island-flight-school/cover-fcd55be5.png" width="200"> | 102 | **Island Flight School** | 島の空港でパイロットになろう！ スロットルで速さ、⬆⬇で上昇・下降。お客さんをのせて ほかの島の空港へ飛び、滑走路にふんわり着陸。ランクが上がると ジェット機や旅客機に乗れる。 |
+
 <!-- games:end -->
 
 ## しくみ

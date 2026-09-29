@@ -1,0 +1,237 @@
+-- flight.absc — 飛行機の動き: スロットル（速さのねらい）と ⬆⬇（上がる・下がる）。
+-- 地面では前へ走るだけ。止まる速さより速くなって ⬆ で離陸。空ではおそすぎると失速して落ちる。
+
+let fs_clock = 0
+
+func plane_info(id)
+  for pl in PLANES do
+    if pl.id == id then return pl end
+  end
+  return PLANES[1]
+end
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+-- ⬆⬇ の段階ごとの上下の速さ（1段目はゆっくり、2段目は速く）
+func sink(pl, pitch)
+  if pitch == 0 then return 0 end
+  let k = 0.35
+  if abs(pitch) >= 2 then k = 0.8 end
+  return sign(pitch) * pl.climb * k
+end
+
+let runways = []
+let islands = []
+
+func over_runway(p)
+  for i in 1 to len(runways) do
+    let c = runways[i]
+    if abs(p.x - c.x) < 11 and abs(p.z - c.z) < 118 then return i end
+  end
+  return nil
+end
+
+func over_island(p)
+  for c in islands do
+    if abs(p.x - c.x) < 65 and abs(p.z - c.z) < 140 then return true end
+  end
+  return false
+end
+
+on start()
+  for k in 1 to len(AIRPORTS) do
+    append(runways, block("Runway " + k).position)
+    append(islands, block("Island " + k).position)
+  end
+end
+
+func board(p, at)
+  let pl = plane_info(p.plane)
+  let start = block("Runway Start " + at)
+  p.teleport(start.position + {x: 0, y: 0.5, z: 0})
+  p.yaw = 0
+  ride_set(p, "jetpack", p.paint or pl.color, 1)
+  p.fs = {spd: 0, target: 0, pitch: 0, air: false, at: at, lift_t: 0, t0: time(), top: 0}
+  cockpit_buttons(p)
+  p.ui_remove("fl_box")
+end
+
+func cockpit_buttons(p)
+  p.ui_button("thr_up", "➕", {at: "bottom_right", dx: -190, dy: -250, w: 64, h: 64, size: 26, bg: "#16A34A", radius: 32})
+  p.ui_button("thr_down", "➖", {at: "bottom_right", dx: -190, dy: -176, w: 64, h: 64, size: 26, bg: "#B91C1C", radius: 32})
+  p.ui_button("pitch_up", "⬆️", {at: "bottom_right", dx: -30, dy: -250, w: 64, h: 64, size: 26, bg: "#0EA5E9", radius: 32})
+  p.ui_button("pitch_down", "⬇️", {at: "bottom_right", dx: -30, dy: -176, w: 64, h: 64, size: 26, bg: "#475569", radius: 32})
+  p.ui_button("pitch_zero", "⏺ 水平", {at: "bottom_right", dx: -104, dy: -214, w: 72, h: 44, size: 14, bg: "#334155", radius: 16})
+  p.ui_button("get_off", "🚪 おりる", {at: "right", dy: 98, w: 140, h: 40, size: 13, bg: "#57534E"})
+end
+
+func leave_plane(p)
+  p.fs = nil
+  p.gravity = 1
+  ride_off(p)
+  for id in ["thr_up", "thr_down", "pitch_up", "pitch_down", "pitch_zero", "get_off", "fs_hud", "fs_bar", "fs_mis"] do p.ui_remove(id) end
+end
+
+func throttle(p, d)
+  let f = p.fs
+  if f == nil then return end
+  f.target = clamp(f.target + d, 0, THROTTLE_STEPS)
+  p.sound("click")
+  if d > 0 and not f.air and f.target == 1 then
+    tower(p, "滑走路 " + f.at + "、離陸を許可します。速くなったら ⬆ で上がってください")
+  end
+end
+
+func pitch(p, d)
+  let f = p.fs
+  if f == nil then return end
+  if d == 0 then f.pitch = 0 else f.pitch = clamp(f.pitch + d, -2, 2) end
+  p.sound("click")
+end
+
+func tower(p, text)
+  if kit_ready(p, "tower", 4) then p.message("🗼 管制塔: " + text, 2.5) end
+end
+
+-- 0.1秒ごと
+func fs_step(p, dt)
+  let f = p.fs
+  let pl = plane_info(p.plane)
+  let want = pl.top * f.target / THROTTLE_STEPS
+  f.spd = approach(f.spd, want, ACCEL * dt)
+  let dir = forward(p.yaw)
+  let v = p.velocity
+  let vy = v.y
+  if not f.air then
+    -- 地面: 前へ走る。止まる速さをこえて ⬆ なら離陸
+    if f.spd >= pl.stall and f.pitch > 0 then
+      f.air = true
+      f.lift_t = time()
+      p.gravity = 0
+      p.message("🛫 離陸！", 1)
+      p.sound("whoosh")
+      kit_quest_progress(p, "takeoff", 1)
+    end
+  end
+  if f.air then
+    vy = sink(pl, f.pitch)
+    if f.spd < pl.stall then
+      vy = min(vy, -4)
+      if kit_ready(p, "stall", 2) then p.message("⚠️ 失速！ スロットル➕で速く", 1.2) end
+    end
+    if p.y > 150 and vy > 0 then vy = 0 end
+    -- 島の高さまでおりてきた → 滑走路なら着陸、ほかは不時着（海の上なら そのまま）
+    if time() - f.lift_t > 2 and p.y < 3 then
+      let k = over_runway(p)
+      if k != nil then
+        touch_down(p, k)
+        return
+      elif over_island(p) then
+        touch_down(p, "ground")
+        return
+      end
+    end
+  end
+  f.top = max(f.top, floor(p.y))
+  p.velocity = {x: dir.x * f.spd, y: vy, z: dir.z * f.spd}
+  if p.y < -3 then ditch(p) end
+end
+
+-- 空から地面へ: 滑走路なら着陸、それ以外は不時着
+func touch_down(p, where)
+  let f = p.fs
+  if f == nil or not f.air then return end
+  let pl = plane_info(p.plane)
+  let fall = abs(min(0, sink(pl, f.pitch)))
+  if f.spd < pl.stall then fall = max(fall, 4) end
+  f.air = false
+  f.pitch = 0
+  f.target = 0
+  p.gravity = 1
+  if where == "ground" then
+    p.message("🌾 滑走路じゃないところに おりた…", 2)
+    f.bad = true
+    after_landing(p, "ground", 0)
+    return
+  end
+  let grade = 1
+  let text = "🛬 着陸！"
+  if fall <= LAND_SOFT then
+    grade = 1.5
+    text = "🧈 バター着陸！ ふんわり！"
+    kit_quest_progress(p, "butter", 1)
+  elif fall > LAND_OK then
+    grade = 0.5
+    text = "💥 ハードランディング！ ドスン！"
+    p.shake(0.4, 0.4)
+  end
+  p.message(text, 2)
+  p.sound("bell")
+  after_landing(p, where, grade)
+end
+
+func ditch(p)
+  if p.fs == nil then return end
+  p.message("🌊 海におちた！ 救助ボートで空港へ…", 2.5)
+  p.sound("splash")
+  let m = p.mission
+  p.mission = nil
+  p.waypoint(nil)
+  leave_plane(p)
+  let home = 1
+  if m != nil then home = m.from end
+  kit_later(p, 1.5, func() p.teleport(block("Gate " + home)) end)
+end
+
+on tick(dt)
+  fs_clock = fs_clock + dt
+  if fs_clock < 0.1 then return end
+  let secs = fs_clock
+  fs_clock = 0
+  for p in players() do
+    if p.fs != nil then fs_step(p, secs) end
+    if p.fs != nil and kit_ready(p, "fshud", 0.4) then fs_hud(p) end
+  end
+end
+
+func fs_hud(p)
+  let f = p.fs
+  let pl = plane_info(p.plane)
+  let bars = ""
+  for i in 1 to THROTTLE_STEPS do
+    if i <= f.target then bars = bars + "■" else bars = bars + "□" end
+  end
+  let arrow = "➡️"
+  if f.pitch > 0 then arrow = "⬆️" + f.pitch elif f.pitch < 0 then arrow = "⬇️" + abs(f.pitch) end
+  let warn = ""
+  if f.air and f.spd < pl.stall then warn = "  ⚠️失速" end
+  let where = "🛬 地上"
+  if f.air then where = "高さ " + floor(p.y) + "m" end
+  p.ui_text("fs_hud", "✈️ " + floor(f.spd * 3.6) + "km/h " + bars + "   " + where + "   " + arrow + warn, {at: "top", dy: 62, size: 17, bold: true})
+  p.ui_bar("fs_bar", f.spd, pl.top, {at: "top", dy: 86, w: 240, h: 8, color: "#38BDF8"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "sea") and p.fs != nil then ditch(p) end
+end
+
+on button(p, id)
+  if id == "thr_up" then throttle(p, 1)
+  elif id == "thr_down" then throttle(p, -1)
+  elif id == "pitch_up" then pitch(p, 1)
+  elif id == "pitch_down" then pitch(p, -1)
+  elif id == "pitch_zero" then pitch(p, 0)
+  elif id == "get_off" then
+    if p.fs != nil and p.fs.air then
+      p.message("空の上ではおりられないよ！", 1)
+    else
+      leave_plane(p)
+    end
+  end
+end

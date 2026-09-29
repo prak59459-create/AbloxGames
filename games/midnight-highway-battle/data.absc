@@ -1,0 +1,38 @@
+-- data.absc — Midnight Highway Battle の表
+
+let CARS = [
+  {id: "kei", name: "🚗 ミニカー", price: 0, top: 2.5, ride: "car", color: "#F8FAFC"},
+  {id: "hatch", name: "🚙 ホットハッチ", price: 700, top: 2.8, ride: "car", color: "#DC2626"},
+  {id: "coupe", name: "🏎 FRクーペ", price: 1800, top: 3.1, ride: "sports", color: "#F97316"},
+  {id: "gt", name: "🏎 ツインターボGT", price: 4000, top: 3.4, ride: "sports", color: "#1D4ED8"},
+  {id: "rotary", name: "🏎 ロータリー", price: 7500, top: 3.7, ride: "sports", color: "#FACC15"},
+  {id: "hyper", name: "🏎 ミッドナイト・ハイパー", price: 15000, top: 4.1, ride: "sports", color: "#111827"}
+]
+let TUNES = [
+  {key: "t_engine", name: "🔧 エンジン（最高速 +4%）"},
+  {key: "t_boost", name: "💨 ブースト（1バトルの回数）"},
+  {key: "t_body", name: "🛡 ボディ（ぶつかったときのSPへり -20%）"}
+]
+let TUNE_PRICES = [300, 800, 2000, 4500, 9000]
+
+-- ライバル: speed は走る速さ、level はあらわれる強さ（REPレベル）
+let RIVALS = [
+  {n: 1, name: "ワンダラーのショウ", team: "ナイトラン", speed: 2.3, level: 1, prize: 120, color: "#E5E7EB"},
+  {n: 2, name: "ワンダラーのユキ", team: "ナイトラン", speed: 2.45, level: 1, prize: 160, color: "#F9A8D4"},
+  {n: 3, name: "ハヤテのカイ", team: "ハヤテ", speed: 2.6, level: 2, prize: 250, color: "#38BDF8"},
+  {n: 4, name: "ハヤテのリン", team: "ハヤテ", speed: 2.75, level: 2, prize: 320, color: "#0EA5E9"},
+  {n: 5, name: "ブルーリーフのソラ", team: "ブルーリーフ", speed: 2.9, level: 3, prize: 450, color: "#2563EB"},
+  {n: 6, name: "ブルーリーフのナギ", team: "ブルーリーフ", speed: 3.0, level: 3, prize: 550, color: "#1E40AF"},
+  {n: 7, name: "紅蓮のアキラ", team: "紅蓮", speed: 3.15, level: 4, prize: 800, color: "#DC2626"},
+  {n: 8, name: "紅蓮のマヤ", team: "紅蓮", speed: 3.3, level: 4, prize: 1000, color: "#B91C1C"},
+  {n: 9, name: "ゴールドラインのケイ", team: "ゴールドライン", speed: 3.45, level: 5, prize: 1400, color: "#FACC15"},
+  {n: 10, name: "ゴールドラインのレイ", team: "ゴールドライン", speed: 3.6, level: 5, prize: 1800, color: "#EAB308"},
+  {n: 11, name: "白い亡霊", team: "？？？", speed: 3.8, level: 6, prize: 2600, color: "#F8FAFC"},
+  {n: 12, name: "👑 ミッドナイトキング", team: "キング", speed: 4.0, level: 7, prize: 4000, color: "#7C3AED"}
+]
+
+let CORNERS = [{x: -300, z: -100}, {x: 300, z: -100}, {x: 300, z: 100}, {x: -300, z: 100}]
+let LOOP = 1600
+let SP_DRAIN = 0.25        -- 1mはなされるごとに1秒でへるSP
+let CRASH_SP = 15
+let BATTLE_MAX = 90

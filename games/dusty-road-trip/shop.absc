@@ -1,0 +1,130 @@
+-- shop.absc — ガレージ（ずっと残る改造・色）と、とちゅうの交易所（道具を買う）
+
+func garage(p)
+  let h = 170 + len(UPGRADES) * 52
+  p.ui_remove("gar_box")
+  p.ui_panel("gar_box", {at: "center", w: 620, h: h, bg: "#431407F2", radius: 22, layer: 30})
+  p.ui_text("gar_t", "🔧 ガレージ（💰 " + kit_short(kit_money(p)) + "）", {parent: "gar_box", y: 26 / h, size: 19, bold: true, color: "#FED7AA"})
+  p.ui_text("gar_s", "改造はずっと残る。旅の前に強くしよう", {parent: "gar_box", y: 52 / h, size: 14, color: "#FDBA74"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let lv = up(p, u.key)
+    let label = u.name + "  Lv." + lv
+    let bg = "#C2410C"
+    if lv >= len(UP_PRICES) then
+      label = label + "（最大）"
+      bg = "#44403C"
+    else
+      label = label + " → " + (lv + 1) + "   💰" + kit_short(UP_PRICES[lv + 1])
+    end
+    p.ui_button("upbuy_" + u.key, label, {parent: "gar_box", y: (48 + i * 52) / h, w: 580, h: 44, size: 14, bg: bg})
+  end
+  p.ui_button("gar_paint", "🎨 ぬる（💰30）", {parent: "gar_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("gar_close", "閉じる", {parent: "gar_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func buy_up(p, key)
+  let lv = up(p, key)
+  if lv >= len(UP_PRICES) or not kit_pay(p, UP_PRICES[lv + 1]) then return end
+  if p.ups == nil then p.ups = {} end
+  p.ups[key] = lv + 1
+  p.sound("powerup")
+  kit_quest_progress(p, "upgrade", 1)
+  garage(p)
+end
+
+func trade(p)
+  if p.trip == nil then
+    p.message("旅のとちゅうで使えるお店だよ", 1.2)
+    return
+  end
+  let h = 130 + len(TRADE) * 50
+  p.ui_remove("tr_box")
+  p.ui_panel("tr_box", {at: "center", w: 520, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("tr_t", "🏪 交易所（💰 " + kit_short(kit_money(p)) + "  🧳 " + carried(p) + "/" + trunk(p) + "）",
+            {parent: "tr_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for t in TRADE do
+    i = i + 1
+    let it = ITEMS[t.kind]
+    p.ui_button("trbuy_" + t.kind, it.icon + " " + it.name + "（" + it.text + "）  💰" + t.price, {parent: "tr_box", y: (30 + i * 50) / h, w: 480, h: 42, size: 15,
+                bg: "#A16207"})
+  end
+  p.ui_button("tr_fill", "⛽💧 その場で満タン・のみほうだい（💰" + fill_price(p) + "）", {parent: "tr_box", y: (h - 70) / h, w: 480, h: 38, size: 14, bg: "#0E7490"})
+  p.ui_button("tr_close", "閉じる", {parent: "tr_box", y: (h - 24) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func fill_price(p)
+  let t = p.trip
+  if t == nil then return 0 end
+  return ceil((tank(p) - t.fuel) * 2 + (100 - t.water) * 0.3)
+end
+
+func trade_buy(p, kind)
+  for t in TRADE do
+    if t.kind == kind then
+      if carried(p) >= trunk(p) then
+        p.message("🧳 トランクがいっぱい", 1)
+        return
+      end
+      if not kit_pay(p, t.price) then return end
+      give(p, kind, 1)
+      p.sound("coin")
+      trade(p)
+    end
+  end
+end
+
+func trade_fill(p)
+  let t = p.trip
+  if t == nil then return end
+  let price = fill_price(p)
+  if price <= 0 then
+    p.message("もう満タン！", 1)
+    return
+  end
+  if not kit_pay(p, price) then return end
+  t.fuel = tank(p)
+  t.water = 100
+  ride_mult(p, "fuel", nil)
+  p.sound("powerup")
+  trade(p)
+end
+
+func records(p)
+  p.ui_remove("rec_box")
+  p.ui_panel("rec_box", {at: "center", w: 480, h: 230, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("rec_t", "🏆 きみの記録", {parent: "rec_box", y: 0.14, size: 20, bold: true, color: "#FACC15"})
+  p.ui_text("rec_1", "📏 ベスト " + (p.best_dist or 0) + "m / " + TRIP_END + "m", {parent: "rec_box", y: 0.34, size: 17})
+  let bt = "まだ"
+  if p.best_time != nil then bt = time_text(p.best_time) end
+  p.ui_text("rec_2", "🏁 とうちゃく " + (p.arrivals or 0) + "回   いちばん早い " + bt, {parent: "rec_box", y: 0.5, size: 16})
+  p.ui_text("rec_3", "🚗 旅 " + (p.trips or 0) + "回   📦 ひろった " + (p.found or 0) + "こ", {parent: "rec_box", y: 0.66, size: 16})
+  p.ui_button("rec_close", "閉じる", {parent: "rec_box", y: 0.86, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "garage") and kit_ready(p, "garage", 3) then garage(p)
+  elif contains(b.tags, "trade") and kit_ready(p, "trade", 3) then trade(p)
+  elif contains(b.tags, "records") and kit_ready(p, "records", 3) then records(p)
+  end
+end
+
+on button(p, id)
+  if id == "garage" then garage(p)
+  elif id == "gar_close" then p.ui_remove("gar_box")
+  elif id == "gar_paint" then
+    if kit_pay(p, 30) then
+      p.paint = random_color()
+      p.ride_color = p.paint
+    end
+  elif starts_with(id, "upbuy_") then buy_up(p, replace(id, "upbuy_", ""))
+  elif id == "tr_close" then p.ui_remove("tr_box")
+  elif id == "tr_fill" then trade_fill(p)
+  elif starts_with(id, "trbuy_") then trade_buy(p, replace(id, "trbuy_", ""))
+  elif id == "records" then records(p)
+  elif id == "rec_close" then p.ui_remove("rec_box")
+  end
+end

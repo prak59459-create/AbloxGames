@@ -1,0 +1,32 @@
+-- data.absc — Dream Car Dealership の表
+
+-- cost: 仕入れ値、price: 売り値、tier: 店のレベルがいくつから仕入れられるか
+let CARS = [
+  {id: "mini", name: "🚗 ミニ", cost: 60, price: 110, tier: 1, ride: "car", color: "#F87171", speed: 1.9},
+  {id: "compact", name: "🚙 コンパクト", cost: 120, price: 210, tier: 1, ride: "car", color: "#60A5FA", speed: 2.1},
+  {id: "wagon", name: "🚐 ワゴン", cost: 200, price: 340, tier: 1, ride: "truck", color: "#A3E635", speed: 2.0},
+  {id: "sedan", name: "🚘 セダン", cost: 350, price: 580, tier: 2, ride: "car", color: "#94A3B8", speed: 2.4},
+  {id: "pickup", name: "🛻 ピックアップ", cost: 500, price: 820, tier: 2, ride: "truck", color: "#F59E0B", speed: 2.3},
+  {id: "sporty", name: "🏎 スポーツ", cost: 900, price: 1450, tier: 3, ride: "sports", color: "#EF4444", speed: 2.9},
+  {id: "suv", name: "🚙 高級SUV", cost: 1400, price: 2250, tier: 3, ride: "truck", color: "#1F2937", speed: 2.6},
+  {id: "gt", name: "🏎 GTカー", cost: 2500, price: 4000, tier: 4, ride: "sports", color: "#F97316", speed: 3.3},
+  {id: "electric", name: "⚡ 電気スポーツ", cost: 4000, price: 6400, tier: 4, ride: "sports", color: "#22D3EE", speed: 3.4},
+  {id: "super", name: "🏎 スーパーカー", cost: 7000, price: 11500, tier: 5, ride: "sports", color: "#FACC15", speed: 3.8},
+  {id: "hyper", name: "🚀 ハイパーカー", cost: 12000, price: 20000, tier: 5, ride: "sports", color: "#A855F7", speed: 4.2},
+  {id: "gold", name: "👑 ゴールドリムジン", cost: 20000, price: 33000, tier: 5, ride: "car", color: "#EAB308", speed: 3.0}
+]
+
+-- 店のレベル: 並べられる数・人気・次のレベルの値段
+let LEVELS = [
+  {level: 1, slots: 4, rating: 1, cost: 0, name: "空き地の車屋"},
+  {level: 2, slots: 6, rating: 1.4, cost: 800, name: "町の車屋"},
+  {level: 3, slots: 8, rating: 1.9, cost: 3000, name: "ショールーム"},
+  {level: 4, slots: 10, rating: 2.5, cost: 9000, name: "高級ディーラー"},
+  {level: 5, slots: 12, rating: 3.2, cost: 25000, name: "👑 ドリームディーラー"}
+]
+
+let STAFF_PRICE = [400, 1500, 5000]
+let MANAGER_PRICE = 2500
+let CUSTOMER_EVERY = 6
+let MAX_CUSTOMERS = 6
+let BUY_CHANCE = 0.35

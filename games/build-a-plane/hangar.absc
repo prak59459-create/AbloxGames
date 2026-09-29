@@ -1,0 +1,146 @@
+-- hangar.absc — 格納庫: 自分の場所をもらって、部品を買うと飛行機がだんだんできていく
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func part_info(key)
+  for pt in PARTS do
+    if pt.key == key then return pt end
+  end
+  return nil
+end
+
+func part_lv(p, key)
+  let lv = (p.parts or {})[key]
+  if lv == nil then return part_info(key).start end
+  return lv
+end
+
+func stat(p, key)
+  return part_info(key).vals[part_lv(p, key) + 1]
+end
+
+func plane_color(p)
+  return TIERS[max(1, part_lv(p, "body"))].color
+end
+
+func owner_of(k)
+  for p in players() do
+    if p.plot == k then return p end
+  end
+  return nil
+end
+
+func claim_plot(p)
+  if p.plot != nil then return end
+  for k in 1 to 8 do
+    if owner_of(k) == nil then
+      p.plot = k
+      draw_plane(p)
+      let sign = find(blocks("sign"), func(b) return tag_num(b, "k") == k end)
+      if sign != nil then sign.color = p.color or "#FACC15" end
+      return
+    end
+  end
+end
+
+func draw_plane(p)
+  if p.plot == nil then return end
+  for pt in PARTS do
+    let lv = part_lv(p, pt.key)
+    let shown = lv >= 1
+    let color = TIERS[max(1, lv)].color
+    for b in blocks("pl" + p.plot + "_" + pt.key) do
+      if b.visible != shown then b.visible = shown end
+      if b.name != "Cockpit" and b.name != "Propeller" and b.color != color then b.color = color end
+    end
+  end
+end
+
+func clear_plot(p)
+  if p.plot == nil then return end
+  for pt in PARTS do
+    for b in blocks("pl" + p.plot + "_" + pt.key) do b.visible = false end
+  end
+  let k = p.plot
+  let sign = find(blocks("sign"), func(b) return tag_num(b, "k") == k end)
+  if sign != nil then sign.color = "#FFFFFF" end
+  p.plot = nil
+end
+
+func stat_text(p, key, lv)
+  let v = part_info(key).vals[lv + 1]
+  if key == "wings" then
+    let stars = ""
+    for i in 1 to lv + 1 do stars = stars + "★" end
+    return stars
+  end
+  if key == "body" then return "×" + v end
+  return str(v)
+end
+
+func build_menu(p)
+  claim_plot(p)
+  let h = 190 + len(PARTS) * 50
+  p.ui_remove("bd_box")
+  p.ui_panel("bd_box", {at: "center", w: 660, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("bd_t", "🛠 飛行機づくり（💰 " + kit_short(kit_money(p)) + "）", {parent: "bd_box", y: 26 / h, size: 19, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for pt in PARTS do
+    i = i + 1
+    let lv = part_lv(p, pt.key)
+    let label = pt.name + " Lv." + lv + "（" + pt.what + " " + stat_text(p, pt.key, lv) + "）"
+    let bg = "#0369A1"
+    if lv >= 5 then
+      label = label + "  最大"
+      bg = "#374151"
+    else
+      label = label + " → " + stat_text(p, pt.key, lv + 1) + "  💰" + kit_short(PART_PRICES[lv + 1])
+    end
+    p.ui_button("partbuy_" + pt.key, label, {parent: "bd_box", y: (30 + i * 50) / h, w: 620, h: 42, size: 14, bg: bg})
+  end
+  p.ui_text("bd_s", "ベスト " + (p.best_flight or 0) + "m   見つけた島 " + len(p.islands or []) + "/4", {parent: "bd_box", y: (h - 76) / h, size: 15,
+            color: "#FDE68A"})
+  p.ui_button("bd_fly", "🛫 飛ぶ！", {parent: "bd_box", x: 0.32, y: (h - 32) / h, w: 180, h: 40, size: 17, bg: "#16A34A"})
+  p.ui_button("bd_close", "閉じる", {parent: "bd_box", x: 0.72, y: (h - 32) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func buy_part(p, key)
+  let lv = part_lv(p, key)
+  if lv >= 5 or not kit_pay(p, PART_PRICES[lv + 1]) then return end
+  if p.parts == nil then p.parts = {} end
+  p.parts[key] = lv + 1
+  p.sound("powerup")
+  particles("sparkles", p, {amount: 30})
+  kit_quest_progress(p, "part", 1)
+  if lv + 1 == 5 then kit_badge(p, "max_" + key, part_info(key).name + " 最大") end
+  draw_plane(p)
+  build_menu(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "build") and kit_ready(p, "build", 3) then
+    let k = tag_num(b, "k")
+    if p.plot == nil and owner_of(k) == nil then
+      p.plot = k
+      draw_plane(p)
+    end
+    build_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "build" then build_menu(p)
+  elif id == "bd_close" then p.ui_remove("bd_box")
+  elif starts_with(id, "partbuy_") then buy_part(p, replace(id, "partbuy_", ""))
+  end
+end
+
+on leave(p)
+  clear_plot(p)
+end

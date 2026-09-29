@@ -1,0 +1,59 @@
+-- Build a Plane & Fly — 飛行機をつくって、海の向こうへ
+-- がけの上の格納庫で部品を買うと、飛行機が少しずつできていく。滑走路から飛んで、遠くへ行くほどお金が入る。
+-- 海の上の4つの島に着陸するとボーナス。さいごの島は 3600m 先！
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  飛ぶときの見た目・⬆⬇ボタン
+--   data.absc    部品6つ・材料・島
+--   hangar.absc  格納庫・部品を買う・飛行機の見た目
+--   flight.absc  飛ぶ・輪・ブースト・着陸・海
+--   main.absc    このファイル
+
+kit_setup("Build a Plane & Fly", "飛行機をつくって、どこまでも遠くへ！", [
+  "🛠 黄色いパッドの格納庫で部品を買う（飛行機がだんだんできていく）",
+  "🛫 緑のパッドか「飛ぶ」ボタンで出発。スティックで向き、⬆⬇で上下",
+  "⛽ エンジンが止まったら つばさで すべる。🪽 つばさが強いほど長く すべれる",
+  "⭕ 空の輪をくぐると お金と エンジンの時間が ふえる",
+  "🚀 ブースターで ぐんと加速",
+  "🏝 島に着陸するとボーナス。4つぜんぶ見つけよう"
+])
+kit_keep(["parts", "best_flight", "flights", "islands", "total_dist"])
+
+kit_quest("fly", "3回飛ぶ", 3, 60)
+kit_quest("far", "300m 飛ぶ", 1, 150)
+kit_quest("ring", "輪を5こ くぐる", 5, 150)
+kit_quest("part", "部品を5回 強くする", 5, 250)
+kit_quest("island", "島を見つける", 1, 400)
+
+kit_on_load = func(p) draw_plane(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.parts = {}
+  p.camera_distance = 11
+  claim_plot(p)
+  if p.plot != nil then
+    let pad = block("Build Pad " + p.plot)
+    kit_later(p, 0.5, func() p.teleport(pad.position + {x: 3, y: 1, z: 2}) end)
+  end
+  p.ui_button("build", "🛠 つくる", {at: "right", dy: -84, w: 140, h: 46, size: 15, bg: "#0369A1"})
+  p.ui_button("fly", "🛫 飛ぶ", {at: "right", dy: -32, w: 140, h: 46, size: 15, bg: "#16A34A"})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("🛫 ベストきょり") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.best_flight or 0) != p.score then p.score = p.best_flight or 0 end
+  end
+end

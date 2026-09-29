@@ -1,0 +1,144 @@
+-- jobs.absc — お仕事: 📦 宅配（配達センター → 家）と 🍕 ピザ配達（時間があるほどチップ）
+
+let DROPS = 16
+
+func drop_block(n)
+  return block("Drop " + n)
+end
+
+func pick_drop(avoid)
+  let n = random(1, DROPS)
+  while contains(avoid, n) do n = random(1, DROPS) end
+  return n
+end
+
+func point_to(p)
+  let j = p.job
+  if j == nil then
+    p.waypoint(nil)
+    return
+  end
+  let n = j.drops[1]
+  let label = "📦 " + n + "番の家"
+  if j.kind == "pizza" then label = "🍕 " + n + "番の家" end
+  p.waypoint(drop_block(n), label, "gold")
+end
+
+func take_boxes(p)
+  if not p.driving then
+    p.message("📦 車で来てね（右の 🚗 のる）", 1.5)
+    return
+  end
+  if p.job != nil then
+    p.message("いまの仕事がおわってから！", 1.2)
+    return
+  end
+  let c = car_info(p.car)
+  let list = []
+  for i in 1 to c.load do append(list, pick_drop(list)) end
+  p.job = {kind: "box", drops: list, from: block("Depot Pad").position, start: time()}
+  point_to(p)
+  p.sound("pop")
+  if c.load > 1 then
+    p.message("📦 荷物を " + c.load + "こ つんだ！ 黄色い矢印の家へ", 2)
+  else
+    p.message("📦 荷物をつんだ！ 黄色い矢印の家へ（バンなら3こ運べる）", 2)
+  end
+end
+
+func take_pizza(p)
+  if not p.driving then
+    p.message("🍕 車で来てね（右の 🚗 のる）", 1.5)
+    return
+  end
+  if p.job != nil then
+    p.message("いまの仕事がおわってから！", 1.2)
+    return
+  end
+  let n = pick_drop([])
+  let from = block("Pizza Pad").position
+  let secs = floor(18 + distance(from, drop_block(n)) / 9)
+  p.job = {kind: "pizza", drops: [n], from: from, start: time(), until: time() + secs, secs: secs}
+  point_to(p)
+  p.sound("pop")
+  p.message("🍕 アツアツのうちに！ " + secs + "秒いないに " + n + "番の家へ", 2)
+end
+
+func deliver(p, n)
+  let j = p.job
+  if j == nil or j.drops[1] != n then return end
+  remove(j.drops, 1)
+  let d = distance(j.from, drop_block(n))
+  if j.kind == "box" then
+    let pay = floor(40 + d * 0.3)
+    kit_give(p, pay)
+    p.earned = (p.earned or 0) + pay
+    p.deliveries = (p.deliveries or 0) + 1
+    kit_quest_progress(p, "box", 1)
+    p.message("📦 おとどけ！ 💰" + pay, 1.5)
+    j.from = drop_block(n).position
+  else
+    let left = max(0, j.until - time())
+    let tip = floor(60 * left / j.secs)
+    if (p.shine_until or 0) > time() then tip = floor(tip * 1.2) end
+    if (p.safe or 100) >= 80 then tip = tip + 5 end
+    let pay = 50 + tip
+    if left <= 0 then pay = 25 end
+    kit_give(p, pay)
+    p.earned = (p.earned or 0) + pay
+    p.pizzas = (p.pizzas or 0) + 1
+    kit_quest_progress(p, "pizza", 1)
+    if left > 0 then
+      p.message("🍕 おいしそう！ ありがとう  💰50 + チップ " + tip, 2)
+    else
+      p.message("🍕 さめちゃった… 💰25", 2)
+    end
+  end
+  p.sound("coin")
+  particles("confetti", p, {amount: 20})
+  if len(j.drops) == 0 then
+    p.job = nil
+    p.ui_remove("gv_job")
+    p.ui_remove("job_quit")
+  end
+  point_to(p)
+end
+
+func quit_job(p)
+  if p.job == nil then return end
+  p.job = nil
+  p.waypoint(nil)
+  p.ui_remove("gv_job")
+  p.ui_remove("job_quit")
+  p.message("仕事をやめた", 1)
+end
+
+func job_hud(p)
+  let j = p.job
+  if j == nil then return end
+  let text = "📦 のこり " + len(j.drops) + "こ → " + j.drops[1] + "番の家"
+  if j.kind == "pizza" then
+    let left = ceil(j.until - time())
+    if left > 0 then
+      text = "🍕 " + j.drops[1] + "番の家へ  ⏱ " + left + "秒"
+    else
+      text = "🍕 " + j.drops[1] + "番の家へ  ⏱ おくれてる！"
+    end
+  end
+  p.ui_text("gv_job", text, {at: "top", dy: 106, size: 16, bold: true, color: "#FDE68A"})
+  p.ui_button("job_quit", "✖ 仕事をやめる", {at: "right", dy: 98, w: 140, h: 40, size: 13, bg: "#7F1D1D"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "depot") and kit_ready(p, "depot", 3) then take_boxes(p)
+  elif contains(b.tags, "pizza") and kit_ready(p, "pizza", 3) then take_pizza(p)
+  elif contains(b.tags, "drop") then
+    let n = tag_num(b, "n")
+    if n != nil then deliver(p, n) end
+  end
+end
+
+on button(p, id)
+  if id == "job_quit" then quit_job(p) end
+end

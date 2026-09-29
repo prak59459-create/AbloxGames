@@ -1,0 +1,281 @@
+-- trip.absc — 旅: スタートラインをこえると始まる。ガソリン・エンジン・水を見ながら、どこまで行けるか。
+
+let trip_clock = 0
+let hud_clock = 0
+let storm_on = false
+
+func up(p, key)
+  return (p.ups or {})[key] or 0
+end
+
+func up_info(key)
+  for u in UPGRADES do
+    if u.key == key then return u end
+  end
+  return nil
+end
+
+func tank(p)
+  return BASE_TANK + up(p, "u_tank") * up_info("u_tank").per
+end
+
+func trunk(p)
+  return BASE_TRUNK + up(p, "u_trunk") * up_info("u_trunk").per
+end
+
+func armor(p)
+  return up(p, "u_armor") * up_info("u_armor").per
+end
+
+func carried(p)
+  let n = 0
+  let items = p.items or {}
+  for k in keys(items) do n = n + items[k] end
+  return n
+end
+
+func dist_of(p)
+  return clamp(floor(p.z), 0, TRIP_END)
+end
+
+-- エンジンがよわると おそくなる
+func engine_speed(p)
+  let t = p.trip
+  if t == nil then return end
+  if t.engine < 50 then
+    ride_mult(p, "engine", 0.5 + t.engine / 100)
+  else
+    ride_mult(p, "engine", nil)
+  end
+end
+
+func damage_car(p, amount, why)
+  let t = p.trip
+  if t == nil then return end
+  let hit = amount * (1 - armor(p))
+  t.engine = max(0, t.engine - hit)
+  engine_speed(p)
+  p.message(why + "  🔧 -" + ceil(hit) + "%", 1)
+  p.shake(0.2, 0.25)
+  if t.engine <= 0 then end_trip(p, "💥 エンジンがこわれた…") end
+end
+
+func start_trip(p)
+  if p.trip != nil then return end
+  p.clear_items()
+  p.trip = {start: time(), fuel: tank(p), engine: 100, water: 100, best: 0, scrap: 0, loot: 0}
+  ride_set(p, "truck", p.paint or "#C2410C", BASE_SPEED * (1 + up(p, "u_engine") * up_info("u_engine").per))
+  give(p, "water", 1)
+  p.trips = (p.trips or 0) + 1
+  p.message("🏜 出発！ オアシスの町まで " + TRIP_END + "m。こまったら 道具をタップ", 2.5)
+  p.sound("whoosh")
+  p.ui_button("horn", "📣 クラクション", {at: "right", dy: -6, w: 150, h: 46, size: 15, bg: "#B45309"})
+  p.ui_button("share", "🤝 わける", {at: "right", dy: 46, w: 150, h: 46, size: 15, bg: "#0F766E"})
+  p.ui_button("give_up", "🏳 もどる", {at: "right", dy: 98, w: 150, h: 40, size: 13, bg: "#57534E"})
+  kit_quest_progress(p, "trip", 1)
+end
+
+func end_trip(p, why)
+  let t = p.trip
+  if t == nil then return end
+  p.trip = nil
+  let d = t.best
+  let bonus = floor(d / 10)
+  kit_give(p, bonus)
+  let record = ""
+  if d > (p.best_dist or 0) then
+    p.best_dist = d
+    record = "  ⭐ 新記録！"
+  end
+  p.clear_items()
+  p.waypoint(nil)
+  for id in ["horn", "share", "give_up", "dr_hud", "dr_fuel", "dr_engine", "dr_water"] do p.ui_remove(id) end
+  p.ui_remove("res_box")
+  p.ui_panel("res_box", {at: "center", w: 520, h: 230, bg: "#431407F0", radius: 22, layer: 40})
+  p.ui_text("res_t", why, {parent: "res_box", y: 0.16, size: 22, bold: true, color: "#FED7AA"})
+  p.ui_text("res_1", "📏 " + d + "m 進んだ" + record, {parent: "res_box", y: 0.38, size: 18})
+  p.ui_text("res_2", "🔩 部品 💰" + t.scrap + "   きょりボーナス 💰" + bonus, {parent: "res_box", y: 0.54, size: 16})
+  p.ui_text("res_3", "ベスト " + (p.best_dist or 0) + "m   とうちゃく " + (p.arrivals or 0) + "回", {parent: "res_box", y: 0.7, size: 15})
+  p.ui_button("res_close", "ガレージへ", {parent: "res_box", y: 0.88, w: 180, h: 38, size: 15, bg: "#EA580C"})
+  kit_later(p, 6, func() p.ui_remove("res_box") end)
+  ride_off(p)
+  ride_set(p, "truck", p.paint or "#C2410C", 1.4)
+  kit_later(p, 1.5, func()
+    let pad = block("Garage Pad")
+    if pad != nil and p.trip == nil then p.teleport(pad.position + {x: 6, y: 0, z: 4}) end
+  end)
+  p.sound("lose")
+end
+
+func arrive(p)
+  let t = p.trip
+  if t == nil then return end
+  t.best = TRIP_END
+  let secs = time() - t.start
+  p.arrivals = (p.arrivals or 0) + 1
+  if p.best_time == nil or secs < p.best_time then p.best_time = secs end
+  kit_give(p, 500)
+  kit_quest_progress(p, "arrive", 1)
+  kit_badge(p, "oasis", "オアシスの町")
+  announce("🏁 " + p.name + " がオアシスの町に着いた！（" + time_text(secs) + "）", 3)
+  particles("confetti", p, {amount: 100})
+  p.sound("win")
+  end_trip(p, "🏁 とうちゃく！ ごほうび 💰500")
+end
+
+-- MARK: 道具
+
+func give(p, kind, n)
+  let it = ITEMS[kind]
+  if carried(p) + n > trunk(p) then
+    p.message("🧳 トランクがいっぱい（" + trunk(p) + "こまで）", 1.2)
+    return false
+  end
+  p.give_item(it.name, n, it.icon)
+  return true
+end
+
+func item_kind(name)
+  for k in keys(ITEMS) do
+    if ITEMS[k].name == name then return k end
+  end
+  return nil
+end
+
+func use_item(p, kind)
+  let t = p.trip
+  if t == nil then return end
+  if kind == "fuel" then
+    if t.fuel >= tank(p) - 1 then
+      p.message("⛽ もう満タン", 1)
+      return
+    end
+    t.fuel = min(tank(p), t.fuel + 12)
+    ride_mult(p, "fuel", nil)
+  elif kind == "water" then
+    if t.water >= 99 then
+      p.message("💧 のどはかわいてない", 1)
+      return
+    end
+    t.water = min(100, t.water + 40)
+  elif kind == "repair" then
+    if t.engine >= 99 then
+      p.message("🔧 エンジンは元気", 1)
+      return
+    end
+    t.engine = min(100, t.engine + 35)
+    engine_speed(p)
+  end
+  p.take_item(ITEMS[kind].name)
+  p.message(ITEMS[kind].text, 1)
+  p.sound("powerup")
+end
+
+-- 🤝 近くのなかまに、いちばん足りないものを1こ
+func share(p)
+  if p.trip == nil or not kit_ready(p, "share", 1) then return end
+  let best = nil
+  for q in players_near(p, 8) do
+    if q.id != p.id and q.trip != nil and not q.is_npc and best == nil then best = q end
+  end
+  if best == nil then
+    p.message("🤝 近くに なかまがいない", 1)
+    return
+  end
+  let t = best.trip
+  let order = [["water", t.water], ["fuel", t.fuel / tank(best) * 100], ["repair", t.engine]]
+  order = sort_by(order, func(o) return o[2] end)
+  for o in order do
+    let kind = o[1]
+    if p.has_item(ITEMS[kind].name) and carried(best) < trunk(best) then
+      p.take_item(ITEMS[kind].name)
+      best.give_item(ITEMS[kind].name, 1, ITEMS[kind].icon)
+      p.message("🤝 " + best.name + " に " + ITEMS[kind].icon + " をあげた", 1.2)
+      best.message("🤝 " + p.name + " から " + ITEMS[kind].icon + " をもらった！", 1.5)
+      kit_quest_progress(p, "share", 1)
+      return
+    end
+  end
+  p.message("🤝 わけられるものがない", 1)
+end
+
+-- MARK: 0.25秒ごと
+
+func trip_step(p, dt)
+  let t = p.trip
+  let v = p.velocity
+  let meters = sqrt(v.x * v.x + v.z * v.z) * dt
+  if meters > 0.05 and t.fuel > 0 then
+    t.fuel = max(0, t.fuel - meters / 100 * FUEL_USE)
+    if t.fuel <= 0 then
+      ride_mult(p, "fuel", 0.2)
+      p.message("⛽ ガス欠！ ⛽ガソリン缶を使うか、赤い箱をさがそう", 2.5)
+    end
+  end
+  let heat = 1
+  if is_night() then heat = 0.5 end
+  if storm_on then heat = heat * 1.5 end
+  t.water = max(0, t.water - WATER_DRAIN * dt * heat * (1 - up(p, "u_cooler") * up_info("u_cooler").per))
+  if t.water <= 0 then
+    end_trip(p, "🥵 のどがカラカラで たおれた…")
+    return
+  end
+  let d = dist_of(p)
+  if d > t.best then
+    if floor(d / 500) > floor(t.best / 500) then p.message("🏜 " + floor(d / 500) * 500 + "m！", 1.2) end
+    t.best = d
+  end
+  if not p.alive then end_trip(p, "😵 たおれた…") end
+end
+
+func trip_hud(p)
+  let t = p.trip
+  if t == nil then return end
+  let w = ""
+  if t.water < 25 then w = " ⚠️" end
+  p.ui_text("dr_hud", "🏜 " + t.best + "m / " + TRIP_END + "m   🧳 " + carried(p) + "/" + trunk(p) + w, {at: "top", dy: 62, size: 17, bold: true})
+  p.ui_bar("dr_fuel", t.fuel, tank(p), {at: "top", dy: 86, dx: -130, w: 120, h: 9, color: "#EF4444"})
+  p.ui_bar("dr_engine", t.engine, 100, {at: "top", dy: 86, w: 120, h: 9, color: "#A3E635"})
+  p.ui_bar("dr_water", t.water, 100, {at: "top", dy: 86, dx: 130, w: 120, h: 9, color: "#38BDF8"})
+  p.ui_text("dr_labels", "⛽ ガソリン         🔧 エンジン         💧 水", {at: "top", dy: 100, size: 12, color: "#FEF3C7"})
+end
+
+on tick(dt)
+  trip_clock = trip_clock + dt
+  hud_clock = hud_clock + dt
+  if trip_clock >= 0.25 then
+    for p in players() do
+      if p.trip != nil then trip_step(p, trip_clock) end
+    end
+    trip_clock = 0
+  end
+  if hud_clock >= 0.5 then
+    hud_clock = 0
+    for p in players() do
+      if p.trip != nil then trip_hud(p) else p.ui_remove("dr_labels") end
+    end
+  end
+end
+
+on use(p, item)
+  let kind = item_kind(item)
+  if kind != nil then use_item(p, kind) end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "start_line") and p.trip == nil and p.z > -2 and kit_ready(p, "start", 2) then start_trip(p)
+  elif contains(b.tags, "goal_line") and p.trip != nil then arrive(p)
+  end
+end
+
+on button(p, id)
+  if id == "share" then share(p)
+  elif id == "give_up" then end_trip(p, "🏳 ガレージにもどった")
+  elif id == "res_close" then p.ui_remove("res_box")
+  end
+end
+
+on leave(p)
+  p.trip = nil
+end

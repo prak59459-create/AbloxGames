@@ -1,0 +1,200 @@
+-- flight.absc — 飛ぶ: 滑走路からとび出して、エンジンが止まるまで前へ。止まったら つばさですべる。
+-- 海におちたら終わり、島におりたらボーナス。スティックで向き、⬆⬇で上下、🚀でブースト。
+
+let fly_clock = 0
+
+func launch(p)
+  if p.flight != nil or p.launching then return end
+  claim_plot(p)
+  p.ui_remove("bd_box")
+  p.ui_remove("fl_res")
+  let pad = block("Launch Pad")
+  p.teleport(pad.position + {x: 0, y: 1, z: 0})
+  p.yaw = 0
+  p.frozen = true
+  p.launching = true
+  ride_set(p, "jetpack", plane_color(p), 1)
+  for k in 1 to 3 do
+    kit_later(p, k - 1, func() p.message(str(4 - k), 0.8) end)
+  end
+  kit_later(p, 3, func() take_off(p) end)
+end
+
+func take_off(p)
+  p.launching = false
+  p.frozen = false
+  p.flight = {fuel: stat(p, "tank"), speed: stat(p, "engine"), now: stat(p, "engine"), glide: stat(p, "wings"), boosts: stat(p, "boost"),
+              boost_until: 0, best: 0, rings: 0, coins: 0, t0: time(), top: 0}
+  p.ride_lift = stat(p, "tail")
+  ride_fly(p, true, POWER_GRAVITY)
+  p.velocity = {x: 0, y: 6, z: p.flight.speed}
+  p.message("🛫 GO!  スティックで向き、⬆⬇で上下", 1.5)
+  p.sound("whoosh")
+  p.flights = (p.flights or 0) + 1
+  kit_quest_progress(p, "fly", 1)
+  if p.flight.boosts > 0 then boost_button(p) end
+end
+
+func boost_button(p)
+  let f = p.flight
+  if f == nil or f.boosts <= 0 then
+    p.ui_remove("boost")
+    return
+  end
+  p.ui_button("boost", "🚀 " + f.boosts, {at: "bottom_right", dx: -110, dy: -214, w: 72, h: 72, size: 22, bg: "#EA580C", radius: 36})
+end
+
+func boost(p)
+  let f = p.flight
+  if f == nil or f.boosts <= 0 then return end
+  f.boosts = f.boosts - 1
+  f.fuel = f.fuel + BOOST_SECS
+  f.now = f.speed
+  f.boost_until = time() + BOOST_SECS
+  particles("fire", p, {amount: 30})
+  p.sound("powerup")
+  boost_button(p)
+end
+
+func ring(p, b)
+  let f = p.flight
+  if f == nil or not kit_ready(p, "ring" + b.id, 5) then return end
+  f.rings = f.rings + 1
+  f.fuel = f.fuel + RING_FUEL
+  f.now = f.speed
+  let n = floor(10 * stat(p, "body"))
+  f.coins = f.coins + n
+  p.message("⭕ 輪！ 💰" + n + "  ⛽+" + RING_FUEL + "秒", 1)
+  p.sound("coin")
+  kit_quest_progress(p, "ring", 1)
+end
+
+func land(p, n)
+  let f = p.flight
+  if f == nil then return end
+  let isl = ISLANDS[n]
+  let bonus = floor(isl.bonus / 5)
+  let text = "🏝 " + isl.name + " に着陸！"
+  if not contains(p.islands or [], n) then
+    if p.islands == nil then p.islands = [] end
+    append(p.islands, n)
+    bonus = isl.bonus
+    text = "🎉 はじめて " + isl.name + " を見つけた！"
+    kit_badge(p, "island" + n, isl.name)
+    announce("🏝 " + p.name + " が " + isl.name + " を見つけた！", 3)
+    kit_quest_progress(p, "island", 1)
+  end
+  particles("confetti", p, {amount: 60})
+  end_flight(p, text, bonus)
+end
+
+func end_flight(p, why, bonus)
+  let f = p.flight
+  if f == nil then return end
+  p.flight = nil
+  let mult = stat(p, "body")
+  let pay = floor(f.best * PAY_PER_M * mult)
+  let total = pay + f.coins + bonus
+  kit_give(p, total)
+  p.total_dist = (p.total_dist or 0) + f.best
+  let record = ""
+  if f.best > (p.best_flight or 0) then
+    p.best_flight = f.best
+    record = "  ⭐ 新記録！"
+  end
+  kit_quest_progress(p, "far", 0)
+  if f.best >= 300 then kit_quest_progress(p, "far", 1) end
+  ride_fly(p, false, 1)
+  ride_off(p)
+  p.ui_remove("boost")
+  p.ui_remove("fl_hud")
+  p.ui_remove("fl_bar")
+  p.ui_panel("fl_res", {at: "center", w: 520, h: 220, bg: "#0C4A6EF0", radius: 22, layer: 40})
+  p.ui_text("fl_r1", why, {parent: "fl_res", y: 0.17, size: 21, bold: true, color: "#BAE6FD"})
+  p.ui_text("fl_r2", "📏 " + f.best + "m" + record + "   ⭕ 輪 " + f.rings + "こ", {parent: "fl_res", y: 0.4, size: 18})
+  let line = "💰 " + pay + "（きょり ×" + mult + "）+ 輪 " + f.coins
+  if bonus > 0 then line = line + " + 島 " + bonus end
+  p.ui_text("fl_r3", line, {parent: "fl_res", y: 0.58, size: 16, color: "#FDE68A"})
+  p.ui_text("fl_r4", "= 💰" + total, {parent: "fl_res", y: 0.74, size: 20, bold: true, color: "gold"})
+  kit_later(p, 5, func() p.ui_remove("fl_res") end)
+  kit_later(p, 2, func() go_home(p) end)
+end
+
+func go_home(p)
+  if p.flight != nil then return end
+  let pad = nil
+  if p.plot != nil then pad = block("Build Pad " + p.plot) end
+  if pad == nil then pad = block("Launch Pad") end
+  p.teleport(pad.position + {x: 3, y: 1, z: 2})
+end
+
+func fly_step(p, dt)
+  let f = p.flight
+  let spd = f.now
+  let grav = POWER_GRAVITY
+  if f.fuel > 0 then
+    f.fuel = max(0, f.fuel - dt)
+    spd = f.speed
+    if time() < f.boost_until then spd = spd * 1.5 end
+    f.now = f.speed
+    if f.fuel <= 0 then p.message("⛽ エンジンが止まった！ つばさで すべろう", 1.5) end
+  else
+    f.now = f.now * 0.985
+    spd = f.now
+    grav = f.glide
+  end
+  if abs(p.gravity - grav) > 0.001 then p.gravity = grav end
+  let dir = forward(p.yaw)
+  let v = p.velocity
+  let vy = v.y
+  if p.y > CEILING and vy > 0 then vy = 0 end
+  p.velocity = {x: dir.x * spd, y: vy, z: dir.z * spd}
+  let d = max(0, floor(p.z - CLIFF_EDGE))
+  if d > f.best then f.best = d end
+  f.top = max(f.top, floor(p.y))
+  -- もどってきて がけに おりた／とまった
+  if f.fuel <= 0 and p.z < CLIFF_EDGE and abs(v.y) < 0.05 and time() - f.t0 > 3 then end_flight(p, "🛬 がけにもどった", 0) end
+  if p.y < -3 or time() - f.t0 > 180 then end_flight(p, "🌊 ザブーン！", 0) end
+end
+
+func fly_hud(p)
+  let f = p.flight
+  if f == nil then return end
+  let fuel = "⛽ " + fixed(f.fuel, 1) + "秒"
+  if f.fuel <= 0 then fuel = "🪽 すべってる" end
+  p.ui_text("fl_hud", "🛫 " + f.best + "m   " + fuel + "   高さ " + floor(p.y) + "m   ⭕ " + f.rings, {at: "top", dy: 62, size: 18, bold: true})
+  p.ui_bar("fl_bar", f.fuel, max(1, stat(p, "tank")), {at: "top", dy: 88, w: 240, h: 8, color: "#F97316"})
+end
+
+on tick(dt)
+  fly_clock = fly_clock + dt
+  if fly_clock < 0.1 then return end
+  let secs = fly_clock
+  fly_clock = 0
+  for p in players() do
+    if p.flight != nil then
+      fly_step(p, secs)
+      if p.flight != nil and kit_ready(p, "flhud", 0.4) then fly_hud(p) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "launch") and p.flight == nil and kit_ready(p, "launch", 4) then launch(p)
+  elif p.flight == nil then return
+  elif contains(b.tags, "ring") then ring(p, b)
+  elif contains(b.tags, "sea") then end_flight(p, "🌊 ザブーン！ 海におちた", 0)
+  elif contains(b.tags, "island") then land(p, tag_num(b, "n"))
+  end
+end
+
+on button(p, id)
+  if id == "fly" or id == "bd_fly" then launch(p)
+  elif id == "boost" then boost(p)
+  end
+end
+
+on leave(p)
+  p.flight = nil
+end

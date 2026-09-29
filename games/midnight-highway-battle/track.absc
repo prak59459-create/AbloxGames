@@ -1,0 +1,129 @@
+-- track.absc — 高速道路の「どこまで進んだか」、一般車、ライバルの車
+
+let rival_npcs = []
+let traffic_ready = false
+let track_clock = 0
+
+-- ループの上での位置（0〜1600m）
+func track_s(x, z)
+  let best_d = 100000
+  let best_s = 0
+  let start = 0
+  for i in 1 to 4 do
+    let a = CORNERS[i]
+    let b = CORNERS[i % 4 + 1]
+    let dx = b.x - a.x
+    let dz = b.z - a.z
+    let len = sqrt(dx * dx + dz * dz)
+    let u = clamp(((x - a.x) * dx + (z - a.z) * dz) / (len * len), 0, 1)
+    let px = a.x + dx * u
+    let pz = a.z + dz * u
+    let d = sqrt((x - px) * (x - px) + (z - pz) * (z - pz))
+    if d < best_d then
+      best_d = d
+      best_s = start + u * len
+    end
+    start = start + len
+  end
+  return best_s
+end
+
+func on_highway(c)
+  let x = c.x
+  let z = c.z
+  return (abs(abs(z) - 100) < 9 and abs(x) < 309) or (abs(abs(x) - 300) < 9 and abs(z) < 109)
+end
+
+-- b が a よりどれだけ前か（マイナスはうしろ）
+func gap(a, b)
+  let d = track_s(b.x, b.z) - track_s(a.x, a.z)
+  if d > LOOP / 2 then d = d - LOOP end
+  if d < 0 - LOOP / 2 then d = d + LOOP end
+  return d
+end
+
+func lane_point(i, lane)
+  let c = CORNERS[i]
+  return {x: c.x - sign(c.x) * lane * 4, y: 0.9, z: c.z - sign(c.z) * lane * 4}
+end
+
+func tag_number(b, key, fallback)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or fallback end
+  end
+  return fallback
+end
+
+on start()
+  let k = 0
+  for b in blocks("traffic") do
+    k = k + 1
+    let lane = tag_number(b, "lane", 0)
+    let pts = []
+    let first = k % 4 + 1
+    for j in 0 to 3 do append(pts, lane_point((first + j - 1) % 4 + 1, lane)) end
+    mv_path(b, pts, 6.5 + random() * 3, true, func(p, blk) crash(p) end)
+  end
+end
+
+func crash(p)
+  if not kit_ready(p, "crash", 1.5) then return end
+  p.message("💥 一般車にぶつかった！", 1.2)
+  p.sound("hit")
+  ride_mult(p, "crash", 0.4)
+  kit_later(p, 1.2, func() ride_mult(p, "crash", nil) end)
+  if p.battle != nil then
+    let loss = CRASH_SP * (1 - tune(p, "t_body") * 0.2)
+    p.battle.me = max(0, p.battle.me - loss)
+  end
+  p.crashes = (p.crashes or 0) + 1
+end
+
+-- MARK: ライバルの車（NPC）
+
+func rival_level()
+  let lv = 1
+  for p in players() do lv = max(lv, rep_level(p)) end
+  return lv
+end
+
+func spawn_rival()
+  let lv = rival_level()
+  let pool = filter(RIVALS, func(r) return r.level <= lv and r.level >= lv - 2 end)
+  if len(pool) == 0 then pool = RIVALS end
+  let r = pool[random(1, len(pool))]
+  let corner = random(1, 4)
+  let spot = lane_point(corner, 0)
+  let n = create_npc({name: r.name, position: spot + {x: 0, y: 0.5, z: 0}, color: "#111827", head_color: "#FDE68A", speed: r.speed, health: 100000})
+  n.ride = "sports"
+  n.ride_color = r.color
+  n.rival_n = r.n
+  n.next_corner = corner % 4 + 1
+  n.lane = random(-1, 1)
+  n.move_to(lane_point(n.next_corner, n.lane))
+  append(rival_npcs, n)
+end
+
+func rival_info(n)
+  for r in RIVALS do
+    if r.n == n then return r end
+  end
+  return RIVALS[1]
+end
+
+on tick(dt)
+  track_clock = track_clock + dt
+  if track_clock < 0.5 then return end
+  track_clock = 0
+  rival_npcs = filter(rival_npcs, func(n) return kit_here(n) end)
+  while len(rival_npcs) < 3 do spawn_rival() end
+  for n in rival_npcs do
+    let target = lane_point(n.next_corner, n.lane)
+    if distance(n, target) < 8 then
+      n.next_corner = n.next_corner % 4 + 1
+      n.move_to(lane_point(n.next_corner, n.lane))
+    end
+    -- はみ出したら道にもどす
+    if not on_highway(n) then n.teleport(lane_point(n.next_corner, 0)) end
+  end
+end

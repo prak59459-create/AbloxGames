@@ -1,0 +1,67 @@
+-- Dream Car Dealership — 車屋さんタイクーン
+-- 道ぞいに6つの区画。自分の区画で車を仕入れて並べると、お客さんが見に来て買っていく。
+-- 店を大きくすると並べる数とお客さんがふえ、高い車も仕入れられる。店員・店長をやとおう。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  試乗の車の見た目と速さ
+--   data.absc       車12台・店のレベル・スタッフ
+--   lots.absc       区画・並べる・仕入れ・店を大きく・スタッフ
+--   customers.absc  お客さん
+--   drive.absc      試乗
+--   main.absc       このファイル
+
+kit_setup("Dream Car Dealership", "自分の車屋さんを、ゆめのディーラーに！", [
+  "🏪 色のついた看板のパッドがきみの区画",
+  "🟧 オレンジのパッド（🏭）で工場から車を仕入れて並べる",
+  "🧑 お客さんが車を見に来て、気に入ったら買っていく",
+  "🟪 むらさきのパッド（🏗）で店を大きく・店員・店長",
+  "🚗 緑のパッドで、仕入れたことのある車に試乗（テストコース）",
+  "👑 レベル5の ドリームディーラー をめざそう"
+])
+kit_keep(["display", "owned", "dealer_level", "staff", "manager", "sold", "earned", "laps"])
+
+kit_quest("stock", "車を5台仕入れる", 5, 100)
+kit_quest("sell", "車を10台売る", 10, 300)
+kit_quest("grow", "店を大きくする", 1, 200)
+kit_quest("lap", "テストコースを1周", 1, 80)
+
+kit_on_load = func(p) draw_lot(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  if p.coins == nil or p.coins < 300 then p.coins = 300 end
+  kit_show_money(p)
+  p.display = []
+  p.dealer_level = 1
+  claim_lot(p)
+  draw_lot(p)
+  if p.lot != nil then
+    let sign = block("Lot Sign " + p.lot)
+    if sign != nil then kit_later(p, 0.5, func() p.teleport(sign) end) end
+  end
+  p.ui_button("catalog", "🏭 仕入れ", {at: "right", dy: -110, w: 140, h: 46, size: 15, bg: "#B45309"})
+  p.ui_button("build", "🏗 お店", {at: "right", dy: -58, w: 140, h: 46, size: 15, bg: "#7E22CE"})
+  p.ui_button("testdrive", "🚗 試乗", {at: "right", dy: -6, w: 140, h: 46, size: 15, bg: "#15803D"})
+end
+
+on leave(p)
+  clear_lot(p)
+end
+
+on start()
+  world.music = "shop"
+  every(12, func() kit_leaderboard("🚗 売れた台数") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.sold or 0) != p.score then p.score = p.sold or 0 end
+  end
+end

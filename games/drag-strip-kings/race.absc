@@ -1,0 +1,272 @@
+-- race.absc — ドラッグレース: レーンにならぶ → ツリーのライト → スタート → シフト・ニトロ → ゴール
+
+let green_at = 0
+let lanes_used = 0
+let rival = nil          -- このレースのライバル（表）
+let rival_npc = nil
+let rival_done = 0       -- ライバルのタイム（0 はまだ）
+let finish_order = []
+let race_clock = 0
+
+func car_info(id)
+  for c in CARS do
+    if c.id == id then return c end
+  end
+  return CARS[1]
+end
+
+func tune(p, key)
+  return (p.tunes or {})[key] or 0
+end
+
+func racers()
+  return filter(rnd_players(), func(p) return p.drag_state == "race" or p.drag_state == "done" end)
+end
+
+-- いちばん先に進んでいる人の、次のライバル
+func pick_rival()
+  let next = 1
+  for p in rnd_players() do
+    next = max(next, (p.rival_beaten or 0) + 1)
+  end
+  return RIVALS[min(next, len(RIVALS))]
+end
+
+func lights(n)
+  let k = 0
+  for b in blocks("tree_light") do
+    k = k + 1
+    let lit = k <= n
+    let color = "#3F3F46"
+    if lit then
+      if k == 4 then color = "#22C55E" else color = "#F59E0B" end
+    end
+    b.color = color
+  end
+end
+
+func prepare()
+  finish_order = []
+  rival_done = 0
+  kit_gone(rival_npc)
+  rival_npc = nil
+  lights(0)
+  let i = 0
+  for p in rnd_players() do
+    if i < 8 then
+      i = i + 1
+      p.drag_state = "race"
+      p.lane = i
+      p.gear = 1
+      p.rpm = 0
+      p.nitros = 1 + tune(p, "t_nitro")
+      p.reacted = false
+      p.shift_note = ""
+      let c = car_info(p.car or "hatch")
+      ride_set(p, c.ride, p.paint or c.color, 0.3)
+      p.frozen = true
+      p.teleport(block("Lane Start " + i))
+      p.yaw = 0
+      race_buttons(p)
+    else
+      p.drag_state = "watch"
+      p.message("レーンがいっぱい！ 次のレースへ", 2)
+    end
+  end
+  lanes_used = i
+  rival = pick_rival()
+  if lanes_used < 8 then
+    let spot = block("Lane Start " + (lanes_used + 1))
+    if spot != nil then
+      rival_npc = create_npc({name: rival.name, position: spot.position + {x: 0, y: 1, z: 0}, color: "#111827", head_color: "#FDE68A",
+                              speed: 0, health: 100000})
+      rival_npc.ride = "sports"
+      rival_npc.ride_color = "#DC2626"
+      rival_npc.frozen = true
+      rival_npc.yaw = 0
+    end
+  end
+  announce("🏁 ライバル: " + rival.name + "（" + rival.et + "秒）", 3)
+  for k in 1 to 3 do
+    after(k - 0.5, func() lights(k) end)
+  end
+end
+
+func begin()
+  lights(4)
+  green_at = time()
+  for p in racers() do p.frozen = false end
+  if rival_npc != nil and kit_here(rival_npc) then
+    rival_npc.frozen = false
+    rival_npc.speed = STRIP / rival.et / 5
+    rival_npc.move_to(rival_npc.position + {x: 0, y: 0, z: STRIP + 20})
+  end
+end
+
+func race_buttons(p)
+  p.ui_button("shift", "⬆ シフト", {at: "bottom_right", dx: -30, dy: -170, w: 120, h: 84, size: 22, bg: "#16A34A", radius: 20})
+  p.ui_button("nitro", "🧪 ニトロ", {at: "bottom_right", dx: -170, dy: -170, w: 110, h: 64, size: 18, bg: "#7C3AED", radius: 18})
+  p.ui_button("react", "🟢 GO!", {at: "bottom_right", dx: -30, dy: -270, w: 100, h: 60, size: 18, bg: "#0EA5E9", radius: 18})
+end
+
+func clear_race_ui(p)
+  for id in ["shift", "nitro", "react", "rpm", "gear_t", "spd"] do p.ui_remove(id) end
+end
+
+func shift(p)
+  if p.drag_state != "race" or not rnd_playing() then return end
+  if p.gear >= len(GEARS) then
+    p.message("もう5速！", 0.8)
+    return
+  end
+  let r = p.rpm
+  let note = ""
+  if r >= PERFECT_LOW and r <= PERFECT_HIGH then
+    note = "✨ PERFECT"
+    ride_boost(p, 1.15, 0.8)
+    p.perfects = (p.perfects or 0) + 1
+    kit_quest_progress(p, "perfect", 1)
+  elif r > PERFECT_HIGH then
+    note = "おそい"
+  elif r >= 0.7 then
+    note = "GOOD"
+  else
+    note = "はやすぎ…"
+    ride_mult(p, "bog", 0.75)
+    kit_later(p, 0.6, func() ride_mult(p, "bog", nil) end)
+  end
+  p.gear = p.gear + 1
+  p.rpm = r * 0.45
+  p.message(note, 0.7)
+  p.sound("click")
+end
+
+func nitro(p)
+  if p.drag_state != "race" or not rnd_playing() then return end
+  if (p.nitros or 0) <= 0 then
+    p.message("ニトロがない！", 0.8)
+    return
+  end
+  p.nitros = p.nitros - 1
+  ride_boost(p, 1.35, 2.5)
+  particles("fire", p, {amount: 20})
+  p.sound("powerup")
+end
+
+func react(p)
+  if p.drag_state != "race" or p.reacted then return end
+  p.reacted = true
+  p.ui_remove("react")
+  if not rnd_playing() then
+    p.message("🔴 フライング！", 1)
+    return
+  end
+  let rt = time() - green_at
+  p.last_rt = rt
+  if rt < 0.35 then
+    ride_boost(p, 1.25 + tune(p, "t_tires") * 0.05, 1.6)
+    p.message("⚡ リアクション " + fixed(rt, 2) + "秒 すばらしい！", 1.2)
+  else
+    p.message("リアクション " + fixed(rt, 2) + "秒", 1)
+  end
+end
+
+func finish_run(p)
+  if p.drag_state != "race" or not rnd_playing() then return end
+  p.drag_state = "done"
+  let et = time() - green_at
+  append(finish_order, p)
+  p.races = (p.races or 0) + 1
+  let place = len(finish_order)
+  let coins = max(20, 120 - place * 20)
+  let msg = "🏁 " + place + "位  ET " + fixed(et, 2) + "秒"
+  if p.best_et == nil or et < p.best_et then
+    p.best_et = et
+    msg = msg + "  ⭐ベスト"
+  end
+  leaderboard("drag_et", p, floor(et * 100) / 100, {lower: true})
+  -- ライバルに勝った？
+  if rival != nil and (rival_done == 0 or et < rival_done) and et < rival.et + 0.01 then
+    if (p.rival_beaten or 0) < rival.n then
+      p.rival_beaten = rival.n
+      coins = coins + rival.prize
+      msg = msg + "  🏆 " + rival.name + " に勝った！ +" + rival.prize
+      kit_quest_progress(p, "rivals", 1)
+      if rival.n == len(RIVALS) then kit_badge(p, "king", "ドラッグキング") end
+    end
+  end
+  if place == 1 then
+    p.wins = (p.wins or 0) + 1
+    kit_quest_progress(p, "wins", 1)
+  end
+  kit_give(p, coins)
+  kit_quest_progress(p, "races", 1)
+  p.message(msg, 3)
+  p.sound("goal")
+  clear_race_ui(p)
+  ride_set(p, p.ride, nil, 0.6)
+  if len(filter(racers(), func(q) return q.drag_state == "race" end)) == 0 then rnd_end("done") end
+end
+
+func results(reason)
+  let lines = []
+  let k = 0
+  for p in finish_order do
+    k = k + 1
+    if kit_here(p) then append(lines, k + ". " + p.name + "  " + fixed(p.best_et or 0, 2) + "秒（ベスト）") end
+  end
+  if rival_done > 0 then append(lines, "🤖 " + rival.name + "  " + fixed(rival_done, 2) + "秒") end
+  rnd_results("🏁 レース結果", lines)
+  kit_gone(rival_npc)
+  rival_npc = nil
+  lights(0)
+  for p in rnd_players() do
+    clear_race_ui(p)
+    p.drag_state = nil
+    p.frozen = false
+    p.ride_speed = 1.2
+    ride_apply(p)
+    p.teleport(block("Spawn " + random(1, 8)))
+  end
+end
+
+on tick(dt)
+  race_clock = race_clock + dt
+  if race_clock < 0.1 then return end
+  let passed = race_clock
+  race_clock = 0
+  if not rnd_playing() then return end
+  for p in racers() do
+    if p.drag_state == "race" then
+      let g = p.gear
+      p.rpm = min(1, p.rpm + RPM_RATE[g] * (1 + tune(p, "t_turbo") * 0.12) * passed)
+      let c = car_info(p.car or "hatch")
+      let top = c.top * (1 + tune(p, "t_engine") * 0.06)
+      p.ride_speed = top * GEARS[g] * (0.55 + 0.45 * p.rpm)
+      ride_apply(p)
+      let color = "#F87171"
+      if p.rpm >= PERFECT_LOW and p.rpm <= PERFECT_HIGH then color = "#22C55E" elif p.rpm > PERFECT_HIGH then color = "#DC2626" end
+      p.ui_bar("rpm", p.rpm * 100, 100, {at: "bottom", dy: -120, w: 360, h: 22, color: color})
+      p.ui_text("gear_t", g + "速   " + ride_kmh(p) + " km/h   " + max(0, floor(p.z)) + " / " + STRIP + "m", {at: "bottom", dy: -150, size: 18, bold: true})
+      if p.rpm >= 1 and g < len(GEARS) and kit_ready(p, "limiter", 1.5) then p.message("🔴 シフト！", 0.6) end
+    end
+  end
+  if rival_npc != nil and kit_here(rival_npc) and rival_done == 0 and rival_npc.z >= STRIP then
+    rival_done = time() - green_at
+    rival_npc.stop()
+    rival_npc.say("ゴール！ " + fixed(rival_done, 2) + "秒")
+  end
+  if time() - green_at > 50 then rnd_end("time") end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "drag_finish") then finish_run(p) end
+end
+
+on button(p, id)
+  if id == "shift" then shift(p)
+  elif id == "nitro" then nitro(p)
+  elif id == "react" then react(p)
+  end
+end

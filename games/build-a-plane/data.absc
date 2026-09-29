@@ -1,0 +1,37 @@
+-- data.absc — Build a Plane & Fly の表
+
+-- 部品6つ。レベル0〜5。vals[レベル+1] がそのレベルの力
+let PARTS = [
+  {key: "body", name: "🛩 胴体", what: "乗客（お金 ×）", vals: [1, 1, 1.5, 2.2, 3.2, 4.5], start: 1},
+  {key: "engine", name: "⚙️ エンジン", what: "速さ（m/秒）", vals: [8, 13, 19, 27, 37, 48], start: 1},
+  {key: "wings", name: "🪽 つばさ", what: "すべるように飛ぶ", vals: [1.0, 0.6, 0.42, 0.3, 0.22, 0.15], start: 1},
+  {key: "tank", name: "⛽ タンク", what: "エンジンが動く秒数", vals: [4, 7, 11, 17, 25, 36], start: 0},
+  {key: "tail", name: "🎯 しっぽ", what: "⬆で上がる力", vals: [4, 5.5, 7, 8.5, 10, 12], start: 0},
+  {key: "boost", name: "🚀 ブースター", what: "🚀ボタンの回数", vals: [0, 1, 2, 3, 4, 5], start: 0}
+]
+-- レベル L → L+1 のねだん
+let PART_PRICES = [100, 450, 1600, 5000, 14000]
+-- レベルごとの材料と色
+let TIERS = [
+  {name: "木", color: "#A16207"},
+  {name: "鉄", color: "#94A3B8"},
+  {name: "赤いアルミ", color: "#DC2626"},
+  {name: "カーボン", color: "#1F2937"},
+  {name: "チタン", color: "#E2E8F0"},
+  {name: "金", color: "#FACC15"}
+]
+
+let CLIFF_EDGE = 20       -- ここからのきょりをはかる
+let POWER_GRAVITY = 0.15  -- エンジンが動いているあいだの重さ
+let PAY_PER_M = 0.5       -- 1m で 💰0.5（×乗客）
+let RING_FUEL = 1.5       -- 輪をくぐると エンジンの秒数がふえる
+let BOOST_SECS = 3
+let CEILING = 120
+
+-- 島: 着陸するとボーナス
+let ISLANDS = [
+  {n: 1, name: "🏝 ヤシの島", bonus: 300},
+  {n: 2, name: "🏝 カモメの島", bonus: 1200},
+  {n: 3, name: "🏝 たからの島", bonus: 5000},
+  {n: 4, name: "🏝 さいはての島", bonus: 20000}
+]

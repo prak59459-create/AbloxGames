@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 317,
+  "bytes" : 186874,
+  "cover" : "games\/build-a-plane\/cover-5e0fea5f.png",
+  "id" : "build-a-plane",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "games\/build-a-plane\/data.absc",
+    "games\/build-a-plane\/flight.absc",
+    "games\/build-a-plane\/hangar.absc",
+    "games\/build-a-plane\/zz_test.absc",
+    "games\/build-a-plane\/main.absc"
+  ],
+  "shots" : [
+    "games\/build-a-plane\/shot1-fa2a7783.png",
+    "games\/build-a-plane\/shot2-4d6c6b0f.png"
+  ],
+  "summary" : "がけの上の格納庫で飛行機を組み立てて、海の向こうへ飛ばそう！ 遠くへ飛ぶほどお金が入る。つばさ・エンジン・タンク・しっぽ・ブースターを強くして、4つの島を見つけよう。",
+  "tags" : [
+    "building",
+    "flying",
+    "simulator"
+  ],
+  "title" : "Build a Plane & Fly",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/build-a-plane\/world.ablox"
+}

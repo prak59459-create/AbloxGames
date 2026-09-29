@@ -1,0 +1,68 @@
+-- Drag Strip Kings — 400mのドラッグレース
+-- レーンにならんで、ツリーのライトが🟢になったらスタート（「GO!」を早く押すとロケットスタート）。
+-- メーターが🟩のときに「シフト」で PERFECT。ここぞで「ニトロ」。ライバル10人に順番に勝とう。
+--
+-- ファイル:
+--   ../../lib/kit_rounds.absc  レースの進みかた
+--   ../../lib/kit_ride.absc    車の見た目と速さ・ブースト
+--   data.absc    車6台・チューニング・ギア・ライバル10人
+--   race.absc    レース（ライト・シフト・ニトロ・ゴール）
+--   garage.absc  ガレージ・チューニング・ライバル表
+--   main.absc    このファイル
+
+kit_setup("Drag Strip Kings", "シフトのタイミングで勝負がきまる！", [
+  "🚦 ライトが3つ黄色 → 🟢緑でスタート。「GO!」を早く押すとロケットスタート",
+  "⬆ メーターが🟩のときにシフトすると PERFECT（はやすぎると もたつく）",
+  "🧪 ニトロは1レース1本（チューニングでふえる）",
+  "🏆 ライバルのタイムより速くゴールすると勝ち。10人目がドラッグキング",
+  "🔧 ガレージで車、🔩 水色のパッドでチューニング",
+  "↑ スティックを前にたおしつづけて走ろう"
+])
+kit_keep(["cars", "car", "paint", "tunes", "rival_beaten", "best_et", "wins", "races", "perfects"])
+
+rnd_setup({wait: 12, play: 60, results: 8, label: "レース"})
+rnd_on_prepare = func() prepare() end
+rnd_on_begin = func() begin() end
+rnd_on_end = func(reason) results(reason) end
+
+kit_quest("races", "5レース走る", 5, 150)
+kit_quest("perfect", "PERFECTシフトを10回", 10, 150)
+kit_quest("wins", "1位になる", 1, 120)
+kit_quest("rivals", "ライバルに3人勝つ", 3, 400)
+kit_quest("tune", "チューニングを5回", 5, 200)
+kit_quest("car", "車を買う", 1, 100)
+
+kit_on_load = func(p)
+  let c = car_info(p.car or "hatch")
+  ride_set(p, c.ride, p.paint or c.color, 1.2)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.cars = ["hatch"]
+  p.car = "hatch"
+  p.tunes = {}
+  p.camera_distance = 10
+  ride_set(p, "car", "#EF4444", 1.2)
+  p.ui_button("garage", "🔧 ガレージ", {at: "right", dy: -110, w: 140, h: 46, size: 15, bg: "#B45309"})
+  p.ui_button("tune", "🔩 チューン", {at: "right", dy: -58, w: 140, h: 46, size: 15, bg: "#0E7490"})
+  p.ui_button("rivals", "🏆 ライバル", {at: "right", dy: -6, w: 140, h: 46, size: 15, bg: "#991B1B"})
+end
+
+on start()
+  world.music = "race"
+  every(12, func() kit_leaderboard("🏁 勝ち") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.wins or 0) != p.score then p.score = p.wins or 0 end
+  end
+end

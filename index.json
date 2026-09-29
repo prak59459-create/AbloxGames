@@ -3014,6 +3014,226 @@
       "title" : "Fishy Obby",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/fishy-obby\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 82,
+      "bytes" : 82516,
+      "cover" : "games\/drag-strip-kings\/cover-3cd478cf.png",
+      "id" : "drag-strip-kings",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_rounds.absc",
+        "lib\/kit_ride.absc",
+        "games\/drag-strip-kings\/data.absc",
+        "games\/drag-strip-kings\/garage.absc",
+        "games\/drag-strip-kings\/race.absc",
+        "games\/drag-strip-kings\/main.absc"
+      ],
+      "shots" : [
+        "games\/drag-strip-kings\/shot1-b23a1f78.png",
+        "games\/drag-strip-kings\/shot2-c10517c7.png"
+      ],
+      "summary" : "400mのドラッグレース！ メーターが🟩のときにシフトアップ、ここぞでニトロ。エンジン・ターボ・タイヤをチューニングして、10人のライバルに勝ちすすめ。ウイリーも。",
+      "tags" : [
+        "racing",
+        "cars",
+        "tuning"
+      ],
+      "title" : "Drag Strip Kings",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/drag-strip-kings\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 507,
+      "bytes" : 282905,
+      "cover" : "games\/midnight-highway-battle\/cover-a417ca04.png",
+      "id" : "midnight-highway-battle",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "lib\/kit_move.absc",
+        "games\/midnight-highway-battle\/data.absc",
+        "games\/midnight-highway-battle\/battle.absc",
+        "games\/midnight-highway-battle\/garage.absc",
+        "games\/midnight-highway-battle\/track.absc",
+        "games\/midnight-highway-battle\/main.absc"
+      ],
+      "shots" : [
+        "games\/midnight-highway-battle\/shot1-8c60d264.png",
+        "games\/midnight-highway-battle\/shot2-90400f2a.png"
+      ],
+      "summary" : "真夜中の高速道路。ライバルのうしろでパッシング🔦するとバトル開始！ はなされるほどSPがへって、先に0になったほうの負け。一般車をよけながら走れ。パーキングで車とチューニング。",
+      "tags" : [
+        "racing",
+        "cars",
+        "night"
+      ],
+      "title" : "Midnight Highway Battle",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/midnight-highway-battle\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 466,
+      "bytes" : 262746,
+      "cover" : "games\/dream-car-dealership\/cover-a118f320.png",
+      "id" : "dream-car-dealership",
+      "maxPlayers" : 6,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "games\/dream-car-dealership\/data.absc",
+        "games\/dream-car-dealership\/customers.absc",
+        "games\/dream-car-dealership\/drive.absc",
+        "games\/dream-car-dealership\/lots.absc",
+        "games\/dream-car-dealership\/main.absc"
+      ],
+      "shots" : [
+        "games\/dream-car-dealership\/shot1-6802dcab.png",
+        "games\/dream-car-dealership\/shot2-eef15e1e.png"
+      ],
+      "summary" : "自分の車屋さんをひらこう！ 工場から車を仕入れて並べると、お客さんが見に来て買っていく。店を大きく、スタッフをやとって、スーパーカーまで。自分の車はテストコースで試乗も。",
+      "tags" : [
+        "tycoon",
+        "cars",
+        "shop"
+      ],
+      "title" : "Dream Car Dealership",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/dream-car-dealership\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 1147,
+      "bytes" : 602578,
+      "cover" : "games\/green-valley-drive\/cover-3f4c0245.png",
+      "id" : "green-valley-drive",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "lib\/kit_move.absc",
+        "games\/green-valley-drive\/data.absc",
+        "games\/green-valley-drive\/dealer.absc",
+        "games\/green-valley-drive\/exam.absc",
+        "games\/green-valley-drive\/jobs.absc",
+        "games\/green-valley-drive\/town.absc",
+        "games\/green-valley-drive\/main.absc"
+      ],
+      "shots" : [
+        "games\/green-valley-drive\/shot1-0d2c533f.png",
+        "games\/green-valley-drive\/shot2-da85b5cb.png"
+      ],
+      "summary" : "緑の谷の町をドライブ！ ガソリンを入れて、信号とスピードを守って、宅配やピザ配達でお金をかせごう。免許試験に合格すると乗れる車がふえる。洗車もできるよ。",
+      "tags" : [
+        "roleplay",
+        "cars",
+        "town"
+      ],
+      "title" : "Green Valley Drive",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/green-valley-drive\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 640,
+      "bytes" : 358214,
+      "cover" : "games\/dusty-road-trip\/cover-3784e7af.png",
+      "id" : "dusty-road-trip",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "lib\/kit_move.absc",
+        "games\/dusty-road-trip\/data.absc",
+        "games\/dusty-road-trip\/bandits.absc",
+        "games\/dusty-road-trip\/loot.absc",
+        "games\/dusty-road-trip\/shop.absc",
+        "games\/dusty-road-trip\/trip.absc",
+        "games\/dusty-road-trip\/main.absc"
+      ],
+      "shots" : [
+        "games\/dusty-road-trip\/shot1-a6ca4f89.png",
+        "games\/dusty-road-trip\/shot2-548b2140.png"
+      ],
+      "summary" : "砂漠の一本道を、どこまで行ける？ ガソリン・エンジン・水に気をつけて、とちゅうの廃墟でガソリン缶や部品をひろおう。夜は盗賊、昼は砂あらし。2.4km先のオアシスの町をめざせ！",
+      "tags" : [
+        "survival",
+        "cars",
+        "desert"
+      ],
+      "title" : "Dusty Road Trip",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/dusty-road-trip\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 317,
+      "bytes" : 186165,
+      "cover" : "games\/build-a-plane\/cover-5e0fea5f.png",
+      "id" : "build-a-plane",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "games\/build-a-plane\/data.absc",
+        "games\/build-a-plane\/flight.absc",
+        "games\/build-a-plane\/hangar.absc",
+        "games\/build-a-plane\/main.absc"
+      ],
+      "shots" : [
+        "games\/build-a-plane\/shot1-fa2a7783.png",
+        "games\/build-a-plane\/shot2-4d6c6b0f.png"
+      ],
+      "summary" : "がけの上の格納庫で飛行機を組み立てて、海の向こうへ飛ばそう！ 遠くへ飛ぶほどお金が入る。つばさ・エンジン・タンク・しっぽ・ブースターを強くして、4つの島を見つけよう。",
+      "tags" : [
+        "building",
+        "flying",
+        "simulator"
+      ],
+      "title" : "Build a Plane & Fly",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/build-a-plane\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 326,
+      "bytes" : 192785,
+      "cover" : "games\/island-flight-school\/cover-fcd55be5.png",
+      "id" : "island-flight-school",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_ride.absc",
+        "games\/island-flight-school\/data.absc",
+        "games\/island-flight-school\/flight.absc",
+        "games\/island-flight-school\/missions.absc",
+        "games\/island-flight-school\/main.absc"
+      ],
+      "shots" : [
+        "games\/island-flight-school\/shot1-99de9b05.png",
+        "games\/island-flight-school\/shot2-f2523d59.png"
+      ],
+      "summary" : "島の空港でパイロットになろう！ スロットルで速さ、⬆⬇で上昇・下降。お客さんをのせて ほかの島の空港へ飛び、滑走路にふんわり着陸。ランクが上がると ジェット機や旅客機に乗れる。",
+      "tags" : [
+        "flying",
+        "simulator",
+        "roleplay"
+      ],
+      "title" : "Island Flight School",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/island-flight-school\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

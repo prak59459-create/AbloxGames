@@ -1,0 +1,83 @@
+-- loot.absc — ひろうもの（赤: ガソリン缶、青: 水、黄緑: 修理キット、灰色: 部品＝お金）、道の石、転がる草、オアシス
+
+let taken = []      -- {b, at}
+let loot_clock = 0
+
+func tag_text(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return replace(t, key + "=", "") end
+  end
+  return nil
+end
+
+func pick_up(p, b)
+  if not b.visible then return end
+  if p.trip == nil then
+    if kit_ready(p, "loot_hint", 4) then p.message("旅のとちゅうで ひろえるよ（スタートラインから出発）", 1.5) end
+    return
+  end
+  let kind = tag_text(b, "kind")
+  if kind == "scrap" then
+    let n = random(12, 28)
+    kit_give(p, n)
+    p.trip.scrap = p.trip.scrap + n
+    p.message("🔩 部品！ 💰" + n, 1)
+    p.sound("coin")
+  else
+    if not give(p, kind, 1) then return end
+    p.message(ITEMS[kind].icon + " " + ITEMS[kind].name + " をトランクへ", 1)
+    p.sound("pop")
+  end
+  p.trip.loot = p.trip.loot + 1
+  p.found = (p.found or 0) + 1
+  kit_quest_progress(p, "loot", 1)
+  b.visible = false
+  append(taken, {b: b, at: time()})
+end
+
+func hit_rock(p)
+  if p.trip == nil or ride_kmh(p) < 15 or not kit_ready(p, "rock", 1.5) then return end
+  damage_car(p, 8, "🪨 ガタン！ 石にのりあげた")
+  p.sound("hit")
+end
+
+func hit_weed(p)
+  if p.trip == nil or not kit_ready(p, "weed", 2) then return end
+  damage_car(p, 3, "🌾 転がる草にぶつかった")
+  ride_mult(p, "weed", 0.5)
+  kit_later(p, 0.8, func() ride_mult(p, "weed", nil) end)
+end
+
+func drink(p)
+  if p.trip == nil or not kit_ready(p, "oasis", 3) then return end
+  p.trip.water = 100
+  p.message("💧 オアシスの水！ ごくごく…（水 100）", 1.5)
+  p.sound("splash")
+  particles("bubbles", p, {amount: 20})
+end
+
+on start()
+  for b in blocks("tumbleweed") do
+    mv_patrol(b, {x: 28, y: 0, z: 0}, 3 + random() * 2, 0.5, func(p, blk) hit_weed(p) end)
+  end
+end
+
+on tick(dt)
+  loot_clock = loot_clock + dt
+  if loot_clock < 2 then return end
+  loot_clock = 0
+  let now = time()
+  let keep = []
+  for it in taken do
+    if now - it.at >= LOOT_RESPAWN then it.b.visible = true else append(keep, it) end
+  end
+  taken = keep
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "loot") then pick_up(p, b)
+  elif contains(b.tags, "rock") then hit_rock(p)
+  elif contains(b.tags, "oasis") then drink(p)
+  end
+end

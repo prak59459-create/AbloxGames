@@ -1,0 +1,137 @@
+-- customers.absc — お客さん（NPC）が来て、車を見て、買っていく
+
+let customers = []
+let cust_clock = 0
+let cust_spawn = 0
+
+func lot_score(p)
+  return shown_count(p) * level_info(p).rating
+end
+
+func pick_target()
+  let total = 0
+  for p in players() do
+    if p.lot != nil then total = total + lot_score(p) end
+  end
+  if total <= 0 then return nil end
+  let r = random() * total
+  for p in players() do
+    if p.lot != nil then
+      r = r - lot_score(p)
+      if r <= 0 then
+        let spots = []
+        for j in 1 to level_info(p).slots do
+          let id = (p.display or [])[j]
+          if id != nil and id != "" then append(spots, j) end
+        end
+        if len(spots) > 0 then return {owner: p, spot: spots[random(1, len(spots))]} end
+      end
+    end
+  end
+  return nil
+end
+
+func spawn_customer()
+  let t = pick_target()
+  if t == nil then return end
+  let gate = block("Customer Gate")
+  if gate == nil then return end
+  let n = create_npc({name: "お客さん", position: gate.position + {x: 0, y: 1, z: random() * 4 - 2}, color: random_color(), speed: 1.2,
+                      health: 100000})
+  let spot = spot_block(t.owner, t.spot)
+  if spot == nil then
+    kit_gone(n)
+    return
+  end
+  n.move_to(spot.position + {x: 2.2, y: 0, z: 0})
+  append(customers, {npc: n, owner: t.owner.id, spot: t.spot, state: "walk", until: time() + 40})
+end
+
+func owner_by_id(id)
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func leave_shop(c)
+  c.state = "leave"
+  c.until = time() + 40
+  let exit = block("Customer Exit")
+  if exit != nil and kit_here(c.npc) then c.npc.move_to(exit) end
+end
+
+func decide(c)
+  let p = owner_by_id(c.owner)
+  if p == nil then
+    leave_shop(c)
+    return
+  end
+  let id = (p.display or [])[c.spot]
+  if id == nil or id == "" then
+    c.npc.say("あれ、売れちゃった？")
+    leave_shop(c)
+    return
+  end
+  let car = car_info(id)
+  let chance = BUY_CHANCE + (p.dealer_level or 1) * 0.05 + (p.staff or 0) * 0.08
+  if random() < chance then
+    c.npc.say("この " + car.name + " ください！")
+    p.display[c.spot] = ""
+    draw_spot(p, c.spot)
+    kit_give(p, car.price)
+    p.sold = (p.sold or 0) + 1
+    p.earned = (p.earned or 0) + car.price
+    kit_quest_progress(p, "sell", 1)
+    p.message("💰 " + car.name + " が売れた！ +" + kit_short(car.price), 2)
+    p.sound("coin")
+    if p.manager and kit_can_pay(p, car.cost) then
+      kit_pay(p, car.cost)
+      p.display[c.spot] = id
+      draw_spot(p, c.spot)
+    end
+    lot_hud(p)
+  else
+    c.npc.say(random(["うーん、また今度", "ちょっと高いな…", "ほかも見てみよう"]))
+  end
+  leave_shop(c)
+end
+
+on tick(dt)
+  cust_clock = cust_clock + dt
+  if cust_clock < 0.5 then return end
+  cust_clock = 0
+  cust_spawn = cust_spawn + 0.5
+  if cust_spawn >= CUSTOMER_EVERY and len(customers) < MAX_CUSTOMERS then
+    cust_spawn = 0
+    spawn_customer()
+  end
+  let keep = []
+  for c in customers do
+    if not kit_here(c.npc) or time() > c.until then
+      kit_gone(c.npc)
+    else
+      if c.state == "walk" then
+        let p = owner_by_id(c.owner)
+        let spot = nil
+        if p != nil then spot = spot_block(p, c.spot) end
+        if spot == nil then
+          leave_shop(c)
+        elif distance(c.npc, spot) < 3.5 then
+          c.state = "look"
+          c.npc.stop()
+          c.npc.say(random(["いい車だな…", "ピカピカ！", "いくらかな？"]))
+          c.until = time() + 4 + random() * 2
+        end
+        append(keep, c)
+      elif c.state == "look" then
+        if time() > c.until - 0.1 then decide(c) end
+        append(keep, c)
+      else
+        let exit = block("Customer Exit")
+        if exit != nil and distance(c.npc, exit) < 4 then kit_gone(c.npc) else append(keep, c) end
+      end
+    end
+  end
+  customers = keep
+end

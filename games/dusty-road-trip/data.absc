@@ -1,0 +1,37 @@
+-- data.absc — Dusty Road Trip の表
+
+-- ずっと残る改造（ガレージで）: per は1レベルでふえる量
+let UPGRADES = [
+  {key: "u_engine", name: "🔧 エンジン（速さ）", per: 0.12},
+  {key: "u_tank", name: "⛽ タンク（+10L）", per: 10},
+  {key: "u_armor", name: "🛡 よろい（こわれにくい）", per: 0.12},
+  {key: "u_cooler", name: "🧊 クーラー（のどがかわきにくい）", per: 0.12},
+  {key: "u_trunk", name: "🧳 トランク（+2こ）", per: 2}
+]
+let UP_PRICES = [150, 400, 900, 1800, 3500]
+
+let BASE_SPEED = 2.0      -- 車の速さの倍率
+let BASE_TANK = 30        -- L
+let FUEL_USE = 1.1        -- 100m で使う L
+let BASE_TRUNK = 4        -- 持てる道具の数
+let WATER_DRAIN = 0.55    -- 1秒でへる水（昼）
+let TRIP_END = 2420       -- オアシスの町
+let LOOT_RESPAWN = 90     -- ひろったものが また出るまで（秒）
+
+-- 道具（トランクに入る）: use で使う
+let ITEMS = {
+  fuel: {name: "ガソリン缶", icon: "⛽", text: "⛽ +12L"},
+  water: {name: "水", icon: "💧", text: "💧 +40"},
+  repair: {name: "修理キット", icon: "🔧", text: "🔧 +35%"}
+}
+
+-- 交易所で買えるもの
+let TRADE = [
+  {kind: "fuel", price: 30},
+  {kind: "water", price: 20},
+  {kind: "repair", price: 60}
+]
+
+-- 盗賊
+let BANDIT_MAX = 6
+let BANDIT_HIT = 5        -- 近くにいると 0.5秒ごとに エンジンがこれだけへる

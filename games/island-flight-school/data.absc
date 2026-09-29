@@ -1,0 +1,32 @@
+-- data.absc — Island Flight School の表
+
+-- 飛行機: top は最高速（m/秒）、stall はこれより おそいと落ちていく速さ、climb は上がる速さ、pax は のせられるお客さん
+let PLANES = [
+  {id: "cub", name: "🛩 プロペラ機", price: 0, rank: 1, top: 30, stall: 11, climb: 5, pax: 2, color: "#F8FAFC"},
+  {id: "twin", name: "🛩 双発機", price: 1500, rank: 2, top: 38, stall: 14, climb: 6, pax: 6, color: "#FACC15"},
+  {id: "jet", name: "✈️ ビジネスジェット", price: 6000, rank: 3, top: 52, stall: 19, climb: 8, pax: 10, color: "#60A5FA"},
+  {id: "liner", name: "✈️ 旅客機", price: 18000, rank: 4, top: 60, stall: 23, climb: 7, pax: 30, color: "#E2E8F0"},
+  {id: "stunt", name: "🛩 アクロバット機", price: 9000, rank: 3, top: 46, stall: 12, climb: 11, pax: 1, color: "#EF4444"}
+]
+
+-- ランク: xp がたまると上がる
+let RANKS = [
+  {n: 1, name: "🎓 訓練生", xp: 0},
+  {n: 2, name: "🧑‍✈️ 副操縦士", xp: 300},
+  {n: 3, name: "👨‍✈️ 機長", xp: 1200},
+  {n: 4, name: "🏅 エースパイロット", xp: 4000}
+]
+
+let AIRPORTS = [
+  {n: 1, name: "みなみ空港"},
+  {n: 2, name: "ヤシの木空港"},
+  {n: 3, name: "ゆきやま空港"},
+  {n: 4, name: "火山空港"}
+]
+
+let THROTTLE_STEPS = 5     -- スロットル 0〜5
+let ACCEL = 6              -- 1秒で速さがかわる量
+let PAY_BASE = 60
+let PAY_PER_M = 0.12       -- 1m ごと（×お客さん）
+let LAND_SOFT = 2.0        -- これよりゆっくりおりると「バター！」（⬇1段目で ふんわり）
+let LAND_OK = 4.5          -- これより速くおりるとハードランディング

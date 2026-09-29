@@ -1,0 +1,89 @@
+-- drive.absc — 自分の車で試乗（テストコースを1周）
+
+func owned_menu(p)
+  let list = filter(CARS, func(c) return contains(p.owned or [], c.id) end)
+  if len(list) == 0 then
+    p.message("まだ車を仕入れていないよ", 1.5)
+    return
+  end
+  let h = 140 + len(list) * 42
+  p.ui_remove("drv_box")
+  p.ui_panel("drv_box", {at: "center", w: 520, h: h, bg: "#14532DF2", radius: 22, layer: 30})
+  p.ui_text("drv_t", "🚗 どの車で試乗する？", {parent: "drv_box", y: 26 / h, size: 19, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for c in list do
+    i = i + 1
+    let best = ""
+    if p.laps != nil and p.laps[c.id] != nil then best = "  ⏱ " + fixed(p.laps[c.id], 1) + "秒" end
+    p.ui_button("drive_" + c.id, c.name + best, {parent: "drv_box", y: (28 + i * 42) / h, w: 480, h: 36, size: 14, bg: "#15803D"})
+  end
+  p.ui_button("drv_close", "閉じる", {parent: "drv_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func start_drive(p, id)
+  p.ui_remove("drv_box")
+  let c = car_info(id)
+  p.driving = id
+  p.tt_next = 1
+  p.tt_start = nil
+  ride_set(p, c.ride, c.color, c.speed)
+  let pad = block("TT 1")
+  if pad != nil then p.teleport(pad.position + {x: 0, y: 0, z: -8}) end
+  p.ui_button("get_out", "🚶 おりる", {at: "right", dy: 60, w: 130, h: 46, size: 15, bg: "#78716C"})
+  p.message("🚗 " + c.name + " で試乗！ 白い輪を1→2→3→4→1と通って1周", 2.5)
+end
+
+func stop_drive(p)
+  p.driving = nil
+  ride_off(p)
+  p.ui_remove("get_out")
+  p.ui_remove("tt_clock")
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "testdrive") and kit_ready(p, "td", 3) then owned_menu(p)
+  elif contains(b.tags, "display") then
+    if tag_num(b, "lot") == p.lot and kit_ready(p, "disp", 3) then
+      let id = (p.display or [])[tag_num(b, "spot")]
+      if id != nil and id != "" then p.message("🚗 " + car_info(id).name + "（売り値 💰" + kit_short(car_info(id).price) + "）", 1.5) end
+    end
+  elif contains(b.tags, "tt") and p.driving != nil then
+    let n = tag_num(b, "n")
+    if n != p.tt_next then return end
+    if n == 1 and p.tt_start != nil then
+      let lap = time() - p.tt_start
+      if p.laps == nil then p.laps = {} end
+      let msg = "⏱ 1周 " + fixed(lap, 1) + "秒"
+      if p.laps[p.driving] == nil or lap < p.laps[p.driving] then
+        p.laps[p.driving] = lap
+        msg = msg + "  ⭐ベスト"
+      end
+      kit_give(p, 20)
+      kit_quest_progress(p, "lap", 1)
+      p.message(msg, 2)
+    end
+    if n == 1 then p.tt_start = time() end
+    p.tt_next = n % 4 + 1
+  end
+end
+
+let drive_clock = 0
+on tick(dt)
+  drive_clock = drive_clock + dt
+  if drive_clock < 0.5 then return end
+  drive_clock = 0
+  for p in players() do
+    if p.driving != nil and p.tt_start != nil then
+      p.ui_text("tt_clock", "⏱ " + fixed(time() - p.tt_start, 1) + "   " + ride_kmh(p) + " km/h", {at: "top", dy: 80, size: 18, bold: true})
+    end
+  end
+end
+
+on button(p, id)
+  if id == "testdrive" then owned_menu(p)
+  elif id == "drv_close" then p.ui_remove("drv_box")
+  elif starts_with(id, "drive_") then start_drive(p, replace(id, "drive_", ""))
+  elif id == "get_out" then stop_drive(p)
+  end
+end

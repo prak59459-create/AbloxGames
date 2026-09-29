@@ -1,0 +1,120 @@
+-- kit_ride.absc — 乗り物（Ablox Games の共通エンジン）
+--
+-- p.ride の見た目（car sports truck kart bike scooter jetpack hoverboard）と速さをまとめてあつかう。
+-- ホバーボードは水に浮くのでボートにも、ジェットパックは空を飛ぶので飛行機にもなる。
+--
+--   ride_set(p, "sports", "#EF4444", 2.4)   -- 乗る（見た目・色・速さ）
+--   ride_off(p)                              -- おりる
+--   ride_boost(p, 1.6, 2.5)                  -- 2.5秒 1.6ばい
+--   ride_mult(p, "fuel", 0.4)                -- ゲームの倍率（名前ごと。nil でけす）: ガス欠・ぬかるみなど
+--   ride_launch(p, yaw, 16, 8)               -- その向きへとばす（空中でも向きをたもつ）
+--   ride_fly(p, true, 0.08)                  -- 空を飛ぶ（重力を小さく。⬆⬇ボタンで上下）
+--   ride_speed_now(p)                        -- いまの速さの倍率
+--   ride_kmh(p)                              -- いまのスピード（km/h、画面用）
+
+let ride_clock = 0
+
+func ride_set(p, kind, color, speed)
+  if p.ride != kind then p.ride = kind end
+  if color != nil then p.ride_color = color end
+  p.ride_speed = speed
+  ride_apply(p)
+end
+
+func ride_off(p)
+  p.ride = "none"
+  p.ride_speed = nil
+  p.ride_boost_until = nil
+  p.ride_mults = nil
+  ride_fly(p, false, 1)
+  p.speed = 1
+end
+
+func ride_mult(p, key, value)
+  if p.ride_mults == nil then p.ride_mults = {} end
+  p.ride_mults[key] = value
+  ride_apply(p)
+end
+
+func ride_speed_now(p)
+  let s = p.ride_speed or 1
+  if (p.ride_boost_until or 0) > time() then s = s * (p.ride_boost or 1.5) end
+  if p.ride_mults != nil then
+    for k in keys(p.ride_mults) do s = s * p.ride_mults[k] end
+  end
+  return clamp(s, 0, 10)
+end
+
+func ride_apply(p)
+  if not kit_here(p) then return end
+  let s = ride_speed_now(p)
+  if abs(p.speed - s) > 0.01 then p.speed = s end
+end
+
+func ride_boost(p, mult, secs)
+  p.ride_boost = mult
+  p.ride_boost_until = time() + secs
+  ride_apply(p)
+end
+
+-- 横向きの速さから km/h（1m/秒 = 3.6km/h。見せるだけなので少しもり気味）
+func ride_kmh(p)
+  let v = p.velocity
+  return floor(sqrt(v.x * v.x + v.z * v.z) * 3.6 * 1.6)
+end
+
+func ride_launch(p, yaw, push, up)
+  let d = {x: sin(yaw), y: 0, z: cos(yaw)}
+  p.velocity = {x: d.x * push, y: up, z: d.z * push}
+  p.ride_carry = {dir: d, speed: push * 0.9, until: time() + up / 9}
+end
+
+-- MARK: 空を飛ぶ
+
+func ride_fly(p, enabled, gravity)
+  p.ride_flying = enabled
+  if enabled then
+    p.gravity = gravity or 0.08
+    p.ui_button("ride_up", "⬆️", {at: "bottom_right", dx: -30, dy: -250, w: 64, h: 64, size: 26, bg: "#0EA5E9", radius: 32})
+    p.ui_button("ride_down", "⬇️", {at: "bottom_right", dx: -30, dy: -176, w: 64, h: 64, size: 26, bg: "#475569", radius: 32})
+  else
+    p.gravity = 1
+    p.ui_remove("ride_up")
+    p.ui_remove("ride_down")
+  end
+end
+
+func ride_climb(p, dir)
+  if not p.ride_flying then return end
+  let v = p.velocity
+  let lift = p.ride_lift or 7
+  p.velocity = {x: v.x, y: dir * lift, z: v.z}
+  p.ride_climb_until = time() + 0.6
+end
+
+on tick(dt)
+  ride_clock = ride_clock + dt
+  if ride_clock < 0.1 then return end
+  ride_clock = 0
+  let now = time()
+  for p in players() do
+    if p.ride_carry != nil then
+      if now < p.ride_carry.until and p.alive then
+        let v = p.velocity
+        p.velocity = {x: p.ride_carry.dir.x * p.ride_carry.speed, y: v.y, z: p.ride_carry.dir.z * p.ride_carry.speed}
+      else
+        p.ride_carry = nil
+      end
+    end
+    if p.ride_boost_until != nil and now > p.ride_boost_until then
+      p.ride_boost_until = nil
+      ride_apply(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "ride_up" then ride_climb(p, 1)
+  elif id == "ride_down" then ride_climb(p, -1)
+  end
+end

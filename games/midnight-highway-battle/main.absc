@@ -1,0 +1,64 @@
+-- Midnight Highway Battle — 真夜中の高速道路でバトル
+-- ループの高速道路を走り、ライバルのうしろで 🔦 パッシング → 3秒後にバトル開始。
+-- うしろにいるほうのSPがへっていき、先に0になったほうの負け。一般車にぶつかるとSPがへる。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  車の見た目と速さ・ブースト
+--   ../../lib/kit_move.absc  一般車の当たり判定
+--   data.absc     車・チューニング・ライバル12人
+--   track.absc    コースの位置・一般車・ライバルの車
+--   battle.absc   SPバトル
+--   garage.absc   ディーラー・チューニング・ライバル表
+--   main.absc     このファイル
+
+kit_setup("Midnight Highway Battle", "ライバルにパッシング、バトル開始！", [
+  "🅿️ パーキングから高速道路へ。スティックを前にたおして走る",
+  "🔦 ライバル（名前つきの車）の近くでパッシングするとバトル",
+  "⚔ うしろにいるとSPがへる。先に0になったら負け",
+  "💥 一般車にぶつかるとSPがへる。💨 ブーストは1バトル1回",
+  "🏆 勝つとコインとREP。REPが上がると強いライバルがあらわれる",
+  "🚗 ディーラーで車、🔩 チューニング、🏁 ライバル表"
+])
+kit_keep(["cars", "car", "paint", "tunes", "beaten", "rep", "wins", "losses", "crashes"])
+
+kit_quest("wins", "バトルに3回勝つ", 3, 200)
+kit_quest("wins10", "バトルに10回勝つ", 10, 600)
+kit_quest("tune", "チューニングを3回", 3, 150)
+kit_quest("car", "車を買う", 1, 100)
+
+kit_on_load = func(p)
+  car_apply(p)
+  rep_show(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.cars = ["kei"]
+  p.car = "kei"
+  p.tunes = {}
+  p.camera_distance = 11
+  car_apply(p)
+  rep_show(p)
+  p.ui_button("flash", "🔦 パッシング", {at: "bottom_right", dx: -30, dy: -260, w: 150, h: 60, size: 17, bg: "#CA8A04", radius: 18})
+  p.ui_button("dealer", "🚗 ディーラー", {at: "right", dy: -60, w: 150, h: 46, size: 15, bg: "#6D28D9"})
+end
+
+on start()
+  world.music = "race"
+  every(12, func() kit_leaderboard("🏆 勝ち") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.wins or 0) != p.score then
+      p.score = p.wins or 0
+    end
+  end
+end

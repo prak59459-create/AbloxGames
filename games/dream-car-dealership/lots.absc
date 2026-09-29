@@ -1,0 +1,248 @@
+-- lots.absc — 自分の店（区画）・車を並べる・仕入れ・店を大きく・スタッフ
+
+let lots = {}          -- "l1" → プレイヤーのid
+let lot_blocks = {}    -- プレイヤーのid → {スポット番号 → ブロックのリスト}
+let staff_npcs = {}    -- プレイヤーのid → NPCのリスト
+
+func car_info(id)
+  for c in CARS do
+    if c.id == id then return c end
+  end
+  return CARS[1]
+end
+
+func level_info(p)
+  return LEVELS[clamp(p.dealer_level or 1, 1, len(LEVELS))]
+end
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or 0 end
+  end
+  return 0
+end
+
+func owner_of(k)
+  let id = lots["l" + k]
+  if id == nil then return nil end
+  for p in players() do
+    if p.id == id then return p end
+  end
+  return nil
+end
+
+func claim_lot(p)
+  for k in 1 to 6 do
+    if lots["l" + k] == nil then
+      lots["l" + k] = p.id
+      p.lot = k
+      let sign = block("Lot Sign " + k)
+      if sign != nil then sign.color = p.color end
+      p.message("🏪 " + k + "ばんの区画が きみのお店！", 2.5)
+      return
+    end
+  end
+  p.message("区画がいっぱい… お客さんとして遊ぼう", 2)
+end
+
+func spot_block(p, j)
+  return block("Lot " + p.lot + " Spot " + j)
+end
+
+-- 並べた車を作りなおす
+func draw_spot(p, j)
+  if lot_blocks[p.id] == nil then lot_blocks[p.id] = {} end
+  for b in lot_blocks[p.id]["s" + j] or [] do kit_gone(b) end
+  lot_blocks[p.id]["s" + j] = []
+  let id = (p.display or [])[j]
+  if id == nil or id == "" then return end
+  let spot = spot_block(p, j)
+  if spot == nil then return end
+  let c = car_info(id)
+  let body = create_block({name: "Display " + c.id, position: spot.position + {x: 0, y: 0.55, z: 0}, size: {x: 2, y: 0.8, z: 4},
+                           color: c.color, behavior: "trigger", tags: ["display", "lot=" + p.lot, "spot=" + j], solid: false})
+  let cabin = create_block({name: "Display Cabin", position: spot.position + {x: 0, y: 1.2, z: -0.2}, size: {x: 1.7, y: 0.6, z: 2},
+                            color: "#BAE6FD", material: "glass", solid: false})
+  lot_blocks[p.id]["s" + j] = [body, cabin]
+end
+
+func draw_lot(p)
+  if p.lot == nil then return end
+  for j in 1 to 12 do draw_spot(p, j) end
+  for lv in 1 to 5 do
+    let shown = lv <= (p.dealer_level or 1) - 0
+    for b in blocks("show" + p.lot + "_" + lv) do
+      if b.visible != shown then
+        b.visible = shown
+        if contains(b.tags, "solid") then b.solid = shown end
+      end
+    end
+  end
+  staff_show(p)
+  lot_hud(p)
+end
+
+func clear_lot(p)
+  for key in keys(lot_blocks[p.id] or {}) do
+    for b in lot_blocks[p.id][key] do kit_gone(b) end
+  end
+  lot_blocks[p.id] = nil
+  for n in staff_npcs[p.id] or [] do kit_gone(n) end
+  staff_npcs[p.id] = nil
+  if p.lot != nil then
+    for lv in 1 to 5 do
+      for b in blocks("show" + p.lot + "_" + lv) do
+        b.visible = false
+        b.solid = false
+      end
+    end
+    lots["l" + p.lot] = nil
+    let sign = block("Lot Sign " + p.lot)
+    if sign != nil then sign.color = "#E5E7EB" end
+  end
+end
+
+func shown_count(p)
+  let n = 0
+  for j in 1 to level_info(p).slots do
+    let id = (p.display or [])[j]
+    if id != nil and id != "" then n = n + 1 end
+  end
+  return n
+end
+
+func lot_hud(p)
+  p.ui_text("lot_hud", "🏪 " + level_info(p).name + "   🚗 " + shown_count(p) + "/" + level_info(p).slots + "   売れた " + (p.sold or 0) + "台",
+            {at: "top_left", dy: 90, size: 15, color: "#FDE68A"})
+end
+
+-- MARK: 仕入れ
+
+func catalog(p)
+  let list = filter(CARS, func(c) return c.tier <= (p.dealer_level or 1) end)
+  let h = 140 + len(list) * 42
+  p.ui_remove("cat_box")
+  p.ui_panel("cat_box", {at: "center", w: 620, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("cat_t", "🏭 工場から仕入れる（💰 " + kit_short(kit_money(p)) + "）", {parent: "cat_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for c in list do
+    i = i + 1
+    p.ui_button("stock_" + c.id, c.name + "   仕入れ 💰" + kit_short(c.cost) + "  →  売り値 💰" + kit_short(c.price),
+                {parent: "cat_box", y: (28 + i * 42) / h, w: 580, h: 36, size: 14, bg: "#92400E"})
+  end
+  p.ui_button("cat_close", "閉じる", {parent: "cat_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func free_slot(p)
+  for j in 1 to level_info(p).slots do
+    let id = (p.display or [])[j]
+    if id == nil or id == "" then return j end
+  end
+  return 0
+end
+
+func stock(p, id)
+  if p.lot == nil then return end
+  let j = free_slot(p)
+  if j == 0 then
+    p.message("🚗 もう並べる場所がない！ 店を大きくしよう", 1.8)
+    return
+  end
+  let c = car_info(id)
+  if not kit_pay(p, c.cost) then return end
+  if p.display == nil then p.display = [] end
+  while len(p.display) < j do append(p.display, "") end
+  p.display[j] = id
+  if p.owned == nil then p.owned = [] end
+  if not contains(p.owned, id) then append(p.owned, id) end
+  draw_spot(p, j)
+  lot_hud(p)
+  p.sound("collect")
+  kit_quest_progress(p, "stock", 1)
+  catalog(p)
+end
+
+-- MARK: 店を大きく・スタッフ
+
+func build_menu(p)
+  let lv = p.dealer_level or 1
+  let h = 300
+  p.ui_remove("build_box")
+  p.ui_panel("build_box", {at: "center", w: 560, h: h, bg: "#3B0764F2", radius: 22, layer: 30})
+  p.ui_text("build_t", "🏗 " + level_info(p).name + "（Lv." + lv + "）", {parent: "build_box", y: 0.1, size: 19, bold: true, color: "#F5D0FE"})
+  if lv < len(LEVELS) then
+    let next = LEVELS[lv + 1]
+    p.ui_button("build_up", "⬆️ " + next.name + " へ（並べる数 " + next.slots + "）  💰" + kit_short(next.cost),
+                {parent: "build_box", y: 0.32, w: 500, h: 44, size: 15, bg: "#7E22CE"})
+  else
+    p.ui_text("build_max", "👑 さいこうのお店！", {parent: "build_box", y: 0.32, size: 17, color: "#FDE68A"})
+  end
+  let s = p.staff or 0
+  if s < 3 then
+    p.ui_button("hire", "🧑‍💼 店員をやとう（" + s + "/3、売れやすくなる）  💰" + kit_short(STAFF_PRICE[s + 1]),
+                {parent: "build_box", y: 0.52, w: 500, h: 44, size: 15, bg: "#0F766E"})
+  end
+  if not p.manager then
+    p.ui_button("hire_mgr", "🧑‍💼 店長をやとう（売れたら同じ車を自動で仕入れ）  💰" + kit_short(MANAGER_PRICE),
+                {parent: "build_box", y: 0.7, w: 500, h: 44, size: 14, bg: "#1D4ED8"})
+  end
+  p.ui_button("build_close", "閉じる", {parent: "build_box", y: 0.9, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func build_up(p)
+  let lv = p.dealer_level or 1
+  if lv >= len(LEVELS) then return end
+  if not kit_pay(p, LEVELS[lv + 1].cost) then return end
+  p.dealer_level = lv + 1
+  draw_lot(p)
+  p.sound("goal")
+  particles("confetti", p, {amount: 60})
+  kit_quest_progress(p, "grow", 1)
+  if p.dealer_level == len(LEVELS) then kit_badge(p, "dream", "ドリームディーラー") end
+  build_menu(p)
+end
+
+func staff_show(p)
+  for n in staff_npcs[p.id] or [] do kit_gone(n) end
+  staff_npcs[p.id] = []
+  let spot = block("Lot " + (p.lot or 1) + " Staff")
+  if spot == nil or p.lot == nil then return end
+  for i in 1 to (p.staff or 0) do
+    let n = create_npc({name: "店員", position: spot.position + {x: i * 1.6, y: 1, z: 0}, color: "#1E3A8A", head_color: "#FDE68A", speed: 0, health: 100000})
+    n.frozen = true
+    n.hat = "cap"
+    append(staff_npcs[p.id], n)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  let k = tag_num(b, "k")
+  if contains(b.tags, "catalog") then
+    if k == p.lot and kit_ready(p, "cat", 3) then catalog(p) end
+  elif contains(b.tags, "build") then
+    if k == p.lot and kit_ready(p, "build", 3) then build_menu(p) end
+  end
+end
+
+on button(p, id)
+  if id == "catalog" then catalog(p)
+  elif id == "cat_close" then p.ui_remove("cat_box")
+  elif starts_with(id, "stock_") then stock(p, replace(id, "stock_", ""))
+  elif id == "build" then build_menu(p)
+  elif id == "build_close" then p.ui_remove("build_box")
+  elif id == "build_up" then build_up(p)
+  elif id == "hire" then
+    let s = p.staff or 0
+    if s < 3 and kit_pay(p, STAFF_PRICE[s + 1]) then
+      p.staff = s + 1
+      staff_show(p)
+      build_menu(p)
+    end
+  elif id == "hire_mgr" then
+    if not p.manager and kit_pay(p, MANAGER_PRICE) then
+      p.manager = true
+      build_menu(p)
+    end
+  end
+end

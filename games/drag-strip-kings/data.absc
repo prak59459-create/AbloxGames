@@ -1,0 +1,41 @@
+-- data.absc — Drag Strip Kings の表
+
+-- 車: base は1速のときの速さ、top は5速のいちばん上の速さ、ride は見た目
+let CARS = [
+  {id: "hatch", name: "🚗 ハッチバック", price: 0, top: 3.0, ride: "car", color: "#EF4444"},
+  {id: "muscle", name: "🚙 マッスルカー", price: 800, top: 3.4, ride: "car", color: "#1D4ED8"},
+  {id: "pickup", name: "🛻 モンスターピックアップ", price: 1500, top: 3.6, ride: "truck", color: "#16A34A"},
+  {id: "tuner", name: "🏎 チューナー", price: 3000, top: 3.9, ride: "sports", color: "#F97316"},
+  {id: "super", name: "🏎 スーパーカー", price: 7000, top: 4.3, ride: "sports", color: "#FACC15"},
+  {id: "rocket", name: "🚀 ロケットドラッグスター", price: 15000, top: 4.8, ride: "kart", color: "#A855F7"}
+]
+
+-- チューニング（5段階）: 値はレベルごとの倍率
+let TUNES = [
+  {key: "t_engine", name: "🔧 エンジン（最高速）", per: 0.06},
+  {key: "t_turbo", name: "🌀 ターボ（回転の上がり）", per: 0.12},
+  {key: "t_tires", name: "🛞 タイヤ（スタート）", per: 0.1},
+  {key: "t_nitro", name: "🧪 ニトロ（本数）", per: 1}
+]
+let TUNE_PRICES = [200, 500, 1200, 2500, 5000]
+
+-- ギア: それぞれのギアの速さ（top に対する割合）
+let GEARS = [0.34, 0.5, 0.66, 0.83, 1.0]
+let RPM_RATE = [1.1, 0.8, 0.62, 0.5, 0.42]   -- 1秒で回転がどれだけ上がるか
+let PERFECT_LOW = 0.85
+let PERFECT_HIGH = 0.97
+
+-- ライバル10人（et: このタイムで走る）
+let RIVALS = [
+  {n: 1, name: "ルーキーのケン", et: 26, prize: 150},
+  {n: 2, name: "ストリートのミナ", et: 24, prize: 250},
+  {n: 3, name: "ガレージのゴロウ", et: 22.5, prize: 400},
+  {n: 4, name: "ニトロのサラ", et: 21, prize: 600},
+  {n: 5, name: "ハイウェイのリュウ", et: 19.5, prize: 900},
+  {n: 6, name: "ターボのアヤ", et: 18.2, prize: 1300},
+  {n: 7, name: "チームのボス タイガ", et: 17, prize: 1800},
+  {n: 8, name: "しずかなミカゲ", et: 16, prize: 2500},
+  {n: 9, name: "伝説のジン", et: 15, prize: 3500},
+  {n: 10, name: "👑 ドラッグキング", et: 14, prize: 6000}
+]
+let STRIP = 400

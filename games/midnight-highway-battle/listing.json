@@ -1,0 +1,33 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 507,
+  "bytes" : 283756,
+  "cover" : "games\/midnight-highway-battle\/cover-a417ca04.png",
+  "id" : "midnight-highway-battle",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "lib\/kit_move.absc",
+    "games\/midnight-highway-battle\/data.absc",
+    "games\/midnight-highway-battle\/battle.absc",
+    "games\/midnight-highway-battle\/garage.absc",
+    "games\/midnight-highway-battle\/track.absc",
+    "games\/midnight-highway-battle\/zz_test.absc",
+    "games\/midnight-highway-battle\/main.absc"
+  ],
+  "shots" : [
+    "games\/midnight-highway-battle\/shot1-8c60d264.png",
+    "games\/midnight-highway-battle\/shot2-90400f2a.png"
+  ],
+  "summary" : "真夜中の高速道路。ライバルのうしろでパッシング🔦するとバトル開始！ はなされるほどSPがへって、先に0になったほうの負け。一般車をよけながら走れ。パーキングで車とチューニング。",
+  "tags" : [
+    "racing",
+    "cars",
+    "night"
+  ],
+  "title" : "Midnight Highway Battle",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/midnight-highway-battle\/world.ablox"
+}

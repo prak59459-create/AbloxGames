@@ -1,0 +1,122 @@
+-- bandits.absc — 夜の盗賊と、昼の砂あらし
+-- 盗賊は止まっている車をねらう（走っていれば追いつけない）。📣 クラクションで にげていく。
+
+let bandits = []    -- {n, target, until, scared}
+let band_clock = 0
+let spawn_clock = 0
+let storm_until = 0
+let next_storm = 150
+
+func is_night()
+  let h = world.time
+  return h != nil and (h >= 19 or h < 5)
+end
+
+func trippers()
+  return filter(players(), func(p) return p.trip != nil and p.alive end)
+end
+
+func spawn_bandit()
+  if len(bandits) >= BANDIT_MAX then return end
+  let list = trippers()
+  if len(list) == 0 then return end
+  let p = random(list)
+  if p.trip.best < 150 then return end
+  let side = 1
+  if chance(50) then side = -1 end
+  let pos = {x: p.x + side * (18 + random() * 8), y: 1, z: p.z + 20 + random() * 20}
+  let n = create_npc({name: "盗賊", position: pos, color: "#1C1917", head_color: "#D6D3D1", speed: 1.35, health: 100000, hat: "cowboy"})
+  n.follow(p)
+  n.say(random(["ガソリンをよこせ！", "まてー！", "その車 いただき！"]))
+  append(bandits, {n: n, target: p, until: time() + 45, scared: 0})
+end
+
+func horn(p)
+  if not kit_ready(p, "horn", 6) then
+    p.message("📣 もう少し まってね", 0.8)
+    return
+  end
+  p.sound("alarm")
+  let hit = 0
+  for b in bandits do
+    if kit_here(b.n) and distance(b.n, p) < 18 then
+      hit = hit + 1
+      b.scared = time() + 6
+      b.n.stop()
+      let away = normalize(b.n.position - p.position)
+      b.n.move_to(b.n.position + {x: away.x * 30, y: 0, z: away.z * 30})
+      b.n.say("うわっ！ にげろー！")
+    end
+  end
+  if hit > 0 then
+    kit_quest_progress(p, "horn", hit)
+    p.message("📣 ブーッ！ 盗賊が " + hit + "人 にげた", 1.2)
+  end
+end
+
+func bandit_step()
+  let now = time()
+  let keep = []
+  for b in bandits do
+    let p = b.target
+    let gone = not kit_here(b.n) or not kit_here(p) or p.trip == nil or now > b.until
+    if not gone and distance(b.n, p) > 90 then gone = true end
+    if gone then
+      kit_gone(b.n)
+    else
+      if b.scared > 0 and now > b.scared then
+        b.scared = 0
+        b.n.follow(p)
+      end
+      if b.scared == 0 and distance(b.n, p) < 3 then
+        damage_car(p, BANDIT_HIT, "🦹 盗賊にやられてる！ 📣で追いはらおう")
+        if p.trip != nil then p.trip.fuel = max(0, p.trip.fuel - 1) end
+      end
+      append(keep, b)
+    end
+  end
+  bandits = keep
+end
+
+func storm_step()
+  let now = time()
+  if not storm_on and now > next_storm and len(trippers()) > 0 then
+    storm_on = true
+    storm_until = now + 30
+    world.weather = "fog"
+    announce("🌪 砂あらしだ！ 前が見えにくい。水がへるのが早いよ", 3)
+    for p in trippers() do ride_mult(p, "storm", 0.75) end
+  elif storm_on and now > storm_until then
+    storm_on = false
+    next_storm = now + 150 + random() * 90
+    world.weather = "clear"
+    for p in players() do ride_mult(p, "storm", nil) end
+    announce("☀️ 砂あらしがやんだ", 2)
+  end
+end
+
+on start()
+  world.day_length = 8
+  world.time = 9
+  next_storm = 150 + random() * 60
+end
+
+on tick(dt)
+  band_clock = band_clock + dt
+  spawn_clock = spawn_clock + dt
+  if band_clock >= 0.5 then
+    band_clock = 0
+    bandit_step()
+    storm_step()
+  end
+  let every_secs = 30
+  if is_night() then every_secs = 10 end
+  if spawn_clock >= every_secs then
+    spawn_clock = 0
+    spawn_bandit()
+  end
+end
+
+on button(p, id)
+  if id == "horn" then horn(p) end
+end

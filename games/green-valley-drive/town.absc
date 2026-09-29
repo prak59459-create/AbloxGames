@@ -1,0 +1,353 @@
+-- town.absc — 町のルール: 信号・スピードカメラ・一般車・ガソリン・洗車・安全ポイント・画面の表示
+
+let light_dir = "ns"      -- いま青の向き（ns: 南北に走る車、ew: 東西に走る車）
+let light_state = "green" -- green / yellow
+let light_left = LIGHT_GREEN
+let town_clock = 0
+let hud_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func tag_text(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return replace(t, key + "=", "") end
+  end
+  return nil
+end
+
+func car_info(id)
+  for c in CARS do
+    if c.id == id then return c end
+  end
+  return CARS[1]
+end
+
+func license_info(n)
+  return LICENSES[clamp(n or 1, 1, len(LICENSES))]
+end
+
+-- MARK: 信号
+
+func light_color(dir)
+  if dir != light_dir then return "red" end
+  return light_state
+end
+
+func paint_lights()
+  for b in blocks("light") do
+    let c = light_color(tag_text(b, "dir"))
+    let hex = "#22C55E"
+    if c == "yellow" then hex = "#FACC15" elif c == "red" then hex = "#EF4444" end
+    if b.color != hex then b.color = hex end
+  end
+end
+
+func step_lights(dt)
+  light_left = light_left - dt
+  if light_left > 0 then return end
+  if light_state == "green" then
+    light_state = "yellow"
+    light_left = LIGHT_YELLOW
+  else
+    light_state = "green"
+    light_left = LIGHT_GREEN
+    if light_dir == "ns" then light_dir = "ew" else light_dir = "ns" end
+  end
+  paint_lights()
+end
+
+-- 走っている向き（信号を見る向き）
+func heading(p)
+  let v = p.velocity
+  if abs(v.z) >= abs(v.x) then return "ns" end
+  return "ew"
+end
+
+func cross(p, b)
+  if not p.driving or ride_kmh(p) < 8 then return end
+  let ix = tag_num(b, "ix") or 0
+  if not kit_ready(p, "cross" + ix, 5) then return end
+  let c = light_color(heading(p))
+  if c == "red" then
+    violation(p, "🚨 信号むし！", FINE_RED, 15)
+    exam_miss(p, "信号むし")
+  else
+    p.greens = (p.greens or 0) + 1
+    kit_quest_progress(p, "green", 1)
+    safe_add(p, 1)
+  end
+end
+
+-- MARK: 安全ポイント（0〜100）
+
+func safe_add(p, n)
+  p.safe = clamp((p.safe or 100) + n, 0, 100)
+end
+
+func violation(p, text, fine, points)
+  safe_add(p, 0 - points)
+  p.clean_since = time()
+  let paid = min(fine, kit_money(p))
+  if paid > 0 then kit_give(p, 0 - paid) end
+  p.message(text + "  罰金 💰" + paid + "  安全 -" + points, 2.2)
+  p.sound("alarm")
+  p.shake(0.2, 0.3)
+end
+
+-- MARK: スピードカメラ
+
+func flash(box)
+  box.color = "#F8FAFC"
+  after(0.3, func() box.color = "#1E293B" end)
+end
+
+func camera(p, b)
+  if not p.driving or not kit_ready(p, "cam", 3) then return end
+  let limit = tag_num(b, "limit") or 60
+  let kmh = ride_kmh(p)
+  if kmh > limit + 2 then
+    for box in blocks("camera_box") do
+      if distance(box, b) < 12 then flash(box) end
+    end
+    violation(p, "📸 スピードいはん " + kmh + "km/h（制限 " + limit + "）", FINE_SPEED, 10)
+  else
+    p.message("📷 OK " + kmh + "km/h（制限 " + limit + "）", 1.2)
+    kit_quest_progress(p, "camera", 1)
+    safe_add(p, 1)
+  end
+end
+
+func camera_zone(p, b)
+  if not p.driving or not kit_ready(p, "zone", 6) then return end
+  let limit = tag_num(b, "limit") or 60
+  p.message("📷 この先 スピードカメラ（" + limit + "km/h）  🐢ボタンで " + CRUISE_KMH + "km/h キープ", 2)
+end
+
+-- MARK: 一般車（外まわりの道）
+
+func ring_point(i, lane)
+  let c = block("Ring " + i)
+  let pos = c.position
+  return {x: pos.x - sign(pos.x) * lane * 3, y: 0.9, z: pos.z - sign(pos.z) * lane * 3}
+end
+
+func start_traffic()
+  for b in blocks("traffic") do
+    let lane = tag_num(b, "lane") or 1
+    let first = tag_num(b, "start") or 1
+    let pts = []
+    for j in 0 to 3 do
+      let i = (first + j - 1) % 4 + 1
+      if lane < 0 then i = (first - j + 7) % 4 + 1 end
+      append(pts, ring_point(i, lane))
+    end
+    mv_path(b, pts, 7 + random() * 3, true, func(p, blk) crash(p) end)
+  end
+end
+
+func crash(p)
+  if not p.driving or not kit_ready(p, "crash", 2) then return end
+  p.message("💥 ぶつかった！ 安全 -5", 1.2)
+  p.sound("hit")
+  p.shake(0.3, 0.3)
+  safe_add(p, -5)
+  p.clean_since = time()
+  ride_mult(p, "crash", 0.3)
+  kit_later(p, 1.2, func() ride_mult(p, "crash", nil) end)
+  exam_miss(p, "ぶつかった")
+end
+
+-- MARK: ガソリン・洗車
+
+func refuel(p)
+  if not p.driving then
+    p.message("⛽ 車に乗って来てね", 1.2)
+    return
+  end
+  let c = car_info(p.car)
+  let need = c.tank - (p.fuel or 0)
+  if need < 1 then
+    p.message("⛽ もう満タン！", 1)
+    return
+  end
+  let liters = min(need, floor(kit_money(p) / FUEL_PRICE))
+  if liters < 1 then
+    p.message("💰 お金が足りない… 仕事でかせごう", 1.5)
+    return
+  end
+  kit_give(p, 0 - ceil(liters * FUEL_PRICE))
+  p.fuel = min(c.tank, (p.fuel or 0) + liters)
+  ride_mult(p, "fuel", nil)
+  p.sound("powerup")
+  kit_quest_progress(p, "fuel", 1)
+  if p.fuel >= c.tank - 0.5 then
+    p.message("⛽ 満タン！ " + floor(liters) + "L  💰" + ceil(liters * FUEL_PRICE), 1.6)
+  else
+    p.message("⛽ " + floor(liters) + "L 入れた（お金が足りるぶんだけ）", 1.6)
+  end
+  if p.job == nil then p.waypoint(nil) end
+end
+
+func wash(p)
+  if not p.driving then
+    p.message("🧽 車に乗って来てね", 1.2)
+    return
+  end
+  if (p.dirt or 0) < 0.05 then
+    p.message("✨ もうピカピカ！", 1)
+    return
+  end
+  if not kit_pay(p, WASH_PRICE) then return end
+  p.dirt = 0
+  p.shine_until = time() + 180
+  paint_car(p)
+  particles("bubbles", p, {amount: 40})
+  p.sound("splash")
+  kit_quest_progress(p, "wash", 1)
+  p.message("✨ ピカピカ！ 3分間 ピザのチップが +20%", 2)
+end
+
+-- 汚れるほど、車の色がくすむ
+func paint_car(p)
+  if not p.driving then return end
+  let c = car_info(p.car)
+  let base = p.paint or c.color
+  let dirt = floor((p.dirt or 0) * 10) / 10
+  p.dirt_shown = dirt
+  p.ride_color = mix_color(base, "#78716C", dirt * 0.6)
+end
+
+-- MARK: 乗る・おりる
+
+func get_in(p)
+  let c = car_info(p.car)
+  p.driving = true
+  ride_set(p, c.ride, p.paint or c.color, c.speed)
+  paint_car(p)
+  if p.fuel == nil then p.fuel = c.tank end
+  if p.fuel <= 0 then ride_mult(p, "fuel", 0.25) end
+  cruise_apply(p)
+  p.ui_button("walk", "🚶 おりる", {at: "right", dy: -6, w: 140, h: 46, size: 15, bg: "#57534E"})
+end
+
+func get_out(p)
+  p.driving = false
+  p.cruise = false
+  ride_off(p)
+  p.ui_button("walk", "🚗 のる", {at: "right", dy: -6, w: 140, h: 46, size: 15, bg: "#15803D"})
+  cruise_button(p)
+  exam_quit(p, "車をおりた")
+end
+
+-- 🐢: 最高速を CRUISE_KMH におさえる（ほかの倍率も考えて）
+func cruise_apply(p)
+  if not p.cruise or not p.driving then
+    if p.ride_mults != nil and p.ride_mults["cruise"] != nil then ride_mult(p, "cruise", nil) end
+    return
+  end
+  let old = (p.ride_mults or {})["cruise"] or 1
+  let others = ride_speed_now(p) / old
+  let want = CRUISE_KMH / 5.76 / 9
+  ride_mult(p, "cruise", clamp(want / max(others, 0.01), 0.05, 1))
+end
+
+func cruise_button(p)
+  let bg = "#334155"
+  if p.cruise then bg = "#0EA5E9" end
+  p.ui_button("cruise", "🐢 " + CRUISE_KMH + "km/h", {at: "right", dy: 46, w: 140, h: 46, size: 15, bg: bg})
+end
+
+func toggle_cruise(p)
+  if not p.driving then return end
+  p.cruise = not p.cruise
+  cruise_apply(p)
+  cruise_button(p)
+  if p.cruise then p.message("🐢 " + CRUISE_KMH + "km/h より速く走らないよ", 1.2) end
+end
+
+-- MARK: 毎フレーム: ガソリン・汚れ・安全ポイントのもどり・画面
+
+func drive_step(p, dt)
+  let v = p.velocity
+  let meters = sqrt(v.x * v.x + v.z * v.z) * dt
+  let c = car_info(p.car)
+  if meters > 0.05 and (p.fuel or 0) > 0 then
+    p.fuel = max(0, p.fuel - meters / 100 * c.use)
+    p.driven = (p.driven or 0) + meters
+    p.dirt = min(1, (p.dirt or 0) + meters / 4000)
+    if p.fuel <= 0 then
+      ride_mult(p, "fuel", 0.25)
+      p.message("⛽ ガス欠！ ゆっくりしか走れない。オレンジのパッドのガソリンスタンドへ", 3)
+      if p.job == nil then p.waypoint(nearest_block(p, "fuel"), "ガソリンスタンド", "orange") end
+    end
+    if floor(p.dirt * 10) / 10 != p.dirt_shown then paint_car(p) end
+  end
+  if time() - (p.clean_since or 0) > 8 and meters > 0.05 then
+    p.clean_since = time()
+    safe_add(p, 1)
+  end
+  if p.exam != nil then exam_speed(p, dt) end
+end
+
+func hud(p)
+  if not p.driving then
+    p.ui_text("gv_speed", "🚶 歩いている  🟢 安全 " + (p.safe or 100) + "  " + license_info(p.license).name, {at: "top", dy: 62, size: 16, bold: true})
+    p.ui_remove("gv_fuel")
+    return
+  end
+  let c = car_info(p.car)
+  let warn = ""
+  if (p.fuel or 0) < c.tank * 0.2 then warn = " ⚠️" end
+  p.ui_text("gv_speed", "🚗 " + ride_kmh(p) + " km/h   ⛽ " + floor(p.fuel or 0) + "/" + c.tank + "L" + warn + "   🟢 安全 " + (p.safe or 100),
+            {at: "top", dy: 62, size: 17, bold: true})
+  let col = "#22C55E"
+  if (p.fuel or 0) < c.tank * 0.2 then col = "#EF4444" end
+  p.ui_bar("gv_fuel", p.fuel or 0, c.tank, {at: "top", dy: 86, w: 240, h: 8, color: col})
+end
+
+on start()
+  paint_lights()
+  start_traffic()
+end
+
+on tick(dt)
+  step_lights(dt)
+  town_clock = town_clock + dt
+  hud_clock = hud_clock + dt
+  if town_clock >= 0.25 then
+    for p in players() do
+      if p.driving then drive_step(p, town_clock) end
+    end
+    town_clock = 0
+  end
+  if hud_clock >= 0.5 then
+    hud_clock = 0
+    for p in players() do
+      hud(p)
+      job_hud(p)
+      exam_hud(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "cross") then cross(p, b)
+  elif contains(b.tags, "camera") then camera(p, b)
+  elif contains(b.tags, "zone") then camera_zone(p, b)
+  elif contains(b.tags, "fuel") and kit_ready(p, "fuel", 3) then refuel(p)
+  elif contains(b.tags, "wash") and kit_ready(p, "wash", 3) then wash(p)
+  end
+end
+
+on button(p, id)
+  if id == "walk" then
+    if p.driving then get_out(p) else get_in(p) end
+  elif id == "cruise" then toggle_cruise(p)
+  end
+end

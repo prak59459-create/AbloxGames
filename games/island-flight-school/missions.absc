@@ -1,0 +1,173 @@
+-- missions.absc — お仕事: 空港の出発ロビー（水色のパッド）でフライトをえらんで、お客さんを ほかの島へ。
+-- ランク（副操縦士・機長・エース）が上がると、大きな飛行機に乗れる。
+
+func airport_name(n)
+  return AIRPORTS[n].name
+end
+
+func rank_of(p)
+  let r = RANKS[1]
+  for k in RANKS do
+    if (p.pxp or 0) >= k.xp then r = k end
+  end
+  return r
+end
+
+func add_xp(p, n)
+  let before = rank_of(p).n
+  p.pxp = (p.pxp or 0) + n
+  let now = rank_of(p)
+  if now.n > before then
+    p.message("🎖 ランクアップ！ " + now.name, 3)
+    announce("🎖 " + p.name + " が " + now.name + " になった！", 3)
+    kit_badge(p, "rank" + now.n, now.name)
+    particles("confetti", p, {amount: 80})
+    p.sound("win")
+  end
+end
+
+func runway_gap(a, b)
+  return floor(distance(block("Runway " + a).position, block("Runway " + b).position))
+end
+
+func trip_pay(p, a, b)
+  let pl = plane_info(p.plane)
+  return floor((PAY_BASE + runway_gap(a, b) * PAY_PER_M) * (1 + pl.pax / 6))
+end
+
+func gate_menu(p, at)
+  if p.fs != nil then return end
+  p.at_airport = at
+  let h = 330
+  p.ui_remove("fl_box")
+  p.ui_panel("fl_box", {at: "center", w: 620, h: h, bg: "#0C4A6EF2", radius: 22, layer: 30})
+  p.ui_text("fl_t", "🛫 " + airport_name(at) + " 出発ロビー", {parent: "fl_box", y: 0.08, size: 20, bold: true, color: "#BAE6FD"})
+  let pl = plane_info(p.plane)
+  p.ui_text("fl_s", pl.name + "  👥 " + pl.pax + "人のれる   " + rank_of(p).name + "（" + (p.pxp or 0) + " XP）",
+            {parent: "fl_box", y: 0.18, size: 14, color: "#E0F2FE"})
+  let row = 0
+  for a in AIRPORTS do
+    if a.n != at then
+      row = row + 1
+      p.ui_button("go_" + a.n, "✈️ → " + a.name + "   " + runway_gap(at, a.n) + "m   💰" + trip_pay(p, at, a.n),
+                  {parent: "fl_box", y: (70 + row * 50) / h, w: 560, h: 42, size: 15, bg: "#0369A1"})
+    end
+  end
+  p.ui_button("go_free", "🛩 自由に飛ぶ（れんしゅう）", {parent: "fl_box", x: 0.32, y: 0.9, w: 260, h: 40, size: 15, bg: "#15803D"})
+  p.ui_button("fl_close", "閉じる", {parent: "fl_box", x: 0.76, y: 0.9, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func start_mission(p, dest)
+  let from = p.at_airport or 1
+  let pl = plane_info(p.plane)
+  p.mission = {from: from, dest: dest, pay: trip_pay(p, from, dest), pax: pl.pax, t0: time()}
+  board(p, from)
+  p.waypoint(block("Runway " + dest), "🛬 " + airport_name(dest), "gold")
+  p.ui_text("fs_mis", "📋 " + airport_name(from) + " → " + airport_name(dest) + "  👥" + pl.pax + "人  💰" + p.mission.pay,
+            {at: "top", dy: 104, size: 15, bold: true, color: "#FDE68A"})
+  tower(p, "お客さん " + pl.pax + "人が のりました。➕ でスロットルを上げて、速くなったら ⬆")
+end
+
+func free_flight(p)
+  p.mission = nil
+  board(p, p.at_airport or 1)
+  p.waypoint(nil)
+  tower(p, "自由飛行ですね。➕ で速く、⬆ で離陸。ほかの島の滑走路に おりてみよう")
+end
+
+-- flight.absc から: 着陸したとき（where は空港の番号、または "ground"）
+func after_landing(p, where, grade)
+  let m = p.mission
+  if where == "ground" then return end
+  p.at_airport = where
+  p.landings = (p.landings or 0) + 1
+  kit_quest_progress(p, "land", 1)
+  if m != nil and where == m.dest then
+    let pay = floor(m.pay * grade)
+    kit_give(p, pay)
+    p.earned = (p.earned or 0) + pay
+    p.trips = (p.trips or 0) + 1
+    add_xp(p, floor(m.pay / 3 * grade))
+    kit_quest_progress(p, "trip", 1)
+    p.mission = nil
+    p.waypoint(nil)
+    p.ui_remove("fs_mis")
+    kit_later(p, 1, func() p.message("🎉 " + airport_name(where) + " に到着！ お客さん " + m.pax + "人「ありがとう！」 💰" + pay, 3) end)
+    particles("confetti", p, {amount: 40})
+  elif m != nil then
+    kit_later(p, 1, func() p.message("🗺 ここは " + airport_name(where) + "。行き先は " + airport_name(m.dest) + " だよ", 2.5) end)
+  elif kit_ready(p, "freexp", 20) then
+    add_xp(p, floor(15 * grade))
+  end
+  kit_later(p, 2, func()
+    if p.fs != nil and not p.fs.air then tower(p, "着陸おめでとう。止まったら 🚪おりる、➕ でまた離陸もできます") end
+  end)
+end
+
+-- MARK: 格納庫（飛行機をえらぶ）
+
+func planes_menu(p)
+  if p.fs != nil then return end
+  let h = 150 + len(PLANES) * 46
+  p.ui_remove("pl_box")
+  p.ui_panel("pl_box", {at: "center", w: 640, h: h, bg: "#422006F2", radius: 22, layer: 30})
+  p.ui_text("pl_t", "🛩 格納庫（💰 " + kit_short(kit_money(p)) + "  " + rank_of(p).name + "）", {parent: "pl_box", y: 26 / h, size: 19, bold: true,
+            color: "#FDE68A"})
+  let i = 0
+  for pl in PLANES do
+    i = i + 1
+    let label = pl.name + "  💰" + kit_short(pl.price) + "  👥" + pl.pax + "  最高 " + floor(pl.top * 3.6) + "km/h"
+    let bg = "#A16207"
+    if rank_of(p).n < pl.rank then
+      label = "🔒 " + pl.name + "（" + RANKS[pl.rank].name + " から）"
+      bg = "#44403C"
+    elif contains(p.planes or [], pl.id) then
+      label = pl.name + " にする  👥" + pl.pax + "  最高 " + floor(pl.top * 3.6) + "km/h"
+      bg = "#0F766E"
+    end
+    if p.plane == pl.id then
+      label = "✅ " + pl.name
+      bg = "#374151"
+    end
+    p.ui_button("plane_" + pl.id, label, {parent: "pl_box", y: (30 + i * 46) / h, w: 600, h: 38, size: 14, bg: bg})
+  end
+  p.ui_button("pl_paint", "🎨 ぬる（💰40）", {parent: "pl_box", x: 0.3, y: (h - 30) / h, w: 180, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("pl_close", "閉じる", {parent: "pl_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_plane(p, id)
+  let pl = plane_info(id)
+  if rank_of(p).n < pl.rank then
+    p.message("🔒 " + RANKS[pl.rank].name + " になると乗れるよ", 1.5)
+    return
+  end
+  if not contains(p.planes or [], id) then
+    if not kit_pay(p, pl.price) then return end
+    append(p.planes, id)
+    kit_quest_progress(p, "plane", 1)
+    p.sound("win")
+  end
+  p.plane = id
+  p.paint = nil
+  planes_menu(p)
+end
+
+on touch(p, b)
+  if p.is_npc or p.fs != nil then return end
+  if contains(b.tags, "gate") and kit_ready(p, "gate", 3) then gate_menu(p, tag_num(b, "n"))
+  elif contains(b.tags, "planes") and kit_ready(p, "planes", 3) then planes_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "flights" then gate_menu(p, p.at_airport or 1)
+  elif id == "fl_close" then p.ui_remove("fl_box")
+  elif id == "go_free" then free_flight(p)
+  elif starts_with(id, "go_") then start_mission(p, num(replace(id, "go_", "")))
+  elif id == "hangar" then planes_menu(p)
+  elif id == "pl_close" then p.ui_remove("pl_box")
+  elif id == "pl_paint" then
+    if kit_pay(p, 40) then p.paint = random_color() end
+  elif starts_with(id, "plane_") then pick_plane(p, replace(id, "plane_", ""))
+  end
+end

@@ -1,0 +1,85 @@
+-- Green Valley Drive — 緑の谷の町でドライブ
+-- 自分の車で町を走る。ガソリンが へったらスタンドで入れる。信号とスピードを守ると安全ポイントがたまる。
+-- 📦 宅配・🍕 ピザ配達でお金をかせいで、免許試験に合格すると大きな車・速い車に乗れる。
+--
+-- ファイル:
+--   ../../lib/kit_ride.absc  車の見た目と速さ
+--   ../../lib/kit_move.absc  一般車（外まわりの道）
+--   data.absc    車6台・免許・ねだん・信号の秒数
+--   town.absc    信号・スピードカメラ・一般車・ガソリン・洗車・安全ポイント・画面
+--   jobs.absc    宅配・ピザ配達
+--   dealer.absc  車屋さん
+--   exam.absc    免許試験
+--   main.absc    このファイル
+
+kit_setup("Green Valley Drive", "緑の谷の町で、安全運転ドライブ！", [
+  "🚗 スティックで運転。右の 🚶 でおりる／🚗 でのる",
+  "⛽ ガソリンがへったら オレンジのパッド（スタンド）へ",
+  "🚦 赤信号でわたると罰金。📷 スピードカメラは制限速度を守って（🐢ボタンが便利）",
+  "📦 黄色のパッド（配達センター）で宅配、🍕 赤いパッドでピザ配達",
+  "🪪 むらさきのパッドで免許試験。合格すると乗れる車がふえる",
+  "🧽 水色のパッドで洗車。ピカピカだとピザのチップがふえる"
+])
+kit_keep(["cars", "car", "paint", "license", "fuel", "dirt", "safe", "earned", "deliveries", "pizzas", "greens", "driven", "exam_best"])
+
+kit_quest("box", "荷物を5こ おとどけ", 5, 150)
+kit_quest("pizza", "ピザを3まい おとどけ", 3, 150)
+kit_quest("fuel", "ガソリンを入れる", 1, 50)
+kit_quest("green", "青信号で10回わたる", 10, 100)
+kit_quest("camera", "スピードカメラを5回 セーフ", 5, 120)
+kit_quest("wash", "洗車する", 1, 40)
+kit_quest("exam", "免許試験に合格", 1, 200)
+kit_quest("car", "車を買う", 1, 100)
+
+kit_on_load = func(p)
+  if p.driving then get_in(p) end
+end
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 150 then p.coins = 150 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.cars = ["mini"]
+  p.car = "mini"
+  p.license = 1
+  p.safe = 100
+  p.clean_since = time()
+  p.camera_distance = 9
+  p.ui_button("exam", "🪪 免許", {at: "right", dy: -110, w: 140, h: 46, size: 15, bg: "#6D28D9"})
+  p.ui_button("dealer", "🚗 車屋さん", {at: "right", dy: -58, w: 140, h: 46, size: 15, bg: "#B91C1C"})
+  get_in(p)
+  cruise_button(p)
+end
+
+let walkers = []
+
+func wander(n)
+  if not kit_here(n) then return end
+  let a = random() * 360
+  let r = 10 + random() * 25
+  n.move_to({x: sin(a) * r, y: 0, z: cos(a) * r})
+end
+
+on start()
+  world.music = "adventure"
+  for i in 1 to 4 do
+    let n = create_npc({name: "町の人", position: {x: -30 + i * 12, y: 1, z: 10}, color: random_color(), speed: 0.5, health: 100000})
+    append(walkers, n)
+  end
+  every(6, func()
+    for n in walkers do wander(n) end
+  end)
+  every(12, func() kit_leaderboard("💰 かせいだ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.earned or 0) != p.score then p.score = p.earned or 0 end
+  end
+end

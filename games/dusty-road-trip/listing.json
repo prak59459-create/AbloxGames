@@ -1,0 +1,34 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 640,
+  "bytes" : 359366,
+  "cover" : "games\/dusty-road-trip\/cover-3784e7af.png",
+  "id" : "dusty-road-trip",
+  "maxPlayers" : 8,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_ride.absc",
+    "lib\/kit_move.absc",
+    "games\/dusty-road-trip\/data.absc",
+    "games\/dusty-road-trip\/bandits.absc",
+    "games\/dusty-road-trip\/loot.absc",
+    "games\/dusty-road-trip\/shop.absc",
+    "games\/dusty-road-trip\/trip.absc",
+    "games\/dusty-road-trip\/zz_test.absc",
+    "games\/dusty-road-trip\/main.absc"
+  ],
+  "shots" : [
+    "games\/dusty-road-trip\/shot1-a6ca4f89.png",
+    "games\/dusty-road-trip\/shot2-548b2140.png"
+  ],
+  "summary" : "砂漠の一本道を、どこまで行ける？ ガソリン・エンジン・水に気をつけて、とちゅうの廃墟でガソリン缶や部品をひろおう。夜は盗賊、昼は砂あらし。2.4km先のオアシスの町をめざせ！",
+  "tags" : [
+    "survival",
+    "cars",
+    "desert"
+  ],
+  "title" : "Dusty Road Trip",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/dusty-road-trip\/world.ablox"
+}

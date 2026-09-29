@@ -1,0 +1,163 @@
+-- exam.absc — 免許センター: 町の中の8つのゲートを じゅんばんに1周。
+-- 50km/h まで・信号を守る・ぶつからない・時間いないで合格。合格すると乗れる車がふえる。
+
+let examiner = nil
+
+func exam_menu(p)
+  let lv = p.license or 1
+  let h = 300
+  p.ui_remove("ex_box")
+  p.ui_panel("ex_box", {at: "center", w: 600, h: h, bg: "#2E1065F2", radius: 22, layer: 30})
+  p.ui_text("ex_t", "🪪 免許センター（いま: " + license_info(lv).name + "）", {parent: "ex_box", y: 0.1, size: 19, bold: true, color: "#DDD6FE"})
+  if lv >= len(LICENSES) then
+    p.ui_text("ex_1", "🥇 もう いちばん上の免許！ 安全運転の おてほん", {parent: "ex_box", y: 0.35, size: 16})
+    p.ui_text("ex_2", "ベスト " + fixed(p.exam_best or 0, 1) + "秒", {parent: "ex_box", y: 0.5, size: 16})
+  else
+    let next = LICENSES[lv + 1]
+    p.ui_text("ex_1", "つぎ: " + next.name + "  ⏱ " + next.time + "秒いない  ミス " + next.miss + "回まで", {parent: "ex_box", y: 0.28, size: 16})
+    p.ui_text("ex_2", "むらさきのゲート 1→2→…→8→1 を じゅんばんに1周", {parent: "ex_box", y: 0.4, size: 15})
+    p.ui_text("ex_3", "🚦 赤信号でわたらない  🚗 " + EXAM_LIMIT + "km/h まで  💥 ぶつからない", {parent: "ex_box", y: 0.5, size: 15})
+    let unlock = filter(CARS, func(c) return c.license == next.n end)
+    let names = join(map(unlock, func(c) return c.name end), "・")
+    if names != "" then p.ui_text("ex_4", "合格すると " + names + " に乗れる！", {parent: "ex_box", y: 0.6, size: 15, color: "#FDE68A"}) end
+    if next.n == 4 then
+      p.ui_text("ex_5", "（安全ポイント " + GOLD_SAFE + " 以上で受けられる。いま " + (p.safe or 100) + "）", {parent: "ex_box", y: 0.7, size: 14})
+    end
+    p.ui_button("exam_go", "📝 試験を受ける", {parent: "ex_box", x: 0.32, y: 0.87, w: 220, h: 44, size: 16, bg: "#7C3AED"})
+  end
+  p.ui_button("ex_close", "閉じる", {parent: "ex_box", x: 0.74, y: 0.87, w: 130, h: 44, size: 15, bg: "gray"})
+end
+
+func exam_start(p)
+  p.ui_remove("ex_box")
+  let lv = p.license or 1
+  if lv >= len(LICENSES) or p.exam != nil then return end
+  let next = LICENSES[lv + 1]
+  if next.n == 4 and (p.safe or 100) < GOLD_SAFE then
+    p.message("🟢 安全ポイントが " + GOLD_SAFE + " になったら受けられるよ（いま " + (p.safe or 100) + "）", 2)
+    return
+  end
+  quit_job(p)
+  if not p.driving then get_in(p) end
+  p.exam = {level: next.n, next: 2, start: time(), miss: 0, over: 0}
+  let first = block("Exam 1")
+  p.teleport(first.position + {x: 0, y: 0, z: 10})
+  p.yaw = 180
+  p.waypoint(block("Exam 2"), "試験ゲート 2", "purple")
+  p.message("📝 試験スタート！ むらさきのゲートを じゅんばんに。" + EXAM_LIMIT + "km/h まで", 2.5)
+  p.sound("bell")
+  if examiner != nil and kit_here(examiner) then examiner.say(p.name + "さん、がんばって！ 安全第一で！") end
+end
+
+func exam_gate(p, n)
+  let e = p.exam
+  if e == nil or n != e.next then return end
+  if n == 1 then
+    exam_finish(p)
+    return
+  end
+  e.next = n % 8 + 1
+  p.sound("click")
+  p.waypoint(block("Exam " + e.next), "試験ゲート " + e.next, "purple")
+end
+
+-- 0.25秒ごと: 50km/h をこえて1.2秒つづいたらミス
+func exam_speed(p, dt)
+  let e = p.exam
+  if ride_kmh(p) > EXAM_LIMIT + 3 then
+    e.over = e.over + dt
+    if e.over > 0.6 and e.over - dt <= 0.6 then p.message("⚠️ スピードを落として！（" + EXAM_LIMIT + "km/h まで）", 1) end
+    if e.over > 1.2 then
+      e.over = -2
+      exam_miss(p, "スピードの出しすぎ")
+    end
+  elif e.over > 0 then
+    e.over = 0
+  else
+    e.over = min(0, e.over + dt)
+  end
+end
+
+func exam_miss(p, why)
+  let e = p.exam
+  if e == nil then return end
+  e.miss = e.miss + 1
+  let info = LICENSES[e.level]
+  if e.miss > info.miss then
+    exam_fail(p, why)
+  else
+    p.message("⚠️ ミス: " + why + "（あと1回で不合格）", 1.8)
+  end
+end
+
+func exam_fail(p, why)
+  p.exam = nil
+  p.waypoint(nil)
+  p.ui_remove("gv_exam")
+  p.message("❌ 不合格… " + why + "。また受けてね", 2.5)
+  p.sound("lose")
+  if examiner != nil and kit_here(examiner) then examiner.say("おしい！ " + why + " に気をつけて、もう一度！") end
+end
+
+func exam_quit(p, why)
+  if p.exam != nil then exam_fail(p, why) end
+end
+
+func exam_finish(p)
+  let e = p.exam
+  let info = LICENSES[e.level]
+  let secs = time() - e.start
+  if secs > info.time then
+    exam_fail(p, "時間オーバー（" + floor(secs) + "秒）")
+    return
+  end
+  p.exam = nil
+  p.waypoint(nil)
+  p.ui_remove("gv_exam")
+  p.license = e.level
+  if p.exam_best == nil or secs < p.exam_best then p.exam_best = secs end
+  let prize = 100 * e.level
+  kit_give(p, prize)
+  kit_quest_progress(p, "exam", 1)
+  kit_badge(p, "license" + e.level, info.name)
+  p.message("🎉 合格！ " + info.name + "  ⏱ " + fixed(secs, 1) + "秒  💰" + prize, 3)
+  p.sound("win")
+  particles("confetti", p, {amount: 80})
+  announce("🪪 " + p.name + " が " + info.name + " をとった！", 3)
+  if examiner != nil and kit_here(examiner) then examiner.say("おめでとう！ " + info.name + " です！") end
+end
+
+func exam_hud(p)
+  let e = p.exam
+  if e == nil then return end
+  let info = LICENSES[e.level]
+  let t = floor(time() - e.start)
+  p.ui_text("gv_exam", "📝 " + info.name + "の試験  ⏱ " + t + "/" + info.time + "秒  ミス " + e.miss + "/" + info.miss + "  つぎ: ゲート" + e.next,
+            {at: "top", dy: 130, size: 16, bold: true, color: "#DDD6FE"})
+  if t > info.time then exam_fail(p, "時間オーバー") end
+end
+
+on start()
+  let pad = block("License Pad")
+  if pad != nil then
+    examiner = create_npc({name: "試験官", position: pad.position + {x: 3, y: 1, z: 0}, color: "#4C1D95", head_color: "#FDE68A",
+                           speed: 0, health: 100000, hat: "helmet"})
+    examiner.frozen = true
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "license") and kit_ready(p, "license", 3) then exam_menu(p)
+  elif contains(b.tags, "exam") and p.exam != nil then
+    let n = tag_num(b, "n")
+    if n != nil then exam_gate(p, n) end
+  end
+end
+
+on button(p, id)
+  if id == "exam" then exam_menu(p)
+  elif id == "ex_close" then p.ui_remove("ex_box")
+  elif id == "exam_go" then exam_start(p)
+  end
+end
