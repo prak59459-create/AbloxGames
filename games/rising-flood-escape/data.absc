@@ -1,0 +1,13 @@
+-- data.absc — Rising Flood Escape の表
+-- 3つのマップ（水が上がる速さ・ボタンの数・とちゅうで酸になるか）
+
+let MAPS = [
+  {n: 1, name: "🏛 沈んだ神殿", stars: "★☆☆", buttons: 4, rise: 38, acid: false, text: "動く床をのりついで"},
+  {n: 2, name: "🧸 おもちゃ工場", stars: "★★☆", buttons: 4, rise: 38, acid: true, text: "バネでジャンプ。さいごは酸！"},
+  {n: 3, name: "🏰 空の城", stars: "★★★", buttons: 4, rise: 51, acid: true, text: "消える雲に注意。高くて速い"}
+]
+let ROUND_SECS = 140
+let AIR_SECS = 12          -- 水の中で息がつづく秒
+let ACID_AT = 0.72         -- この割合の時間がすぎると酸になるマップがある
+let ESCAPE_COINS = 60
+let BUTTON_COINS = 15

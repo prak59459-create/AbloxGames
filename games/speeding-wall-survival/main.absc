@@ -1,0 +1,51 @@
+-- Speeding Wall Survival — つっこんでくるカベから生きのこれ
+-- ラウンドが始まると全員アリーナへ。カベがどんどん速くなってくる。
+-- すきまに入る・ひくいカベはとびこえる・ネズミの穴は🍄で小さくなってくぐる・ニセモノはすりぬけ。
+--
+-- ファイル:
+--   ../../lib/kit_rounds.absc  ラウンド
+--   ../../lib/kit_move.absc    走るカベの当たり判定
+--   data.absc    カベの種類・アイテム
+--   walls.absc   カベ・当たり・アイテム
+--   rounds.absc  ラウンドの始まりと終わり
+--   main.absc    このファイル
+
+kit_setup("Speeding Wall Survival", "カベがくる！ すきまをさがせ！", [
+  "🧱 赤いカベはすきまに入ってよける",
+  "🟧 ひくいカベはジャンプでとびこえる",
+  "🟪 ネズミの穴は 🍄 で小さくなってくぐる",
+  "🟦 すけているカベはニセモノ（すりぬけ）",
+  "🛡 シールド・👟 スピード・🦘 ジャンプのアイテムを拾おう",
+  "🏆 最後まで残った人の勝ち。1人のときは何まい耐えたかの記録"
+])
+kit_keep(["wins", "walls", "best_wave", "powers", "shoes", "start_shield"])
+
+rnd_setup({wait: 10, play: 600, results: 8, label: "サバイバル", timer: false})
+rnd_on_prepare = func() prepare() end
+rnd_on_begin = func() begin() end
+rnd_on_end = func(reason) results(reason) end
+
+kit_shop_add("shoes", "👟 はやい足（ずっと 1.15ばい）", 400, func(p)
+  p.shoes = true
+  p.speed = base_speed(p)
+end)
+kit_shop_add("shield", "🛡 スタートシールド（毎ラウンド1まい）", 900, func(p) p.start_shield = true end)
+kit_shop_add("crown", "👑 王冠", 700, func(p) p.hat = "crown" end)
+
+kit_quest("walls", "カベを30まいよける", 30, 150)
+kit_quest("powers", "アイテムを10こ拾う", 10, 100)
+kit_quest("win", "最後の1人になる", 1, 200)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.speed = base_speed(p)
+end
+
+on start()
+  world.music = "party"
+  every(12, func() kit_leaderboard("🏆 勝ち") end)
+end

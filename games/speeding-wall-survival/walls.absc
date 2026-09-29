@@ -1,0 +1,208 @@
+-- walls.absc — カベを作って走らせる・当たったらアウト・アイテム
+
+let wave = 0
+let wall_parts = []
+let powers = []
+let wall_busy = false
+let arena_z0 = -46
+
+func quiet(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func wave_secs()
+  return max(FASTEST_SECS, FIRST_SECS * pow(0.93, wave - 1))
+end
+
+func pick_pattern()
+  let list = filter(PATTERNS, func(pt) return wave >= pt.from end)
+  return kit_pick(list, 1)
+end
+
+-- カベのかけらを1つ作って、走らせる
+func wall_part(x, y, w, h, color, glass, delay)
+  let b = create_block({name: "Speed Wall", position: {x: x, y: y, z: arena_z0}, size: {x: w, y: h, z: 1.4}, color: color,
+                        material: "neon", solid: false})
+  if glass then
+    b.material = "glass"
+    b.opacity = 0.35
+  end
+  append(wall_parts, b)
+  let hit = func(p, blk) wall_hit(p) end
+  if glass then hit = nil end
+  after(delay, func()
+    if b.destroy != nil then mv_once(b, {x: x, y: y, z: arena_z0 + TRAVEL}, wave_secs(), hit) end
+  end)
+  after(delay + wave_secs() + 0.3, func() kit_gone(b) end)
+end
+
+-- すきまのあるカベ（gaps: すきまのx位置のリスト、gw: はば）
+func gap_wall(gaps, gw, color, delay, h)
+  let edges = [-16]
+  for g in sort(gaps) do
+    append(edges, g - gw / 2)
+    append(edges, g + gw / 2)
+  end
+  append(edges, 16)
+  let i = 1
+  while i < len(edges) do
+    let a = edges[i]
+    let b = edges[i + 1]
+    if b - a > 0.2 then wall_part((a + b) / 2, h / 2, b - a, h, color, false, delay) end
+    i = i + 2
+  end
+end
+
+func random_gaps(n, gw)
+  let list = []
+  let tries = 0
+  while len(list) < n and tries < 30 do
+    tries = tries + 1
+    let x = -14 + gw / 2 + random() * (28 - gw)
+    let ok = true
+    for g in list do
+      if abs(g - x) < gw + 2 then ok = false end
+    end
+    if ok then append(list, x) end
+  end
+  return list
+end
+
+func launch_wall()
+  wave = wave + 1
+  let pt = pick_pattern()
+  if wave == 1 then pt = PATTERNS[1] end
+  for p in rnd_players() do
+    if p.wall_state == "in" then p.message("🧱 " + wave + "まいめ: " + pt.name + " — " + pt.text, 2) end
+  end
+  ui_text("wall_wave", "🧱 " + wave + " まいめ   のこり " + len(alive_in()) + " 人", {at: "top", dy: 26, size: 20, bold: true})
+  let gw = max(2.6, 4 - wave * 0.08)
+  if pt.id == "gaps" then
+    gap_wall(random_gaps(min(3, 1 + floor(random() * 3)), gw), gw, pt.color, 0, 6)
+  elif pt.id == "thin" then
+    gap_wall(random_gaps(2, 1.8), 1.8, pt.color, 0, 6)
+  elif pt.id == "low" then
+    wall_part(0, 0.4, 32, 0.8, pt.color, false, 0)
+  elif pt.id == "fake" then
+    wall_part(0, 3, 32, 6, pt.color, true, 0)
+  elif pt.id == "double" then
+    gap_wall(random_gaps(2, gw), gw, pt.color, 0, 6)
+    gap_wall(random_gaps(2, gw), gw, pt.color, 1.3, 6)
+  elif pt.id == "mouse" then
+    -- 小さい穴（高さ1m）が1つ。上と左右はカベ
+    let hx = -12 + random() * 24
+    gap_wall([hx], 2.2, pt.color, 0, 6)
+    wall_part(hx, 3.5, 2.2, 5, pt.color, false, 0)
+    spawn_power("tiny")
+    spawn_power("tiny")
+  end
+  sound("whoosh")
+  if chance_power() then spawn_power(nil) end
+  let this_wave = wave
+  after(wave_secs() + 1.6, func()
+    if rnd_playing() and this_wave == wave then wave_passed() end
+  end)
+end
+
+func chance_power()
+  return random() < 0.7
+end
+
+func alive_in()
+  return filter(rnd_players(), func(p) return p.wall_state == "in" end)
+end
+
+func wave_passed()
+  for p in alive_in() do
+    kit_give(p, WAVE_COINS)
+    p.walls = (p.walls or 0) + 1
+    if wave > (p.best_wave or 0) then p.best_wave = wave end
+    kit_quest_progress(p, "walls", 1)
+  end
+  if not round_over_check() then launch_wall() end
+end
+
+func wall_hit(p)
+  if p.wall_state != "in" or not quiet(p, "wall", 0.8) then return end
+  if p.shield then
+    p.shield = false
+    p.message("🛡 シールドがまもった！", 1.5)
+    particles("sparkles", p, {amount: 30})
+    return
+  end
+  p.wall_state = "out"
+  p.message("💥 カベにぶつかった！ " + wave + "まいめ", 2)
+  p.sound("hit")
+  p.launch(0, 14, 22)
+  shake(0.2, 0.3)
+  kit_later(p, 1.2, func() p.teleport(block("Spawn " + random(1, 8))) end)
+  round_over_check()
+end
+
+-- MARK: アイテム
+
+func power_info(id)
+  for pw in POWERS do
+    if pw.id == id then return pw end
+  end
+  return POWERS[1]
+end
+
+func spawn_power(id)
+  let pw = nil
+  if id != nil then pw = power_info(id) else pw = POWERS[random(1, len(POWERS))] end
+  let spot = {x: -13 + random() * 26, y: 0.9, z: 0 + random() * 40}
+  let b = create_block({name: "Power " + pw.id, position: spot, size: {x: 1.1, y: 1.1, z: 1.1}, color: pw.color, shape: "sphere",
+                        material: "neon", behavior: "trigger", tags: ["power", pw.id], solid: false})
+  append(powers, b)
+  after(20, func() kit_gone(b) end)
+end
+
+func take_power(p, b)
+  if p.wall_state != "in" or not b.visible then return end
+  let id = "shield"
+  for pw in POWERS do
+    if contains(b.tags, pw.id) then id = pw.id end
+  end
+  kit_gone(b)
+  p.sound("powerup")
+  p.powers = (p.powers or 0) + 1
+  kit_quest_progress(p, "powers", 1)
+  let pw = power_info(id)
+  p.message(pw.name + " — " + pw.text, 1.5)
+  if id == "shield" then
+    p.shield = true
+  elif id == "speed" then
+    p.speed = 1.6
+    kit_later(p, 6, func() p.speed = base_speed(p) end)
+  elif id == "tiny" then
+    p.size = 0.5
+    kit_later(p, 10, func() p.size = 1 end)
+  elif id == "jump" then
+    p.jump = 1.6
+    kit_later(p, 8, func() p.jump = 1 end)
+  end
+end
+
+func base_speed(p)
+  if p.shoes then return 1.15 end
+  return 1
+end
+
+func clear_walls()
+  for b in wall_parts do kit_gone(b) end
+  wall_parts = []
+  for b in powers do kit_gone(b) end
+  powers = []
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "power") then take_power(p, b)
+  elif contains(b.tags, "shop") and quiet(p, "shop", 3) then kit_open_shop(p)
+  end
+end

@@ -1,0 +1,59 @@
+-- Trap Master Run — ワナ師とランナーのデスラン
+-- ラウンドごとに1人がワナ師（1人で遊ぶときはコンピューター）。ほかはランナーで、10このワナのゾーンを走る。
+-- ワナ師はバルコニーを歩いて、右のボタンでワナを1回ずつ動かす。ランナーはゴールしたら剣でしかえし！
+--
+-- ファイル:
+--   ../../lib/kit_rounds.absc  ラウンド
+--   ../../lib/kit_move.absc    動くワナの当たり判定（カベ・大岩・天井・矢）
+--   data.absc    ワナ10こ
+--   traps.absc   ワナを動かす・当たり・コンピューターのワナ師
+--   roles.absc   ワナ師えらび・アウト・ゴールとしかえし・結果
+--   main.absc    このファイル
+
+kit_setup("Trap Master Run", "ワナ師のワナをかわして、ゴールへ走れ！", [
+  "😈 ラウンドごとに1人がワナ師。ほかはランナー",
+  "🕳🔺🧱🔥🪨🔴⬇️🌉🏹🌋 10このワナは1回ずつしか使えない",
+  "😈 ワナ師はバルコニーを歩いて、ランナーが来たらボタン！",
+  "🏃 ランナーはワナにさわったらアウト（見学席へ）",
+  "⚔️ ゴールしたランナーは剣をもらって、ワナ師にしかえし",
+  "🏆 ゴールで1点、ワナ師をたおすと2点。ワナ師はアウト1人で1点"
+])
+kit_keep(["wins", "tm_turns", "trap_kills", "falls"])
+
+weapon("runner_sword", {model: "pistol", damage: 25, rate: 2, range: 5, ammo: 1000, reload: 0, spread: 4})
+weapon("tm_sword", {model: "pistol", damage: 34, rate: 2, range: 5.5, ammo: 1000, reload: 0, spread: 4})
+game.respawn_time = 2
+
+rnd_setup({wait: 12, play: ROUND_SECS, results: 8, label: "ラン"})
+rnd_on_prepare = func() prepare() end
+rnd_on_begin = func() begin() end
+rnd_on_end = func(reason) results(reason) end
+rnd_on_second = func(left) check_end() end
+
+kit_quest("finish", "ゴールする", 1, 80)
+kit_quest("finish5", "5回ゴールする", 5, 250)
+kit_quest("kills", "ワナ師で5人アウトにする", 5, 200)
+kit_quest("tmwin", "ワナ師でだれもゴールさせない", 1, 250)
+kit_quest("revenge", "しかえしでワナ師をたおす", 1, 200)
+
+kit_shop_add("trail", "✨ キラキラのあしあと", 250, func(p) p.sparkle = true end)
+kit_shop_add("crown", "👑 王冠", 800, func(p) p.hat = "crown" end)
+kit_shop_add("horns", "😈 ワナ師のツノ", 600, func(p) p.hat = "horns" end)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+end
+
+on start()
+  world.music = "boss"
+  every(12, func() kit_leaderboard("🏆 ポイント") end)
+  every(0.8, func()
+    for p in players() do
+      if p.sparkle and p.alive then particles("sparkles", p, {amount: 4}) end
+    end
+  end)
+end

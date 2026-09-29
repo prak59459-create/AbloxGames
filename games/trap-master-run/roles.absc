@@ -1,0 +1,221 @@
+-- roles.absc — ワナ師を決める・ランナー・アウト・ゴールとしかえし・結果
+
+let tm = nil
+let finished = []
+let outs = []
+let revenge_at = 0
+
+func quiet(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func runners()
+  return filter(rnd_players(), func(p) return p.dr_role == "runner" end)
+end
+
+func pick_tm()
+  let list = rnd_players()
+  if len(list) < 2 then return nil end
+  let fewest = nil
+  for p in shuffle(copy(list)) do
+    if fewest == nil or (p.tm_turns or 0) < (fewest.tm_turns or 0) then fewest = p end
+  end
+  return fewest
+end
+
+func trap_buttons()
+  if tm == nil or not kit_here(tm) then return end
+  let i = 0
+  for t in TRAPS do
+    i = i + 1
+    let label = "⚡" + t.k + " " + t.icon + " " + t.name
+    let bg = "#B91C1C"
+    if used["t" + t.k] then
+      label = "✔ " + t.name
+      bg = "#374151"
+    end
+    tm.ui_button("trap_" + t.k, label, {at: "right", dx: -8, dy: -250 + i * 46, w: 190, h: 40, size: 13, bg: bg})
+  end
+end
+
+func clear_trap_buttons(p)
+  for t in TRAPS do p.ui_remove("trap_" + t.k) end
+end
+
+func prepare()
+  reset_traps()
+  finished = []
+  outs = []
+  revenge_at = 0
+  let gate = block("Start Gate")
+  if gate != nil then
+    gate.visible = true
+    gate.solid = true
+  end
+  tm = pick_tm()
+  let i = 0
+  for p in rnd_players() do
+    p.take()
+    p.health = p.max_health
+    if tm != nil and p.id == tm.id then
+      p.dr_role = "tm"
+      p.dr_state = "tm"
+      p.tm_turns = (p.tm_turns or 0) + 1
+      p.max_health = TM_HEALTH
+      p.health = TM_HEALTH
+      p.teleport(block("TMStart"))
+      p.message("😈 きみはワナ師！ 右のボタンでワナを動かそう（1回ずつ）", 4)
+    else
+      i = i + 1
+      p.dr_role = "runner"
+      p.dr_state = "run"
+      p.max_health = 100
+      p.health = 100
+      let spot = block("RStart " + ((i - 1) % 12 + 1))
+      if spot != nil then p.teleport(spot) end
+      p.message("🏃 ランナー！ ワナをかわしてゴールへ", 3)
+    end
+  end
+  if tm == nil then announce("🤖 今回のワナ師はコンピューター", 3) else announce("😈 ワナ師は " + tm.name + "！", 3) end
+end
+
+func begin()
+  let gate = block("Start Gate")
+  if gate != nil then
+    gate.visible = false
+    gate.solid = false
+  end
+  trap_buttons()
+end
+
+func knock_out(p, why)
+  if p.dr_state != "run" then return end
+  p.dr_state = "out"
+  append(outs, p)
+  p.message(why + " アウト！", 2)
+  p.sound("error")
+  p.falls = (p.falls or 0) + 1
+  if tm != nil and kit_here(tm) then
+    tm.score = tm.score + 1
+    tm.trap_kills = (tm.trap_kills or 0) + 1
+    kit_give(tm, 15)
+    kit_quest_progress(tm, "kills", 1)
+    tm.message("😈 " + p.name + " をアウトにした！ +15", 1.5)
+  end
+  kit_later(p, 0.4, func()
+    let box = block("Spectate")
+    if box != nil then p.teleport(box) end
+  end)
+end
+
+func finish_run(p)
+  if p.dr_state != "run" or not rnd_playing() then return end
+  p.dr_state = "done"
+  append(finished, p)
+  p.score = p.score + 1
+  p.wins = (p.wins or 0) + 1
+  kit_give(p, 50)
+  kit_quest_progress(p, "finish", 1)
+  kit_quest_progress(p, "finish5", 1)
+  if len(finished) == 1 then kit_badge(p, "first", "ワナをすべてかわした") end
+  announce("🏁 " + p.name + " がゴール！ ⚔️ ワナ師にしかえしだ！", 2.5)
+  -- しかえし: バルコニーへ、剣を持って
+  p.teleport(block("Revenge " + ((len(finished) - 1) % 4 + 1)))
+  p.give("runner_sword")
+  if revenge_at == 0 then
+    revenge_at = time()
+    if tm != nil and kit_here(tm) then
+      tm.give("tm_sword")
+      tm.message("⚔️ ランナーがしかえしに来た！ 剣でたたかえ！", 2.5)
+    end
+  end
+end
+
+func check_end()
+  if not rnd_playing() then return end
+  let running = len(filter(runners(), func(p) return p.dr_state == "run" end))
+  let fighters = len(filter(finished, func(p) return kit_here(p) and p.alive and p.dr_state == "done" end))
+  if running > 0 then return end
+  if len(finished) == 0 then
+    rnd_end("traps")
+  elif fighters == 0 or tm == nil or time() - revenge_at > REVENGE_SECS then
+    rnd_end("revenge")
+  end
+end
+
+func results(reason)
+  let lines = []
+  let title = ""
+  if reason == "tm_down" then
+    title = "⚔️ ランナーの勝ち！ ワナ師をたおした"
+  elif len(finished) == 0 then
+    title = "😈 ワナ師の勝ち！ だれもゴールできなかった"
+    if tm != nil and kit_here(tm) then
+      kit_give(tm, 60)
+      kit_quest_progress(tm, "tmwin", 1)
+      kit_badge(tm, "tmwin", "かんぺきなワナ師")
+    end
+  else
+    title = "🏁 " + len(finished) + " 人ゴール"
+  end
+  if tm != nil and kit_here(tm) then append(lines, "😈 ワナ師 " + tm.name + " — アウトにした " + len(outs) + " 人") end
+  for p in finished do
+    if kit_here(p) then append(lines, "🏁 " + p.name) end
+  end
+  for p in outs do
+    if kit_here(p) then append(lines, "💥 " + p.name) end
+  end
+  rnd_results(title, lines)
+  for p in rnd_players() do
+    p.take()
+    p.max_health = 100
+    p.health = 100
+    clear_trap_buttons(p)
+    p.dr_role = nil
+    p.dr_state = nil
+    p.teleport(block("Spawn " + random(1, 6)))
+  end
+  tm = nil
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "dr_finish") then finish_run(p) end
+end
+
+on button(p, id)
+  if starts_with(id, "trap_") and tm != nil and p.id == tm.id then
+    let k = num(replace(id, "trap_", "")) or 0
+    if k >= 1 and k <= 10 and quiet(p, "trap", 0.8) then fire_trap(k, p) end
+  end
+end
+
+on death(victim, killer)
+  if not rnd_playing() then return end
+  if tm != nil and victim.id == tm.id then
+    if killer != nil and not killer.is_npc then
+      killer.score = killer.score + 2
+      kit_give(killer, 40)
+      kit_quest_progress(killer, "revenge", 1)
+      kit_badge(killer, "revenge", "しかえし成功")
+    end
+    rnd_end("tm_down")
+  elif victim.dr_state == "done" then
+    victim.dr_state = "fallen"
+  end
+end
+
+on respawn(p)
+  if rnd_playing() and rnd_in(p) and p.dr_state != "run" then
+    let box = block("Spectate")
+    if box != nil then p.teleport(box) end
+  end
+end
+
+on leave(p)
+  if tm != nil and tm.id == p.id then tm = nil end
+end

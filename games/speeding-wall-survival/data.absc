@@ -1,0 +1,25 @@
+-- data.absc — Speeding Wall Survival の表
+-- カベの種類と、アイテム
+
+-- weight: 出やすさ、from: 何回目のカベから出るか
+let PATTERNS = [
+  {id: "gaps", name: "すきまのカベ", color: "#DC2626", weight: 40, from: 1, text: "すきまに入れ！"},
+  {id: "low", name: "ひくいカベ", color: "#F97316", weight: 18, from: 2, text: "とびこえろ！"},
+  {id: "fake", name: "ニセモノのカベ", color: "#93C5FD", weight: 10, from: 3, text: "…あれ？"},
+  {id: "double", name: "2れんぞくカベ", color: "#B91C1C", weight: 14, from: 5, text: "2まい来るぞ！"},
+  {id: "mouse", name: "ネズミの穴", color: "#7C3AED", weight: 10, from: 6, text: "🍄で小さくなってくぐれ！"},
+  {id: "thin", name: "ほそいすきま", color: "#BE123C", weight: 10, from: 8, text: "すきまがせまい！"}
+]
+
+let POWERS = [
+  {id: "shield", name: "🛡 シールド", color: "#38BDF8", text: "1回だけカベをふせぐ"},
+  {id: "speed", name: "👟 スピード", color: "#22C55E", text: "6秒 速くなる"},
+  {id: "tiny", name: "🍄 小さくなる", color: "#A855F7", text: "10秒 小さくなる"},
+  {id: "jump", name: "🦘 ジャンプ", color: "#FACC15", text: "8秒 高くとぶ"}
+]
+
+let TRAVEL = 96          -- カベが走るきょり（m）
+let FIRST_SECS = 9       -- 1回目のカベが走りぬける秒
+let FASTEST_SECS = 2.6
+let WAVE_COINS = 5
+let WIN_COINS = 120

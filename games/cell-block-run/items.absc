@@ -1,0 +1,54 @@
+-- items.absc — ドーナツ（スピードアップ）・カードキー・所長室のドア
+
+func boost(p)
+  p.obby_speed_mult = BOOST_SPEED
+  obby_apply_perks(p)
+  p.boost_id = (p.boost_id or 0) + 1
+  let id = p.boost_id
+  p.message("🍩 スピードアップ！", 1)
+  kit_later(p, BOOST_SECS, func()
+    if p.boost_id == id then
+      p.obby_speed_mult = 1
+      obby_apply_perks(p)
+    end
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "donut") and b.visible then
+    b.visible = false
+    after(DONUT_BACK, func()
+      if b.destroy != nil then b.visible = true end
+    end)
+    p.donuts = (p.donuts or 0) + 1
+    kit_give(p, 3)
+    kit_quest_progress(p, "donuts", 1)
+    p.sound("collect")
+    boost(p)
+  elif contains(b.tags, "keycard") then
+    if not p.has_item("🪪 カードキー") then
+      p.give_item("🪪 カードキー", 1, "🪪")
+      p.message("🪪 カードキーを手に入れた！ ドアへ", 2)
+      p.sound("collect")
+    end
+  elif contains(b.tags, "office_exit") then
+    if (p.stage or 0) >= 15 then return end
+    if p.has_item("🪪 カードキー") then
+      p.take_item("🪪 カードキー")
+      p.message("ピッ！ ドアが開いた", 1.2)
+      p.sound("door")
+    elif quiet(p, "door", 1.5) then
+      p.message("🔒 カードキーが必要！ たなの上をさがそう", 2)
+      p.sound("error")
+      p.teleport(obby_block(14) or obby_block(13))
+    end
+  end
+end
+
+on use(p, item)
+  if item == "🍩 ドーナツ" then
+    p.take_item("🍩 ドーナツ")
+    boost(p)
+  end
+end

@@ -1,0 +1,25 @@
+-- data.absc — Color Chart Obby の表
+-- 12段階の難しさ（色）・コイル・クエスト
+
+let TIERS = [
+  {name: "らくらく", color: "#4ADE80", bonus: 20},
+  {name: "かんたん", color: "#16A34A", bonus: 30},
+  {name: "ふつう", color: "#FACC15", bonus: 45},
+  {name: "むずかしい", color: "#F97316", bonus: 60},
+  {name: "とてもむずかしい", color: "#EF4444", bonus: 80},
+  {name: "チャレンジ", color: "#991B1B", bonus: 100},
+  {name: "はげしい", color: "#52525B", bonus: 130},
+  {name: "ようしゃなし", color: "#D946EF", bonus: 160},
+  {name: "むちゃくちゃ", color: "#2563EB", bonus: 200},
+  {name: "きょくげん", color: "#38BDF8", bonus: 250},
+  {name: "きょうふ", color: "#22D3EE", bonus: 320},
+  {name: "だいさいがい", color: "#F8FAFC", bonus: 400}
+]
+let STAGES_PER_TIER = 5
+
+-- コイル（アイテムバーでオン・オフ）
+let COILS = [
+  {id: "speed", item: "⚡ スピードコイル", icon: "⚡", price: 300, text: "走るのが 1.4ばい"},
+  {id: "gravity", item: "🌀 重力コイル", icon: "🌀", price: 450, text: "ふわっと高くとぶ（重力 0.6）"},
+  {id: "fusion", item: "🌈 フュージョンコイル", icon: "🌈", price: 1500, text: "速くて ふわっと（両方）"}
+]

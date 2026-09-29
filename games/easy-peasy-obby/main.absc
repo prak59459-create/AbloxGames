@@ -1,0 +1,65 @@
+-- Easy Peasy Obby — とってもやさしい100ステージ
+-- 10のワールド（草原・おかし・ビーチ・雪・宇宙・ジャングル・おもちゃ・雲・にじ・お城）× 10ステージ。
+-- ステージごとにおうえん、ワールドをクリアするとシールとぼうし。ペットがついてくる。
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   data.absc     ワールド・ペット・おうえん
+--   pets.absc     ついてくるペット
+--   worlds.absc   おうえん・シール帳・ぼうし・コイン
+--   main.absc     このファイル
+
+kit_setup("Easy Peasy Obby", "やさしいオビーを100ステージ！", [
+  "🟡 光るパッドまで行くとチェックポイント",
+  "🪙 コインを集めて、ショップやペットに使おう",
+  "🐾 ステージ10・20・40・100でペットがもらえる",
+  "📒 ワールドをクリアするとシールと ぼうし",
+  "↩ でチェックポイントにもどる。📋 でワールドをえらぶ",
+  "むずかしかったら ⏭ でとばしてもだいじょうぶ！"
+])
+kit_keep(["pets", "pet", "stickers", "chosen_hat", "coins_found"])
+
+obby_setup({stages: 100, fall: -6, coins: 3, finish_coins: 500, skip: 15, board: "easy_time"})
+obby_zones = []
+for w in WORLDS do
+  append(obby_zones, {from: w.first, last: w.last, name: w.name, color: w.color})
+end
+obby_on_stage = func(p, n) easy_stage(p, n) end
+obby_on_finish = func(p, secs) easy_finish(p, secs) end
+obby_perks_basic()
+
+kit_quest("stages", "チェックポイントを20こ", 20, 60)
+kit_quest("worlds", "ワールドを3つクリア", 3, 150)
+kit_quest("coins", "コインを30まい拾う", 30, 80)
+kit_quest("pets", "ペットを3ひき", 3, 150)
+kit_quest("finish", "100ステージ クリア", 1, 1000)
+
+kit_on_load = func(p)
+  if p.chosen_hat != nil then p.hat = p.chosen_hat end
+  if p.pet != nil then pet_walk(p, p.pet) end
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.ui_button("pets", "🐾", {at: "top_right", dy: 120, w: 52, h: 52, size: 22, bg: "#F97316", radius: 26})
+  p.ui_button("book", "📒", {at: "top_right", dy: 240, w: 52, h: 52, size: 22, bg: "#D97706", radius: 26})
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("🏁 ステージ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

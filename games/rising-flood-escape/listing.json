@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 263,
+  "cover" : "games\/rising-flood-escape\/cover-409cfeaa.png",
+  "id" : "rising-flood-escape",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_rounds.absc",
+    "lib\/kit_move.absc",
+    "games\/rising-flood-escape\/data.absc",
+    "games\/rising-flood-escape\/flood.absc",
+    "games\/rising-flood-escape\/main.absc"
+  ],
+  "shots" : [
+    "games\/rising-flood-escape\/shot1-9e042d5f.png",
+    "games\/rising-flood-escape\/shot2-d77e9ace.png"
+  ],
+  "summary" : "水がどんどん上がってくる！ みんなでボタンを順番に押してゲートを開け、てっぺんの出口へ。沈んだ神殿・おもちゃ工場・空の城の3マップ。水の中では息が続くまで。",
+  "tags" : [
+    "obby",
+    "coop",
+    "survival"
+  ],
+  "title" : "Rising Flood Escape",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/rising-flood-escape\/world.ablox"
+}

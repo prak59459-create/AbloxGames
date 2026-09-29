@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 528,
+  "cover" : "games\/easy-peasy-obby\/cover-60a66188.png",
+  "id" : "easy-peasy-obby",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "games\/easy-peasy-obby\/data.absc",
+    "games\/easy-peasy-obby\/pets.absc",
+    "games\/easy-peasy-obby\/worlds.absc",
+    "games\/easy-peasy-obby\/main.absc"
+  ],
+  "shots" : [
+    "games\/easy-peasy-obby\/shot1-81d5a258.png",
+    "games\/easy-peasy-obby\/shot2-ca9f5168.png"
+  ],
+  "summary" : "小さい子でもクリアできる、とってもやさしい100ステージ。草原・おかし・ビーチ・雪・宇宙など10のワールド。ついてくるペット、ワールドごとのシールとぼうし、コイン集め。",
+  "tags" : [
+    "obby",
+    "easy",
+    "kids"
+  ],
+  "title" : "Easy Peasy Obby",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/easy-peasy-obby\/world.ablox"
+}

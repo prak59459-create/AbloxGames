@@ -1,0 +1,85 @@
+-- chart.absc — ゾーン（難しさ）ごとのバッジ・ボーナス・落ちた回数・ランキング
+
+func tier_of(n)
+  return clamp(floor((max(1, n) - 1) / STAGES_PER_TIER) + 1, 1, len(TIERS))
+end
+
+func tier_start(t)
+  return (t - 1) * STAGES_PER_TIER + 1
+end
+
+func tier_label(t)
+  let info = TIERS[t]
+  return t + ". " + info.name
+end
+
+-- 新しいステージに着いたとき（obby エンジンから）
+func chart_stage(p, n)
+  let t = tier_of(n)
+  if n == tier_start(t) and t > 1 then
+    if p.tiers_done == nil then p.tiers_done = [] end
+    let prev = t - 1
+    if not contains(p.tiers_done, prev) then
+      append(p.tiers_done, prev)
+      kit_give(p, TIERS[prev].bonus)
+      kit_badge(p, "tier" + prev, "「" + TIERS[prev].name + "」クリア")
+      p.message("🎖 " + TIERS[prev].name + " クリア！ +" + TIERS[prev].bonus, 2.5)
+      kit_quest_progress(p, "tiers", 1)
+    end
+  end
+  leaderboard("chart_stage", p, p.obby_best or n)
+  trial_stage(p, n)
+end
+
+func chart_finish(p, secs)
+  if p.tiers_done == nil then p.tiers_done = [] end
+  if not contains(p.tiers_done, len(TIERS)) then
+    append(p.tiers_done, len(TIERS))
+    kit_give(p, TIERS[len(TIERS)].bonus)
+    kit_badge(p, "tier12", "だいさいがい クリア")
+  end
+  kit_quest_progress(p, "finish", 1)
+  p.hat = "crown"
+  trial_finish(p)
+end
+
+func chart_fell(p)
+  let t = tier_of(p.stage or 1)
+  if p.tier_falls == nil then p.tier_falls = {} end
+  let key = "t" + t
+  p.tier_falls[key] = (p.tier_falls[key] or 0) + 1
+  kit_quest_progress(p, "falls", 1)
+end
+
+func chart_stats(p)
+  let lines = []
+  let i = 0
+  for info in TIERS do
+    i = i + 1
+    let mark = "⬜"
+    if p.tiers_done != nil and contains(p.tiers_done, i) then mark = "✅" end
+    let falls = 0
+    if p.tier_falls != nil then falls = p.tier_falls["t" + i] or 0 end
+    let best = "—"
+    if p.trial_best != nil and p.trial_best["t" + i] != nil then best = fixed(p.trial_best["t" + i], 1) + "秒" end
+    append(lines, mark + " " + tier_label(i) + "   落ちた " + falls + "   ⏱ " + best)
+  end
+  let h = 110 + len(lines) * 26
+  p.ui_remove("stats_box")
+  p.ui_panel("stats_box", {at: "center", w: 560, h: h, bg: "#0F172AF2", radius: 20, layer: 35})
+  p.ui_text("stats_t", "📊 " + p.name + "   最高 " + (p.obby_best or 0) + " / 60   ゴール " + (p.obby_wins or 0) + " 回",
+            {parent: "stats_box", y: 26 / h, size: 18, bold: true, color: "gold"})
+  let k = 0
+  for line in lines do
+    k = k + 1
+    p.ui_text("stats_" + k, line, {parent: "stats_box", y: (36 + k * 26) / h, size: 14, color: TIERS[k].color})
+  end
+  p.ui_button("stats_close", "閉じる", {parent: "stats_box", y: (h - 24) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+on button(p, id)
+  if id == "stats" then chart_stats(p)
+  elif id == "stats_close" then p.ui_remove("stats_box")
+  elif id == "ranking" then p.show_leaderboard("chart_stage")
+  end
+end

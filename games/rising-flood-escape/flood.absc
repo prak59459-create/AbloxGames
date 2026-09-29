@@ -1,0 +1,294 @@
+-- flood.absc — 投票・水が上がる・息・ボタンとゲート・出口
+
+let map = MAPS[1]
+let votes = {}
+let water = nil
+let water_home = nil
+let water_top_start = 0
+let next_button = 1
+let acid = false
+let escaped = []
+let drowned = []
+let flood_clock = 0
+let legs_id = 0
+
+func map_info(n)
+  for m in MAPS do
+    if m.n == n then return m end
+  end
+  return MAPS[1]
+end
+
+func in_flood(p)
+  return rnd_in(p) and p.flood_state == "in"
+end
+
+func water_top()
+  if water == nil then return -100 end
+  let c = mv_where(water)
+  return c.y + water.size.y / 2
+end
+
+-- MARK: 投票
+
+func vote(p, n)
+  if not rnd_waiting() then return end
+  votes[p.id] = n
+  p.message("🗳 " + map_info(n).name + " に投票", 1.2)
+end
+
+func pick_map()
+  let counts = {}
+  for id in keys(votes) do
+    let k = "m" + votes[id]
+    counts[k] = (counts[k] or 0) + 1
+  end
+  let best = nil
+  let best_n = 0
+  for m in shuffle(copy(MAPS)) do
+    let c = counts["m" + m.n] or 0
+    if best == nil or c > best_n then
+      best = m
+      best_n = c
+    end
+  end
+  votes = {}
+  return best
+end
+
+-- MARK: ラウンド
+
+func reset_map(m)
+  for b in blocks("fgate") do
+    if contains(b.tags, "map" + m.n) then
+      b.visible = true
+      b.solid = true
+    end
+  end
+  for b in blocks("fbutton") do
+    if contains(b.tags, "map" + m.n) then b.color = "#FACC15" end
+  end
+end
+
+func prepare()
+  map = pick_map()
+  reset_map(map)
+  next_button = 1
+  acid = false
+  escaped = []
+  drowned = []
+  water = block("Flood " + map.n)
+  if water != nil then
+    mv_stop(water)
+    if water_home == nil or water_home.n != map.n then water_home = {n: map.n, pos: water.position} end
+    water.position = water_home.pos
+    water.color = "#0EA5E9"
+  end
+  let i = 0
+  for p in rnd_players() do
+    i = i + 1
+    p.flood_state = "in"
+    p.air = air_max(p)
+    p.ui_remove("air")
+    let spot = block("FStart" + map.n + " " + ((i - 1) % 8 + 1))
+    if spot != nil then p.teleport(spot) end
+  end
+  announce("🌊 " + map.name + " " + map.stars + " — " + map.text, 4)
+end
+
+func begin()
+  legs_id = legs_id + 1
+  rise_leg(legs_id, 0)
+end
+
+-- 5秒ずつ水を上げる（水の高さはホストが計算する）
+func rise_leg(id, k)
+  if id != legs_id or not rnd_playing() or water == nil then return end
+  let legs = ceil(ROUND_SECS / 5)
+  if k >= legs then return end
+  let rise_by = map.rise / legs
+  mv_once(water, mv_where(water) + {x: 0, y: rise_by, z: 0}, 5, nil)
+  after(5, func() rise_leg(id, k + 1) end)
+end
+
+func finish(reason)
+  legs_id = legs_id + 1
+  let lines = []
+  for p in escaped do
+    if kit_here(p) then append(lines, "🚁 " + p.name + " 脱出！") end
+  end
+  for p in drowned do
+    if kit_here(p) then append(lines, "💧 " + p.name + " おぼれた") end
+  end
+  for p in rnd_players() do
+    if p.flood_state == "in" then
+      append(lines, "💧 " + p.name + " 時間切れ")
+      p.drowns = (p.drowns or 0) + 1
+    end
+    p.flood_state = "lobby"
+    p.ui_remove("air")
+    lobby(p)
+  end
+  let title = "🌊 " + map.name + "  脱出 " + len(escaped) + " 人"
+  if len(escaped) > 0 and len(drowned) == 0 and len(escaped) == len(rnd_players()) then
+    title = title + "  🎉 全員脱出！"
+    for p in escaped do
+      if kit_here(p) then
+        kit_give(p, 40)
+        kit_quest_progress(p, "team", 1)
+      end
+    end
+  end
+  rnd_results(title, lines)
+  if water != nil then
+    mv_stop(water)
+    if water_home != nil then water.position = water_home.pos end
+  end
+end
+
+func lobby(p)
+  let spot = block("Spawn " + random(1, 8))
+  if spot != nil then p.teleport(spot) end
+end
+
+func check_end()
+  let still = 0
+  for p in rnd_players() do
+    if p.flood_state == "in" then still = still + 1 end
+  end
+  if still == 0 then rnd_end("all") end
+end
+
+-- MARK: 息
+
+func air_max(p)
+  return AIR_SECS * (1 + (p.tank or 0) * 0.3)
+end
+
+func drown(p)
+  if p.float_ring then
+    p.float_ring = false
+    p.take_item("🛟 うきわ")
+    p.air = air_max(p)
+    p.launch(0, 16, 0)
+    p.message("🛟 うきわで助かった！", 1.5)
+    return
+  end
+  p.flood_state = "out"
+  p.drowns = (p.drowns or 0) + 1
+  append(drowned, p)
+  p.message("💧 おぼれた… 次のラウンドでがんばろう", 2)
+  p.ui_remove("air")
+  lobby(p)
+  check_end()
+end
+
+on tick(dt)
+  flood_clock = flood_clock + dt
+  if flood_clock < 0.2 then return end
+  let passed = flood_clock
+  flood_clock = 0
+  if not rnd_playing() then return end
+  if map.acid and not acid and rnd_elapsed() > ROUND_SECS * ACID_AT then
+    acid = true
+    if water != nil then water.color = "#84CC16" end
+    for p in rnd_players() do
+      if p.flood_state == "in" then p.message("☠️ 水が酸になった！ 入るとアウト！", 2.5) end
+    end
+    sound("alarm")
+  end
+  let top = water_top()
+  for p in rnd_players() do
+    if p.flood_state == "in" and p.alive then
+      let head = p.y + 1.5
+      if head < top then
+        if acid then
+          drown(p)
+        else
+          p.air = (p.air or air_max(p)) - passed
+          p.ui_bar("air", max(0, p.air), air_max(p), {at: "top", dy: 110, w: 240, h: 14, color: "#38BDF8"})
+          p.ui_text("air_t", "🫧 息", {at: "top", dy: 92, size: 14, color: "#BAE6FD"})
+          if p.air <= 0 then drown(p) end
+        end
+      elif (p.air or 0) < air_max(p) then
+        p.air = min(air_max(p), (p.air or 0) + passed * 3)
+        if p.air >= air_max(p) then
+          p.ui_remove("air")
+          p.ui_remove("air_t")
+        end
+      end
+    end
+  end
+end
+
+-- MARK: ボタンと出口
+
+func press(p, b)
+  if not in_flood(p) or not contains(b.tags, "map" + map.n) then return end
+  let k = 0
+  for t in b.tags do
+    if starts_with(t, "k=") then k = num(replace(t, "k=", "")) or 0 end
+  end
+  if k < next_button then return end
+  if k > next_button then
+    if kit_ready(p, "order", 2) then p.message("まずボタン " + next_button + " から！", 1.5) end
+    return
+  end
+  next_button = next_button + 1
+  b.color = "#22C55E"
+  let gate = block("Gate " + map.n + " " + k)
+  if gate != nil then
+    gate.visible = false
+    gate.solid = false
+  end
+  kit_give(p, BUTTON_COINS)
+  p.buttons = (p.buttons or 0) + 1
+  kit_quest_progress(p, "buttons", 1)
+  for q in rnd_players() do
+    if q.flood_state == "in" then q.message("🔘 " + p.name + " がボタン " + k + " を押した！ ゲートが開いた", 2) end
+  end
+  sound("door")
+end
+
+func escape(p)
+  if not in_flood(p) then return end
+  p.flood_state = "out"
+  append(escaped, p)
+  p.escapes = (p.escapes or 0) + 1
+  let bonus = floor(rnd_left() / 4)
+  kit_give(p, ESCAPE_COINS + bonus)
+  kit_quest_progress(p, "escape", 1)
+  kit_quest_progress(p, "escape5", 1)
+  if acid then kit_quest_progress(p, "acid", 1) end
+  if map.n == 3 then kit_badge(p, "castle", "空の城から脱出") end
+  announce("🚁 " + p.name + " が脱出！（+" + (ESCAPE_COINS + bonus) + "）", 2.5)
+  p.ui_remove("air")
+  p.ui_remove("air_t")
+  particles("confetti", p, {amount: 60})
+  lobby(p)
+  check_end()
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "fbutton") then press(p, b)
+  elif contains(b.tags, "fexit") then escape(p)
+  elif contains(b.tags, "vote") then
+    for t in b.tags do
+      if starts_with(t, "v=") and kit_ready(p, "vote_pad", 2) then vote(p, num(replace(t, "v=", "")) or 1) end
+    end
+  elif contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p)
+  end
+end
+
+on button(p, id)
+  if starts_with(id, "fvote_") then vote(p, num(replace(id, "fvote_", "")) or 1) end
+end
+
+on leave(p)
+  if rnd_playing() then
+    after(0.1, func()
+      check_end()
+    end)
+  end
+end

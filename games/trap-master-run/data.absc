@@ -1,0 +1,19 @@
+-- data.absc — Trap Master Run の表
+-- 10このワナ（ゾーンは15mずつ）
+
+let TRAPS = [
+  {k: 1, name: "トラップドア", icon: "🕳"},
+  {k: 2, name: "トゲ", icon: "🔺"},
+  {k: 3, name: "おしだしカベ", icon: "🧱"},
+  {k: 4, name: "火の柱", icon: "🔥"},
+  {k: 5, name: "大岩", icon: "🪨"},
+  {k: 6, name: "レーザー", icon: "🔴"},
+  {k: 7, name: "つぶし天井", icon: "⬇️"},
+  {k: 8, name: "くずれる橋", icon: "🌉"},
+  {k: 9, name: "矢", icon: "🏹"},
+  {k: 10, name: "マグマ", icon: "🌋"}
+]
+let ZONE_LEN = 15
+let ROUND_SECS = 110
+let REVENGE_SECS = 30
+let TM_HEALTH = 200

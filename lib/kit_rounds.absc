@@ -1,0 +1,176 @@
+-- kit_rounds.absc — ラウンドの進みかた（Ablox Games の共通エンジン）
+-- 待つ → カウントダウン → 遊ぶ → 結果 → また待つ、をずっとくり返す。
+--
+-- ゲームは rnd_setup で時間を決めて、rnd_on_* に自分の関数を入れる:
+--
+--   rnd_setup({wait: 10, play: 120, results: 8, label: "レース"})
+--   rnd_on_prepare = func() ... end      -- カウントダウンの前（位置につかせる）
+--   rnd_on_begin = func() ... end        -- スタート！
+--   rnd_on_end = func(reason) ... end    -- 終わり（reason は "time" か、ゲームが rnd_end にわたした文字）
+--   rnd_on_second = func(left) ... end   -- 遊んでいる間、1秒ごと（left はのこり秒）
+--   rnd_on_wait = func(left) ... end     -- 待っている間、1秒ごと
+--
+-- ラウンドの最初にいた人は rnd_in(p) が true。とちゅうで来た人は次のラウンドから。
+-- restart_round() は使わない（地図をもとにもどすのはゲームが自分でする）。
+
+let rnd_phase = "wait"
+let rnd_id = 0
+let rnd_number = 0
+let rnd_wait_secs = 10
+let rnd_count_secs = 3
+let rnd_play_secs = 120
+let rnd_result_secs = 8
+let rnd_label = "ラウンド"
+let rnd_ends = 0
+let rnd_began = 0
+let rnd_clock = 0
+let rnd_min_players = 1
+let rnd_show_timer = true
+let rnd_timer_dy = 64
+let rnd_on_prepare = nil
+let rnd_on_begin = nil
+let rnd_on_end = nil
+let rnd_on_second = nil
+let rnd_on_wait = nil
+let rnd_last_reason = ""
+
+func rnd_setup(o)
+  if o.wait != nil then rnd_wait_secs = o.wait end
+  if o.count != nil then rnd_count_secs = o.count end
+  if o.play != nil then rnd_play_secs = o.play end
+  if o.results != nil then rnd_result_secs = o.results end
+  if o.label != nil then rnd_label = o.label end
+  if o.min_players != nil then rnd_min_players = o.min_players end
+  if o.timer != nil then rnd_show_timer = o.timer end
+  if o.timer_dy != nil then rnd_timer_dy = o.timer_dy end
+end
+
+func rnd_playing()
+  return rnd_phase == "play"
+end
+
+func rnd_waiting()
+  return rnd_phase == "wait"
+end
+
+-- のこり秒（遊んでいる間）
+func rnd_left()
+  return max(0, rnd_ends - time())
+end
+
+-- スタートしてからの秒
+func rnd_elapsed()
+  if rnd_phase != "play" and rnd_phase != "results" then return 0 end
+  return time() - rnd_began
+end
+
+-- このラウンドに最初から出ている人か
+func rnd_in(p)
+  return kit_here(p) and rnd_id > 0 and p.rnd_round == rnd_id
+end
+
+func rnd_players()
+  return filter(players(), func(p) return rnd_in(p) end)
+end
+
+-- 遊んでいる時間をのばす・へらす（サドンデスなど）
+func rnd_extend(seconds)
+  rnd_ends = rnd_ends + seconds
+end
+
+func rnd_wait()
+  rnd_phase = "wait"
+  rnd_ends = time() + rnd_wait_secs
+end
+
+func rnd_start()
+  rnd_phase = "count"
+  rnd_id = rnd_id + 1
+  rnd_number = rnd_number + 1
+  for p in players() do p.rnd_round = rnd_id end
+  if rnd_on_prepare != nil then rnd_on_prepare() end
+  let id = rnd_id
+  for k in 1 to rnd_count_secs do
+    after(k - 1, func()
+      if id == rnd_id and rnd_phase == "count" then
+        announce(str(rnd_count_secs - k + 1), 0.8)
+        sound("click")
+      end
+    end)
+  end
+  after(rnd_count_secs, func()
+    if id != rnd_id or rnd_phase != "count" then return end
+    rnd_phase = "play"
+    rnd_began = time()
+    rnd_ends = time() + rnd_play_secs
+    announce("GO!", 1)
+    sound("goal")
+    if rnd_on_begin != nil then rnd_on_begin() end
+  end)
+end
+
+-- ラウンドを終わらせる（ゴール・全員アウトなど）。2回よばれても1回だけ
+func rnd_end(reason)
+  if rnd_phase != "play" and rnd_phase != "count" then return end
+  rnd_phase = "results"
+  rnd_last_reason = reason
+  rnd_ends = time() + rnd_result_secs
+  ui_remove("rnd_timer")
+  if rnd_on_end != nil then rnd_on_end(reason) end
+end
+
+-- 結果のパネル（みんなの画面）。lines は文字のリスト
+func rnd_results(title, lines)
+  let shown = slice(lines, 1, min(8, len(lines)))
+  let h = 104 + len(shown) * 30
+  for p in players() do
+    p.ui_panel("rnd_box", {at: "center", w: 560, h: h, bg: "#000000D8", radius: 22, layer: 42})
+    p.ui_text("rnd_box_t", title, {parent: "rnd_box", y: 30 / h, size: 20, bold: true, color: "#FDE68A"})
+    let i = 0
+    for line in shown do
+      i = i + 1
+      p.ui_text("rnd_box_" + i, line, {parent: "rnd_box", y: (44 + i * 30) / h, size: 16})
+    end
+    kit_later(p, rnd_result_secs - 0.5, func() p.ui_remove("rnd_box") end)
+  end
+end
+
+func rnd_timer_text(text)
+  if rnd_show_timer then
+    ui_text("rnd_timer", text, {at: "top", dy: rnd_timer_dy, size: 17, bold: true, color: "#FFFFFFDD"})
+  end
+end
+
+on tick(dt)
+  rnd_clock = rnd_clock + dt
+  if rnd_clock < 1 then return end
+  rnd_clock = 0
+  if rnd_phase == "wait" then
+    let n = len(players())
+    if n < rnd_min_players then
+      rnd_ends = time() + rnd_wait_secs
+      rnd_timer_text("⏳ あと " + (rnd_min_players - n) + " 人まっています")
+      return
+    end
+    let left = max(0, ceil(rnd_ends - time()))
+    rnd_timer_text("⏳ " + rnd_label + " " + (rnd_number + 1) + " まで " + left)
+    if rnd_on_wait != nil then rnd_on_wait(left) end
+    if time() >= rnd_ends then rnd_start() end
+  elif rnd_phase == "play" then
+    rnd_timer_text("⏱ " + kit_clock(rnd_left()))
+    if rnd_on_second != nil then rnd_on_second(rnd_left()) end
+    if rnd_phase == "play" and time() >= rnd_ends then rnd_end("time") end
+  elif rnd_phase == "results" then
+    if time() >= rnd_ends then rnd_wait() end
+  end
+end
+
+on start()
+  rnd_wait()
+end
+
+on join(p)
+  if rnd_phase == "play" or rnd_phase == "count" then
+    kit_later(p, 4.5, func() p.message("いまの" + rnd_label + "が終わったら参加できるよ", 2.5) end)
+  end
+end

@@ -1,0 +1,159 @@
+-- traps.absc — 動くワナ・湯気・看守・ねむる所長・追いかける所長
+
+let steam_on = false
+let guard = nil
+let guard_leg = 1
+let sleeper = nil
+let office_awake = false
+let office_next = 0
+let office_until = 0
+let bruno = nil
+let bruno_target = nil
+let trap_clock = 0
+
+func in_office(p)
+  return p.z > 256 and p.z < 300 and p.y > -1 and p.y < 5
+end
+
+func on_roofs(p)
+  return p.z > 365 and p.z < 413 and p.y > 8
+end
+
+on start()
+  mv_patrol(block("Vent Fan"), {x: 0, y: 0, z: -3.8}, 1.6, 0.3, func(p, b) caught(p, "🌀 ファンに当たった！") end)
+  for i in 1 to 3 do
+    mv_patrol(block("Flying Tray " + i), {x: 24, y: 0, z: 0}, 2 + i * 0.4, 0.3, func(p, b) caught(p, "🍱 トレーが当たった！") end)
+    mv_patrol(block("Searchlight " + i), {x: 20, y: 0, z: 0}, 3 + i * 0.7, 0.6, func(p, b) caught(p, "🔦 サーチライトに見つかった！") end)
+    mv_patrol(block("Rat " + i), {x: 0, y: 0, z: 9}, 1.8 + i * 0.4, 0.4, func(p, b) caught(p, "🐀 ネズミにびっくり！") end)
+  end
+  mv_patrol(block("Pie"), {x: -24, y: 0, z: 0}, 2.6, 0.8, func(p, b) caught(p, "🥧 パイがめいちゅう！") end)
+  every(2.2, func()
+    steam_on = not steam_on
+    for b in blocks("steam") do b.visible = steam_on end
+  end)
+  let post = block("Guard Post 1")
+  if post != nil then
+    guard = create_npc({name: "看守", position: post.position + {x: 0, y: 1, z: 0}, color: "#1E3A8A", head_color: "#FCD34D",
+                        size: 1.1, speed: 0.55, health: 100000})
+    guard.hat = "cap"
+  end
+  let seat = block("Warden Seat")
+  if seat != nil then
+    sleeper = create_npc({name: "ブルーノ所長", position: seat.position + {x: 0, y: 1, z: 0}, color: "#7C2D12", head_color: "#FDBA74",
+                          size: 1.5, speed: 0, health: 100000})
+    sleeper.frozen = true
+    sleeper.yaw = 180
+  end
+  office_next = time() + 6
+end
+
+-- 屋根に着いた人がいたら、所長が追いかけてくる
+func bruno_wake(p)
+  if bruno != nil and bruno.alive then return end
+  let spot = block("Bruno Roof 1")
+  if spot == nil then return end
+  bruno = create_npc({name: "おこった所長", position: spot.position + {x: 0, y: 1, z: 0}, color: "#991B1B", head_color: "#FDBA74",
+                      size: 1.6, speed: 0.72, health: 100000})
+  bruno.hat = "helmet"
+  bruno.say("まてーっ！ にがさんぞ！")
+end
+
+func steam_hits(p)
+  if not steam_on then return false end
+  for b in blocks("steam") do
+    let half = b.size * 0.5
+    if abs(p.x - b.x) < half.x + 0.3 and abs(p.z - b.z) < half.z + 0.3 and p.y < b.y + half.y and p.y + 1.8 > b.y - half.y then
+      return true
+    end
+  end
+  return false
+end
+
+on tick(dt)
+  trap_clock = trap_clock + dt
+  if trap_clock < 0.2 then return end
+  trap_clock = 0
+  let now = time()
+  -- 所長室: ねむる → 目がさめる（動いたらアウト）→ またねむる
+  if not office_awake and now >= office_next then
+    office_awake = true
+    office_until = now + 2.6
+    if sleeper != nil and kit_here(sleeper) then sleeper.say("…ん？ 👀") end
+    for p in players() do
+      if in_office(p) then
+        p.message("👀 所長が目をさました！ 動くな！", 2)
+        p.sound("alarm")
+        p.office_x = p.x
+        p.office_z = p.z
+      end
+    end
+  elif office_awake and now >= office_until then
+    office_awake = false
+    office_next = now + 4 + random() * 4
+    if sleeper != nil and kit_here(sleeper) then sleeper.say("Zzz…") end
+  end
+  for p in players() do
+    if p.alive then
+      if steam_hits(p) then caught(p, "☁️ あつい湯気！") end
+      if office_awake and in_office(p) then
+        if p.office_x == nil then
+          p.office_x = p.x
+          p.office_z = p.z
+        elif abs(p.x - p.office_x) + abs(p.z - p.office_z) > 0.7 then
+          p.office_x = nil
+          caught(p, "👀 所長に見られた！")
+        end
+      else
+        p.office_x = nil
+      end
+      if guard != nil and kit_here(guard) and distance(guard, p) < 2.4 and (p.stage or 0) >= 10 and (p.stage or 0) <= 12 then
+        guard.say("こら！")
+        caught(p, "👮 看守につかまった！")
+      end
+    end
+  end
+  -- 看守の見回り
+  if guard != nil and kit_here(guard) then
+    let post = block("Guard Post " + guard_leg)
+    if post != nil and distance(guard, post) < 2 then
+      guard_leg = guard_leg % 4 + 1
+      post = block("Guard Post " + guard_leg)
+    end
+    if post != nil then guard.move_to(post) end
+  end
+  bruno_step()
+end
+
+func bruno_step()
+  if bruno == nil or not kit_here(bruno) then return end
+  let best = nil
+  let best_d = 0
+  for p in players() do
+    if p.alive and on_roofs(p) then
+      let d = distance(bruno, p)
+      if best == nil or d < best_d then
+        best = p
+        best_d = d
+      end
+    end
+  end
+  let home = block("Bruno Roof 1")
+  if best == nil then
+    bruno.stop()
+    if home != nil and distance(bruno, home) > 4 then bruno.teleport(home) end
+    return
+  end
+  -- 屋根から落ちたり、はなれすぎたら、ドスンととんでくる
+  if bruno.y < 8 or best_d > 14 then
+    if quiet(bruno, "leap", 3) then
+      bruno.teleport(best.position - best.look * 5 + {x: 0, y: 1, z: 0})
+      shake(0.3, 0.4)
+      bruno.say("ドスン！")
+    end
+  end
+  bruno.follow(best)
+  if best_d < 2.2 then
+    bruno.say("つかまえた！")
+    caught(best, "😱 所長につかまった！")
+  end
+end

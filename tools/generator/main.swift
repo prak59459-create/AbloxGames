@@ -257,10 +257,14 @@ func writeReadmeList(_ listings: [GameListing]) {
           let end = readme.range(of: "<!-- games:end -->"), start.upperBound <= end.lowerBound else { return }
     let sections: [(String, ClosedRange<Int>)] = [
         ("🔥 人気の定番", 1...20), ("⚔️ アクション・バトル", 21...32), ("🏡 ロールプレイ・生活", 33...45),
-        ("👻 ホラー・サバイバル", 46...58), ("🏗️ 放置・ガチャ・タイクーン", 59...70), ("🏃 アスレチック・ミニゲーム", 71...80)
+        ("👻 ホラー・サバイバル", 46...58), ("🏗️ 放置・ガチャ・タイクーン", 59...70), ("🏃 アスレチック・ミニゲーム", 71...80),
+        ("🧗 オビー・アスレチック", 81...95), ("🏎️ 乗り物・ドライブ", 96...110), ("💪 シミュレーター", 111...125),
+        ("🏗️ タイクーン", 126...140), ("👻 ホラー・ストーリー", 141...155), ("⚔️ バトル・シューター", 156...170),
+        ("⚽ スポーツ", 171...185), ("🏡 ロールプレイ・くらし", 186...200), ("🎉 パーティー・ミニゲーム", 201...215),
+        ("🗡️ 冒険・サバイバル・防衛", 216...230)
     ]
     var text = "\n"
-    for (heading, numbers) in sections {
+    for (heading, numbers) in sections where Catalogue.games.contains(where: { numbers.contains($0.number) }) {
         text += "### \(heading)\n\n| | # | ゲーム | 内容 |\n|---|---|---|---|\n"
         for game in Catalogue.games where numbers.contains(game.number) {
             guard let listing = listings.first(where: { $0.id == game.id }) else { continue }

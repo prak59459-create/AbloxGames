@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 324,
+  "cover" : "games\/pedal-obby\/cover-39331dc3.png",
+  "id" : "pedal-obby",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "lib\/kit_move.absc",
+    "games\/pedal-obby\/data.absc",
+    "games\/pedal-obby\/bikes.absc",
+    "games\/pedal-obby\/stunts.absc",
+    "games\/pedal-obby\/main.absc"
+  ],
+  "shots" : [
+    "games\/pedal-obby\/shot1-29d7d229.png",
+    "games\/pedal-obby\/shot2-4959be68.png"
+  ],
+  "summary" : "自転車に乗ったままクリアするオビー。公園・キャニオン・雪山・ネオンの街の40ステージを、ジャンプ台とブースト床でとびこえろ。空中でトリックを決めるとコイン、ガレージで6台の自転車。",
+  "tags" : [
+    "obby",
+    "bike",
+    "stunts"
+  ],
+  "title" : "Pedal Obby",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/pedal-obby\/world.ablox"
+}

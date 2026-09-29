@@ -1,0 +1,119 @@
+-- stunts.absc — ジャンプ台・ブースト床・空中トリック・転がる丸太
+
+func tag_number(b, key, fallback)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or fallback end
+  end
+  return fallback
+end
+
+-- ジャンプ台の向き（ブロックの回転）へ、ぐんととばす
+func launch(p, b)
+  let yaw = b.rotation.y
+  let push = tag_number(b, "p", 16)
+  let up = tag_number(b, "u", 8)
+  let speed = bike_info(p.bike or "kids").speed / 1.8
+  p.velocity = {x: sin(yaw) * push * speed, y: up, z: cos(yaw) * push * speed}
+  p.air_until = time() + 1.3
+  p.air_tricks = 0
+  p.air_stage = p.stage or 0
+  p.sound("whoosh")
+  p.ui_button("trick", "🤸 トリック！", {at: "bottom_right", dx: -130, dy: -170, w: 150, h: 70, size: 18, bg: "#DB2777", radius: 20})
+  let id = (p.air_id or 0) + 1
+  p.air_id = id
+  kit_later(p, 1.5, func()
+    if p.air_id == id then land(p) end
+  end)
+end
+
+func land(p)
+  p.ui_remove("trick")
+  let n = p.air_tricks or 0
+  p.air_tricks = 0
+  if n == 0 then return end
+  -- 落ちていなければ成功
+  if (p.stage or 0) >= (p.air_stage or 0) and p.y > obby_fall_y + 4 and p.alive then
+    let combo = n * n
+    let coins = TRICK_COINS * combo
+    kit_give(p, coins)
+    p.tricks = (p.tricks or 0) + n
+    if n > (p.best_combo or 0) then p.best_combo = n end
+    p.message("✨ 着地成功！ " + n + "トリック ×" + combo + "  +" + coins, 1.8)
+    kit_quest_progress(p, "tricks", n)
+    if n >= 3 then kit_badge(p, "combo3", "トリック3連発") end
+  else
+    p.message("💥 トリック失敗…", 1.2)
+  end
+end
+
+func trick(p)
+  if (p.air_until or 0) < time() then
+    p.ui_remove("trick")
+    return
+  end
+  if not quiet_trick(p) then return end
+  p.air_tricks = (p.air_tricks or 0) + 1
+  p.message("🤸 " + TRICKS[random(1, len(TRICKS))] + "！ ×" + p.air_tricks, 0.8)
+  particles("stars", p, {amount: 12})
+  p.emote("dance")
+end
+
+func quiet_trick(p)
+  let last = p.trick_at
+  if last != nil and time() - last < 0.35 then return false end
+  p.trick_at = time()
+  return true
+end
+
+func boost(p)
+  p.boost_until = time() + BOOST_SECS
+  bike_apply(p)
+  p.sound("powerup")
+  let id = (p.boost_id or 0) + 1
+  p.boost_id = id
+  kit_later(p, BOOST_SECS + 0.05, func()
+    if p.boost_id == id then bike_apply(p) end
+  end)
+end
+
+on start()
+  for b in blocks("log") do
+    -- 道をよこぎって行ったり来たり（向きと長さは地図のタグ ox / oz）
+    let offset = {x: tag_number(b, "ox", 8), y: 0, z: tag_number(b, "oz", 0)}
+    mv_patrol(b, offset, 1.6 + random() * 1.2, 0.2, func(p, blk)
+      if quiet_log(p) then
+        p.message("🪵 丸太にぶつかった！", 1.2)
+        obby_back(p)
+      end
+    end)
+  end
+end
+
+func quiet_log(p)
+  if p.log_at != nil and time() - p.log_at < 1 then return false end
+  p.log_at = time()
+  return true
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "launch") and quiet_launch(p) then launch(p, b)
+  elif contains(b.tags, "boost") and quiet_boost(p) then boost(p)
+  end
+end
+
+func quiet_launch(p)
+  if p.launch_at != nil and time() - p.launch_at < 0.8 then return false end
+  p.launch_at = time()
+  return true
+end
+
+func quiet_boost(p)
+  if p.boost_at != nil and time() - p.boost_at < 1 then return false end
+  p.boost_at = time()
+  return true
+end
+
+on button(p, id)
+  if id == "trick" then trick(p) end
+end

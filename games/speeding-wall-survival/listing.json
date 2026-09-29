@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 53,
+  "cover" : "games\/speeding-wall-survival\/cover-838ca2f9.png",
+  "id" : "speeding-wall-survival",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_rounds.absc",
+    "lib\/kit_move.absc",
+    "games\/speeding-wall-survival\/data.absc",
+    "games\/speeding-wall-survival\/rounds.absc",
+    "games\/speeding-wall-survival\/walls.absc",
+    "games\/speeding-wall-survival\/main.absc"
+  ],
+  "shots" : [
+    "games\/speeding-wall-survival\/shot1-a405cd5f.png",
+    "games\/speeding-wall-survival\/shot2-a20a76dc.png"
+  ],
+  "summary" : "どんどん速くなるカベがつっこんでくる！ すきまに入る・とびこえる・キノコで小さくなって穴をくぐる。ニセモノのカベにだまされるな。最後の1人まで生きのこれ。",
+  "tags" : [
+    "survival",
+    "party",
+    "dodge"
+  ],
+  "title" : "Speeding Wall Survival",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/speeding-wall-survival\/world.ablox"
+}

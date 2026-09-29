@@ -1,0 +1,66 @@
+-- Cell Block Run — ブルーノ所長の刑務所から脱獄するストーリーオビー
+-- 8つのエリア・21ステージ: 牢屋と通気口 → 食堂 → 洗濯室 → 運動場 → 所長室 → 下水道 → 屋根 → ヘリポート
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   ../../lib/kit_move.absc  動くワナの当たり判定
+--   data.absc    エリアとお話・ランク
+--   story.absc   エリアのお話・ゴールの成績・つかまったとき
+--   traps.absc   ファン・トレー・サーチライト・ネズミ・湯気・看守・ねむる所長・追いかける所長
+--   items.absc   ドーナツ・カードキー・所長室のドア
+--   main.absc    このファイル
+
+kit_setup("Cell Block Run", "ブルーノ所長の刑務所から にげだせ！", [
+  "🚪 牢屋のドアは歩いてぶつかると開く。はしごをのぼって通気口へ",
+  "🚩 オレンジのパッドがチェックポイント。つかまったらそこから",
+  "🔦 サーチライト・👮 看守・🐀 ネズミ・☁️ 湯気にさわるとアウト",
+  "👀 所長室で所長が目をさましたら、ぜったい動かないで！",
+  "🍩 ドーナツで少しのあいだ速くなる。🪪 カードキーで所長室のドア",
+  "🏃 屋根では所長が追ってくる！ ヘリポートまでにげきれ"
+])
+kit_keep(["escapes", "donuts", "caught"])
+
+obby_setup({stages: 21, fall: -9, coins: 8, finish_coins: 250, skip: 30, board: "escape_time"})
+obby_zones = []
+for a in AREAS do
+  append(obby_zones, {from: a.first, last: a.last, name: a.name, color: a.color})
+end
+obby_on_stage = func(p, n) story_stage(p, n) end
+obby_on_finish = func(p, secs) story_finish(p, secs) end
+
+obby_perks_basic()
+kit_shop_add("donuts", "🍩 ドーナツ3こ（アイテムバーで使う）", 60, func(p) p.give_item("🍩 ドーナツ", 3, "🍩") end)
+
+kit_quest("stages", "チェックポイントを10こ進む", 10, 80)
+kit_quest("escape", "脱獄する", 1, 300)
+kit_quest("clean", "スキップなしで脱獄", 1, 400)
+kit_quest("donuts", "ドーナツを10こ食べる", 10, 100)
+kit_quest("caught", "20回つかまる（あきらめない！）", 20, 80)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  kit_later(p, 4.5, func()
+    if (p.stage or 0) == 0 then
+      p.dialog("ブルーノ所長", "ワッハッハ！ わしの刑務所から出られた者はおらん！ おとなしくしておれ！", ["ぜったい にげてみせる！"])
+    end
+  end)
+end
+
+on button(p, id)
+  if id == "obby_skip" then p.skips_used = (p.skips_used or 0) + 1 end
+end
+
+on start()
+  world.music = "adventure"
+  every(15, func() kit_leaderboard("🏃 脱獄の回数") end)
+end
+
+on tick(dt)
+  for p in players() do
+    if (p.escapes or 0) != p.score then p.score = p.escapes or 0 end
+  end
+end

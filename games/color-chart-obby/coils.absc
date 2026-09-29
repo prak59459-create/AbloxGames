@@ -1,0 +1,60 @@
+-- coils.absc — コイル（アイテムバーでオン・オフ）
+
+func coil_info(id)
+  for c in COILS do
+    if c.id == id then return c end
+  end
+  return nil
+end
+
+func coil_owned(p, id)
+  return p.coils != nil and contains(p.coils, id)
+end
+
+func coil_apply(p)
+  let s = 1
+  let g = 1
+  if not p.in_trial then
+    if p.coil_on == "speed" or p.coil_on == "fusion" then s = 1.4 end
+    if p.coil_on == "gravity" or p.coil_on == "fusion" then g = 0.6 end
+  end
+  p.obby_speed_mult = s
+  p.obby_gravity_mult = g
+  if p.in_trial then p.obby_perk_off = true else p.obby_perk_off = false end
+  obby_apply_perks(p)
+end
+
+func coil_give_items(p)
+  if p.coils == nil then return end
+  for id in p.coils do
+    let c = coil_info(id)
+    if c != nil and not p.has_item(c.item) then p.give_item(c.item, 1, c.icon) end
+  end
+end
+
+func coil_buy(p, id)
+  if p.coils == nil then p.coils = [] end
+  if not contains(p.coils, id) then append(p.coils, id) end
+  coil_give_items(p)
+  kit_quest_progress(p, "coil", 1)
+  p.message("アイテムバーの " + coil_info(id).icon + " をタップでオン・オフ", 2.5)
+end
+
+on use(p, item)
+  for c in COILS do
+    if item == c.item then
+      if p.in_trial then
+        p.message("⏱ タイムアタック中はコイルなし", 1.5)
+        return
+      end
+      if p.coil_on == c.id then
+        p.coil_on = nil
+        p.message(c.icon + " オフ", 1)
+      else
+        p.coil_on = c.id
+        p.message(c.icon + " オン: " + c.text, 1.5)
+      end
+      coil_apply(p)
+    end
+  end
+end

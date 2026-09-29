@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 565,
+  "cover" : "games\/cart-ride-wonderland\/cover-a54f8f02.png",
+  "id" : "cart-ride-wonderland",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "lib\/kit_move.absc",
+    "games\/cart-ride-wonderland\/data.absc",
+    "games\/cart-ride-wonderland\/carts.absc",
+    "games\/cart-ride-wonderland\/track.absc",
+    "games\/cart-ride-wonderland\/main.absc"
+  ],
+  "shots" : [
+    "games\/cart-ride-wonderland\/shot1-0a55ba78.png",
+    "games\/cart-ride-wonderland\/shot2-9df21cab.png"
+  ],
+  "summary" : "カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！",
+  "tags" : [
+    "obby",
+    "cart",
+    "ride"
+  ],
+  "title" : "Cart Ride Wonderland",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/cart-ride-wonderland\/world.ablox"
+}

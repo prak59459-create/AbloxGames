@@ -1,0 +1,67 @@
+-- track.absc — ジャンプ台・ブースト・電車・落石・マグマの橋
+
+func tag_number(b, key, fallback)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) or fallback end
+  end
+  return fallback
+end
+
+func launch(p, b)
+  let yaw = b.rotation.y
+  let push = tag_number(b, "p", 15) * clamp(GEARS[p.gear or 2] / 2.1, 0.8, 1.4)
+  let up = tag_number(b, "u", 8)
+  p.velocity = {x: sin(yaw) * push, y: up, z: cos(yaw) * push}
+  p.sound("whoosh")
+  p.jumps = (p.jumps or 0) + 1
+  kit_quest_progress(p, "jumps", 1)
+end
+
+func boost(p)
+  p.boost_until = time() + 2.5
+  cart_apply(p)
+  p.sound("powerup")
+  let id = (p.boost_id or 0) + 1
+  p.boost_id = id
+  kit_later(p, 2.6, func()
+    if p.boost_id == id then cart_apply(p) end
+  end)
+end
+
+func crash(p, why)
+  if not quiet(p, "crash", 1.2) then return end
+  p.message(why, 1.5)
+  p.crashes = (p.crashes or 0) + 1
+  obby_back(p)
+end
+
+let bridge_on = true
+on start()
+  for b in blocks("train") do
+    mv_patrol(b, {x: tag_number(b, "ox", 0), y: 0, z: tag_number(b, "oz", 24)}, 2.4, 3.5, func(p, blk) crash(p, "🚃 電車にぶつかった！") end)
+  end
+  let i = 0
+  for b in blocks("rock") do
+    i = i + 1
+    let rock = b
+    after(i * 0.7, func()
+      mv_patrol(rock, {x: 0, y: -8.4, z: 0}, 1.1, 2.2, func(p, blk) crash(p, "🪨 落石！") end)
+    end)
+  end
+  every(2, func()
+    bridge_on = not bridge_on
+    for b in blocks("lavabridge") do
+      if contains(b.tags, "k=1") then
+        b.visible = bridge_on
+        b.solid = bridge_on
+      end
+    end
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "launch") and quiet(p, "launch", 0.8) then launch(p, b)
+  elif contains(b.tags, "boost") and quiet(p, "boost", 1) then boost(p)
+  end
+end

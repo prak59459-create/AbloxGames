@@ -1,0 +1,105 @@
+-- trial.absc — ⏱ ゾーンのタイムアタック（コイルなしで1ゾーンを走る）
+
+func trial_open(p)
+  let best = max(1, p.obby_best or 1)
+  let h = 130 + 6 * 46
+  p.ui_remove("trial_box")
+  p.ui_panel("trial_box", {at: "center", w: 560, h: h, bg: "#0C4A6EF2", radius: 20, layer: 36})
+  p.ui_text("trial_t", "⏱ ゾーンタイムアタック（行ったことのあるゾーン）", {parent: "trial_box", y: 28 / h, size: 18, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for info in TIERS do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    let open = tier_start(i) <= best
+    let label = tier_label(i)
+    let bg = info.color
+    if not open then
+      label = "🔒 " + label
+      bg = "#334155"
+    end
+    p.ui_button("trial_go_" + i, label, {parent: "trial_box", x: 0.27 + col * 0.46, y: (74 + row * 46) / h, w: 240, h: 38, size: 13,
+                bg: bg, color: "#111827"})
+  end
+  p.ui_button("trial_close", "閉じる", {parent: "trial_box", y: (h - 26) / h, w: 120, h: 32, size: 14, bg: "gray"})
+end
+
+func trial_start(p, t)
+  p.ui_remove("trial_box")
+  if tier_start(t) > max(1, p.obby_best or 1) then
+    p.message("まだそのゾーンに行っていないよ", 1.5)
+    return
+  end
+  p.in_trial = true
+  p.trial_tier = t
+  p.trial_at = time()
+  p.stage = tier_start(t)
+  p.teleport(obby_block(p.stage))
+  coil_apply(p)
+  obby_show(p)
+  p.ui_button("trial_quit", "✖ やめる", {at: "top", dy: 110, w: 120, h: 38, size: 14, bg: "#991B1B"})
+  p.message("⏱ " + tier_label(t) + " スタート！", 1.5)
+end
+
+func trial_stop(p)
+  p.in_trial = false
+  p.trial_tier = nil
+  p.ui_remove("trial_quit")
+  p.ui_remove("trial_clock")
+  coil_apply(p)
+end
+
+func trial_done(p)
+  let t = p.trial_tier
+  let secs = time() - p.trial_at
+  if p.trial_best == nil then p.trial_best = {} end
+  let key = "t" + t
+  let msg = "⏱ " + tier_label(t) + " " + fixed(secs, 1) + "秒"
+  if p.trial_best[key] == nil or secs < p.trial_best[key] then
+    p.trial_best[key] = secs
+    msg = msg + "  ⭐ベスト！"
+    kit_give(p, 30 + t * 10)
+  end
+  leaderboard("zone" + t, p, floor(secs * 10) / 10, {lower: true})
+  p.message(msg, 3)
+  p.sound("goal")
+  kit_quest_progress(p, "trial", 1)
+  trial_stop(p)
+end
+
+-- ステージに着いたとき: 次のゾーンの最初なら終わり
+func trial_stage(p, n)
+  if p.in_trial and p.trial_tier != nil and n == tier_start(p.trial_tier + 1) then trial_done(p) end
+end
+
+func trial_finish(p)
+  if p.in_trial and p.trial_tier == len(TIERS) then trial_done(p) end
+end
+
+let trial_clock = 0
+on tick(dt)
+  trial_clock = trial_clock + dt
+  if trial_clock < 0.5 then return end
+  trial_clock = 0
+  for p in players() do
+    if p.in_trial and p.trial_at != nil then
+      p.ui_text("trial_clock", "⏱ " + fixed(time() - p.trial_at, 1), {at: "top", dy: 80, size: 22, bold: true, color: "#7DD3FC"})
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "trial") and kit_ready(p, "trial_pad", 3) then trial_open(p) end
+  if contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p) end
+end
+
+on button(p, id)
+  if id == "trial" then trial_open(p)
+  elif id == "trial_close" then p.ui_remove("trial_box")
+  elif id == "trial_quit" then
+    trial_stop(p)
+    p.message("タイムアタックをやめた", 1)
+  elif starts_with(id, "trial_go_") then trial_start(p, num(replace(id, "trial_go_", "")) or 1)
+  end
+end

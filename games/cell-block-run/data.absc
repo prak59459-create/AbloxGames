@@ -1,0 +1,31 @@
+-- data.absc — Cell Block Run の表
+-- 8つのエリアと、それぞれの最初に出るお話
+
+let AREAS = [
+  {first: 1, last: 3, name: "牢屋と通気口", color: "#F97316",
+   story: "カシャン！ 牢屋のドアがこわれてる… いまのうちに はしごから通気口へ！ 🌀ファンと、ぬけるあみに注意"},
+  {first: 4, last: 6, name: "食堂", color: "#FBBF24",
+   story: "床はぬれてツルツル！ テーブルの上をとんで進もう。飛んでくるトレーとパイをよけて"},
+  {first: 7, last: 9, name: "洗濯室", color: "#38BDF8",
+   story: "あわのトランポリンで洗濯機の上へ。☁️ 湯気が出ているあいだは通れないよ"},
+  {first: 10, last: 12, name: "運動場", color: "#84CC16",
+   story: "🔦 サーチライトに入ると見つかる！ 👮 看守にも近づかないで"},
+  {first: 13, last: 15, name: "所長室", color: "#DC2626",
+   story: "ブルーノ所長がねている… 👀 目をさましたら、ぜったい動かないで！ 🪪 カードキーでドアを開けよう"},
+  {first: 16, last: 18, name: "下水道", color: "#65A30D",
+   story: "緑のヘドロにさわるとアウト。パイプの上をわたろう。🐀 ネズミに注意"},
+  {first: 19, last: 21, name: "屋根の上", color: "#A8A29E",
+   story: "所長が起きて追いかけてきた！ 屋根をとびうつって、ヘリポートまでにげろ！ 下の電気のさくはアウト"},
+  {first: 22, last: 22, name: "ヘリポート", color: "#60A5FA", story: "ヘリがまってる！"}
+]
+
+let BOOST_SECS = 6
+let BOOST_SPEED = 1.5
+let DONUT_BACK = 20
+
+-- 脱獄タイムのランク（秒）
+let RANKS = [
+  {secs: 180, name: "🥇 伝説の脱獄王", coins: 300},
+  {secs: 300, name: "🥈 すご腕の脱獄犯", coins: 150},
+  {secs: 600, name: "🥉 脱獄できた！", coins: 60}
+]

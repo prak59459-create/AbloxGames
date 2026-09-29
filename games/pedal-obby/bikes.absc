@@ -1,0 +1,77 @@
+-- bikes.absc — ガレージ（自転車を買う・のりかえる）と、速さの計算
+
+func bike_info(id)
+  for b in BIKES do
+    if b.id == id then return b end
+  end
+  return BIKES[1]
+end
+
+func bike_apply(p)
+  if not kit_here(p) then return end
+  let b = bike_info(p.bike or "kids")
+  let s = b.speed
+  if (p.boost_until or 0) > time() then s = s * BOOST_MULT end
+  p.obby_speed_mult = s
+  p.obby_jump_mult = b.jump
+  if p.ride != b.ride then p.ride = b.ride end
+  p.ride_color = p.bike_color or b.color
+  obby_apply_perks(p)
+end
+
+func garage(p)
+  let h = 150 + len(BIKES) * 46
+  p.ui_remove("gar_box")
+  p.ui_panel("gar_box", {at: "center", w: 580, h: h, bg: "#1C1917F2", radius: 22, layer: 30})
+  p.ui_text("gar_t", "🔧 ガレージ（💰 " + kit_short(kit_money(p)) + "）", {parent: "gar_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for b in BIKES do
+    i = i + 1
+    let label = b.name + "  💰" + b.price + "  速さ " + b.speed + "  ジャンプ " + b.jump
+    let bg = "#92400E"
+    if contains(p.bikes, b.id) then
+      label = b.name + " に乗る — " + b.text
+      bg = "#0F766E"
+    end
+    if p.bike == b.id then
+      label = "✅ " + b.name + "（乗っている）"
+      bg = "#374151"
+    end
+    p.ui_button("bike_" + b.id, label, {parent: "gar_box", y: (30 + i * 46) / h, w: 540, h: 38, size: 13, bg: bg})
+  end
+  p.ui_button("bike_paint", "🎨 色をかえる（💰20）", {parent: "gar_box", x: 0.3, y: (h - 30) / h, w: 200, h: 36, size: 14, bg: "#DB2777"})
+  p.ui_button("gar_close", "閉じる", {parent: "gar_box", x: 0.72, y: (h - 30) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func pick_bike(p, id)
+  let b = bike_info(id)
+  if not contains(p.bikes, id) then
+    if not kit_pay(p, b.price) then return end
+    append(p.bikes, id)
+    p.sound("goal")
+    kit_quest_progress(p, "bike", 1)
+    if id == "gold" then kit_badge(p, "gold", "ゴールデンライダー") end
+  end
+  p.bike = id
+  p.bike_color = nil
+  bike_apply(p)
+  garage(p)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "garage") and kit_ready(p, "garage", 3) then garage(p) end
+  if contains(b.tags, "shop") and kit_ready(p, "shop", 3) then kit_open_shop(p) end
+end
+
+on button(p, id)
+  if id == "garage" then garage(p)
+  elif id == "gar_close" then p.ui_remove("gar_box")
+  elif id == "bike_paint" then
+    if kit_pay(p, 20) then
+      p.bike_color = random_color()
+      bike_apply(p)
+    end
+  elif starts_with(id, "bike_") then pick_bike(p, replace(id, "bike_", ""))
+  end
+end

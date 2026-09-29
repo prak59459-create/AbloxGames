@@ -1,0 +1,131 @@
+-- pets.absc — ついてくるペット（NPC）
+
+let pet_npcs = {}
+let pet_clock = 0
+
+func pet_info(id)
+  for pt in PETS do
+    if pt.id == id then return pt end
+  end
+  return nil
+end
+
+func pet_owned(p, id)
+  return p.pets != nil and contains(p.pets, id)
+end
+
+func pet_gain(p, id)
+  if p.pets == nil then p.pets = [] end
+  if contains(p.pets, id) then return end
+  append(p.pets, id)
+  let pt = pet_info(id)
+  p.message("🎁 " + pt.name + " がなかまになった！ 🐾 ボタンでつれて歩こう", 3)
+  p.speak(pt.name + " がなかまになったよ")
+  kit_quest_progress(p, "pets", 1)
+  if len(p.pets) >= len(PETS) then kit_badge(p, "allpets", "ペットをぜんぶあつめた") end
+end
+
+func pet_remove(p)
+  let n = pet_npcs[p.id]
+  if n != nil then kit_gone(n) end
+  pet_npcs[p.id] = nil
+end
+
+func pet_walk(p, id)
+  pet_remove(p)
+  p.pet = id
+  if id == nil then return end
+  let pt = pet_info(id)
+  if pt == nil then return end
+  let n = create_npc({name: pt.name, position: p.position - p.look * 2 + {x: 0, y: 0.5, z: 0}, color: pt.color, head_color: pt.head,
+                      size: 0.45, speed: 1.6, health: 100000})
+  n.follow(p)
+  pet_npcs[p.id] = n
+end
+
+func pet_menu(p)
+  let h = 130 + len(PETS) * 46
+  p.ui_remove("pet_box")
+  p.ui_panel("pet_box", {at: "center", w: 520, h: h, bg: "#FFF7EDF2", radius: 22, layer: 40})
+  p.ui_text("pet_t", "🐾 ペット", {parent: "pet_box", y: 26 / h, size: 21, bold: true, color: "#9A3412"})
+  let i = 0
+  for pt in PETS do
+    i = i + 1
+    let label = ""
+    let bg = "#9CA3AF"
+    if pet_owned(p, pt.id) then
+      label = pt.name + " をつれて歩く"
+      bg = "#F97316"
+      if p.pet == pt.id then
+        label = "✅ " + pt.name + "（いっしょ）"
+        bg = "#16A34A"
+      end
+    elif pt.price > 0 then
+      label = pt.name + "  💰" + pt.price
+      bg = "#2563EB"
+    else
+      label = "🔒 " + pt.name + "（ステージ " + pt.unlock + " でもらえる）"
+    end
+    p.ui_button("pet_" + pt.id, label, {parent: "pet_box", y: (32 + i * 46) / h, w: 470, h: 38, size: 14, bg: bg})
+  end
+  p.ui_button("pet_none", "ペットをおうちに帰す", {parent: "pet_box", x: 0.3, y: (h - 28) / h, w: 220, h: 34, size: 13, bg: "#78716C"})
+  p.ui_button("pet_close", "閉じる", {parent: "pet_box", x: 0.75, y: (h - 28) / h, w: 120, h: 34, size: 14, bg: "gray"})
+end
+
+func pet_pick(p, id)
+  let pt = pet_info(id)
+  if pt == nil then return end
+  if not pet_owned(p, id) then
+    if pt.price <= 0 then
+      p.message("ステージ " + pt.unlock + " まで行くともらえるよ", 1.5)
+      return
+    end
+    if not kit_pay(p, pt.price) then return end
+    pet_gain(p, id)
+  end
+  pet_walk(p, id)
+  pet_menu(p)
+end
+
+-- ステージについたら、もらえるペットがいるか
+func pet_check_unlock(p, n)
+  for pt in PETS do
+    if pt.unlock > 0 and n >= pt.unlock and not pet_owned(p, pt.id) then
+      pet_gain(p, pt.id)
+      if p.pet == nil then pet_walk(p, pt.id) end
+    end
+  end
+end
+
+on tick(dt)
+  pet_clock = pet_clock + dt
+  if pet_clock < 1 then return end
+  pet_clock = 0
+  for p in players() do
+    let n = pet_npcs[p.id]
+    if n != nil and kit_here(n) then
+      -- はなれすぎたら、ぴょんと横へ
+      if distance(n, p) > 10 then n.teleport(p.position - p.look * 1.5 + {x: 0, y: 0.5, z: 0}) end
+      n.follow(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "petshop") and kit_ready(p, "petshop", 3) then pet_menu(p) end
+end
+
+on button(p, id)
+  if id == "pets" then pet_menu(p)
+  elif id == "pet_close" then p.ui_remove("pet_box")
+  elif id == "pet_none" then
+    pet_walk(p, nil)
+    pet_menu(p)
+  elif starts_with(id, "pet_") then pet_pick(p, replace(id, "pet_", ""))
+  end
+end
+
+on leave(p)
+  pet_remove(p)
+end

@@ -1,0 +1,187 @@
+-- kit_move.absc — 動くワナ・動く敵（Ablox Games の共通エンジン）
+--
+-- b.move で動かしたブロックは、iPad では見た目がなめらかに動き、当たり判定は動き終わりにとぶ。
+-- だから「動くワナにさわったら…」は、このエンジンがホストで「いまどこにいるか」を計算して調べる。
+-- 動くワナは地図で solid: false（すりぬけ）にしておくこと。
+--
+--   mv_patrol(b, {x: 6, y: 0, z: 0}, 2, 0.5, f)   -- 行ったり来たり（2秒で行って 0.5秒止まる）。当たったら f(p, b)
+--   mv_path(b, [pos1, pos2, …], 8, true, f)        -- 点をじゅんばんに、秒速8mで（true: さいごから最初へもどってくり返す）
+--   mv_once(b, pos, 3, f)                          -- 1回だけ pos まで3秒で
+--   mv_stop(b)                                     -- 止める（その場に）
+--   mv_where(b)                                    -- いまの位置（動いているとちゅうでも）
+--   mv_pad = 0.35                                  -- 当たりの大きさのゆとり
+
+let mv_items = []
+let mv_clock = 0
+let mv_pad = 0.35
+
+-- iPad のアニメーション（ゆっくり動き出して、ゆっくり止まる）と同じ形
+func mv_ease(t)
+  let u = clamp(t, 0, 1)
+  return u * u * (3 - 2 * u)
+end
+
+func mv_find(b)
+  for it in mv_items do
+    if it.b != nil and b != nil and it.b.id == b.id then return it end
+  end
+  return nil
+end
+
+func mv_where(b)
+  let it = mv_find(b)
+  if it == nil then return b.position end
+  return mv_pos(it)
+end
+
+func mv_pos(it)
+  if it.secs <= 0 then return it.dest end
+  let t = mv_ease((time() - it.t0) / it.secs)
+  return it.from + (it.dest - it.from) * t
+end
+
+func mv_add(b, f)
+  mv_stop(b)
+  let it = {b: b, from: b.position, dest: b.position, t0: time(), secs: 0, wait: 0, hit: f, mode: "still", points: [], next: 1,
+            size: b.size, active: true, last: {}}
+  append(mv_items, it)
+  return it
+end
+
+-- 次の行き先へ（ブロックを動かす）
+func mv_go(it, target, secs)
+  if not mv_still(it.b) then
+    it.active = false
+    return
+  end
+  it.from = mv_pos(it)
+  it.dest = target
+  it.t0 = time()
+  it.secs = max(0.05, secs)
+  let d = target - it.from
+  it.b.move(d.x, d.y, d.z, it.secs)
+end
+
+func mv_still(x)
+  return x != nil and x.destroy != nil
+end
+
+func mv_patrol(b, offset, secs, pause, f)
+  if b == nil then return nil end
+  let it = mv_add(b, f)
+  it.mode = "patrol"
+  it.home = b.position
+  it.away = b.position + offset
+  it.leg_secs = secs
+  it.pause = pause or 0
+  it.out = true
+  mv_go(it, it.away, secs)
+  return it
+end
+
+func mv_path(b, points, speed, loop, f)
+  if b == nil or len(points) == 0 then return nil end
+  let it = mv_add(b, f)
+  it.mode = "path"
+  it.points = points
+  it.speed = max(0.5, speed)
+  it.loop = loop
+  it.next = 1
+  it.pause = 0
+  mv_path_step(it)
+  return it
+end
+
+func mv_path_step(it)
+  if it.next > len(it.points) then
+    if not it.loop then
+      it.mode = "still"
+      return
+    end
+    it.next = 1
+  end
+  let target = it.points[it.next]
+  it.next = it.next + 1
+  let dist = distance(mv_pos(it), target)
+  mv_go(it, target, dist / it.speed)
+end
+
+func mv_once(b, target, secs, f)
+  if b == nil then return nil end
+  let it = mv_add(b, f)
+  it.mode = "once"
+  mv_go(it, target, secs)
+  return it
+end
+
+func mv_stop(b)
+  let keep = []
+  for it in mv_items do
+    if it.b != nil and b != nil and it.b.id == b.id then
+      it.active = false
+    else
+      append(keep, it)
+    end
+  end
+  mv_items = keep
+end
+
+-- プレイヤーがブロック（いまの位置）に当たっているか
+func mv_touching(p, it, center)
+  let half = it.size * 0.5
+  let body = 1.8 * (p.size or 1)
+  if abs(p.x - center.x) > half.x + mv_pad + 0.3 then return false end
+  if abs(p.z - center.z) > half.z + mv_pad + 0.3 then return false end
+  if p.y > center.y + half.y + 0.05 then return false end
+  if p.y + body < center.y - half.y then return false end
+  return true
+end
+
+on tick(dt)
+  mv_clock = mv_clock + dt
+  if mv_clock < 0.1 then return end
+  mv_clock = 0
+  let now = time()
+  let people = players()
+  for it in mv_items do
+    if it.active then
+      if not mv_still(it.b) then
+        it.active = false
+      else
+        -- 着いたら次へ
+        let done = now >= it.t0 + it.secs
+        if done and it.mode == "patrol" then
+          if it.wait == 0 then it.wait = now + it.pause end
+          if now >= it.wait then
+            it.wait = 0
+            it.out = not it.out
+            if it.out then mv_go(it, it.away, it.leg_secs) else mv_go(it, it.home, it.leg_secs) end
+          end
+        elif done and it.mode == "path" then
+          mv_path_step(it)
+        end
+        if it.hit != nil then
+          let c = mv_pos(it)
+          for p in people do
+            -- 同じ人に続けて当たるのは 0.8秒に1回
+            if p.alive and mv_touching(p, it, c) and now - (it.last[p.id] or -10) > 0.8 then
+              it.last[p.id] = now
+              it.hit(p, it.b)
+            end
+          end
+        end
+      end
+    end
+  end
+  -- 止まったものを片づける
+  if len(mv_items) > 0 and not mv_all_active() then
+    mv_items = filter(mv_items, func(it) return it.active end)
+  end
+end
+
+func mv_all_active()
+  for it in mv_items do
+    if not it.active then return false end
+  end
+  return true
+end

@@ -1,0 +1,27 @@
+-- data.absc — Easy Peasy Obby の表
+-- 10のワールド（シールとぼうし）・ペット・おうえんのことば
+
+let WORLDS = [
+  {first: 1, last: 10, name: "🌱 草原", color: "#22C55E", sticker: "🌼", hat: "cap"},
+  {first: 11, last: 20, name: "🍭 おかし", color: "#EC4899", sticker: "🍬", hat: "party"},
+  {first: 21, last: 30, name: "🏖 ビーチ", color: "#F59E0B", sticker: "🐚", hat: "flower_crown"},
+  {first: 31, last: 40, name: "❄️ 雪", color: "#60A5FA", sticker: "⛄", hat: "beanie"},
+  {first: 41, last: 50, name: "🚀 宇宙", color: "#8B5CF6", sticker: "⭐", hat: "antenna"},
+  {first: 51, last: 60, name: "🌴 ジャングル", color: "#65A30D", sticker: "🐒", hat: "cowboy"},
+  {first: 61, last: 70, name: "🧸 おもちゃ", color: "#EF4444", sticker: "🧸", hat: "propeller"},
+  {first: 71, last: 80, name: "☁️ 雲", color: "#38BDF8", sticker: "☁️", hat: "halo"},
+  {first: 81, last: 90, name: "🌈 にじ", color: "#A855F7", sticker: "🌈", hat: "bunny_ears"},
+  {first: 91, last: 100, name: "🏰 お城", color: "#F59E0B", sticker: "👑", hat: "crown"}
+]
+
+-- unlock: そのステージに着くと もらえる。price: コインで買える
+let PETS = [
+  {id: "dog", name: "🐶 わんこ", color: "#D97706", head: "#FDE68A", unlock: 10, price: 0},
+  {id: "cat", name: "🐱 にゃんこ", color: "#6B7280", head: "#E5E7EB", unlock: 20, price: 0},
+  {id: "bunny", name: "🐰 うさぎ", color: "#F9FAFB", head: "#FBCFE8", unlock: 0, price: 300},
+  {id: "chick", name: "🐤 ひよこ", color: "#FACC15", head: "#FEF08A", unlock: 40, price: 0},
+  {id: "panda", name: "🐼 パンダ", color: "#111827", head: "#F9FAFB", unlock: 0, price: 800},
+  {id: "unicorn", name: "🦄 ユニコーン", color: "#F0ABFC", head: "#FFFFFF", unlock: 100, price: 3000}
+]
+
+let CHEERS = ["すごい！", "やったね！", "じょうず！", "そのちょうし！", "かっこいい！", "がんばってるね！", "天才！", "ナイス！"]

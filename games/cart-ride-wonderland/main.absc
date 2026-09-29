@@ -1,0 +1,82 @@
+-- Cart Ride Wonderland — カートに乗って長いコースを走る
+-- 花畑 → 鉱山 → おかしの国 → 雪の谷 → 火山 → お城。駅（緑のパッド）がチェックポイント。
+-- ⏫⏬ でギア（スピード）を自分で調節。ジャンプ台は速いほど遠くへ。電車・落石・マグマの橋に注意。
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン（駅・落ちたら戻る）
+--   ../../lib/kit_move.absc  電車と落石の当たり判定
+--   data.absc    ゾーン・ギア・色
+--   carts.absc   カート・クラクション・なかよし走行
+--   track.absc   ジャンプ台・ブースト・電車・落石・橋
+--   main.absc    このファイル
+
+kit_setup("Cart Ride Wonderland", "カートでどこまでも！ お城をめざそう", [
+  "🛒 ずっとカートに乗っている。⏫⏬ でギアをかえてスピード調節",
+  "🟧 ジャンプ台は、ギアが高いほど遠くへとぶ",
+  "🚃 電車のふみきり・🪨 落石・🌋 マグマの橋に気をつけて",
+  "🟩 駅に着くとチェックポイント。落ちたらそこから",
+  "📯 クラクション。🤝 友だちとならんで走るとコイン",
+  "🎨 ピンクのパッドでカートの色がかわる"
+])
+kit_keep(["gear_up", "cart_color", "jumps", "crashes"])
+
+obby_setup({stages: 20, fall: -8, coins: 10, finish_coins: 300, skip: 30, board: "cart_time"})
+obby_zones = []
+for z in ZONES do
+  append(obby_zones, {from: z.first, last: z.last, name: z.name, color: z.color})
+end
+obby_on_stage = func(p, n) kit_quest_progress(p, "stations", 1) end
+obby_on_finish = func(p, secs)
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "castle", "お城に着いた")
+end
+
+kit_shop_add("gear", "⚙️ ギアを1つふやす（最大6）", 400, func(p)
+  if START_GEARS + (p.gear_up or 0) >= len(GEARS) then
+    kit_give(p, 400)
+    p.message("もう最大！", 1.5)
+  else
+    p.gear_up = (p.gear_up or 0) + 1
+    cart_apply(p)
+  end
+end)
+kit_shop_add("trail", "✨ キラキラのあしあと", 250, func(p) obby_perk_buy(p, "trail") end)
+kit_shop_add("skip", "⏭ スキップ券", 30, func(p) p.give_item("⏭ スキップ", 1, "⏭") end)
+
+kit_quest("stations", "駅を10こ通る", 10, 100)
+kit_quest("jumps", "ジャンプ台で10回とぶ", 10, 120)
+kit_quest("pals", "なかよし走行を5回", 5, 100)
+kit_quest("finish", "お城に着く", 1, 400)
+
+kit_on_load = func(p) cart_apply(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.gear = 2
+  p.camera_distance = 10
+  cart_buttons(p)
+  cart_apply(p)
+end
+
+on respawn(p)
+  cart_apply(p)
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("🚉 駅") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

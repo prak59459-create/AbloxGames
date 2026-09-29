@@ -1,0 +1,112 @@
+-- worlds.absc — おうえん・シール帳・ぼうし・コイン
+
+func world_of(n)
+  for w in WORLDS do
+    if n >= w.first and n <= w.last then return w end
+  end
+  return WORLDS[1]
+end
+
+func world_index(n)
+  return clamp(floor((max(1, n) - 1) / 10) + 1, 1, len(WORLDS))
+end
+
+func easy_stage(p, n)
+  p.message("⭐ " + CHEERS[random(1, len(CHEERS))] + "  ステージ " + n, 1.2)
+  kit_quest_progress(p, "stages", 1)
+  pet_check_unlock(p, n)
+  -- ワールドの最後までいったらシール
+  if n % 10 == 1 and n > 1 then
+    let w = WORLDS[world_index(n - 1)]
+    if p.stickers == nil then p.stickers = [] end
+    if not contains(p.stickers, w.sticker) then
+      append(p.stickers, w.sticker)
+      p.message("🎉 " + w.name + " クリア！ シール " + w.sticker + " と ぼうしを もらったよ", 3)
+      p.speak(w.name + " クリア！")
+      kit_give(p, 30)
+      kit_quest_progress(p, "worlds", 1)
+      particles("confetti", p, {amount: 50})
+    end
+  end
+end
+
+func easy_finish(p, secs)
+  if p.stickers == nil then p.stickers = [] end
+  if not contains(p.stickers, "👑") then append(p.stickers, "👑") end
+  kit_badge(p, "easy100", "100ステージ クリア")
+  kit_quest_progress(p, "finish", 1)
+  p.speak("100ステージ クリア！ おめでとう！")
+end
+
+func sticker_book(p)
+  let got = p.stickers or []
+  let line = ""
+  let i = 0
+  for w in WORLDS do
+    i = i + 1
+    if contains(got, w.sticker) then line = line + w.sticker + " " else line = line + "⬜ " end
+  end
+  let h = 220
+  p.ui_remove("book")
+  p.ui_panel("book", {at: "center", w: 540, h: h, bg: "#FEF3C7F2", radius: 22, layer: 40})
+  p.ui_text("book_t", "📒 シール帳（" + len(got) + " / " + len(WORLDS) + "）", {parent: "book", y: 0.16, size: 21, bold: true, color: "#92400E"})
+  p.ui_text("book_s", line, {parent: "book", y: 0.42, size: 34})
+  p.ui_button("hats", "👒 ぼうしをえらぶ", {parent: "book", x: 0.3, y: 0.76, w: 200, h: 42, size: 15, bg: "#DB2777"})
+  p.ui_button("book_close", "閉じる", {parent: "book", x: 0.75, y: 0.76, w: 120, h: 42, size: 15, bg: "gray"})
+end
+
+func hat_menu(p)
+  let open = []
+  let got = p.stickers or []
+  for w in WORLDS do
+    if contains(got, w.sticker) then append(open, w) end
+  end
+  p.ui_remove("book")
+  let rows = max(1, ceil(len(open) / 2))
+  let h = 130 + rows * 48
+  p.ui_remove("hat_box")
+  p.ui_panel("hat_box", {at: "center", w: 500, h: h, bg: "#FDF2F8F2", radius: 22, layer: 41})
+  p.ui_text("hat_t", "👒 ぼうし（シールでふえる）", {parent: "hat_box", y: 26 / h, size: 19, bold: true, color: "#9D174D"})
+  let i = 0
+  for w in open do
+    let col = i % 2
+    let row = floor(i / 2)
+    p.ui_button("hat_" + w.hat, w.sticker + " " + w.hat, {parent: "hat_box", x: 0.28 + col * 0.44, y: (74 + row * 48) / h, w: 200, h: 40,
+                size: 14, bg: "#EC4899"})
+    i = i + 1
+  end
+  if len(open) == 0 then p.ui_text("hat_none", "ワールドをクリアするとふえるよ", {parent: "hat_box", y: 0.45, size: 15, color: "#831843"}) end
+  p.ui_button("hat_off", "ぼうしをとる", {parent: "hat_box", x: 0.3, y: (h - 26) / h, w: 160, h: 34, size: 13, bg: "#78716C"})
+  p.ui_button("hat_close", "閉じる", {parent: "hat_box", x: 0.72, y: (h - 26) / h, w: 120, h: 34, size: 14, bg: "gray"})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "coin") and b.visible then
+    b.visible = false
+    after(15, func()
+      if b.destroy != nil then b.visible = true end
+    end)
+    kit_give(p, 2)
+    p.sound("coin")
+    p.coins_found = (p.coins_found or 0) + 1
+    kit_quest_progress(p, "coins", 1)
+  elif contains(b.tags, "shop") and kit_ready(p, "shop_pad", 3) then kit_open_shop(p)
+  end
+end
+
+on button(p, id)
+  if id == "book" then sticker_book(p)
+  elif id == "book_close" then p.ui_remove("book")
+  elif id == "hats" then hat_menu(p)
+  elif id == "hat_close" then p.ui_remove("hat_box")
+  elif id == "hat_off" then
+    p.hat = "none"
+    p.chosen_hat = "none"
+  elif starts_with(id, "hat_") then
+    let h = replace(id, "hat_", "")
+    p.hat = h
+    p.chosen_hat = h
+    p.ui_remove("hat_box")
+  end
+end

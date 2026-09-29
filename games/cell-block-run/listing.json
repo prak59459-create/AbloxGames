@@ -1,0 +1,31 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 231,
+  "cover" : "games\/cell-block-run\/cover-21f3d4ed.png",
+  "id" : "cell-block-run",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "lib\/kit_move.absc",
+    "games\/cell-block-run\/data.absc",
+    "games\/cell-block-run\/items.absc",
+    "games\/cell-block-run\/story.absc",
+    "games\/cell-block-run\/traps.absc",
+    "games\/cell-block-run\/main.absc"
+  ],
+  "shots" : [
+    "games\/cell-block-run\/shot1-edf11964.png",
+    "games\/cell-block-run\/shot2-22360cae.png"
+  ],
+  "summary" : "ブルーノ所長の刑務所から脱獄！ 牢屋→通気口→食堂→洗濯室→運動場→所長室→下水道→屋根→ヘリの21ステージ。サーチライトと看守、起きたら止まれ、屋根では所長が追ってくる。",
+  "tags" : [
+    "obby",
+    "story",
+    "escape"
+  ],
+  "title" : "Cell Block Run",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/cell-block-run\/world.ablox"
+}

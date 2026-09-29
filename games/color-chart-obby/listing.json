@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 369,
+  "cover" : "games\/color-chart-obby\/cover-c5b2a869.png",
+  "id" : "color-chart-obby",
+  "maxPlayers" : 16,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_obby.absc",
+    "games\/color-chart-obby\/data.absc",
+    "games\/color-chart-obby\/chart.absc",
+    "games\/color-chart-obby\/coils.absc",
+    "games\/color-chart-obby\/trial.absc",
+    "games\/color-chart-obby\/main.absc"
+  ],
+  "shots" : [
+    "games\/color-chart-obby\/shot1-86201c62.png",
+    "games\/color-chart-obby\/shot2-73fb936b.png"
+  ],
+  "summary" : "12段階の難しさを色で進む60ステージ。らくらく（緑）からだいさいがい（白）まで、ゾーンをこえるたびにバッジ。コイルと⏱ゾーンタイムアタックも。",
+  "tags" : [
+    "obby",
+    "difficulty",
+    "parkour"
+  ],
+  "title" : "Color Chart Obby",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/color-chart-obby\/world.ablox"
+}

@@ -1,0 +1,84 @@
+-- Rising Flood Escape — 水がせまるタワーから、みんなで協力して脱出
+-- ラウンドごとにマップを投票。黄色いボタンを順番に押すとゲートが開く。てっぺんの緑の出口へ。
+-- 水の中では息がへる（🫧）。おもちゃ工場と空の城は、とちゅうで水が酸になる。
+--
+-- ファイル:
+--   ../../lib/kit_rounds.absc  ラウンドの進みかた
+--   ../../lib/kit_move.absc    水の高さ（動いているとちゅうの位置）
+--   data.absc    マップ3つ
+--   flood.absc   投票・水・息・ボタン・出口
+--   main.absc    このファイル
+
+kit_setup("Rising Flood Escape", "水がくる！ みんなでボタンを押して上へ！", [
+  "🗳 ロビーでマップを投票（パッドかボタン）",
+  "🔘 黄色いボタンを 1→2→3→4 の順に押すと赤いゲートが開く",
+  "🌊 水はどんどん上がる。水の中では 🫧 息がへる",
+  "☠️ 工場と城は、とちゅうで水が酸になる。入るとアウト",
+  "🟩 てっぺんの緑の出口にさわれば脱出！ 早いほどコイン",
+  "🛒 ボンベ（息が長くなる）・うきわ（1回だけ助かる）"
+])
+kit_keep(["escapes", "drowns", "buttons", "tank"])
+
+rnd_setup({wait: 14, play: ROUND_SECS, results: 8, label: "ラウンド"})
+rnd_on_prepare = func() prepare() end
+rnd_on_begin = func() begin() end
+rnd_on_end = func(reason) finish(reason) end
+rnd_on_wait = func(left)
+  if left == 10 then announce("🗳 マップを投票しよう！（のこり10秒）", 2) end
+end
+
+kit_shop_add("tank", "🫁 酸素ボンベ（息 +30%、3回まで）", 250, func(p)
+  if (p.tank or 0) >= 3 then
+    kit_give(p, 250)
+    p.message("もう最大！", 1.5)
+  else
+    p.tank = (p.tank or 0) + 1
+    p.message("🫁 息が " + fixed(air_max(p), 0) + " 秒つづく", 1.5)
+  end
+end)
+kit_shop_add("ring", "🛟 うきわ（おぼれそうなとき1回たすかる）", 120, func(p)
+  p.float_ring = true
+  p.give_item("🛟 うきわ", 1, "🛟")
+end)
+kit_shop_add("speed", "👟 スピードくつ（ずっと 1.2ばい）", 500, func(p)
+  p.fast_shoes = true
+  p.speed = 1.2
+end)
+
+kit_quest("escape", "脱出する", 1, 100)
+kit_quest("escape5", "5回脱出する", 5, 300)
+kit_quest("buttons", "ボタンを5回押す", 5, 120)
+kit_quest("acid", "酸の水から脱出", 1, 200)
+kit_quest("team", "全員で脱出する", 1, 250)
+
+kit_on_load = func(p)
+  if p.fast_shoes then p.speed = 1.2 end
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  p.flood_state = "lobby"
+  let i = 0
+  for m in MAPS do
+    i = i + 1
+    p.ui_button("fvote_" + m.n, "🗳 " + m.name + " " + m.stars, {at: "left", dy: -60 + (i - 1) * 52, w: 220, h: 44, size: 14, bg: "#1E3A8A"})
+  end
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("🚁 脱出") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.escapes or 0) != p.score then p.score = p.escapes or 0 end
+  end
+end

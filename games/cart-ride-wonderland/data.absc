@@ -1,0 +1,16 @@
+-- data.absc — Cart Ride Wonderland の表
+
+let ZONES = [
+  {first: 1, last: 4, name: "🌻 花畑", color: "#84CC16"},
+  {first: 5, last: 8, name: "⛏ 鉱山", color: "#A16207"},
+  {first: 9, last: 12, name: "🍬 おかしの国", color: "#EC4899"},
+  {first: 13, last: 16, name: "❄️ 雪の谷", color: "#60A5FA"},
+  {first: 17, last: 20, name: "🌋 火山", color: "#F97316"}
+]
+
+-- カートのスピード（ギア）。gears はショップで ふやせる
+let GEARS = [1.3, 1.7, 2.1, 2.5, 2.9, 3.3]
+let START_GEARS = 3
+let CART_COLORS = ["#EF4444", "#F59E0B", "#22C55E", "#3B82F6", "#8B5CF6", "#EC4899", "#111827", "#FFFFFF"]
+let PAL_SECS = 5        -- ほかのカートとならんで走ると「なかよし走行」
+let PAL_COINS = 6

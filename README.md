@@ -128,6 +128,19 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/shark-attack-bay/cover-b023a82c.png" width="200"> | 79 | **Shark Attack Bay** | サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ |
 | <img src="games/tip-jar-plaza/cover-3b7cc0f0.png" width="200"> | 80 | **Tip Jar Plaza** | 広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです） |
 
+### 🧗 オビー・アスレチック
+
+| | # | ゲーム | 内容 |
+|---|---|---|---|
+| <img src="games/cell-block-run/cover-21f3d4ed.png" width="200"> | 81 | **Cell Block Run** | ブルーノ所長の刑務所から脱獄！ 牢屋→通気口→食堂→洗濯室→運動場→所長室→下水道→屋根→ヘリの21ステージ。サーチライトと看守、起きたら止まれ、屋根では所長が追ってくる。 |
+| <img src="games/color-chart-obby/cover-c5b2a869.png" width="200"> | 82 | **Color Chart Obby** | 12段階の難しさを色で進む60ステージ。らくらく（緑）からだいさいがい（白）まで、ゾーンをこえるたびにバッジ。コイルと⏱ゾーンタイムアタックも。 |
+| <img src="games/pedal-obby/cover-39331dc3.png" width="200"> | 83 | **Pedal Obby** | 自転車に乗ったままクリアするオビー。公園・キャニオン・雪山・ネオンの街の40ステージを、ジャンプ台とブースト床でとびこえろ。空中でトリックを決めるとコイン、ガレージで6台の自転車。 |
+| <img src="games/rising-flood-escape/cover-409cfeaa.png" width="200"> | 84 | **Rising Flood Escape** | 水がどんどん上がってくる！ みんなでボタンを順番に押してゲートを開け、てっぺんの出口へ。沈んだ神殿・おもちゃ工場・空の城の3マップ。水の中では息が続くまで。 |
+| <img src="games/trap-master-run/cover-ec7bfbe2.png" width="200"> | 85 | **Trap Master Run** | 1人がワナ師、ほかはランナー。ワナ師はバルコニーから10このワナ（落とし穴・トゲ・大岩・つぶし天井・矢…）を動かす。ランナーはゴールしたら剣でワナ師にしかえし！ |
+| <img src="games/speeding-wall-survival/cover-838ca2f9.png" width="200"> | 86 | **Speeding Wall Survival** | どんどん速くなるカベがつっこんでくる！ すきまに入る・とびこえる・キノコで小さくなって穴をくぐる。ニセモノのカベにだまされるな。最後の1人まで生きのこれ。 |
+| <img src="games/easy-peasy-obby/cover-60a66188.png" width="200"> | 87 | **Easy Peasy Obby** | 小さい子でもクリアできる、とってもやさしい100ステージ。草原・おかし・ビーチ・雪・宇宙など10のワールド。ついてくるペット、ワールドごとのシールとぼうし、コイン集め。 |
+| <img src="games/cart-ride-wonderland/cover-a54f8f02.png" width="200"> | 88 | **Cart Ride Wonderland** | カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！ |
+
 <!-- games:end -->
 
 ## しくみ

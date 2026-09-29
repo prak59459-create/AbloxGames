@@ -10,6 +10,9 @@ struct Game {
     let summary: String
     let tags: [String]
     let maxPlayers: Int
+    /// Shared engines from `lib/` this game runs on, by short name:
+    /// `"obby"` is `lib/kit_obby.absc`. What an engine needs comes too.
+    var libs: [String] = []
     let build: (MapBuilder) -> Void
 
     var folder: String { "games/\(id)" }
@@ -23,7 +26,7 @@ struct Game {
             .filter { $0.hasSuffix(".absc") }
         let middle = names.filter { $0 != "data.absc" && $0 != "main.absc" }.sorted()
         let ordered = (names.contains("data.absc") ? ["data.absc"] : []) + middle + (names.contains("main.absc") ? ["main.absc"] : [])
-        return [Catalogue.kitPath] + ordered.map { "\(folder)/\($0)" }
+        return [Catalogue.kitPath] + Catalogue.libPaths(libs) + ordered.map { "\(folder)/\($0)" }
     }
 }
 
@@ -34,7 +37,26 @@ enum Catalogue {
     static let date = ISO8601DateFormatter().date(from: "2026-09-24T00:00:00Z")!
 
     static var games: [Game] {
-        (topGames + actionGames + lifeGames + horrorGames + idleGames + miniGames).sorted { $0.number < $1.number }
+        (topGames + actionGames + lifeGames + horrorGames + idleGames + miniGames
+            + obbyGames).sorted { $0.number < $1.number }
+    }
+
+    /// What each shared engine needs loaded before it.
+    static let libNeeds: [String: [String]] = [
+        "race": ["rounds"], "ball": ["rounds"], "quiz": ["rounds"], "waves": [], "obby": [], "ride": [],
+        "sim": [], "tycoon": [], "move": [], "rounds": []
+    ]
+
+    /// The engines' files in the order they run: each after what it needs.
+    static func libPaths(_ names: [String]) -> [String] {
+        var ordered: [String] = []
+        func add(_ name: String) {
+            guard libNeeds[name] != nil else { fatalError("no engine lib/kit_\(name).absc") }
+            for need in libNeeds[name] ?? [] { add(need) }
+            if !ordered.contains(name) { ordered.append(name) }
+        }
+        for name in names { add(name) }
+        return ordered.map { "lib/kit_\($0).absc" }
     }
 
     /// A UUID that is the same every run for the same text.

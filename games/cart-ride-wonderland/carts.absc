@@ -1,0 +1,98 @@
+-- carts.absc — カート（ギア・クラクション・色）と、なかよし走行
+
+func cart_max(p)
+  return min(len(GEARS), START_GEARS + (p.gear_up or 0))
+end
+
+func cart_apply(p)
+  if not kit_here(p) then return end
+  let g = clamp(p.gear or 2, 1, cart_max(p))
+  p.gear = g
+  let s = GEARS[g]
+  if (p.boost_until or 0) > time() then s = s * 1.5 end
+  p.obby_speed_mult = s
+  p.obby_jump_mult = 1.1
+  if p.ride != "kart" then p.ride = "kart" end
+  p.ride_color = p.cart_color or "#EF4444"
+  obby_apply_perks(p)
+  cart_hud(p)
+end
+
+func cart_hud(p)
+  let bar = ""
+  for k in 1 to cart_max(p) do
+    if k <= p.gear then bar = bar + "▰" else bar = bar + "▱" end
+  end
+  p.ui_text("gear", "⚙️ ギア " + p.gear + "  " + bar, {at: "bottom_right", dx: -110, dy: -236, size: 16, bold: true, color: "#FDE68A"})
+end
+
+func cart_buttons(p)
+  p.ui_button("gear_up", "⏫", {at: "bottom_right", dx: -24, dy: -170, w: 64, h: 56, size: 24, bg: "#16A34A", radius: 18})
+  p.ui_button("gear_down", "⏬", {at: "bottom_right", dx: -100, dy: -170, w: 64, h: 56, size: 24, bg: "#B45309", radius: 18})
+  p.ui_button("horn", "📯", {at: "bottom_right", dx: -176, dy: -170, w: 56, h: 56, size: 22, bg: "#1D4ED8", radius: 18})
+end
+
+func horn(p)
+  if not quiet(p, "horn", 1) then return end
+  for q in players() do
+    if distance(p, q) < 30 then q.sound("bell", {volume: 0.7, pitch: 0.8 + random() * 0.4}) end
+  end
+  particles("stars", p, {amount: 8})
+end
+
+func quiet(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+let pal_clock = 0
+on tick(dt)
+  pal_clock = pal_clock + dt
+  if pal_clock < 1 then return end
+  pal_clock = 0
+  for p in players() do
+    let near = false
+    for q in players() do
+      if q.id != p.id and distance(p, q) < 7 and (p.stage or 0) > 0 then near = true end
+    end
+    if near then
+      p.pal_time = (p.pal_time or 0) + 1
+      if p.pal_time >= PAL_SECS then
+        p.pal_time = 0
+        kit_give(p, PAL_COINS)
+        p.message("🤝 なかよし走行 +" + PAL_COINS, 1)
+        kit_quest_progress(p, "pals", 1)
+      end
+    else
+      p.pal_time = 0
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "paint") and quiet(p, "paint", 1.5) then
+    p.cart_color = random(CART_COLORS)
+    cart_apply(p)
+    p.message("🎨 カートの色をかえた！", 1)
+  elif contains(b.tags, "shop") and quiet(p, "shop", 3) then kit_open_shop(p)
+  end
+end
+
+on button(p, id)
+  if id == "gear_up" then
+    if (p.gear or 2) < cart_max(p) then
+      p.gear = (p.gear or 2) + 1
+      cart_apply(p)
+    else
+      p.message("いまのカートはギア " + cart_max(p) + " まで（ショップでふやせる）", 1.5)
+    end
+  elif id == "gear_down" then
+    p.gear = max(1, (p.gear or 2) - 1)
+    cart_apply(p)
+  elif id == "horn" then horn(p)
+  end
+end

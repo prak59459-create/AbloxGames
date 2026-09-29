@@ -1,0 +1,77 @@
+-- Pedal Obby — 自転車に乗ったままクリアするオビー
+-- 公園・キャニオン・雪山・ネオンの街 × 10ステージ = 40ステージ。
+-- オレンジのジャンプ台でとんで、空中で「🤸 トリック」を押して着地するとコイン。水色の床はブースト。
+--
+-- ファイル:
+--   ../../lib/kit_obby.absc  オビーの共通エンジン
+--   ../../lib/kit_move.absc  転がる丸太の当たり判定
+--   data.absc    ワールド・自転車・トリック
+--   bikes.absc   ガレージと速さ
+--   stunts.absc  ジャンプ台・ブースト・トリック・丸太
+--   main.absc    このファイル
+
+kit_setup("Pedal Obby", "自転車でおりないでクリアしよう！", [
+  "🚲 ずっと自転車。はじめはキッズバイク",
+  "🟧 ジャンプ台でとんで、空中で 🤸 トリック！ 着地するとコイン",
+  "🟦 水色の床はブースト。長いすきまはブーストしてからジャンプ台へ",
+  "🪵 転がる丸太、🔺 コーンにさわるとチェックポイントへ",
+  "🔧 ガレージで BMX・マウンテンバイク・ロードバイク…",
+  "📋 で行ったワールドへワープ、⏭ でスキップ"
+])
+kit_keep(["bikes", "bike", "bike_color", "tricks", "best_combo"])
+
+obby_setup({stages: 40, fall: -10, coins: 6, finish_coins: 400, skip: 35, board: "pedal_time"})
+obby_zones = []
+for w in WORLDS do
+  append(obby_zones, {from: w.first, last: w.last, name: w.name, color: w.color})
+end
+obby_on_stage = func(p, n)
+  kit_quest_progress(p, "stages", 1)
+  if n == 11 then kit_badge(p, "canyon", "キャニオンに着いた") end
+  if n == 31 then kit_badge(p, "neon", "ネオンの街に着いた") end
+end
+obby_on_finish = func(p, secs)
+  kit_quest_progress(p, "finish", 1)
+  kit_badge(p, "finish", "40ステージ走破")
+end
+
+obby_perks_basic()
+
+kit_quest("stages", "チェックポイントを15こ進む", 15, 120)
+kit_quest("tricks", "トリックを20回きめる", 20, 150)
+kit_quest("bike", "新しい自転車を買う", 1, 80)
+kit_quest("finish", "40ステージをクリア", 1, 800)
+
+kit_on_load = func(p) bike_apply(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_shop_button(p)
+  kit_camera_button(p)
+  p.bikes = ["kids"]
+  p.bike = "kids"
+  p.camera_distance = 9
+  p.ui_button("garage", "🔧 ガレージ", {at: "right", dy: -60, w: 140, h: 46, size: 15, bg: "#B45309"})
+  bike_apply(p)
+end
+
+on respawn(p)
+  bike_apply(p)
+end
+
+on start()
+  world.music = "race"
+  every(12, func() kit_leaderboard("🏁 最高ステージ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.obby_best or 0) != p.score then p.score = p.obby_best or 0 end
+  end
+end

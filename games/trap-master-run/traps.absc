@@ -1,0 +1,170 @@
+-- traps.absc — ワナを動かす・当たったらアウト・コンピューターのワナ師
+
+let used = {}
+let active_until = {}
+let trap_homes = {}
+let trap_clock = 0
+let ai_clock = 0
+
+func zone_start(k)
+  return (k - 1) * ZONE_LEN
+end
+
+func trap_blocks(k)
+  return blocks("trap" + k)
+end
+
+func remember_homes()
+  for k in 1 to 10 do
+    for b in trap_blocks(k) do
+      if trap_homes[b.id] == nil then trap_homes[b.id] = b.position end
+    end
+  end
+end
+
+func reset_traps()
+  remember_homes()
+  used = {}
+  active_until = {}
+  for k in 1 to 10 do
+    for b in trap_blocks(k) do
+      mv_stop(b)
+      let home = trap_homes[b.id]
+      if home != nil and distance(b.position, home) > 0.01 then b.position = home end
+      if contains(b.tags, "kill") then
+        b.visible = false
+      elif k == 1 or k == 8 then
+        b.visible = true
+        b.solid = true
+      end
+    end
+  end
+end
+
+func hit_by_trap(p, why)
+  if p.dr_state != "run" then return end
+  knock_out(p, why)
+end
+
+-- ワナを動かす。by はワナ師（コンピューターなら nil）
+func fire_trap(k, by)
+  if used["t" + k] or not rnd_playing() then return false end
+  used["t" + k] = true
+  let secs = 2.2
+  if k == 1 then
+    for b in trap_blocks(1) do
+      b.visible = false
+      b.solid = false
+    end
+    after(2.6, func()
+      for b in trap_blocks(1) do
+        b.visible = true
+        b.solid = true
+      end
+    end)
+  elif k == 8 then
+    let j = 0
+    for b in trap_blocks(8) do
+      j = j + 1
+      let tile = b
+      after(j * 0.25, func()
+        tile.visible = false
+        tile.solid = false
+      end)
+      after(3 + j * 0.25, func()
+        tile.visible = true
+        tile.solid = true
+      end)
+    end
+  elif k == 3 then
+    for b in trap_blocks(3) do
+      mv_once(b, trap_homes[b.id] + {x: 15, y: 0, z: 0}, 0.9, func(p, blk) hit_by_trap(p, "🧱 カベにおし出された！") end)
+      let wall = b
+      after(2, func() mv_once(wall, trap_homes[wall.id], 1.2, nil) end)
+    end
+  elif k == 5 then
+    for b in trap_blocks(5) do
+      mv_once(b, trap_homes[b.id] + {x: 0, y: 0, z: 0 - 17}, 1.8, func(p, blk) hit_by_trap(p, "🪨 大岩につぶされた！") end)
+      let rock = b
+      after(3, func()
+        mv_stop(rock)
+        rock.position = trap_homes[rock.id]
+      end)
+    end
+  elif k == 7 then
+    for b in trap_blocks(7) do
+      mv_once(b, trap_homes[b.id] + {x: 0, y: -5.2, z: 0}, 0.45, func(p, blk) hit_by_trap(p, "⬇️ 天井につぶされた！") end)
+      let top = b
+      after(1.6, func() mv_once(top, trap_homes[top.id], 1.4, nil) end)
+    end
+  elif k == 9 then
+    let j = 0
+    for b in trap_blocks(9) do
+      j = j + 1
+      let arrow = b
+      after(j * 0.3, func()
+        mv_once(arrow, trap_homes[arrow.id] + {x: 15, y: 0, z: 0}, 0.7, func(p, blk) hit_by_trap(p, "🏹 矢が当たった！") end)
+      end)
+      after(2.5 + j * 0.3, func()
+        mv_stop(arrow)
+        arrow.position = trap_homes[arrow.id]
+      end)
+    end
+  else
+    -- トゲ・火の柱・レーザー・マグマ: 出てきて、当たりはホストが調べる
+    for b in trap_blocks(k) do b.visible = true end
+    active_until["t" + k] = time() + secs
+    after(secs, func()
+      for b in trap_blocks(k) do b.visible = false end
+    end)
+  end
+  sound("explosion", {volume: 0.4})
+  if by != nil then by.traps_used = (by.traps_used or 0) + 1 end
+  trap_buttons()
+  return true
+end
+
+func in_box(p, b)
+  let half = b.size * 0.5
+  if abs(p.x - b.x) > half.x + 0.35 then return false end
+  if abs(p.z - b.z) > half.z + 0.35 then return false end
+  if p.y > b.y + half.y then return false end
+  if p.y + 1.8 < b.y - half.y then return false end
+  return true
+end
+
+on tick(dt)
+  trap_clock = trap_clock + dt
+  if trap_clock < 0.1 then return end
+  trap_clock = 0
+  if not rnd_playing() then return end
+  let now = time()
+  for p in rnd_players() do
+    if p.dr_state == "run" and p.alive then
+      if p.y < -3 then
+        knock_out(p, "🕳 落ちてしまった！")
+      else
+        for k in [2, 4, 6, 10] do
+          if (active_until["t" + k] or 0) > now then
+            for b in trap_blocks(k) do
+              if p.dr_state == "run" and in_box(p, b) then knock_out(p, TRAPS[k].icon + " " + TRAPS[k].name + "にやられた！") end
+            end
+          end
+        end
+      end
+    end
+  end
+  -- コンピューターのワナ師
+  ai_clock = ai_clock + 0.1
+  if tm == nil and ai_clock >= 0.5 then
+    ai_clock = 0
+    for k in 1 to 10 do
+      if not used["t" + k] then
+        let z0 = zone_start(k)
+        for p in rnd_players() do
+          if p.dr_state == "run" and p.z > z0 + 3 and p.z < z0 + 12 and random() < 0.3 then fire_trap(k, nil) end
+        end
+      end
+    end
+  end
+end

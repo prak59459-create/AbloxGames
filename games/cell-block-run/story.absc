@@ -1,0 +1,56 @@
+-- story.absc — エリアのお話・脱獄の成績・ランク
+
+func area_of(n)
+  for a in AREAS do
+    if n >= a.first and n <= a.last then return a end
+  end
+  return AREAS[1]
+end
+
+func quiet(p, key, seconds)
+  if p.cds == nil then p.cds = {} end
+  let last = p.cds[key]
+  if last != nil and time() - last < seconds then return false end
+  p.cds[key] = time()
+  return true
+end
+
+func story_stage(p, n)
+  let a = area_of(n)
+  if n == a.first then
+    p.message("📖 " + a.story, 5)
+    p.speak(a.story)
+    if n == 19 then bruno_wake(p) end
+  end
+  kit_quest_progress(p, "stages", 1)
+end
+
+func story_finish(p, secs)
+  p.escapes = (p.escapes or 0) + 1
+  kit_quest_progress(p, "escape", 1)
+  if (p.skips_used or 0) == 0 then kit_quest_progress(p, "clean", 1) end
+  if (p.obby_falls or 0) == 0 then kit_badge(p, "perfect", "一度もつかまらずに脱獄") end
+  kit_badge(p, "escaped", "はじめての脱獄")
+  for r in RANKS do
+    if secs <= r.secs then
+      p.message(r.name + "！（" + kit_clock(secs) + "）  +" + r.coins, 4)
+      kit_give(p, r.coins)
+      if r.secs == 180 then kit_badge(p, "legend", "伝説の脱獄王") end
+      break
+    end
+  end
+  p.fade("white", 0.6)
+  kit_later(p, 0.8, func() p.fade(nil, 0.8) end)
+  particles("confetti", p, {amount: 120})
+  p.skips_used = 0
+end
+
+-- つかまった（チェックポイントへ）
+func caught(p, why)
+  if p.is_npc or not quiet(p, "caught", 1.2) then return end
+  p.message(why, 1.5)
+  p.sound("error")
+  p.caught = (p.caught or 0) + 1
+  kit_quest_progress(p, "caught", 1)
+  obby_back(p)
+end
