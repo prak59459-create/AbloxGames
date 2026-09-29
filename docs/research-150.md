@@ -2,7 +2,8 @@
 
 いまの80本（1〜80）に加えて、81〜230の150本を作ります。
 **Roblox で実際に流行っている・人気のあるゲーム**を150本選び、それぞれを Ablox で遊べるオリジナル版にします。
-いまの80本がもとにしたゲーム（Blox Fruits、Grow a Garden、Steal a Brainrot、Doors、Tower of Hell、Brookhaven、99 Nights in the Forest など）とは**かぶらないもの**だけを選びました。
+いまの80本がもとにしたゲーム（Brookhaven RP・Blox Fruits・Adopt Me!・Steal a Brainrot・Fisch・RIVALS・Grow a Garden・Dress To Impress・Murder Mystery 2・99 Nights in the Forest・Kick a Lucky Block・The Strongest Battlegrounds・DOORS・Pet Simulator 99・Tower of Hell・BedWars・Slime RNG・Universal Tower Defense・Jujutsu Shenanigans・Escape Tsunami for Brainrots、ほか21〜80の60本）とは**かぶらないもの**だけを選びました。
+（最初は Break In (Story) も入れていましたが、52番の Night Lockdown と同じなので Flicker に入れかえました。）
 
 - 下の（ ）は、遊び方の型を参考にした本物の Roblox ゲームです（このリサーチの中でだけ名前を書いています）。
 - ゲームの中では、本物のゲームの名前・キャラクター・ロゴ・音楽は使いません。ゲームの名前もオリジナルです。
@@ -118,7 +119,7 @@
 ### 👻 ホラー・ストーリー（141〜155）
 - 141 Abandoned Survivors 見すてられた生存者（Forsaken）
 - 142 Escape the Lab Beast 研究所の怪物（Flee the Facility）
-- 143 Break-In Night 家族の長い夜（Break In）
+- 143 Blackout Manor 停電の館（Flicker）
 - 144 Pale Creature Woods 森の白い怪物（The Rake）
 - 145 Deep Pressure Station 深海の基地（Pressure）
 - 146 Hush Corridors 静かな廊下（Grace）
