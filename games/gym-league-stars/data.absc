@@ -1,0 +1,51 @@
+-- data.absc — Gym League Stars の表
+
+sim_setup({name: "🏋 トータル", tap: "🏋 トレーニング", bag: false, secs: 0.35, rebirth: 120000, grow: 4, slots: 3, auto: 1000})
+
+sim_tools = [
+  {id: "t1", name: "🧤 トレーニング手ぶくろ", price: 0, power: 1},
+  {id: "t2", name: "👟 ジムシューズ", price: 80, power: 3},
+  {id: "t3", name: "🎽 プロのウェア", price: 500, power: 8},
+  {id: "t4", name: "⌚ スマートウォッチ", price: 2500, power: 22},
+  {id: "t5", name: "🏅 チャンピオンベルト", price: 12000, power: 60},
+  {id: "t6", name: "💎 ダイヤのウェア", price: 60000, power: 170},
+  {id: "t7", name: "🌟 レジェンドセット", price: 300000, power: 480}
+]
+
+sim_eggs = [
+  {id: "gym", name: "🏋 ジムのたまご", price: 220, pets: [
+    {name: "ハムスター", icon: "🐹", mult: 0.1, w: 60, color: "#FCD34D"},
+    {name: "コアラ", icon: "🐨", mult: 0.25, w: 30, color: "#9CA3AF"},
+    {name: "カンガルー", icon: "🦘", mult: 0.6, w: 9, color: "#B45309"},
+    {name: "ムキムキうさぎ", icon: "🐰", mult: 2, w: 1, color: "#F8FAFC"}]},
+  {id: "stage", name: "🎤 ステージのたまご", price: 4500, pets: [
+    {name: "クジャク", icon: "🦚", mult: 0.5, w: 55, color: "#0EA5E9"},
+    {name: "フラミンゴ", icon: "🦩", mult: 1, w: 33, color: "#F472B6"},
+    {name: "ライオン", icon: "🦁", mult: 2.5, w: 10, color: "#F59E0B"},
+    {name: "スターゴリラ", icon: "🦍", mult: 6, w: 2, color: "#FACC15"}]}
+]
+
+-- 4つの体の部分
+let STATS = [
+  {id: "arms", name: "💪 うで", pose: "ダブルバイセップス"},
+  {id: "legs", name: "🦵 あし", pose: "フロントレッグ"},
+  {id: "chest", name: "🫁 むね", pose: "サイドチェスト"},
+  {id: "back", name: "🔙 せなか", pose: "バックラットスプレッド"}
+]
+let STAMINA_MAX = 100
+let STAMINA_USE = 4        -- 1回のトレーニング
+let STAMINA_BACK = 3       -- 1秒でもどる
+let PROTEIN_PRICE = 20
+
+-- リーグ（大会のトロフィーの数）
+let LEAGUES = [
+  {need: 0, name: "🥉 ブロンズリーグ", rival: 1},
+  {need: 3, name: "🥈 シルバーリーグ", rival: 3},
+  {need: 8, name: "🥇 ゴールドリーグ", rival: 6},
+  {need: 15, name: "💎 ダイヤリーグ", rival: 10},
+  {need: 30, name: "👑 レジェンドリーグ", rival: 16}
+]
+let CONTEST_EVERY = 150
+let CONTEST_CALL = 25      -- 「ステージへ！」からの秒数
+let POSES = 4              -- 1回の大会のポーズの数
+let POSE_SECS = 4

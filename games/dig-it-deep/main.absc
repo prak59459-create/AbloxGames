@@ -1,0 +1,40 @@
+-- Dig It Deep — どこでもほれる宝ほり
+-- ほる場所で ⛏ をおすと メーターが動きだす。白いメーターの先が みどりの中のときに ⛏ をおすと ザクザクほれる。
+-- 100までほると 何かが出てくる（場所ごとに ちがうお宝）。リュックがいっぱいになったら 町で売る。🏛 図かんをうめよう。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  リュック・ショップ・たまご・ペット・生まれかわり・ゲート
+--   data.absc   シャベル・リュック・たまご・場所・お宝24しゅるい
+--   dig.absc    メーター・ほる・お宝・はくぶつかん
+--   main.absc   このファイル
+
+kit_setup("Dig It Deep", "ほって、見つけて、図かんをうめよう！", [
+  "⛏ さくの中で ⛏ をおす → メーターが動く。白い先が みどりの中のときに おすと たくさんほれる",
+  "🎁 100までほると お宝！ はじめて見つけたものは 図かんボーナス",
+  "🎒 いっぱいになったら 町の黄色いパッドで売る",
+  "🏛 灰色のパッド（はくぶつかん）で 図かんを見る",
+  "🏖 はまべ・⛰ どうくつ・🌋 かざん は 売ったお宝の合計で行ける",
+  "🛒 シャベルが いいほど みどりが広く、たくさんほれる"
+])
+kit_keep(["journal", "digs"])
+
+kit_quest("dig", "10回 お宝をほる", 10, 120)
+kit_quest("journal", "図かんを8つ うめる", 8, 300)
+kit_quest("sim_tool", "シャベルを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 8
+  p.journal = []
+  p.hat = "cowboy"
+  p.ui_button("museum", "🏛 図かん", {at: "right", dy: 90, w: 150, h: 44, size: 15, bg: "#57534E"})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("📜 売ったお宝") end)
+end

@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 129,
+  "bytes" : 108834,
+  "cover" : "games\/dig-it-deep\/cover-325b88bd.png",
+  "id" : "dig-it-deep",
+  "maxPlayers" : 10,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "games\/dig-it-deep\/data.absc",
+    "games\/dig-it-deep\/dig.absc",
+    "games\/dig-it-deep\/main.absc"
+  ],
+  "shots" : [
+    "games\/dig-it-deep\/shot1-ded01172.png",
+    "games\/dig-it-deep\/shot2-a40eb123.png"
+  ],
+  "summary" : "どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！",
+  "tags" : [
+    "simulator",
+    "treasure",
+    "collect"
+  ],
+  "title" : "Dig It Deep",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/dig-it-deep\/world.ablox"
+}

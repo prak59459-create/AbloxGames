@@ -180,6 +180,11 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/arm-wrestle-champions/cover-c8ec5112.png" width="200"> | 116 | **Arm Wrestle Champions** | うでずもうチャンピオンをめざせ！ にぎる道具でうでをきたえて、テーブルのライバルに勝負。💪を連打して押しかえせ！ ボスに勝つと次のエリアへ。友だちとの対戦テーブルも。 |
 | <img src="games/deep-mine-simulator/cover-bf95d479.png" width="200"> | 117 | **Deep Mine Simulator** | つるはしで地下をほり進もう！ 深くなるほど かたい岩と レアな鉱石。リュックがいっぱいになったら地上で売る。つるはし・リュック・ペットで、いちばん下のマグマの宝石まで！ |
 | <img src="games/sand-treasure-hunt/cover-73729fa8.png" width="200"> | 118 | **Sand Treasure Hunt** | スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！ |
+| <img src="games/mega-magnet-sim/cover-fad07891.png" width="200"> | 119 | **Mega Magnet Sim** | マグネットでコインをすいよせろ！ 歩くだけで近くのコインがあつまる。リュックがいっぱいになったら銀行へ。強いマグネットほど遠くまで、大きなコイン。公園・町・金庫の部屋へ！ |
+| <img src="games/saber-swing-sim/cover-09d7bee1.png" width="200"> | 120 | **Saber Swing Sim** | セイバーをふって力をためよう！ DNAびんがいっぱいになったら 売ってお金に。力がつくほど体が大きくなる。ときどきあらわれるボスに みんなでいどめ！ セイバー・DNA・ペットで最強の騎士へ。 |
+| <img src="games/snowball-shovel-sim/cover-30aac8a5.png" width="200"> | 121 | **Snowball Shovel Sim** | スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！ |
+| <img src="games/gym-league-stars/cover-4d0d0ca0.png" width="200"> | 122 | **Gym League Stars** | うで・あし・むね・せなか、4つのマシンでバランスよくきたえよう！ スタミナがへったらプロテイン。3分ごとの大会では、しんぱんの言うポーズをすばやく決めろ！ ブロンズからダイヤリーグへ。 |
+| <img src="games/dig-it-deep/cover-325b88bd.png" width="200"> | 123 | **Dig It Deep** | どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！ |
 
 <!-- games:end -->
 

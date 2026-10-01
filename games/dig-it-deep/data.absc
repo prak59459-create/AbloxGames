@@ -1,0 +1,74 @@
+-- data.absc — Dig It Deep の表
+
+sim_setup({name: "📜 売ったお宝", tap: "⛏ ほる", bag: true, bag_word: "🎒 お宝", sell: 1, secs: 0.25, rebirth: 300000, grow: 4, slots: 3, auto: 1500})
+
+-- シャベル: power で1回にほれる量、zone でみどりの はば
+sim_tools = [
+  {id: "v1", name: "🥄 手スコップ", price: 0, power: 1, zone: 14},
+  {id: "v2", name: "⛏ シャベル", price: 90, power: 2, zone: 16},
+  {id: "v3", name: "⛏ 丈夫なシャベル", price: 600, power: 3, zone: 18},
+  {id: "v4", name: "🔩 鉄のシャベル", price: 3000, power: 5, zone: 20},
+  {id: "v5", name: "💎 ダイヤのシャベル", price: 15000, power: 8, zone: 23},
+  {id: "v6", name: "🌟 伝説のシャベル", price: 80000, power: 12, zone: 26}
+]
+
+sim_bags = [
+  {id: "b1", name: "👜 ポーチ", price: 0, size: 60},
+  {id: "b2", name: "🎒 リュック", price: 150, size: 200},
+  {id: "b3", name: "🎒 冒険リュック", price: 1000, size: 700},
+  {id: "b4", name: "🧳 たんけんトランク", price: 6000, size: 2400},
+  {id: "b5", name: "🛒 お宝トロッコ", price: 30000, size: 8000}
+]
+
+sim_eggs = [
+  {id: "fossil", name: "🦴 化石のたまご", price: 300, pets: [
+    {name: "トリケラ", icon: "🦕", mult: 0.15, w: 60, color: "#65A30D"},
+    {name: "プテラ", icon: "🦅", mult: 0.3, w: 30, color: "#A16207"},
+    {name: "ティラノ", icon: "🦖", mult: 0.8, w: 9, color: "#15803D"},
+    {name: "化石のりゅう", icon: "🐉", mult: 2.5, w: 1, color: "#F5F5F4"}]},
+  {id: "gem", name: "💎 宝石のたまご", price: 8000, pets: [
+    {name: "ルビーもぐら", icon: "🐀", mult: 0.8, w: 55, color: "#DC2626"},
+    {name: "トパーズかめ", icon: "🐢", mult: 1.5, w: 33, color: "#F59E0B"},
+    {name: "サファイアふくろう", icon: "🦉", mult: 3.5, w: 10, color: "#2563EB"},
+    {name: "ダイヤのフェニックス", icon: "🔥", mult: 9, w: 2, color: "#22D3EE"}]}
+]
+
+-- ほる場所: need は 売ったお宝の合計
+sim_zones = [
+  {n: 1, name: "🌼 のはら", need: 0},
+  {n: 2, name: "🏖 はまべ", need: 2000},
+  {n: 3, name: "⛰ どうくつ", need: 40000},
+  {n: 4, name: "🌋 かざん", need: 500000}
+]
+
+-- 出てくるもの: ground（場所）、w（出やすさ）、value（ねうち）
+let FINDS = [
+  {id: "can", name: "🥫 あきかん", ground: 1, w: 30, value: 2},
+  {id: "button", name: "🔘 ふるいボタン", ground: 1, w: 25, value: 4},
+  {id: "coin", name: "🪙 むかしのコイン", ground: 1, w: 18, value: 10},
+  {id: "arrow", name: "🏹 やじりの石", ground: 1, w: 10, value: 25},
+  {id: "ammonite", name: "🐚 アンモナイト", ground: 1, w: 5, value: 80},
+  {id: "crown1", name: "👑 小さな王かん", ground: 1, w: 1, value: 400},
+  {id: "shell", name: "🐚 きれいな貝", ground: 2, w: 30, value: 20},
+  {id: "bottle", name: "🍾 手紙入りのびん", ground: 2, w: 20, value: 45},
+  {id: "pearl", name: "⚪ しんじゅ", ground: 2, w: 12, value: 120},
+  {id: "anchor", name: "⚓ 船のいかり", ground: 2, w: 8, value: 220},
+  {id: "chest", name: "🧰 海ぞくの宝箱", ground: 2, w: 3, value: 900},
+  {id: "trident", name: "🔱 海の王のほこ", ground: 2, w: 1, value: 3000},
+  {id: "quartz", name: "🔮 水晶", ground: 3, w: 28, value: 200},
+  {id: "bone", name: "🦴 きょうりゅうの骨", ground: 3, w: 20, value: 450},
+  {id: "skull", name: "💀 ティラノのずがい骨", ground: 3, w: 10, value: 1200},
+  {id: "emerald", name: "💚 エメラルド", ground: 3, w: 8, value: 2000},
+  {id: "egg", name: "🥚 きょうりゅうのたまご化石", ground: 3, w: 3, value: 8000},
+  {id: "amber", name: "🟠 こはく（虫入り）", ground: 3, w: 1, value: 25000},
+  {id: "obsidian", name: "⬛ こくようせき", ground: 4, w: 28, value: 3000},
+  {id: "ruby", name: "❤️ ほのおのルビー", ground: 4, w: 18, value: 7000},
+  {id: "dragonscale", name: "🐉 りゅうのうろこ", ground: 4, w: 10, value: 18000},
+  {id: "magma", name: "🌋 マグマのしずく", ground: 4, w: 6, value: 40000},
+  {id: "phoenix", name: "🔥 フェニックスの羽", ground: 4, w: 2, value: 150000},
+  {id: "sun", name: "☀️ 太陽の石", ground: 4, w: 1, value: 500000}
+]
+let DIG_NEED = 100         -- これだけほると 何か出てくる
+let GOOD_DIG = 30          -- みどりで おしたとき（×シャベル）
+let BAD_DIG = 6            -- それ以外
+let MARK_SPEED = 120       -- 1秒で動くはば

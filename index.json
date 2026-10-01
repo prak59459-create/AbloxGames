@@ -3689,7 +3689,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 396,
-      "bytes" : 235876,
+      "bytes" : 235369,
       "cover" : "games\/sand-treasure-hunt\/cover-73729fa8.png",
       "id" : "sand-treasure-hunt",
       "maxPlayers" : 10,
@@ -3699,7 +3699,6 @@
         "lib\/kit_sim.absc",
         "games\/sand-treasure-hunt\/data.absc",
         "games\/sand-treasure-hunt\/dig.absc",
-        "games\/sand-treasure-hunt\/zz_test.absc",
         "games\/sand-treasure-hunt\/main.absc"
       ],
       "shots" : [
@@ -3715,6 +3714,152 @@
       "title" : "Sand Treasure Hunt",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/sand-treasure-hunt\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 85,
+      "bytes" : 83470,
+      "cover" : "games\/mega-magnet-sim\/cover-fad07891.png",
+      "id" : "mega-magnet-sim",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_sim.absc",
+        "games\/mega-magnet-sim\/data.absc",
+        "games\/mega-magnet-sim\/magnet.absc",
+        "games\/mega-magnet-sim\/main.absc"
+      ],
+      "shots" : [
+        "games\/mega-magnet-sim\/shot1-a07628bf.png",
+        "games\/mega-magnet-sim\/shot2-83aca210.png"
+      ],
+      "summary" : "マグネットでコインをすいよせろ！ 歩くだけで近くのコインがあつまる。リュックがいっぱいになったら銀行へ。強いマグネットほど遠くまで、大きなコイン。公園・町・金庫の部屋へ！",
+      "tags" : [
+        "simulator",
+        "idle",
+        "pets"
+      ],
+      "title" : "Mega Magnet Sim",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/mega-magnet-sim\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 99,
+      "bytes" : 93041,
+      "cover" : "games\/saber-swing-sim\/cover-09d7bee1.png",
+      "id" : "saber-swing-sim",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_sim.absc",
+        "games\/saber-swing-sim\/data.absc",
+        "games\/saber-swing-sim\/saber.absc",
+        "games\/saber-swing-sim\/main.absc"
+      ],
+      "shots" : [
+        "games\/saber-swing-sim\/shot1-a2b60de7.png",
+        "games\/saber-swing-sim\/shot2-aee15e4e.png"
+      ],
+      "summary" : "セイバーをふって力をためよう！ DNAびんがいっぱいになったら 売ってお金に。力がつくほど体が大きくなる。ときどきあらわれるボスに みんなでいどめ！ セイバー・DNA・ペットで最強の騎士へ。",
+      "tags" : [
+        "simulator",
+        "boss",
+        "pets"
+      ],
+      "title" : "Saber Swing Sim",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/saber-swing-sim\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 247,
+      "bytes" : 163803,
+      "cover" : "games\/snowball-shovel-sim\/cover-30aac8a5.png",
+      "id" : "snowball-shovel-sim",
+      "maxPlayers" : 8,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_sim.absc",
+        "games\/snowball-shovel-sim\/data.absc",
+        "games\/snowball-shovel-sim\/snow.absc",
+        "games\/snowball-shovel-sim\/main.absc"
+      ],
+      "shots" : [
+        "games\/snowball-shovel-sim\/shot1-dd292c28.png",
+        "games\/snowball-shovel-sim\/shot2-aa8fb9d7.png"
+      ],
+      "summary" : "スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！",
+      "tags" : [
+        "simulator",
+        "winter",
+        "pets"
+      ],
+      "title" : "Snowball Shovel Sim",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/snowball-shovel-sim\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 72,
+      "bytes" : 83180,
+      "cover" : "games\/gym-league-stars\/cover-4d0d0ca0.png",
+      "id" : "gym-league-stars",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_sim.absc",
+        "games\/gym-league-stars\/data.absc",
+        "games\/gym-league-stars\/contest.absc",
+        "games\/gym-league-stars\/gym.absc",
+        "games\/gym-league-stars\/main.absc"
+      ],
+      "shots" : [
+        "games\/gym-league-stars\/shot1-7f4aff91.png",
+        "games\/gym-league-stars\/shot2-b6da9073.png"
+      ],
+      "summary" : "うで・あし・むね・せなか、4つのマシンでバランスよくきたえよう！ スタミナがへったらプロテイン。3分ごとの大会では、しんぱんの言うポーズをすばやく決めろ！ ブロンズからダイヤリーグへ。",
+      "tags" : [
+        "simulator",
+        "training",
+        "contest"
+      ],
+      "title" : "Gym League Stars",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/gym-league-stars\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 129,
+      "bytes" : 108834,
+      "cover" : "games\/dig-it-deep\/cover-325b88bd.png",
+      "id" : "dig-it-deep",
+      "maxPlayers" : 10,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_sim.absc",
+        "games\/dig-it-deep\/data.absc",
+        "games\/dig-it-deep\/dig.absc",
+        "games\/dig-it-deep\/main.absc"
+      ],
+      "shots" : [
+        "games\/dig-it-deep\/shot1-ded01172.png",
+        "games\/dig-it-deep\/shot2-a40eb123.png"
+      ],
+      "summary" : "どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！",
+      "tags" : [
+        "simulator",
+        "treasure",
+        "collect"
+      ],
+      "title" : "Dig It Deep",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/dig-it-deep\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

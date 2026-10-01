@@ -1,0 +1,53 @@
+-- Gym League Stars — ジムのリーグでスターに
+-- マシンの前のパッドに立って 🏋 をタップすると、そのマシンの部分（うで・あし・むね・せなか）がのびる。
+-- スタミナがへったら休むか 🥤 プロテイン。ときどきの大会では しんぱんのポーズのボタンを はやくおそう。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  トレーニング・ショップ・たまご・ペット・生まれかわり
+--   data.absc     道具・たまご・体の部分・リーグ
+--   gym.absc      マシン・スタミナ・プロテイン
+--   contest.absc  大会・ポーズ・リーグ
+--   main.absc     このファイル
+
+kit_setup("Gym League Stars", "きたえて、ポーズを決めて、リーグの頂点へ！", [
+  "🏋 4つのマシンの前のパッドに立って タップ → その部分がのびる",
+  "😮‍💨 スタミナがへったら 休むか 🥤 ピンクのパッドでプロテイン（20秒 ×1.5）",
+  "📣 大会のよびかけが来たら ステージの黄色いパッドへ",
+  "🎤 しんぱんが言ったポーズ（うで・あし・むね・せなか）のボタンを はやく！",
+  "🏆 ゆうしょうでトロフィー。トロフィーでリーグが上がる（ライバルも強く）",
+  "🛒 道具・🥚 ペット・🌟 生まれかわりも"
+])
+kit_keep(["body", "trophies", "contests"])
+
+kit_quest("sim_tool", "道具を買う", 1, 60)
+kit_quest("protein", "プロテインをのむ", 1, 40)
+kit_quest("contest", "大会に出る", 1, 150)
+kit_quest("win", "大会でゆうしょう", 1, 400)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 9
+  p.stamina = STAMINA_MAX
+  p.body = {}
+end
+
+on start()
+  world.music = "party"
+  every(12, func() kit_leaderboard("🏋 トータル") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 2 then return end
+  score_clock = 0
+  for p in players() do
+    if not p.is_npc and kit_ready(p, "leaguehud", 2) then
+      p.ui_text("gl_league", league_of(p).name + "  🏆 " + (p.trophies or 0), {at: "top_left", dy: 64, dx: 4, size: 14, color: "#E9D5FF"})
+    end
+  end
+end

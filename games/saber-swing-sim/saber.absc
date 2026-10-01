@@ -1,0 +1,157 @@
+-- saber.absc — 力で体が大きくなる・騎士のランク・アリーナのボス（みんなでたたかう）
+
+let boss = nil       -- {n, kind, hp, max, until, hits: {id: dmg}}
+let boss_clock = 0
+let next_boss = 40
+let sb_clock = 0
+
+func class_of(p)
+  let c = CLASSES[1]
+  for k in CLASSES do
+    if (p.sim_value or 0) >= k.need then c = k end
+  end
+  return c
+end
+
+func power_of(p)
+  return (p.sim_value or 0) + (p.sim_fill or 0)
+end
+
+func hit_power(p)
+  return max(1, floor(pow(power_of(p) + 1, 0.6) + sim_amount(p) * 2))
+end
+
+func near_boss(p)
+  return boss != nil and kit_here(boss.n) and distance(p, boss.n) < BOSS_REACH
+end
+
+-- ⚔️: ボスの近くなら ボスをこうげき、ちがえば DNA に力をためる
+sim_on_tap = func(p, amount)
+  if not near_boss(p) then
+    if kit_ready(p, "swingfx", 0.7) then
+      p.sound("whoosh")
+      particles("sparkles", p, {amount: 4})
+    end
+    return false
+  end
+  let dmg = hit_power(p)
+  boss.hp = boss.hp - dmg
+  boss.hits[p.id] = (boss.hits[p.id] or 0) + dmg
+  p.sound("hit")
+  particles("fire", boss.n, {amount: 6})
+  if boss.hp <= 0 then boss_down() end
+  return true
+end
+
+func spawn_boss()
+  let spot = block("Boss Spot")
+  let kind = random(BOSSES)
+  let total = 0
+  for p in players() do
+    if not p.is_npc then total = total + hit_power(p) end
+  end
+  let hp = max(200, floor(total * kind.hp * 3))
+  let n = create_npc({name: kind.name, position: spot.position + {x: 0, y: 1, z: 0}, color: kind.color, head_color: kind.color, speed: 0.6,
+                      health: 100000000, size: kind.size})
+  boss = {n: n, kind: kind, hp: hp, max: hp, until: time() + BOSS_STAY, hits: {}}
+  n.say("ガハハ！ このアリーナは わたさん！")
+  announce("⚠️ " + kind.name + " がアリーナにあらわれた！ みんなで ⚔️ でたおそう！", 4)
+  sound("alarm")
+end
+
+func boss_down()
+  let b = boss
+  boss = nil
+  next_boss = time() + BOSS_EVERY
+  announce("🎉 " + b.kind.name + " をたおした！", 3)
+  sound("win")
+  particles("confetti", b.n, {amount: 100})
+  let total = 0
+  for k in keys(b.hits) do total = total + b.hits[k] end
+  for p in players() do
+    let dmg = b.hits[p.id] or 0
+    if dmg > 0 then
+      let share = dmg / max(1, total)
+      let pay = floor((b.kind.reward + power_of(p) * 0.05) * (0.3 + share) * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+      kit_give(p, pay)
+      p.bosses = (p.bosses or 0) + 1
+      p.message("🏆 ボスをたおした！ ダメージ " + floor(share * 100) + "%  💰" + kit_short(pay), 2.5)
+      kit_quest_progress(p, "boss", 1)
+      kit_badge(p, "boss_" + b.kind.name, b.kind.name + " をたおした")
+    end
+  end
+  kit_gone(b.n)
+  for p in players() do p.ui_remove("boss_bar") end
+  for p in players() do p.ui_remove("boss_name") end
+end
+
+func boss_step()
+  if boss == nil then
+    if time() > next_boss and len(filter(players(), func(q) return not q.is_npc end)) > 0 then spawn_boss() end
+    return
+  end
+  if not kit_here(boss.n) or time() > boss.until then
+    if kit_here(boss.n) then
+      boss.n.say("フン、きょうはここまでだ！")
+      kit_gone(boss.n)
+    end
+    announce("💨 ボスは にげていった…", 2)
+    boss = nil
+    next_boss = time() + BOSS_EVERY
+    for p in players() do
+      p.ui_remove("boss_bar")
+      p.ui_remove("boss_name")
+    end
+    return
+  end
+  -- ボスのこうげき: 近くの人を はじきとばす
+  let target = nearest_player(boss.n, 30)
+  if target != nil then boss.n.move_to(target) end
+  for p in players_near(boss.n, 6) do
+    if not p.is_npc and chance(35) then
+      let away = normalize({x: p.x - boss.n.x, y: 0, z: p.z - boss.n.z})
+      p.velocity = {x: away.x * 16, y: 8, z: away.z * 16}
+      p.message("💥 ボスのこうげき！", 0.8)
+      p.shake(0.3, 0.3)
+    end
+  end
+end
+
+func grow(p)
+  let s = power_of(p)
+  let size = clamp(1 + log(s + 1) / log(10) * 0.09, 1, 1.7)
+  if abs((p.size or 1) - size) > 0.02 then p.size = size end
+end
+
+on tick(dt)
+  boss_clock = boss_clock + dt
+  sb_clock = sb_clock + dt
+  if boss_clock >= 1.5 then
+    boss_clock = 0
+    boss_step()
+  end
+  if sb_clock < 0.5 then return end
+  sb_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      grow(p)
+      if boss != nil and kit_here(boss.n) and distance(p, boss.n) < 50 then
+        p.ui_text("boss_name", boss.kind.name + "  のこり " + kit_short(max(0, boss.hp)) + "   ⏱ " + max(0, ceil(boss.until - time())) + "秒",
+                  {at: "top", dy: 92, size: 16, bold: true, color: "#FCA5A5"})
+        p.ui_bar("boss_bar", max(0, boss.hp), boss.max, {at: "top", dy: 116, w: 380, h: 14, color: "#DC2626"})
+      end
+      if kit_ready(p, "classhud", 1) then
+        let next = "あと少し"
+        if boss == nil then next = "つぎのボスまで " + max(0, ceil(next_boss - time())) + "秒" end
+        p.ui_text("sb_class", class_of(p).name + "   ⚔️ こうげき " + kit_short(hit_power(p)) + "   " + next, {at: "top", dy: 62, size: 15, bold: true})
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end

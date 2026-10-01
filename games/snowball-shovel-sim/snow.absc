@@ -1,0 +1,173 @@
+-- snow.absc — 雪山をほる（近くの雪山がちぢんで 雪がそりへ）・雪だるまづくり（ずっとボーナス）
+
+let piles = {}        -- block id → {b, k, hp, max, size, gone_at}
+let pile_list = []
+let sn_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+on start()
+  for b in blocks("pile") do
+    let k = tag_num(b, "k") or 1
+    let hp = PILE_HP * FIELD_MULT[k] * 3
+    let it = {b: b, k: k, hp: hp, max: hp, size: b.size, gone_at: 0}
+    append(pile_list, it)
+  end
+end
+
+func nearest_pile(p)
+  let best = nil
+  let best_d = 5.5
+  for it in pile_list do
+    if it.b.visible then
+      let d = distance(p, it.b)
+      if d < best_d then
+        best_d = d
+        best = it
+      end
+    end
+  end
+  return best
+end
+
+sim_on_tap = func(p, amount)
+  let it = nearest_pile(p)
+  if it == nil then
+    if kit_ready(p, "nopile", 3) then p.message("⛏ 雪山のそばで タップ！", 1) end
+    return true
+  end
+  if (p.sim_value or 0) < sim_zones[it.k].need then return true end
+  if (p.sim_fill or 0) >= sim_bag_size(p) then
+    if kit_ready(p, "full", 3) then p.message("🛷 いっぱい！ 村の黄色いパッドで売ろう", 1.5) end
+    return true
+  end
+  let dig = sim_tool(p).power * (p.sim_boost or 1)
+  it.hp = it.hp - dig
+  sim_gain(p, floor(amount * FIELD_MULT[it.k]))
+  particles("snow", it.b, {amount: 6})
+  if kit_ready(p, "shovel", 0.4) then p.sound("whoosh") end
+  if it.hp <= 0 then
+    it.b.visible = false
+    it.gone_at = time()
+    kit_quest_progress(p, "pile", 1)
+  else
+    let s = 0.4 + 0.6 * it.hp / it.max
+    it.b.size = {x: it.size.x * s, y: it.size.y * s, z: it.size.z * s}
+  end
+  return true
+end
+
+-- MARK: 雪だるま
+
+func plot_owner(k)
+  return find(players(), func(q) return q.plot == k end)
+end
+
+func claim_plot(p)
+  if p.plot != nil then return end
+  for k in 1 to 8 do
+    if plot_owner(k) == nil then
+      p.plot = k
+      draw_snowman(p)
+      return
+    end
+  end
+end
+
+func draw_snowman(p)
+  if p.plot == nil then return end
+  let lv = p.snowman or 0
+  for i in 1 to 4 do
+    for b in blocks("sm" + p.plot + "_" + i) do
+      let shown = i <= lv
+      if b.visible != shown then b.visible = shown end
+    end
+  end
+  let boost = 1
+  if lv > 0 then boost = SNOWMAN[lv].boost end
+  p.sim_boost = boost
+end
+
+func snowman_menu(p)
+  claim_plot(p)
+  let lv = p.snowman or 0
+  p.ui_remove("smn_box")
+  p.ui_panel("smn_box", {at: "center", w: 560, h: 250, bg: "#0C4A6EF2", radius: 22, layer: 40})
+  p.ui_text("smn_t", "⛄ 雪だるまづくり（できた " + lv + "/4  いま ×" + fixed(p.sim_boost or 1, 2) + "）", {parent: "smn_box", y: 0.13, size: 18, bold: true,
+            color: "#E0F2FE"})
+  if lv >= 4 then
+    p.ui_text("smn_1", "⛄ かんせい！ 雪の村いちばんの雪だるま", {parent: "smn_box", y: 0.45, size: 17})
+  else
+    let next = SNOWMAN[lv + 1]
+    p.ui_text("smn_1", "つぎ: " + next.name + "  そりの雪 " + kit_short(next.cost) + " を使う", {parent: "smn_box", y: 0.36, size: 16})
+    p.ui_text("smn_2", "できると ずっと ×" + next.boost + "（いま そりに " + kit_short(p.sim_fill or 0) + "）", {parent: "smn_box", y: 0.52, size: 15, color: "#FDE68A"})
+    p.ui_button("smn_build", "⛄ つくる", {parent: "smn_box", x: 0.32, y: 0.82, w: 200, h: 42, size: 17, bg: "#0284C7"})
+  end
+  p.ui_button("smn_close", "閉じる", {parent: "smn_box", x: 0.74, y: 0.82, w: 130, h: 42, size: 15, bg: "gray"})
+end
+
+func build_snowman(p)
+  let lv = p.snowman or 0
+  if lv >= 4 then return end
+  let next = SNOWMAN[lv + 1]
+  if (p.sim_fill or 0) < next.cost then
+    p.message("🛷 雪が足りない（あと " + kit_short(next.cost - (p.sim_fill or 0)) + "）", 1.5)
+    return
+  end
+  p.sim_fill = p.sim_fill - next.cost
+  p.snowman = lv + 1
+  draw_snowman(p)
+  p.sound("magic")
+  particles("snow", p, {amount: 40})
+  kit_quest_progress(p, "snowman", 1)
+  if p.snowman == 4 then
+    announce("⛄ " + p.name + " の雪だるまが かんせい！", 3)
+    kit_badge(p, "snowman", "雪だるま かんせい")
+  end
+  snowman_menu(p)
+end
+
+on tick(dt)
+  sn_clock = sn_clock + dt
+  if sn_clock < 2 then return end
+  sn_clock = 0
+  let now = time()
+  for it in pile_list do
+    if not it.b.visible and now - it.gone_at > PILE_BACK then
+      it.hp = it.max
+      it.b.size = it.size
+      it.b.visible = true
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "snowman") and kit_ready(p, "smpad", 3) then
+    let k = tag_num(b, "k")
+    if p.plot == nil and plot_owner(k) == nil then p.plot = k end
+    if p.plot == k then snowman_menu(p) end
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end
+
+on button(p, id)
+  if id == "snowman" then snowman_menu(p)
+  elif id == "smn_close" then p.ui_remove("smn_box")
+  elif id == "smn_build" then build_snowman(p)
+  end
+end
+
+on leave(p)
+  if p.plot != nil then
+    for i in 1 to 4 do
+      for b in blocks("sm" + p.plot + "_" + i) do b.visible = false end
+    end
+  end
+end

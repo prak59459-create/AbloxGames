@@ -1,0 +1,157 @@
+-- dig.absc — どこでもほる: ⛏ をおすと メーターが動きだす。白い先が みどりの中のときに おすと ザクザク。
+-- 100までほると 何かが出てくる。はじめて見つけたものは 図かんにのって ボーナス。
+
+let dig_clock = 0
+
+func ground_of(p)
+  for z in sim_zones do
+    let c = block("Ground " + z.n)
+    if c != nil and abs(p.x - c.x) < 23 and abs(p.z - c.z) < 23 then return z.n end
+  end
+  return nil
+end
+
+func green_lo(p)
+  return 50 - sim_tool(p).zone
+end
+
+func green_hi(p)
+  return 50 + sim_tool(p).zone
+end
+
+func start_dig(p, g)
+  p.dig = {g: g, progress: 0, mark: 0, dir: 1, at: p.position}
+  dig_ui(p)
+end
+
+func stop_dig(p)
+  p.dig = nil
+  for id in ["dg_mark", "dg_green", "dg_prog", "dg_t"] do p.ui_remove(id) end
+end
+
+func dig_ui(p)
+  let d = p.dig
+  if d == nil then return end
+  p.ui_panel("dg_green", {at: "bottom", dy: -170, dx: (green_lo(p) + green_hi(p)) / 2 * 3.6 - 180, w: (green_hi(p) - green_lo(p)) * 3.6, h: 22,
+                          bg: "#22C55EAA", radius: 6, layer: 20})
+  p.ui_bar("dg_mark", d.mark, 100, {at: "bottom", dy: -170, w: 360, h: 22, color: "#F8FAFC", layer: 19})
+  p.ui_bar("dg_prog", d.progress, DIG_NEED, {at: "bottom", dy: -140, w: 360, h: 10, color: "#F59E0B"})
+  p.ui_text("dg_t", "⛏ " + floor(d.progress) + "/" + DIG_NEED + "  白いメーターの先が みどりの中で ⛏！", {at: "bottom", dy: -200, size: 15, bold: true, color: "#FDE68A"})
+end
+
+func find_item(p, g)
+  let list = filter(FINDS, func(f) return f.ground == g end)
+  let item = list[pick_weighted(map(list, func(f) return f.w end))]
+  return item
+end
+
+sim_on_tap = func(p, amount)
+  let g = ground_of(p)
+  if g == nil then
+    if kit_ready(p, "noground", 3) then p.message("⛏ さくの中の ほる場所へ行こう", 1.2) end
+    return true
+  end
+  if (p.sim_value or 0) < sim_zones[g].need then return true end
+  if (p.sim_fill or 0) >= sim_bag_size(p) then
+    if kit_ready(p, "full", 3) then p.message("🎒 いっぱい！ 町の黄色いパッドで売ろう", 1.5) end
+    return true
+  end
+  if p.dig == nil or p.dig.g != g or distance(p, p.dig.at) > 3 then
+    start_dig(p, g)
+    return true
+  end
+  let d = p.dig
+  let good = d.mark >= green_lo(p) and d.mark <= green_hi(p)
+  let gain = BAD_DIG
+  if good then gain = GOOD_DIG end
+  d.progress = d.progress + gain * (1 + (sim_tool(p).power - 1) * 0.35)
+  p.sound("click")
+  if good then particles("dust", p, {amount: 6}) end
+  if d.progress >= DIG_NEED then
+    let item = find_item(p, g)
+    let value = floor(item.value * sim_mult(p))
+    sim_gain(p, value)
+    p.digs = (p.digs or 0) + 1
+    kit_quest_progress(p, "dig", 1)
+    let hole = create_block({name: "Hole", position: {x: p.x, y: 0.03, z: p.z}, size: {x: 1.6, y: 0.04, z: 1.6}, shape: "cylinder", color: "#3F2A1D",
+                             solid: false})
+    after(15, func() kit_gone(hole) end)
+    if p.journal == nil then p.journal = [] end
+    if not contains(p.journal, item.id) then
+      append(p.journal, item.id)
+      let bonus = floor(item.value * 2)
+      kit_give(p, bonus)
+      p.message("📖 はじめて見つけた！ " + item.name + "（+" + kit_short(value) + "）図かんボーナス 💰" + kit_short(bonus), 2.5)
+      p.sound("win")
+      kit_quest_progress(p, "journal", 1)
+    else
+      p.message(item.name + "！ +" + kit_short(value), 1.5)
+      p.sound("coin")
+    end
+    if item.w <= 1 then
+      announce("🌟 " + p.name + " が " + item.name + " をほりあてた！", 3)
+      particles("stars", p, {amount: 60})
+    end
+    start_dig(p, g)
+  else
+    dig_ui(p)
+  end
+  return true
+end
+
+func museum(p)
+  let have = len(p.journal or [])
+  let h = 120 + 4 * 34 + 60
+  p.ui_remove("ms_box")
+  p.ui_panel("ms_box", {at: "center", w: 640, h: h, bg: "#292524F2", radius: 22, layer: 40})
+  p.ui_text("ms_t", "🏛 はくぶつかん（図かん " + have + "/" + len(FINDS) + "）", {parent: "ms_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  for g in 1 to 4 do
+    let list = filter(FINDS, func(f) return f.ground == g end)
+    let marks = map(list, func(f)
+      if contains(p.journal or [], f.id) then return split(f.name, " ")[1] end
+      return "❔"
+    end)
+    p.ui_text("ms_" + g, sim_zones[g].name + "  " + join(marks, " "), {parent: "ms_box", y: (40 + g * 34) / h, size: 17})
+  end
+  p.ui_text("ms_hint", "まだ見つけていない ❔ をさがそう。さいごの1つは とてもレア！", {parent: "ms_box", y: (h - 64) / h, size: 13, color: "#D6D3D1"})
+  p.ui_button("ms_close", "閉じる", {parent: "ms_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+on tick(dt)
+  dig_clock = dig_clock + dt
+  if dig_clock < 0.1 then return end
+  let secs = dig_clock
+  dig_clock = 0
+  for p in players() do
+    let d = p.dig
+    if d != nil then
+      if distance(p, d.at) > 3 then
+        stop_dig(p)
+      else
+        d.mark = d.mark + d.dir * MARK_SPEED * secs
+        if d.mark >= 100 then
+          d.mark = 100
+          d.dir = -1
+        elif d.mark <= 0 then
+          d.mark = 0
+          d.dir = 1
+        end
+        p.ui_bar("dg_mark", d.mark, 100, {at: "bottom", dy: -170, w: 360, h: 22, color: "#F8FAFC", layer: 19})
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "museum") and kit_ready(p, "museum", 3) then museum(p)
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end
+
+on button(p, id)
+  if id == "museum" then museum(p)
+  elif id == "ms_close" then p.ui_remove("ms_box")
+  end
+end

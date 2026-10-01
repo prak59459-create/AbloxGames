@@ -1,0 +1,36 @@
+-- Mega Magnet Sim — マグネットでコインあつめ
+-- 歩くだけで マグネットのとどく所のコインが リュックへ。🧲 すいよせ は 2ばいのきょりまで（3秒に1回）。
+-- リュックがいっぱいになったら 銀行（黄色いパッド）で ためる。町（×5）・金庫の部屋（×25）は ためたお金で行ける。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  リュック・ショップ・たまご・ペット・生まれかわり・ゲート
+--   data.absc     マグネット・リュック・たまご・エリア
+--   magnet.absc   コイン・すいよせ・コインの山
+--   main.absc     このファイル
+
+kit_setup("Mega Magnet Sim", "歩けば コインが すいよせられる！", [
+  "🧲 コインの近くを歩くと 自動ですいよせる",
+  "🧲 すいよせ ボタンで 遠くのコインも（3秒に1回）",
+  "🎒 いっぱいになったら 銀行の黄色いパッドで ためる",
+  "🛒 マグネットが強いと 遠くまで・1まいのねうちもアップ",
+  "🏙 町（×5）・🏦 金庫の部屋（×25）は ためたお金で通れる",
+  "💰 ときどき出る コインの山は 40ばい！"
+])
+
+kit_quest("coin", "コインを100まい", 100, 120)
+kit_quest("pile", "コインの山をとる", 1, 200)
+kit_quest("sim_tool", "マグネットを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 9
+end
+
+on start()
+  world.music = "shop"
+  every(12, func() kit_leaderboard("🏦 ためたお金") end)
+end

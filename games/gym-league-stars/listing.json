@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 72,
+  "bytes" : 83180,
+  "cover" : "games\/gym-league-stars\/cover-4d0d0ca0.png",
+  "id" : "gym-league-stars",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "games\/gym-league-stars\/data.absc",
+    "games\/gym-league-stars\/contest.absc",
+    "games\/gym-league-stars\/gym.absc",
+    "games\/gym-league-stars\/main.absc"
+  ],
+  "shots" : [
+    "games\/gym-league-stars\/shot1-7f4aff91.png",
+    "games\/gym-league-stars\/shot2-b6da9073.png"
+  ],
+  "summary" : "うで・あし・むね・せなか、4つのマシンでバランスよくきたえよう！ スタミナがへったらプロテイン。3分ごとの大会では、しんぱんの言うポーズをすばやく決めろ！ ブロンズからダイヤリーグへ。",
+  "tags" : [
+    "simulator",
+    "training",
+    "contest"
+  ],
+  "title" : "Gym League Stars",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/gym-league-stars\/world.ablox"
+}

@@ -5,6 +5,21 @@ import Foundation
 // collect, sell, buy better tools, hatch pets, be reborn.
 
 let simGames: [Game] = [
+    Game(number: 123, id: "dig-it-deep", title: "Dig It Deep",
+         summary: "どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！",
+         tags: ["simulator", "treasure", "collect"], maxPlayers: 10, libs: ["sim"], build: digItDeep),
+    Game(number: 122, id: "gym-league-stars", title: "Gym League Stars",
+         summary: "うで・あし・むね・せなか、4つのマシンでバランスよくきたえよう！ スタミナがへったらプロテイン。3分ごとの大会では、しんぱんの言うポーズをすばやく決めろ！ ブロンズからダイヤリーグへ。",
+         tags: ["simulator", "training", "contest"], maxPlayers: 12, libs: ["sim"], build: gymLeagueStars),
+    Game(number: 121, id: "snowball-shovel-sim", title: "Snowball Shovel Sim",
+         summary: "スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！",
+         tags: ["simulator", "winter", "pets"], maxPlayers: 8, libs: ["sim"], build: snowballShovelSim),
+    Game(number: 120, id: "saber-swing-sim", title: "Saber Swing Sim",
+         summary: "セイバーをふって力をためよう！ DNAびんがいっぱいになったら 売ってお金に。力がつくほど体が大きくなる。ときどきあらわれるボスに みんなでいどめ！ セイバー・DNA・ペットで最強の騎士へ。",
+         tags: ["simulator", "boss", "pets"], maxPlayers: 12, libs: ["sim"], build: saberSwingSim),
+    Game(number: 119, id: "mega-magnet-sim", title: "Mega Magnet Sim",
+         summary: "マグネットでコインをすいよせろ！ 歩くだけで近くのコインがあつまる。リュックがいっぱいになったら銀行へ。強いマグネットほど遠くまで、大きなコイン。公園・町・金庫の部屋へ！",
+         tags: ["simulator", "idle", "pets"], maxPlayers: 12, libs: ["sim"], build: megaMagnetSim),
     Game(number: 118, id: "sand-treasure-hunt", title: "Sand Treasure Hunt",
          summary: "スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！",
          tags: ["simulator", "treasure", "pets"], maxPlayers: 10, libs: ["sim"], build: sandTreasureHunt),
@@ -466,4 +481,268 @@ func sandTreasureHunt(_ m: MapBuilder) {
     m.pad("Egg Pad", x: -44, z: 12, size: 3.2, color: "#A855F7", tags: ["eggs"])
     m.shop("Treasure Shop", x: -46, z: -12, w: 10, d: 8, color: "#FDBA74", sign: "#EA580C", facing: 1)
     m.coverFocus(x: 0, y: 1, z: 0, yaw: 220, width: 36)
+}
+
+// MARK: 119 Mega Magnet Sim (Magnet Simulator)
+
+/// The three areas along x: centre x, floor colour.
+let magnetAreas: [(Float, String)] = [(0, "#86EFAC"), (80, "#CBD5E1"), (160, "#FDE68A")]
+
+func megaMagnetSim(_ m: MapBuilder) {
+    m.day(ground: "#4D7C0F")
+    m.environment.skyStyle = .clouds
+    m.ground(280, 120, color: "#65A30D", x: 70, z: 0, material: .grass)
+    for (k, a) in magnetAreas.enumerated() {
+        let (cx, floor) = a
+        m.slab("Area Floor \(k + 1)", x: cx, y: -0.02, z: 0, w: 74, h: 0.06, d: 74, color: floor, material: k == 0 ? .grass : .matte)
+        m.part("Area \(k + 1)", at: (cx, 0.5, 0), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+        if k > 0 {
+            let gx = cx - 40
+            m.slab("Area Wall", x: gx, y: 0, z: -34, w: 2, h: 5, d: 52, color: "#475569")
+            m.slab("Area Wall", x: gx, y: 0, z: 34, w: 2, h: 5, d: 52, color: "#475569")
+            m.part("Gate \(k + 1)", at: (gx, 2.5, 0), size: (2, 5, 16), color: ["#38BDF8", "#FACC15"][k - 1], material: .neon, behavior: .trigger,
+                   tags: ["sim_gate", "n=\(k + 1)"], solid: false, opacity: 0.35)
+        }
+    }
+    for x in [-37, 197] as [Float] { m.slab("End Wall", x: x, y: 0, z: 0, w: 2, h: 5, d: 120, color: "#475569") }
+    for z in [-60, 60] as [Float] { m.slab("Side Wall", x: 80, y: 0, z: z, w: 236, h: 5, d: 2, color: "#475569") }
+    // The park: trees and a fountain. The city: towers. The vault: gold bars.
+    var r = Seeded("magnet")
+    for _ in 0..<10 { m.tree(r.range(-30, 30), r.pick([r.range(-34, -26), r.range(26, 34)]), height: 5) }
+    m.part("Fountain", at: (0, 0.5, 0), size: (6, 1, 6), color: "#7DD3FC", shape: .cylinder, material: .glass, opacity: 0.7)
+    for q in 0..<6 {
+        let h = r.range(10, 24)
+        m.slab("City Tower", x: 60 + Float(q % 3) * 20, y: 0, z: q < 3 ? -30 : 30, w: 10, h: h, d: 8, color: r.pick(["#94A3B8", "#64748B", "#CBD5E1"]))
+    }
+    for q in 0..<10 {
+        m.slab("Gold Bars", x: 135 + Float(q % 5) * 12, y: 0, z: q < 5 ? -30 : 30, w: 4, h: 1.2 + Float(q % 3) * 0.6, d: 2, color: "#FACC15", material: .metal)
+    }
+    m.part("Vault Door", at: (160, 6, -36), size: (14, 12, 1), color: "#A8A29E", shape: .cylinder, material: .metal, solid: false, rotation: (90, 0, 0))
+    // The bank (sell), shop, eggs at the start.
+    m.spawnRing(-24, 0, radius: 3.5, count: 8, color: "#EF4444")
+    m.shop("Bank", x: -28, z: -22, w: 12, d: 8, color: "#E5E7EB", sign: "#16A34A", facing: 1)
+    m.pad("Sell Pad", x: -28, z: -14, size: 3.6, color: "#FACC15", tags: ["sim_sell"])
+    m.pad("Shop Pad", x: -28, z: 12, size: 3.2, color: "#3B82F6", tags: ["shop"])
+    m.pad("Egg Pad", x: -20, z: 12, size: 3.2, color: "#A855F7", tags: ["eggs"])
+    m.part("Giant Magnet", at: (-30, 4, 24), size: (2, 8, 2), color: "#DC2626", solid: false)
+    m.part("Giant Magnet", at: (-24, 4, 24), size: (2, 8, 2), color: "#DC2626", solid: false)
+    m.part("Giant Magnet Top", at: (-27, 8.5, 24), size: (8, 2, 2), color: "#DC2626", solid: false)
+    m.part("Magnet Tips", at: (-27, 0.6, 24), size: (8, 1.2, 2.2), color: "#E5E7EB", solid: false)
+    m.coverFocus(x: 0, y: 1, z: 0, yaw: 210, width: 40)
+}
+
+// MARK: 120 Saber Swing Sim (Saber Simulator)
+
+func saberSwingSim(_ m: MapBuilder) {
+    m.dusk(ground: "#3F3F46")
+    m.environment.skyStyle = .sunset
+    m.ground(200, 200, color: "#52525B", material: .stone)
+    // The castle courtyard.
+    m.slab("Courtyard", x: 0, y: -0.02, z: -20, w: 70, h: 0.06, d: 50, color: "#A8A29E", material: .stone)
+    // Castle walls, with a gateway north to the boss arena.
+    m.slab("Castle Wall", x: 0, y: 0, z: -46, w: 74, h: 6, d: 2, color: "#57534E", material: .stone)
+    m.slab("Castle Wall", x: -36, y: 0, z: -20, w: 2, h: 6, d: 52, color: "#57534E", material: .stone)
+    m.slab("Castle Wall", x: 36, y: 0, z: -20, w: 2, h: 6, d: 52, color: "#57534E", material: .stone)
+    m.slab("Castle Wall", x: -20, y: 0, z: 6, w: 34, h: 6, d: 2, color: "#57534E", material: .stone)
+    m.slab("Castle Wall", x: 20, y: 0, z: 6, w: 34, h: 6, d: 2, color: "#57534E", material: .stone)
+    m.slab("Gateway Arch", x: 0, y: 5, z: 6, w: 8, h: 1.4, d: 2.4, color: "#44403C", material: .stone)
+    for (x, z) in [(-36, -46), (36, -46), (-36, 6), (36, 6)] as [(Float, Float)] {
+        m.part("Castle Tower", at: (x, 6, z), size: (6, 12, 6), color: "#44403C", shape: .cylinder, material: .stone)
+        m.part("Tower Roof", at: (x, 13.5, z), size: (7, 3, 7), color: "#7F1D1D", shape: .cone, solid: false)
+    }
+    m.spawnRing(0, -30, radius: 4, count: 8, color: "#A855F7")
+    m.pad("Sell Pad", x: -14, z: -40, size: 3.6, color: "#FACC15", tags: ["sim_sell"])
+    m.part("DNA Altar", at: (-14, 2, -44), size: (2, 4, 2), color: "#22D3EE", shape: .cylinder, material: .neon, solid: false, opacity: 0.6)
+    m.pad("Shop Pad", x: 0, z: -40, size: 3.2, color: "#3B82F6", tags: ["shop"])
+    m.pad("Egg Pad", x: 14, z: -40, size: 3.2, color: "#A855F7", tags: ["eggs"])
+    for q in 0..<6 {
+        m.part("Training Dummy", at: (-24 + Float(q) * 9.6, 1.2, -12), size: (0.9, 2.4, 0.9), color: "#A16207", shape: .cylinder, material: .wood)
+    }
+    // The boss arena, beyond the castle.
+    m.part("Arena", at: (0, 0.05, 40), size: (44, 0.1, 44), color: "#7F1D1D", shape: .cylinder, material: .stone, solid: false)
+    m.part("Arena Ring", at: (0, 0.2, 40), size: (46, 0.4, 46), color: "#F59E0B", shape: .cylinder, material: .neon, solid: false, opacity: 0.3)
+    for q in 0..<8 {
+        let a = Float(q) / 8 * 2 * .pi
+        m.part("Arena Pillar", at: (cos(a) * 24, 4, 40 + sin(a) * 24), size: (1.6, 8, 1.6), color: "#57534E", shape: .cylinder, material: .stone)
+        m.part("Pillar Fire", at: (cos(a) * 24, 8.6, 40 + sin(a) * 24), size: (1.2, 1.2, 1.2), color: "#F97316", shape: .sphere, material: .neon, solid: false)
+    }
+    m.part("Boss Spot", at: (0, 0.6, 44), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.road(from: (0, 6), to: (0, 18), width: 6, name: "Arena Path", dashed: false, color: "#78716C")
+    var r = Seeded("saber")
+    for _ in 0..<30 {
+        let x = r.range(-95, 95), z = r.range(-95, 95)
+        if abs(x) < 42 && z > -50 && z < 66 { continue }
+        m.pine(x, z, height: r.range(6, 10), leaves: "#14532D")
+    }
+    m.coverFocus(x: 0, y: 2, z: -24, yaw: 200, width: 40)
+}
+
+// MARK: 121 Snowball Shovel Sim (Snow Shoveling Simulator)
+
+/// The three snowfields along z: centre z, ground colour.
+let snowFields: [(Float, String)] = [(40, "#F8FAFC"), (120, "#BAE6FD"), (200, "#E0E7FF")]
+
+func snowballShovelSim(_ m: MapBuilder) {
+    m.sky("#94A3B8", "#F1F5F9", light: 0.65, ground: "#F8FAFC")
+    m.environment.skyStyle = .clouds
+    m.environment.weather = .snow
+    m.ground(200, 320, color: "#F8FAFC", z: 90, material: .ice)
+    var r = Seeded("snowball")
+    for (k, f) in snowFields.enumerated() {
+        let (cz, color) = f
+        m.slab("Field \(k + 1) Floor", x: 0, y: -0.01, z: cz, w: 80, h: 0.05, d: 70, color: color, material: k == 1 ? .ice : .matte)
+        m.part("Field \(k + 1)", at: (0, 0.5, cz), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+        for q in 0..<20 {
+            let x = r.range(-34, 34), z = cz + r.range(-28, 28)
+            let s = r.range(2.2, 3.4)
+            m.part("Pile \(k + 1)-\(q + 1)", at: (x, s * 0.35, z), size: (s, s * 0.7, s), color: ["#FFFFFF", "#E0F2FE", "#EDE9FE"][k], shape: .sphere,
+                   material: .matte, tags: ["pile", "k=\(k + 1)"], solid: false)
+        }
+        if k > 0 {
+            let gz = cz - 40
+            m.slab("Ice Wall", x: -28, y: 0, z: gz, w: 44, h: 5, d: 2, color: "#7DD3FC", material: .ice)
+            m.slab("Ice Wall", x: 28, y: 0, z: gz, w: 44, h: 5, d: 2, color: "#7DD3FC", material: .ice)
+            m.part("Gate \(k + 1)", at: (0, 2.5, gz), size: (12, 5, 2), color: ["#38BDF8", "#A78BFA"][k - 1], material: .neon, behavior: .trigger,
+                   tags: ["sim_gate", "n=\(k + 1)"], solid: false, opacity: 0.35)
+        }
+    }
+    for x in [-51, 51] as [Float] { m.slab("Side Wall", x: x, y: 0, z: 120, w: 2, h: 5, d: 240, color: "#7DD3FC", material: .ice) }
+    m.slab("End Wall", x: 0, y: 0, z: 240, w: 104, h: 5, d: 2, color: "#7DD3FC", material: .ice)
+    m.part("Ice Mountain", at: (0, 22, 260), size: (90, 44, 40), color: "#E0E7FF", shape: .cone, material: .ice, solid: false)
+    // The village: spawn, sell, shop, eggs, and eight snowman plots.
+    m.spawnRing(0, -14, radius: 4, count: 8, color: "#38BDF8")
+    m.shop("Snow Shop", x: -24, z: -24, w: 12, d: 8, color: "#E0F2FE", sign: "#0284C7", facing: 1)
+    m.pad("Sell Pad", x: -24, z: -16, size: 3.6, color: "#FACC15", tags: ["sim_sell"])
+    m.pad("Shop Pad", x: -12, z: -6, size: 3.2, color: "#3B82F6", tags: ["shop"])
+    m.pad("Egg Pad", x: 12, z: -6, size: 3.2, color: "#A855F7", tags: ["eggs"])
+    for k in 1...8 {
+        let px = -42 + Float(k - 1) * 12, pz: Float = -36
+        m.slab("Plot \(k)", x: px, y: -0.01, z: pz, w: 10, h: 0.05, d: 10, color: "#CBD5E1")
+        m.pad("Snowman Pad \(k)", x: px, z: pz + 6, size: 2.4, color: "#38BDF8", tags: ["snowman", "k=\(k)"])
+        m.group("sm\(k)_1", shown: false) {
+            m.part("Snowman Base", at: (px, 1.4, pz), size: (2.8, 2.8, 2.8), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false)
+        }
+        m.group("sm\(k)_2", shown: false) {
+            m.part("Snowman Body", at: (px, 3.6, pz), size: (2.1, 2.1, 2.1), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false)
+        }
+        m.group("sm\(k)_3", shown: false) {
+            m.part("Snowman Head", at: (px, 5.3, pz), size: (1.5, 1.5, 1.5), color: "#FFFFFF", shape: .sphere, material: .matte, solid: false)
+            m.part("Snowman Nose", at: (px, 5.3, pz + 0.85), size: (0.25, 0.25, 0.6), color: "#F97316", shape: .cone, solid: false, rotation: (90, 0, 0))
+        }
+        m.group("sm\(k)_4", shown: false) {
+            m.part("Snowman Hat", at: (px, 6.4, pz), size: (1.1, 0.9, 1.1), color: "#111827", shape: .cylinder, solid: false)
+            m.part("Snowman Scarf", at: (px, 4.6, pz), size: (1.7, 0.35, 1.7), color: "#DC2626", shape: .cylinder, solid: false)
+        }
+        m.part("Plot Sign \(k)", at: (px + 4, 1.5, pz + 4), size: (0.8, 0.8, 0.8), color: "#FFFFFF", shape: .sphere, material: .neon, tags: ["plotsign", "k=\(k)"],
+               solid: false)
+    }
+    for _ in 0..<26 {
+        let x = r.range(-95, 95), z = r.range(-45, 250)
+        if abs(x) < 54 && z > -46 { continue }
+        m.pine(x, z, height: r.range(6, 9), leaves: "#F1F5F9")
+    }
+    for q in 0..<4 { m.house("Cabin", x: -66 + Float(q) * 44, z: -60, w: 9, d: 7, wall: "#92400E", roof: "#F8FAFC", tags: ["house"], facing: 1) }
+    m.coverFocus(x: 0, y: 1.5, z: 30, yaw: 200, width: 40)
+}
+
+// MARK: 122 Gym League Stars (Gym League)
+
+func gymLeagueStars(_ m: MapBuilder) {
+    m.indoor(ground: "#1F2937")
+    m.slab("Gym Floor", x: 0, y: -0.5, z: 0, w: 90, h: 0.5, d: 90, color: "#374151")
+    m.walls(0, 0, w: 90, d: 90, h: 8, color: "#111827", thickness: 1)
+    for q in 0..<5 { m.part("Gym Light", at: (-36 + Float(q) * 18, 7.8, 0), size: (2, 0.2, 80), color: "#FEF9C3", material: .neon, solid: false) }
+    // Four machines, each training one part of the body.
+    let machines: [(String, String, Float, Float, String)] = [("arms", "💪", -30, -24, "#EF4444"), ("legs", "🦵", -10, -24, "#3B82F6"),
+                                                             ("chest", "🫁", 10, -24, "#22C55E"), ("back", "🔙", 30, -24, "#F59E0B")]
+    for (id, _, x, z, c) in machines {
+        m.slab("Machine Base", x: x, y: 0, z: z - 4, w: 6, h: 0.6, d: 4, color: "#1F2937")
+        m.part("Machine Frame", at: (x - 2.5, 2.5, z - 4), size: (0.4, 5, 0.4), color: c, material: .metal, solid: false)
+        m.part("Machine Frame", at: (x + 2.5, 2.5, z - 4), size: (0.4, 5, 0.4), color: c, material: .metal, solid: false)
+        m.part("Machine Bar", at: (x, 4.2, z - 4), size: (5.4, 0.3, 0.3), color: "#94A3B8", material: .metal, solid: false)
+        for k in 0..<3 {
+            m.pad("Machine \(id) \(k + 1)", x: x - 2 + Float(k) * 2, z: z + 0.5, size: 1.8, color: c, tags: ["machine", "stat=\(id)"])
+        }
+        m.part("Machine Sign", at: (x, 6, z - 6.2), size: (5, 1.2, 0.2), color: c, material: .neon, solid: false)
+    }
+    // Protein bar, shop, eggs.
+    m.slab("Protein Bar", x: -36, y: 0, z: 14, w: 8, h: 1.2, d: 3, color: "#F472B6")
+    m.pad("Protein Pad", x: -36, z: 18, size: 3, color: "#EC4899", tags: ["protein"])
+    m.pad("Shop Pad", x: -36, z: 30, size: 3, color: "#3B82F6", tags: ["shop"])
+    m.pad("Egg Pad", x: -28, z: 30, size: 3, color: "#A855F7", tags: ["eggs"])
+    m.spawnRing(0, 4, radius: 4, count: 8, color: "#FACC15")
+    // The contest stage, with the judge's desk.
+    m.slab("Stage", x: 20, y: 0, z: 30, w: 34, h: 1.2, d: 12, color: "#7C3AED")
+    m.slab("Stage Steps", x: 20, y: 0, z: 23.5, w: 8, h: 0.6, d: 1, color: "#6D28D9")
+    for k in 0..<8 {
+        m.pad("Stage Spot \(k + 1)", x: 6 + Float(k) * 4, z: 30, y: 1.2, size: 2.2, color: "#FACC15", tags: ["stage"])
+    }
+    m.part("Stage Back", at: (20, 6, 36.4), size: (34, 10, 0.4), color: "#4C1D95", solid: false)
+    m.part("Stage Lights", at: (20, 10.5, 36), size: (30, 0.5, 0.5), color: "#F472B6", material: .neon, solid: false)
+    m.slab("Judge Desk", x: 20, y: 0, z: 12, w: 10, h: 1.2, d: 2, color: "#78350F", material: .wood)
+    m.part("Judge Spot", at: (20, 0.6, 10), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    for k in 0..<3 { m.part("Rival Spot \(k + 1)", at: (28 + Float(k) * 4, 1.8, 33), size: (1, 1, 1), color: "#000000", solid: false, visible: false) }
+    m.coverFocus(x: 0, y: 2, z: -20, yaw: 200, width: 50)
+}
+
+// MARK: 123 Dig It Deep (Dig)
+
+/// The four digging grounds in a ring round the town: centre (x, z), colour, material.
+let digGrounds: [(Float, Float, String)] = [(-60, 0, "#84CC16"), (0, 60, "#FDE68A"), (60, 0, "#57534E"), (0, -60, "#7F1D1D")]
+
+func digItDeep(_ m: MapBuilder) {
+    m.day(ground: "#4D7C0F")
+    m.environment.skyStyle = .clouds
+    m.ground(220, 220, color: "#65A30D", material: .grass)
+    // The town in the middle: merchant, museum, shop, eggs.
+    m.slab("Town", x: 0, y: -0.01, z: 0, w: 44, h: 0.05, d: 44, color: "#D6D3D1")
+    m.spawnRing(0, 0, radius: 4, count: 8, color: "#F59E0B")
+    m.shop("Merchant", x: -12, z: -12, w: 10, d: 7, color: "#FDBA74", sign: "#EA580C", facing: 1)
+    m.pad("Sell Pad", x: -12, z: -6, size: 3.2, color: "#FACC15", tags: ["sim_sell"])
+    m.shop("Museum", x: 12, z: -12, w: 12, d: 8, color: "#E7E5E4", sign: "#57534E", facing: 1)
+    m.pad("Museum Pad", x: 12, z: -6, size: 3.2, color: "#A8A29E", tags: ["museum"])
+    m.pad("Shop Pad", x: -12, z: 12, size: 3.2, color: "#3B82F6", tags: ["shop"])
+    m.pad("Egg Pad", x: 12, z: 12, size: 3.2, color: "#A855F7", tags: ["eggs"])
+    m.part("Dino Skeleton", at: (12, 3, -14), size: (8, 2, 1), color: "#F5F5F4", solid: false)
+    // Four digging grounds, fenced, each with a gate from the town.
+    var r = Seeded("dig")
+    for (i, g) in digGrounds.enumerated() {
+        let (cx, cz, color) = g
+        let k = i + 1
+        m.slab("Dig Ground \(k)", x: cx, y: -0.02, z: cz, w: 46, h: 0.06, d: 46, color: color, material: i == 1 ? .sand : (i == 0 ? .grass : .stone))
+        m.part("Ground \(k)", at: (cx, 0.5, cz), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+        // Fence round it with an opening toward the town, and the gate there.
+        let toTown: (Float, Float) = (-cx / 60, -cz / 60)
+        let h: Float = 23.5
+        for (sx, sz) in [(Float(1), Float(0)), (-1, 0), (0, 1), (0, -1)] {
+            let isGate = sx == toTown.0 && sz == toTown.1
+            let wx = cx + sx * h, wz = cz + sz * h
+            let along = sx == 0
+            if isGate {
+                m.slab("Ground Wall", x: along ? cx - 15 : wx, y: 0, z: along ? wz : cz - 15, w: along ? 17 : 1, h: 3, d: along ? 1 : 17, color: "#78350F", material: .wood)
+                m.slab("Ground Wall", x: along ? cx + 15 : wx, y: 0, z: along ? wz : cz + 15, w: along ? 17 : 1, h: 3, d: along ? 1 : 17, color: "#78350F", material: .wood)
+                m.part("Gate \(k)", at: (wx, 1.5, wz), size: along ? (13, 3, 1.6) : (1.6, 3, 13), color: ["#22C55E", "#F59E0B", "#94A3B8", "#EF4444"][i],
+                       material: .neon, behavior: .trigger, tags: ["sim_gate", "n=\(k)"], solid: false, opacity: 0.35)
+            } else {
+                m.slab("Ground Wall", x: wx, y: 0, z: wz, w: along ? 48 : 1, h: 3, d: along ? 1 : 48, color: "#78350F", material: .wood)
+            }
+        }
+        // Scenery for each ground.
+        for _ in 0..<8 {
+            let x = cx + r.range(-19, 19), z = cz + r.range(-19, 19)
+            switch i {
+            case 0: m.part("Flower", at: (x, 0.3, z), size: (0.6, 0.6, 0.6), color: r.pick(["#F472B6", "#FACC15", "#F8FAFC"]), shape: .sphere, solid: false)
+            case 1: m.part("Shell", at: (x, 0.2, z), size: (0.8, 0.3, 0.6), color: "#FBCFE8", shape: .sphere, solid: false)
+            case 2: m.rock(x, z, size: r.range(1, 2.4), color: "#44403C")
+            default: m.part("Lava Crack", at: (x, 0.05, z), size: (r.range(2, 5), 0.06, 0.6), color: "#F97316", material: .neon, solid: false)
+            }
+        }
+    }
+    m.part("Volcano", at: (0, 16, -110), size: (60, 32, 40), color: "#57534E", shape: .cone, material: .stone, solid: false)
+    for _ in 0..<24 {
+        let x = r.range(-105, 105), z = r.range(-105, 105)
+        if abs(x) < 86 && abs(z) < 86 { continue }
+        m.tree(x, z, height: r.range(4, 7))
+    }
+    m.coverFocus(x: -40, y: 1, z: 0, yaw: 230, width: 36)
 }

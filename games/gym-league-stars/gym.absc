@@ -1,0 +1,89 @@
+-- gym.absc — マシンでトレーニング（そのマシンの部分がのびる）・スタミナとプロテイン
+
+let gym_clock = 0
+
+func tag_text(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return replace(t, key + "=", "") end
+  end
+  return nil
+end
+
+func stat(p, id)
+  return (p.body or {})[id] or 0
+end
+
+func stat_score(p, id)
+  return log(stat(p, id) + 1) / log(10) * 10
+end
+
+-- マシンの上にいるとき: その部分をきたえる
+sim_on_tap = func(p, amount)
+  let id = p.on_machine
+  if id == nil then
+    if kit_ready(p, "nomachine", 3) then p.message("🏋 マシンの前の パッドに立ってね", 1.2) end
+    return true
+  end
+  if (p.stamina or STAMINA_MAX) < STAMINA_USE then
+    if kit_ready(p, "tired", 2) then p.message("😮‍💨 つかれた… 少し休むか 🥤 プロテイン（ピンクのパッド）", 1.5) end
+    return true
+  end
+  p.stamina = (p.stamina or STAMINA_MAX) - STAMINA_USE
+  if p.body == nil then p.body = {} end
+  p.body[id] = stat(p, id) + amount
+  sim_gain(p, amount)
+  if kit_ready(p, "liftfx", 0.8) then
+    p.sound("click")
+    particles("sparkles", p, {amount: 4})
+  end
+  return true
+end
+
+func protein(p)
+  if (p.stamina or STAMINA_MAX) >= STAMINA_MAX - 1 then
+    p.message("🥤 まだ元気！", 1)
+    return
+  end
+  if not kit_pay(p, PROTEIN_PRICE) then return end
+  p.stamina = STAMINA_MAX
+  p.sim_boost = 1.5
+  kit_later(p, 20, func() p.sim_boost = 1 end)
+  p.message("🥤 プロテイン！ スタミナ満タン、20秒 ×1.5", 1.8)
+  p.sound("powerup")
+  kit_quest_progress(p, "protein", 1)
+end
+
+func body_hud(p)
+  let parts = []
+  for s in STATS do append(parts, s.name + " " + kit_short(stat(p, s.id))) end
+  p.ui_text("gl_body", join(parts, "   "), {at: "top", dy: 62, size: 15, bold: true})
+  p.ui_bar("gl_stamina", p.stamina or STAMINA_MAX, STAMINA_MAX, {at: "top", dy: 84, w: 220, h: 8, color: "#22C55E"})
+  p.ui_text("gl_stamina_t", "スタミナ", {at: "top", dy: 96, size: 11, color: "#BBF7D0"})
+end
+
+on tick(dt)
+  gym_clock = gym_clock + dt
+  if gym_clock < 0.5 then return end
+  gym_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      p.stamina = min(STAMINA_MAX, (p.stamina or STAMINA_MAX) + STAMINA_BACK * 0.5)
+      -- いまどのマシンにいるか
+      let m = nearest_block(p, "machine")
+      if m != nil and abs(p.x - m.x) < 1.2 and abs(p.z - m.z) < 1.2 then
+        p.on_machine = tag_text(m, "stat")
+      else
+        p.on_machine = nil
+      end
+      body_hud(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "protein") and kit_ready(p, "protein", 2) then protein(p)
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end

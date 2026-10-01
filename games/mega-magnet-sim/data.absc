@@ -1,0 +1,51 @@
+-- data.absc — Mega Magnet Sim の表
+
+sim_setup({name: "🏦 ためたお金", tap: "🧲 すいよせ", bag: true, bag_word: "🎒 コイン", sell: 1, secs: 0.4, rebirth: 200000, grow: 4, slots: 3, auto: 1200})
+
+-- マグネット: power は コイン1まいのねうち、range は とどくきょり
+sim_tools = [
+  {id: "m1", name: "🧲 小さなマグネット", price: 0, power: 1, range: 3},
+  {id: "m2", name: "🧲 赤いマグネット", price: 80, power: 2, range: 4},
+  {id: "m3", name: "🧲 U字マグネット", price: 500, power: 5, range: 5.5},
+  {id: "m4", name: "⚡ 電気マグネット", price: 2500, power: 12, range: 7},
+  {id: "m5", name: "🌀 スーパーマグネット", price: 12000, power: 30, range: 9},
+  {id: "m6", name: "🌟 ゴールドマグネット", price: 60000, power: 80, range: 11},
+  {id: "m7", name: "🌌 ブラックホール", price: 300000, power: 220, range: 14}
+]
+
+sim_bags = [
+  {id: "b1", name: "👛 さいふ", price: 0, size: 40},
+  {id: "b2", name: "🎒 リュック", price: 120, size: 130},
+  {id: "b3", name: "💼 かばん", price: 800, size: 400},
+  {id: "b4", name: "🧳 スーツケース", price: 4000, size: 1200},
+  {id: "b5", name: "🏧 金庫バッグ", price: 20000, size: 3600},
+  {id: "b6", name: "🚛 現金輸送車", price: 100000, size: 11000}
+]
+
+sim_eggs = [
+  {id: "park", name: "🌳 公園のたまご", price: 200, pets: [
+    {name: "りす", icon: "🐿", mult: 0.1, w: 60, color: "#A16207"},
+    {name: "はと", icon: "🕊", mult: 0.25, w: 30, color: "#E5E7EB"},
+    {name: "たぬき", icon: "🦝", mult: 0.6, w: 9, color: "#78716C"},
+    {name: "まねきねこ", icon: "😺", mult: 2, w: 1, color: "#FACC15"}]},
+  {id: "city", name: "🏙 町のたまご", price: 4000, pets: [
+    {name: "ネズミ", icon: "🐭", mult: 0.5, w: 55, color: "#9CA3AF"},
+    {name: "カラス", icon: "🐦‍⬛", mult: 1, w: 33, color: "#111827"},
+    {name: "ロボいぬ", icon: "🤖", mult: 2.5, w: 10, color: "#60A5FA"},
+    {name: "ゴールドピッグ", icon: "🐷", mult: 6, w: 2, color: "#FACC15"}]},
+  {id: "vault", name: "🏦 金庫のたまご", price: 60000, pets: [
+    {name: "金のヘビ", icon: "🐍", mult: 2, w: 55, color: "#EAB308"},
+    {name: "ダイヤうさぎ", icon: "🐇", mult: 3.5, w: 33, color: "#22D3EE"},
+    {name: "おうごんりゅう", icon: "🐉", mult: 8, w: 10, color: "#FACC15"},
+    {name: "コインの王", icon: "👑", mult: 20, w: 2, color: "#FDE047"}]}
+]
+
+sim_zones = [
+  {n: 1, name: "🌳 公園", need: 0},
+  {n: 2, name: "🏙 町", need: 3000},
+  {n: 3, name: "🏦 金庫の部屋", need: 80000}
+]
+let AREA_MULT = [1, 5, 25]
+let COINS_PER_AREA = 36
+let PILE_EVERY = 45        -- 秒ごとに コインの山
+let PULL_WAIT = 3          -- 🧲 すいよせ（遠くまで）

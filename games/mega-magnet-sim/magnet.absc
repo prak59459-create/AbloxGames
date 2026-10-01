@@ -1,0 +1,118 @@
+-- magnet.absc — コインが地面にちらばる。マグネットのとどく所のコインは 歩くだけで リュックへ。
+-- 🧲 すいよせ ボタンは 3秒に1回、ふだんの2ばいの きょりまで。ときどき 💰 コインの山。
+
+let coins = [[], [], []]   -- エリアごとの {b, value}
+let mag_clock = 0
+let spawn_clock = 0
+let pile_clock = 0
+
+func area_center(k)
+  return block("Area " + k).position
+end
+
+func area_of(p)
+  for k in 1 to 3 do
+    let c = area_center(k)
+    if abs(p.x - c.x) < 37 and abs(p.z - c.z) < 37 then return k end
+  end
+  return nil
+end
+
+func spawn_coin(k, big)
+  let c = area_center(k)
+  let pos = {x: c.x + random_float(-33, 33), y: 0.25, z: c.z + random_float(-33, 33)}
+  if abs(pos.x - c.x) < 4 and abs(pos.z - c.z) < 4 then pos.x = pos.x + 6 end
+  let size = 0.9
+  let color = "#FACC15"
+  let value = AREA_MULT[k]
+  if big then
+    size = 2.4
+    color = "#F59E0B"
+    value = AREA_MULT[k] * 40
+  elif chance(12) then
+    color = "#E5E7EB"
+    value = AREA_MULT[k] * 3
+  end
+  let b = create_block({name: "Coin", position: pos, size: {x: size, y: 0.2, z: size}, shape: "cylinder", color: color, material: "neon", solid: false})
+  append(coins[k], {b: b, value: value, big: big})
+end
+
+on start()
+  for k in 1 to 3 do
+    for i in 1 to COINS_PER_AREA do spawn_coin(k, false) end
+  end
+end
+
+func pull(p, range)
+  let k = area_of(p)
+  if k == nil then return 0 end
+  if (p.sim_value or 0) < sim_zones[k].need then return 0 end
+  let size = sim_bag_size(p)
+  let got = 0
+  let keep = []
+  for c in coins[k] do
+    if (p.sim_fill or 0) < size and kit_here(c.b) and abs(c.b.x - p.x) < range and abs(c.b.z - p.z) < range then
+      let gain = floor(c.value * sim_tool(p).power * sim_mult(p))
+      sim_gain(p, gain)
+      got = got + 1
+      if c.big then
+        p.message("💰 コインの山！ +" + kit_short(gain), 1.5)
+        p.sound("win")
+        kit_quest_progress(p, "pile", 1)
+      end
+      kit_gone(c.b)
+    else
+      append(keep, c)
+    end
+  end
+  coins[k] = keep
+  if got > 0 then
+    p.sound("coin")
+    kit_quest_progress(p, "coin", got)
+    if (p.sim_fill or 0) >= size and kit_ready(p, "full", 3) then p.message("🎒 いっぱい！ 銀行（黄色いパッド）へ", 1.5) end
+  end
+  return got
+end
+
+-- 🧲: 3秒に1回、2ばいのきょり
+sim_on_tap = func(p, amount)
+  if not kit_ready(p, "pull", PULL_WAIT) then return true end
+  let got = pull(p, sim_tool(p).range * 2)
+  particles("magic", p, {amount: 15})
+  if got == 0 and kit_ready(p, "nocoin", 3) then p.message("🧲 近くにコインがない", 0.8) end
+  return true
+end
+
+on tick(dt)
+  mag_clock = mag_clock + dt
+  spawn_clock = spawn_clock + dt
+  pile_clock = pile_clock + dt
+  if mag_clock >= 0.3 then
+    mag_clock = 0
+    for p in players() do
+      if not p.is_npc then pull(p, sim_tool(p).range) end
+    end
+  end
+  if spawn_clock >= 1 then
+    spawn_clock = 0
+    for k in 1 to 3 do
+      if len(coins[k]) < COINS_PER_AREA then
+        spawn_coin(k, false)
+        spawn_coin(k, false)
+      end
+    end
+  end
+  if pile_clock >= PILE_EVERY then
+    pile_clock = 0
+    let k = random(1, 3)
+    spawn_coin(k, true)
+    announce("💰 " + sim_zones[k].name + " に コインの山が出た！", 2.5)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end

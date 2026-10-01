@@ -1,0 +1,45 @@
+-- Snowball Shovel Sim — 雪かきシミュレーター
+-- 雪山のそばで ⛏ をタップすると 雪がそりにたまる（雪山はだんだん小さく）。いっぱいになったら 黄色いパッドで売る。
+-- そりの雪で ⛄ 雪だるまを作ると ずっと ×ボーナス。こおった湖（×4）・氷の山（×15）へ。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  そり・ショップ・たまご・ペット・生まれかわり・ゲート
+--   data.absc   スコップ・そり・たまご・場所・雪だるま
+--   snow.absc   雪山・雪だるま
+--   main.absc   このファイル
+
+kit_setup("Snowball Shovel Sim", "雪をかいて、売って、雪だるまを！", [
+  "⛏ 雪山のそばで タップ → 雪が そりにたまる",
+  "🟨 黄色いパッドで売ると お金",
+  "⛄ 村の水色のパッドで 雪だるまづくり（そりの雪を使う）→ ずっと ×ボーナス",
+  "🛒 スコップ・そりを 強くしよう",
+  "🧊 こおった湖（×4）・🏔 氷の山（×15）は 売った雪の合計で行ける",
+  "🥚 ペット・🌟 生まれかわりも"
+])
+kit_keep(["snowman"])
+
+kit_quest("pile", "雪山を5こ ほりきる", 5, 100)
+kit_quest("snowman", "雪だるまを作る", 1, 150)
+kit_quest("sim_tool", "スコップを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+kit_on_load = func(p)
+  claim_plot(p)
+  draw_snowman(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 9
+  p.hat = "beanie"
+  claim_plot(p)
+  p.ui_button("snowman", "⛄ 雪だるま", {at: "right", dy: 90, w: 150, h: 44, size: 15, bg: "#0284C7"})
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("❄️ 売った雪") end)
+end

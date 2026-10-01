@@ -1,0 +1,57 @@
+-- data.absc — Snowball Shovel Sim の表
+
+sim_setup({name: "❄️ 売った雪", tap: "⛏ 雪かき", bag: true, bag_word: "🛷 雪", sell: 1, secs: 0.3, rebirth: 150000, grow: 4, slots: 3, auto: 900})
+
+sim_tools = [
+  {id: "s1", name: "🥄 手ぶくろ", price: 0, power: 1},
+  {id: "s2", name: "⛏ 雪スコップ", price: 70, power: 3},
+  {id: "s3", name: "⛏ 大きな雪スコップ", price: 450, power: 8},
+  {id: "s4", name: "🚜 雪かきマシン", price: 2200, power: 22},
+  {id: "s5", name: "❄️ こおりのスコップ", price: 11000, power: 60},
+  {id: "s6", name: "🌨 ふぶきのスコップ", price: 55000, power: 170},
+  {id: "s7", name: "👑 雪の王のスコップ", price: 280000, power: 480}
+]
+
+sim_bags = [
+  {id: "b1", name: "🪣 バケツ", price: 0, size: 30},
+  {id: "b2", name: "🛷 小さなそり", price: 110, size: 100},
+  {id: "b3", name: "🛷 大きなそり", price: 750, size: 320},
+  {id: "b4", name: "🚛 雪のトラック", price: 3800, size: 1000},
+  {id: "b5", name: "🏔 雪の山ぶくろ", price: 19000, size: 3000},
+  {id: "b6", name: "🌨 むげんのそり", price: 95000, size: 9500}
+]
+
+sim_eggs = [
+  {id: "snow", name: "⛄ 雪のたまご", price: 200, pets: [
+    {name: "ゆきうさぎ", icon: "🐇", mult: 0.1, w: 60, color: "#F8FAFC"},
+    {name: "ペンギン", icon: "🐧", mult: 0.25, w: 30, color: "#1E293B"},
+    {name: "しろぎつね", icon: "🦊", mult: 0.6, w: 9, color: "#F1F5F9"},
+    {name: "雪のせいれい", icon: "❄️", mult: 2, w: 1, color: "#BAE6FD"}]},
+  {id: "lake", name: "🧊 湖のたまご", price: 4000, pets: [
+    {name: "アザラシ", icon: "🦭", mult: 0.5, w: 55, color: "#94A3B8"},
+    {name: "しろくま", icon: "🐻‍❄️", mult: 1, w: 33, color: "#F8FAFC"},
+    {name: "こおりのクジラ", icon: "🐋", mult: 2.5, w: 10, color: "#7DD3FC"},
+    {name: "オーロラの鳥", icon: "🕊", mult: 6, w: 2, color: "#A78BFA"}]},
+  {id: "ice", name: "🏔 氷の山のたまご", price: 60000, pets: [
+    {name: "ゆきおとこ", icon: "🦍", mult: 2, w: 55, color: "#E5E7EB"},
+    {name: "こおりのオオカミ", icon: "🐺", mult: 3.5, w: 33, color: "#93C5FD"},
+    {name: "ふぶきのドラゴン", icon: "🐉", mult: 8, w: 10, color: "#BAE6FD"},
+    {name: "冬の王", icon: "👑", mult: 20, w: 2, color: "#E0E7FF"}]}
+]
+
+sim_zones = [
+  {n: 1, name: "🏘 雪の村", need: 0},
+  {n: 2, name: "🧊 こおった湖", need: 3000},
+  {n: 3, name: "🏔 氷の山", need: 60000}
+]
+let FIELD_MULT = [1, 4, 15]
+let PILE_HP = 6            -- 雪山1つのかたさ（×場所）
+let PILE_BACK = 20
+
+-- 雪だるま: 雪をつかって作ると、ずっと ×ボーナス
+let SNOWMAN = [
+  {name: "⚪ 下の大玉", cost: 100, boost: 1.1},
+  {name: "⚪ 体", cost: 800, boost: 1.25},
+  {name: "⚪ 頭とにんじん", cost: 6000, boost: 1.45},
+  {name: "🎩 ぼうしとマフラー", cost: 40000, boost: 1.75}
+]

@@ -1,0 +1,180 @@
+-- contest.absc — ボディビル大会: ステージの黄色いパッドに立つと参加。しんぱんが言うポーズのボタンを はやくおす。
+-- 点は「その部分の強さ」×「はやさ」。ライバル3人より高ければ トロフィー。トロフィーでリーグが上がる。
+
+let ct_state = "idle"     -- idle / call / pose / done
+let ct_at = 0
+let ct_pose = 0
+let ct_stat = nil
+let ct_started = 0
+let contestants = []
+let judge = nil
+let rivals = []
+let ct_cleared = true
+
+func league_of(p)
+  let l = LEAGUES[1]
+  for k in LEAGUES do
+    if (p.trophies or 0) >= k.need then l = k end
+  end
+  return l
+end
+
+func on_stage(p)
+  let b = nearest_block(p, "stage")
+  return b != nil and abs(p.x - b.x) < 1.4 and abs(p.z - b.z) < 1.4
+end
+
+func pose_buttons(p)
+  let i = 0
+  for s in STATS do
+    i = i + 1
+    p.ui_button("pose_" + s.id, s.name, {at: "bottom", dx: -270 + i * 108, dy: -110, w: 100, h: 56, size: 16, bg: "#7C3AED", radius: 16})
+  end
+end
+
+func clear_pose_buttons(p)
+  for s in STATS do p.ui_remove("pose_" + s.id) end
+  p.ui_remove("ct_call")
+end
+
+func contest_call()
+  ct_state = "call"
+  ct_at = time() + CONTEST_CALL
+  announce("📣 ボディビル大会まで あと " + CONTEST_CALL + "秒！ ステージの黄色いパッドへ！", 4)
+  sound("bell")
+end
+
+func contest_begin()
+  contestants = filter(players(), func(q) return not q.is_npc and on_stage(q) end)
+  if len(contestants) == 0 then
+    announce("📣 だれも来なかったので 大会はおやすみ", 2)
+    ct_state = "idle"
+    ct_at = time() + CONTEST_EVERY
+    return
+  end
+  ct_state = "pose"
+  ct_pose = 0
+  for p in contestants do
+    p.ct_points = 0
+    p.frozen = true
+    pose_buttons(p)
+  end
+  for r in rivals do r.points = 0 end
+  next_pose()
+end
+
+func next_pose()
+  ct_pose = ct_pose + 1
+  if ct_pose > POSES then
+    contest_end()
+    return
+  end
+  ct_stat = random(STATS)
+  ct_started = time()
+  ct_at = time() + POSE_SECS
+  for p in contestants do
+    p.posed = false
+    if kit_here(p) then p.ui_text("ct_call", "🎤「" + ct_stat.pose + "！」（" + ct_stat.name + "）", {at: "center", dy: -120, size: 26, bold: true, color: "#FDE68A"}) end
+  end
+  if judge != nil and kit_here(judge) then judge.say(ct_stat.pose + "！") end
+  -- ライバルもポーズ
+  let avg = 0
+  for p in contestants do avg = avg + league_of(p).rival end
+  avg = avg / max(1, len(contestants))
+  for r in rivals do r.points = r.points + avg * random_float(7, 13) end
+end
+
+func pose(p, id)
+  if ct_state != "pose" or not contains(contestants, p) or p.posed then return end
+  p.posed = true
+  let quick = clamp(1.5 - (time() - ct_started) / POSE_SECS, 0.3, 1.5)
+  let pts = (8 + stat_score(p, ct_stat.id) * 2) * quick
+  if id != ct_stat.id then
+    pts = pts * 0.3
+    p.message("😅 ちがうポーズ！", 1)
+  else
+    p.message("✨ " + ct_stat.pose + "！ +" + floor(pts), 1)
+    particles("stars", p, {amount: 15})
+  end
+  p.ct_points = (p.ct_points or 0) + pts
+  p.sound("click")
+end
+
+func contest_end()
+  ct_state = "idle"
+  ct_at = time() + CONTEST_EVERY
+  let board = []
+  for p in contestants do
+    if kit_here(p) then append(board, {name: p.name, pts: p.ct_points or 0, p: p}) end
+  end
+  for r in rivals do append(board, {name: r.name, pts: r.points, p: nil}) end
+  board = sort_by(board, func(x) return 0 - x.pts end)
+  let lines = []
+  let place = 0
+  for e in board do
+    place = place + 1
+    if place <= 6 then append(lines, place + ". " + e.name + "  " + floor(e.pts) + "点") end
+    if e.p != nil then
+      let p = e.p
+      p.frozen = false
+      clear_pose_buttons(p)
+      p.contests = (p.contests or 0) + 1
+      kit_quest_progress(p, "contest", 1)
+      let prize = [500, 250, 120][place] or 40
+      kit_give(p, prize)
+      if place == 1 then
+        let before = league_of(p).name
+        p.trophies = (p.trophies or 0) + 1
+        p.message("🏆 ゆうしょう！ トロフィー " + p.trophies + "こ  💰" + prize, 3)
+        kit_badge(p, "contest_win", "大会でゆうしょう")
+        kit_quest_progress(p, "win", 1)
+        if league_of(p).name != before then announce("🏆 " + p.name + " が " + league_of(p).name + " に上がった！", 3) end
+      else
+        p.message("🎖 " + place + "位  💰" + prize, 2)
+      end
+    end
+  end
+  announce("🏆 大会のけっか: " + join(slice(lines, 1, 3), " / "), 5)
+  sound("win")
+end
+
+on start()
+  ct_at = time() + 60
+  let js = block("Judge Spot")
+  judge = create_npc({name: "しんぱん", position: js.position + {x: 0, y: 0.5, z: 0}, color: "#111827", head_color: "#D6A77A", speed: 0, health: 100000})
+  judge.frozen = true
+  let names = ["マッスル太郎", "ムキムキ花子", "鋼のケン"]
+  for k in 1 to 3 do
+    let sp = block("Rival Spot " + k)
+    let n = create_npc({name: names[k], position: sp.position, color: random(["#DC2626", "#2563EB", "#16A34A"]), head_color: "#D6A77A", speed: 0,
+                        health: 100000, size: 1.3})
+    n.frozen = true
+    append(rivals, {name: names[k], n: n, points: 0})
+  end
+end
+
+on tick(dt)
+  if ct_state == "idle" and time() > ct_at then contest_call()
+  elif ct_state == "call" and time() > ct_at then contest_begin()
+  elif ct_state == "pose" and time() > ct_at then next_pose()
+  end
+  if ct_state == "call" then
+    for p in players() do
+      if not p.is_npc and kit_ready(p, "ctcall", 1) then
+        p.ui_text("ct_wait", "📣 大会まで " + max(0, ceil(ct_at - time())) + "秒（ステージの黄色いパッドへ）", {at: "top", dy: 110, size: 15, bold: true, color: "#F0ABFC"})
+      end
+    end
+  elif ct_cleared == false then
+    ct_cleared = true
+    for p in players() do p.ui_remove("ct_wait") end
+  end
+  if ct_state == "call" then ct_cleared = false end
+end
+
+on button(p, id)
+  if starts_with(id, "pose_") then pose(p, replace(id, "pose_", "")) end
+end
+
+on leave(p)
+  if contains(contestants, p) then remove(contestants, index_of(contestants, p)) end
+end

@@ -1,0 +1,38 @@
+-- Saber Swing Sim — セイバーをふって 最強の騎士へ
+-- ⚔️ をタップすると 力が🧬DNAにたまる。いっぱいになったら 黄色いパッドで売る。力がつくと体が大きくなる。
+-- ときどき アリーナ（お城の北）にボス。近くで ⚔️ をタップすると こうげき。みんなでたおすと ダメージに合わせてお金。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  ためる・DNA・ショップ・たまご・ペット・生まれかわり
+--   data.absc    セイバー・DNA・たまご・ランク・ボス
+--   saber.absc   体の大きさ・ランク・ボス
+--   main.absc    このファイル
+
+kit_setup("Saber Swing Sim", "ふって、ためて、ボスをたおせ！", [
+  "⚔️ 右下のボタンをタップして 力をためる（🧬 DNA がいっぱいになるまで）",
+  "🟨 黄色いパッドで売ると お金。売った力でランクが上がる",
+  "🛒 ショップで 強いセイバー・大きなDNA",
+  "⚠️ ボスが出たら お城の北のアリーナへ。近くで ⚔️ でこうげき",
+  "🏆 ボスをたおすと ダメージが多いほど たくさんお金",
+  "🥚 ペット・🌟 生まれかわりで もっと強く"
+])
+kit_keep(["bosses"])
+
+kit_quest("sim_tool", "セイバーを買う", 1, 60)
+kit_quest("boss", "ボスをたおす", 1, 300)
+kit_quest("sim_bag", "DNAを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 9
+  p.hat = "helmet"
+end
+
+on start()
+  world.music = "boss"
+  every(12, func() kit_leaderboard("⚔️ 力") end)
+end
