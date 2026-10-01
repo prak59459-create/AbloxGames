@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 344,
-  "bytes" : 200992,
+  "bytes" : 200507,
   "cover" : "games\/cruise-ship-tycoon\/cover-0c6e16bd.png",
   "id" : "cruise-ship-tycoon",
   "maxPlayers" : 6,
@@ -11,7 +11,6 @@
     "lib\/kit_tycoon.absc",
     "games\/cruise-ship-tycoon\/data.absc",
     "games\/cruise-ship-tycoon\/voyage.absc",
-    "games\/cruise-ship-tycoon\/zz_test.absc",
     "games\/cruise-ship-tycoon\/main.absc"
   ],
   "shots" : [

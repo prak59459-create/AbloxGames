@@ -1,6 +1,9 @@
 # 新しい150本のためのリサーチ（2026年9月）
 
 いまの80本（1〜80）に加えて、81〜230の150本を作ります。
+
+> **2026年10月のお知らせ:** 81〜135 の55本を作りました。136〜230 は いったんお休みです
+> （つぎは 1本のゲームを とくべつに大きく・ていねいに作るため）。下のリストは そのまま のこしておきます。
 **Roblox で実際に流行っている・人気のあるゲーム**を150本選び、それぞれを Ablox で遊べるオリジナル版にします。
 いまの80本がもとにしたゲーム（Brookhaven RP・Blox Fruits・Adopt Me!・Steal a Brainrot・Fisch・RIVALS・Grow a Garden・Dress To Impress・Murder Mystery 2・99 Nights in the Forest・Kick a Lucky Block・The Strongest Battlegrounds・DOORS・Pet Simulator 99・Tower of Hell・BedWars・Slime RNG・Universal Tower Defense・Jujutsu Shenanigans・Escape Tsunami for Brainrots、ほか21〜80の60本）とは**かぶらないもの**だけを選びました。
 （最初は Break In (Story) も入れていましたが、52番の Night Lockdown と同じなので Flicker に入れかえました。）
