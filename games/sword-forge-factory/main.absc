@@ -1,0 +1,57 @@
+-- Sword Forge Factory — 剣の工場
+-- オレンジのパッドで 金床・かまど・型・とぎ石・まほうの台…を建てていく。
+-- かまどは じどうで剣をつくって売る。🔨 金床では 自分でたたいて いい剣をつくり、もって 訓練場のかかしをたたける。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  工場の土地・建てる・お金・生まれかわり
+--   data.absc      建てるもの・剣のしゅるい・レア度
+--   forge.absc     かまど・金床・剣のバッグ・図かん
+--   training.absc  訓練場のかかし
+--   main.absc      このファイル
+
+kit_setup("Sword Forge Factory", "さいきょうの剣を きたえよう！", [
+  "🟧 オレンジのパッドで 金床・かまどなどを建てる",
+  "🔥 かまどは じどうで剣をつくって売る（お金は 💚 緑のパッド）",
+  "🔨 金床のそばで「たたく」: メーターの先が みどりのときに おすと レアが出やすい",
+  "⚪🔵🟣🟠🔴 ふつう → レア → エピック → レジェンド → ミシック",
+  "⚔️ できた剣を もって、道のむこうの 訓練場の かかしをたたくと お金",
+  "📖 はじめての剣は 図かんボーナス。🌟 ぜんぶ建てたら 生まれかわり"
+])
+kit_keep(["swords", "equipped", "seen", "forged", "hand_forged"])
+
+kit_quest("ty_buy", "4つ建てる", 4, 100)
+kit_quest("hammer", "金床で 剣を3本 きたえる", 3, 150)
+kit_quest("train", "かかしを 30回たたく", 30, 300)
+kit_quest("forge", "かまどで 剣を100本つくる", 100, 800)
+kit_quest("book", "図かんに 12本のせる", 12, 2000)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 50 then p.coins = 50 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 12
+  p.hat = "viking"
+  p.ui_button("book", "📖 図かん", {at: "right", dy: -162, w: 150, h: 44, size: 14, bg: "#78350F"})
+  p.ui_button("bag", "🎒 剣のバッグ", {at: "right", dy: -110, w: 150, h: 44, size: 14, bg: "#C2410C"})
+  p.ui_button("ty_home", "🏭 自分の工場", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("💰 もうけ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.ty_total or 0)
+    if s != p.score then p.score = s end
+  end
+end

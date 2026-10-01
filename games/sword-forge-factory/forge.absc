@@ -1,0 +1,357 @@
+-- forge.absc — 剣づくり: かまどは じどうで剣をつくって売る。金床では 自分で たたいて、いい剣を バッグへ。
+-- レア度は ふつう〜ミシック。とぎ石・まほうの台で レアが出やすくなる。はじめての剣は 図かんボーナス。
+
+let fg_clock = 0
+let meter_clock = 0
+
+-- いま つくれる いちばん上の剣
+func top_tier(p)
+  let t = 0
+  if ty_owns(p, "furnace1") or ty_owns(p, "anvil") then t = 2 end
+  if ty_owns(p, "mold") then t = 3 end
+  if ty_owns(p, "furnace2") then t = 4 end
+  if ty_owns(p, "enchanter") then t = 5 end
+  if ty_owns(p, "crystal") then t = 6 end
+  if ty_owns(p, "dragon") then t = 7 end
+  return t
+end
+
+func furnaces(p)
+  let n = 0
+  for id in ["furnace1", "furnace2", "crystal", "dragon"] do
+    if ty_owns(p, id) then n = n + 1 end
+  end
+  return n
+end
+
+func luck(p)
+  let l = 1
+  if ty_owns(p, "grinder") then l = l * 1.4 end
+  if ty_owns(p, "enchanter") then l = l * 1.6 end
+  return l
+end
+
+-- 剣を1本 きめる（luck が大きいほど レアが出やすい）
+func roll_sword(p, extra)
+  let top = top_tier(p)
+  let t = top
+  let d = pick_weighted([50, 35, 15]) - 1
+  t = max(1, top - d)
+  let l = luck(p) * extra
+  let weights = map(RARITIES, func(r)
+    if r.mult == 1 then return r.w end
+    return r.w * l
+  end)
+  let r = pick_weighted(weights)
+  return {t: t, r: r}
+end
+
+func sword_value(s)
+  return TIERS[s.t].value * RARITIES[s.r].mult
+end
+
+func sword_label(s)
+  return RARITIES[s.r].mark + " " + sword_name(s.t, s.r)
+end
+
+-- 図かん: はじめての剣なら ボーナス
+func discover(p, s)
+  if p.seen == nil then p.seen = [] end
+  let key = s.t + "-" + s.r
+  if contains(p.seen, key) then return end
+  append(p.seen, key)
+  let bonus = floor(sword_value(s) * 3)
+  kit_give(p, bonus)
+  p.message("📖 はじめての " + sword_label(s) + "！ 図かんボーナス 💰" + kit_short(bonus), 2.5)
+  kit_quest_progress(p, "book", 1)
+end
+
+func shout_rare(p, s, how)
+  if s.r >= 4 then
+    announce("🌟 " + p.name + " の" + how + "で " + sword_label(s) + " ができた！", 3)
+    particles("stars", p, {amount: 60})
+    p.sound("win")
+  end
+end
+
+-- かまど: FORGE_SECS ごとに 1本ずつ つくって 売る（お金は 緑のパッドへ）
+func auto_forge(p)
+  let n = furnaces(p)
+  if n == 0 then return end
+  for i in 1 to n do
+    let s = roll_sword(p, 1)
+    p.sold = (p.sold or 0) + sword_value(s) * ty_mult(p)
+    p.forged = (p.forged or 0) + 1
+    discover(p, s)
+    if s.r >= 3 then
+      p.message("🔥 かまどで " + sword_label(s) + " ができた！", 2)
+      if s.r >= 4 then
+        shout_rare(p, s, "かまど")
+        add_to_bag(p, s)
+      end
+    end
+  end
+  kit_quest_progress(p, "forge", n)
+  show_best(p)
+end
+
+ty_extra_income = func(p)
+  let s = p.sold or 0
+  p.sold = 0
+  return s
+end
+
+-- MARK: 剣のバッグ
+
+func add_to_bag(p, s)
+  if p.swords == nil then p.swords = [] end
+  append(p.swords, s)
+  if len(p.swords) > BAG then
+    let worst = min_by(p.swords, func(x) return sword_value(x) end)
+    p.swords = filter(p.swords, func(x) return x != worst end)
+    let pay = floor(sword_value(worst) * ty_mult(p))
+    kit_give(p, pay)
+    p.message("🎒 バッグがいっぱい: " + sword_label(worst) + " を 💰" + kit_short(pay) + " で売った", 2)
+  end
+  show_best(p)
+end
+
+func best_sword(p)
+  let all = p.swords or []
+  if len(all) == 0 then return nil end
+  return max_by(all, func(x) return sword_value(x) end)
+end
+
+func equip(p, s)
+  p.equipped = s
+  p.give(sword_name(s.t, s.r))
+  p.message("⚔️ " + sword_label(s) + " を もった（こうげき " + sword_dmg(s.t, s.r) + "）", 1.5)
+end
+
+func open_bag(p)
+  let list = sort_by(p.swords or [], func(x) return 0 - sword_value(x) end)
+  let h = 140 + max(1, len(list)) * 40
+  p.ui_remove("bag_box")
+  p.ui_panel("bag_box", {at: "center", w: 620, h: h, bg: "#292524F2", radius: 22, layer: 40})
+  p.ui_text("bag_t", "🎒 剣のバッグ（" + len(list) + "/" + BAG + "）  タップで もつ", {parent: "bag_box", y: 24 / h, size: 18, bold: true, color: "#FDBA74"})
+  if len(list) == 0 then
+    p.ui_text("bag_none", "まだ剣がない。🔨 金床で きたえよう！", {parent: "bag_box", y: 70 / h, size: 15})
+  end
+  let i = 0
+  for s in list do
+    i = i + 1
+    let mark = ""
+    if p.equipped != nil and p.equipped.t == s.t and p.equipped.r == s.r then mark = "✅ " end
+    p.ui_button("bagsw_" + i, mark + sword_label(s) + "   ⚔️" + sword_dmg(s.t, s.r) + "  💰" + kit_short(sword_value(s)),
+                {parent: "bag_box", y: (24 + i * 40) / h, w: 580, h: 34, size: 14, bg: RARITIES[s.r].color + "CC"})
+  end
+  p.bag_view = list
+  p.ui_button("bag_sell", "💰 もっていない剣を ぜんぶ売る", {parent: "bag_box", y: (h - 64) / h, w: 320, h: 34, size: 14, bg: "#16A34A"})
+  p.ui_button("bag_close", "閉じる", {parent: "bag_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func sell_bag(p)
+  let keep = []
+  let total = 0
+  for s in p.swords or [] do
+    if p.equipped != nil and p.equipped.t == s.t and p.equipped.r == s.r and len(keep) == 0 then
+      append(keep, s)
+    else
+      total = total + sword_value(s)
+    end
+  end
+  p.swords = keep
+  let pay = floor(total * ty_mult(p))
+  if pay > 0 then
+    kit_give(p, pay)
+    p.ty_total = (p.ty_total or 0) + pay
+    p.message("💰 剣を売った！ +" + kit_short(pay), 1.5)
+    p.sound("coin")
+  end
+  open_bag(p)
+end
+
+-- 展示ラックに いちばんの剣を かざる
+func show_best(p)
+  if p.ty_plot == nil or not ty_owns(p, "rack") then return end
+  let s = best_sword(p)
+  let c = "#FACC15"
+  let mat = "metal"
+  if s != nil then
+    c = TIERS[s.t].color
+    if s.r >= 3 then c = RARITIES[s.r].color end
+    if s.r >= 4 then mat = "neon" end
+  end
+  for b in ty_blocks("ty" + p.ty_plot + "_rack") do
+    if contains(b.tags, "best_sword") then
+      if b.color != c then b.color = c end
+      if b.material != mat then b.material = mat end
+    end
+  end
+end
+
+ty_on_claim = func(p) show_best(p) end
+ty_on_buy = func(p, it)
+  if it.id == "rack" then show_best(p) end
+  if it.id == "anvil" then p.message("🔨 金床のそばで 「たたく」ボタン！ メーターの先が みどりのときに おそう", 3) end
+end
+
+-- MARK: 金床（メーターの先が みどりのときに たたく）
+
+func my_anvil(p)
+  if p.ty_plot == nil or not ty_owns(p, "anvil") then return nil end
+  return find(ty_blocks("ty" + p.ty_plot + "_anvil"), func(b) return contains(b.tags, "anvil") end)
+end
+
+func near_anvil(p)
+  let a = my_anvil(p)
+  return a != nil and distance(p, a) < 4
+end
+
+func hammer(p)
+  if not near_anvil(p) then
+    if p.ty_plot != nil and ty_owns(p, "anvil") then
+      p.message("🔨 自分の工場の 金床のそばで たたこう", 1.2)
+    else
+      p.message("🔨 まず 金床を建てよう", 1.2)
+    end
+    return
+  end
+  let spot = my_anvil(p) or p
+  let f = p.forge
+  if f == nil then
+    p.forge = {mark: 0, dir: 1, hits: 0, good: 0}
+    forge_ui(p)
+    p.sound("click")
+    return
+  end
+  let good = abs(f.mark - 50) <= GREEN
+  f.hits = f.hits + 1
+  if good then
+    f.good = f.good + 1
+    p.sound("hit")
+    particles("sparkles", spot, {amount: 12})
+  else
+    p.sound("drum")
+  end
+  if f.hits >= FORGE_HITS then
+    -- うまく たたけた数で レアが出やすくなる
+    let s = roll_sword(p, 1 + f.good * 0.35)
+    p.forge = nil
+    for id in ["fg_bar", "fg_green", "fg_t"] do p.ui_remove(id) end
+    p.hand_forged = (p.hand_forged or 0) + 1
+    kit_quest_progress(p, "hammer", 1)
+    let note = "（うまく " + f.good + "/" + FORGE_HITS + "）"
+    p.message("🔨 カーン！ " + sword_label(s) + " ができた！ " + note, 2.5)
+    particles("fire", spot, {amount: 20})
+    discover(p, s)
+    shout_rare(p, s, "金床")
+    add_to_bag(p, s)
+    if p.equipped == nil or sword_value(s) > sword_value(p.equipped) then equip(p, s) end
+  else
+    forge_ui(p)
+  end
+end
+
+func forge_ui(p)
+  let f = p.forge
+  if f == nil then return end
+  p.ui_panel("fg_green", {at: "bottom", dy: -170, dx: 0, w: GREEN * 2 * 3.6, h: 22, bg: "#22C55EAA", radius: 6, layer: 20})
+  p.ui_bar("fg_bar", f.mark, 100, {at: "bottom", dy: -170, w: 360, h: 22, color: "#F97316", layer: 19})
+  p.ui_text("fg_t", "🔨 " + f.hits + "/" + FORGE_HITS + "  オレンジの先が みどりの中で たたく！", {at: "bottom", dy: -200, size: 15, bold: true, color: "#FED7AA"})
+end
+
+func stop_forge(p)
+  p.forge = nil
+  for id in ["fg_bar", "fg_green", "fg_t"] do p.ui_remove(id) end
+end
+
+-- MARK: 図かん
+
+func open_book(p)
+  let h = 120 + len(TIERS) * 34 + 50
+  p.ui_remove("book_box")
+  p.ui_panel("book_box", {at: "center", w: 600, h: h, bg: "#1C1917F2", radius: 22, layer: 40})
+  p.ui_text("book_t", "📖 剣の図かん（" + len(p.seen or []) + "/" + (len(TIERS) * len(RARITIES)) + "）", {parent: "book_box", y: 26 / h, size: 19, bold: true,
+            color: "#FDBA74"})
+  for t in 1 to len(TIERS) do
+    let marks = ""
+    for r in 1 to len(RARITIES) do
+      if contains(p.seen or [], t + "-" + r) then marks = marks + RARITIES[r].mark else marks = marks + "❔" end
+    end
+    p.ui_text("book_" + t, TIERS[t].name + "  " + marks, {parent: "book_box", y: (40 + t * 34) / h, size: 17})
+  end
+  p.ui_button("book_close", "閉じる", {parent: "book_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+on tick(dt)
+  meter_clock = meter_clock + dt
+  if meter_clock >= 0.1 then
+    let secs = meter_clock
+    meter_clock = 0
+    for p in players() do
+      let f = p.forge
+      if f != nil then
+        if not near_anvil(p) then
+          stop_forge(p)
+        else
+          f.mark = f.mark + f.dir * MARK_SPEED * secs
+          if f.mark >= 100 then
+            f.mark = 100
+            f.dir = -1
+          elif f.mark <= 0 then
+            f.mark = 0
+            f.dir = 1
+          end
+          p.ui_bar("fg_bar", f.mark, 100, {at: "bottom", dy: -170, w: 360, h: 22, color: "#F97316", layer: 19})
+        end
+      end
+    end
+  end
+  fg_clock = fg_clock + dt
+  if fg_clock < 1 then return end
+  fg_clock = 0
+  let now = time()
+  for p in players() do
+    if p.ty_plot != nil then
+      if p.next_forge == nil then p.next_forge = now + FORGE_SECS end
+      if now >= p.next_forge then
+        p.next_forge = now + FORGE_SECS
+        auto_forge(p)
+      end
+      let near = near_anvil(p)
+      if near != p.at_anvil then
+        p.at_anvil = near
+        if near then
+          p.ui_button("hammer", "🔨 たたく", {at: "bottom_right", dx: -40, dy: -150, w: 120, h: 120, size: 22, bg: "#C2410C", radius: 60})
+        else
+          p.ui_remove("hammer")
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "hammer" then hammer(p)
+  elif id == "bag" then open_bag(p)
+  elif id == "bag_close" then p.ui_remove("bag_box")
+  elif id == "bag_sell" then sell_bag(p)
+  elif starts_with(id, "bagsw_") then
+    let s = (p.bag_view or [])[num(replace(id, "bagsw_", ""))]
+    if s != nil then
+      equip(p, s)
+      open_bag(p)
+    end
+  elif id == "book" then open_book(p)
+  elif id == "book_close" then p.ui_remove("book_box")
+  end
+end
+
+on loaded(p)
+  kit_later(p, 1, func()
+    show_best(p)
+    let s = best_sword(p)
+    if s != nil then equip(p, s) end
+  end)
+end

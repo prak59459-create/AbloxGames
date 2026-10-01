@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 425,
+  "bytes" : 252532,
+  "cover" : "games\/sword-forge-factory\/cover-64d48879.png",
+  "id" : "sword-forge-factory",
+  "maxPlayers" : 6,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_tycoon.absc",
+    "games\/sword-forge-factory\/data.absc",
+    "games\/sword-forge-factory\/forge.absc",
+    "games\/sword-forge-factory\/training.absc",
+    "games\/sword-forge-factory\/main.absc"
+  ],
+  "shots" : [
+    "games\/sword-forge-factory\/shot1-ee7eae09.png",
+    "games\/sword-forge-factory\/shot2-3c9f57e1.png"
+  ],
+  "summary" : "剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！",
+  "tags" : [
+    "tycoon",
+    "swords",
+    "crafting"
+  ],
+  "title" : "Sword Forge Factory",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/sword-forge-factory\/world.ablox"
+}

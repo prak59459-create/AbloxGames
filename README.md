@@ -199,6 +199,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/build-your-island/cover-ccb12943.png" width="200"> | 130 | **Build Your Island** | 小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！ |
 | <img src="games/cruise-ship-tycoon/cover-0c6e16bd.png" width="200"> | 131 | **Cruise Ship Tycoon** | 自分だけの豪華客船をつくろう！ 客室・プール・レストラン・劇場をふやすと、お客さんがよろこんで乗ってくる。ときどき船が出航して、航海のボーナス！ 世界いちの客船へ。 |
 | <img src="games/build-a-zoo-park/cover-56683f48.png" width="200"> | 132 | **Build a Zoo Park** | どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！ |
+| <img src="games/sword-forge-factory/cover-64d48879.png" width="200"> | 133 | **Sword Forge Factory** | 剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！ |
 
 <!-- games:end -->
 

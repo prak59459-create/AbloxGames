@@ -1,0 +1,56 @@
+-- data.absc — Sword Forge Factory の表
+
+ty_setup({plots: 6, word: "剣の工場", rebirth: 0.5})
+
+ty_items = [
+  {id: "floor", name: "🧱 工場のゆかと かべ", price: 50, income: 1},
+  {id: "anvil", name: "🔨 金床（自分で 剣をきたえる）", price: 100, income: 0, after: "floor"},
+  {id: "furnace1", name: "🔥 かまど（じどうで 剣をつくって売る）", price: 300, income: 0, after: "anvil"},
+  {id: "mold", name: "🗡 鉄の型（鉄の剣が できる）", price: 1200, income: 0, after: "furnace1"},
+  {id: "rack", name: "🏆 展示ラック（いちばんの剣を かざる）", price: 2500, income: 10, after: "mold"},
+  {id: "furnace2", name: "🔥 2つめのかまど（金の剣も）", price: 6000, income: 0, after: "rack"},
+  {id: "grinder", name: "⚙️ とぎ石（レアが出やすく）", price: 15000, income: 0, after: "furnace2"},
+  {id: "enchanter", name: "🔮 まほうの台（もっとレアに・ダイヤの剣も）", price: 35000, income: 0, after: "grinder"},
+  {id: "crystal", name: "💎 クリスタルかまど", price: 80000, income: 0, after: "enchanter"},
+  {id: "dragon", name: "🐉 ドラゴンかまど", price: 200000, income: 0, after: "crystal"}
+]
+
+-- 剣の しゅるい（value は売るねだん、dmg は こうげき力）
+let TIERS = [
+  {name: "木の剣", value: 5, dmg: 8, color: "#A16207"},
+  {name: "石の剣", value: 12, dmg: 12, color: "#9CA3AF"},
+  {name: "鉄の剣", value: 30, dmg: 18, color: "#E2E8F0"},
+  {name: "金の剣", value: 80, dmg: 26, color: "#FACC15"},
+  {name: "ダイヤの剣", value: 200, dmg: 36, color: "#22D3EE"},
+  {name: "クリスタルの剣", value: 500, dmg: 48, color: "#A5F3FC"},
+  {name: "ドラゴンの剣", value: 1500, dmg: 65, color: "#EF4444"}
+]
+
+-- レア度（mult は ねだん、w は 出やすさ）
+let RARITIES = [
+  {name: "ふつう", mult: 1, w: 60, color: "#E5E7EB", mark: "⚪"},
+  {name: "レア", mult: 2.5, w: 25, color: "#3B82F6", mark: "🔵"},
+  {name: "エピック", mult: 6, w: 10, color: "#A855F7", mark: "🟣"},
+  {name: "レジェンド", mult: 15, w: 4, color: "#F59E0B", mark: "🟠"},
+  {name: "ミシック", mult: 40, w: 1, color: "#EF4444", mark: "🔴"}
+]
+
+let FORGE_SECS = 5        -- かまど1つが 剣を1本つくる 秒
+let FORGE_HITS = 4        -- 金床で 何回たたくと 1本できるか
+let MARK_SPEED = 140      -- メーターの はやさ（1秒）
+let GREEN = 13            -- みどりのはば（まんなか ± これ）
+let BAG = 10              -- 剣のバッグに 入る本数
+let DUMMY_PAY = 0.6       -- かかしを たたいたときの お金（ダメージ × これ）
+
+-- 剣を武器として登録（しゅるい × レア度）
+func sword_name(t, r)
+  return TIERS[t].name + "・" + RARITIES[r].name
+end
+
+func sword_dmg(t, r)
+  return floor(TIERS[t].dmg * (1 + (r - 1) * 0.35))
+end
+
+for t in 1 to len(TIERS) do
+  for r in 1 to len(RARITIES) do kit_melee(sword_name(t, r), sword_dmg(t, r), 2.2, 5.5) end
+end

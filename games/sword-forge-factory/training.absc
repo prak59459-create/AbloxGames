@@ -1,0 +1,45 @@
+-- training.absc — 訓練場: 道のむこうの かかしを 自分の剣でたたくと お金。つよい剣ほど たくさん。
+-- 人どうしは きずつかない。
+
+let dummies = []
+
+func make_dummy(i)
+  let spot = block("Dummy Spot " + i)
+  if spot == nil then return nil end
+  let n = create_npc({name: "かかし", position: spot.position, color: "#D6B77A", head_color: "#FDE68A", leg_color: "#78350F", speed: 0,
+                      health: 100000, hat: "cowboy"})
+  n.dummy = true
+  return n
+end
+
+on start()
+  for i in 1 to 6 do
+    let n = make_dummy(i)
+    if n != nil then append(dummies, n) end
+  end
+end
+
+on hit(victim, attacker, damage)
+  if attacker == nil or attacker.is_npc then return damage end
+  if not victim.is_npc then return 0 end
+  if victim.dummy then
+    let pay = max(1, floor(damage * DUMMY_PAY * ty_mult(attacker)))
+    kit_give(attacker, pay)
+    attacker.ty_total = (attacker.ty_total or 0) + pay
+    particles("dust", victim, {amount: 8})
+    if kit_ready(attacker, "dummysay", 2) then victim.say("+" + kit_short(pay)) end
+    kit_quest_progress(attacker, "train", 1)
+    return 0
+  end
+  return damage
+end
+
+on tick(dt)
+  -- かかしが どこかへ行ったら もとの場所へ
+  for i in 1 to len(dummies) do
+    let n = dummies[i]
+    if not kit_here(n) then
+      dummies[i] = make_dummy(i)
+    end
+  end
+end

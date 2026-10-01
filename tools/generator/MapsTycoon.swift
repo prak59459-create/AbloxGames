@@ -5,6 +5,9 @@ import Foundation
 // step on pads to buy the next building, collect what it earns.
 
 let tycoonGames: [Game] = [
+    Game(number: 133, id: "sword-forge-factory", title: "Sword Forge Factory",
+         summary: "剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！",
+         tags: ["tycoon", "swords", "crafting"], maxPlayers: 6, libs: ["tycoon"], build: swordForgeFactory),
     Game(number: 132, id: "build-a-zoo-park", title: "Build a Zoo Park",
          summary: "どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！",
          tags: ["tycoon", "animals", "building"], maxPlayers: 6, libs: ["tycoon"], build: buildAZooPark),
@@ -529,6 +532,90 @@ func buildAZooPark(_ m: MapBuilder) {
                 }
             }
         }
+    }
+    m.coverFocus(x: 154, y: 2, z: 20, yaw: 210, width: 40)
+}
+
+// MARK: 133 Sword Forge Factory (Sword Factory)
+
+/// A sword lying flat or standing: blade, guard and grip. `tags` go on the blade.
+func swordModel(_ m: MapBuilder, name: String, x: Float, y: Float, z: Float, blade: String, upright: Bool, tags: [String] = []) {
+    if upright {
+        m.part("\(name) Blade", at: (x, y + 1.3, z), size: (0.3, 2, 0.1), color: blade, material: .metal, tags: tags, solid: false)
+        m.part("\(name) Guard", at: (x, y + 0.25, z), size: (0.9, 0.15, 0.2), color: "#A16207", material: .metal, solid: false)
+        m.part("\(name) Grip", at: (x, y - 0.2, z), size: (0.15, 0.6, 0.15), color: "#78350F", material: .wood, solid: false)
+    } else {
+        m.part("\(name) Blade", at: (x + 0.6, y, z), size: (2, 0.1, 0.3), color: blade, material: .metal, tags: tags, solid: false)
+        m.part("\(name) Guard", at: (x - 0.45, y, z), size: (0.15, 0.2, 0.9), color: "#A16207", material: .metal, solid: false)
+        m.part("\(name) Grip", at: (x - 0.85, y, z), size: (0.6, 0.15, 0.15), color: "#78350F", material: .wood, solid: false)
+    }
+}
+
+func swordForgeFactory(_ m: MapBuilder) {
+    m.sky("#7C2D12", "#FDBA74", light: 0.7, ground: "#57534E")
+    m.environment.skyStyle = .sunset
+    m.ground(380, 200, color: "#78716C", x: 22, z: 40, material: .stone)
+    m.road(from: (-160, -12), to: (200, -12), width: 10, name: "Forge Road", dashed: false, color: "#44403C")
+    m.spawnRing(0, -18, radius: 4, count: 6, color: "#F97316")
+    // The training ground across the road: straw dummies to try your swords on.
+    m.slab("Training Ground", x: 0, y: -0.02, z: -34, w: 60, h: 0.1, d: 16, color: "#D6B77A", material: .sand)
+    m.fence(from: (-30, -42), to: (30, -42), color: "#78350F")
+    m.part("Training Sign", at: (0, 4, -42.4), size: (14, 1.6, 0.3), color: "#FDBA74", material: .neon, solid: false)
+    for q in 0..<6 {
+        let x = -22.5 + Float(q) * 9
+        m.part("Dummy Spot \(q + 1)", at: (x, 0.6, -36), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+        m.part("Dummy Post", at: (x, 0.4, -37.6), size: (0.3, 0.8, 0.3), color: "#78350F", material: .wood, solid: false)
+    }
+    let items: [(String, Float, Float)] = [("floor", 0, 5), ("anvil", -2.5, 6), ("furnace1", 2.5, 6), ("mold", -2.5, 12), ("rack", 2.5, 12),
+                                           ("furnace2", -2.5, 18), ("grinder", 2.5, 18), ("enchanter", -2.5, 24), ("crystal", 2.5, 24), ("dragon", 0, 30)]
+    tycoonPlots(m, count: 6, w: 36, d: 40, floor: "#A8A29E", padColor: "#F97316", items: items, collector: (14, 3)) { id, cx in
+        switch id {
+        case "floor":
+            m.slab("Forge Floor", x: cx, y: 0, z: 21, w: 34, h: 0.12, d: 36, color: "#57534E", material: .stone)
+            m.slab("Forge Wall", x: cx, y: 0, z: 39.2, w: 34, h: 5, d: 0.6, color: "#44403C", material: .brick)
+            for x in [-17, 17] as [Float] { m.slab("Forge Wall", x: cx + x, y: 0, z: 21, w: 0.6, h: 5, d: 36, color: "#44403C", material: .brick) }
+        case "anvil":
+            m.slab("Anvil Base", x: cx - 9, y: 0, z: 8, w: 1.4, h: 1, d: 1, color: "#1F2937", material: .metal)
+            m.part("Anvil", at: (cx - 9, 1.25, 8), size: (2.4, 0.5, 1.1), color: "#374151", material: .metal, tags: ["anvil"], solid: false)
+            m.part("Anvil Hammer", at: (cx - 8.2, 1.65, 8.2), size: (0.6, 0.3, 0.3), color: "#9CA3AF", material: .metal, solid: false)
+        case "furnace1", "furnace2":
+            let z: Float = id == "furnace1" ? 10 : 20
+            m.slab("Furnace", x: cx + 12, y: 0, z: z, w: 5, h: 4, d: 5, color: "#7F1D1D", material: .brick)
+            m.part("Furnace Mouth", at: (cx + 9.45, 1.4, z), size: (0.1, 1.6, 2.4), color: "#F97316", material: .neon, solid: false)
+            m.part("Furnace Chimney", at: (cx + 13, 5, z + 1), size: (1, 2, 1), color: "#44403C", material: .brick, tags: ["ty_drop", "drop=#F97316"], solid: false)
+        case "mold":
+            m.slab("Mold Table", x: cx - 11, y: 0, z: 18, w: 5, h: 1, d: 2.6, color: "#78350F", material: .wood)
+            for q in 0..<3 { m.part("Sword Mold", at: (cx - 12.5 + Float(q) * 1.5, 1.04, 18), size: (0.6, 0.08, 2.2), color: "#111827", solid: false) }
+        case "rack":
+            m.slab("Display Rack", x: cx, y: 0, z: 37.6, w: 10, h: 4, d: 0.6, color: "#78350F", material: .wood)
+            swordModel(m, name: "Best Sword", x: cx, y: 1.6, z: 37.1, blade: "#FACC15", upright: true, tags: ["best_sword"])
+            swordModel(m, name: "Rack Sword", x: cx - 3, y: 1.6, z: 37.1, blade: "#CBD5E1", upright: true)
+            swordModel(m, name: "Rack Sword", x: cx + 3, y: 1.6, z: 37.1, blade: "#A855F7", upright: true)
+        case "grinder":
+            m.slab("Grinder Stand", x: cx - 11, y: 0, z: 26, w: 2.4, h: 1.2, d: 1.6, color: "#57534E", material: .metal)
+            m.part("Grind Stone", at: (cx - 11, 1.9, 26), size: (1.6, 0.4, 1.6), color: "#D6D3D1", shape: .cylinder, material: .stone, solid: false,
+                   rotation: (0, 0, 90))
+        case "enchanter":
+            m.slab("Enchant Table", x: cx - 11, y: 0, z: 32, w: 3, h: 1.2, d: 2, color: "#3B0764", material: .wood)
+            m.part("Enchant Orb", at: (cx - 11, 2.2, 32), size: (0.9, 0.9, 0.9), color: "#C084FC", shape: .sphere, material: .neon, solid: false)
+        case "crystal":
+            m.slab("Crystal Forge", x: cx + 12, y: 0, z: 29, w: 5, h: 3, d: 4, color: "#164E63", material: .metal)
+            m.part("Crystal", at: (cx + 12, 4.2, 29), size: (1.6, 2.4, 1.6), color: "#22D3EE", shape: .cone, material: .neon, tags: ["ty_drop", "drop=#22D3EE"],
+                   solid: false)
+        default:
+            m.slab("Dragon Forge", x: cx + 4, y: 0, z: 33, w: 6, h: 3.4, d: 4, color: "#1F2937", material: .metal)
+            m.part("Dragon Head", at: (cx + 4, 4.3, 33), size: (2.4, 1.4, 3), color: "#B91C1C", shape: .sphere, solid: false)
+            m.part("Dragon Fire", at: (cx + 4, 4.2, 31.2), size: (1, 1, 1.2), color: "#FDE047", shape: .cone, material: .neon, tags: ["ty_drop", "drop=#EF4444"],
+                   solid: false, rotation: (-90, 0, 0))
+        }
+    }
+    // Swords stuck in the rocks behind the factories.
+    var r = Seeded("swordforge")
+    for q in 0..<14 {
+        let x = r.range(-150, 190), z = r.range(55, 120)
+        let size = r.range(2, 4)
+        m.rock(x, z, size: size, color: "#57534E")
+        swordModel(m, name: "Stone Sword \(q + 1)", x: x, y: size * 0.65, z: z, blade: r.pick(["#CBD5E1", "#FACC15", "#22D3EE"]), upright: true)
     }
     m.coverFocus(x: 154, y: 2, z: 20, yaw: 210, width: 40)
 }
