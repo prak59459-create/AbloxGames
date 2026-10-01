@@ -1,0 +1,76 @@
+-- factory.absc — アップグレーダーの かけざん・かまどがないと売れない・なぞの箱
+
+let boxes = []
+let box_clock = 0
+let boost_until = {}
+
+-- もうけの倍率: かまどがなければ 0、アップグレーダーを かけざん、箱のブースト
+ty_income_mult = func(p)
+  if not ty_owns(p, "furnace") then return 0 end
+  let m = 1
+  for id in p.ty_owned or [] do
+    let it = ty_item(id)
+    if it != nil and it.mult != nil then m = m * it.mult end
+  end
+  if (boost_until[p.id] or 0) > time() then m = m * 2 end
+  return m
+end
+
+func drop_box()
+  let spot = block("Box Spot " + random(1, 16))
+  if spot == nil then return end
+  let b = create_block({name: "Mystery Box", position: spot.position + {x: 0, y: 0.4, z: 0}, size: {x: 1.6, y: 1.6, z: 1.6}, color: random(["#A855F7", "#22D3EE", "#FACC15"]),
+                        material: "neon", behavior: "trigger", solid: false, tags: ["mbox"]})
+  append(boxes, {b: b, until: time() + BOX_STAY})
+  announce("📦 なぞの箱が どこかに落ちてきた！", 2)
+  particles("sparkles", b, {amount: 30})
+end
+
+func open_box(p, b)
+  let it = find(boxes, func(x) return x.b == b end)
+  if it == nil then return end
+  remove(boxes, index_of(boxes, it))
+  kit_gone(b)
+  p.boxes = (p.boxes or 0) + 1
+  kit_quest_progress(p, "box", 1)
+  if chance(35) then
+    boost_until[p.id] = time() + 60
+    p.message("📦 なぞの箱: ⚡ 60秒 もうけ ×2！", 2.5)
+  else
+    let pay = max(100, floor(ty_income(p) * 40))
+    kit_give(p, pay)
+    p.message("📦 なぞの箱: 💰" + kit_short(pay), 2)
+  end
+  p.sound("win")
+  particles("confetti", p, {amount: 40})
+end
+
+on tick(dt)
+  box_clock = box_clock + dt
+  if box_clock >= BOX_EVERY then
+    box_clock = 0
+    if len(boxes) < 3 then drop_box() end
+  end
+  if box_clock % 2 < dt then
+    let now = time()
+    let keep = []
+    for x in boxes do
+      if now > x.until then kit_gone(x.b) else append(keep, x) end
+    end
+    boxes = keep
+    for p in players() do
+      if p.ty_plot != nil and kit_ready(p, "fhud", 1) then
+        let warn = ""
+        if not ty_owns(p, "furnace") then warn = "   🔥 かまどがないと 売れない！" end
+        let boost = ""
+        if (boost_until[p.id] or 0) > now then boost = "   ⚡×2 あと" + ceil(boost_until[p.id] - now) + "秒" end
+        p.ui_text("of_hud", "✖ 倍率 ×" + fixed(ty_income_mult(p), 1) + boost + warn, {at: "top", dy: 86, size: 14, color: "#FDE68A"})
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "mbox") then open_box(p, b) end
+end

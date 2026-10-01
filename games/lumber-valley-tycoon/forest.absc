@@ -1,0 +1,190 @@
+-- forest.absc — 森で木をきる（🪓 タップ）→ 丸太がトラックへ → 土地の茶色のパッドで おろす（製材）か、道の木材屋に売る
+
+let trees = []       -- {b, top, kind, hp, max, gone_at}
+let fr_clock = 0
+
+func tag_text(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return replace(t, key + "=", "") end
+  end
+  return nil
+end
+
+func axe(p)
+  return find(AXES, func(a) return a.id == p.axe end) or AXES[1]
+end
+
+func truck(p)
+  return find(TRUCKS, func(t) return t.id == p.truck end) or TRUCKS[1]
+end
+
+func ride_truck(p)
+  let t = truck(p)
+  if t.ride == "none" then
+    p.ride = "none"
+    p.speed = 1
+  else
+    p.ride = t.ride
+    p.ride_color = p.paint or "#B45309"
+    p.speed = 1.7
+  end
+end
+
+on start()
+  for b in blocks("ltree") do
+    let kind = tag_text(b, "kind") or "oak"
+    let t = TREES[kind]
+    append(trees, {b: b, top: block(b.name + " Top"), kind: kind, hp: t.hp, max: t.hp, gone_at: 0})
+  end
+end
+
+func nearest_tree(p)
+  let best = nil
+  let best_d = 4.5
+  for t in trees do
+    if t.b.visible then
+      let d = distance({x: p.x, y: 0, z: p.z}, {x: t.b.x, y: 0, z: t.b.z})
+      if d < best_d then
+        best_d = d
+        best = t
+      end
+    end
+  end
+  return best
+end
+
+func chop(p)
+  if not kit_ready(p, "chop", 0.3) then return end
+  let t = nearest_tree(p)
+  if t == nil then
+    if kit_ready(p, "notree", 3) then p.message("🪓 木のそばで タップ！（土地のうしろの森）", 1.2) end
+    return
+  end
+  let info = TREES[t.kind]
+  let a = axe(p)
+  if a.power < info.need then
+    if kit_ready(p, "needaxe", 3) then p.message(info.name + " は もっと強いオノ（力 " + info.need + "）がいる", 1.5) end
+    return
+  end
+  if (p.logs or 0) >= truck(p).size then
+    if kit_ready(p, "full", 3) then p.message("🛻 いっぱい！ 自分の土地の茶色のパッドで おろそう", 1.5) end
+    return
+  end
+  t.hp = t.hp - a.power
+  p.sound("hit")
+  particles("leaves", t.b, {amount: 4})
+  if t.hp > 0 then
+    p.ui_text("lv_tree", info.name + " " + max(0, ceil(t.hp)) + "/" + t.max, {at: "top", dy: 88, size: 15, color: "#BBF7D0"})
+    return
+  end
+  t.b.visible = false
+  t.b.solid = false
+  if t.top != nil then t.top.visible = false end
+  t.gone_at = time()
+  p.ui_remove("lv_tree")
+  let room = truck(p).size - (p.logs or 0)
+  let got = min(room, info.value * 3)
+  p.logs = (p.logs or 0) + got
+  p.trees_cut = (p.trees_cut or 0) + 1
+  p.message("🪵 " + info.name + " をきった！ 丸太 +" + got, 1)
+  p.sound("coin")
+  kit_quest_progress(p, "chop", 1)
+  if t.kind == "crystal" then kit_badge(p, "crystal_tree", "クリスタルの木") end
+end
+
+func deposit(p, k)
+  if p.ty_plot != k then return end
+  let n = p.logs or 0
+  if n <= 0 then return end
+  p.logs = 0
+  p.stock = (p.stock or 0) + n
+  p.message("🪵 丸太を " + n + " おろした（製材まち " + floor(p.stock) + "）", 1.5)
+  p.sound("pop")
+  kit_quest_progress(p, "deposit", 1)
+  if mill_rate(p) <= 0 then p.message("🪚 のこぎりを建てると 丸太が板になって お金に！", 2) end
+end
+
+func sell_raw(p)
+  let n = p.logs or 0
+  if n <= 0 then return end
+  p.logs = 0
+  kit_give(p, n)
+  p.message("🪵 丸太をそのまま売った 💰" + n + "（製材すると もっと高い！）", 2)
+  p.sound("coin")
+end
+
+func shop_menu(p, list, title, idkey, ownkey, prefix)
+  let h = 130 + len(list) * 44
+  p.ui_remove("lv_box")
+  p.ui_panel("lv_box", {at: "center", w: 600, h: h, bg: "#14532DF2", radius: 22, layer: 40})
+  p.ui_text("lv_t", title + "（💰 " + kit_short(kit_money(p)) + "）", {parent: "lv_box", y: 26 / h, size: 19, bold: true, color: "#BBF7D0"})
+  let i = 0
+  for x in list do
+    i = i + 1
+    let stat = ""
+    if x.power != nil then stat = "力 " + x.power else stat = "丸太 " + x.size end
+    let label = x.name + "  " + stat + "  💰" + kit_short(x.price)
+    let bg = "#15803D"
+    let owned = p[ownkey] or []
+    if contains(owned, x.id) then
+      label = x.name + " を使う  " + stat
+      bg = "#0F766E"
+    end
+    if p[idkey] == x.id then
+      label = "✅ " + x.name + "  " + stat
+      bg = "#374151"
+    end
+    p.ui_button(prefix + x.id, label, {parent: "lv_box", y: (30 + i * 44) / h, w: 560, h: 38, size: 15, bg: bg})
+  end
+  p.ui_button("lv_close", "閉じる", {parent: "lv_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func pick(p, list, id, idkey, ownkey)
+  let x = find(list, func(y) return y.id == id end)
+  if x == nil then return end
+  if p[ownkey] == nil then p[ownkey] = [list[1].id] end
+  if not contains(p[ownkey], id) then
+    if not kit_pay(p, x.price) then return end
+    append(p[ownkey], id)
+    p.sound("powerup")
+    kit_quest_progress(p, "gear", 1)
+  end
+  p[idkey] = id
+end
+
+on tick(dt)
+  fr_clock = fr_clock + dt
+  if fr_clock < 2 then return end
+  fr_clock = 0
+  let now = time()
+  for t in trees do
+    if not t.b.visible and now - t.gone_at > TREE_BACK then
+      t.hp = t.max
+      t.b.visible = true
+      t.b.solid = true
+      if t.top != nil then t.top.visible = true end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "deposit") and kit_ready(p, "deposit", 1) then deposit(p, num(tag_text(b, "k")))
+  elif contains(b.tags, "woodsell") and kit_ready(p, "woodsell", 2) then sell_raw(p)
+  elif contains(b.tags, "axes") and kit_ready(p, "axes", 3) then shop_menu(p, AXES, "🪓 オノ屋", "axe", "axes", "axe_")
+  elif contains(b.tags, "trucks") and kit_ready(p, "trucks", 3) then shop_menu(p, TRUCKS, "🛻 トラック屋", "truck", "trucks", "truck_")
+  end
+end
+
+on button(p, id)
+  if id == "chop" then chop(p)
+  elif id == "lv_close" then p.ui_remove("lv_box")
+  elif starts_with(id, "axe_") then
+    pick(p, AXES, replace(id, "axe_", ""), "axe", "axes")
+    shop_menu(p, AXES, "🪓 オノ屋", "axe", "axes", "axe_")
+  elif starts_with(id, "truck_") then
+    pick(p, TRUCKS, replace(id, "truck_", ""), "truck", "trucks")
+    ride_truck(p)
+    shop_menu(p, TRUCKS, "🛻 トラック屋", "truck", "trucks", "truck_")
+  end
+end

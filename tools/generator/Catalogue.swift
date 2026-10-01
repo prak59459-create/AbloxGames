@@ -38,7 +38,7 @@ enum Catalogue {
 
     static var games: [Game] {
         (topGames + actionGames + lifeGames + horrorGames + idleGames + miniGames
-            + obbyGames + vehicleGames + simGames).sorted { $0.number < $1.number }
+            + obbyGames + vehicleGames + simGames + tycoonGames).sorted { $0.number < $1.number }
     }
 
     /// What each shared engine needs loaded before it.

@@ -1,0 +1,50 @@
+-- Ore Factory Haven — 鉱石工場の天国
+-- オレンジのパッドで マイン・コンベア・アップグレーダー・かまどを建てる。マインの鉱石は かまどで お金に、
+-- アップグレーダーは ねうちを かけざん。お金は 緑のパッドで受けとる。なぞの箱もさがそう。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  工場の土地・建てる・お金・生まれかわり
+--   data.absc     建てるもの（マイン・アップグレーダー・かまど）
+--   factory.absc  倍率・なぞの箱
+--   main.absc     このファイル
+
+kit_setup("Ore Factory Haven", "マイン → アップグレーダー → かまどで お金持ち！", [
+  "🟧 オレンジのパッドで 建てていく（じゅんばんに あらわれる）",
+  "⛏ マインが鉱石を出し、🔥 かまどで お金になる（かまどが いちばん大事！）",
+  "🟥🟦🟣 アップグレーダーは もうけを ×1.5・×2・×2.5 …と かけざん",
+  "💚 緑のパッドで たまったお金を受けとる",
+  "📦 ときどき落ちてくる なぞの箱: お金か ×2ブースト",
+  "🌟 ぜんぶ建てたら 生まれかわりで ずっと ×アップ"
+])
+kit_keep(["boxes"])
+
+kit_quest("ty_buy", "4つ建てる", 4, 100)
+kit_quest("box", "なぞの箱をあける", 1, 150)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 60 then p.coins = 60 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 10
+  p.ui_button("ty_home", "🏭 自分の工場", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "boss"
+  every(12, func() kit_leaderboard("💰 もうけ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.ty_total or 0)
+    if s != p.score then p.score = s end
+  end
+end

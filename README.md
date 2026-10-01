@@ -188,6 +188,14 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/ghost-vacuum-sim/cover-3fba1176.png" width="200"> | 124 | **Ghost Vacuum Sim** | そうじきで おばけをすいこもう！ ふわふわ動くおばけに近づいて🌀。つかまえたおばけのエクトプラズムを売って、強いそうじきへ。公園・おばけやしき・おはか・お城、そして大おばけ！ |
 | <img src="games/dice-heroes/cover-b1dd2b92.png" width="200"> | 125 | **Dice Heroes** | 🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！ |
 
+### 🏗️ タイクーン
+
+| | # | ゲーム | 内容 |
+|---|---|---|---|
+| <img src="games/lumber-valley-tycoon/cover-6b93eac5.png" width="200"> | 126 | **Lumber Valley Tycoon** | 森で木をきって、トラックで自分の土地へ。製材所で板にすると お金になる。のこぎり・かま・家具工房をふやして、丸太小屋も建てよう。金の木やクリスタルの木もあるよ！ |
+| <img src="games/corner-store-tycoon/cover-0a6e69eb.png" width="200"> | 127 | **Corner Store Tycoon** | 自分のお店をひらこう！ たなを買って品物をならべると お客さんがやってくる。レジでお会計、へった品物は 倉庫から補充。店員をやとって、お菓子屋さんから ゲームや宝石のお店へ！ |
+| <img src="games/ore-factory-haven/cover-f4677c17.png" width="200"> | 128 | **Ore Factory Haven** | 鉱石の工場をつくろう！ マインから出た鉱石が ベルトコンベアで流れて、アップグレーダーで ねうちアップ、かまどで お金に。ときどき落ちてくる なぞの箱もさがそう。最強の工場へ！ |
+
 <!-- games:end -->
 
 ## しくみ

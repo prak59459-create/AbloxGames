@@ -1,0 +1,61 @@
+-- Lumber Valley Tycoon — 木こりの谷のタイクーン
+-- 土地のうしろの森で 🪓 をタップして木をきる → 丸太がトラックへ。自分の土地の茶色のパッドで おろすと、
+-- のこぎりが板にしてお金に（緑のパッドで受けとる）。オレンジのパッドで のこぎり・かま・小屋を建てていく。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  土地・建てる・お金を受けとる・生まれかわり
+--   data.absc    建てるもの・オノ・トラック・木
+--   forest.absc  木をきる・丸太をおろす・売る・オノ屋・トラック屋
+--   mill.absc    製材（丸太 → お金）
+--   main.absc    このファイル
+
+kit_setup("Lumber Valley Tycoon", "きって、はこんで、板にして、お金持ち！", [
+  "🪓 森の木のそばで 🪓 をタップ → 丸太がトラックにたまる",
+  "🟫 自分の土地の茶色のパッドで 丸太をおろす → のこぎりが板にして お金に",
+  "💚 緑のパッド（コレクター）で たまったお金を受けとる",
+  "🟧 オレンジのパッドで のこぎり・かま・家具工房・小屋を建てる",
+  "🪓 オノ屋・🛻 トラック屋（道ぞい）で 強いオノと大きなトラック",
+  "✨ 金の木・💎 クリスタルの木は 強いオノで"
+])
+kit_keep(["axe", "axes", "truck", "trucks", "logs", "stock", "planks", "trees_cut", "paint"])
+
+kit_quest("chop", "木を5本きる", 5, 60)
+kit_quest("deposit", "丸太をおろす", 1, 50)
+kit_quest("ty_buy", "建物を3つ建てる", 3, 150)
+kit_quest("gear", "オノかトラックを買う", 1, 100)
+kit_quest("ty_rebirth", "生まれかわる", 1, 2000)
+
+kit_on_load = func(p) ride_truck(p) end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 10
+  p.axe = "a1"
+  p.axes = ["a1"]
+  p.truck = "t1"
+  p.trucks = ["t1"]
+  p.logs = 0
+  p.stock = 0
+  p.ui_button("chop", "🪓 きる", {at: "bottom_right", dx: -30, dy: -200, w: 120, h: 96, size: 20, bg: "#B45309", radius: 26})
+  p.ui_button("ty_home", "🏠 自分の土地", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("🪵 板") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.planks or 0)
+    if s != p.score then p.score = s end
+  end
+end

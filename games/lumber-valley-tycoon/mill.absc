@@ -1,0 +1,40 @@
+-- mill.absc — 製材: 土地におろした丸太を、のこぎりが 1秒に rate 本ずつ 板にして お金に（かま・家具工房で ねだんアップ）
+
+func mill_rate(p)
+  let r = 0
+  for id in keys(MILLS) do
+    if ty_owns(p, id) then r = r + MILLS[id] end
+  end
+  return r
+end
+
+func mill_value(p)
+  let v = MILL_VALUE
+  if ty_owns(p, "kiln") then v = v * 2 end
+  if ty_owns(p, "shop") then v = v * 3 end
+  return v * (1 + (p.ty_rebirths or 0) * ty_rebirth_bonus)
+end
+
+ty_extra_income = func(p)
+  let stock = p.stock or 0
+  let n = min(stock, mill_rate(p))
+  if n <= 0 then return 0 end
+  p.stock = stock - n
+  p.planks = (p.planks or 0) + n
+  return n * mill_value(p)
+end
+
+func lumber_hud(p)
+  p.ui_text("lv_hud", "🛻 丸太 " + floor(p.logs or 0) + "/" + truck(p).size + "   🪵 製材まち " + floor(p.stock or 0) + "   🪚 " + mill_rate(p) + "本/秒 ×" +
+            fixed(mill_value(p), 1), {at: "top", dy: 86, size: 14, color: "#FDE68A"})
+end
+
+let ml_clock = 0
+on tick(dt)
+  ml_clock = ml_clock + dt
+  if ml_clock < 1 then return end
+  ml_clock = 0
+  for p in players() do
+    if not p.is_npc then lumber_hud(p) end
+  end
+end

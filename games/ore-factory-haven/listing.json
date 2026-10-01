@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 386,
+  "bytes" : 219754,
+  "cover" : "games\/ore-factory-haven\/cover-f4677c17.png",
+  "id" : "ore-factory-haven",
+  "maxPlayers" : 6,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_tycoon.absc",
+    "games\/ore-factory-haven\/data.absc",
+    "games\/ore-factory-haven\/factory.absc",
+    "games\/ore-factory-haven\/zz_test.absc",
+    "games\/ore-factory-haven\/main.absc"
+  ],
+  "shots" : [
+    "games\/ore-factory-haven\/shot1-1fef91ff.png",
+    "games\/ore-factory-haven\/shot2-b2ce583b.png"
+  ],
+  "summary" : "鉱石の工場をつくろう！ マインから出た鉱石が ベルトコンベアで流れて、アップグレーダーで ねうちアップ、かまどで お金に。ときどき落ちてくる なぞの箱もさがそう。最強の工場へ！",
+  "tags" : [
+    "tycoon",
+    "factory",
+    "idle"
+  ],
+  "title" : "Ore Factory Haven",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/ore-factory-haven\/world.ablox"
+}

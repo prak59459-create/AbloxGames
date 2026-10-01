@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 568,
+  "bytes" : 316760,
+  "cover" : "games\/lumber-valley-tycoon\/cover-6b93eac5.png",
+  "id" : "lumber-valley-tycoon",
+  "maxPlayers" : 6,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_tycoon.absc",
+    "games\/lumber-valley-tycoon\/data.absc",
+    "games\/lumber-valley-tycoon\/forest.absc",
+    "games\/lumber-valley-tycoon\/mill.absc",
+    "games\/lumber-valley-tycoon\/main.absc"
+  ],
+  "shots" : [
+    "games\/lumber-valley-tycoon\/shot1-2535bc05.png",
+    "games\/lumber-valley-tycoon\/shot2-1dec5bd3.png"
+  ],
+  "summary" : "森で木をきって、トラックで自分の土地へ。製材所で板にすると お金になる。のこぎり・かま・家具工房をふやして、丸太小屋も建てよう。金の木やクリスタルの木もあるよ！",
+  "tags" : [
+    "tycoon",
+    "building",
+    "forest"
+  ],
+  "title" : "Lumber Valley Tycoon",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/lumber-valley-tycoon\/world.ablox"
+}

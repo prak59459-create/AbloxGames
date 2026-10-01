@@ -1,0 +1,35 @@
+-- data.absc — Corner Store Tycoon の表
+
+ty_setup({plots: 6, word: "お店", rebirth: 0.5})
+
+ty_items = [
+  {id: "floor", name: "🟫 お店のゆか", price: 40, income: 0},
+  {id: "register", name: "🧾 レジ", price: 100, income: 0, after: "floor"},
+  {id: "snack", name: "🍿 おかしのたな", price: 150, income: 0, after: "register"},
+  {id: "walls", name: "🏪 かべとガラス", price: 300, income: 0, after: "snack"},
+  {id: "drink", name: "🥤 のみもののたな", price: 500, income: 0, after: "walls"},
+  {id: "lights", name: "💡 天井のライト", price: 900, income: 0, after: "drink"},
+  {id: "fruit", name: "🍎 くだもののたな", price: 1500, income: 0, after: "lights"},
+  {id: "cashier", name: "🧑‍💼 レジの店員", price: 3000, income: 0, after: "fruit"},
+  {id: "toy", name: "🧸 おもちゃのたな", price: 5000, income: 0, after: "cashier"},
+  {id: "sign", name: "🪧 光るかんばん", price: 9000, income: 0, after: "toy"},
+  {id: "clerk", name: "📦 品出しの店員", price: 15000, income: 0, after: "sign"},
+  {id: "tech", name: "🎮 ゲームのたな", price: 30000, income: 0, after: "clerk"},
+  {id: "aircon", name: "❄️ エアコン", price: 50000, income: 0, after: "tech"},
+  {id: "gold", name: "💎 宝石のたな", price: 100000, income: 0, after: "aircon"}
+]
+
+-- たな: price は 1こ売れたときのお金、cost は 補充1このねだん
+let SHELVES = {
+  snack: {name: "🍿 おかし", price: 6, cost: 2},
+  drink: {name: "🥤 のみもの", price: 10, cost: 3},
+  fruit: {name: "🍎 くだもの", price: 16, cost: 5},
+  toy: {name: "🧸 おもちゃ", price: 35, cost: 12},
+  tech: {name: "🎮 ゲーム", price: 90, cost: 30},
+  gold: {name: "💎 宝石", price: 260, cost: 90}
+}
+let SHELF_IDS = ["snack", "drink", "fruit", "toy", "tech", "gold"]
+let STOCK_MAX = 10
+-- 人気（お客さんの来やすさ）: たな1つで1、かざりで もっと
+let POP = {walls: 1, lights: 1, sign: 2, aircon: 2}
+let WAIT_AT_REGISTER = 12

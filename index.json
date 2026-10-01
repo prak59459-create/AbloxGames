@@ -3918,6 +3918,95 @@
       "title" : "Dice Heroes",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/dice-heroes\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 568,
+      "bytes" : 316760,
+      "cover" : "games\/lumber-valley-tycoon\/cover-6b93eac5.png",
+      "id" : "lumber-valley-tycoon",
+      "maxPlayers" : 6,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_tycoon.absc",
+        "games\/lumber-valley-tycoon\/data.absc",
+        "games\/lumber-valley-tycoon\/forest.absc",
+        "games\/lumber-valley-tycoon\/mill.absc",
+        "games\/lumber-valley-tycoon\/main.absc"
+      ],
+      "shots" : [
+        "games\/lumber-valley-tycoon\/shot1-2535bc05.png",
+        "games\/lumber-valley-tycoon\/shot2-1dec5bd3.png"
+      ],
+      "summary" : "森で木をきって、トラックで自分の土地へ。製材所で板にすると お金になる。のこぎり・かま・家具工房をふやして、丸太小屋も建てよう。金の木やクリスタルの木もあるよ！",
+      "tags" : [
+        "tycoon",
+        "building",
+        "forest"
+      ],
+      "title" : "Lumber Valley Tycoon",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/lumber-valley-tycoon\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 635,
+      "bytes" : 343730,
+      "cover" : "games\/corner-store-tycoon\/cover-0a6e69eb.png",
+      "id" : "corner-store-tycoon",
+      "maxPlayers" : 6,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_tycoon.absc",
+        "games\/corner-store-tycoon\/data.absc",
+        "games\/corner-store-tycoon\/store.absc",
+        "games\/corner-store-tycoon\/main.absc"
+      ],
+      "shots" : [
+        "games\/corner-store-tycoon\/shot1-5d4383dc.png",
+        "games\/corner-store-tycoon\/shot2-7db69d90.png"
+      ],
+      "summary" : "自分のお店をひらこう！ たなを買って品物をならべると お客さんがやってくる。レジでお会計、へった品物は 倉庫から補充。店員をやとって、お菓子屋さんから ゲームや宝石のお店へ！",
+      "tags" : [
+        "tycoon",
+        "shop",
+        "roleplay"
+      ],
+      "title" : "Corner Store Tycoon",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/corner-store-tycoon\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 386,
+      "bytes" : 219754,
+      "cover" : "games\/ore-factory-haven\/cover-f4677c17.png",
+      "id" : "ore-factory-haven",
+      "maxPlayers" : 6,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_tycoon.absc",
+        "games\/ore-factory-haven\/data.absc",
+        "games\/ore-factory-haven\/factory.absc",
+        "games\/ore-factory-haven\/zz_test.absc",
+        "games\/ore-factory-haven\/main.absc"
+      ],
+      "shots" : [
+        "games\/ore-factory-haven\/shot1-1fef91ff.png",
+        "games\/ore-factory-haven\/shot2-b2ce583b.png"
+      ],
+      "summary" : "鉱石の工場をつくろう！ マインから出た鉱石が ベルトコンベアで流れて、アップグレーダーで ねうちアップ、かまどで お金に。ときどき落ちてくる なぞの箱もさがそう。最強の工場へ！",
+      "tags" : [
+        "tycoon",
+        "factory",
+        "idle"
+      ],
+      "title" : "Ore Factory Haven",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/ore-factory-haven\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

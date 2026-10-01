@@ -1,0 +1,51 @@
+-- Corner Store Tycoon — 町かどのお店
+-- 自分のお店に たなを買って品物をならべると、お客さんが来て 品物をとってレジへ。
+-- レジの黄色いパッドに立つと お会計（レジの店員をやとうと 自動）。売り上げは 緑のパッドで受けとる。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  お店の土地・建てる・お金を受けとる・生まれかわり
+--   data.absc    建てるもの・たな・人気
+--   store.absc   お客さん・レジ・補充・品出しの店員
+--   main.absc    このファイル
+
+kit_setup("Corner Store Tycoon", "おかし屋さんから 宝石のお店へ！", [
+  "🟩 緑のパッドで たな・レジ・かざりを 買っていく",
+  "🧑 お客さんが品物をとって レジへ。🧾 レジのうしろの黄色いパッドに立つと お会計",
+  "💚 店の前の緑のパッドで 売り上げを受けとる",
+  "📦 品物がへったら 茶色のパッドで補充（品出しの店員がいると 自動）",
+  "⭐ たな・ライト・かんばん・エアコンで 人気アップ → お客さんがふえる",
+  "🌟 ぜんぶ買ったら 生まれかわりで もうけ ×アップ"
+])
+kit_keep(["stock_map", "sold"])
+
+kit_quest("ty_buy", "3つ買う", 3, 80)
+kit_quest("sell", "10こ売る", 10, 150)
+kit_quest("restock", "補充する", 1, 50)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 60 then p.coins = 60 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 10
+  p.stock_map = {}
+  p.ui_button("ty_home", "🏪 自分のお店", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "shop"
+  every(12, func() kit_leaderboard("🛍 売れた数") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.sold or 0) != p.score then p.score = p.sold or 0 end
+  end
+end

@@ -1,0 +1,215 @@
+-- store.absc — お客さん: 入ってきて たなの品物をとり、レジへ。レジに店員がいるか、きみが黄色いパッドにいると お会計。
+-- 品物がへったら 茶色のパッドで補充（品出しの店員がいると 自動）。
+
+let custs = []
+let st_clock = 0
+let spawn_clock = {}
+
+func owner_of_plot(k)
+  let id = ty_owners[str(k)]
+  if id == nil then return nil end
+  return find(players(), func(q) return q.id == id end)
+end
+
+func popularity(p)
+  let pop = 0
+  for id in SHELF_IDS do
+    if ty_owns(p, id) then pop = pop + 1 end
+  end
+  for id in keys(POP) do
+    if ty_owns(p, id) then pop = pop + POP[id] end
+  end
+  return pop
+end
+
+func stocked(p)
+  return filter(SHELF_IDS, func(id) return ty_owns(p, id) and ((p.stock_map or {})[id] or 0) > 0 end)
+end
+
+let spot_cache = {}
+
+func plot_spot(k, tag, item)
+  let key = k + "|" + tag + "|" + (item or "")
+  if spot_cache[key] != nil then return spot_cache[key] end
+  let found = find_spot(k, tag, item)
+  if found != nil then spot_cache[key] = found end
+  return found
+end
+
+func find_spot(k, tag, item)
+  for b in blocks(tag) do
+    if abs(b.x - block("Claim " + k).x) < 20 then
+      if item == nil then return b end
+      for t in b.tags do
+        if t == "item=" + item then return b end
+      end
+    end
+  end
+  return nil
+end
+
+func spawn_customer(p)
+  let k = p.ty_plot
+  let list = stocked(p)
+  if len(list) == 0 or not ty_owns(p, "register") then return end
+  let mine = filter(custs, func(c) return c.k == k end)
+  if len(mine) >= 3 + floor(popularity(p) / 3) then return end
+  let ent = block("Entrance " + k)
+  let shelf = random(list)
+  let spot = plot_spot(k, "shelfspot", shelf)
+  if ent == nil or spot == nil then return end
+  let n = create_npc({name: "お客さん", position: ent.position + {x: random_float(-2, 2), y: 0.5, z: 0}, color: random_color(),
+                      head_color: random(["#FDE68A", "#FCD34D", "#D6A77A", "#8D5524"]), speed: 0.9, health: 100000,
+                      hat: random(["none", "cap", "beanie", "bow", "flower_crown"])})
+  n.move_to(spot)
+  append(custs, {n: n, k: k, shelf: shelf, state: "walk", until: time() + 14})
+end
+
+func leave_store(c, text)
+  c.state = "leave"
+  c.until = time() + 8
+  if kit_here(c.n) then
+    if text != nil then c.n.say(text) end
+    let ent = block("Entrance " + c.k)
+    if ent != nil then c.n.move_to(ent.position + {x: 0, y: 0, z: -8}) end
+  end
+end
+
+func cust_step()
+  let now = time()
+  let keep = []
+  for c in custs do
+    let p = owner_of_plot(c.k)
+    if not kit_here(c.n) then
+      -- いなくなった
+    elif c.state == "leave" then
+      if now > c.until then kit_gone(c.n) else append(keep, c) end
+    elif p == nil then
+      kit_gone(c.n)
+    else
+      if c.state == "walk" then
+        let spot = plot_spot(c.k, "shelfspot", c.shelf)
+        if spot != nil and distance(c.n, spot) < 1.6 then
+          c.state = "browse"
+          c.until = now + 2.5
+        elif now > c.until then
+          leave_store(c, "お店が見つからない…")
+        end
+      elif c.state == "browse" and now > c.until then
+        let have = (p.stock_map or {})[c.shelf] or 0
+        if have <= 0 then
+          leave_store(c, SHELVES[c.shelf].name + " 売り切れ…")
+        else
+          p.stock_map[c.shelf] = have - 1
+          c.state = "to_reg"
+          c.until = now + 12
+          let reg = plot_spot(c.k, "regspot", nil)
+          if reg != nil then c.n.move_to(reg) end
+        end
+      elif c.state == "to_reg" then
+        let reg = plot_spot(c.k, "regspot", nil)
+        if reg != nil and distance(c.n, reg) < 1.8 then
+          c.state = "wait"
+          c.until = now + WAIT_AT_REGISTER
+          c.n.say("おねがいします！")
+        elif now > c.until then
+          c.state = "wait"
+          c.until = now + WAIT_AT_REGISTER
+        end
+      elif c.state == "wait" then
+        let pad = plot_spot(c.k, "register", nil)
+        let served = ty_owns(p, "cashier") or (pad != nil and distance(p, pad) < 2.5)
+        if served then
+          let sh = SHELVES[c.shelf]
+          let pay = floor(sh.price * (1 + (p.ty_rebirths or 0) * ty_rebirth_bonus))
+          ty_banks[str(c.k)] = (ty_banks[str(c.k)] or 0) + pay
+          p.sold = (p.sold or 0) + 1
+          kit_quest_progress(p, "sell", 1)
+          if not ty_owns(p, "cashier") then p.sound("coin") end
+          leave_store(c, random(["ありがとう！", "また来ます！", "いいお店！"]))
+        elif now > c.until then
+          leave_store(c, "レジにだれもいない…")
+        end
+      end
+      if c.state != "leave" or now <= c.until then append(keep, c) end
+    end
+  end
+  custs = keep
+end
+
+func restock(p, k)
+  if p.ty_plot != k then return end
+  if p.stock_map == nil then p.stock_map = {} end
+  let cost = 0
+  for id in SHELF_IDS do
+    if ty_owns(p, id) then cost = cost + (STOCK_MAX - (p.stock_map[id] or 0)) * SHELVES[id].cost end
+  end
+  if cost <= 0 then
+    p.message("📦 どのたなも いっぱい！", 1)
+    return
+  end
+  if not kit_pay(p, cost) then return end
+  for id in SHELF_IDS do
+    if ty_owns(p, id) then p.stock_map[id] = STOCK_MAX end
+  end
+  p.message("📦 補充した！（💰" + cost + "）", 1.2)
+  p.sound("pop")
+  kit_quest_progress(p, "restock", 1)
+end
+
+-- 品出しの店員: 2秒に1こずつ（お店のお金から）
+func clerk_step(p)
+  if not ty_owns(p, "clerk") or p.ty_plot == nil then return end
+  if p.stock_map == nil then p.stock_map = {} end
+  let key = str(p.ty_plot)
+  for id in SHELF_IDS do
+    if ty_owns(p, id) and (p.stock_map[id] or 0) < STOCK_MAX and (ty_banks[key] or 0) >= SHELVES[id].cost then
+      p.stock_map[id] = (p.stock_map[id] or 0) + 1
+      ty_banks[key] = ty_banks[key] - SHELVES[id].cost
+    end
+  end
+end
+
+-- 買ったたなは いっぱいで スタート
+ty_on_buy = func(p, it)
+  if SHELVES[it.id] != nil then
+    if p.stock_map == nil then p.stock_map = {} end
+    p.stock_map[it.id] = STOCK_MAX
+  end
+end
+
+func store_hud(p)
+  if p.ty_plot == nil then return end
+  let parts = []
+  for id in SHELF_IDS do
+    if ty_owns(p, id) then append(parts, split(SHELVES[id].name, " ")[1] + " " + ((p.stock_map or {})[id] or 0)) end
+  end
+  let line = "⭐ 人気 " + popularity(p)
+  if len(parts) > 0 then line = line + "   " + join(parts, "  ") end
+  p.ui_text("cs_hud", line, {at: "top", dy: 86, size: 14, color: "#FDE68A"})
+end
+
+on tick(dt)
+  st_clock = st_clock + dt
+  if st_clock < 0.5 then return end
+  st_clock = 0
+  cust_step()
+  let now = time()
+  for p in players() do
+    if p.ty_plot != nil then
+      let key = str(p.ty_plot)
+      let every_secs = max(2.5, 10 - popularity(p) * 0.6)
+      if now > (spawn_clock[key] or 0) then
+        spawn_clock[key] = now + every_secs
+        spawn_customer(p)
+      end
+      if kit_ready(p, "clerk", 2) then clerk_step(p) end
+      if kit_ready(p, "cshud", 1) then store_hud(p) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "restock") and kit_ready(p, "restock", 2) then restock(p, num(ty_tag(b, "k"))) end
+end

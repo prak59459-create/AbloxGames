@@ -1,0 +1,324 @@
+-- kit_tycoon.absc — タイクーン（自分の土地に お店や工場を建てていく）の共通エンジン（Ablox Games）
+--
+-- 地図に置くもの（k は土地の番号 1〜）:
+--   「Claim k」パッド（タグ ty_claim, k=）… さわると その土地が自分のものに
+--   「Collector k」パッド（タグ ty_collect, k=）… さわると たまったお金を受けとる
+--   グループ「ty<k>_<id>」… 買うとあらわれる建物
+--   グループ「tyb<k>_<id>」… その建物を買うパッド（タグ ty_buy, k=, item=）。買えるようになると あらわれる
+--   ドロッパーの建物の中の「ty_drop」タグのブロック … そこから 品物が出て コレクターへ流れる（見た目だけ）
+--
+--   ty_items = [{id: "wall", name: "🧱 かべ", price: 50, income: 0, after: nil}, {id: "d1", name: "🏭 ドロッパー", price: 100, income: 2, after: "wall"}, …]
+--   ty_setup({plots: 6, word: "お店", rebirth: true})
+--   ty_on_buy = func(p, item) … end          -- 買ったとき
+--   ty_income_mult = func(p) return 1 end     -- 1秒のもうけの倍率（ゲームのボーナス）
+--   ty_extra_income = func(p) return 0 end    -- ほかの もうけ（材料の加工など。1秒に1回よばれる）
+
+let ty_items = []
+let ty_plots = 6
+let ty_word = "土地"
+let ty_rebirth_bonus = 0.5
+let ty_on_buy = nil
+let ty_income_mult = nil
+let ty_on_claim = nil
+let ty_extra_income = nil   -- func(p) 1秒ごとに よばれる。返した分も もうけになる（材料を加工するゲームなど）
+let ty_owners = {}       -- "k" → player id
+let ty_banks = {}        -- "k" → たまったお金
+let ty_clock = 0
+let ty_drop_clock = 0
+let ty_drops = []        -- {b, until}
+let ty_drop_turn = {}    -- "k" → つぎのドロッパー
+
+kit_keep(["ty_owned", "ty_rebirths", "ty_total"])
+
+func ty_setup(o)
+  if o.plots != nil then ty_plots = o.plots end
+  if o.word != nil then ty_word = o.word end
+  if o.rebirth != nil then ty_rebirth_bonus = o.rebirth end
+end
+
+func ty_tag(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return replace(t, key + "=", "") end
+  end
+  return nil
+end
+
+func ty_item(id)
+  return find(ty_items, func(x) return x.id == id end)
+end
+
+func ty_owns(p, id)
+  return contains(p.ty_owned or [], id)
+end
+
+-- 買えるもの: まだ持っていなくて、after を持っているもの
+func ty_can_show(p, it)
+  if ty_owns(p, it.id) then return false end
+  return it.after == nil or ty_owns(p, it.after)
+end
+
+func ty_mult(p)
+  let m = 1 + (p.ty_rebirths or 0) * ty_rebirth_bonus
+  if ty_income_mult != nil then m = m * ty_income_mult(p) end
+  return m
+end
+
+func ty_income(p)
+  let s = 0
+  for id in p.ty_owned or [] do
+    let it = ty_item(id)
+    if it != nil then s = s + (it.income or 0) end
+  end
+  return s * ty_mult(p)
+end
+
+func ty_show(tag, shown)
+  for b in blocks(tag) do
+    if b.visible != shown then
+      b.visible = shown
+      if contains(b.tags, "solid") then b.solid = shown end
+    end
+  end
+end
+
+func ty_draw(p)
+  let k = p.ty_plot
+  if k == nil then return end
+  for it in ty_items do
+    ty_show("ty" + k + "_" + it.id, ty_owns(p, it.id))
+    ty_show("tyb" + k + "_" + it.id, ty_can_show(p, it))
+  end
+end
+
+func ty_clear(k)
+  for it in ty_items do
+    ty_show("ty" + k + "_" + it.id, false)
+    ty_show("tyb" + k + "_" + it.id, false)
+  end
+end
+
+func ty_claim(p, k)
+  if p.ty_plot != nil then
+    if p.ty_plot != k and kit_ready(p, "ty_mine", 3) then p.message("あなたの" + ty_word + "は " + p.ty_plot + "ばん", 1.5) end
+    return
+  end
+  if ty_owners[str(k)] != nil then
+    if kit_ready(p, "ty_taken", 3) then p.message("ここは ほかの人の" + ty_word, 1.2) end
+    return
+  end
+  ty_owners[str(k)] = p.id
+  ty_banks[str(k)] = 0
+  p.ty_plot = k
+  if p.ty_owned == nil then p.ty_owned = [] end
+  ty_draw(p)
+  let c = block("Claim " + k)
+  if c != nil then c.color = p.color or "#FACC15" end
+  p.message("🏗 " + ty_word + " " + k + " があなたのもの！ 光るパッドで 建てていこう", 2.5)
+  p.sound("goal")
+  if ty_on_claim != nil then ty_on_claim(p) end
+end
+
+func ty_free(p)
+  let k = p.ty_plot
+  if k == nil then return end
+  ty_owners[str(k)] = nil
+  ty_banks[str(k)] = 0
+  ty_clear(k)
+  let c = block("Claim " + k)
+  if c != nil then c.color = "#FFFFFF" end
+  p.ty_plot = nil
+end
+
+func ty_buy(p, b)
+  if not b.visible then return end
+  let k = num(ty_tag(b, "k"))
+  if p.ty_plot != k then return end
+  let it = ty_item(ty_tag(b, "item"))
+  if it == nil or ty_owns(p, it.id) or not ty_can_show(p, it) then return end
+  if not kit_pay(p, it.price) then return end
+  append(p.ty_owned, it.id)
+  ty_show("tyb" + k + "_" + it.id, false)
+  -- 下から せり上がる
+  for x in blocks("ty" + k + "_" + it.id) do
+    let target = x.position
+    x.visible = true
+    if contains(x.tags, "solid") then x.solid = true end
+    x.position = target - {x: 0, y: 3, z: 0}
+    x.move_to(target, 0.6)
+  end
+  for nx in ty_items do
+    if nx.after == it.id then ty_show("tyb" + k + "_" + nx.id, true) end
+  end
+  p.sound("powerup")
+  particles("sparkles", p, {amount: 20})
+  kit_quest_progress(p, "ty_buy", 1)
+  if ty_on_buy != nil then ty_on_buy(p, it) end
+  if len(p.ty_owned) == len(ty_items) then
+    announce("🏆 " + p.name + " の" + ty_word + "が かんせい！", 3)
+    kit_badge(p, "ty_done", ty_word + " かんせい")
+  end
+end
+
+func ty_collect(p, k)
+  if p.ty_plot != k then return end
+  let bank = floor(ty_banks[str(k)] or 0)
+  if bank <= 0 then return end
+  ty_banks[str(k)] = 0
+  kit_give(p, bank)
+  p.ty_total = (p.ty_total or 0) + bank
+  p.message("💰 +" + kit_short(bank), 1)
+  p.sound("coin")
+end
+
+-- 生まれかわり: ぜんぶ建てたら、建物を売って ずっと ×アップ
+func ty_rebirth(p)
+  if len(p.ty_owned or []) < len(ty_items) then
+    p.message("🌟 ぜんぶ建てると 生まれかわれる（いま " + len(p.ty_owned or []) + "/" + len(ty_items) + "）", 2)
+    return
+  end
+  p.ty_rebirths = (p.ty_rebirths or 0) + 1
+  p.ty_owned = []
+  p.coins = 0
+  kit_show_money(p)
+  if p.ty_plot != nil then ty_banks[str(p.ty_plot)] = 0 end
+  ty_draw(p)
+  announce("🌟 " + p.name + " が 生まれかわった！ もうけ ×" + fixed(1 + p.ty_rebirths * ty_rebirth_bonus, 1), 3)
+  kit_quest_progress(p, "ty_rebirth", 1)
+  particles("stars", p, {amount: 80})
+  p.sound("win")
+end
+
+func ty_next(p)
+  let best = nil
+  for it in ty_items do
+    if ty_can_show(p, it) and (best == nil or it.price < best.price) then best = it end
+  end
+  return best
+end
+
+func ty_hud(p)
+  if p.ty_plot == nil then
+    p.ui_text("ty_hud", "🏗 光るパッドで " + ty_word + "をもらおう", {at: "top", dy: 62, size: 16, bold: true})
+    return
+  end
+  let k = p.ty_plot
+  let line = "🏦 " + kit_short(floor(ty_banks[str(k)] or 0)) + "   📈 " + kit_short(floor(p.ty_last_income or ty_income(p))) + "/秒"
+  let nx = ty_next(p)
+  if nx != nil then line = line + "   つぎ: " + nx.name + " 💰" + kit_short(nx.price) end
+  p.ui_text("ty_hud", line, {at: "top", dy: 62, size: 16, bold: true})
+end
+
+-- 買うパッドの近くで、なにが買えるか見せる
+func ty_hint(p)
+  let b = nearest_block(p, "ty_buy")
+  if b != nil and b.visible and distance(p, b) < 4 and num(ty_tag(b, "k")) == p.ty_plot then
+    let it = ty_item(ty_tag(b, "item"))
+    if it != nil then
+      let extra = ""
+      if (it.income or 0) > 0 then extra = "  📈+" + kit_short(it.income) + "/秒" end
+      p.ui_text("ty_hint", "🛒 " + it.name + "  💰" + kit_short(it.price) + extra, {at: "center", dy: 80, size: 18, bold: true, color: "#FDE68A"})
+      return
+    end
+  end
+  p.ui_remove("ty_hint")
+end
+
+-- 見た目だけの 品物: ドロッパーから コレクターへ
+func ty_spawn_drop(p)
+  let k = p.ty_plot
+  let spots = []
+  for id in p.ty_owned or [] do
+    for b in blocks("ty" + k + "_" + id) do
+      if contains(b.tags, "ty_drop") then append(spots, b) end
+    end
+  end
+  if len(spots) == 0 then return end
+  let turn = (ty_drop_turn[str(k)] or 0) % len(spots) + 1
+  ty_drop_turn[str(k)] = turn
+  let from = spots[turn]
+  let dest = block("Collector " + k)
+  if dest == nil then return end
+  let color = ty_tag(from, "drop") or "#FACC15"
+  let d = create_block({name: "Drop", position: from.position + {x: 0, y: -0.8, z: 0}, size: {x: 0.7, y: 0.7, z: 0.7}, color: color, material: "neon",
+                        solid: false})
+  d.move_to(dest.position + {x: 0, y: 0.6, z: 0}, 2.2)
+  append(ty_drops, {b: d, until: time() + 2.4})
+end
+
+on tick(dt)
+  ty_clock = ty_clock + dt
+  ty_drop_clock = ty_drop_clock + dt
+  if ty_clock >= 1 then
+    ty_clock = 0
+    for p in players() do
+      if p.ty_plot != nil then
+        let key = str(p.ty_plot)
+        let inc = ty_income(p)
+        if ty_extra_income != nil then inc = inc + ty_extra_income(p) end
+        p.ty_last_income = inc
+        ty_banks[key] = (ty_banks[key] or 0) + inc
+      end
+      ty_hud(p)
+    end
+  end
+  if ty_drop_clock >= 0.5 then
+    ty_drop_clock = 0
+    for p in players() do
+      if p.ty_plot != nil then
+        ty_hint(p)
+        if chance(60) then ty_spawn_drop(p) end
+      end
+    end
+    let now = time()
+    let keep = []
+    for d in ty_drops do
+      if now > d.until then kit_gone(d.b) else append(keep, d) end
+    end
+    ty_drops = keep
+  end
+end
+
+on start()
+  for k in 1 to ty_plots do ty_clear(k) end
+end
+
+-- 来たら あいている土地を もらって そこへ
+on join(p)
+  kit_later(p, 1, func()
+    if p.ty_plot != nil then return end
+    for k in 1 to ty_plots do
+      if p.ty_plot == nil and ty_owners[str(k)] == nil then
+        ty_claim(p, k)
+        let c = block("Claim " + k)
+        if c != nil then p.teleport(c.position + {x: 0, y: 1, z: 2}) end
+      end
+    end
+  end)
+end
+
+-- 保存してあった建物が とどいたら 建てなおす
+on loaded(p)
+  kit_later(p, 0.6, func() ty_draw(p) end)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "ty_buy") then
+    if kit_ready(p, "ty_buy", 0.8) then ty_buy(p, b) end
+  elif contains(b.tags, "ty_collect") then
+    ty_collect(p, num(ty_tag(b, "k")))
+  elif contains(b.tags, "ty_claim") then
+    ty_claim(p, num(ty_tag(b, "k")))
+  end
+end
+
+on button(p, id)
+  if id == "ty_rebirth" then ty_rebirth(p)
+  elif id == "ty_home" then
+    if p.ty_plot != nil then p.teleport(block("Claim " + p.ty_plot).position + {x: 0, y: 1, z: 2}) end
+  end
+end
+
+on leave(p)
+  ty_free(p)
+end

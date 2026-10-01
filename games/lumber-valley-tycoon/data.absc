@@ -1,0 +1,51 @@
+-- data.absc — Lumber Valley Tycoon の表
+
+ty_setup({plots: 6, word: "土地", rebirth: 0.5})
+
+-- 土地に建てるもの（じゅんばんに あらわれる）: income は 1秒のもうけ（小屋など）
+ty_items = [
+  {id: "saw1", name: "🪚 小さなのこぎり", price: 60, income: 0},
+  {id: "fence", name: "🪵 木のさく", price: 120, income: 1, after: "saw1"},
+  {id: "cabin1", name: "🏠 小屋のゆか", price: 300, income: 3, after: "fence"},
+  {id: "saw2", name: "🪚 ベルトのこぎり", price: 700, income: 0, after: "cabin1"},
+  {id: "cabin2", name: "🏠 小屋のかべ", price: 1500, income: 8, after: "saw2"},
+  {id: "kiln", name: "🔥 かま（板が2ばいのねだん）", price: 3000, income: 0, after: "cabin2"},
+  {id: "cabin3", name: "🏠 小屋のやね", price: 6000, income: 20, after: "kiln"},
+  {id: "saw3", name: "🏭 大きな製材所", price: 12000, income: 0, after: "cabin3"},
+  {id: "porch", name: "🪑 ポーチとランプ", price: 25000, income: 50, after: "saw3"},
+  {id: "shop", name: "🪑 家具工房（3ばいのねだん）", price: 50000, income: 0, after: "porch"},
+  {id: "saw4", name: "⚡ レーザー製材機", price: 120000, income: 0, after: "shop"}
+]
+
+-- 製材: rate は 1秒に板にできる丸太、kiln と shop で ねだんが かけざん
+let MILLS = {saw1: 1, saw2: 3, saw3: 10, saw4: 40}
+let MILL_VALUE = 1.5        -- 板にすると 丸太の1.5ばい
+
+-- オノ（1回で けずる量）
+let AXES = [
+  {id: "a1", name: "🪓 古いオノ", price: 0, power: 1},
+  {id: "a2", name: "🪓 鉄のオノ", price: 150, power: 3},
+  {id: "a3", name: "🪓 はがねのオノ", price: 900, power: 8},
+  {id: "a4", name: "🪓 金のオノ", price: 4000, power: 20},
+  {id: "a5", name: "💎 クリスタルのオノ", price: 18000, power: 55},
+  {id: "a6", name: "⚡ レーザーのオノ", price: 80000, power: 150}
+]
+
+-- トラック（運べる丸太）
+let TRUCKS = [
+  {id: "t1", name: "🛒 手おし車", price: 0, size: 20, ride: "none"},
+  {id: "t2", name: "🛻 小さなトラック", price: 300, size: 60, ride: "truck"},
+  {id: "t3", name: "🚛 材木トラック", price: 2500, size: 200, ride: "truck"},
+  {id: "t4", name: "🚚 大型トレーラー", price: 15000, size: 700, ride: "truck"},
+  {id: "t5", name: "🚛 メガ運ぱん車", price: 70000, size: 2500, ride: "truck"}
+]
+
+-- 木: hp はかたさ、value は丸太1本のねうち、need は いるオノの力
+let TREES = {
+  oak: {name: "🌳 オーク", hp: 6, value: 2, need: 1},
+  birch: {name: "🌳 シラカバ", hp: 14, value: 5, need: 1},
+  pine: {name: "🌲 マツ", hp: 30, value: 11, need: 3},
+  gold: {name: "✨ 金の木", hp: 80, value: 40, need: 8},
+  crystal: {name: "💎 クリスタルの木", hp: 200, value: 120, need: 20}
+}
+let TREE_BACK = 40

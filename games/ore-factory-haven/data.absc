@@ -1,0 +1,22 @@
+-- data.absc — Ore Factory Haven の表
+
+ty_setup({plots: 6, word: "工場", rebirth: 0.6})
+
+-- マインは 1秒の鉱石（income）、アップグレーダーは ねうちを かけざん（mult）
+ty_items = [
+  {id: "belt1", name: "➡️ ベルトコンベア", price: 50, income: 0},
+  {id: "furnace", name: "🔥 かまど（鉱石をお金に）", price: 100, income: 0, after: "belt1"},
+  {id: "iron", name: "⛏ 鉄のマイン", price: 150, income: 3, after: "furnace"},
+  {id: "copper", name: "⛏ 銅のマイン", price: 600, income: 8, after: "iron"},
+  {id: "heat", name: "🟥 ねつのアップグレーダー（×1.5）", price: 1200, income: 0, after: "copper", mult: 1.5},
+  {id: "gold", name: "⛏ 金のマイン", price: 3000, income: 25, after: "heat"},
+  {id: "belt2", name: "➡️ 高速コンベア（×1.2）", price: 5000, income: 0, after: "gold", mult: 1.2},
+  {id: "polish", name: "🟦 みがきアップグレーダー（×2）", price: 9000, income: 0, after: "belt2", mult: 2},
+  {id: "diamond", name: "⛏ ダイヤのマイン", price: 20000, income: 80, after: "polish"},
+  {id: "magic", name: "🟣 まほうのアップグレーダー（×2.5）", price: 45000, income: 0, after: "diamond", mult: 2.5},
+  {id: "star", name: "⛏ 星のマイン", price: 100000, income: 250, after: "magic"},
+  {id: "furnace2", name: "✨ 金のかまど（×2）", price: 200000, income: 0, after: "star", mult: 2}
+]
+
+let BOX_EVERY = 40         -- なぞの箱が落ちてくる（秒）
+let BOX_STAY = 35
