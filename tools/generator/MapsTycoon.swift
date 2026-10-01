@@ -5,6 +5,9 @@ import Foundation
 // step on pads to buy the next building, collect what it earns.
 
 let tycoonGames: [Game] = [
+    Game(number: 135, id: "egg-heist", title: "Egg Heist",
+         summary: "まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！",
+         tags: ["tycoon", "eggs", "steal"], maxPlayers: 6, libs: [], build: eggHeist),
     Game(number: 134, id: "fish-farm-tycoon", title: "Fish Farm Tycoon",
          summary: "魚の養殖場をつくろう！ 川を流れてくる魚を買って 自分の池へ。えさをあげると 大きくそだって もうけアップ。金の魚や にじ色の魚も 流れてくるかも？ キングコイをねらえ！",
          tags: ["tycoon", "fish", "collecting"], maxPlayers: 6, libs: ["tycoon"], build: fishFarmTycoon),
@@ -710,4 +713,52 @@ func fishFarmTycoon(_ m: MapBuilder) {
         }
     }
     m.coverFocus(x: 154, y: 1, z: 20, yaw: 210, width: 38)
+}
+
+// MARK: 135 Egg Heist (Steal An Egg)
+
+/// Base k (1…6): centre x and which side of the egg road it is on (+1 north, -1 south).
+let heistBases: [(Float, Float)] = [(-44, 1), (0, 1), (44, 1), (-44, -1), (0, -1), (44, -1)]
+
+func eggHeist(_ m: MapBuilder) {
+    m.day(ground: "#4D7C0F")
+    m.environment.skyStyle = .clouds
+    m.ground(260, 140, color: "#65A30D", material: .grass)
+    m.spawnRing(-80, 0, radius: 3, count: 6, color: "#FACC15")
+    // The egg road: a red carpet with gold edges; eggs roll from Road Start to Road End.
+    m.slab("Egg Road", x: 0, y: 0, z: 0, w: 150, h: 0.12, d: 6, color: "#DC2626")
+    for z in [-3.2, 3.2] as [Float] { m.slab("Road Edge", x: 0, y: 0, z: z, w: 150, h: 0.2, d: 0.4, color: "#FACC15", material: .metal) }
+    m.part("Road Start", at: (-74, 0.9, 0), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.part("Road End", at: (74, 0.9, 0), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.slab("Egg Machine", x: -78, y: 0, z: 0, w: 6, h: 5, d: 8, color: "#FDE68A", material: .metal)
+    m.part("Egg Machine Light", at: (-78, 5.6, 0), size: (2, 1.2, 2), color: "#F472B6", shape: .sphere, material: .neon, solid: false)
+    m.slab("Egg Exit", x: 78, y: 0, z: 0, w: 6, h: 4, d: 8, color: "#475569", material: .metal)
+    for (k, base) in heistBases.enumerated() {
+        let n = k + 1
+        let (bx, side) = base
+        let front = side * 12, back = side * 34, mid = side * 23
+        m.slab("Base \(n) Floor", x: bx, y: 0, z: mid, w: 30, h: 0.16, d: 22, color: "#94A3B8", material: .stone)
+        m.slab("Base Wall", x: bx - 15, y: 0, z: mid, w: 0.8, h: 4, d: 22, color: "#475569", material: .brick)
+        m.slab("Base Wall", x: bx + 15, y: 0, z: mid, w: 0.8, h: 4, d: 22, color: "#475569", material: .brick)
+        m.slab("Base Wall", x: bx, y: 0, z: back, w: 30.8, h: 4, d: 0.8, color: "#475569", material: .brick)
+        m.part("Base \(n) Sign", at: (bx, 5.2, back), size: (10, 1.6, 0.4), color: "#94A3B8", material: .neon, solid: false)
+        for s in 0..<10 {
+            let x = bx - 10 + Float(s % 5) * 5, z = side * (18 + Float(s / 5) * 8)
+            m.slab("Pedestal \(n)_\(s + 1)", x: x, y: 0, z: z, w: 2.4, h: 0.9, d: 2.4, color: "#64748B", material: .metal)
+        }
+        m.pad("Lock \(n)", x: bx + 11.5, z: side * 14.5, size: 2.6, color: "#EF4444", tags: ["lock", "k=\(n)"])
+        m.pad("Collect \(n)", x: bx - 11.5, z: side * 14.5, size: 2.6, color: "#22C55E", tags: ["collect", "k=\(n)"])
+        m.group("laser\(n)", shown: false) {
+            for y in [0.6, 1.4, 2.2] as [Float] {
+                m.part("Laser", at: (bx, y, front + side * 0.4), size: (29, 0.15, 0.15), color: "#EF4444", material: .neon, solid: false)
+            }
+        }
+    }
+    // Trees around the edge.
+    var r = Seeded("eggheist")
+    for _ in 0..<26 {
+        let x = r.range(-120, 120), z = r.pick([r.range(-66, -40), r.range(40, 66)])
+        m.tree(x, z, height: r.range(4, 6), leaves: r.pick(["#16A34A", "#65A30D", "#15803D"]))
+    }
+    m.coverFocus(x: 0, y: 1, z: -16, yaw: 20, width: 58)
 }

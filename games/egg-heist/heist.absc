@@ -1,0 +1,278 @@
+-- heist.absc — ぬすむ・守る: ロックしていないアジトの台から たまごを ぬすんで、自分のアジトまで はこぶ。
+-- もちぬしに タッチされると もどされる。ライバルのアジトは ガードロボが守っている。
+-- ときどき 🦝 アライグマどろぼうが 自分のアジトをねらってくる。🔒 ロックするか、タッチして おいはらおう。
+
+let hs_clock = 0
+let thieves = []       -- {n, k, s, state, e, b, dest, until}
+let thief_next = 0
+
+func parse_ped(b)
+  if not starts_with(b.name, "Pedestal ") then return nil end
+  let parts = split(replace(b.name, "Pedestal ", ""), "_")
+  return {k: num(parts[1]), s: num(parts[2])}
+end
+
+func carry_look(e)
+  if e.left <= 0 then return EGGS[e.t].body end
+  return EGGS[e.t].egg
+end
+
+-- MARK: ぬすむ
+
+func try_steal(p, k, s)
+  if p.carry != nil or p.base == nil or p.base == k then return end
+  if is_locked(k) then
+    if kit_ready(p, "lockmsg", 2) then p.message("🔒 ロック中！", 1) end
+    return
+  end
+  let e = egg_at(k, s)
+  if e == nil then return end
+  take(k, s)
+  let b = create_block({name: "Carried Egg", position: p.position + {x: 0, y: 3, z: 0}, size: {x: 1, y: 1.3, z: 1}, shape: "sphere", color: carry_look(e),
+                        solid: false})
+  p.carry = {e: e, k: k, s: s, b: b, until: time() + CARRY_SECS}
+  p.speed = 0.75
+  p.ui_remove("steal")
+  p.ui_button("drop", "🫳 おとす", {at: "bottom", dy: -150, w: 200, h: 50, size: 17, bg: "#57534E"})
+  p.message("🦹 " + egg_label(e) + " を ぬすんだ！ 自分のアジトまで はこべ！（" + CARRY_SECS + "秒）", 2.5)
+  p.sound("whoosh")
+  let o = bases[k].owner
+  if o != nil then
+    o.message("🚨 " + p.name + " が " + egg_label(e) + " を ぬすんだ！ タッチして とりかえせ！", 3)
+    o.sound("alarm")
+  end
+end
+
+func return_egg(p, why)
+  let c = p.carry
+  if c == nil then return end
+  p.carry = nil
+  kit_gone(c.b)
+  p.speed = 1
+  p.ui_remove("drop")
+  if egg_at(c.k, c.s) == nil then
+    place(c.k, c.s, c.e)
+  else
+    let s2 = free_slot(c.k)
+    if s2 != nil then place(c.k, s2, c.e) end
+  end
+  if why != "" then p.message(why, 2) end
+end
+
+func deliver(p)
+  let c = p.carry
+  let s = free_slot(p.base)
+  if s == nil then
+    if kit_ready(p, "fullbase", 3) then p.message("🏠 台がいっぱい！ 🥚 で売るか ➕ で台をふやそう", 2) end
+    return
+  end
+  p.carry = nil
+  kit_gone(c.b)
+  p.speed = 1
+  p.ui_remove("drop")
+  place(p.base, s, c.e)
+  p.steals = (p.steals or 0) + 1
+  kit_quest_progress(p, "steal", 1)
+  p.message("🎉 ぬすみ大成功！ " + egg_label(c.e) + " が 自分のアジトに", 2.5)
+  p.sound("win")
+  particles("confetti", p, {amount: 40})
+  if c.e.t >= 4 then announce("🦹 " + p.name + " が " + egg_label(c.e) + " を ぬすみ出した！", 3) end
+end
+
+-- 近くの ぬすめる台
+func steal_target(p)
+  if p.carry != nil or p.base == nil then return nil end
+  let k = base_at(p.position)
+  if k == nil or k == p.base or is_locked(k) then return nil end
+  let best = nil
+  let bd = 3.2
+  for s in 1 to PEDESTALS do
+    if egg_at(k, s) != nil then
+      let ped = block("Pedestal " + k + "_" + s)
+      let d = distance(p, ped)
+      if d < bd then
+        bd = d
+        best = {k: k, s: s}
+      end
+    end
+  end
+  return best
+end
+
+-- MARK: アライグマどろぼう
+
+func send_thief()
+  let targets = []
+  for k in 1 to len(BASES) do
+    let o = bases[k].owner
+    if o != nil and not is_locked(k) and egg_count(k) >= 2 and len(filter(thieves, func(t) return t.k == k end)) == 0 then append(targets, k) end
+  end
+  if len(targets) == 0 then return end
+  let k = random(targets)
+  let b = BASES[k]
+  let sx = b.x + random([-1, 1]) * 30
+  let n = create_npc({name: "アライグマどろぼう", position: {x: sx, y: 0.6, z: b.side * 8}, color: "#57534E", head_color: "#A8A29E", leg_color: "#1F2937",
+                      speed: 0.55, health: 100000, size: 0.8, hat: "beanie"})
+  n.thief = true
+  -- ねらう台: いちばん弱い たまご
+  let s = nil
+  for i in 1 to PEDESTALS do
+    let e = egg_at(k, i)
+    if e != nil and (s == nil or egg_income(e) < egg_income(egg_at(k, s))) then s = i end
+  end
+  let ped = block("Pedestal " + k + "_" + s)
+  n.move_to(ped.position + {x: 0, y: 0.2, z: 0 - b.side * 1.6})
+  n.say("ヒッヒッ… たまご いただき！")
+  append(thieves, {n: n, k: k, s: s, state: "go", e: nil, b: nil, dest: {x: sx, y: 0.6, z: b.side * 8}, until: time() + 60})
+  let o = bases[k].owner
+  o.message("🚨 🦝 アライグマどろぼうが アジトをねらってる！ 🔒 ロックするか タッチして おいはらえ！", 4)
+  o.sound("alarm")
+end
+
+func thief_gone(t)
+  thieves = filter(thieves, func(x) return x != t end)
+  kit_gone(t.b)
+  particles("dust", t.n, {amount: 20})
+  kit_gone(t.n)
+end
+
+func chase_off(p, t)
+  if t.e != nil then
+    let s2 = t.s
+    if egg_at(t.k, s2) != nil then s2 = free_slot(t.k) end
+    if s2 != nil then place(t.k, s2, t.e) end
+  end
+  p.message("🛡 アライグマを おいはらった！", 2)
+  p.sound("win")
+  kit_quest_progress(p, "catch", 1)
+  kit_give(p, 50)
+  thief_gone(t)
+end
+
+func thief_step(t)
+  if not kit_here(t.n) then
+    thieves = filter(thieves, func(x) return x != t end)
+    kit_gone(t.b)
+    return
+  end
+  -- だれかが タッチしたら にげる
+  for p in players() do
+    if not p.is_npc and distance(p, t.n) < 3 then
+      chase_off(p, t)
+      return
+    end
+  end
+  let o = bases[t.k].owner
+  if t.state == "go" then
+    if is_locked(t.k) or egg_at(t.k, t.s) == nil then
+      t.state = "flee"
+      t.n.say("ちぇっ！")
+      t.n.move_to(t.dest)
+      if o != nil and is_locked(t.k) then o.message("🔒 ロックで アライグマを ふせいだ！", 2) end
+      return
+    end
+    let ped = block("Pedestal " + t.k + "_" + t.s)
+    if distance(t.n, ped) < 2.6 then
+      t.e = take(t.k, t.s)
+      t.b = create_block({name: "Thief Egg", position: t.n.position + {x: 0, y: 2.4, z: 0}, size: {x: 0.9, y: 1.2, z: 0.9}, shape: "sphere",
+                          color: carry_look(t.e), solid: false})
+      t.state = "flee"
+      t.n.move_to(t.dest)
+      t.n.say("いただき〜！")
+      if o != nil then o.message("🚨 🦝 " + egg_label(t.e) + " を もっていかれる！ おいかけて タッチ！", 3) end
+    end
+  else
+    if t.b != nil then t.b.move_to(t.n.position + {x: 0, y: 2.4, z: 0}, 0.25) end
+    if distance(t.n, t.dest) < 2.5 or time() > t.until then
+      if t.e != nil and o != nil then
+        o.message("😢 アライグマに " + egg_label(t.e) + " を ぬすまれた… 🔒 ロックを わすれずに！", 3)
+      end
+      thief_gone(t)
+    end
+  end
+end
+
+-- MARK: まいフレーム（0.25秒）
+
+on tick(dt)
+  hs_clock = hs_clock + dt
+  if hs_clock < 0.25 then return end
+  hs_clock = 0
+  let now = time()
+  for p in players() do
+    if not p.is_npc then
+      let c = p.carry
+      if c != nil then
+        c.b.move_to(p.position + {x: 0, y: 3, z: 0}, 0.25)
+        let o = bases[c.k].owner
+        let g = bases[c.k].guard
+        if p.base != nil and in_base(p.position, p.base) then
+          deliver(p)
+        elif now > c.until then
+          return_egg(p, "⏰ 時間切れ… たまごは もどっていった")
+        elif o != nil and kit_here(o) and distance(o, p) < 3 then
+          return_egg(p, "🚨 つかまった！ たまごを とりかえされた")
+          o.message("🛡 とりかえした！", 2)
+          o.sound("win")
+          kit_quest_progress(o, "catch", 1)
+        elif g != nil and kit_here(g) and distance(g, p) < 2.6 then
+          return_egg(p, "🤖 ガードロボに つかまった！")
+        end
+      else
+        let tg = steal_target(p)
+        let label = nil
+        if tg != nil then label = "🦹 ぬすむ: " + egg_label(egg_at(tg.k, tg.s)) end
+        p.steal_pick = tg
+        if label != p.steal_label then
+          p.steal_label = label
+          if label == nil then p.ui_remove("steal") else p.ui_button("steal", label, {at: "bottom", dy: -210, w: 340, h: 54, size: 17, bg: "#7C3AED"}) end
+        end
+      end
+    end
+  end
+  -- ガードロボ: 自分のアジトの たまごを もった人を おいかける
+  for k in 1 to len(BASES) do
+    let g = bases[k].guard
+    if g != nil and kit_here(g) then
+      let chase = nil
+      for p in players() do
+        if not p.is_npc and p.carry != nil and p.carry.k == k and distance(g, p) < 18 then chase = p end
+      end
+      if chase != nil then
+        g.follow(chase)
+        g.chasing = true
+      elif g.chasing or chance(4) then
+        g.chasing = false
+        let b = BASES[k]
+        g.move_to({x: b.x + random_float(-11, 11), y: 0.6, z: b.side * random_float(16, 30)})
+      end
+    end
+  end
+  for t in thieves do thief_step(t) end
+  if now > thief_next then
+    if thief_next > 0 then send_thief() end
+    thief_next = now + THIEF_EVERY + random_float(-15, 15)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  let ped = parse_ped(b)
+  if ped != nil then try_steal(p, ped.k, ped.s) end
+end
+
+on button(p, id)
+  if id == "steal" then
+    let tg = p.steal_pick
+    if tg != nil then try_steal(p, tg.k, tg.s) end
+  elif id == "drop" then return_egg(p, "🫳 たまごを もとにもどした")
+  end
+end
+
+on death(p)
+  return_egg(p, "")
+end
+
+on leave(p)
+  return_egg(p, "")
+end

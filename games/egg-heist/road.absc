@@ -1,0 +1,125 @@
+-- road.absc — たまごの道: 左の機械から たまごが ころがってくる。近くに来たら「買う」。早いもの勝ち！
+-- 買ったたまごは 自分のアジトの あいている台へ とんでいく。
+
+let road = []          -- {t, x0, t0, b}
+let road_clock = 0
+let road_next = 0
+
+func road_x(r)
+  return r.x0 + ROAD_SPEED * (time() - r.t0)
+end
+
+func spawn_road_egg(at_x)
+  let a = block("Road Start")
+  let b = block("Road End")
+  if a == nil or b == nil then return end
+  let x0 = at_x or a.x
+  let t = pick_weighted(map(EGGS, func(e) return e.w end))
+  let info = EGGS[t]
+  let mat = "plastic"
+  if t >= 5 then mat = "neon" end
+  let egg = create_block({name: "Road Egg", position: {x: x0, y: 0.9, z: 0}, size: {x: 1.1, y: 1.5, z: 1.1}, shape: "sphere", color: info.egg, material: mat,
+                          solid: false})
+  egg.move_to({x: b.x, y: 0.9, z: 0}, (b.x - x0) / ROAD_SPEED)
+  append(road, {t: t, x0: x0, t0: time(), b: egg})
+  if t >= 6 and at_x == nil then
+    announce(EGG_ICON[t] + " " + info.name + " が 道に出てきた！ 💰" + kit_short(info.price), 4)
+    sound("bell")
+  end
+end
+
+func remove_road_egg(r)
+  road = filter(road, func(x) return x != r end)
+  kit_gone(r.b)
+end
+
+func egg_near(p)
+  if abs(p.z) > 6 then return nil end
+  let best = nil
+  let bd = 3
+  for r in road do
+    let d = abs(road_x(r) - p.x)
+    if d < bd then
+      bd = d
+      best = r
+    end
+  end
+  return best
+end
+
+func buy_road_egg(p)
+  let r = p.road_pick
+  if r == nil or not contains(road, r) or abs(road_x(r) - p.x) > 4 then
+    p.message("🥚 たまごが ころがっていっちゃった…", 1.2)
+    return
+  end
+  if p.base == nil then return end
+  let s = free_slot(p.base)
+  if s == nil then
+    p.message("🏠 台がいっぱい！ 🥚 で売るか ➕ で台をふやそう", 2)
+    p.sound("error")
+    return
+  end
+  if not kit_pay(p, EGGS[r.t].price) then return end
+  let from = r.b.position
+  remove_road_egg(r)
+  let ped = block("Pedestal " + p.base + "_" + s)
+  -- とんでいく たまご（見た目だけ）
+  let fly = create_block({name: "Flying Egg", position: {x: p.x, y: 2, z: p.z}, size: {x: 0.9, y: 1.2, z: 0.9}, shape: "sphere", color: EGGS[r.t].egg,
+                          solid: false})
+  fly.move_to(ped.position + {x: 0, y: 1.3, z: 0}, 1.2)
+  after(1.3, func() kit_gone(fly) end)
+  let k = p.base
+  bases[k].eggs[str(s)] = {t: r.t, left: EGGS[r.t].hatch}
+  after(1.2, func() draw_egg(k, s) end)
+  sync_save(k)
+  p.bought = (p.bought or 0) + 1
+  kit_quest_progress(p, "buy", 1)
+  p.message("🥚 " + EGGS[r.t].name + " を買った！ アジトの台へ（" + EGGS[r.t].hatch + "秒で かえる）", 2.5)
+  p.sound("pop")
+  if r.t >= 5 then
+    announce("🌟 " + p.name + " が " + EGGS[r.t].name + " を手に入れた！", 3)
+    kit_quest_progress(p, "rare", 1)
+  end
+end
+
+on tick(dt)
+  road_clock = road_clock + dt
+  if road_clock < 0.25 then return end
+  road_clock = 0
+  let now = time()
+  if now >= road_next then
+    road_next = now + ROAD_EVERY
+    spawn_road_egg(nil)
+  end
+  let end_x = block("Road End").x
+  for r in road do
+    if road_x(r) >= end_x then remove_road_egg(r) end
+  end
+  for p in players() do
+    if not p.is_npc then
+      let r = nil
+      if p.carry == nil then r = egg_near(p) end
+      p.road_pick = r
+      let label = nil
+      if r != nil then label = "🛒 " + EGG_ICON[r.t] + " " + EGGS[r.t].name + "  💰" + kit_short(EGGS[r.t].price) end
+      if label != p.road_label then
+        p.road_label = label
+        if label == nil then
+          p.ui_remove("buyegg")
+        else
+          p.ui_button("buyegg", label, {at: "bottom", dy: -150, w: 340, h: 54, size: 17, bg: "#BE185D"})
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "buyegg" then buy_road_egg(p) end
+end
+
+-- はじめから 道に たまごが ならんでいるように
+on start()
+  for i in 1 to 14 do spawn_road_egg(-70 + i * 9) end
+end

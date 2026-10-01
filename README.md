@@ -201,6 +201,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/build-a-zoo-park/cover-56683f48.png" width="200"> | 132 | **Build a Zoo Park** | どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！ |
 | <img src="games/sword-forge-factory/cover-64d48879.png" width="200"> | 133 | **Sword Forge Factory** | 剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！ |
 | <img src="games/fish-farm-tycoon/cover-49cbe0ce.png" width="200"> | 134 | **Fish Farm Tycoon** | 魚の養殖場をつくろう！ 川を流れてくる魚を買って 自分の池へ。えさをあげると 大きくそだって もうけアップ。金の魚や にじ色の魚も 流れてくるかも？ キングコイをねらえ！ |
+| <img src="games/egg-heist/cover-31641b3a.png" width="200"> | 135 | **Egg Heist** | まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！ |
 
 <!-- games:end -->
 

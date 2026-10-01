@@ -1,0 +1,459 @@
+-- bases.absc — アジト: 来た人は あいているアジトをもらう。台のたまごは 1秒ごとに お金をうむ（緑のパッドで受けとる）。
+-- 赤いパッドで 🔒 ロック（ほかの人が入れない）。だれもいないアジトは「ライバルのアジト」で、ガードロボが守っている。
+
+let bases = []       -- k → {owner, eggs: {"s": egg}, lock_until, bank, disp: {"s": [ブロック]}, next_lock, refill, guard, lasers}
+let bs_clock = 0
+let guard_clock = 0
+
+on start()
+  for k in 1 to len(BASES) do
+    append(bases, {owner: nil, eggs: {}, lock_until: 0, bank: 0, disp: {}, next_lock: time() + random_float(10, 40), refill: 0, guard: nil,
+                   lasers: false})
+    rival_fill(k, 5)
+    draw_pedestals(k)
+  end
+end
+
+func in_base(pos, k)
+  let b = BASES[k]
+  let dz = (pos.z - b.side * 12) * b.side
+  return abs(pos.x - b.x) < 15 and dz > 0 and dz < 22
+end
+
+func base_at(pos)
+  for k in 1 to len(BASES) do
+    if in_base(pos, k) then return k end
+  end
+  return nil
+end
+
+func is_locked(k)
+  return time() < bases[k].lock_until
+end
+
+func mult_of(p)
+  return 1 + (p.rebirths or 0) * 0.5
+end
+
+func slots_of(k)
+  let o = bases[k].owner
+  if o == nil then return 6 end
+  return o.slots or START_SLOTS
+end
+
+func egg_at(k, s)
+  return bases[k].eggs[str(s)]
+end
+
+func free_slot(k)
+  for s in 1 to slots_of(k) do
+    if egg_at(k, s) == nil then return s end
+  end
+  return nil
+end
+
+func egg_count(k)
+  let n = 0
+  for s in 1 to PEDESTALS do
+    if egg_at(k, s) != nil then n = n + 1 end
+  end
+  return n
+end
+
+func egg_income(e)
+  let inc = EGGS[e.t].income
+  if e.left <= 0 then inc = inc * 2 end
+  return inc
+end
+
+func egg_label(e)
+  if e.left <= 0 then return EGGS[e.t].pet end
+  return EGG_ICON[e.t] + " " + EGGS[e.t].name
+end
+
+func base_income(k)
+  let o = bases[k].owner
+  if o == nil then return 0 end
+  let s = 0
+  for i in 1 to PEDESTALS do
+    let e = egg_at(k, i)
+    if e != nil then s = s + egg_income(e) end
+  end
+  return s * mult_of(o)
+end
+
+-- 台の上の たまご / 生きもの
+func draw_egg(k, s)
+  let base = bases[k]
+  for b in base.disp[str(s)] or [] do kit_gone(b) end
+  base.disp[str(s)] = []
+  let e = egg_at(k, s)
+  if e == nil then return end
+  let ped = block("Pedestal " + k + "_" + s)
+  if ped == nil then return end
+  let top = ped.position + {x: 0, y: 0.45, z: 0}
+  let info = EGGS[e.t]
+  let list = []
+  if e.left > 0 then
+    let mat = "plastic"
+    if e.t >= 5 then mat = "neon" end
+    append(list, create_block({name: "Egg", position: top + {x: 0, y: 0.8, z: 0}, size: {x: 1.1, y: 1.5, z: 1.1}, shape: "sphere", color: info.egg,
+                               material: mat, solid: false}))
+  else
+    let face = 0 - BASES[k].side * 0.65
+    let grow = 1 + e.t * 0.08
+    append(list, create_block({name: "Pet Body", position: top + {x: 0, y: 0.65 * grow, z: 0}, size: {x: 1.3 * grow, y: 1.1 * grow, z: 1.5 * grow},
+                               shape: "sphere", color: info.body, solid: false}))
+    append(list, create_block({name: "Pet Head", position: top + {x: 0, y: 1.55 * grow, z: face * grow}, size: {x: 0.8 * grow, y: 0.8 * grow, z: 0.8 * grow},
+                               shape: "sphere", color: info.head, solid: false}))
+    if e.t >= 6 then particles("sparkles", ped, {amount: 15}) end
+  end
+  base.disp[str(s)] = list
+end
+
+func place(k, s, e)
+  bases[k].eggs[str(s)] = e
+  draw_egg(k, s)
+  sync_save(k)
+end
+
+func take(k, s)
+  let e = egg_at(k, s)
+  bases[k].eggs[str(s)] = nil
+  draw_egg(k, s)
+  sync_save(k)
+  return e
+end
+
+-- 台の色: つかえる台 / まだの台
+func draw_pedestals(k)
+  let o = bases[k].owner
+  for s in 1 to PEDESTALS do
+    let ped = block("Pedestal " + k + "_" + s)
+    if ped != nil then
+      let c = "#334155"
+      if s <= slots_of(k) then
+        c = "#64748B"
+        if o != nil then c = "#CBD5E1" end
+      end
+      if ped.color != c then ped.color = c end
+    end
+  end
+  let floor_b = block("Base " + k + " Floor")
+  let sign = block("Base " + k + " Sign")
+  let c = "#94A3B8"
+  if o != nil then c = o.color or "#FACC15" end
+  if floor_b != nil and o == nil then floor_b.color = "#7F1D1D" end
+  if floor_b != nil and o != nil then floor_b.color = "#94A3B8" end
+  if sign != nil then sign.color = c end
+end
+
+-- 保存: アジトのたまごを その人に おぼえさせる
+func sync_save(k)
+  let o = bases[k].owner
+  if o == nil then return end
+  let list = []
+  for s in 1 to PEDESTALS do
+    let e = egg_at(k, s)
+    if e != nil then append(list, {t: e.t, left: e.left}) end
+  end
+  o.saved_eggs = list
+end
+
+func clear_base(k)
+  for s in 1 to PEDESTALS do
+    if egg_at(k, s) != nil then
+      bases[k].eggs[str(s)] = nil
+      draw_egg(k, s)
+    end
+  end
+end
+
+-- MARK: ライバルのアジト
+
+func rival_fill(k, n)
+  for i in 1 to n do
+    let s = free_slot(k)
+    if s != nil then
+      let t = pick_weighted([40, 30, 18, 9, 3])
+      let left = EGGS[t].hatch
+      if chance(50) then left = 0 end
+      place(k, s, {t: t, left: left})
+    end
+  end
+end
+
+func make_guard(k)
+  let b = BASES[k]
+  let g = create_npc({name: "ガードロボ", position: {x: b.x, y: 0.6, z: b.side * 26}, color: "#475569", head_color: "#94A3B8", speed: 0.45,
+                      health: 100000, hat: "antenna"})
+  g.guard_of = k
+  bases[k].guard = g
+end
+
+-- MARK: 自分のアジト
+
+func claim(p)
+  if p.base != nil then return end
+  let k = nil
+  for i in 1 to len(BASES) do
+    if k == nil and bases[i].owner == nil then k = i end
+  end
+  if k == nil then return end
+  let base = bases[k]
+  kit_gone(base.guard)
+  base.guard = nil
+  clear_base(k)
+  base.owner = p
+  base.bank = 0
+  base.lock_until = 0
+  p.base = k
+  draw_pedestals(k)
+  if p.saved_eggs != nil and len(p.saved_eggs) > 0 then
+    restore_eggs(p)
+  else
+    place(k, 1, {t: 1, left: EGGS[1].hatch})
+  end
+  let b = BASES[k]
+  p.teleport({x: b.x, y: 1, z: b.side * 15})
+  p.message("🏠 アジト " + k + " があなたのもの！ まん中の道で たまごを買おう", 3)
+  p.sound("goal")
+end
+
+func restore_eggs(p)
+  let k = p.base
+  if k == nil or p.restored then return end
+  p.restored = true
+  clear_base(k)
+  let list = p.saved_eggs or []
+  let s = 0
+  for e in list do
+    s = s + 1
+    if s <= slots_of(k) then
+      bases[k].eggs[str(s)] = {t: e.t, left: e.left}
+      draw_egg(k, s)
+    end
+  end
+  sync_save(k)
+  draw_pedestals(k)
+end
+
+func unclaim(p)
+  let k = p.base
+  if k == nil then return end
+  sync_save(k)
+  let base = bases[k]
+  base.owner = nil
+  base.bank = 0
+  base.lock_until = 0
+  clear_base(k)
+  rival_fill(k, random(3, 5))
+  draw_pedestals(k)
+  p.base = nil
+end
+
+func collect(p, k)
+  if p.base != k then return end
+  let bank = floor(bases[k].bank)
+  if bank <= 0 then return end
+  bases[k].bank = 0
+  kit_give(p, bank)
+  p.earned = (p.earned or 0) + bank
+  p.message("💰 +" + kit_short(bank), 1)
+  p.sound("coin")
+end
+
+func lock_secs(p)
+  return LOCK_SECS + (p.rebirths or 0) * 10
+end
+
+func lock(p, k)
+  if p.base != k then
+    if kit_ready(p, "notmine", 3) then p.message("ここは ほかの人のアジト", 1.2) end
+    return
+  end
+  if is_locked(k) then return end
+  bases[k].lock_until = time() + lock_secs(p)
+  p.message("🔒 ロック！ " + lock_secs(p) + "秒 ほかの人は入れない", 2)
+  p.sound("door")
+  kit_quest_progress(p, "lock", 1)
+end
+
+func buy_slot(p)
+  if p.base == nil then return end
+  let n = p.slots or START_SLOTS
+  if n >= PEDESTALS then
+    p.message("台は もう ぜんぶ つかえるよ", 1.5)
+    return
+  end
+  let price = slot_price(n + 1)
+  if not kit_pay(p, price) then return end
+  p.slots = n + 1
+  draw_pedestals(p.base)
+  p.message("➕ 台が " + p.slots + "こに なった！", 1.5)
+  p.sound("powerup")
+  update_slot_button(p)
+end
+
+func update_slot_button(p)
+  let n = p.slots or START_SLOTS
+  if n >= PEDESTALS then
+    p.ui_remove("slot")
+  else
+    p.ui_button("slot", "➕ 台 💰" + kit_short(slot_price(n + 1)), {at: "right", dy: -110, w: 150, h: 44, size: 14, bg: "#0369A1"})
+  end
+end
+
+-- 🥚 自分の台のたまご（売るボタンつき）
+func sell_price(e)
+  let pr = EGGS[e.t].price * 0.5
+  if e.left <= 0 then pr = EGGS[e.t].price end
+  return floor(pr)
+end
+
+func open_eggs(p)
+  let k = p.base
+  if k == nil then return end
+  let rows = []
+  for s in 1 to PEDESTALS do
+    if egg_at(k, s) != nil then append(rows, s) end
+  end
+  let h = 140 + max(1, len(rows)) * 40
+  p.ui_remove("eg_box")
+  p.ui_panel("eg_box", {at: "center", w: 640, h: h, bg: "#3F1D38F2", radius: 22, layer: 40})
+  p.ui_text("eg_t", "🥚 アジトのたまご " + len(rows) + "/" + slots_of(k), {parent: "eg_box", y: 24 / h, size: 18, bold: true, color: "#FBCFE8"})
+  if len(rows) == 0 then p.ui_text("eg_none", "まん中の 赤い道で たまごを買おう！", {parent: "eg_box", y: 70 / h, size: 15}) end
+  let i = 0
+  for s in rows do
+    i = i + 1
+    let e = egg_at(k, s)
+    let state = "（あと " + ceil(e.left) + "秒で かえる）"
+    if e.left <= 0 then state = "" end
+    let y = (24 + i * 40) / h
+    p.ui_text("eg_n" + i, egg_label(e) + " 📈" + kit_short(egg_income(e) * mult_of(p)) + "/秒 " + state, {parent: "eg_box", y: y, dx: -90, size: 14})
+    p.ui_button("egsell_" + i, "売る 💰" + kit_short(sell_price(e)), {parent: "eg_box", y: y, dx: 230, w: 140, h: 32, size: 13, bg: "#16A34A"})
+  end
+  p.eg_view = rows
+  p.ui_button("eg_close", "閉じる", {parent: "eg_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func sell_egg(p, s)
+  let k = p.base
+  if k == nil or s == nil or egg_at(k, s) == nil then return end
+  let e = take(k, s)
+  let pay = floor(sell_price(e) * mult_of(p))
+  kit_give(p, pay)
+  p.earned = (p.earned or 0) + pay
+  p.message("💰 " + egg_label(e) + " を売った +" + kit_short(pay), 1.5)
+  p.sound("coin")
+  open_eggs(p)
+end
+
+func base_hud(p)
+  let k = p.base
+  if k == nil then return end
+  let lk = "🔓 あいてる（赤いパッドで ロック）"
+  if is_locked(k) then lk = "🔒 " + ceil(bases[k].lock_until - time()) + "秒" end
+  p.ui_text("bs_hud", "🏠 アジト" + k + "  " + lk + "   🏦 " + kit_short(floor(bases[k].bank)) + "   📈 " + kit_short(base_income(k)) + "/秒",
+            {at: "top", dy: 62, size: 16, bold: true})
+end
+
+func show_lasers(k, on_now)
+  if bases[k].lasers == on_now then return end
+  bases[k].lasers = on_now
+  for b in blocks("laser" + k) do b.visible = on_now end
+end
+
+on tick(dt)
+  bs_clock = bs_clock + dt
+  guard_clock = guard_clock + dt
+  if guard_clock >= 0.25 then
+    guard_clock = 0
+    for k in 1 to len(BASES) do
+      show_lasers(k, is_locked(k))
+      -- ロック中は ほかの人を外へ
+      if is_locked(k) then
+        for p in players() do
+          if not p.is_npc and p.base != k and in_base(p.position, k) then
+            p.teleport({x: p.x, y: 1, z: BASES[k].side * 8})
+            if kit_ready(p, "locked", 2) then p.message("🔒 ロック中！ 入れない", 1.2) end
+            p.sound("error")
+          end
+        end
+      end
+    end
+  end
+  if bs_clock < 1 then return end
+  bs_clock = 0
+  let now = time()
+  for k in 1 to len(BASES) do
+    let base = bases[k]
+    let o = base.owner
+    if o != nil and not kit_here(o) then
+      base.owner = nil
+      clear_base(k)
+      draw_pedestals(k)
+      o = nil
+    end
+    -- たまごが かえる
+    for s in 1 to PEDESTALS do
+      let e = egg_at(k, s)
+      if e != nil and e.left > 0 then
+        e.left = e.left - 1
+        if e.left <= 0 then
+          draw_egg(k, s)
+          particles("confetti", block("Pedestal " + k + "_" + s), {amount: 20})
+          if o != nil then
+            o.message("🐣 " + EGGS[e.t].name + " から " + EGGS[e.t].pet + " が かえった！ もうけ 2ばい", 2.5)
+            o.sound("magic")
+            kit_quest_progress(o, "hatch", 1)
+          end
+        end
+      end
+    end
+    if o != nil then
+      base.bank = base.bank + base_income(k)
+      sync_save(k)
+      base_hud(o)
+    else
+      -- ライバルのアジト: ときどき ロック、たまごを補充、ガードロボ
+      if now > base.next_lock then
+        base.lock_until = now + 20
+        base.next_lock = now + random_float(45, 70)
+      end
+      base.refill = base.refill + 1
+      if base.refill >= 40 then
+        base.refill = 0
+        if egg_count(k) < 6 then rival_fill(k, 1) end
+      end
+      if base.guard == nil or not kit_here(base.guard) then make_guard(k) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "collect") then collect(p, num(replace(find(b.tags, func(t) return starts_with(t, "k=") end), "k=", "")))
+  elif contains(b.tags, "lock") then lock(p, num(replace(find(b.tags, func(t) return starts_with(t, "k=") end), "k=", "")))
+  end
+end
+
+on button(p, id)
+  if id == "slot" then buy_slot(p)
+  elif id == "eggs" then open_eggs(p)
+  elif id == "eg_close" then p.ui_remove("eg_box")
+  elif starts_with(id, "egsell_") then sell_egg(p, (p.eg_view or [])[num(replace(id, "egsell_", ""))])
+  end
+end
+
+on loaded(p)
+  kit_later(p, 0.5, func()
+    if p.base != nil and p.saved_eggs != nil and len(p.saved_eggs) > 0 then restore_eggs(p) end
+    if p.base != nil then draw_pedestals(p.base) end
+    update_slot_button(p)
+  end)
+end
+
+on leave(p)
+  unclaim(p)
+end

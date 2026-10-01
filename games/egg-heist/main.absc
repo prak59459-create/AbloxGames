@@ -1,0 +1,92 @@
+-- Egg Heist — たまごどろぼう
+-- まん中の赤い道を たまごが ころがってくる。買って 自分のアジトの台へ。たまごは 1秒ごとに お金をうみ、かえると 2ばい。
+-- ロックしていない ほかのアジトから ぬすむこともできる。自分のアジトは 🔒 ロックで守ろう。
+--
+-- ファイル:
+--   data.absc     たまご・アジトの表
+--   bases.absc    アジト・台・お金・ロック・ライバルのアジト
+--   road.absc     たまごの道・買う
+--   heist.absc    ぬすむ・はこぶ・ガードロボ・アライグマどろぼう
+--   main.absc     このファイル
+
+kit_setup("Egg Heist", "たまごを買って、ぬすんで、守りぬけ！", [
+  "🥚 まん中の赤い道で たまごを買うと 自分のアジトの台へ",
+  "💰 たまごは 1秒ごとに お金をうむ。🐣 かえると 2ばい！（💚 緑のパッドで受けとる）",
+  "🦹 ロックしていない ほかのアジトの台から ぬすんで、自分のアジトまで はこぶ",
+  "🚨 もちぬしや 🤖 ガードロボに タッチされると もどされる",
+  "🔒 赤いパッドで ロック。🦝 アライグマどろぼうにも 気をつけて！",
+  "➕ 台をふやす / 🌟 生まれかわりで もうけ ずっと ×アップ"
+])
+kit_keep(["saved_eggs", "slots", "rebirths", "earned", "steals"])
+
+kit_quest("buy", "たまごを 3こ買う", 3, 100)
+kit_quest("hatch", "たまごを 3こ かえす", 3, 200)
+kit_quest("lock", "アジトを ロックする", 1, 100)
+kit_quest("steal", "たまごを ぬすみ出す", 1, 300)
+kit_quest("catch", "どろぼうを つかまえる", 1, 400)
+kit_quest("rare", "火のたまご いじょうを 買う", 1, 3000)
+
+func rebirth(p)
+  let need = REBIRTH_COST * ((p.rebirths or 0) + 1)
+  if kit_money(p) < need then
+    p.message("🌟 生まれかわりには 💰" + kit_short(need) + " いるよ（たまごと 台は リセット、もうけ ずっと ×アップ）", 2.5)
+    return
+  end
+  p.coins = 0
+  kit_show_money(p)
+  p.rebirths = (p.rebirths or 0) + 1
+  p.slots = START_SLOTS
+  if p.base != nil then
+    clear_base(p.base)
+    bases[p.base].bank = 0
+    place(p.base, 1, {t: 2, left: EGGS[2].hatch})
+    draw_pedestals(p.base)
+  end
+  update_slot_button(p)
+  announce("🌟 " + p.name + " が 生まれかわった！ もうけ ×" + fixed(mult_of(p), 1) + "・ロック +" + (p.rebirths * 10) + "秒", 3)
+  particles("stars", p, {amount: 80})
+  p.sound("win")
+end
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 50 then p.coins = 50 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 12
+  p.hat = "beanie"
+  p.ui_button("eggs", "🥚 たまご", {at: "right", dy: -162, w: 150, h: 44, size: 14, bg: "#BE185D"})
+  update_slot_button(p)
+  p.ui_button("home", "🏠 アジトへ", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+  kit_later(p, 0.5, func() claim(p) end)
+end
+
+on start()
+  world.music = "party"
+  every(12, func() kit_leaderboard("💰 かせいだ") end)
+end
+
+on button(p, id)
+  if id == "home" then
+    if p.carry != nil then
+      p.message("🦹 たまごを もっているときは ワープできない！ 走れ！", 1.5)
+    elif p.base != nil then
+      let b = BASES[p.base]
+      p.teleport({x: b.x, y: 1, z: b.side * 15})
+    end
+  elif id == "rebirth" then rebirth(p)
+  end
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.earned or 0)
+    if s != p.score then p.score = s end
+  end
+end

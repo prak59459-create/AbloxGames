@@ -1,0 +1,29 @@
+-- data.absc — Egg Heist の表
+
+-- たまご（price は ねだん、income は 1秒のもうけ、w は 道に出てくる 出やすさ、hatch は かえるまでの秒）
+-- かえると もうけ 2ばい。body / head は かえった生きものの色
+let EGGS = [
+  {name: "ふつうのたまご", pet: "🐣 ヒヨコ", price: 25, income: 1, w: 40, hatch: 30, egg: "#F5F5F4", body: "#FDE047", head: "#FACC15"},
+  {name: "森のたまご", pet: "🦎 トカゲ", price: 120, income: 4, w: 25, hatch: 40, egg: "#86EFAC", body: "#16A34A", head: "#22C55E"},
+  {name: "海のたまご", pet: "🐢 カメ", price: 500, income: 12, w: 15, hatch: 50, egg: "#7DD3FC", body: "#0E7490", head: "#86EFAC"},
+  {name: "まほうのたまご", pet: "🦄 ユニコーン", price: 2500, income: 45, w: 10, hatch: 60, egg: "#D8B4FE", body: "#F8FAFC", head: "#F0ABFC"},
+  {name: "火のたまご", pet: "🐉 ドラゴン", price: 12000, income: 160, w: 6, hatch: 75, egg: "#F87171", body: "#B91C1C", head: "#F97316"},
+  {name: "にじのたまご", pet: "🦚 フェニックス", price: 60000, income: 600, w: 3, hatch: 90, egg: "#F472B6", body: "#F59E0B", head: "#EF4444"},
+  {name: "宇宙のたまご", pet: "👽 ギャラクシー", price: 300000, income: 2500, w: 1, hatch: 110, egg: "#312E81", body: "#4C1D95", head: "#22D3EE"},
+  {name: "ひみつのたまご", pet: "🌟 ？？？", price: 1500000, income: 10000, w: 0.3, hatch: 140, egg: "#111827", body: "#FACC15", head: "#F8FAFC"}
+]
+let EGG_ICON = ["🥚", "🟢", "🔵", "🟣", "🔴", "🌈", "🌌", "❓"]
+
+let BASES = [{x: -44, side: 1}, {x: 0, side: 1}, {x: 44, side: 1}, {x: -44, side: -1}, {x: 0, side: -1}, {x: 44, side: -1}]
+let PEDESTALS = 10
+let START_SLOTS = 4
+let LOCK_SECS = 60          -- 🔒 ロックの長さ（生まれかわると +10秒）
+let CARRY_SECS = 40         -- ぬすんだたまごを もっていられる 秒
+let ROAD_EVERY = 2.5        -- たまごが 道に出てくる 秒
+let ROAD_SPEED = 3.5
+let THIEF_EVERY = 70        -- アライグマどろぼうが来る 秒
+let REBIRTH_COST = 500000   -- × (生まれかわり回数 + 1)
+
+func slot_price(n)
+  return floor(200 * pow(4, n - START_SLOTS))
+end
