@@ -1,0 +1,41 @@
+-- data.absc — Build Your Island の表
+
+ty_setup({plots: 6, word: "島", rebirth: 0.6})
+
+ty_items = [
+  {id: "land1", name: "🏝 島を広げる（すなはま）", price: 60, income: 0},
+  {id: "bench", name: "🪚 作業台（木 → 板）", price: 150, income: 0, after: "land1"},
+  {id: "lumberbot", name: "🤖 木こりロボ（木が ふえる）", price: 500, income: 0, after: "bench"},
+  {id: "land2", name: "🏝 島を広げる（草原と鉄）", price: 1200, income: 0, after: "lumberbot"},
+  {id: "kiln", name: "🧱 かま（石 → れんが）", price: 2500, income: 0, after: "land2"},
+  {id: "quarry", name: "⛏ 石切りドリル（石が ふえる）", price: 5000, income: 0, after: "kiln"},
+  {id: "land3", name: "🏝 島を広げる（金の岩）", price: 10000, income: 0, after: "quarry"},
+  {id: "forge", name: "⚒ かじ場（鉄＋板 → 道具）", price: 20000, income: 0, after: "land3"},
+  {id: "mine", name: "⛏ 鉄の鉱山（鉄が ふえる）", price: 40000, income: 0, after: "forge"},
+  {id: "goldmine", name: "✨ 金の鉱山（金が ふえる）", price: 80000, income: 0, after: "mine"},
+  {id: "castle", name: "🏰 島のお城（売りね ×2）", price: 200000, income: 0, after: "goldmine"}
+]
+
+-- しげん: value は 売りね
+let RES = {
+  wood: {name: "🪵 木", value: 2},
+  stone: {name: "🪨 石", value: 3},
+  iron: {name: "⛓ 鉄", value: 12},
+  gold: {name: "🪙 金", value: 40},
+  planks: {name: "🟫 板", value: 7},
+  bricks: {name: "🧱 れんが", value: 10},
+  tools: {name: "🔨 道具", value: 60}
+}
+let RES_ORDER = ["wood", "stone", "iron", "gold", "planks", "bricks", "tools"]
+-- とれる場所: hp は かたさ
+let NODE_HP = {wood: 4, stone: 6, iron: 14, gold: 30}
+let NODE_GIVE = {wood: 3, stone: 3, iron: 2, gold: 2}
+let NODE_BACK = 18
+-- 自動のきかい: 1秒に ふえる量
+let BOTS = {lumberbot: {res: "wood", n: 2}, quarry: {res: "stone", n: 2}, mine: {res: "iron", n: 1}, goldmine: {res: "gold", n: 1}}
+-- 加工: 1秒に1回
+let CRAFT = [
+  {station: "bench", from: {wood: 2}, make: "planks"},
+  {station: "kiln", from: {stone: 2}, make: "bricks"},
+  {station: "forge", from: {iron: 1, planks: 1}, make: "tools"}
+]

@@ -1,0 +1,53 @@
+-- Build Your Island — 自分だけの島づくり
+-- 木や岩のそばで ⛏ をタップして しげんをとる。ボートの水色のパッドで売る。
+-- オレンジのパッドで 島を広げたり（鉄・金が出る）、自動のきかい・作業台・かま・かじ場を建てる。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  島・建てる・生まれかわり
+--   data.absc     建てるもの・しげん・加工
+--   island.absc   しげんをとる・きかい・加工・売る
+--   main.absc     このファイル
+
+kit_setup("Build Your Island", "小さな島を、大きな王国に！", [
+  "⛏ 木や岩のそばで ⛏ をタップ → しげんがとれる",
+  "🛶 ボートの水色のパッドで ぜんぶ売る",
+  "🟧 オレンジのパッドで 島を広げる・きかいを建てる",
+  "🤖 木こりロボ・ドリル・鉱山は 自動で しげんをふやす",
+  "🪚 作業台（板）・🧱 かま（れんが）・⚒ かじ場（道具）で 加工すると 高く売れる",
+  "🏰 お城で 売りね ×2。ぜんぶ建てたら 生まれかわり"
+])
+kit_keep(["res"])
+
+kit_quest("harvest", "しげんを10回とる", 10, 60)
+kit_quest("sell", "しげんを売る", 1, 40)
+kit_quest("ty_buy", "4つ建てる", 4, 150)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 30 then p.coins = 30 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 10
+  p.res = {}
+  p.ui_button("harvest", "⛏ とる", {at: "bottom_right", dx: -30, dy: -200, w: 120, h: 96, size: 20, bg: "#15803D", radius: 26})
+  p.ui_button("ty_home", "🏝 自分の島", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("💰 売り上げ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.ty_total or 0)
+    if s != p.score then p.score = s end
+  end
+end

@@ -3922,7 +3922,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 568,
-      "bytes" : 316760,
+      "bytes" : 317059,
       "cover" : "games\/lumber-valley-tycoon\/cover-6b93eac5.png",
       "id" : "lumber-valley-tycoon",
       "maxPlayers" : 6,
@@ -3952,7 +3952,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 635,
-      "bytes" : 343730,
+      "bytes" : 344029,
       "cover" : "games\/corner-store-tycoon\/cover-0a6e69eb.png",
       "id" : "corner-store-tycoon",
       "maxPlayers" : 6,
@@ -3981,7 +3981,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 386,
-      "bytes" : 219754,
+      "bytes" : 219523,
       "cover" : "games\/ore-factory-haven\/cover-f4677c17.png",
       "id" : "ore-factory-haven",
       "maxPlayers" : 6,
@@ -3991,7 +3991,6 @@
         "lib\/kit_tycoon.absc",
         "games\/ore-factory-haven\/data.absc",
         "games\/ore-factory-haven\/factory.absc",
-        "games\/ore-factory-haven\/zz_test.absc",
         "games\/ore-factory-haven\/main.absc"
       ],
       "shots" : [
@@ -4007,6 +4006,64 @@
       "title" : "Ore Factory Haven",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/ore-factory-haven\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 533,
+      "bytes" : 292616,
+      "cover" : "games\/oil-baron-empire\/cover-b36ed84b.png",
+      "id" : "oil-baron-empire",
+      "maxPlayers" : 6,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_tycoon.absc",
+        "games\/oil-baron-empire\/data.absc",
+        "games\/oil-baron-empire\/oil.absc",
+        "games\/oil-baron-empire\/main.absc"
+      ],
+      "shots" : [
+        "games\/oil-baron-empire\/shot1-2c3dec9b.png",
+        "games\/oil-baron-empire\/shot2-8619debc.png"
+      ],
+      "summary" : "石油王になろう！ やぐらで石油をくみ上げて タンクにためる。石油のねだんは 上がったり下がったり。高いときに売るのがコツ！ 製油所・パイプライン・ガソリンスタンドで 大帝国へ。",
+      "tags" : [
+        "tycoon",
+        "market",
+        "industry"
+      ],
+      "title" : "Oil Baron Empire",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/oil-baron-empire\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 368,
+      "bytes" : 217811,
+      "cover" : "games\/build-your-island\/cover-ccb12943.png",
+      "id" : "build-your-island",
+      "maxPlayers" : 6,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_tycoon.absc",
+        "games\/build-your-island\/data.absc",
+        "games\/build-your-island\/island.absc",
+        "games\/build-your-island\/main.absc"
+      ],
+      "shots" : [
+        "games\/build-your-island\/shot1-fa1a2c4e.png",
+        "games\/build-your-island\/shot2-5502f83a.png"
+      ],
+      "summary" : "小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！",
+      "tags" : [
+        "tycoon",
+        "island",
+        "crafting"
+      ],
+      "title" : "Build Your Island",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/build-your-island\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

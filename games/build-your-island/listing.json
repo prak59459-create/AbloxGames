@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 368,
+  "bytes" : 217811,
+  "cover" : "games\/build-your-island\/cover-ccb12943.png",
+  "id" : "build-your-island",
+  "maxPlayers" : 6,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_tycoon.absc",
+    "games\/build-your-island\/data.absc",
+    "games\/build-your-island\/island.absc",
+    "games\/build-your-island\/main.absc"
+  ],
+  "shots" : [
+    "games\/build-your-island\/shot1-fa1a2c4e.png",
+    "games\/build-your-island\/shot2-5502f83a.png"
+  ],
+  "summary" : "小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！",
+  "tags" : [
+    "tycoon",
+    "island",
+    "crafting"
+  ],
+  "title" : "Build Your Island",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/build-your-island\/world.ablox"
+}

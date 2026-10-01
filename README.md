@@ -195,6 +195,8 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/lumber-valley-tycoon/cover-6b93eac5.png" width="200"> | 126 | **Lumber Valley Tycoon** | 森で木をきって、トラックで自分の土地へ。製材所で板にすると お金になる。のこぎり・かま・家具工房をふやして、丸太小屋も建てよう。金の木やクリスタルの木もあるよ！ |
 | <img src="games/corner-store-tycoon/cover-0a6e69eb.png" width="200"> | 127 | **Corner Store Tycoon** | 自分のお店をひらこう！ たなを買って品物をならべると お客さんがやってくる。レジでお会計、へった品物は 倉庫から補充。店員をやとって、お菓子屋さんから ゲームや宝石のお店へ！ |
 | <img src="games/ore-factory-haven/cover-f4677c17.png" width="200"> | 128 | **Ore Factory Haven** | 鉱石の工場をつくろう！ マインから出た鉱石が ベルトコンベアで流れて、アップグレーダーで ねうちアップ、かまどで お金に。ときどき落ちてくる なぞの箱もさがそう。最強の工場へ！ |
+| <img src="games/oil-baron-empire/cover-b36ed84b.png" width="200"> | 129 | **Oil Baron Empire** | 石油王になろう！ やぐらで石油をくみ上げて タンクにためる。石油のねだんは 上がったり下がったり。高いときに売るのがコツ！ 製油所・パイプライン・ガソリンスタンドで 大帝国へ。 |
+| <img src="games/build-your-island/cover-ccb12943.png" width="200"> | 130 | **Build Your Island** | 小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！ |
 
 <!-- games:end -->
 

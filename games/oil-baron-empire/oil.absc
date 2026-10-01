@@ -1,0 +1,113 @@
+-- oil.absc — くみ上げた石油は タンクへ（いっぱいになると止まる）。石油取引所の緑のパッドで いまのねだんで売る。
+-- ねだんは 15秒ごとに上がったり下がったり。ときどき ブームや 暴落も。
+
+let price = PRICE_START
+let last_price = PRICE_START
+let price_clock = 0
+let oil_clock = 0
+let event_text = ""
+
+func pump_rate(p)
+  let r = 0
+  for id in keys(RIGS) do
+    if ty_owns(p, id) then r = r + RIGS[id] end
+  end
+  for id in keys(PUMP_BONUS) do
+    if ty_owns(p, id) then r = r * PUMP_BONUS[id] end
+  end
+  return r
+end
+
+func tank_size(p)
+  let s = BASE_TANK
+  for id in keys(TANKS) do
+    if ty_owns(p, id) then s = s + TANKS[id] end
+  end
+  return s
+end
+
+func refine(p)
+  let m = 1
+  for id in keys(REFINE) do
+    if ty_owns(p, id) then m = m * REFINE[id] end
+  end
+  return m * (1 + (p.ty_rebirths or 0) * ty_rebirth_bonus)
+end
+
+ty_extra_income = func(p)
+  let cap = tank_size(p)
+  let before = p.oil or 0
+  p.oil = min(cap, before + pump_rate(p))
+  if before < cap and p.oil >= cap then p.message("🫙 タンクがいっぱい！ 取引所で売ろう（またはタンクをふやす）", 2) end
+  return 0
+end
+
+func sell(p)
+  let n = floor(p.oil or 0)
+  if n <= 0 then
+    if kit_ready(p, "nooil", 3) then p.message("🛢 石油がない", 1) end
+    return
+  end
+  let pay = floor(n * price * refine(p))
+  p.oil = 0
+  kit_give(p, pay)
+  p.ty_total = (p.ty_total or 0) + pay
+  p.barrels = (p.barrels or 0) + n
+  p.message("📈 " + n + " バレルを 💰" + fixed(price, 2) + " で売った → 💰" + kit_short(pay), 2)
+  p.sound("coin")
+  kit_quest_progress(p, "sell", 1)
+  if price >= 2 then kit_quest_progress(p, "highsell", 1) end
+end
+
+func move_price()
+  last_price = price
+  event_text = ""
+  if chance(8) then
+    price = price * 1.6
+    event_text = "🔥 石油ブーム！"
+  elif chance(8) then
+    price = price * 0.55
+    event_text = "📉 暴落…"
+  else
+    price = price * random_float(0.85, 1.18)
+  end
+  -- 長くはなれすぎないように 少し 1 にもどる
+  price = clamp(price + (1 - price) * 0.08, PRICE_MIN, PRICE_MAX)
+  let board = first(blocks("price_board"))
+  if board != nil then
+    if price >= last_price then board.color = "#22C55E" else board.color = "#EF4444" end
+  end
+  if event_text != "" then announce(event_text + " 石油のねだん 💰" + fixed(price, 2), 3) end
+end
+
+func oil_hud(p)
+  let arrow = "↗️"
+  if price < last_price then arrow = "↘️" end
+  p.ui_text("oil_hud", "🛢 " + floor(p.oil or 0) + "/" + tank_size(p) + " バレル（" + fixed(pump_rate(p), 1) + "/秒）   📈 1バレル 💰" + fixed(price, 2) + " " + arrow +
+            "  ×" + fixed(refine(p), 1), {at: "top", dy: 86, size: 14, bold: true, color: "#FDE68A"})
+  p.ui_bar("oil_bar", p.oil or 0, tank_size(p), {at: "top", dy: 106, w: 240, h: 8, color: "#111827"})
+end
+
+on tick(dt)
+  price_clock = price_clock + dt
+  oil_clock = oil_clock + dt
+  if price_clock >= PRICE_EVERY then
+    price_clock = 0
+    move_price()
+  end
+  if oil_clock >= 1 then
+    oil_clock = 0
+    for p in players() do
+      if p.ty_plot != nil then oil_hud(p) end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "market") and kit_ready(p, "market", 1.5) then sell(p) end
+end
+
+on button(p, id)
+  if id == "go_market" then p.teleport(block("Market Pad").position + {x: 0, y: 1, z: 3}) end
+end

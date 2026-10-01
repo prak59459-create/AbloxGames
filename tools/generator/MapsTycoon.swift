@@ -5,6 +5,12 @@ import Foundation
 // step on pads to buy the next building, collect what it earns.
 
 let tycoonGames: [Game] = [
+    Game(number: 130, id: "build-your-island", title: "Build Your Island",
+         summary: "小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！",
+         tags: ["tycoon", "island", "crafting"], maxPlayers: 6, libs: ["tycoon"], build: buildYourIsland),
+    Game(number: 129, id: "oil-baron-empire", title: "Oil Baron Empire",
+         summary: "石油王になろう！ やぐらで石油をくみ上げて タンクにためる。石油のねだんは 上がったり下がったり。高いときに売るのがコツ！ 製油所・パイプライン・ガソリンスタンドで 大帝国へ。",
+         tags: ["tycoon", "market", "industry"], maxPlayers: 6, libs: ["tycoon"], build: oilBaronEmpire),
     Game(number: 128, id: "ore-factory-haven", title: "Ore Factory Haven",
          summary: "鉱石の工場をつくろう！ マインから出た鉱石が ベルトコンベアで流れて、アップグレーダーで ねうちアップ、かまどで お金に。ときどき落ちてくる なぞの箱もさがそう。最強の工場へ！",
          tags: ["tycoon", "factory", "idle"], maxPlayers: 6, libs: ["tycoon"], build: oreFactoryHaven),
@@ -253,4 +259,136 @@ func oreFactoryHaven(_ m: MapBuilder) {
         m.part("Smokestack", at: (r.range(-150, 190), 8, r.range(60, 130)), size: (3, 16, 3), color: "#57534E", shape: .cylinder, material: .brick, solid: false)
     }
     m.coverFocus(x: 154, y: 2, z: 22, yaw: 210, width: 40)
+}
+
+// MARK: 129 Oil Baron Empire (Oil Empire)
+
+func oilBaronEmpire(_ m: MapBuilder) {
+    m.sky("#F59E0B", "#FDE68A", light: 0.75, ground: "#D6B77A")
+    m.environment.skyStyle = .sunset
+    m.ground(380, 200, color: "#E3C58D", x: 22, z: 40, material: .sand)
+    m.road(from: (-160, -12), to: (200, -12), width: 10, name: "Desert Highway")
+    m.spawnRing(0, -20, radius: 4, count: 6, color: "#111827")
+    // The oil exchange, where everyone sells.
+    m.slab("Exchange", x: 0, y: 0, z: -34, w: 20, h: 8, d: 10, color: "#1E293B")
+    m.part("Exchange Board", at: (0, 6, -28.8), size: (16, 3, 0.3), color: "#22C55E", material: .neon, tags: ["price_board"], solid: false)
+    m.pad("Market Pad", x: 0, z: -26, size: 4, color: "#22C55E", tags: ["market"])
+    let items: [(String, Float, Float)] = [("rig1", -3, 5), ("tank1", 3, 5), ("rig2", -3, 10), ("pipe", 3, 10), ("tank2", -3, 15), ("refinery", 3, 15),
+                                           ("rig3", -3, 20), ("station", 3, 20), ("tank3", -3, 25), ("rig4", 3, 25), ("refinery2", -3, 30), ("rig5", 3, 30)]
+    let rigs: [String: Float] = ["rig1": -12, "rig2": -6, "rig3": 6, "rig4": 12, "rig5": 0]
+    tycoonPlots(m, count: 6, w: 36, d: 40, floor: "#C2A878", padColor: "#111827", items: items, collector: (14, 3)) { id, cx in
+        if let ox = rigs[id] {
+            m.slab("Rig Base", x: cx + ox, y: 0, z: 34, w: 4, h: 0.6, d: 4, color: "#44403C")
+            for (dx, dz) in [(-1.4, -1.4), (1.4, -1.4), (-1.4, 1.4), (1.4, 1.4)] as [(Float, Float)] {
+                m.part("Rig Leg", at: (cx + ox + dx * 0.6, 4, 34 + dz * 0.6), size: (0.3, 8, 0.3), color: "#57534E", material: .metal, solid: false)
+            }
+            m.part("Rig Top", at: (cx + ox, 8.4, 34), size: (1.2, 1, 1.2), color: "#DC2626", material: .metal, tags: ["ty_drop", "drop=#111827"], solid: false)
+            m.part("Pump Head", at: (cx + ox, 1.6, 31.6), size: (2.4, 0.6, 0.6), color: "#1F2937", material: .metal, solid: false)
+            return
+        }
+        switch id {
+        case "tank1":
+            m.part("Oil Tank", at: (cx + 13, 2.5, 22), size: (5, 5, 5), color: "#E5E7EB", shape: .cylinder, material: .metal)
+        case "tank2":
+            m.part("Oil Tank", at: (cx + 13, 3, 14), size: (5.5, 6, 5.5), color: "#CBD5E1", shape: .cylinder, material: .metal)
+        case "tank3":
+            m.part("Big Oil Tank", at: (cx - 13, 3.5, 16), size: (7, 7, 7), color: "#94A3B8", shape: .cylinder, material: .metal)
+        case "pipe":
+            m.slab("Pipeline", x: cx, y: 0.4, z: 30, w: 30, h: 0.8, d: 0.8, color: "#78716C", material: .metal)
+            m.slab("Pipeline", x: cx + 15, y: 0.4, z: 20, w: 0.8, h: 0.8, d: 20, color: "#78716C", material: .metal)
+        case "refinery":
+            m.slab("Refinery", x: cx - 12, y: 0, z: 26, w: 7, h: 5, d: 5, color: "#475569", material: .metal)
+            m.part("Refinery Stack", at: (cx - 10, 7, 26), size: (1, 4, 1), color: "#A8A29E", shape: .cylinder, solid: false)
+            m.part("Refinery Flame", at: (cx - 10, 9.4, 26), size: (0.8, 1, 0.8), color: "#F97316", shape: .cone, material: .neon, solid: false)
+        case "refinery2":
+            m.slab("Cracking Tower", x: cx - 12, y: 0, z: 8, w: 4, h: 12, d: 4, color: "#334155", material: .metal)
+            m.part("Tower Light", at: (cx - 12, 12.4, 8), size: (0.8, 0.8, 0.8), color: "#EF4444", shape: .sphere, material: .neon, solid: false)
+        default:
+            m.slab("Gas Station", x: cx + 11, y: 0, z: 8, w: 8, h: 3, d: 5, color: "#F8FAFC")
+            m.slab("Gas Canopy", x: cx + 11, y: 4, z: 4, w: 9, h: 0.4, d: 4, color: "#DC2626")
+        }
+    }
+    var r = Seeded("oil")
+    for _ in 0..<16 {
+        m.pillar("Cactus", x: r.range(-150, 190), z: r.pick([r.range(-60, -40), r.range(55, 130)]), height: r.range(2, 4), radius: 0.4, color: "#3F6212")
+    }
+    m.coverFocus(x: 154, y: 3, z: 22, yaw: 210, width: 40)
+}
+
+// MARK: 130 Build Your Island (Build An Island!)
+
+func buildYourIsland(_ m: MapBuilder) {
+    m.ocean()
+    m.environment.skyStyle = .clouds
+    m.ground(380, 200, color: "#0EA5E9", x: 22, z: 30, material: .glass)
+    // The harbour on the mainland strip in front of the islands.
+    m.slab("Harbour", x: 22, y: 0, z: -14, w: 380, h: 0.4, d: 14, color: "#D6D3D1", material: .wood)
+    m.spawnRing(0, -16, radius: 4, count: 6, color: "#F59E0B")
+    let items: [(String, Float, Float)] = [("land1", -2, 9), ("bench", 2, 9), ("lumberbot", -2, 13), ("land2", 2, 13), ("kiln", -2, 17), ("quarry", 2, 17),
+                                           ("land3", -2, 21), ("forge", 2, 21), ("mine", -2, 25), ("goldmine", 2, 25), ("castle", 0, 28)]
+    tycoonPlots(m, count: 6, w: 36, d: 40, floor: "#38BDF8", padColor: "#F59E0B", items: items, collector: (13, 3)) { id, cx in
+        let c: (Float, Float) = (cx, 20)
+        switch id {
+        case "land1":
+            m.slab("Island Ring 1", x: c.0, y: 0.02, z: c.1, w: 22, h: 0.36, d: 22, color: "#FDE68A", material: .sand)
+            for (i, q) in [(-8, -6), (8, 6), (-6, 8)].enumerated() {
+                m.part("Node Tree", at: (c.0 + Float(q.0), 2.2, c.1 + Float(q.1)), size: (0.8, 4, 0.8), color: "#78350F", shape: .cylinder, material: .wood,
+                       tags: ["rnode", "res=wood", "ring=1", "id=t1\(i)"])
+            }
+            m.part("Node Rock", at: (c.0 + 7, 0.9, c.1 - 7), size: (2, 1.6, 2), color: "#78716C", shape: .sphere, material: .stone, tags: ["rnode", "res=stone", "ring=1", "id=r1"])
+        case "land2":
+            m.slab("Island Ring 2", x: c.0, y: 0.04, z: c.1, w: 30, h: 0.36, d: 30, color: "#FCD34D", material: .sand)
+            m.slab("Island Grass 2", x: c.0, y: 0.06, z: c.1, w: 18, h: 0.36, d: 18, color: "#4ADE80", material: .grass)
+            for (i, q) in [(-12, -12), (12, -11), (-12, 12)].enumerated() {
+                m.part("Node Rock", at: (c.0 + Float(q.0), 0.9, c.1 + Float(q.1)), size: (2.2, 1.8, 2.2), color: "#57534E", shape: .sphere, material: .stone,
+                       tags: ["rnode", "res=stone", "ring=2", "id=r2\(i)"])
+            }
+            m.part("Node Iron", at: (c.0 + 12, 0.9, c.1 + 12), size: (2, 1.6, 2), color: "#D6D3D1", shape: .sphere, material: .metal, tags: ["rnode", "res=iron", "ring=2", "id=i2"])
+        case "land3":
+            m.slab("Island Ring 3", x: c.0, y: 0.08, z: c.1, w: 36, h: 0.36, d: 38, color: "#FDE68A", material: .sand)
+            m.slab("Island Grass 3", x: c.0, y: 0.1, z: c.1, w: 26, h: 0.36, d: 26, color: "#22C55E", material: .grass)
+            for (i, q) in [(-16, -16), (16, 16)].enumerated() {
+                m.part("Node Gold", at: (c.0 + Float(q.0), 0.9, c.1 + Float(q.1)), size: (1.8, 1.4, 1.8), color: "#FACC15", shape: .sphere, material: .metal,
+                       tags: ["rnode", "res=gold", "ring=3", "id=g3\(i)"])
+            }
+            m.part("Node Iron", at: (c.0 - 16, 0.9, c.1 + 16), size: (2, 1.6, 2), color: "#D6D3D1", shape: .sphere, material: .metal, tags: ["rnode", "res=iron", "ring=3", "id=i3"])
+            m.pine(c.0 + 16, c.1 - 16, y: 0.4, height: 5, leaves: "#15803D")
+        case "bench":
+            m.slab("Workbench", x: c.0 - 6, y: 0.4, z: c.1 + 2, w: 3, h: 1, d: 1.6, color: "#A16207", material: .wood)
+        case "lumberbot":
+            m.part("Lumber Bot", at: (c.0 - 9, 1.6, c.1 - 2), size: (1.6, 2.4, 1.6), color: "#F59E0B", shape: .cylinder, material: .metal, tags: ["ty_drop", "drop=#92400E"],
+                   solid: false)
+        case "kiln":
+            m.slab("Kiln", x: c.0 + 6, y: 0.4, z: c.1 + 2, w: 3, h: 2.6, d: 3, color: "#B91C1C", material: .brick)
+        case "quarry":
+            m.part("Quarry Drill", at: (c.0 + 9, 2, c.1 - 3), size: (1.2, 3.4, 1.2), color: "#64748B", material: .metal, tags: ["ty_drop", "drop=#A8A29E"], solid: false)
+        case "forge":
+            m.slab("Forge", x: c.0, y: 0.4, z: c.1 + 8, w: 4, h: 2.4, d: 3, color: "#1F2937", material: .metal)
+            m.part("Forge Fire", at: (c.0, 1.6, c.1 + 6.4), size: (2, 0.8, 0.1), color: "#F97316", material: .neon, solid: false)
+        case "mine":
+            m.slab("Iron Mine", x: c.0 - 12, y: 0.4, z: c.1 + 4, w: 4, h: 3, d: 4, color: "#44403C", material: .stone)
+            m.part("Mine Cart", at: (c.0 - 12, 3.8, c.1 + 4), size: (1, 0.8, 1), color: "#D6D3D1", tags: ["ty_drop", "drop=#D6D3D1"], solid: false)
+        case "goldmine":
+            m.slab("Gold Mine", x: c.0 + 12, y: 0.4, z: c.1 + 4, w: 4, h: 3, d: 4, color: "#78350F", material: .stone)
+            m.part("Gold Glow", at: (c.0 + 12, 3.8, c.1 + 4), size: (1, 0.8, 1), color: "#FACC15", material: .neon, tags: ["ty_drop", "drop=#FACC15"], solid: false)
+        default:
+            m.slab("Castle", x: c.0, y: 0.4, z: c.1 + 14, w: 12, h: 6, d: 6, color: "#E7E5E4", material: .stone)
+            for x in [-6, 6] as [Float] {
+                m.part("Castle Tower", at: (c.0 + x, 4.5, c.1 + 14), size: (3, 9, 3), color: "#D6D3D1", shape: .cylinder, material: .stone)
+                m.part("Castle Flag", at: (c.0 + x, 10, c.1 + 14), size: (1.4, 1, 0.1), color: "#EF4444", material: .neon, solid: false)
+            }
+        }
+    }
+    // Every island has a small grass start, a trader and a first tree.
+    for k in 1...6 {
+        let cx = (Float(k) - 3.5) * 44
+        m.slab("Island Start \(k)", x: cx, y: 0.1, z: 20, w: 12, h: 0.4, d: 12, color: "#4ADE80", material: .grass)
+        m.part("Start Tree \(k)", at: (cx - 3, 2.4, 22), size: (0.8, 4, 0.8), color: "#78350F", shape: .cylinder, material: .wood,
+               tags: ["rnode", "res=wood", "ring=0", "id=t0"])
+        m.part("Start Rock \(k)", at: (cx + 3, 1.1, 18), size: (1.6, 1.3, 1.6), color: "#78716C", shape: .sphere, material: .stone,
+               tags: ["rnode", "res=stone", "ring=0", "id=r0"])
+        m.pad("Trader \(k)", x: cx - 13, z: 3, size: 2.8, color: "#22D3EE", tags: ["trade", "k=\(k)"])
+        m.part("Trader Boat", at: (cx - 13, 0.6, -2), size: (3, 1, 6), color: "#A16207", material: .wood, solid: false)
+    }
+    m.coverFocus(x: 154, y: 2, z: 20, yaw: 210, width: 40)
 }

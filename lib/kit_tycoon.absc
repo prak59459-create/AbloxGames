@@ -72,8 +72,19 @@ func ty_income(p)
   return s * ty_mult(p)
 end
 
+-- グループのブロックは 1回さがしたら おぼえておく（毎回ぜんぶのブロックを見ないように）
+let ty_cache = {}
+func ty_blocks(tag)
+  let list = ty_cache[tag]
+  if list == nil then
+    list = blocks(tag)
+    ty_cache[tag] = list
+  end
+  return list
+end
+
 func ty_show(tag, shown)
-  for b in blocks(tag) do
+  for b in ty_blocks(tag) do
     if b.visible != shown then
       b.visible = shown
       if contains(b.tags, "solid") then b.solid = shown end
@@ -139,7 +150,7 @@ func ty_buy(p, b)
   append(p.ty_owned, it.id)
   ty_show("tyb" + k + "_" + it.id, false)
   -- 下から せり上がる
-  for x in blocks("ty" + k + "_" + it.id) do
+  for x in ty_blocks("ty" + k + "_" + it.id) do
     let target = x.position
     x.visible = true
     if contains(x.tags, "solid") then x.solid = true end
@@ -228,7 +239,7 @@ func ty_spawn_drop(p)
   let k = p.ty_plot
   let spots = []
   for id in p.ty_owned or [] do
-    for b in blocks("ty" + k + "_" + id) do
+    for b in ty_blocks("ty" + k + "_" + id) do
       if contains(b.tags, "ty_drop") then append(spots, b) end
     end
   end

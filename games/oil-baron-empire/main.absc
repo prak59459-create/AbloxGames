@@ -1,0 +1,53 @@
+-- Oil Baron Empire — 石油王の帝国
+-- 黒いパッドで やぐら・タンク・製油所を建てる。やぐらは 石油をくみ上げて タンクにためる。
+-- 道の向こうの 石油取引所（緑のパッド）で 売る。ねだんは かわるので 高いときに売ろう。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  油田の土地・建てる・お金・生まれかわり
+--   data.absc   建てるもの・やぐら・タンク・市場
+--   oil.absc    石油・タンク・取引所・ねだん
+--   main.absc   このファイル
+
+kit_setup("Oil Baron Empire", "くみ上げて、ためて、高いときに売れ！", [
+  "⬛ 黒いパッドで やぐら・タンク・製油所などを建てる",
+  "🛢 やぐらは 石油をくみ上げて タンクへ（いっぱいになると止まる）",
+  "📈 道の向こうの 石油取引所の緑のパッドで 売る",
+  "💹 ねだんは 15秒ごとに かわる。上の 📈 を見て 高いときに！",
+  "🏭 製油所・分留塔で 売りねアップ。⛽ ガソリンスタンドは 自動でお金（緑のパッドで受けとる）",
+  "🌟 ぜんぶ建てたら 生まれかわり"
+])
+kit_keep(["oil", "barrels"])
+
+kit_quest("ty_buy", "3つ建てる", 3, 80)
+kit_quest("sell", "石油を売る", 1, 50)
+kit_quest("highsell", "💰2 いじょうで売る", 1, 300)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 90 then p.coins = 90 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 11
+  p.oil = 0
+  p.ui_button("go_market", "📈 取引所へ", {at: "right", dy: -110, w: 150, h: 44, size: 14, bg: "#15803D"})
+  p.ui_button("ty_home", "🛢 自分の油田", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("💰 売り上げ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.ty_total or 0)
+    if s != p.score then p.score = s end
+  end
+end

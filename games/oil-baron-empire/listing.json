@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 533,
+  "bytes" : 292616,
+  "cover" : "games\/oil-baron-empire\/cover-b36ed84b.png",
+  "id" : "oil-baron-empire",
+  "maxPlayers" : 6,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_tycoon.absc",
+    "games\/oil-baron-empire\/data.absc",
+    "games\/oil-baron-empire\/oil.absc",
+    "games\/oil-baron-empire\/main.absc"
+  ],
+  "shots" : [
+    "games\/oil-baron-empire\/shot1-2c3dec9b.png",
+    "games\/oil-baron-empire\/shot2-8619debc.png"
+  ],
+  "summary" : "石油王になろう！ やぐらで石油をくみ上げて タンクにためる。石油のねだんは 上がったり下がったり。高いときに売るのがコツ！ 製油所・パイプライン・ガソリンスタンドで 大帝国へ。",
+  "tags" : [
+    "tycoon",
+    "market",
+    "industry"
+  ],
+  "title" : "Oil Baron Empire",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/oil-baron-empire\/world.ablox"
+}
