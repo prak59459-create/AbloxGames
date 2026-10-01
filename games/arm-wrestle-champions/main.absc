@@ -1,0 +1,38 @@
+-- Arm Wrestle Champions — うでずもうチャンピオン
+-- 💪 をタップして うでの力をきたえる（エリアが進むほど ×ボーナス）。テーブルのパッドでライバルと勝負。
+-- 勝負中は 💪 を連打して バーを右まで押しきれ。ボスに勝つと次のエリアへ。白いテーブルは友だちと勝負。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  きたえる・ショップ・たまご・ペット・生まれかわり
+--   data.absc     にぎる道具・たまご・エリア・ライバル
+--   wrestle.absc  うでずもう・ボス・ゲート・友だち勝負
+--   main.absc     このファイル
+
+kit_setup("Arm Wrestle Champions", "きたえて、連打して、チャンピオンへ！", [
+  "💪 右下のボタンをタップして うでの力をきたえる",
+  "🟧 テーブルの前のパッドで ライバルと勝負。💪 を連打して 右まで押しきれば勝ち",
+  "👑 赤いパッドはボス。勝つと 次のエリア（×3・×8・×20）のゲートがひらく",
+  "🛒 ショップの にぎる道具で 1回にたくさん力がつく",
+  "🤝 スタートの白いテーブル（ピンクと水色のパッド）で 友だちと勝負",
+  "🥚 ペット・🌟 生まれかわりで もっと強く"
+])
+kit_keep(["boss_beaten", "wins", "duel_wins"])
+
+kit_quest("win", "ライバルに3回 勝つ", 3, 100)
+kit_quest("boss", "ボスに勝つ", 1, 400)
+kit_quest("sim_tool", "にぎる道具を買う", 1, 60)
+kit_quest("duel", "友だちに勝つ", 1, 150)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 8
+end
+
+on start()
+  world.music = "boss"
+  every(12, func() kit_leaderboard("💪 うでの力") end)
+end

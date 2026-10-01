@@ -1,0 +1,235 @@
+-- dig.absc — ほる: 目の前の砂をけずる。3回ぶんほると底。宝がうまっていたら宝箱が出てくる。
+-- 🔎 たんちきで 近くの宝をさがす。ほった穴は ゆっくり うまっていく。
+
+let fields = []       -- k → {tiles, treasure: [i…]}
+let chests = []       -- {b, k, i, kind, until}
+let dig_clock = 0
+let fill_clock = 0
+
+func field_of(p)
+  for k in 1 to len(fields) do
+    let c = block("Field " + k)
+    if c != nil and abs(p.x - c.x) < 20 and abs(p.z - c.z) < 20 then return k end
+  end
+  return nil
+end
+
+func tile_h(depth)
+  return 0.9 - depth * 0.28
+end
+
+func paint(t)
+  let h = tile_h(t.depth)
+  t.b.size = {x: 3.95, y: h, z: 3.95}
+  t.b.position = {x: t.b.x, y: h / 2, z: t.b.z}
+end
+
+func hide_treasure(k)
+  let f = fields[k]
+  let i = random(1, len(f.tiles))
+  while contains(f.treasure, i) do i = random(1, len(f.tiles)) end
+  append(f.treasure, i)
+end
+
+on start()
+  for k in 1 to 3 do
+    let f = {tiles: [], treasure: []}
+    for r in 0 to COLS - 1 do
+      for c in 0 to COLS - 1 do
+        append(f.tiles, {b: block("T " + k + "-" + c + "-" + r), depth: 0, hp: 0})
+      end
+    end
+    append(fields, f)
+    for j in 1 to TREASURES do hide_treasure(k) end
+  end
+end
+
+func layer_hp(k, depth)
+  return (3 + depth * 3) * FIELD_MULT[k]
+end
+
+func tile_at(k, x, z)
+  let c = block("Field " + k)
+  let col = floor((x - (c.x - COLS * CELL / 2)) / CELL)
+  let row = floor((z - (c.z - COLS * CELL / 2)) / CELL)
+  if col < 0 or row < 0 or col >= COLS or row >= COLS then return nil end
+  return row * COLS + col + 1
+end
+
+sim_on_tap = func(p, amount)
+  let k = field_of(p)
+  if k == nil then
+    if kit_ready(p, "nofield", 3) then p.message("⛏ 砂浜の上で ほろう", 1.2) end
+    return true
+  end
+  if (p.sim_value or 0) < sim_zones[k].need then return true end
+  if (p.sim_fill or 0) >= sim_bag_size(p) then
+    if kit_ready(p, "full", 3) then p.message("🎒 いっぱい！ 黄色いパッドで売ろう", 1.5) end
+    return true
+  end
+  let f = forward(p.yaw)
+  let i = tile_at(k, p.x + f.x * 1.5, p.z + f.z * 1.5)
+  if i == nil then i = tile_at(k, p.x, p.z) end
+  if i == nil then return true end
+  let t = fields[k].tiles[i]
+  if t.depth >= LAYERS then
+    if kit_ready(p, "bottom", 2) then p.message("ここは もう底。🔎 で ほかの場所をさがそう", 1) end
+    return true
+  end
+  if t.hp <= 0 then t.hp = layer_hp(k, t.depth) end
+  t.hp = t.hp - sim_tool(p).power * (p.sim_boost or 1)
+  p.sound("click")
+  if t.hp > 0 then return true end
+  t.depth = t.depth + 1
+  t.hp = 0
+  paint(t)
+  particles("dust", t.b, {amount: 8})
+  sim_gain(p, floor(2 * FIELD_MULT[k] * sim_mult(p)))
+  kit_quest_progress(p, "dig", 1)
+  if t.depth >= LAYERS and contains(fields[k].treasure, i) then reveal(p, k, i) end
+  return true
+end
+
+func reveal(p, k, i)
+  let f = fields[k]
+  remove(f.treasure, index_of(f.treasure, i))
+  let kind = CHESTS[pick_weighted(map(CHESTS, func(c) return c.w end))]
+  let t = f.tiles[i]
+  let b = create_block({name: "Chest", position: {x: t.b.x, y: 0.6, z: t.b.z}, size: {x: 1.8, y: 1.2, z: 1.2}, color: kind.color, material: "wood",
+                        behavior: "trigger", solid: false, tags: ["chest"]})
+  append(chests, {b: b, k: k, i: i, kind: kind, until: time() + 60})
+  p.message("✨ " + kind.name + " が出てきた！ さわってあけよう", 2)
+  p.sound("magic")
+  particles("sparkles", b, {amount: 30})
+  hide_treasure(k)
+end
+
+func open_chest(p, b)
+  let c = find(chests, func(x) return x.b == b end)
+  if c == nil then return end
+  remove(chests, index_of(chests, c))
+  kit_gone(b)
+  let pay = floor(c.kind.coins * FIELD_MULT[c.k] * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+  kit_give(p, pay)
+  p.chests_found = (p.chests_found or 0) + 1
+  p.message(c.kind.name + "！ 💰" + kit_short(pay), 2)
+  p.sound("win")
+  particles("confetti", p, {amount: 50})
+  kit_quest_progress(p, "chest", 1)
+  if c.kind.w <= 5 then
+    announce("👑 " + p.name + " が 伝説の宝箱を ほりあてた！", 3)
+    kit_badge(p, "legend_chest", "伝説の宝箱")
+  end
+end
+
+func detector(p)
+  let d = DETECTORS[1]
+  for x in DETECTORS do
+    if x.id == p.detector then d = x end
+  end
+  return d
+end
+
+func detect(p)
+  let k = field_of(p)
+  if k == nil then
+    p.ui_remove("dg_detect")
+    return
+  end
+  let best = 1000
+  for i in fields[k].treasure do
+    let b = fields[k].tiles[i].b
+    best = min(best, distance({x: p.x, y: 0, z: p.z}, {x: b.x, y: 0, z: b.z}))
+  end
+  let range = detector(p).range
+  if best <= 2.5 then
+    p.ui_text("dg_detect", "🔎 ピピピピピ！ この下だ！", {at: "top", dy: 62, size: 20, bold: true, color: "#EF4444"})
+    if kit_ready(p, "beep", 0.5) then p.sound("alarm") end
+  elif best <= range then
+    p.ui_text("dg_detect", "🔎 ピピ… あと " + floor(best) + "m", {at: "top", dy: 62, size: 18, bold: true, color: "#F59E0B"})
+  else
+    p.ui_text("dg_detect", "🔎 しーん…（" + detector(p).name + " は " + range + "m まで）", {at: "top", dy: 62, size: 16, color: "#E5E7EB"})
+  end
+end
+
+func detector_shop(p)
+  let h = 140 + len(DETECTORS) * 46
+  p.ui_remove("dt_box")
+  p.ui_panel("dt_box", {at: "center", w: 560, h: h, bg: "#0C4A6EF2", radius: 22, layer: 40})
+  p.ui_text("dt_t", "🔎 たんちき（💰 " + kit_short(kit_money(p)) + "）", {parent: "dt_box", y: 26 / h, size: 19, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for d in DETECTORS do
+    i = i + 1
+    let label = d.name + "  " + d.range + "m  💰" + kit_short(d.price)
+    let bg = "#0369A1"
+    if contains(p.detectors or ["d0"], d.id) then
+      label = d.name + " を使う  " + d.range + "m"
+      bg = "#0F766E"
+    end
+    if detector(p).id == d.id then
+      label = "✅ " + d.name + "  " + d.range + "m"
+      bg = "#374151"
+    end
+    p.ui_button("det_" + d.id, label, {parent: "dt_box", y: (30 + i * 46) / h, w: 520, h: 38, size: 15, bg: bg})
+  end
+  p.ui_button("dt_close", "閉じる", {parent: "dt_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func pick_detector(p, id)
+  let d = find(DETECTORS, func(x) return x.id == id end)
+  if d == nil then return end
+  if p.detectors == nil then p.detectors = ["d0"] end
+  if not contains(p.detectors, id) then
+    if not kit_pay(p, d.price) then return end
+    append(p.detectors, id)
+    p.sound("powerup")
+  end
+  p.detector = id
+  detector_shop(p)
+end
+
+on tick(dt)
+  dig_clock = dig_clock + dt
+  fill_clock = fill_clock + dt
+  if dig_clock >= 0.5 then
+    dig_clock = 0
+    for p in players() do
+      if not p.is_npc then detect(p) end
+    end
+    let now = time()
+    let keep = []
+    for c in chests do
+      if now > c.until then kit_gone(c.b) else append(keep, c) end
+    end
+    chests = keep
+  end
+  -- ほった穴は 少しずつ うまる
+  if fill_clock >= 6 then
+    fill_clock = 0
+    for f in fields do
+      for j in 1 to 4 do
+        let t = f.tiles[random(1, len(f.tiles))]
+        if t.depth > 0 then
+          t.depth = t.depth - 1
+          t.hp = 0
+          paint(t)
+        end
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "chest") then open_chest(p, b)
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end
+
+on button(p, id)
+  if id == "detectors" then detector_shop(p)
+  elif id == "dt_close" then p.ui_remove("dt_box")
+  elif starts_with(id, "det_") then pick_detector(p, replace(id, "det_", ""))
+  end
+end

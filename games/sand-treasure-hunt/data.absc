@@ -1,0 +1,69 @@
+-- data.absc — Sand Treasure Hunt の表
+
+sim_setup({name: "⏳ 売った砂", tap: "⛏ ほる", bag: true, bag_word: "🎒 砂", sell: 1, secs: 0.3, rebirth: 200000, grow: 4, slots: 3, auto: 1000})
+
+-- スコップ（1回でほれる量）
+sim_tools = [
+  {id: "s1", name: "🥄 おもちゃのスコップ", price: 0, power: 1},
+  {id: "s2", name: "⛏ 小さなスコップ", price: 70, power: 3},
+  {id: "s3", name: "⛏ 大きなスコップ", price: 450, power: 8},
+  {id: "s4", name: "🔩 鉄のシャベル", price: 2200, power: 22},
+  {id: "s5", name: "⚙️ ドリル", price: 11000, power: 60},
+  {id: "s6", name: "💎 ダイヤのドリル", price: 55000, power: 170},
+  {id: "s7", name: "🌟 伝説のショベル", price: 280000, power: 480}
+]
+
+sim_bags = [
+  {id: "b1", name: "🪣 バケツ", price: 0, size: 30},
+  {id: "b2", name: "🎒 リュック", price: 120, size: 100},
+  {id: "b3", name: "🎒 大きなリュック", price: 800, size: 300},
+  {id: "b4", name: "🛍 砂ぶくろ", price: 4000, size: 900},
+  {id: "b5", name: "🛒 手おし車", price: 18000, size: 2700},
+  {id: "b6", name: "🚚 ダンプカー", price: 90000, size: 8000}
+]
+
+sim_eggs = [
+  {id: "beach", name: "🐚 ビーチのたまご", price: 200, pets: [
+    {name: "やどかり", icon: "🦀", mult: 0.1, w: 60, color: "#F97316"},
+    {name: "ヒトデ", icon: "⭐", mult: 0.25, w: 30, color: "#FACC15"},
+    {name: "アザラシ", icon: "🦭", mult: 0.6, w: 9, color: "#94A3B8"},
+    {name: "海ぞくオウム", icon: "🦜", mult: 2, w: 1, color: "#22C55E"}]},
+  {id: "jungle", name: "🌴 ジャングルのたまご", price: 4000, pets: [
+    {name: "さる", icon: "🐒", mult: 0.5, w: 55, color: "#A16207"},
+    {name: "トゥカン", icon: "🐦", mult: 1, w: 33, color: "#F97316"},
+    {name: "ジャガー", icon: "🐆", mult: 2.5, w: 10, color: "#FACC15"},
+    {name: "黄金のヘビ", icon: "🐍", mult: 6, w: 2, color: "#EAB308"}]},
+  {id: "desert", name: "🏜 さばくのたまご", price: 60000, pets: [
+    {name: "フェネック", icon: "🦊", mult: 2, w: 55, color: "#FDBA74"},
+    {name: "ミイラねこ", icon: "🐱", mult: 3.5, w: 33, color: "#E7E5E4"},
+    {name: "スカラベ", icon: "🪲", mult: 8, w: 10, color: "#0EA5E9"},
+    {name: "ファラオ", icon: "👑", mult: 20, w: 2, color: "#FACC15"}]}
+]
+
+-- 3つの場所: need は 売った砂の合計、mult は 砂と宝のねうち
+sim_zones = [
+  {n: 1, name: "🏖 ビーチ", need: 0},
+  {n: 2, name: "🌴 ジャングル", need: 3000},
+  {n: 3, name: "🏜 さばく", need: 60000}
+]
+let FIELD_MULT = [1, 4, 15]
+
+-- 宝箱: w は出やすさ、coins は もらえるお金（×場所）
+let CHESTS = [
+  {name: "🧰 ふつうの宝箱", w: 70, coins: 60, color: "#B45309"},
+  {name: "💎 レアな宝箱", w: 25, coins: 350, color: "#3B82F6"},
+  {name: "👑 伝説の宝箱", w: 5, coins: 2500, color: "#FACC15"}
+]
+
+-- たんちき: range のきょりまで ピピピ
+let DETECTORS = [
+  {id: "d0", name: "🔎 ルーペ", price: 0, range: 8},
+  {id: "d1", name: "📡 たんちき", price: 300, range: 16},
+  {id: "d2", name: "📡 すごいたんちき", price: 3000, range: 28},
+  {id: "d3", name: "🛰 さいこうのたんちき", price: 30000, range: 60}
+]
+
+let LAYERS = 3              -- 砂の深さ
+let TREASURES = 4           -- 1つの場所に うまっている宝
+let COLS = 10
+let CELL = 4

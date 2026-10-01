@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 106,
+  "bytes" : 98088,
+  "cover" : "games\/arm-wrestle-champions\/cover-c8ec5112.png",
+  "id" : "arm-wrestle-champions",
+  "maxPlayers" : 12,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "games\/arm-wrestle-champions\/data.absc",
+    "games\/arm-wrestle-champions\/wrestle.absc",
+    "games\/arm-wrestle-champions\/zz_test.absc",
+    "games\/arm-wrestle-champions\/main.absc"
+  ],
+  "shots" : [
+    "games\/arm-wrestle-champions\/shot1-8aee5c76.png",
+    "games\/arm-wrestle-champions\/shot2-61aebccd.png"
+  ],
+  "summary" : "うでずもうチャンピオンをめざせ！ にぎる道具でうでをきたえて、テーブルのライバルに勝負。💪を連打して押しかえせ！ ボスに勝つと次のエリアへ。友だちとの対戦テーブルも。",
+  "tags" : [
+    "simulator",
+    "battle",
+    "pets"
+  ],
+  "title" : "Arm Wrestle Champions",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/arm-wrestle-champions\/world.ablox"
+}

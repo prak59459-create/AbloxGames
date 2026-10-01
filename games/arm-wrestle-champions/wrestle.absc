@@ -1,0 +1,231 @@
+-- wrestle.absc — うでずもう: テーブルのパッドで勝負。💪を連打して バーを右まで押しきれば勝ち。
+-- ボスに勝つと 次のエリアのゲートがひらく。スタートの白いテーブルは 友だちと勝負。
+
+let rivals = {}       -- "z-t" → NPC
+let duel = nil        -- {a, b, bar, t0}
+let wr_clock = 0
+
+func tag_num(b, key)
+  for t in b.tags do
+    if starts_with(t, key + "=") then return num(replace(t, key + "=", "")) end
+  end
+  return nil
+end
+
+func zone_of(p)
+  return ZONES[clamp(floor((p.z + 40) / 80) + 1, 1, 4)]
+end
+
+func push_of(mine, theirs)
+  return PUSH * clamp(mine / max(1, theirs), 0.15, 6)
+end
+
+-- MARK: ライバルとの勝負
+
+func start_match(p, z, t)
+  if p.match != nil or p.in_duel then return end
+  let r = RIVALS[z][t]
+  if z > 1 and (p.boss_beaten or 0) < z - 1 then return end
+  p.match = {z: z, t: t, bar: 50, t0: time(), power: r.power}
+  let pad = block("Wrestle " + z + "-" + t)
+  p.teleport(pad.position + {x: 0, y: 1, z: 0})
+  p.yaw = 0
+  p.frozen = true
+  p.message("💪 " + r.name + "（力 " + kit_short(r.power) + "）と勝負！ 💪 を連打！", 2)
+  p.sound("bell")
+  let n = rivals[z + "-" + t]
+  if n != nil and kit_here(n) then n.say(random(["かかってこい！", "まけないぞ！", "いくぞー！"])) end
+  match_ui(p)
+end
+
+func match_ui(p)
+  let m = p.match
+  if m == nil then return end
+  let r = RIVALS[m.z][m.t]
+  p.ui_text("wr_vs", "🧑 " + p.name + "  VS  " + r.name, {at: "top", dy: 110, size: 17, bold: true})
+  p.ui_bar("wr_bar", m.bar, 100, {at: "top", dy: 136, w: 360, h: 18, color: "#22C55E"})
+  p.ui_text("wr_hint", "◀ まけ　　　　　　　　　　　　　かち ▶", {at: "top", dy: 158, size: 13, color: "#FDE68A"})
+end
+
+func end_match(p, won)
+  let m = p.match
+  if m == nil then return end
+  p.match = nil
+  p.frozen = false
+  for id in ["wr_vs", "wr_bar", "wr_hint"] do p.ui_remove(id) end
+  let r = RIVALS[m.z][m.t]
+  let n = rivals[m.z + "-" + m.t]
+  if won then
+    let pay = floor(r.prize * (1 + (p.sim_rebirths or 0) * sim_rebirth_bonus))
+    kit_give(p, pay)
+    p.wins = (p.wins or 0) + 1
+    p.message("🏆 " + r.name + " に勝った！ 💰" + kit_short(pay), 2)
+    p.sound("win")
+    particles("confetti", p, {amount: 50})
+    kit_quest_progress(p, "win", 1)
+    if n != nil and kit_here(n) then n.say("つ、つよい…！") end
+    if r.boss and (p.boss_beaten or 0) < m.z then
+      p.boss_beaten = m.z
+      announce("👑 " + p.name + " が " + r.name + " をたおした！", 3)
+      kit_badge(p, "boss" + m.z, r.name + " に勝った")
+      kit_quest_progress(p, "boss", 1)
+      if m.z < 4 then p.message("🚪 " + ZONES[m.z + 1].name + " へのゲートがひらいた！", 3) end
+    end
+  else
+    p.message("😣 まけた… もっときたえて もう一度！", 2)
+    p.sound("lose")
+    if n != nil and kit_here(n) then n.say("まだまだだな！") end
+  end
+end
+
+func match_tap(p, amount)
+  let m = p.match
+  m.bar = m.bar + push_of(p.sim_value or 0, m.power)
+  p.sound("click")
+  if m.bar >= 100 then end_match(p, true) else match_ui(p) end
+end
+
+-- MARK: 友だちとの勝負
+
+func on_duel_pad(p, side)
+  let b = block("Duel " + upper(side))
+  return b != nil and abs(p.x - b.x) < 1.3 and abs(p.z - b.z) < 1.3
+end
+
+func duel_start(a, b)
+  duel = {a: a, b: b, bar: 50, t0: time()}
+  for q in [a, b] do
+    q.in_duel = true
+    q.frozen = true
+    q.message("🤝 うでずもう勝負！ 💪 を連打！", 2)
+  end
+  sound("bell")
+  duel_ui()
+end
+
+func duel_ui()
+  if duel == nil then return end
+  for q in [duel.a, duel.b] do
+    if kit_here(q) then
+      q.ui_text("wr_vs", "🩷 " + duel.a.name + "  VS  " + duel.b.name + " 🩵", {at: "top", dy: 110, size: 17, bold: true})
+      q.ui_bar("wr_bar", duel.bar, 100, {at: "top", dy: 136, w: 360, h: 18, color: "#EC4899"})
+    end
+  end
+end
+
+func duel_end(winner, loser)
+  for q in [duel.a, duel.b] do
+    if kit_here(q) then
+      q.in_duel = false
+      q.frozen = false
+      q.ui_remove("wr_vs")
+      q.ui_remove("wr_bar")
+    end
+  end
+  duel = nil
+  if winner != nil and kit_here(winner) then
+    kit_give(winner, 50)
+    winner.duel_wins = (winner.duel_wins or 0) + 1
+    announce("🤝 " + winner.name + " が うでずもうで勝った！", 3)
+    particles("confetti", winner, {amount: 40})
+    kit_quest_progress(winner, "duel", 1)
+  end
+end
+
+func duel_tap(p, amount)
+  let mine = p.sim_value or 0
+  if p == duel.a then
+    duel.bar = duel.bar + push_of(mine, duel.b.sim_value or 0)
+  else
+    duel.bar = duel.bar - push_of(mine, duel.a.sim_value or 0)
+  end
+  if duel.bar >= 100 then
+    duel_end(duel.a, duel.b)
+  elif duel.bar <= 0 then
+    duel_end(duel.b, duel.a)
+  else
+    duel_ui()
+  end
+end
+
+-- タップ: 勝負中は押す、そうでなければ きたえる（エリアのボーナスつき）
+sim_on_tap = func(p, amount)
+  if p.match != nil then
+    match_tap(p, amount)
+    return true
+  end
+  if p.in_duel and duel != nil then
+    duel_tap(p, amount)
+    return true
+  end
+  return false
+end
+
+func zone_gate(p, b)
+  let n = tag_num(b, "n")
+  if (p.boss_beaten or 0) >= n - 1 then return end
+  let away = normalize({x: p.x - b.x, y: 0, z: p.z - b.z})
+  p.velocity = {x: away.x * 14, y: 5, z: away.z * 14}
+  if kit_ready(p, "zgate", 2) then p.message("🔒 " + ZONES[n - 1].name + " のボスに勝つと 通れる", 2) end
+end
+
+on start()
+  for z in 1 to 4 do
+    for t in 1 to 4 do
+      let r = RIVALS[z][t]
+      let spot = block("Rival Spot " + z + "-" + t)
+      if spot != nil then
+        let size = 1 + z * 0.12
+        if r.boss then size = size + 0.4 end
+        let n = create_npc({name: r.name, position: spot.position + {x: 0, y: 0.5, z: 0}, color: random(["#DC2626", "#2563EB", "#16A34A", "#9333EA"]),
+                            head_color: random(["#FDE68A", "#D6A77A", "#8D5524"]), speed: 0, health: 100000, size: size})
+        n.frozen = true
+        n.yaw = 180
+        rivals[z + "-" + t] = n
+      end
+    end
+  end
+end
+
+on tick(dt)
+  wr_clock = wr_clock + dt
+  if wr_clock < 0.1 then return end
+  let secs = wr_clock
+  wr_clock = 0
+  for p in players() do
+    let m = p.match
+    if m != nil then
+      m.bar = m.bar - RIVAL_PUSH * secs
+      if m.bar <= 0 or time() - m.t0 > MATCH_SECS then
+        end_match(p, false)
+      elif kit_ready(p, "wrui", 0.2) then
+        match_ui(p)
+      end
+    elif not p.is_npc then
+      let z = zone_of(p)
+      if p.sim_zone_bonus != z.bonus then p.sim_zone_bonus = z.bonus end
+      if kit_ready(p, "zonehud", 1) then p.ui_text("wr_zone", z.name + "（きたえる ×" + z.bonus + "）  🏆 " + (p.wins or 0), {at: "top", dy: 62, size: 16, bold: true}) end
+    end
+  end
+  -- 友だちとの勝負
+  if duel == nil then
+    let a = find(players(), func(q) return not q.is_npc and q.match == nil and on_duel_pad(q, "a") end)
+    let b = find(players(), func(q) return not q.is_npc and q.match == nil and on_duel_pad(q, "b") end)
+    if a != nil and b != nil and a.id != b.id then duel_start(a, b) end
+  elif not kit_here(duel.a) or not kit_here(duel.b) or time() - duel.t0 > 40 then
+    duel_end(nil, nil)
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "wrestle") and kit_ready(p, "wrpad", 3) then start_match(p, tag_num(b, "z"), tag_num(b, "t"))
+  elif contains(b.tags, "zgate") then zone_gate(p, b)
+  elif contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end
+
+on leave(p)
+  if duel != nil and (duel.a == p or duel.b == p) then duel_end(nil, nil) end
+end

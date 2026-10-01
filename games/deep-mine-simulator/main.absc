@@ -1,0 +1,39 @@
+-- Deep Mine Simulator — 地下深くへ ほり進め
+-- キャンプの前の四角い穴が鉱山。⛏ をタップすると 目の前・足もとのブロックをけずる。こわれたら鉱石がリュックへ。
+-- 深いほど かたくてレアな鉱石。リュックがいっぱいになったら ⬆ で地上へ、黄色いパッドで売る。
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  ほる・リュック・ショップ・たまご・ペット・生まれかわり
+--   data.absc   つるはし・リュック・たまご・鉱石
+--   mine.absc   ほる・鉱山がもとにもどる・地上へ
+--   main.absc   このファイル
+
+kit_setup("Deep Mine Simulator", "ほって、ほって、地底の宝石へ！", [
+  "⛏ 鉱山の穴の中で ⛏ ほる をタップ。向いている方・足もとのブロックをけずる",
+  "💎 深いほど かたいけど、金・ルビー・ダイヤ・クリスタル・マグマの宝石が出る",
+  "🎒 リュックがいっぱいになったら ⬆ 地上へ → 黄色いパッドで売る",
+  "🛒 ショップで つよいつるはし・大きなリュック",
+  "🔄 4分ごと（または たくさんほったら）鉱山がもとにもどる",
+  "🥚 ペット・🌟 生まれかわりで もっとたくさん"
+])
+
+kit_quest("mine", "ブロックを30こ ほる", 30, 100)
+kit_quest("rare", "金より いい鉱石を見つける", 1, 200)
+kit_quest("sim_tool", "つるはしを買う", 1, 60)
+kit_quest("sim_bag", "リュックを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 8
+  p.hat = "helmet"
+  p.ui_button("go_up", "⬆ 地上へ", {at: "bottom_right", dx: -180, dy: -200, w: 110, h: 70, size: 17, bg: "#78350F", radius: 20})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("⛏ ほった鉱石") end)
+end

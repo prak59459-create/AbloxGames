@@ -177,6 +177,9 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/shadow-ninja-legends/cover-c906d3e7.png" width="200"> | 113 | **Shadow Ninja Legends** | 刀をふって にんじゅつ をためよう！ 帯がいっぱいになったら ほこらで売ってお金に。ランクが上がると空中ジャンプの回数がふえて、空の修行島へ。刀・帯・ペットで、影の忍者をめざせ！ |
 | <img src="games/speed-legends-city/cover-61c5dc19.png" width="200"> | 114 | **Speed Legends City** | 走れば走るほど速くなる！ 町を走ってステップをため、光る玉とリングを集めよう。くつを強くしてもっと速く、さばくの町・ようがんの谷へ。🏁レースで1位をねらえ！ |
 | <img src="games/tap-race-clicker/cover-9e1f89d0.png" width="200"> | 115 | **Tap Race Clicker** | タップタイムに いっぱいタップして速さをためて、レースで いっきに走れ！ 50mごとのゲートをくぐるたびに ごほうび。ペットと生まれかわりで、1500mのコースを走りきろう。 |
+| <img src="games/arm-wrestle-champions/cover-c8ec5112.png" width="200"> | 116 | **Arm Wrestle Champions** | うでずもうチャンピオンをめざせ！ にぎる道具でうでをきたえて、テーブルのライバルに勝負。💪を連打して押しかえせ！ ボスに勝つと次のエリアへ。友だちとの対戦テーブルも。 |
+| <img src="games/deep-mine-simulator/cover-bf95d479.png" width="200"> | 117 | **Deep Mine Simulator** | つるはしで地下をほり進もう！ 深くなるほど かたい岩と レアな鉱石。リュックがいっぱいになったら地上で売る。つるはし・リュック・ペットで、いちばん下のマグマの宝石まで！ |
+| <img src="games/sand-treasure-hunt/cover-73729fa8.png" width="200"> | 118 | **Sand Treasure Hunt** | スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！ |
 
 <!-- games:end -->
 

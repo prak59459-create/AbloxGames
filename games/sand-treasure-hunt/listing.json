@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 396,
+  "bytes" : 235876,
+  "cover" : "games\/sand-treasure-hunt\/cover-73729fa8.png",
+  "id" : "sand-treasure-hunt",
+  "maxPlayers" : 10,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_sim.absc",
+    "games\/sand-treasure-hunt\/data.absc",
+    "games\/sand-treasure-hunt\/dig.absc",
+    "games\/sand-treasure-hunt\/zz_test.absc",
+    "games\/sand-treasure-hunt\/main.absc"
+  ],
+  "shots" : [
+    "games\/sand-treasure-hunt\/shot1-2651ed2f.png",
+    "games\/sand-treasure-hunt\/shot2-f0a8c036.png"
+  ],
+  "summary" : "スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！",
+  "tags" : [
+    "simulator",
+    "treasure",
+    "pets"
+  ],
+  "title" : "Sand Treasure Hunt",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/sand-treasure-hunt\/world.ablox"
+}

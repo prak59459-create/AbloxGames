@@ -1,0 +1,56 @@
+-- data.absc — Arm Wrestle Champions の表
+
+sim_setup({name: "💪 うでの力", tap: "💪 きたえる", bag: false, secs: 0.3, rebirth: 100000, grow: 4, slots: 3, auto: 900})
+
+-- にぎる道具（1回で つく うでの力）
+sim_tools = [
+  {id: "g1", name: "✊ すで", price: 0, power: 1},
+  {id: "g2", name: "🎾 ゴムボール", price: 60, power: 3},
+  {id: "g3", name: "🏋 鉄アレイ", price: 350, power: 8},
+  {id: "g4", name: "🔩 おもいグリップ", price: 1800, power: 22},
+  {id: "g5", name: "🥇 金のグリップ", price: 9000, power: 60},
+  {id: "g6", name: "💎 ダイヤのグリップ", price: 45000, power: 160},
+  {id: "g7", name: "🌟 伝説のグリップ", price: 220000, power: 450}
+]
+
+sim_eggs = [
+  {id: "gym", name: "🏋 ジムのたまご", price: 200, pets: [
+    {name: "ハムスター", icon: "🐹", mult: 0.1, w: 60, color: "#FCD34D"},
+    {name: "ブルドッグ", icon: "🐶", mult: 0.25, w: 30, color: "#A16207"},
+    {name: "ゴリラ", icon: "🦍", mult: 0.6, w: 9, color: "#44403C"},
+    {name: "マッスルくま", icon: "🐻", mult: 2, w: 1, color: "#78350F"}]},
+  {id: "ice", name: "🧊 氷のたまご", price: 4000, pets: [
+    {name: "アザラシ", icon: "🦭", mult: 0.5, w: 55, color: "#CBD5E1"},
+    {name: "セイウチ", icon: "🦣", mult: 1, w: 33, color: "#A8A29E"},
+    {name: "ゆきおとこ", icon: "🧊", mult: 2.5, w: 10, color: "#E0F2FE"},
+    {name: "こおりのタイタン", icon: "🗿", mult: 6, w: 2, color: "#7DD3FC"}]},
+  {id: "lava", name: "🌋 火山のたまご", price: 60000, pets: [
+    {name: "ひのいぬ", icon: "🐕", mult: 2, w: 55, color: "#F97316"},
+    {name: "ようがんクマ", icon: "🐻", mult: 3.5, w: 33, color: "#7F1D1D"},
+    {name: "ほのおの巨人", icon: "🔥", mult: 8, w: 10, color: "#EF4444"},
+    {name: "マグマドラゴン", icon: "🐉", mult: 20, w: 2, color: "#DC2626"}]}
+]
+
+-- 4つのエリア: 中できたえると ×bonus
+let ZONES = [
+  {n: 1, name: "🏋 ジム", bonus: 1},
+  {n: 2, name: "🏖 ビーチ", bonus: 3},
+  {n: 3, name: "🧊 氷河", bonus: 8},
+  {n: 4, name: "🌋 火山", bonus: 20}
+]
+
+-- ライバル: エリアごとに3人とボス。power がつよさ、prize がごほうび
+let RIVALS = [
+  [{name: "ひょろりのタケシ", power: 20, prize: 15}, {name: "がんばりのユウ", power: 60, prize: 40}, {name: "ジムのマリ", power: 150, prize: 90},
+   {name: "👑 ジムリーダー ゴウ", power: 400, prize: 300, boss: true}],
+  [{name: "サーファーのカイ", power: 1200, prize: 400}, {name: "ライフセーバーのナミ", power: 3000, prize: 900}, {name: "すなはまのリキ", power: 7000, prize: 2000},
+   {name: "👑 ビーチの王 マッスル", power: 18000, prize: 6000, boss: true}],
+  [{name: "ゆきやまのソラ", power: 50000, prize: 15000}, {name: "こおりのレイ", power: 120000, prize: 35000}, {name: "ふぶきのガンテツ", power: 300000, prize: 80000},
+   {name: "👑 氷河の女王 シロ", power: 800000, prize: 250000, boss: true}],
+  [{name: "ようがんのホムラ", power: 2500000, prize: 700000}, {name: "マグマのバク", power: 6000000, prize: 1500000},
+   {name: "ふんかのダイチ", power: 15000000, prize: 3500000}, {name: "👑 火山の大王 ボルケーノ", power: 40000000, prize: 12000000, boss: true}]
+]
+
+let PUSH = 4               -- 1タップで押す量（力が同じとき）
+let RIVAL_PUSH = 10        -- ライバルが1秒に押す量
+let MATCH_SECS = 25

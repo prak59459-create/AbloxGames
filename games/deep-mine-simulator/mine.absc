@@ -1,0 +1,154 @@
+-- mine.absc — ほる: ⛏ で 目の前・足もとのブロックをけずる。こわれたら鉱石がリュックへ。鉱山はときどき もとにもどる。
+
+let cells = {}        -- "c-r-l" → {b, ore, hp, max}
+let mined = 0
+let total = 0
+let reset_at = 0
+let warned = false
+let mine_clock = 0
+
+func key(c, r, l)
+  return c + "-" + r + "-" + l
+end
+
+func ore_hp(ore, l)
+  let o = ORES[ore]
+  if ore == "stone" or ore == "dirt" then return o.hp + l * 3 end
+  return o.hp
+end
+
+on start()
+  for b in blocks("mine") do
+    let parts = split(replace(b.name, "M ", ""), "-")
+    let c = num(parts[1])
+    let r = num(parts[2])
+    let l = num(parts[3])
+    let ore = "stone"
+    for t in b.tags do
+      if starts_with(t, "ore=") then ore = replace(t, "ore=", "") end
+    end
+    let hp = ore_hp(ore, l)
+    cells[key(c, r, l)] = {b: b, ore: ore, hp: hp, max: hp, l: l}
+    total = total + 1
+  end
+  reset_at = time() + RESET_EVERY
+end
+
+-- 足もとの層（0 が いちばん上）
+func layer_of(p)
+  return floor((-1 - p.y + 0.3) / CELL)
+end
+
+func target(p)
+  let half = COLS * CELL / 2
+  let c0 = floor((p.x + half) / CELL)
+  let r0 = floor((p.z + half) / CELL)
+  let l0 = layer_of(p)
+  let f = forward(p.yaw)
+  let aim = {x: p.x + f.x * 1.6, y: p.y - 0.8, z: p.z + f.z * 1.6}
+  let best = nil
+  let best_d = 100000
+  for l in l0 - 1 to l0 do
+    for c in c0 - 1 to c0 + 1 do
+      for r in r0 - 1 to r0 + 1 do
+        let cell = cells[key(c, r, l)]
+        if cell != nil and cell.b.visible then
+          let d = distance(cell.b.position, aim)
+          if d < best_d and distance(cell.b.position, p.position) < 4.6 then
+            best_d = d
+            best = cell
+          end
+        end
+      end
+    end
+  end
+  return best
+end
+
+sim_on_tap = func(p, amount)
+  let cell = target(p)
+  if cell == nil then
+    if kit_ready(p, "nomine", 3) then p.message("⛏ 鉱山の穴の中で ほろう（キャンプの前の 四角い穴）", 1.5) end
+    return true
+  end
+  let o = ORES[cell.ore]
+  let size = sim_bag_size(p)
+  if (p.sim_fill or 0) >= size then
+    if kit_ready(p, "full", 3) then p.message("🎒 リュックがいっぱい！ ⬆ 地上で売ろう", 1.5) end
+    return true
+  end
+  cell.hp = cell.hp - sim_tool(p).power * (p.sim_boost or 1)
+  p.sound("hit")
+  if cell.hp > 0 then
+    p.ui_text("mn_hit", "🧱 " + o.name + " " + max(0, ceil(cell.hp)) + "/" + cell.max, {at: "top", dy: 88, size: 15, color: "#FDE68A"})
+    return true
+  end
+  cell.b.visible = false
+  cell.b.solid = false
+  mined = mined + 1
+  p.ui_remove("mn_hit")
+  let gain = floor(o.value * sim_mult(p))
+  sim_gain(p, gain)
+  particles("dust", cell.b, {amount: 10})
+  if o.value >= 90 then
+    p.message("✨ " + o.name + "！ +" + kit_short(gain), 1.2)
+    p.sound("coin")
+    kit_quest_progress(p, "rare", 1)
+  end
+  kit_quest_progress(p, "mine", 1)
+  if cell.ore == "magma" then kit_badge(p, "magma", "マグマの宝石") end
+  return true
+end
+
+func reset_mine()
+  for p in players() do
+    if p.y < -0.5 then p.teleport(block("Spawn 1")) end
+  end
+  for k in keys(cells) do
+    let cell = cells[k]
+    cell.hp = cell.max
+    if not cell.b.visible then
+      cell.b.visible = true
+      cell.b.solid = true
+    end
+  end
+  mined = 0
+  warned = false
+  reset_at = time() + RESET_EVERY
+  announce("🔄 鉱山が もとにもどった！", 2)
+end
+
+func go_up(p)
+  if not kit_ready(p, "goup", 2) then return end
+  p.teleport(block("Sell Pad").position + {x: 3, y: 1, z: 0})
+end
+
+on tick(dt)
+  mine_clock = mine_clock + dt
+  if mine_clock < 0.5 then return end
+  mine_clock = 0
+  let left = reset_at - time()
+  if (left < 10 or mined > total * 0.75) and not warned then
+    warned = true
+    reset_at = time() + 10
+    announce("⏳ 10秒後に 鉱山がもとにもどる！ 穴の中の人は 地上へ はこばれるよ", 3)
+  end
+  if time() > reset_at then reset_mine() end
+  for p in players() do
+    if not p.is_npc and kit_ready(p, "mnhud", 1) then
+      let depth = max(0, floor(-p.y))
+      p.ui_text("mn_hud", "⛏ 深さ " + depth + "m   🔄 " + max(0, ceil(reset_at - time())) + "秒", {at: "top", dy: 62, size: 16, bold: true})
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end
+
+on button(p, id)
+  if id == "go_up" then go_up(p) end
+end
