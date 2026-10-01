@@ -1,0 +1,53 @@
+-- Build a Zoo Park — どうぶつ園タイクーン
+-- オレンジのパッドで ゲート・歩道・サバンナ・ジャングル・こおりの国・海のゾーンを建てていく。
+-- 🥚 たまごを買うと どうぶつが生まれて さくに入る。レアなどうぶつほど お客さんが よろこんで もうけが ふえる。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  土地・建てる・お金・生まれかわり
+--   data.absc     建てるもの・どうぶつ
+--   zoo.absc      たまご・どうぶつ・お客さん
+--   main.absc     このファイル
+
+kit_setup("Build a Zoo Park", "せかいいちの どうぶつ園を つくろう！", [
+  "🟧 オレンジのパッドで ゲート・歩道・さくを建てる",
+  "🥚 たまごを買うと どうぶつが生まれて さくに入る（さく1つに 3びき）",
+  "🐘 レアなどうぶつほど もうけが大きい",
+  "💚 緑のパッドで たまったお金を受けとる",
+  "⛲ ふんすいで どうぶつのもうけ ×1.5",
+  "🌟 ぜんぶ建てたら 生まれかわり（どうぶつは そのまま）"
+])
+kit_keep(["animals", "hatched"])
+
+kit_quest("ty_buy", "4つ建てる", 4, 100)
+kit_quest("hatch", "どうぶつを5ひき かえす", 5, 300)
+kit_quest("rare", "レアなどうぶつを当てる", 1, 2000)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 50 then p.coins = 50 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 12
+  p.hat = "cowboy"
+  p.ui_button("eggs", "🥚 たまご", {at: "right", dy: -110, w: 150, h: 44, size: 14, bg: "#B45309"})
+  p.ui_button("ty_home", "🦁 自分のどうぶつ園", {at: "right", dy: -58, w: 150, h: 44, size: 13, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "adventure"
+  every(12, func() kit_leaderboard("💰 もうけ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.ty_total or 0)
+    if s != p.score then p.score = s end
+  end
+end

@@ -1,0 +1,248 @@
+-- zoo.absc — どうぶつ: たまごを買うと どうぶつが生まれて、自分のさくに入る。1秒ごとに お客さんのお金がたまる。
+-- さくは 3びきまで。いっぱいのときは いちばん弱い子と入れかわる（もっと弱い子なら ほかのどうぶつ園へ）。
+
+let zoo_clock = 0
+let visitors = {}     -- "k" → [npc]
+
+func habitat(id)
+  return find(HABITATS, func(h) return h.id == id end)
+end
+
+func animal_info(hid, aid)
+  let h = habitat(hid)
+  if h == nil then return nil end
+  return find(h.animals, func(a) return a.id == aid end)
+end
+
+func animals_in(p, hid)
+  return filter(p.animals or [], func(a) return a.h == hid end)
+end
+
+-- 建ったさくにいる どうぶつの もうけ（1秒）
+func zoo_income(p)
+  let s = 0
+  for a in p.animals or [] do
+    if ty_owns(p, a.h) then
+      let info = animal_info(a.h, a.id)
+      if info != nil then s = s + info.income end
+    end
+  end
+  if ty_owns(p, "fountain") then s = s * FOUNTAIN end
+  return s
+end
+
+ty_extra_income = func(p)
+  return zoo_income(p) * ty_mult(p)
+end
+
+-- さくの どうぶつを 見せる
+func zoo_draw(p)
+  let k = p.ty_plot
+  if k == nil then return end
+  for h in HABITATS do
+    let mine = animals_in(p, h.id)
+    let open = ty_owns(p, h.id)
+    for s in 1 to SLOTS do
+      let tag = "zoo" + k + "_" + h.id + "_" + s
+      let a = nil
+      if open and s <= len(mine) then a = mine[s] end
+      ty_show(tag, a != nil)
+      if a != nil then
+        let info = animal_info(a.h, a.id)
+        for b in ty_blocks(tag) do
+          let c = info.head
+          if contains(b.tags, "animal_body") then c = info.body end
+          if b.color != c then b.color = c end
+        end
+      end
+    end
+  end
+  p.zoo_sig = zoo_sig(p)
+end
+
+func zoo_hide(k)
+  for h in HABITATS do
+    for s in 1 to SLOTS do ty_show("zoo" + k + "_" + h.id + "_" + s, false) end
+  end
+end
+
+-- 建物やどうぶつが かわったか（生まれかわり・ロードのあとに かきなおす）
+func zoo_sig(p)
+  return str(p.ty_plot) + "|" + join(p.ty_owned or [], ",") + "|" + join(map(p.animals or [], func(a) return a.id end), ",")
+end
+
+func open_eggs(p)
+  let h = 130 + len(HABITATS) * 52
+  p.ui_remove("egg_box")
+  p.ui_panel("egg_box", {at: "center", w: 640, h: h, bg: "#78350FF2", radius: 22, layer: 40})
+  p.ui_text("egg_t", "🥚 どうぶつのたまご（💰 " + kit_short(kit_money(p)) + "）", {parent: "egg_box", y: 26 / h, size: 19, bold: true, color: "#FDE68A"})
+  let i = 0
+  for hb in HABITATS do
+    i = i + 1
+    let best = hb.animals[len(hb.animals)]
+    let label = hb.name + "のたまご  💰" + kit_short(hb.egg) + "   （" + best.name + " も！）"
+    let bg = "#B45309"
+    if not ty_owns(p, hb.id) then
+      label = "🔒 " + hb.name + "のたまご（まず さくを建てよう）"
+      bg = "#57534E"
+    end
+    p.ui_button("egg_" + hb.id, label, {parent: "egg_box", y: (30 + i * 52) / h, w: 600, h: 44, size: 14, bg: bg})
+  end
+  p.ui_text("egg_hint", "1つのさくに " + SLOTS + "びきまで。いっぱいなら いちばん弱い子と入れかわるよ", {parent: "egg_box", y: (h - 64) / h, size: 13, color: "#FED7AA"})
+  p.ui_button("egg_close", "閉じる", {parent: "egg_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func hatch(p, hid)
+  let hb = habitat(hid)
+  if hb == nil then return end
+  if p.ty_plot == nil then
+    p.message("まず どうぶつ園の土地をもらおう", 1.5)
+    return
+  end
+  if not ty_owns(p, hid) then
+    p.message("🔒 " + hb.name + "のさくを 先に建てよう", 1.5)
+    p.sound("error")
+    return
+  end
+  if not kit_pay(p, hb.egg) then return end
+  let a = hb.animals[pick_weighted(map(hb.animals, func(x) return x.w end))]
+  if p.animals == nil then p.animals = [] end
+  p.hatched = (p.hatched or 0) + 1
+  kit_quest_progress(p, "hatch", 1)
+  let mine = animals_in(p, hid)
+  if len(mine) >= SLOTS then
+    let weakest = min_by(mine, func(x) return animal_info(x.h, x.id).income end)
+    let wi = animal_info(weakest.h, weakest.id)
+    if a.income > wi.income then
+      p.animals = filter(p.animals, func(x) return x != weakest end)
+      append(p.animals, {h: hid, id: a.id})
+      p.message("🐣 " + a.name + " が生まれた！ " + wi.name + " は ほかのどうぶつ園へ（📈+" + kit_short(a.income) + "/秒）", 2.5)
+    else
+      let back = floor(hb.egg / 2)
+      kit_give(p, back)
+      p.message("🐣 " + a.name + "… さくがいっぱい。ほかのどうぶつ園が 💰" + kit_short(back) + " で 引きとってくれた", 2.5)
+    end
+  else
+    append(p.animals, {h: hid, id: a.id})
+    p.message("🐣 " + a.name + " が生まれた！ " + hb.name + "のさくへ（📈+" + kit_short(a.income) + "/秒）", 2.5)
+  end
+  if a.w <= 5 then
+    announce("🌟 " + p.name + " の どうぶつ園に " + a.name + " がやってきた！", 3)
+    particles("stars", p, {amount: 60})
+    p.sound("win")
+    kit_quest_progress(p, "rare", 1)
+  else
+    particles("confetti", p, {amount: 25})
+    p.sound("magic")
+  end
+  zoo_draw(p)
+  open_eggs(p)
+end
+
+-- お客さん（歩道があれば 2人、売店で 3人、おみやげ屋さんで 4人）
+func zoo_visitors(p)
+  let key = str(p.ty_plot)
+  let list = visitors[key] or []
+  let want = 0
+  if ty_owns(p, "path") then want = 2 end
+  if ty_owns(p, "snack") then want = 3 end
+  if ty_owns(p, "gift") then want = 4 end
+  while len(list) > want do kit_gone(remove(list, len(list))) end
+  let c = block("Claim " + p.ty_plot).position
+  while len(list) < want do
+    let n = create_npc({name: "お客さん", position: {x: c.x + random_float(-1.5, 1.5), y: 0.6, z: c.z + 6}, color: random_color(),
+                        head_color: random(["#FDE68A", "#D6A77A", "#8D5524"]), speed: 0.5, health: 100000,
+                        hat: random(["none", "cap", "flower_crown", "beanie"])})
+    append(list, n)
+  end
+  for n in list do
+    if kit_here(n) and chance(45) then
+      if chance(50) then
+        n.move_to({x: c.x + random_float(-1.5, 1.5), y: 0.6, z: c.z + random_float(6, 40)})
+      else
+        n.move_to({x: c.x + random_float(-15, 15), y: 0.6, z: c.z + random_float(22.5, 25.5)})
+      end
+    end
+  end
+  visitors[key] = list
+end
+
+func clear_visitors(k)
+  for n in visitors[str(k)] or [] do kit_gone(n) end
+  visitors[str(k)] = []
+end
+
+-- どうぶつが ときどき ぴょんと はねる
+func hop(p)
+  let k = p.ty_plot
+  let shown = []
+  for h in HABITATS do
+    for s in 1 to SLOTS do
+      let tag = "zoo" + k + "_" + h.id + "_" + s
+      let list = ty_blocks(tag)
+      if len(list) > 0 and list[1].visible then append(shown, list) end
+    end
+  end
+  if len(shown) == 0 then return end
+  for b in random(shown) do
+    let home = b.position
+    b.move_to(home + {x: 0, y: 0.6, z: 0}, 0.2)
+    after(0.25, func() b.move_to(home, 0.2) end)
+  end
+end
+
+func zoo_hud(p)
+  let n = len(p.animals or [])
+  let cap = 0
+  for h in HABITATS do
+    if ty_owns(p, h.id) then cap = cap + SLOTS end
+  end
+  p.ui_text("zoo_hud", "🐾 どうぶつ " + n + "/" + cap + "   どうぶつのもうけ 📈" + kit_short(floor(zoo_income(p) * ty_mult(p))) + "/秒",
+            {at: "top", dy: 86, size: 14, color: "#FDE68A"})
+end
+
+ty_on_claim = func(p)
+  p.zoo_k = p.ty_plot
+  zoo_draw(p)
+end
+
+on tick(dt)
+  zoo_clock = zoo_clock + dt
+  if zoo_clock < 1 then return end
+  zoo_clock = 0
+  for p in players() do
+    if p.ty_plot != nil then
+      p.zoo_k = p.ty_plot
+      if p.zoo_sig != zoo_sig(p) then zoo_draw(p) end
+      if kit_ready(p, "visitors", 4) then zoo_visitors(p) end
+      if chance(35) then hop(p) end
+      zoo_hud(p)
+    end
+  end
+  -- いなくなった人の どうぶつ園を片づける
+  for k in 1 to ty_plots do
+    if ty_owners[str(k)] == nil and len(visitors[str(k)] or []) > 0 then
+      clear_visitors(k)
+      zoo_hide(k)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "zooeggs") and kit_ready(p, "eggpad", 3) then open_eggs(p) end
+end
+
+on button(p, id)
+  if id == "eggs" then open_eggs(p)
+  elif id == "egg_close" then p.ui_remove("egg_box")
+  elif starts_with(id, "egg_") then hatch(p, replace(id, "egg_", ""))
+  end
+end
+
+on leave(p)
+  if p.zoo_k != nil then
+    zoo_hide(p.zoo_k)
+    clear_visitors(p.zoo_k)
+  end
+end

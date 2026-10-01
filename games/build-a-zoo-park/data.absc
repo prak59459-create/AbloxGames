@@ -1,0 +1,43 @@
+-- data.absc — Build a Zoo Park の表
+
+ty_setup({plots: 6, word: "どうぶつ園", rebirth: 0.5})
+
+ty_items = [
+  {id: "gate", name: "🎪 入り口のゲート", price: 50, income: 0},
+  {id: "path", name: "🛤 歩道（お客さんが来る）", price: 120, income: 2, after: "gate"},
+  {id: "savanna", name: "🦓 サバンナのさく", price: 300, income: 3, after: "path"},
+  {id: "jungle", name: "🌴 ジャングルのさく", price: 1500, income: 6, after: "savanna"},
+  {id: "snack", name: "🍿 売店", price: 3000, income: 15, after: "jungle"},
+  {id: "ice", name: "🐧 こおりの国", price: 8000, income: 10, after: "snack"},
+  {id: "ocean", name: "🐬 海のゾーン", price: 20000, income: 20, after: "ice"},
+  {id: "gift", name: "🎁 おみやげ屋さん", price: 40000, income: 60, after: "ocean"},
+  {id: "fountain", name: "⛲ ふんすい（どうぶつのもうけ ×1.5）", price: 80000, income: 0, after: "gift"},
+  {id: "tunnel", name: "🐠 海のトンネル", price: 160000, income: 150, after: "fountain"}
+]
+
+-- さく（ゾーン）ごとの たまごと どうぶつ。income は 1秒のもうけ、w は 出やすさ
+let HABITATS = [
+  {id: "savanna", name: "🦓 サバンナ", egg: 200, animals: [
+    {id: "zebra", name: "🦓 シマウマ", income: 2, w: 50, body: "#F8FAFC", head: "#1F2937"},
+    {id: "giraffe", name: "🦒 キリン", income: 4, w: 30, body: "#FBBF24", head: "#B45309"},
+    {id: "lion", name: "🦁 ライオン", income: 9, w: 15, body: "#F59E0B", head: "#92400E"},
+    {id: "elephant", name: "🐘 ゾウ", income: 22, w: 5, body: "#9CA3AF", head: "#6B7280"}]},
+  {id: "jungle", name: "🌴 ジャングル", egg: 1000, animals: [
+    {id: "monkey", name: "🐒 サル", income: 8, w: 50, body: "#78350F", head: "#D6A77A"},
+    {id: "parrot", name: "🦜 オウム", income: 14, w: 30, body: "#EF4444", head: "#22C55E"},
+    {id: "tiger", name: "🐅 トラ", income: 32, w: 15, body: "#F97316", head: "#1F2937"},
+    {id: "gorilla", name: "🦍 ゴリラ", income: 75, w: 5, body: "#1F2937", head: "#4B5563"}]},
+  {id: "ice", name: "🐧 こおりの国", egg: 5000, animals: [
+    {id: "penguin", name: "🐧 ペンギン", income: 30, w: 50, body: "#1E293B", head: "#F8FAFC"},
+    {id: "seal", name: "🦭 アザラシ", income: 55, w: 30, body: "#94A3B8", head: "#CBD5E1"},
+    {id: "polarbear", name: "🐻‍❄️ シロクマ", income: 120, w: 15, body: "#F8FAFC", head: "#E2E8F0"},
+    {id: "arcticfox", name: "🦊 ホッキョクギツネ", income: 280, w: 5, body: "#E0F2FE", head: "#BAE6FD"}]},
+  {id: "ocean", name: "🐬 海", egg: 15000, animals: [
+    {id: "turtle", name: "🐢 ウミガメ", income: 90, w: 50, body: "#15803D", head: "#86EFAC"},
+    {id: "dolphin", name: "🐬 イルカ", income: 160, w: 30, body: "#60A5FA", head: "#BFDBFE"},
+    {id: "shark", name: "🦈 サメ", income: 350, w: 15, body: "#64748B", head: "#94A3B8"},
+    {id: "whale", name: "🐋 クジラ", income: 850, w: 5, body: "#1D4ED8", head: "#93C5FD"}]}
+]
+
+let SLOTS = 3           -- 1つのさくに 入れる どうぶつの数
+let FOUNTAIN = 1.5      -- ふんすいの どうぶつボーナス

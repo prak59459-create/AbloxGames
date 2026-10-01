@@ -198,6 +198,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/oil-baron-empire/cover-b36ed84b.png" width="200"> | 129 | **Oil Baron Empire** | 石油王になろう！ やぐらで石油をくみ上げて タンクにためる。石油のねだんは 上がったり下がったり。高いときに売るのがコツ！ 製油所・パイプライン・ガソリンスタンドで 大帝国へ。 |
 | <img src="games/build-your-island/cover-ccb12943.png" width="200"> | 130 | **Build Your Island** | 小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！ |
 | <img src="games/cruise-ship-tycoon/cover-0c6e16bd.png" width="200"> | 131 | **Cruise Ship Tycoon** | 自分だけの豪華客船をつくろう！ 客室・プール・レストラン・劇場をふやすと、お客さんがよろこんで乗ってくる。ときどき船が出航して、航海のボーナス！ 世界いちの客船へ。 |
+| <img src="games/build-a-zoo-park/cover-56683f48.png" width="200"> | 132 | **Build a Zoo Park** | どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！ |
 
 <!-- games:end -->
 

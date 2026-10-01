@@ -5,6 +5,9 @@ import Foundation
 // step on pads to buy the next building, collect what it earns.
 
 let tycoonGames: [Game] = [
+    Game(number: 132, id: "build-a-zoo-park", title: "Build a Zoo Park",
+         summary: "どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！",
+         tags: ["tycoon", "animals", "building"], maxPlayers: 6, libs: ["tycoon"], build: buildAZooPark),
     Game(number: 131, id: "cruise-ship-tycoon", title: "Cruise Ship Tycoon",
          summary: "自分だけの豪華客船をつくろう！ 客室・プール・レストラン・劇場をふやすと、お客さんがよろこんで乗ってくる。ときどき船が出航して、航海のボーナス！ 世界いちの客船へ。",
          tags: ["tycoon", "ships", "building"], maxPlayers: 6, libs: ["tycoon"], build: cruiseShipTycoon),
@@ -453,4 +456,79 @@ func cruiseShipTycoon(_ m: MapBuilder) {
         m.part("Hull Stripe", at: (cx, -0.4, 23), size: (22.1, 0.4, 46.1), color: "#DC2626", solid: false)
     }
     m.coverFocus(x: 154, y: 3, z: 20, yaw: 210, width: 36)
+}
+
+// MARK: 132 Build a Zoo Park (Build A Zoo)
+
+/// The four habitats in a zoo plot: id, centre offset (x, z), floor colour.
+let zooHabitats: [(String, Float, Float, String)] = [("savanna", -9, 12, "#FCD34D"), ("jungle", 9, 12, "#16A34A"), ("ice", -9, 30, "#E0F2FE"), ("ocean", 9, 30, "#0EA5E9")]
+
+/// Body and head colours of the animals standing in the showcase zoo.
+let zooShowcase: [String: (String, String)] = ["savanna": ("#FBBF24", "#B45309"), "jungle": ("#78350F", "#D6A77A"), "ice": ("#1E293B", "#F8FAFC"),
+                                               "ocean": ("#64748B", "#94A3B8")]
+
+func buildAZooPark(_ m: MapBuilder) {
+    m.day(ground: "#4D7C0F")
+    m.environment.skyStyle = .clouds
+    m.ground(380, 200, color: "#65A30D", x: 22, z: 40, material: .grass)
+    m.road(from: (-160, -12), to: (200, -12), width: 10, name: "Zoo Road", dashed: false, color: "#A8A29E")
+    m.spawnRing(0, -16, radius: 4, count: 6, color: "#F59E0B")
+    m.shop("Egg House", x: 0, z: -28, w: 14, d: 8, color: "#FEF3C7", sign: "#F59E0B", facing: 1)
+    m.pad("Egg Pad", x: 0, z: -20, size: 3.4, color: "#F59E0B", tags: ["zooeggs"])
+    let items: [(String, Float, Float)] = [("gate", 0, 5), ("path", -2, 4), ("savanna", 2, 4), ("jungle", 0, 21), ("snack", -2, 22.5), ("ice", 2, 22.5),
+                                           ("ocean", 0, 24), ("gift", -2, 25.5), ("fountain", 2, 25.5), ("tunnel", 0, 27)]
+    tycoonPlots(m, count: 6, w: 36, d: 42, floor: "#86EFAC", padColor: "#F59E0B", items: items, collector: (14, 3)) { id, cx in
+        if let h = zooHabitats.first(where: { $0.0 == id }) {
+            let (_, ox, oz, color) = h
+            let x = cx + ox, z = oz
+            m.slab("Habitat Floor", x: x, y: 0.04, z: z, w: 14, h: 0.2, d: 14, color: color, material: id == "ice" ? .ice : (id == "ocean" ? .glass : .grass))
+            m.fence(from: (x - 7, z - 7), to: (x + 7, z - 7), color: "#92400E")
+            m.fence(from: (x - 7, z + 7), to: (x + 7, z + 7), color: "#92400E")
+            m.fence(from: (x - 7, z - 7), to: (x - 7, z + 7), color: "#92400E")
+            m.fence(from: (x + 7, z - 7), to: (x + 7, z + 7), color: "#92400E")
+            switch id {
+            case "savanna": m.tree(x + 4, z + 4, y: 0.2, height: 4, leaves: "#65A30D")
+            case "jungle": m.pine(x - 4, z + 4, y: 0.2, height: 5, leaves: "#14532D")
+            case "ice": m.part("Iceberg", at: (x + 4, 1.2, z + 4), size: (3, 2.4, 3), color: "#F8FAFC", shape: .cone, material: .ice, solid: false)
+            default: m.part("Tank Glass", at: (x, 1.5, z - 7), size: (14, 3, 0.2), color: "#7DD3FC", material: .glass, solid: false, opacity: 0.4)
+            }
+            return
+        }
+        switch id {
+        case "gate":
+            m.part("Zoo Arch", at: (cx, 5, 1), size: (12, 1.2, 1), color: "#F59E0B", material: .neon, solid: false)
+            for x in [-6, 6] as [Float] { m.slab("Arch Post", x: cx + x, y: 0, z: 1, w: 0.8, h: 5, d: 0.8, color: "#92400E", material: .wood) }
+        case "path":
+            m.slab("Zoo Path", x: cx, y: 0.03, z: 21, w: 4, h: 0.1, d: 40, color: "#D6D3D1")
+            m.slab("Zoo Path", x: cx, y: 0.03, z: 21, w: 32, h: 0.1, d: 3, color: "#D6D3D1")
+        case "snack":
+            m.slab("Snack Bar", x: cx - 15, y: 0, z: 21, w: 4, h: 3, d: 4, color: "#F87171")
+            m.part("Snack Sign", at: (cx - 15, 3.4, 18.9), size: (3, 0.6, 0.1), color: "#FDE68A", material: .neon, tags: ["ty_drop", "drop=#F87171"], solid: false)
+        case "gift":
+            m.slab("Gift Shop", x: cx + 15, y: 0, z: 21, w: 4, h: 3, d: 4, color: "#C4B5FD")
+            m.part("Gift Sign", at: (cx + 15, 3.4, 18.9), size: (3, 0.6, 0.1), color: "#F472B6", material: .neon, tags: ["ty_drop", "drop=#A855F7"], solid: false)
+        case "fountain":
+            m.part("Zoo Fountain", at: (cx, 0.5, 21), size: (3, 1, 3), color: "#7DD3FC", shape: .cylinder, material: .glass, solid: false, opacity: 0.7)
+        default:
+            m.part("Aquarium Tunnel", at: (cx + 9, 2, 38.5), size: (4, 14, 4), color: "#38BDF8", shape: .cylinder, material: .glass, solid: false,
+                   rotation: (0, 0, 90), opacity: 0.4)
+        }
+    }
+    // Animal figures: three spots in every habitat of every plot, shown by the script.
+    for k in 1...7 {
+        let cx = (Float(k) - 3.5) * 44
+        for (hid, ox, oz, _) in zooHabitats {
+            for s in 0..<3 {
+                let x = cx + ox - 4 + Float(s) * 4, z = oz - 2 + Float(s % 2) * 2
+                let shown = k == 7
+                // The showcase zoo wears real colours; the others are recoloured by the script.
+                let look = shown ? (zooShowcase[hid] ?? ("#A16207", "#A16207")) : ("#A16207", "#A16207")
+                m.group("zoo\(k)_\(hid)_\(s + 1)", shown: shown) {
+                    m.part("Animal Body", at: (x, 1, z), size: (1.8, 1.2, 2.4), color: look.0, shape: .sphere, tags: ["animal_body"], solid: false)
+                    m.part("Animal Head", at: (x, 1.9, z + 1.2), size: (0.9, 0.9, 0.9), color: look.1, shape: .sphere, tags: ["animal_head"], solid: false)
+                }
+            }
+        }
+    }
+    m.coverFocus(x: 154, y: 2, z: 20, yaw: 210, width: 40)
 }

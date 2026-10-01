@@ -4068,7 +4068,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 344,
-      "bytes" : 200992,
+      "bytes" : 200507,
       "cover" : "games\/cruise-ship-tycoon\/cover-0c6e16bd.png",
       "id" : "cruise-ship-tycoon",
       "maxPlayers" : 6,
@@ -4078,7 +4078,6 @@
         "lib\/kit_tycoon.absc",
         "games\/cruise-ship-tycoon\/data.absc",
         "games\/cruise-ship-tycoon\/voyage.absc",
-        "games\/cruise-ship-tycoon\/zz_test.absc",
         "games\/cruise-ship-tycoon\/main.absc"
       ],
       "shots" : [
@@ -4094,6 +4093,35 @@
       "title" : "Cruise Ship Tycoon",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/cruise-ship-tycoon\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 655,
+      "bytes" : 360841,
+      "cover" : "games\/build-a-zoo-park\/cover-56683f48.png",
+      "id" : "build-a-zoo-park",
+      "maxPlayers" : 6,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "lib\/kit_tycoon.absc",
+        "games\/build-a-zoo-park\/data.absc",
+        "games\/build-a-zoo-park\/zoo.absc",
+        "games\/build-a-zoo-park\/main.absc"
+      ],
+      "shots" : [
+        "games\/build-a-zoo-park\/shot1-ee6c8cea.png",
+        "games\/build-a-zoo-park\/shot2-78c74163.png"
+      ],
+      "summary" : "どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！",
+      "tags" : [
+        "tycoon",
+        "animals",
+        "building"
+      ],
+      "title" : "Build a Zoo Park",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/build-a-zoo-park\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"
