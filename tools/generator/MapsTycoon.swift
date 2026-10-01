@@ -5,6 +5,9 @@ import Foundation
 // step on pads to buy the next building, collect what it earns.
 
 let tycoonGames: [Game] = [
+    Game(number: 131, id: "cruise-ship-tycoon", title: "Cruise Ship Tycoon",
+         summary: "自分だけの豪華客船をつくろう！ 客室・プール・レストラン・劇場をふやすと、お客さんがよろこんで乗ってくる。ときどき船が出航して、航海のボーナス！ 世界いちの客船へ。",
+         tags: ["tycoon", "ships", "building"], maxPlayers: 6, libs: ["tycoon"], build: cruiseShipTycoon),
     Game(number: 130, id: "build-your-island", title: "Build Your Island",
          summary: "小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！",
          tags: ["tycoon", "island", "crafting"], maxPlayers: 6, libs: ["tycoon"], build: buildYourIsland),
@@ -391,4 +394,63 @@ func buildYourIsland(_ m: MapBuilder) {
         m.part("Trader Boat", at: (cx - 13, 0.6, -2), size: (3, 1, 6), color: "#A16207", material: .wood, solid: false)
     }
     m.coverFocus(x: 154, y: 2, z: 20, yaw: 210, width: 40)
+}
+
+// MARK: 131 Cruise Ship Tycoon (Cruise Line Tycoon)
+
+func cruiseShipTycoon(_ m: MapBuilder) {
+    m.ocean()
+    m.environment.skyStyle = .clouds
+    m.slab("Pier", x: 22, y: -0.4, z: -10, w: 380, h: 0.5, d: 20, color: "#A8A29E", material: .wood)
+    m.spawnRing(0, -14, radius: 4, count: 6, color: "#0EA5E9")
+    m.shop("Ticket Office", x: -30, z: -16, w: 12, d: 6, color: "#E0F2FE", sign: "#0284C7", facing: 1)
+    let items: [(String, Float, Float)] = [("deck", -2, 6), ("cabins", 2, 6), ("pool", -2, 11), ("restaurant", 2, 11), ("deck2", -2, 16), ("slide", 2, 16),
+                                           ("theater", -2, 21), ("spa", 2, 21), ("bridge", -2, 26), ("engine", 2, 26), ("helipad", 0, 31)]
+    tycoonPlots(m, count: 6, w: 22, d: 46, gap: 22, floor: "#F8FAFC", padColor: "#0EA5E9", items: items, collector: (8, 3)) { id, cx in
+        switch id {
+        case "deck":
+            m.slab("Wood Deck", x: cx, y: 0.04, z: 23, w: 20, h: 0.2, d: 40, color: "#D6A77A", material: .wood)
+        case "cabins":
+            for q in 0..<4 {
+                m.slab("Cabin", x: cx - 8, y: 0.2, z: 8 + Float(q) * 8, w: 4, h: 3, d: 6, color: "#E0F2FE")
+                m.part("Cabin Window", at: (cx - 10.05, 1.8, 8 + Float(q) * 8), size: (0.1, 1, 1.4), color: "#38BDF8", material: .glass, solid: false)
+            }
+        case "pool":
+            m.slab("Pool Edge", x: cx + 5, y: 0.2, z: 18, w: 8, h: 0.6, d: 10, color: "#F8FAFC")
+            m.part("Pool Water", at: (cx + 5, 0.82, 18), size: (7, 0.1, 9), color: "#38BDF8", material: .glass, solid: false, opacity: 0.8)
+        case "restaurant":
+            m.slab("Restaurant", x: cx + 5, y: 0.2, z: 8, w: 7, h: 3, d: 7, color: "#FDE68A")
+            m.part("Restaurant Sign", at: (cx + 5, 3.6, 4.4), size: (5, 0.8, 0.2), color: "#F97316", material: .neon, tags: ["ty_drop", "drop=#F97316"], solid: false)
+        case "deck2":
+            m.slab("Upper Deck", x: cx, y: 3.2, z: 30, w: 20, h: 0.4, d: 14, color: "#F8FAFC")
+            for (x, z) in [(-9, 24), (9, 24), (-9, 36), (9, 36)] as [(Float, Float)] {
+                m.slab("Deck Post", x: cx + x, y: 0.2, z: z, w: 0.5, h: 3, d: 0.5, color: "#CBD5E1")
+            }
+        case "slide":
+            m.part("Water Slide", at: (cx + 6, 5, 34), size: (1.4, 0.4, 12), color: "#F472B6", material: .neon, solid: false, rotation: (25, 0, 0))
+            m.part("Slide Tower", at: (cx + 6, 5.5, 39), size: (2, 3, 2), color: "#EC4899", solid: false)
+        case "theater":
+            m.slab("Theater", x: cx - 5, y: 3.6, z: 30, w: 8, h: 3.4, d: 10, color: "#7C3AED")
+            m.part("Theater Lights", at: (cx - 5, 7.2, 25), size: (6, 0.4, 0.2), color: "#FACC15", material: .neon, tags: ["ty_drop", "drop=#A855F7"], solid: false)
+        case "spa":
+            m.part("Hot Tub", at: (cx + 5, 3.9, 27), size: (3, 0.6, 3), color: "#2DD4BF", shape: .cylinder, material: .glass, solid: false, opacity: 0.8)
+        case "bridge":
+            m.slab("Captain Bridge", x: cx, y: 3.6, z: 40, w: 12, h: 3, d: 4, color: "#F8FAFC")
+            m.part("Bridge Glass", at: (cx, 5.2, 42.05), size: (10, 1.2, 0.1), color: "#7DD3FC", material: .glass, solid: false)
+        case "engine":
+            m.part("Funnel", at: (cx, 9, 36), size: (3, 5, 3), color: "#DC2626", shape: .cylinder, solid: false)
+            m.part("Funnel Top", at: (cx, 11.6, 36), size: (3.2, 0.6, 3.2), color: "#111827", shape: .cylinder, tags: ["ty_drop", "drop=#E5E7EB"], solid: false)
+        default:
+            m.part("Helipad", at: (cx, 7.1, 41), size: (7, 0.2, 7), color: "#1F2937", shape: .cylinder, solid: false)
+            m.part("Helipad H", at: (cx, 7.25, 41), size: (2, 0.05, 3), color: "#FACC15", solid: false)
+        }
+    }
+    // The hulls under every ship (and the showcase).
+    for k in 1...7 {
+        let cx = (Float(k) - 3.5) * 44
+        m.slab("Hull", x: cx, y: -3, z: 23, w: 22, h: 3, d: 46, color: "#1E3A8A")
+        m.part("Bow", at: (cx, -1.5, 48), size: (22, 3, 6), color: "#1E3A8A", shape: .cone, solid: false, rotation: (90, 0, 0))
+        m.part("Hull Stripe", at: (cx, -0.4, 23), size: (22.1, 0.4, 46.1), color: "#DC2626", solid: false)
+    }
+    m.coverFocus(x: 154, y: 3, z: 20, yaw: 210, width: 36)
 }

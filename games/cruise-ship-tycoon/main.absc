@@ -1,0 +1,51 @@
+-- Cruise Ship Tycoon — 豪華客船タイクーン
+-- 水色のパッドで デッキ・客室・プール・レストラン・劇場…を建てていく。1秒ごとに 船のもうけがたまる（緑のパッド）。
+-- ときどき出航して、もどってくると 航海ボーナス。船長室で ×1.5、大きなエンジンで 出航が はやく。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  客船・建てる・お金・生まれかわり
+--   data.absc     建てるもの・航海
+--   voyage.absc   航海ボーナス・デッキのお客さん
+--   main.absc     このファイル
+
+kit_setup("Cruise Ship Tycoon", "世界いちの豪華客船を つくろう！", [
+  "🟦 水色のパッドで デッキ・客室・プールなどを建てる",
+  "💚 緑のパッドで たまったお金を受けとる",
+  "🚢 ときどき出航して、もどると 航海ボーナス",
+  "🧭 船長室で ボーナス ×1.5、🚢 大きなエンジンで 出航が はやく",
+  "🚁 ヘリポートで VIP のお客さん",
+  "🌟 ぜんぶ建てたら 生まれかわり"
+])
+kit_keep(["voyages"])
+
+kit_quest("ty_buy", "4つ建てる", 4, 100)
+kit_quest("voyage", "航海に3回出る", 3, 200)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 50 then p.coins = 50 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 12
+  p.hat = "beret"
+  p.ui_button("ty_home", "🚢 自分の客船", {at: "right", dy: -58, w: 150, h: 44, size: 14, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("💰 もうけ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.ty_total or 0)
+    if s != p.score then p.score = s end
+  end
+end

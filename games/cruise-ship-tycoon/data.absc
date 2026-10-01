@@ -1,0 +1,22 @@
+-- data.absc — Cruise Ship Tycoon の表
+
+ty_setup({plots: 6, word: "客船", rebirth: 0.6})
+
+ty_items = [
+  {id: "deck", name: "🪵 木のデッキ", price: 50, income: 0},
+  {id: "cabins", name: "🛏 客室", price: 150, income: 4, after: "deck"},
+  {id: "pool", name: "🏊 プール", price: 600, income: 8, after: "cabins"},
+  {id: "restaurant", name: "🍽 レストラン", price: 1500, income: 15, after: "pool"},
+  {id: "deck2", name: "⛱ 上のデッキ", price: 3500, income: 0, after: "restaurant"},
+  {id: "slide", name: "🛝 ウォータースライダー", price: 7000, income: 30, after: "deck2"},
+  {id: "theater", name: "🎭 劇場", price: 15000, income: 60, after: "slide"},
+  {id: "spa", name: "♨️ スパ", price: 30000, income: 90, after: "theater"},
+  {id: "bridge", name: "🧭 船長室（航海ボーナス ×1.5）", price: 60000, income: 0, after: "spa"},
+  {id: "engine", name: "🚢 大きなエンジン（航海が はやく）", price: 120000, income: 0, after: "bridge"},
+  {id: "helipad", name: "🚁 ヘリポート（VIPのお客さん）", price: 250000, income: 300, after: "engine"}
+]
+
+let VOYAGE_EVERY = 90       -- 秒ごとに出航
+let VOYAGE_FAST = 60        -- 大きなエンジンがあると
+let VOYAGE_PAY = 25         -- 1秒のもうけ × これ
+let DESTS = ["🏝 南の島", "🗽 ニューヨーク", "🗼 パリの港", "🐧 南極", "🌋 ハワイ", "🏯 京都の港", "🦁 アフリカ", "🧊 北極のオーロラ"]

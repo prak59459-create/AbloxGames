@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 344,
+  "bytes" : 200992,
+  "cover" : "games\/cruise-ship-tycoon\/cover-0c6e16bd.png",
+  "id" : "cruise-ship-tycoon",
+  "maxPlayers" : 6,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_tycoon.absc",
+    "games\/cruise-ship-tycoon\/data.absc",
+    "games\/cruise-ship-tycoon\/voyage.absc",
+    "games\/cruise-ship-tycoon\/zz_test.absc",
+    "games\/cruise-ship-tycoon\/main.absc"
+  ],
+  "shots" : [
+    "games\/cruise-ship-tycoon\/shot1-52d45cbf.png",
+    "games\/cruise-ship-tycoon\/shot2-84ef5c07.png"
+  ],
+  "summary" : "自分だけの豪華客船をつくろう！ 客室・プール・レストラン・劇場をふやすと、お客さんがよろこんで乗ってくる。ときどき船が出航して、航海のボーナス！ 世界いちの客船へ。",
+  "tags" : [
+    "tycoon",
+    "ships",
+    "building"
+  ],
+  "title" : "Cruise Ship Tycoon",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/cruise-ship-tycoon\/world.ablox"
+}

@@ -1,0 +1,88 @@
+-- voyage.absc — 航海: ときどき客船が出航して、もどってくると ボーナス（緑のパッドで受けとる）。
+-- お客さんが デッキを歩きまわる。
+
+let vy_clock = 0
+let walkers = {}      -- "k" → [npc]
+
+func voyage_secs(p)
+  if ty_owns(p, "engine") then return VOYAGE_FAST end
+  return VOYAGE_EVERY
+end
+
+func comfort(p)
+  let n = 0
+  for id in ["cabins", "pool", "restaurant", "slide", "theater", "spa", "helipad"] do
+    if ty_owns(p, id) then n = n + 1 end
+  end
+  return n
+end
+
+func sail(p)
+  let k = p.ty_plot
+  let inc = ty_income(p)
+  if inc <= 0 then return end
+  let mult = 1
+  if ty_owns(p, "bridge") then mult = 1.5 end
+  let pay = floor(inc * VOYAGE_PAY * mult)
+  ty_banks[str(k)] = (ty_banks[str(k)] or 0) + pay
+  let dest = random(DESTS)
+  p.voyages = (p.voyages or 0) + 1
+  p.message("🚢 ブォーー！ " + dest + " への航海から もどった！ ボーナス 💰" + kit_short(pay) + "（緑のパッド）", 3)
+  p.sound("bell")
+  particles("confetti", block("Claim " + k), {amount: 30})
+  kit_quest_progress(p, "voyage", 1)
+end
+
+-- デッキを歩くお客さん（客室があれば 2人）
+func passengers(p)
+  let key = str(p.ty_plot)
+  let list = walkers[key] or []
+  let want = 0
+  if ty_owns(p, "cabins") then want = 2 end
+  if ty_owns(p, "helipad") then want = 3 end
+  while len(list) > want do kit_gone(remove(list, len(list))) end
+  let c = block("Claim " + p.ty_plot).position
+  while len(list) < want do
+    let vip = len(list) == 2
+    let n = create_npc({name: "お客さん", position: {x: c.x + random_float(-6, 6), y: 0.6, z: c.z + 14}, color: random_color(),
+                        head_color: random(["#FDE68A", "#D6A77A", "#8D5524"]), speed: 0.5, health: 100000, hat: random(["none", "cap", "top_hat", "flower_crown"])})
+    if vip then n.hat = "crown" end
+    append(list, n)
+  end
+  for n in list do
+    if kit_here(n) and chance(40) then n.move_to({x: c.x + random_float(-7, 7), y: 0.6, z: c.z + random_float(8, 30)}) end
+  end
+  walkers[key] = list
+end
+
+func clear_walkers(k)
+  for n in walkers[str(k)] or [] do kit_gone(n) end
+  walkers[str(k)] = []
+end
+
+on tick(dt)
+  vy_clock = vy_clock + dt
+  if vy_clock < 1 then return end
+  vy_clock = 0
+  let now = time()
+  for p in players() do
+    if p.ty_plot != nil then
+      if p.next_voyage == nil then p.next_voyage = now + voyage_secs(p) end
+      if now > p.next_voyage then
+        p.next_voyage = now + voyage_secs(p)
+        sail(p)
+      end
+      if kit_ready(p, "walkers", 4) then passengers(p) end
+      if kit_ready(p, "vyhud", 1) then
+        let stars = ""
+        for i in 1 to comfort(p) do stars = stars + "⭐" end
+        if stars == "" then stars = "（まだなし）" end
+        p.ui_text("vy_hud", "🚢 つぎの出航まで " + ceil(p.next_voyage - now) + "秒   ごうか度 " + stars, {at: "top", dy: 86, size: 14, color: "#BAE6FD"})
+      end
+    end
+  end
+  -- いなくなった人の船の お客さんを片づける
+  for k in 1 to ty_plots do
+    if ty_owners[str(k)] == nil and len(walkers[str(k)] or []) > 0 then clear_walkers(k) end
+  end
+end
