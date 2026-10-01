@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 85,
-  "bytes" : 83742,
+  "bytes" : 83470,
   "cover" : "games\/mega-magnet-sim\/cover-fad07891.png",
   "id" : "mega-magnet-sim",
   "maxPlayers" : 12,
@@ -11,7 +11,6 @@
     "lib\/kit_sim.absc",
     "games\/mega-magnet-sim\/data.absc",
     "games\/mega-magnet-sim\/magnet.absc",
-    "games\/mega-magnet-sim\/zz_test.absc",
     "games\/mega-magnet-sim\/main.absc"
   ],
   "shots" : [

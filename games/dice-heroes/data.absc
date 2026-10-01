@@ -1,0 +1,26 @@
+-- data.absc — Dice Heroes の表
+
+-- ヒーロー: rarity 1=ふつう 2=レア 3=エピック 4=伝説
+let HEROES = [
+  {id: "swordie", name: "見ならい剣士", icon: "🗡", rarity: 1, power: 5, color: "#94A3B8"},
+  {id: "archer", name: "森の弓使い", icon: "🏹", rarity: 1, power: 6, color: "#65A30D"},
+  {id: "shield", name: "たての兵士", icon: "🛡", rarity: 1, power: 4, color: "#A8A29E"},
+  {id: "hammer", name: "ハンマーくん", icon: "🔨", rarity: 1, power: 7, color: "#B45309"},
+  {id: "flame", name: "ほのおの剣士", icon: "🔥", rarity: 2, power: 18, color: "#EF4444"},
+  {id: "frost", name: "こおりの魔法使い", icon: "❄️", rarity: 2, power: 20, color: "#38BDF8"},
+  {id: "thunder", name: "いかずちの忍者", icon: "⚡", rarity: 2, power: 22, color: "#FACC15"},
+  {id: "wind", name: "かぜの弓聖", icon: "🌪", rarity: 3, power: 55, color: "#2DD4BF"},
+  {id: "dark", name: "やみの騎士", icon: "🌑", rarity: 3, power: 60, color: "#4C1D95"},
+  {id: "sea", name: "うみの巫女", icon: "🌊", rarity: 3, power: 58, color: "#0EA5E9"},
+  {id: "sun", name: "ひかりの勇者", icon: "☀️", rarity: 4, power: 180, color: "#FDE047"},
+  {id: "dragon", name: "りゅうの王", icon: "🐉", rarity: 4, power: 200, color: "#22C55E"}
+]
+let RARITY_NAMES = ["⚪ ふつう", "🔵 レア", "🟣 エピック", "🟡 伝説"]
+let DICE_PRICE = 150       -- サイコロ1こ
+let TEAM_SIZE = 3
+let STAGES = 30
+let BATTLE_SECS = 30
+let AUTO_RATE = 0.5        -- チームが1秒に自動で出す力（チームの力×）
+let BOSS_NAMES = ["スライム大王", "ゴブリン将軍", "いわのゴーレム", "ほのおのトカゲ", "こおりのオオカミ", "やみのまじょ", "かみなり鳥", "うみのクラーケン",
+                  "がいこつの王", "まおう"]
+let BOSS_COLORS = ["#4ADE80", "#65A30D", "#78716C", "#F97316", "#7DD3FC", "#7C3AED", "#FACC15", "#0EA5E9", "#E7E5E4", "#7F1D1D"]

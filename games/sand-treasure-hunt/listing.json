@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 396,
-  "bytes" : 235876,
+  "bytes" : 235369,
   "cover" : "games\/sand-treasure-hunt\/cover-73729fa8.png",
   "id" : "sand-treasure-hunt",
   "maxPlayers" : 10,
@@ -11,7 +11,6 @@
     "lib\/kit_sim.absc",
     "games\/sand-treasure-hunt\/data.absc",
     "games\/sand-treasure-hunt\/dig.absc",
-    "games\/sand-treasure-hunt\/zz_test.absc",
     "games\/sand-treasure-hunt\/main.absc"
   ],
   "shots" : [

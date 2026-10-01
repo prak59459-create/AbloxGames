@@ -1,0 +1,59 @@
+-- data.absc — Ghost Vacuum Sim の表
+
+sim_setup({name: "👻 つかまえたおばけ", tap: "🌀 すいこむ", bag: true, bag_word: "🧪 エクトプラズム", sell: 1, secs: 0.25, rebirth: 200000, grow: 4, slots: 3,
+           auto: 1200})
+
+-- そうじき: power は 1回のすいこむ力、range は とどくきょり
+sim_tools = [
+  {id: "v1", name: "🌀 ハンディそうじき", price: 0, power: 1, range: 6},
+  {id: "v2", name: "🌀 そうじき", price: 90, power: 3, range: 7},
+  {id: "v3", name: "🌀 ターボそうじき", price: 550, power: 8, range: 8},
+  {id: "v4", name: "⚡ プラズマすいこみ機", price: 2800, power: 22, range: 9},
+  {id: "v5", name: "🌌 ブラックホール機", price: 14000, power: 60, range: 10},
+  {id: "v6", name: "👑 ゴーストキングの機械", price: 70000, power: 170, range: 12}
+]
+
+sim_bags = [
+  {id: "b1", name: "🧪 小さなびん", price: 0, size: 40},
+  {id: "b2", name: "🧪 大きなびん", price: 130, size: 130},
+  {id: "b3", name: "🛢 タンク", price: 850, size: 420},
+  {id: "b4", name: "🛢 大きなタンク", price: 4200, size: 1300},
+  {id: "b5", name: "🚚 エクトトラック", price: 21000, size: 4200},
+  {id: "b6", name: "🛸 ユーフォー", price: 105000, size: 13000}
+]
+
+sim_eggs = [
+  {id: "spooky", name: "🎃 こわいたまご", price: 250, pets: [
+    {name: "コウモリ", icon: "🦇", mult: 0.1, w: 60, color: "#1C1917"},
+    {name: "くろねこ", icon: "🐈‍⬛", mult: 0.25, w: 30, color: "#111827"},
+    {name: "かぼちゃおばけ", icon: "🎃", mult: 0.6, w: 9, color: "#F97316"},
+    {name: "やさしいゴースト", icon: "👻", mult: 2, w: 1, color: "#F8FAFC"}]},
+  {id: "grave", name: "🪦 おはかのたまご", price: 5000, pets: [
+    {name: "ミイラいぬ", icon: "🐕", mult: 0.5, w: 55, color: "#E7E5E4"},
+    {name: "がいこつ", icon: "💀", mult: 1, w: 33, color: "#F5F5F4"},
+    {name: "まじょのふくろう", icon: "🦉", mult: 2.5, w: 10, color: "#7C3AED"},
+    {name: "ゴーストドラゴン", icon: "🐉", mult: 6, w: 2, color: "#A3E635"}]},
+  {id: "castle", name: "🏰 お城のたまご", price: 70000, pets: [
+    {name: "よろいのおばけ", icon: "🛡", mult: 2, w: 55, color: "#94A3B8"},
+    {name: "まほうのランプ", icon: "🪔", mult: 3.5, w: 33, color: "#FACC15"},
+    {name: "ゆうれいの王女", icon: "👸", mult: 8, w: 10, color: "#F0ABFC"},
+    {name: "まおうのたましい", icon: "😈", mult: 20, w: 2, color: "#7E22CE"}]}
+]
+
+sim_zones = [
+  {n: 1, name: "🌳 よるの公園", need: 0},
+  {n: 2, name: "🏚 おばけやしき", need: 2500},
+  {n: 3, name: "🪦 おはか", need: 50000},
+  {n: 4, name: "🏰 まおうのお城", need: 600000}
+]
+
+-- おばけ: エリアごと。hp は かたさ、value は エクトプラズム
+let GHOSTS = [
+  {name: "👻 ちびおばけ", hp: 8, value: 3, color: "#F8FAFC", size: 0.8},
+  {name: "👻 やしきのおばけ", hp: 60, value: 25, color: "#D9F99D", size: 1},
+  {name: "💀 がいこつおばけ", hp: 500, value: 220, color: "#E7E5E4", size: 1.1},
+  {name: "😈 お城のあくりょう", hp: 4000, value: 1800, color: "#C4B5FD", size: 1.25}
+]
+let PER_AREA = 5
+let GHOST_BACK = 6
+let BOSS_EVERY = 120

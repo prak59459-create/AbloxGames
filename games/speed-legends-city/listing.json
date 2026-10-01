@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 621,
-  "bytes" : 343734,
+  "bytes" : 343276,
   "cover" : "games\/speed-legends-city\/cover-61c5dc19.png",
   "id" : "speed-legends-city",
   "maxPlayers" : 12,
@@ -12,7 +12,6 @@
     "games\/speed-legends-city\/data.absc",
     "games\/speed-legends-city\/race.absc",
     "games\/speed-legends-city\/run.absc",
-    "games\/speed-legends-city\/zz_test.absc",
     "games\/speed-legends-city\/main.absc"
   ],
   "shots" : [

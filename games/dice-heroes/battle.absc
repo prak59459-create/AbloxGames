@@ -1,0 +1,143 @@
+-- battle.absc — ボス戦: 赤いパッドで いまのステージのボスへ。⚔️ をタップすると チームでこうげき（チームも自動でこうげき）。
+-- 30秒いないにたおせば 勝ち！ お金とサイコロがもらえて 次のステージへ。
+
+let bt_clock = 0
+let slots = {}
+
+func stage_hp(k)
+  return floor(80 * pow(1.55, k - 1))
+end
+
+func stage_reward(k)
+  return floor(40 * pow(1.35, k - 1))
+end
+
+func boss_of(k)
+  let i = (k - 1) % len(BOSS_NAMES) + 1
+  let tier = floor((k - 1) / len(BOSS_NAMES))
+  let prefix = ["", "つよい", "さいきょうの"][tier + 1] or "さいきょうの"
+  return {name: prefix + BOSS_NAMES[i], color: BOSS_COLORS[i], size: 2.2 + tier * 0.6}
+end
+
+func free_slot()
+  for k in 1 to 8 do
+    if slots[str(k)] == nil then return k end
+  end
+  return 1
+end
+
+func start_battle(p)
+  if p.battle != nil then return end
+  let k = (p.stage_done or 0) + 1
+  if k > STAGES then
+    p.message("🏆 30ステージ ぜんぶ かちぬいた！ もっと ★を上げよう", 2)
+    return
+  end
+  if len(team(p)) == 0 then
+    p.message("🦸 まずは 🎲 で ヒーローをよぼう！", 2)
+    return
+  end
+  let slot = free_slot()
+  slots[str(slot)] = p.id
+  let off = {x: (slot - 4.5) * 6, y: 0, z: 0}
+  let info = boss_of(k)
+  let spot = block("Boss Spot")
+  let n = create_npc({name: "👹 " + info.name + "（ステージ " + k + "）", position: spot.position + off + {x: 0, y: 1, z: 0}, color: info.color, head_color: info.color,
+                      speed: 0, health: 100000000, size: info.size})
+  n.frozen = true
+  p.battle = {k: k, hp: stage_hp(k), max: stage_hp(k), until: time() + BATTLE_SECS, n: n, slot: slot}
+  p.teleport(block("Fighter Spot").position + off)
+  p.yaw = 0
+  p.ui_button("attack", "⚔️ こうげき", {at: "bottom_right", dx: -30, dy: -200, w: 140, h: 100, size: 20, bg: "#DC2626", radius: 26})
+  p.message("👹 " + info.name + " があらわれた！ ⚔️ を連打！", 2)
+  p.sound("alarm")
+  battle_ui(p)
+end
+
+func battle_ui(p)
+  let b = p.battle
+  if b == nil then return end
+  p.ui_text("bt_t", "👹 ステージ " + b.k + "   のこり " + kit_short(max(0, ceil(b.hp))) + "   ⏱ " + max(0, ceil(b.until - time())) + "秒",
+            {at: "top", dy: 92, size: 17, bold: true, color: "#FCA5A5"})
+  p.ui_bar("bt_bar", max(0, b.hp), b.max, {at: "top", dy: 118, w: 380, h: 16, color: "#DC2626"})
+end
+
+func attack(p)
+  let b = p.battle
+  if b == nil or not kit_ready(p, "attack", 0.15) then return end
+  b.hp = b.hp - team_power(p)
+  particles("fire", b.n, {amount: 5})
+  p.sound("hit")
+  if b.hp <= 0 then end_battle(p, true) end
+end
+
+func end_battle(p, won)
+  let b = p.battle
+  if b == nil then return end
+  p.battle = nil
+  slots[str(b.slot)] = nil
+  kit_gone(b.n)
+  p.ui_remove("attack")
+  p.ui_remove("bt_t")
+  p.ui_remove("bt_bar")
+  if won then
+    let pay = stage_reward(b.k)
+    let dice = 1 + floor(b.k / 5)
+    kit_give(p, pay)
+    p.dice = (p.dice or 0) + dice
+    if b.k > (p.stage_done or 0) then p.stage_done = b.k end
+    p.message("🏆 ステージ " + b.k + " クリア！ 💰" + kit_short(pay) + "  🎲+" + dice, 2.5)
+    p.sound("win")
+    particles("confetti", p, {amount: 50})
+    kit_quest_progress(p, "stage", 1)
+    if b.k % 10 == 0 then
+      announce("🏆 " + p.name + " が ステージ " + b.k + " をクリア！", 3)
+      kit_badge(p, "stage" + b.k, "ステージ " + b.k)
+    end
+  else
+    p.message("😣 時間ぎれ… 🎲 でヒーローをふやして ★を上げよう", 2.5)
+    p.sound("lose")
+  end
+  dice_hud(p)
+end
+
+on tick(dt)
+  bt_clock = bt_clock + dt
+  if bt_clock < 0.5 then return end
+  let secs = bt_clock
+  bt_clock = 0
+  for p in players() do
+    let b = p.battle
+    if b != nil then
+      b.hp = b.hp - team_power(p) * AUTO_RATE * secs
+      if b.hp <= 0 then
+        end_battle(p, true)
+      elif time() > b.until or not kit_here(b.n) then
+        end_battle(p, false)
+      else
+        battle_ui(p)
+      end
+    elif not p.is_npc and kit_ready(p, "dhhud", 1) then
+      dice_hud(p)
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "battle") and kit_ready(p, "battlepad", 3) then start_battle(p) end
+end
+
+on button(p, id)
+  if id == "attack" then attack(p)
+  elif id == "battle" then start_battle(p)
+  end
+end
+
+on leave(p)
+  let b = p.battle
+  if b != nil then
+    slots[str(b.slot)] = nil
+    kit_gone(b.n)
+  end
+end

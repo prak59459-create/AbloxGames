@@ -1,0 +1,173 @@
+-- ghosts.absc — おばけ: エリアの中を ふわふわ動く。🌀 で近くのおばけをすいこむ（HPがへる）。0になったら つかまえた！
+-- お城には ときどき 大おばけ。みんなで すいこむと ダメージに合わせて ごほうび。
+
+let ghosts = []      -- {n, area, hp, max}
+let gh_clock = 0
+let wander_clock = 0
+let boss = nil
+let next_boss = 90
+
+func spawn_ghost(k)
+  let g = GHOSTS[k]
+  let spot = block("Ghost " + k + "-" + random(1, 8))
+  if spot == nil then return end
+  let n = create_npc({name: g.name, position: spot.position + {x: 0, y: 0.6, z: 0}, color: g.color, head_color: g.color, speed: 0.5, health: 100000,
+                      size: g.size})
+  append(ghosts, {n: n, area: k, hp: g.hp, max: g.hp})
+end
+
+on start()
+  for k in 1 to 4 do
+    for i in 1 to PER_AREA do spawn_ghost(k) end
+  end
+end
+
+func area_of(p)
+  for z in sim_zones do
+    let c = block("Area " + z.n)
+    if c != nil and abs(p.x - c.x) < 33 and abs(p.z - c.z) < 36 then return z.n end
+  end
+  return nil
+end
+
+func target_ghost(p)
+  let range = sim_tool(p).range
+  let best = nil
+  let best_d = range
+  for g in ghosts do
+    if kit_here(g.n) then
+      let d = distance(p, g.n)
+      if d < best_d then
+        best_d = d
+        best = g
+      end
+    end
+  end
+  return best
+end
+
+sim_on_tap = func(p, amount)
+  if (p.sim_fill or 0) >= sim_bag_size(p) then
+    if kit_ready(p, "full", 3) then p.message("🧪 いっぱい！ ラボの黄緑のパッドで売ろう", 1.5) end
+    return true
+  end
+  if boss != nil and kit_here(boss.n) and distance(p, boss.n) < sim_tool(p).range + 4 then
+    hit_boss(p, amount)
+    return true
+  end
+  let g = target_ghost(p)
+  if g == nil then
+    if kit_ready(p, "noghost", 3) then p.message("🌀 おばけに もっと近づいて！", 1) end
+    return true
+  end
+  if (p.sim_value or 0) < sim_zones[g.area].need then return true end
+  g.hp = g.hp - amount
+  p.sound("whoosh")
+  particles("magic", g.n, {amount: 5})
+  -- すいよせられて 近づいてくる
+  g.n.move_to(p)
+  if g.hp <= 0 then
+    let gain = floor(GHOSTS[g.area].value * sim_mult(p))
+    sim_gain(p, gain)
+    p.caught = (p.caught or 0) + 1
+    kit_quest_progress(p, "catch", 1)
+    p.message("👻 つかまえた！ +" + kit_short(gain), 1)
+    p.sound("pop")
+    remove(ghosts, index_of(ghosts, g))
+    kit_gone(g.n)
+    let area = g.area
+    after(GHOST_BACK, func() spawn_ghost(area) end)
+  end
+  return true
+end
+
+-- MARK: 大おばけ
+
+func spawn_boss()
+  let spot = block("Boss Spot")
+  let total = 0
+  for p in players() do
+    if not p.is_npc then total = total + sim_amount(p) end
+  end
+  let hp = max(2000, total * 120)
+  let n = create_npc({name: "👹 大おばけ", position: spot.position + {x: 0, y: 1, z: 0}, color: "#A855F7", head_color: "#E9D5FF", speed: 0.5,
+                      health: 100000000, size: 3.5})
+  boss = {n: n, hp: hp, max: hp, until: time() + 90, hits: {}}
+  n.say("ヒュ〜ドロドロ… この城は わたさないぞ〜")
+  announce("👹 まおうのお城に 大おばけが出た！ みんなで 🌀 すいこもう！", 4)
+end
+
+func hit_boss(p, amount)
+  boss.hp = boss.hp - amount
+  boss.hits[p.id] = (boss.hits[p.id] or 0) + amount
+  particles("magic", boss.n, {amount: 6})
+  p.sound("whoosh")
+  if boss.hp <= 0 then boss_down() end
+end
+
+func boss_down()
+  let b = boss
+  boss = nil
+  next_boss = time() + BOSS_EVERY
+  let total = 0
+  for k in keys(b.hits) do total = total + b.hits[k] end
+  announce("🎉 大おばけを つかまえた！", 3)
+  for p in players() do
+    let dmg = b.hits[p.id] or 0
+    if dmg > 0 then
+      let share = dmg / max(1, total)
+      let pay = floor((2000 + b.max * 0.5) * (0.3 + share))
+      kit_give(p, pay)
+      p.message("👹 大おばけ！ ダメージ " + floor(share * 100) + "%  💰" + kit_short(pay), 2.5)
+      kit_quest_progress(p, "boss", 1)
+      kit_badge(p, "big_ghost", "大おばけをつかまえた")
+    end
+    p.ui_remove("gh_boss")
+  end
+  particles("stars", b.n, {amount: 80})
+  kit_gone(b.n)
+end
+
+on tick(dt)
+  gh_clock = gh_clock + dt
+  wander_clock = wander_clock + dt
+  if wander_clock >= 3 then
+    wander_clock = 0
+    for g in ghosts do
+      if kit_here(g.n) and chance(50) then
+        let c = block("Area " + g.area).position
+        g.n.move_to({x: c.x + random_float(-26, 26), y: 0, z: c.z + random_float(-28, 28)})
+      end
+    end
+    if boss == nil and time() > next_boss and len(filter(players(), func(q) return not q.is_npc end)) > 0 then spawn_boss() end
+    if boss != nil and (not kit_here(boss.n) or time() > boss.until) then
+      if kit_here(boss.n) then kit_gone(boss.n) end
+      boss = nil
+      next_boss = time() + BOSS_EVERY
+      announce("💨 大おばけは きえてしまった…", 2)
+      for p in players() do p.ui_remove("gh_boss") end
+    end
+  end
+  if gh_clock < 0.5 then return end
+  gh_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      let g = target_ghost(p)
+      if boss != nil and kit_here(boss.n) and distance(p, boss.n) < 50 then
+        p.ui_bar("gh_boss", max(0, boss.hp), boss.max, {at: "top", dy: 112, w: 360, h: 14, color: "#A855F7"})
+      end
+      if g != nil then
+        p.ui_text("gh_target", g.n.name + "  HP " + max(0, ceil(g.hp)) + "/" + g.max, {at: "top", dy: 62, size: 16, bold: true, color: "#D9F99D"})
+      else
+        p.ui_text("gh_target", "🔦 おばけをさがそう（🌀 " + sim_tool(p).range + "m まで）", {at: "top", dy: 62, size: 15, color: "#E5E7EB"})
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "shop") and kit_ready(p, "shoppad", 3) then sim_open_shop(p)
+  elif contains(b.tags, "eggs") and kit_ready(p, "eggpad", 3) then sim_open_eggs(p)
+  end
+end

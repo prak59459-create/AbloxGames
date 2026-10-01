@@ -1,0 +1,162 @@
+-- heroes.absc — 🎲 サイコロでヒーローをよぶ。同じヒーローは かさなって ★アップ。いちばん強い3人がチーム。
+
+let followers = {}
+
+func hero(id)
+  return find(HEROES, func(h) return h.id == id end)
+end
+
+func copies(p, id)
+  return (p.heroes or {})[id] or 0
+end
+
+func stars(p, id)
+  let c = copies(p, id)
+  if c <= 0 then return 0 end
+  return min(5, 1 + floor((c - 1) / 2))
+end
+
+func hero_power(p, id)
+  let s = stars(p, id)
+  if s <= 0 then return 0 end
+  return floor(hero(id).power * (1 + 0.5 * (s - 1)))
+end
+
+func team(p)
+  let mine = filter(HEROES, func(h) return copies(p, h.id) > 0 end)
+  let order = sort_by(mine, func(h) return 0 - hero_power(p, h.id) end)
+  return slice(order, 1, TEAM_SIZE)
+end
+
+func team_power(p)
+  let t = 0
+  for h in team(p) do t = t + hero_power(p, h.id) end
+  return max(1, t)
+end
+
+func star_text(n)
+  let s = ""
+  for i in 1 to n do s = s + "★" end
+  return s
+end
+
+-- いちばん強いヒーローが ついてくる
+func follow(p)
+  let old = followers[p.id]
+  if old != nil then kit_gone(old) end
+  followers[p.id] = nil
+  let t = team(p)
+  if len(t) == 0 or not kit_here(p) then return end
+  let h = t[1]
+  let n = create_npc({name: h.icon + " " + h.name + " " + star_text(stars(p, h.id)), position: p.position + {x: 1.5, y: 0.5, z: -1.5}, color: h.color,
+                      head_color: "#FDE68A", speed: 1.6, size: 0.75, health: 100000})
+  n.follow(p)
+  followers[p.id] = n
+end
+
+func roll(p)
+  if p.rolling then return end
+  if (p.dice or 0) <= 0 then
+    if not kit_pay(p, DICE_PRICE) then
+      p.message("🎲 サイコロがない！ ボスにかつと もらえるよ（💰" + DICE_PRICE + " でも買える）", 2)
+      return
+    end
+    p.dice = 1
+  end
+  p.dice = p.dice - 1
+  p.rolling = true
+  -- ころころ…
+  for k in 1 to 8 do
+    kit_later(p, k * 0.12, func()
+      p.ui_text("dh_die", "🎲 " + random(1, 6), {at: "center", dy: -60, size: 64, bold: true, color: "#F8FAFC"})
+      p.sound("click")
+    end)
+  end
+  kit_later(p, 1.1, func() roll_result(p) end)
+end
+
+func roll_result(p)
+  p.rolling = false
+  let d = random(1, 6)
+  let rarity = 1
+  let extra = ""
+  if d >= 4 then rarity = 2 end
+  if d == 6 then
+    let d2 = random(1, 6)
+    extra = " → もう一回 " + d2
+    if d2 == 6 then rarity = 4 else rarity = 3 end
+  end
+  let pool = filter(HEROES, func(h) return h.rarity == rarity end)
+  let h = random(pool)
+  if p.heroes == nil then p.heroes = {} end
+  let before = stars(p, h.id)
+  p.heroes[h.id] = copies(p, h.id) + 1
+  p.rolls = (p.rolls or 0) + 1
+  kit_quest_progress(p, "roll", 1)
+  p.ui_text("dh_die", "🎲 " + d + extra, {at: "center", dy: -60, size: 48, bold: true, color: "#FDE68A"})
+  kit_later(p, 2, func() p.ui_remove("dh_die") end)
+  let line = RARITY_NAMES[rarity] + "  " + h.icon + " " + h.name + " " + star_text(stars(p, h.id))
+  if before == 0 then
+    line = "✨ NEW! " + line
+  elif stars(p, h.id) > before then
+    line = "⬆ ★アップ！ " + line
+  end
+  p.message(line, 2.5)
+  if rarity >= 3 then
+    particles("stars", p, {amount: 50})
+    p.sound("win")
+  else
+    p.sound("magic")
+  end
+  if rarity == 4 then
+    announce("🟡 " + p.name + " が 伝説の " + h.icon + " " + h.name + " を よんだ！", 3)
+    kit_badge(p, "legend_" + h.id, h.name)
+  end
+  follow(p)
+  dice_hud(p)
+end
+
+func team_menu(p)
+  let mine = sort_by(filter(HEROES, func(h) return copies(p, h.id) > 0 end), func(h) return 0 - hero_power(p, h.id) end)
+  let h = 170 + max(1, len(mine)) * 32
+  p.ui_remove("tm_box")
+  p.ui_panel("tm_box", {at: "center", w: 600, h: h, bg: "#1E1B4BF2", radius: 22, layer: 40})
+  p.ui_text("tm_t", "🦸 ヒーロー（チームの力 " + team_power(p) + "）  " + len(mine) + "/" + len(HEROES) + " 人", {parent: "tm_box", y: 26 / h, size: 18, bold: true,
+            color: "#E9D5FF"})
+  if len(mine) == 0 then p.ui_text("tm_none", "🎲 サイコロをふって ヒーローをよぼう", {parent: "tm_box", y: 76 / h, size: 16}) end
+  let i = 0
+  for x in mine do
+    i = i + 1
+    let mark = "　"
+    if i <= TEAM_SIZE then mark = "⚔️" end
+    p.ui_text("tm_" + i, mark + " " + x.icon + " " + x.name + "  " + star_text(stars(p, x.id)) + "  力 " + hero_power(p, x.id) + "  （" + copies(p, x.id) + "人）",
+              {parent: "tm_box", y: (44 + i * 32) / h, size: 15})
+  end
+  p.ui_text("tm_hint", "⚔️ が チーム（いちばん強い3人）。同じヒーロー2人ごとに ★+1", {parent: "tm_box", y: (h - 62) / h, size: 13, color: "#C4B5FD"})
+  p.ui_button("tm_close", "閉じる", {parent: "tm_box", y: (h - 24) / h, w: 130, h: 32, size: 15, bg: "gray"})
+end
+
+func dice_hud(p)
+  p.ui_text("dh_hud", "🎲 " + (p.dice or 0) + "こ   ⚔️ チームの力 " + team_power(p) + "   🏁 ステージ " + ((p.stage_done or 0) + 1) + "/" + STAGES,
+            {at: "top", dy: 62, size: 16, bold: true})
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "dice") and kit_ready(p, "dicepad", 2) then roll(p)
+  elif contains(b.tags, "team") and kit_ready(p, "teampad", 3) then team_menu(p)
+  end
+end
+
+on button(p, id)
+  if id == "roll" then roll(p)
+  elif id == "team" then team_menu(p)
+  elif id == "tm_close" then p.ui_remove("tm_box")
+  end
+end
+
+on leave(p)
+  let n = followers[p.id]
+  if n != nil then kit_gone(n) end
+  followers[p.id] = nil
+end

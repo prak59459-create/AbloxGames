@@ -5,6 +5,12 @@ import Foundation
 // collect, sell, buy better tools, hatch pets, be reborn.
 
 let simGames: [Game] = [
+    Game(number: 125, id: "dice-heroes", title: "Dice Heroes",
+         summary: "🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！",
+         tags: ["gacha", "battle", "collect"], maxPlayers: 10, libs: [], build: diceHeroes),
+    Game(number: 124, id: "ghost-vacuum-sim", title: "Ghost Vacuum Sim",
+         summary: "そうじきで おばけをすいこもう！ ふわふわ動くおばけに近づいて🌀。つかまえたおばけのエクトプラズムを売って、強いそうじきへ。公園・おばけやしき・おはか・お城、そして大おばけ！",
+         tags: ["simulator", "ghosts", "pets"], maxPlayers: 10, libs: ["sim"], build: ghostVacuumSim),
     Game(number: 123, id: "dig-it-deep", title: "Dig It Deep",
          summary: "どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！",
          tags: ["simulator", "treasure", "collect"], maxPlayers: 10, libs: ["sim"], build: digItDeep),
@@ -745,4 +751,99 @@ func digItDeep(_ m: MapBuilder) {
         m.tree(x, z, height: r.range(4, 7))
     }
     m.coverFocus(x: -40, y: 1, z: 0, yaw: 230, width: 36)
+}
+
+// MARK: 124 Ghost Vacuum Sim (Ghost Simulator)
+
+/// The four haunted areas along x: centre x, floor colour.
+let ghostAreas: [(Float, String)] = [(0, "#4D7C0F"), (70, "#44403C"), (140, "#3F3F46"), (210, "#312E81")]
+
+func ghostVacuumSim(_ m: MapBuilder) {
+    m.night(ground: "#1E293B")
+    m.environment.skyStyle = .stars
+    m.ground(320, 120, color: "#1E293B", x: 90, z: 0, material: .matte)
+    var r = Seeded("ghosts")
+    for (i, a) in ghostAreas.enumerated() {
+        let (cx, floor) = a
+        let k = i + 1
+        m.slab("Area Floor \(k)", x: cx, y: -0.02, z: 0, w: 64, h: 0.06, d: 70, color: floor, material: i == 0 ? .grass : .stone)
+        m.part("Area \(k)", at: (cx, 0.5, 0), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+        for q in 0..<8 {
+            m.part("Ghost \(k)-\(q + 1)", at: (cx + r.range(-26, 26), 0.6, r.range(-28, 28)), size: (1, 0.2, 1), color: "#000000", solid: false, visible: false)
+        }
+        if k > 1 {
+            let gx = cx - 35
+            m.slab("Area Wall", x: gx, y: 0, z: -24, w: 2, h: 5, d: 26, color: "#57534E", material: .stone)
+            m.slab("Area Wall", x: gx, y: 0, z: 24, w: 2, h: 5, d: 26, color: "#57534E", material: .stone)
+            m.part("Gate \(k)", at: (gx, 2.5, 0), size: (2, 5, 22), color: ["#A3E635", "#A78BFA", "#F472B6"][i - 1], material: .neon, behavior: .trigger,
+                   tags: ["sim_gate", "n=\(k)"], solid: false, opacity: 0.35)
+        }
+        switch i {
+        case 0:
+            for _ in 0..<10 { m.tree(cx + r.range(-28, 28), r.pick([r.range(-33, -24), r.range(24, 33)]), height: 5, leaves: "#14532D") }
+            for q in 0..<4 { m.lamp(cx - 24 + Float(q) * 16, 0, glow: "#FDE68A") }
+        case 1:
+            m.house("Haunted House", x: cx, z: -18, w: 18, d: 12, h: 6, wall: "#57534E", roof: "#1C1917", floor: "#44403C", tags: ["house"], facing: 1)
+            m.part("Window Glow", at: (cx, 3.6, -11.8), size: (3, 1.4, 0.1), color: "#A3E635", material: .neon, solid: false)
+        case 2:
+            for q in 0..<16 {
+                m.slab("Gravestone", x: cx - 24 + Float(q % 8) * 7, y: 0, z: q < 8 ? -14 : 14, w: 1.6, h: 2, d: 0.4, color: "#78716C", material: .stone)
+            }
+            m.part("Graveyard Fog", at: (cx, 0.6, 0), size: (60, 1.2, 66), color: "#E5E7EB", material: .matte, solid: false, opacity: 0.18)
+        default:
+            m.slab("Castle", x: cx, y: 0, z: -22, w: 40, h: 14, d: 14, color: "#1E1B4B", material: .stone)
+            for x in [-20, 20] as [Float] {
+                m.part("Castle Tower", at: (cx + x, 10, -22), size: (7, 20, 7), color: "#312E81", shape: .cylinder, material: .stone)
+                m.part("Castle Spire", at: (cx + x, 22, -22), size: (8, 6, 8), color: "#4C1D95", shape: .cone, solid: false)
+            }
+            m.part("Boss Spot", at: (cx, 0.6, 6), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+        }
+    }
+    for z in [-36, 36] as [Float] { m.slab("Edge Wall", x: 90, y: 0, z: z, w: 320, h: 4, d: 2, color: "#292524", material: .stone) }
+    m.slab("Edge Wall", x: 244, y: 0, z: 0, w: 2, h: 4, d: 74, color: "#292524", material: .stone)
+    // The ghost lab where you start.
+    m.slab("Lab Floor", x: -48, y: -0.02, z: 0, w: 30, h: 0.06, d: 40, color: "#CBD5E1")
+    m.spawnRing(-48, 0, radius: 3.5, count: 8, color: "#22D3EE")
+    m.shop("Ghost Lab", x: -54, z: -14, w: 12, d: 8, color: "#E0F2FE", sign: "#22D3EE", facing: 1)
+    m.pad("Sell Pad", x: -54, z: -6, size: 3.4, color: "#A3E635", tags: ["sim_sell"])
+    m.pad("Shop Pad", x: -42, z: -6, size: 3.2, color: "#3B82F6", tags: ["shop"])
+    m.pad("Egg Pad", x: -42, z: 8, size: 3.2, color: "#A855F7", tags: ["eggs"])
+    m.part("Ecto Tank", at: (-58, 2, 10), size: (3, 4, 3), color: "#A3E635", shape: .cylinder, material: .glass, solid: false, opacity: 0.6)
+    m.coverFocus(x: 70, y: 2, z: 0, yaw: 200, width: 40)
+}
+
+// MARK: 125 Dice Heroes (Anime Dice)
+
+func diceHeroes(_ m: MapBuilder) {
+    m.sky("#1E1B4B", "#7C3AED", light: 0.6, ground: "#312E81")
+    m.environment.skyStyle = .stars
+    m.ground(160, 160, color: "#312E81", material: .matte)
+    // The dice temple.
+    m.slab("Temple Floor", x: 0, y: -0.02, z: -10, w: 50, h: 0.06, d: 40, color: "#C7D2FE")
+    m.spawnRing(0, -16, radius: 4, count: 8, color: "#F472B6")
+    m.part("Giant Die", at: (0, 4, -26), size: (6, 6, 6), color: "#F8FAFC", material: .neon, rotation: (20, 35, 15))
+    for (i, d) in [(-1.5, 1.5), (1.5, -1.5), (0, 0)].enumerated() {
+        m.part("Pip", at: (Float(d.0), 4 + Float(i) * 0.01, -22.9 + Float(d.1) * 0.01), size: (0.8, 0.8, 0.1), color: "#DC2626", shape: .cylinder, solid: false,
+               rotation: (90, 0, 0))
+    }
+    m.pad("Dice Pad", x: -8, z: -18, size: 3.4, color: "#F472B6", tags: ["dice"])
+    m.pad("Team Pad", x: 8, z: -18, size: 3.4, color: "#22D3EE", tags: ["team"])
+    for q in 0..<6 {
+        let a = Float(q) / 6 * 2 * .pi
+        m.part("Temple Pillar", at: (cos(a) * 22, 4, -10 + sin(a) * 16), size: (1.6, 8, 1.6), color: "#A5B4FC", shape: .cylinder, material: .stone)
+    }
+    // The boss arena.
+    m.part("Arena", at: (0, 0.05, 40), size: (40, 0.1, 40), color: "#4C1D95", shape: .cylinder, solid: false)
+    m.part("Arena Glow", at: (0, 0.2, 40), size: (42, 0.4, 42), color: "#F472B6", shape: .cylinder, material: .neon, solid: false, opacity: 0.3)
+    m.pad("Battle Pad", x: 0, z: 22, size: 4, color: "#EF4444", tags: ["battle"])
+    m.part("Boss Spot", at: (0, 0.6, 48), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.part("Fighter Spot", at: (0, 0.6, 30), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.road(from: (0, 10), to: (0, 20), width: 6, name: "Arena Path", dashed: false, color: "#6D28D9")
+    var r = Seeded("dice")
+    for _ in 0..<20 {
+        let x = r.range(-75, 75), z = r.range(-75, 75)
+        if abs(x) < 30 && z > -32 && z < 62 { continue }
+        m.part("Crystal", at: (x, 2, z), size: (1.6, 4, 1.6), color: r.pick(["#F472B6", "#22D3EE", "#A78BFA"]), shape: .cone, material: .neon, solid: false)
+    }
+    m.coverFocus(x: 0, y: 2, z: -16, yaw: 200, width: 30)
 }

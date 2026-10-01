@@ -185,6 +185,8 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/snowball-shovel-sim/cover-30aac8a5.png" width="200"> | 121 | **Snowball Shovel Sim** | スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！ |
 | <img src="games/gym-league-stars/cover-4d0d0ca0.png" width="200"> | 122 | **Gym League Stars** | うで・あし・むね・せなか、4つのマシンでバランスよくきたえよう！ スタミナがへったらプロテイン。3分ごとの大会では、しんぱんの言うポーズをすばやく決めろ！ ブロンズからダイヤリーグへ。 |
 | <img src="games/dig-it-deep/cover-325b88bd.png" width="200"> | 123 | **Dig It Deep** | どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！ |
+| <img src="games/ghost-vacuum-sim/cover-3fba1176.png" width="200"> | 124 | **Ghost Vacuum Sim** | そうじきで おばけをすいこもう！ ふわふわ動くおばけに近づいて🌀。つかまえたおばけのエクトプラズムを売って、強いそうじきへ。公園・おばけやしき・おはか・お城、そして大おばけ！ |
+| <img src="games/dice-heroes/cover-b1dd2b92.png" width="200"> | 125 | **Dice Heroes** | 🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！ |
 
 <!-- games:end -->
 

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 261,
-  "bytes" : 172760,
+  "bytes" : 172306,
   "cover" : "games\/tap-race-clicker\/cover-9e1f89d0.png",
   "id" : "tap-race-clicker",
   "maxPlayers" : 12,
@@ -12,7 +12,6 @@
     "lib\/kit_rounds.absc",
     "games\/tap-race-clicker\/data.absc",
     "games\/tap-race-clicker\/race.absc",
-    "games\/tap-race-clicker\/zz_test.absc",
     "games\/tap-race-clicker\/main.absc"
   ],
   "shots" : [

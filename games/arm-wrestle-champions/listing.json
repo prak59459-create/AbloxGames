@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 106,
-  "bytes" : 98088,
+  "bytes" : 97562,
   "cover" : "games\/arm-wrestle-champions\/cover-c8ec5112.png",
   "id" : "arm-wrestle-champions",
   "maxPlayers" : 12,
@@ -11,7 +11,6 @@
     "lib\/kit_sim.absc",
     "games\/arm-wrestle-champions\/data.absc",
     "games\/arm-wrestle-champions\/wrestle.absc",
-    "games\/arm-wrestle-champions\/zz_test.absc",
     "games\/arm-wrestle-champions\/main.absc"
   ],
   "shots" : [

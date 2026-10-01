@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 99,
-  "bytes" : 93398,
+  "bytes" : 93041,
   "cover" : "games\/saber-swing-sim\/cover-09d7bee1.png",
   "id" : "saber-swing-sim",
   "maxPlayers" : 12,
@@ -11,7 +11,6 @@
     "lib\/kit_sim.absc",
     "games\/saber-swing-sim\/data.absc",
     "games\/saber-swing-sim\/saber.absc",
-    "games\/saber-swing-sim\/zz_test.absc",
     "games\/saber-swing-sim\/main.absc"
   ],
   "shots" : [

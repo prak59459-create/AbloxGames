@@ -1,0 +1,37 @@
+-- Ghost Vacuum Sim — おばけそうじき
+-- ふわふわ動くおばけに近づいて 🌀 をタップ。HPが0になると つかまえて、エクトプラズムがたまる。
+-- ラボの黄緑のパッドで売ってお金。強いそうじき・大きなタンクで、おばけやしき・おはか・お城へ。大おばけも！
+--
+-- ファイル:
+--   ../../lib/kit_sim.absc  タンク・ショップ・たまご・ペット・生まれかわり・ゲート
+--   data.absc     そうじき・タンク・たまご・エリア・おばけ
+--   ghosts.absc   おばけ・すいこむ・大おばけ
+--   main.absc     このファイル
+
+kit_setup("Ghost Vacuum Sim", "ヒュ〜ドロドロ… おばけをすいこめ！", [
+  "🌀 おばけに近づいて タップ → HPがへって、0になると つかまえる",
+  "🧪 エクトプラズムがいっぱいになったら ラボの黄緑のパッドで売る",
+  "🛒 そうじきが強いと 1回でたくさん・遠くまで",
+  "🏚 おばけやしき・🪦 おはか・🏰 お城は つかまえたおばけの合計で行ける",
+  "👹 ときどき お城に大おばけ。みんなで すいこもう",
+  "🥚 ペット・🌟 生まれかわりも"
+])
+kit_keep(["caught"])
+
+kit_quest("catch", "おばけを10ぴき", 10, 120)
+kit_quest("boss", "大おばけをつかまえる", 1, 400)
+kit_quest("sim_tool", "そうじきを買う", 1, 60)
+kit_quest("sim_hatch", "たまごをかえす", 1, 100)
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 9
+end
+
+on start()
+  world.music = "spooky"
+  every(12, func() kit_leaderboard("👻 つかまえたおばけ") end)
+end

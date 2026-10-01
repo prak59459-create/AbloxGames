@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 247,
-  "bytes" : 164142,
+  "bytes" : 163803,
   "cover" : "games\/snowball-shovel-sim\/cover-30aac8a5.png",
   "id" : "snowball-shovel-sim",
   "maxPlayers" : 8,
@@ -11,7 +11,6 @@
     "lib\/kit_sim.absc",
     "games\/snowball-shovel-sim\/data.absc",
     "games\/snowball-shovel-sim\/snow.absc",
-    "games\/snowball-shovel-sim\/zz_test.absc",
     "games\/snowball-shovel-sim\/main.absc"
   ],
   "shots" : [

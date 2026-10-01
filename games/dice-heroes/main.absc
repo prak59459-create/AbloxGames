@@ -1,0 +1,56 @@
+-- Dice Heroes — サイコロでヒーローをよんで ボスをたおせ
+-- 🎲 をふると ヒーローが仲間に（4・5でレア、6でもう一回 → エピックか伝説！）。同じヒーローがかさなると ★アップ。
+-- いちばん強い3人がチーム。赤いパッドでボス戦: ⚔️ を連打。かつと お金とサイコロ。30ステージをかちぬけ。
+--
+-- ファイル:
+--   data.absc     ヒーロー12人・ボス・ねだん
+--   heroes.absc   サイコロ・★・チーム・ついてくるヒーロー
+--   battle.absc   ボス戦・ステージ
+--   main.absc     このファイル
+
+kit_setup("Dice Heroes", "🎲 ふって、よんで、かちぬけ！", [
+  "🎲 サイコロボタン（ピンクのパッド）でヒーローをよぶ。4・5はレア、6はもう一回！",
+  "⭐ 同じヒーローが2人ふえるごとに ★+1 で強くなる",
+  "⚔️ いちばん強い3人がチーム（水色のパッドで見る）",
+  "👹 赤いパッドでボス戦。⚔️ を連打。30秒いないにたおそう",
+  "🏆 かつと お金と 🎲。サイコロは 💰" + DICE_PRICE + " でも買える",
+  "🟡 伝説のヒーローを ねらえ！"
+])
+kit_keep(["heroes", "dice", "stage_done", "rolls"])
+
+kit_quest("roll", "サイコロを5回ふる", 5, 100)
+kit_quest("stage", "ボスに3回かつ", 3, 200)
+
+kit_on_load = func(p)
+  follow(p)
+  dice_hud(p)
+end
+
+on join(p)
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 10
+  p.dice = 5
+  p.heroes = {}
+  p.ui_button("roll", "🎲 ふる", {at: "right", dy: -110, w: 140, h: 50, size: 17, bg: "#DB2777"})
+  p.ui_button("team", "🦸 ヒーロー", {at: "right", dy: -54, w: 140, h: 44, size: 15, bg: "#0891B2"})
+  p.ui_button("battle", "👹 ボス戦", {at: "right", dy: -4, w: 140, h: 44, size: 15, bg: "#B91C1C"})
+  dice_hud(p)
+end
+
+on start()
+  world.music = "boss"
+  every(12, func() kit_leaderboard("🏁 ステージ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    if (p.stage_done or 0) != p.score then p.score = p.stage_done or 0 end
+  end
+end

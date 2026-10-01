@@ -1,0 +1,29 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 44,
+  "bytes" : 51942,
+  "cover" : "games\/dice-heroes\/cover-b1dd2b92.png",
+  "id" : "dice-heroes",
+  "maxPlayers" : 10,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "games\/dice-heroes\/data.absc",
+    "games\/dice-heroes\/battle.absc",
+    "games\/dice-heroes\/heroes.absc",
+    "games\/dice-heroes\/main.absc"
+  ],
+  "shots" : [
+    "games\/dice-heroes\/shot1-e57cf22e.png",
+    "games\/dice-heroes\/shot2-776a95cb.png"
+  ],
+  "summary" : "🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！",
+  "tags" : [
+    "gacha",
+    "battle",
+    "collect"
+  ],
+  "title" : "Dice Heroes",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/dice-heroes\/world.ablox"
+}
