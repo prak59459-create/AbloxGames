@@ -1,0 +1,56 @@
+-- Fish Farm Tycoon — 魚の養殖場タイクーン
+-- 水色のパッドで 池・えさやり機・あわの機械・あみクレーン・研究所…を建てていく。
+-- 道のむこうの川を 魚が流れてくる。桟橋で 近くの魚を買って 自分の池へ。えさで そだてると もうけアップ。
+--
+-- ファイル:
+--   ../../lib/kit_tycoon.absc  養殖場の土地・建てる・お金・生まれかわり
+--   data.absc     建てるもの・魚・とくべつな色
+--   river.absc    魚の川・買う・あみクレーン
+--   ponds.absc    池・えさ・レベル・売る
+--   main.absc     このファイル
+
+kit_setup("Fish Farm Tycoon", "せかいいちの 魚の養殖場へ！", [
+  "🟦 水色のパッドで 池などを建てる（池1つに 4ひき）",
+  "🐟 道のむこうの川を 魚が流れてくる。桟橋で 近くに来たら「買う」",
+  "🍞 えさをあげると レベルアップ（レベル5まで）。大きいほど もうけアップ",
+  "✨ 金の魚は ×3、🌈 にじ色の魚は ×8！ 👑 キングコイも いるらしい",
+  "🥅 あみクレーンは ときどき ただで 魚をつかまえる。🧪 研究所で 色がかわることも",
+  "💚 緑のパッドで お金を受けとる。🌟 ぜんぶ建てたら 生まれかわり（魚は そのまま）"
+])
+kit_keep(["fish"])
+
+kit_quest("ty_buy", "4つ建てる", 4, 100)
+kit_quest("buy", "川の魚を 5ひき買う", 5, 200)
+kit_quest("grow", "魚を 10回 レベルアップ", 10, 500)
+kit_quest("rare", "めずらしい魚を 手に入れる", 1, 2000)
+kit_quest("ty_rebirth", "生まれかわる", 1, 3000)
+
+on join(p)
+  kit_welcome(p)
+  if p.coins == nil or p.coins < 60 then p.coins = 60 end
+  kit_show_money(p)
+  kit_quest_button(p)
+  kit_camera_button(p)
+  p.camera_distance = 12
+  p.hat = "cap"
+  p.ui_button("feed", "🍞 えさ", {at: "bottom_right", dx: -40, dy: -150, w: 110, h: 110, size: 20, bg: "#D97706", radius: 55})
+  p.ui_button("fishes", "🐟 魚", {at: "right", dy: -110, w: 150, h: 44, size: 14, bg: "#0369A1"})
+  p.ui_button("ty_home", "🏠 自分の養殖場", {at: "right", dy: -58, w: 150, h: 44, size: 13, bg: "#475569"})
+  p.ui_button("ty_rebirth", "🌟 生まれかわり", {at: "right", dy: -6, w: 150, h: 44, size: 14, bg: "#A16207"})
+end
+
+on start()
+  world.music = "calm"
+  every(12, func() kit_leaderboard("💰 もうけ") end)
+end
+
+let score_clock = 0
+on tick(dt)
+  score_clock = score_clock + dt
+  if score_clock < 1 then return end
+  score_clock = 0
+  for p in players() do
+    let s = floor(p.ty_total or 0)
+    if s != p.score then p.score = s end
+  end
+end

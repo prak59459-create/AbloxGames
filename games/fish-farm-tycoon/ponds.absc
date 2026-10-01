@@ -1,0 +1,267 @@
+-- ponds.absc — 池: 1つの池に 4ひき。えさをあげると レベルアップして 大きく・もうけアップ（レベル5まで）。
+-- 研究所があると レベル5になった魚が 金や にじ色に かわることも。弱い魚は 🐟 から売れる。
+
+let pd_clock = 0
+let swim_clock = 0
+let fish_home = {}      -- グループ名 → [もとの場所]
+
+func pond_cap(p)
+  let n = 0
+  for id in PONDS do
+    if ty_owns(p, id) then n = n + PER_POND end
+  end
+  return n
+end
+
+func pond_free(p)
+  return pond_cap(p) - len(p.fish or [])
+end
+
+func one_income(f)
+  let kind = fish_kind(f.id)
+  if kind == nil then return 0 end
+  return kind.income * mut_of(f.mut).mult * (1 + (f.lvl - 1) * 0.5)
+end
+
+func farm_bonus(p)
+  let m = 1
+  if ty_owns(p, "aerator") then m = m * 1.3 end
+  if ty_owns(p, "statue") then m = m * 1.5 end
+  return m
+end
+
+-- 池に入っている魚（もうけの大きい じゅんに 池の数だけ）
+func placed(p)
+  let cap = pond_cap(p)
+  if cap == 0 then return [] end
+  let list = sort_by(p.fish or [], func(f) return 0 - one_income(f) end)
+  return slice(list, 1, cap)
+end
+
+func farm_income(p)
+  let s = 0
+  for f in placed(p) do s = s + one_income(f) end
+  return s * farm_bonus(p)
+end
+
+ty_extra_income = func(p)
+  return farm_income(p) * ty_mult(p)
+end
+
+func fish_sig(p)
+  return str(p.ty_plot) + "|" + join(p.ty_owned or [], ",") + "|" + join(map(p.fish or [], func(f) return f.id + f.mut + f.lvl end), ",")
+end
+
+-- 池の魚を見せる
+func draw_fish(p)
+  let k = p.ty_plot
+  if k == nil then return end
+  let list = placed(p)
+  let i = 0
+  for pond in PONDS do
+    let open = ty_owns(p, pond)
+    for s in 1 to PER_POND do
+      let tag = "fish" + k + "_" + pond + "_" + s
+      let f = nil
+      if open then
+        i = i + 1
+        if i <= len(list) then f = list[i] end
+      end
+      let blocks_of = ty_blocks(tag)
+      if fish_home[tag] == nil then fish_home[tag] = map(blocks_of, func(b) return b.position end) end
+      ty_show(tag, f != nil)
+      if f != nil then
+        let kind = fish_kind(f.id)
+        let sc = 0.8 + f.lvl * 0.2
+        let mat = "plastic"
+        if f.mut != "" then mat = "neon" end
+        for b in blocks_of do
+          let c = fish_color(kind, f.mut)
+          if f.mut == "rainbow" then c = b.color end
+          if f.mut == "rainbow" and not contains(RAINBOW, c) then c = RAINBOW[1] end
+          if b.color != c then b.color = c end
+          if b.material != mat then b.material = mat end
+          if contains(b.tags, "fish_body") then
+            if abs(b.size.x - 1.4 * sc) > 0.01 then b.size = {x: 1.4 * sc, y: 0.6 * sc, z: 0.6 * sc} end
+          elif abs(b.size.y - 0.5 * sc) > 0.01 then
+            b.size = {x: 0.4 * sc, y: 0.5 * sc, z: 0.1}
+          end
+        end
+      end
+    end
+  end
+  p.fish_sig = fish_sig(p)
+end
+
+func hide_fish(k)
+  for pond in PONDS do
+    for s in 1 to PER_POND do ty_show("fish" + k + "_" + pond + "_" + s, false) end
+  end
+end
+
+-- えさ: 池の魚ぜんぶに 1つずつ
+func feed(p, auto)
+  let list = placed(p)
+  if len(list) == 0 then
+    if not auto then p.message("🌊 まだ魚がいない。桟橋で 川の魚を買おう", 1.5) end
+    return
+  end
+  let ups = 0
+  for f in list do
+    if f.lvl < MAX_LEVEL then
+      f.xp = f.xp + 1
+      if f.xp >= FEED_NEED * f.lvl then
+        f.xp = 0
+        f.lvl = f.lvl + 1
+        ups = ups + 1
+        if f.lvl == MAX_LEVEL then grown_up(p, f) end
+      end
+    end
+  end
+  if not auto then
+    p.sound("pop")
+    if p.ty_plot != nil then particles("bubbles", block("Claim " + p.ty_plot).position + {x: 0, y: 1, z: 14}, {amount: 20}) end
+  end
+  if ups > 0 then
+    p.message("⬆️ " + ups + "ひき レベルアップ！ 大きくなった", 1.5)
+    kit_quest_progress(p, "grow", ups)
+    if auto == false then p.sound("powerup") end
+  end
+  draw_fish(p)
+end
+
+-- レベル5: 研究所があると 金や にじ色に
+func grown_up(p, f)
+  let kind = fish_kind(f.id)
+  if not ty_owns(p, "lab") or f.mut == "rainbow" then return end
+  let roll = random_float(0, 100)
+  if roll < 6 then
+    f.mut = "rainbow"
+  elif roll < 30 and f.mut == "" then
+    f.mut = "gold"
+  else
+    return
+  end
+  announce("🧪 " + p.name + " の " + kind.icon + " " + kind.name + " が " + mut_of(f.mut).name + "魚に かわった！", 3)
+  particles("magic", p, {amount: 50})
+  p.sound("magic")
+end
+
+func sell_price(f)
+  let kind = fish_kind(f.id)
+  return floor(kind.price * mut_of(f.mut).mult * (0.5 + f.lvl * 0.25))
+end
+
+-- 🐟 魚のリスト（弱いじゅん）。売るボタンつき
+func open_fish(p)
+  let list = sort_by(p.fish or [], func(f) return one_income(f) end)
+  let shown = slice(list, 1, 12)
+  let h = 140 + max(1, len(shown)) * 40
+  p.ui_remove("fp_box")
+  p.ui_panel("fp_box", {at: "center", w: 640, h: h, bg: "#0C4A6EF2", radius: 22, layer: 40})
+  p.ui_text("fp_t", "🐟 自分の魚 " + len(p.fish or []) + "/" + pond_cap(p) + "（弱い じゅん）", {parent: "fp_box", y: 24 / h, size: 18, bold: true, color: "#BAE6FD"})
+  if len(shown) == 0 then p.ui_text("fp_none", "まだ魚がいない。道のむこうの 桟橋で 川の魚を買おう！", {parent: "fp_box", y: 70 / h, size: 15}) end
+  let i = 0
+  for f in shown do
+    i = i + 1
+    let kind = fish_kind(f.id)
+    let y = (24 + i * 40) / h
+    p.ui_text("fp_n" + i, fish_label(kind, f.mut) + "  Lv" + f.lvl + "  📈" + kit_short(one_income(f) * farm_bonus(p) * ty_mult(p)) + "/秒",
+              {parent: "fp_box", y: y, dx: -90, size: 15})
+    p.ui_button("fpsell_" + i, "売る 💰" + kit_short(sell_price(f)), {parent: "fp_box", y: y, dx: 230, w: 140, h: 32, size: 13, bg: "#16A34A"})
+  end
+  p.fp_view = shown
+  p.ui_button("fp_close", "閉じる", {parent: "fp_box", y: (h - 26) / h, w: 130, h: 34, size: 15, bg: "gray"})
+end
+
+func sell_fish(p, f)
+  if f == nil or not contains(p.fish or [], f) then return end
+  let pay = sell_price(f)
+  p.fish = filter(p.fish, func(x) return x != f end)
+  kit_give(p, pay)
+  p.ty_total = (p.ty_total or 0) + pay
+  p.message("💰 " + fish_label(fish_kind(f.id), f.mut) + " を売った +" + kit_short(pay), 1.5)
+  p.sound("coin")
+  draw_fish(p)
+  open_fish(p)
+end
+
+-- 魚が 池の中を すいすい
+func swim(p)
+  let k = p.ty_plot
+  let tags = []
+  for pond in PONDS do
+    for s in 1 to PER_POND do
+      let tag = "fish" + k + "_" + pond + "_" + s
+      let list = ty_blocks(tag)
+      if fish_home[tag] != nil and len(list) > 0 and list[1].visible then append(tags, tag) end
+    end
+  end
+  if len(tags) == 0 then return end
+  for n in 1 to min(2, len(tags)) do
+    let tag = random(tags)
+    let off = {x: random_float(-1.6, 1.6), y: 0, z: random_float(-1.2, 1.2)}
+    let list = ty_blocks(tag)
+    for j in 1 to len(list) do list[j].move_to(fish_home[tag][j] + off, 1.6) end
+  end
+end
+
+func rainbow_tick(p)
+  let k = p.ty_plot
+  for pond in PONDS do
+    for s in 1 to PER_POND do
+      let list = ty_blocks("fish" + k + "_" + pond + "_" + s)
+      if len(list) > 0 and list[1].visible and list[1].material == "neon" and contains(RAINBOW, list[1].color) then
+        let c = random(RAINBOW)
+        for b in list do b.color = c end
+      end
+    end
+  end
+end
+
+func pond_hud(p)
+  p.ui_text("pd_hud", "🐟 魚 " + len(p.fish or []) + "/" + pond_cap(p) + "   魚のもうけ 📈" + kit_short(floor(farm_income(p) * ty_mult(p))) + "/秒",
+            {at: "top", dy: 86, size: 14, color: "#BAE6FD"})
+end
+
+ty_on_claim = func(p)
+  p.fish_k = p.ty_plot
+  draw_fish(p)
+end
+
+on tick(dt)
+  swim_clock = swim_clock + dt
+  pd_clock = pd_clock + dt
+  if swim_clock >= 2 then
+    swim_clock = 0
+    for p in players() do
+      if p.ty_plot != nil then
+        swim(p)
+        rainbow_tick(p)
+      end
+    end
+  end
+  if pd_clock < 1 then return end
+  pd_clock = 0
+  for p in players() do
+    if p.ty_plot != nil then
+      p.fish_k = p.ty_plot
+      if p.fish_sig != fish_sig(p) then draw_fish(p) end
+      if ty_owns(p, "feeder") and kit_ready(p, "autofeed", 8) then feed(p, true) end
+      pond_hud(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "feed" then
+    if kit_ready(p, "feedbtn", 1.5) then feed(p, false) end
+  elif id == "fishes" then open_fish(p)
+  elif id == "fp_close" then p.ui_remove("fp_box")
+  elif starts_with(id, "fpsell_") then sell_fish(p, (p.fp_view or [])[num(replace(id, "fpsell_", ""))])
+  end
+end
+
+on leave(p)
+  if p.fish_k != nil then hide_fish(p.fish_k) end
+end

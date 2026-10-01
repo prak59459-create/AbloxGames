@@ -1,0 +1,170 @@
+-- river.absc — 魚の川: 左から右へ 魚が流れてくる。桟橋（さんばし）で 近くの魚を「買う」。早いもの勝ち！
+-- 金の魚・にじ色の魚・キングコイは めったに来ない。あみクレーンがあると ときどき ただで つかまえてくれる。
+
+let river = []        -- {kind, mut, x0, t0, z, body, tail}
+let river_clock = 0
+let river_next = 0
+let net_clock = 0
+let RIVER_Z = -24
+
+func fish_kind(id)
+  return find(FISH, func(f) return f.id == id end)
+end
+
+func mut_of(id)
+  return find(MUTS, func(m) return m.id == (id or "") end) or MUTS[1]
+end
+
+func fish_label(kind, mut)
+  return kind.icon + " " + mut_of(mut).name + kind.name
+end
+
+func fish_color(kind, mut)
+  if mut == "gold" then return "#FACC15" end
+  if mut == "rainbow" then return random(RAINBOW) end
+  return kind.color
+end
+
+func fish_price(kind, mut)
+  return floor(kind.price * mut_of(mut).mult)
+end
+
+func river_x(f)
+  return f.x0 + RIVER_SPEED * (time() - f.t0)
+end
+
+func spawn_river_fish()
+  let a = block("River Start")
+  let b = block("River End")
+  if a == nil or b == nil then return end
+  let i = pick_weighted(map(FISH, func(f) return f.w end))
+  let kind = FISH[i]
+  let mut = MUTS[pick_weighted(map(MUTS, func(m) return m.w end))].id
+  let sc = 1 + (i - 1) * 0.12
+  let z = RIVER_Z + random_float(-1.6, 1.6)
+  let color = fish_color(kind, mut)
+  let mat = "plastic"
+  if mut != "" then mat = "neon" end
+  let body = create_block({name: "River Fish", position: {x: a.x, y: 0.2, z: z}, size: {x: 1.4 * sc, y: 0.6 * sc, z: 0.6 * sc}, shape: "sphere",
+                           color: color, material: mat, solid: false})
+  let tail = create_block({name: "River Fish Tail", position: {x: a.x - 0.85 * sc, y: 0.2, z: z}, size: {x: 0.4 * sc, y: 0.5 * sc, z: 0.1}, color: color,
+                           material: mat, solid: false})
+  let secs = (b.x - a.x) / RIVER_SPEED
+  body.move_to({x: b.x, y: 0.2, z: z}, secs)
+  tail.move_to({x: b.x - 0.85 * sc, y: 0.2, z: z}, secs)
+  append(river, {kind: kind, mut: mut, x0: a.x, t0: time(), z: z, body: body, tail: tail})
+  if mut == "rainbow" or kind.w <= 1.5 then
+    announce("🌈 " + fish_label(kind, mut) + " が 川を流れてきた！ 桟橋へいそげ！", 4)
+    sound("bell")
+  end
+end
+
+func remove_river_fish(f)
+  river = filter(river, func(x) return x != f end)
+  kit_gone(f.body)
+  kit_gone(f.tail)
+end
+
+-- その人の近くを流れている魚
+func fish_near(p)
+  if abs(p.z - RIVER_Z) > 7 then return nil end
+  let best = nil
+  let bd = 3.5
+  for f in river do
+    let d = abs(river_x(f) - p.x)
+    if d < bd then
+      bd = d
+      best = f
+    end
+  end
+  return best
+end
+
+func buy_river_fish(p)
+  let f = p.river_pick
+  if f == nil or not contains(river, f) or abs(river_x(f) - p.x) > 4.5 then
+    p.message("🐟 魚が流れていっちゃった…", 1.2)
+    return
+  end
+  if p.ty_plot == nil then
+    p.message("まず 自分の養殖場をもらおう", 1.5)
+    return
+  end
+  if pond_free(p) <= 0 then
+    p.message("🌊 池がいっぱい！ 🐟 で 弱い魚を売るか、池をふやそう", 2)
+    p.sound("error")
+    return
+  end
+  if not kit_pay(p, fish_price(f.kind, f.mut)) then return end
+  remove_river_fish(f)
+  add_fish(p, f.kind, f.mut, "買った")
+  kit_quest_progress(p, "buy", 1)
+end
+
+-- 池に入れる（買う・あみ のどちらでも）
+func add_fish(p, kind, mut, how)
+  if p.fish == nil then p.fish = [] end
+  append(p.fish, {id: kind.id, mut: mut, lvl: 1, xp: 0})
+  p.message("🐟 " + fish_label(kind, mut) + " を" + how + "！ 池へ（📈+" + kit_short(kind.income * mut_of(mut).mult) + "/秒）", 2.5)
+  if mut == "rainbow" or kind.w <= 3 then
+    announce("🌟 " + p.name + " が " + fish_label(kind, mut) + " を手に入れた！", 3)
+    particles("stars", p, {amount: 60})
+    p.sound("win")
+    kit_quest_progress(p, "rare", 1)
+  else
+    particles("bubbles", p, {amount: 20})
+    p.sound("splash")
+  end
+  draw_fish(p)
+end
+
+-- あみクレーン: 川の魚を ただで つかまえる
+func net_catch(p)
+  if not ty_owns(p, "net") or pond_free(p) <= 0 or len(river) == 0 then return end
+  let f = random(river)
+  remove_river_fish(f)
+  add_fish(p, f.kind, f.mut, "🥅 あみクレーンで つかまえた")
+end
+
+on tick(dt)
+  river_clock = river_clock + dt
+  if river_clock < 0.3 then return end
+  river_clock = 0
+  let now = time()
+  if now >= river_next then
+    river_next = now + RIVER_EVERY
+    spawn_river_fish()
+  end
+  -- 川のおわりまで行った魚を 片づける
+  let end_x = block("River End").x
+  for f in river do
+    if river_x(f) >= end_x then remove_river_fish(f) end
+  end
+  for p in players() do
+    if not p.is_npc then
+      let f = fish_near(p)
+      p.river_pick = f
+      let label = nil
+      if f != nil then label = "🛒 " + fish_label(f.kind, f.mut) + "  💰" + kit_short(fish_price(f.kind, f.mut)) end
+      if label != p.river_label then
+        p.river_label = label
+        if label == nil then
+          p.ui_remove("buyfish")
+        else
+          p.ui_button("buyfish", label, {at: "bottom", dy: -150, w: 340, h: 54, size: 17, bg: "#0369A1"})
+        end
+      end
+    end
+  end
+  net_clock = net_clock + 0.3
+  if net_clock >= NET_EVERY then
+    net_clock = 0
+    for p in players() do
+      if p.ty_plot != nil then net_catch(p) end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "buyfish" then buy_river_fish(p) end
+end

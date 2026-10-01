@@ -1,0 +1,45 @@
+-- data.absc — Fish Farm Tycoon の表
+
+ty_setup({plots: 6, word: "養殖場", rebirth: 0.5})
+
+ty_items = [
+  {id: "dock", name: "🛤 歩道と かんばん", price: 30, income: 1},
+  {id: "pond1", name: "🌊 1つめの池（4ひき）", price: 60, income: 0, after: "dock"},
+  {id: "feeder", name: "🍞 じどう えさやり機", price: 500, income: 0, after: "pond1"},
+  {id: "pond2", name: "🌊 2つめの池", price: 1500, income: 0, after: "feeder"},
+  {id: "aerator", name: "🫧 あわの機械（魚のもうけ ×1.3）", price: 4000, income: 0, after: "pond2"},
+  {id: "pond3", name: "🌊 3つめの池", price: 10000, income: 0, after: "aerator"},
+  {id: "net", name: "🥅 あみクレーン（川の魚を ときどき つかまえる）", price: 25000, income: 0, after: "pond3"},
+  {id: "tank", name: "🐠 ガラスの水そう", price: 60000, income: 0, after: "net"},
+  {id: "lab", name: "🧪 魚の研究所（大きくなると 金や にじ色に）", price: 120000, income: 0, after: "tank"},
+  {id: "statue", name: "🏆 金の魚の像（魚のもうけ ×1.5）", price: 250000, income: 0, after: "lab"}
+]
+
+let PONDS = ["pond1", "pond2", "pond3", "tank"]
+let PER_POND = 4
+
+-- 川を流れてくる魚（income は 1秒のもうけ、price は ねだん、w は 出やすさ）
+let FISH = [
+  {id: "carp", icon: "🐟", name: "コイ", income: 2, price: 25, w: 40, color: "#F97316"},
+  {id: "tetra", icon: "🐠", name: "ネオンテトラ", income: 4, price: 60, w: 25, color: "#22D3EE"},
+  {id: "puffer", icon: "🐡", name: "フグ", income: 9, price: 150, w: 15, color: "#FDE68A"},
+  {id: "shark", icon: "🦈", name: "サメ", income: 25, price: 500, w: 8, color: "#64748B"},
+  {id: "octopus", icon: "🐙", name: "タコ", income: 60, price: 1500, w: 6, color: "#DB2777"},
+  {id: "whale", icon: "🐋", name: "ミニクジラ", income: 160, price: 5000, w: 3, color: "#1D4ED8"},
+  {id: "oarfish", icon: "🐉", name: "リュウグウノツカイ", income: 500, price: 18000, w: 1.5, color: "#E5E7EB"},
+  {id: "kingkoi", icon: "👑", name: "キングコイ", income: 2000, price: 70000, w: 0.5, color: "#FACC15"}
+]
+
+-- とくべつな色（mult は もうけと ねだんの ばい）
+let MUTS = [
+  {id: "", name: "", mult: 1, w: 85},
+  {id: "gold", name: "金の", mult: 3, w: 12},
+  {id: "rainbow", name: "にじ色の", mult: 8, w: 3}
+]
+let RAINBOW = ["#EF4444", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7"]
+
+let RIVER_SPEED = 4         -- 川の魚の はやさ（1秒）
+let RIVER_EVERY = 5         -- 何秒ごとに 魚が流れてくるか
+let FEED_NEED = 3           -- つぎのレベルまでの えさ（× いまのレベル）
+let MAX_LEVEL = 5
+let NET_EVERY = 40          -- あみクレーン

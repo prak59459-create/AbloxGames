@@ -5,6 +5,9 @@ import Foundation
 // step on pads to buy the next building, collect what it earns.
 
 let tycoonGames: [Game] = [
+    Game(number: 134, id: "fish-farm-tycoon", title: "Fish Farm Tycoon",
+         summary: "魚の養殖場をつくろう！ 川を流れてくる魚を買って 自分の池へ。えさをあげると 大きくそだって もうけアップ。金の魚や にじ色の魚も 流れてくるかも？ キングコイをねらえ！",
+         tags: ["tycoon", "fish", "collecting"], maxPlayers: 6, libs: ["tycoon"], build: fishFarmTycoon),
     Game(number: 133, id: "sword-forge-factory", title: "Sword Forge Factory",
          summary: "剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！",
          tags: ["tycoon", "swords", "crafting"], maxPlayers: 6, libs: ["tycoon"], build: swordForgeFactory),
@@ -618,4 +621,93 @@ func swordForgeFactory(_ m: MapBuilder) {
         swordModel(m, name: "Stone Sword \(q + 1)", x: x, y: size * 0.65, z: z, blade: r.pick(["#CBD5E1", "#FACC15", "#22D3EE"]), upright: true)
     }
     m.coverFocus(x: 154, y: 2, z: 20, yaw: 210, width: 40)
+}
+
+// MARK: 134 Fish Farm Tycoon (Farm a Fish)
+
+/// The four ponds in a fish farm plot: id, centre offset (x, z), whether it is the glass tank.
+let fishPonds: [(String, Float, Float)] = [("pond1", -9, 12), ("pond2", 9, 12), ("pond3", -9, 28), ("tank", 9, 28)]
+
+func fishFarmTycoon(_ m: MapBuilder) {
+    m.day(ground: "#4D7C0F")
+    m.environment.skyStyle = .clouds
+    m.ground(380, 220, color: "#65A30D", x: 22, z: 30, material: .grass)
+    m.road(from: (-160, -10), to: (200, -10), width: 8, name: "Farm Road", dashed: false, color: "#A8A29E")
+    m.spawnRing(0, -10, radius: 3, count: 6, color: "#0EA5E9")
+    // The fish river: fish float past from left to right, and you buy them from the dock.
+    m.part("Fish River", at: (20, -0.05, -24), size: (380, 0.2, 7), color: "#0284C7", material: .water, solid: false, opacity: 0.85)
+    m.slab("River Dock", x: 20, y: 0, z: -19.2, w: 380, h: 0.25, d: 2.6, color: "#A16207", material: .wood)
+    m.slab("River Bank", x: 20, y: 0, z: -28.4, w: 380, h: 0.5, d: 1.8, color: "#78716C", material: .stone)
+    m.part("River Start", at: (-168, -0.5, -24), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    m.part("River End", at: (208, -0.5, -24), size: (1, 1, 1), color: "#000000", solid: false, visible: false)
+    for x in stride(from: -150 as Float, through: 190, by: 34) {
+        m.part("Dock Lamp", at: (x, 1.4, -18.2), size: (0.25, 2.8, 0.25), color: "#78350F", material: .wood, solid: false)
+        m.part("Dock Light", at: (x, 3, -18.2), size: (0.6, 0.6, 0.6), color: "#FDE68A", shape: .sphere, material: .neon, solid: false)
+    }
+    m.part("Market Sign", at: (0, 4, -29.6), size: (18, 2, 0.3), color: "#38BDF8", material: .neon, solid: false)
+    let items: [(String, Float, Float)] = [("dock", 0, 5), ("pond1", -2.5, 6), ("feeder", 2.5, 6), ("pond2", -2.5, 12), ("aerator", 2.5, 12),
+                                           ("pond3", -2.5, 18), ("net", 2.5, 18), ("tank", -2.5, 24), ("lab", 2.5, 24), ("statue", 0, 30)]
+    tycoonPlots(m, count: 6, w: 36, d: 40, floor: "#A3E635", padColor: "#0EA5E9", items: items, collector: (14, 3)) { id, cx in
+        if let pond = fishPonds.first(where: { $0.0 == id }) {
+            let (_, ox, oz) = pond
+            let x = cx + ox
+            if id == "tank" {
+                m.slab("Tank Base", x: x, y: 0, z: oz, w: 12, h: 0.4, d: 10, color: "#1E293B", material: .metal)
+                m.part("Tank Water", at: (x, 1.1, oz), size: (11.6, 1.4, 9.6), color: "#38BDF8", material: .water, solid: false, opacity: 0.5)
+                m.part("Tank Glass", at: (x, 1.2, oz - 5), size: (12, 1.6, 0.15), color: "#E0F2FE", material: .glass, solid: false, opacity: 0.35)
+            } else {
+                m.slab("Pond Rim", x: x, y: 0, z: oz - 5, w: 12.4, h: 0.5, d: 0.6, color: "#A8A29E", material: .stone)
+                m.slab("Pond Rim", x: x, y: 0, z: oz + 5, w: 12.4, h: 0.5, d: 0.6, color: "#A8A29E", material: .stone)
+                m.slab("Pond Rim", x: x - 6, y: 0, z: oz, w: 0.6, h: 0.5, d: 10, color: "#A8A29E", material: .stone)
+                m.slab("Pond Rim", x: x + 6, y: 0, z: oz, w: 0.6, h: 0.5, d: 10, color: "#A8A29E", material: .stone)
+                m.part("Pond Water", at: (x, 0.15, oz), size: (11.4, 0.3, 9.4), color: "#0EA5E9", material: .water, solid: false, opacity: 0.8)
+                m.part("Lily Pad", at: (x + 4, 0.32, oz + 3), size: (1.2, 0.05, 1.2), color: "#22C55E", shape: .cylinder, solid: false)
+            }
+            return
+        }
+        switch id {
+        case "dock":
+            m.slab("Farm Path", x: cx, y: 0.02, z: 20, w: 4, h: 0.1, d: 38, color: "#D6D3D1")
+            m.slab("Farm Path", x: cx, y: 0.02, z: 20, w: 32, h: 0.1, d: 3, color: "#D6D3D1")
+            m.part("Farm Sign", at: (cx, 3.4, 1), size: (8, 1.2, 0.3), color: "#38BDF8", material: .neon, solid: false)
+            for x in [-4, 4] as [Float] { m.slab("Sign Post", x: cx + x, y: 0, z: 1, w: 0.3, h: 3, d: 0.3, color: "#78350F", material: .wood) }
+        case "feeder":
+            m.slab("Feeder", x: cx, y: 0, z: 13, w: 2, h: 2.4, d: 2, color: "#F59E0B", material: .metal)
+            m.part("Feeder Hopper", at: (cx, 3.2, 13), size: (2.4, 1.4, 2.4), color: "#FDE68A", shape: .cone, solid: false, rotation: (180, 0, 0))
+        case "aerator":
+            m.part("Bubbler", at: (cx - 9, 0.8, 12), size: (1, 1, 1), color: "#E0F2FE", shape: .sphere, material: .glass, solid: false, opacity: 0.6)
+            m.part("Bubbler", at: (cx + 9, 0.8, 12), size: (1, 1, 1), color: "#E0F2FE", shape: .sphere, material: .glass, solid: false, opacity: 0.6)
+            m.slab("Air Pump", x: cx, y: 0, z: 9, w: 1.6, h: 1.2, d: 1.2, color: "#64748B", material: .metal)
+        case "net":
+            m.slab("Net Crane", x: cx - 14, y: 0, z: 2, w: 1, h: 6, d: 1, color: "#475569", material: .metal)
+            m.part("Crane Arm", at: (cx - 14, 6.2, -1), size: (0.6, 0.6, 7), color: "#475569", material: .metal, solid: false)
+            m.part("Fishing Net", at: (cx - 14, 4.4, -4), size: (2, 2, 2), color: "#E5E7EB", shape: .sphere, material: .glass, solid: false, opacity: 0.4)
+        case "lab":
+            m.slab("Fish Lab", x: cx + 14, y: 0, z: 20, w: 5, h: 3.4, d: 5, color: "#E0E7FF", material: .metal)
+            m.part("Lab Light", at: (cx + 14, 3.8, 20), size: (1.4, 0.6, 1.4), color: "#A855F7", shape: .sphere, material: .neon, tags: ["ty_drop", "drop=#A855F7"],
+                   solid: false)
+        default:
+            m.slab("Statue Base", x: cx, y: 0, z: 36, w: 3, h: 1.2, d: 3, color: "#78716C", material: .stone)
+            m.part("Golden Fish", at: (cx, 2.6, 36), size: (1.4, 1.8, 3.2), color: "#FACC15", shape: .sphere, material: .metal, tags: ["ty_drop", "drop=#FACC15"],
+                   solid: false, rotation: (0, 0, 0))
+            m.part("Golden Tail", at: (cx, 2.6, 38), size: (0.2, 1.4, 1.2), color: "#FACC15", material: .metal, solid: false)
+        }
+    }
+    // Fish spots: four in every pond of every plot, shown by the script.
+    for k in 1...7 {
+        let cx = (Float(k) - 3.5) * 44
+        for (pid, ox, oz) in fishPonds {
+            let y: Float = pid == "tank" ? 1.1 : 0.35
+            for s in 0..<4 {
+                let x = cx + ox + (s % 2 == 0 ? -2.6 : 2.6), z = oz + (s < 2 ? -2 : 2)
+                let shown = k == 7
+                let color = ["#F97316", "#22D3EE", "#FACC15", "#DB2777"][s]
+                m.group("fish\(k)_\(pid)_\(s + 1)", shown: shown) {
+                    m.part("Fish Body", at: (x, y, z), size: (1.4, 0.6, 0.6), color: color, shape: .sphere, tags: ["fish_body"], solid: false)
+                    m.part("Fish Tail", at: (x - 0.85, y, z), size: (0.4, 0.5, 0.1), color: color, tags: ["fish_tail"], solid: false)
+                }
+            }
+        }
+    }
+    m.coverFocus(x: 154, y: 1, z: 20, yaw: 210, width: 38)
 }

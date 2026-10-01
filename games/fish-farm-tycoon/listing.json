@@ -1,0 +1,30 @@
+{
+  "author" : "Ablox Games",
+  "blockCount" : 626,
+  "bytes" : 350600,
+  "cover" : "games\/fish-farm-tycoon\/cover-49cbe0ce.png",
+  "id" : "fish-farm-tycoon",
+  "maxPlayers" : 6,
+  "schemaVersion" : 2,
+  "scripts" : [
+    "lib\/kit.absc",
+    "lib\/kit_tycoon.absc",
+    "games\/fish-farm-tycoon\/data.absc",
+    "games\/fish-farm-tycoon\/ponds.absc",
+    "games\/fish-farm-tycoon\/river.absc",
+    "games\/fish-farm-tycoon\/main.absc"
+  ],
+  "shots" : [
+    "games\/fish-farm-tycoon\/shot1-02016a04.png",
+    "games\/fish-farm-tycoon\/shot2-3e7672e9.png"
+  ],
+  "summary" : "魚の養殖場をつくろう！ 川を流れてくる魚を買って 自分の池へ。えさをあげると 大きくそだって もうけアップ。金の魚や にじ色の魚も 流れてくるかも？ キングコイをねらえ！",
+  "tags" : [
+    "tycoon",
+    "fish",
+    "collecting"
+  ],
+  "title" : "Fish Farm Tycoon",
+  "updatedAt" : "2026-09-24T00:00:00Z",
+  "world" : "games\/fish-farm-tycoon\/world.ablox"
+}
