@@ -1,0 +1,229 @@
+-- seasons.absc — きせつと曜日: today()（ホストのiPadの日にち）で きせつのイベントが はじまる。
+--   火曜日: 🌮 タコスの火曜日（タコスやの ペペに タコスを 15こ あげると とくべつなミーム）
+--   日曜日: 🎣 つり大会 / 土曜日: 管理人の日（マエストロが よく来る）
+--   10月: 🎃 ハロウィン / 12月1〜25日: 🎄 クリスマス / 1月1〜7日: 🎍 お正月
+--   2月7〜14日: 💝 バレンタイン / 7月15日〜8月: 🏮 夏まつり
+-- きせつのあいだは マップに かくれた「さがしもの」が出る（10こごとに ラッキーブロック）。
+-- today() は Ablox 2.3 から。古いiPadでは きせつのイベントだけ 起きない（ほかは ふつうに遊べる）。
+
+let SEASON_HUNT = {
+  halloween: {icon: "🎃", name: "かぼちゃ", color: "#F97316", shape: "sphere", fx: "magic"},
+  christmas: {icon: "🎁", name: "プレゼント", color: "#DC2626", shape: "box", fx: "snow"},
+  newyear: {icon: "🧧", name: "お年玉", color: "#EF4444", shape: "box", fx: "confetti"},
+  valentine: {icon: "💝", name: "ハート", color: "#F472B6", shape: "sphere", fx: "hearts"},
+  summer: {icon: "🏮", name: "ちょうちん", color: "#F59E0B", shape: "cylinder", fx: "sparkles"}
+}
+let HUNT_SPOTS = [
+  {x: -150, z: -12}, {x: -172, z: 14}, {x: -140, z: 22}, {x: -195, z: -18}, {x: -118, z: -7}, {x: -60, z: 7}, {x: 0, z: -7},
+  {x: 60, z: 7}, {x: 110, z: -7}, {x: 150, z: 8}, {x: 175, z: -12}, {x: 160, z: 45}, {x: 205, z: -14}, {x: 130, z: 20},
+  {x: -60, z: -48}, {x: 0, z: 48}, {x: 60, z: -48}, {x: -120, z: 48}, {x: 120, z: -48}, {x: 214, z: 0}, {x: -186, z: 9},
+  {x: -30, z: 50}, {x: 30, z: -50}, {x: 90, z: 50}, {x: -90, z: -50}
+]
+let hunt_items = []   -- {b, season}
+let ss_clock = 0
+let ss_check = 0
+let next_hunt = 45
+let pepe = nil
+let saturday = false
+let day_key = ""
+
+func season_today()
+  let d = today()
+  let list = []
+  if d.weekday == 3 then append(list, "taco") end
+  if d.weekday == 1 then append(list, "fishing") end
+  if d.month == 10 then append(list, "halloween") end
+  if d.month == 12 and d.day <= 25 then append(list, "christmas") end
+  if d.month == 1 and d.day <= 7 then append(list, "newyear") end
+  if d.month == 2 and d.day >= 7 and d.day <= 14 then append(list, "valentine") end
+  if (d.month == 7 and d.day >= 15) or d.month == 8 then append(list, "summer") end
+  saturday = d.weekday == 7
+  day_key = d.year + "-" + d.month + "-" + d.day
+  return list
+end
+
+func is_saturday()
+  return saturday
+end
+
+func season_check()
+  let list = season_today()
+  for ev in EVENTS do
+    if ev.kind == "season" then
+      let want = contains(list, ev.id)
+      let on_now = event_on(ev.id)
+      if want and not on_now then
+        start_event(ev.id, nil)
+        announce(ev.icon + " きょうは " + ev.name + "！ " + ev.desc, 6)
+      elif on_now and not want then
+        stop_event(ev.id)
+      end
+    end
+  end
+end
+
+-- MARK: さがしもの
+
+func hunt_season()
+  for k in keys(SEASON_HUNT) do
+    if event_on(k) then return k end
+  end
+  return nil
+end
+
+func spawn_hunt()
+  for h in hunt_items do kit_gone(h.b) end
+  hunt_items = []
+  let s = hunt_season()
+  if s == nil then return end
+  let info = SEASON_HUNT[s]
+  for spot in slice(shuffle(copy(HUNT_SPOTS)), 1, 8) do
+    let b = create_block({name: "Hunt " + info.name, position: {x: spot.x, y: 0.8, z: spot.z}, size: 1.1, shape: info.shape, color: info.color,
+                          material: "neon", solid: false, behavior: "trigger", tags: ["hunt"]})
+    b.animation = "bounce"
+    b.label = info.icon
+    b.label_size = 0.9
+    b.label_range = 30
+    append(hunt_items, {b: b, season: s})
+  end
+end
+
+func hunt_found(p, b)
+  let h = find(hunt_items, func(x) return x.b == b end)
+  if h == nil then return end
+  hunt_items = filter(hunt_items, func(x) return x != h end)
+  kit_gone(b)
+  let info = SEASON_HUNT[h.season]
+  if p.hunt == nil then p.hunt = {} end
+  let n = (p.hunt[h.season] or 0) + 1
+  p.hunt[h.season] = n
+  let amt = 500
+  if p.base != nil then amt = max(500, floor(base_income(p.base) * 10)) end
+  pay(p, amt)
+  particles(info.fx, p, {amount: 30})
+  p.sound("collect")
+  p.message(info.icon + " " + info.name + " みつけた！（" + n + "こ） +" + money(amt), 2)
+  kit_quest_progress(p, "hunt", 1)
+  if n % 10 == 0 then
+    let id = "epic"
+    if n % 30 == 0 then id = "legend" end
+    add_lucky(p, id, 1)
+    p.message("🎁 " + info.name + " " + n + "こ！ " + LUCKY_BY_ID[id].name + " を もらった！", 3)
+    p.sound("win")
+  end
+end
+
+-- MARK: 🌮 タコスやの ペペ
+
+func spawn_pepe()
+  pepe = create_npc({name: "タコスやの ペペ", position: {x: 135, y: 0.6, z: -33}, color: "#F97316", head_color: "#FDE68A", leg_color: "#7C2D12",
+                     hat: "cowboy", speed: 0.2, health: 1000000})
+  pepe.yaw = 0
+end
+
+func taco_price(p)
+  if p.base == nil then return 500 end
+  return max(500, floor(base_income(p.base) * 3))
+end
+
+func open_taco(p)
+  let h = 250
+  p.ui_remove("tc_box")
+  p.ui_panel("tc_box", {at: "center", w: 600, h: h, bg: "#431407F2", radius: 22, layer: 40})
+  p.ui_text("tc_t", "🌮 タコスやの ペペ", {parent: "tc_box", y: 28 / h, size: 21, bold: true, color: "#FED7AA"})
+  if not event_on("taco") then
+    p.ui_text("tc_s", "タコスやは 火曜日だけ ひらいてるよ！ また来てね 🌮", {parent: "tc_box", y: 100 / h, size: 16})
+    p.ui_text("tc_n", "もっている タコス: " + (p.tacos or 0) + "こ", {parent: "tc_box", y: 140 / h, size: 14, color: "#FDE68A"})
+    p.ui_button("tc_close", "閉じる", {parent: "tc_box", y: (h - 30) / h, w: 130, h: 40, size: 15, bg: "gray"})
+    return
+  end
+  p.ui_text("tc_s", "きょうは タコスの火曜日！ 15こ くれたら とくべつなミームを あげる（1日1回）", {parent: "tc_box", y: 70 / h, size: 14})
+  p.ui_text("tc_n", "もっている タコス: " + (p.tacos or 0) + "/15こ   1こ " + money(taco_price(p)), {parent: "tc_box", y: 110 / h, size: 16, color: "#FDE68A"})
+  p.ui_button("tc_buy1", "1こ 買う", {parent: "tc_box", y: 160 / h, dx: -190, w: 150, h: 42, size: 15, bg: "#EA580C"})
+  p.ui_button("tc_buy5", "5こ 買う", {parent: "tc_box", y: 160 / h, w: 150, h: 42, size: 15, bg: "#EA580C"})
+  p.ui_button("tc_give", "15こ あげる", {parent: "tc_box", y: 160 / h, dx: 190, w: 150, h: 42, size: 15, bg: "#16A34A"})
+  p.ui_button("tc_close", "閉じる", {parent: "tc_box", y: (h - 30) / h, w: 130, h: 40, size: 15, bg: "gray"})
+end
+
+func buy_tacos(p, n)
+  if not event_on("taco") then return end
+  if not kit_pay(p, taco_price(p) * n) then return end
+  p.tacos = (p.tacos or 0) + n
+  p.give_item("タコス", n, "🌮")
+  p.sound("pop")
+  open_taco(p)
+end
+
+func give_tacos(p)
+  if not event_on("taco") or p.base == nil then return end
+  if (p.tacos or 0) < 15 then
+    p.message("🌮 タコスが 15こ いるよ（いま " + (p.tacos or 0) + "こ）", 2)
+    return
+  end
+  if p.taco_day == day_key then
+    p.message("🌮 きょうは もう もらったよ！ また来週の 火曜日に", 2)
+    return
+  end
+  let st = free_stand(p.base)
+  if st == nil then
+    p.message("🏠 台が いっぱい！ あけてから もう一度", 2)
+    return
+  end
+  let c = find(CHARS, func(x) return x.src == "event:taco" end)
+  if c == nil then return end
+  p.tacos = p.tacos - 15
+  p.take_item("タコス", 15)
+  p.taco_day = day_key
+  let e = {id: c.id, mut: "none", tr: ["taco"]}
+  place_meme(p.base, st.f, st.s, e, {x: 140, y: 0.3, z: -31})
+  got_meme(p, e)
+  if pepe != nil and kit_here(pepe) then pepe.say("グラシアス！ " + c.n + " を どうぞ！") end
+  announce("🌮 " + p.name + " が " + c.n + " を もらった！", 3)
+  p.sound("win")
+  p.ui_remove("tc_box")
+end
+
+-- MARK: まいフレーム
+
+on start()
+  after(1, func() season_check() end)
+  spawn_pepe()
+end
+
+on tick(dt)
+  ss_clock = ss_clock + dt
+  if ss_clock < 1 then return end
+  ss_clock = 0
+  let now = time()
+  ss_check = ss_check + 1
+  if ss_check >= 120 then
+    ss_check = 0
+    after(0, func() season_check() end)
+  end
+  if now >= next_hunt then
+    next_hunt = now + 200
+    spawn_hunt()
+  end
+  if pepe == nil or not kit_here(pepe) then spawn_pepe() end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "hunt") then hunt_found(p, b)
+  elif contains(b.tags, "tacostand") then open_taco(p)
+  end
+end
+
+on use(p, item)
+  if item == "タコス" then
+    p.message("🌮 タコスは 火曜日に タコスやの ペペへ！", 1.5)
+  end
+end
+
+on button(p, id)
+  if id == "tc_close" then p.ui_remove("tc_box")
+  elif id == "tc_buy1" then buy_tacos(p, 1)
+  elif id == "tc_buy5" then buy_tacos(p, 5)
+  elif id == "tc_give" then give_tacos(p)
+  end
+end

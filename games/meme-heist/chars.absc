@@ -1,4 +1,4 @@
--- chars.absc — Meme Heist の300体（tools/brainrots/make_chars.py が作ります。手で書きかえないでね）
+-- chars.absc — Meme Heist の300体（tools/meme-chars/make_chars.py が作ります。手で書きかえないでね）
 -- id: ばんごう / n: なまえ / k: よみかた / r: めずらしさ 1〜8 / inc: 1秒にうむお金 / pr: ねだん
 -- a: どうぶつ（からだ）/ t: がったいしたもの / v: 色のちがい / s: 大きさ / w: カーペットでの出やすさ
 -- src: どこで手に入るか（carpet・ritual:…・event:…・admin）/ d: せつめい

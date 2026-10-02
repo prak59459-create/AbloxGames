@@ -1,0 +1,143 @@
+-- fusion.absc — 合体マシン（東の広場）: 同じめずらしさの ミームを 3体 入れると、時間がたったあと
+-- 1つ上の めずらしさの ミームが 1体 できる。マシンの中のミームは ぬすまれない（金庫がわり）。
+-- 入れたミームに 変異があれば、半分の かくりつで いちばん強い変異を うけつぐ。
+-- p.fusion = {r, left, mut, names} は セーブされるので、つづきから 待てる（遊んでいる時だけ 時間がすすむ）。
+
+let FUSE_SECS = [30, 60, 120, 240, 420, 600]
+let fu_clock = 0
+
+func fusion_groups(p)
+  let groups = [[], [], [], [], [], [], []]
+  if p.base == nil then return groups end
+  let now = time()
+  for sl in slot_list(p.base) do
+    let r = char_of(sl.e.id).r
+    if r <= 6 and sl.ready <= now then append(groups[r], sl) end
+  end
+  for r in 1 to 6 do
+    groups[r] = sort_by(groups[r], func(sl) return meme_income(sl.e) end)
+  end
+  return groups
+end
+
+func open_fusion(p)
+  p.ui_remove("fu_box")
+  let f = p.fusion
+  if f != nil then
+    let h = 220
+    p.ui_panel("fu_box", {at: "center", w: 560, h: h, bg: "#083344F2", radius: 22, layer: 40})
+    p.ui_text("fu_t", "🧪 合体マシン", {parent: "fu_box", y: 30 / h, size: 21, bold: true, color: "#A5F3FC"})
+    p.ui_text("fu_in", "入れたもの: " + join(f.names or [], "・"), {parent: "fu_box", y: 70 / h, size: 13})
+    if f.left > 0 then
+      p.ui_text("fu_wait", "合体中… あと " + kit_clock(f.left) + "  → " + RARITIES[f.r + 1].name + " が できる", {parent: "fu_box", y: 110 / h, size: 16, color: "#FDE68A"})
+    else
+      p.ui_text("fu_wait", "✨ できあがり！ " + RARITIES[f.r + 1].name + " の ミーム", {parent: "fu_box", y: 110 / h, size: 17, color: "#86EFAC"})
+      p.ui_button("fu_take", "受けとる", {parent: "fu_box", y: 160 / h, dx: -80, w: 150, h: 42, size: 16, bg: "#16A34A"})
+    end
+    p.ui_button("fu_close", "閉じる", {parent: "fu_box", y: 160 / h, dx: 90, w: 130, h: 42, size: 15, bg: "gray"})
+    return
+  end
+  let groups = fusion_groups(p)
+  let h = 150 + 6 * 46
+  p.ui_panel("fu_box", {at: "center", w: 640, h: h, bg: "#083344F2", radius: 22, layer: 40})
+  p.ui_text("fu_t", "🧪 合体マシン: 同じめずらしさ 3体 → 1つ上の 1体", {parent: "fu_box", y: 28 / h, size: 18, bold: true, color: "#A5F3FC"})
+  p.ui_text("fu_s", "（かせぎの 少ない 3体が 入ります。中のミームは ぬすまれない）", {parent: "fu_box", y: 56 / h, size: 13, color: "#CFFAFE"})
+  for r in 1 to 6 do
+    let y = (54 + r * 46) / h
+    let n = len(groups[r])
+    p.ui_text("fu_r" + r, RARITIES[r].name + " " + n + "体 → " + RARITIES[r + 1].name + "（" + kit_clock(FUSE_SECS[r]) + "）",
+              {parent: "fu_box", y: y, dx: -90, size: 15, color: RARITIES[r].color})
+    let bg = "#0891B2"
+    if n < 3 then bg = "#475569" end
+    p.ui_button("fuse_" + r, "合体！", {parent: "fu_box", y: y, dx: 220, w: 120, h: 36, size: 15, bg: bg})
+  end
+  p.ui_button("fu_close", "閉じる", {parent: "fu_box", y: (h - 28) / h, w: 140, h: 38, size: 15, bg: "gray"})
+end
+
+func start_fusion(p, r)
+  if p.fusion != nil or p.base == nil then return end
+  if p.carry != nil then
+    p.message("🦹 はこんでいる時は つかえない", 1.5)
+    return
+  end
+  let groups = fusion_groups(p)
+  if len(groups[r]) < 3 then
+    p.message(RARITIES[r].name + " が 3体 いるよ（いまは " + len(groups[r]) + "体）", 2)
+    p.sound("error")
+    return
+  end
+  let best = "none"
+  let names = []
+  for i in 1 to 3 do
+    let sl = groups[r][i]
+    let e = remove_meme(p.base, sl.f, sl.s)
+    append(names, char_of(e.id).n)
+    if MUTATIONS[e.mut].mult > MUTATIONS[best].mult then best = e.mut end
+  end
+  p.fusion = {r: r, left: FUSE_SECS[r], mut: best, names: names}
+  let tank = block("Fusion Tank")
+  if tank != nil then particles("bubbles", tank, {amount: 40}) end
+  sound("magic", {pitch: 0.8})
+  p.message("🧪 合体スタート！ " + kit_clock(FUSE_SECS[r]) + " 待ってね", 2.5)
+  kit_quest_progress(p, "fuse", 1)
+  open_fusion(p)
+end
+
+func take_fusion(p)
+  let f = p.fusion
+  if f == nil or f.left > 0 or p.base == nil then return end
+  let st = free_stand(p.base)
+  if st == nil then
+    p.message("🏠 台が いっぱい！ あけてから 受けとろう", 2)
+    return
+  end
+  let c = roll_char(f.r + 1)
+  if c == nil then c = roll_char(f.r) end
+  let mut = "none"
+  if f.mut != "none" and chance(50) then mut = f.mut end
+  let e = {id: c.id, mut: mut, tr: []}
+  p.fusion = nil
+  p.save("fusion")
+  let tank = block("Fusion Tank")
+  let from = {x: 158, y: 0.3, z: -21}
+  if tank != nil then particles("confetti", tank, {amount: 60}) end
+  place_meme(p.base, st.f, st.s, e, from)
+  got_meme(p, e)
+  p.ui_remove("fu_box")
+  p.message("🎉 合体せいこう！ " + RARITIES[c.r].name + " の " + meme_title(e) + "！ きちへ 歩いていくよ", 3)
+  p.sound("win")
+  if c.r >= 6 then announce("🧪 " + p.name + " が 合体で " + RARITIES[c.r].name + " の " + meme_title(e) + " を 作った！", 3) end
+end
+
+on tick(dt)
+  fu_clock = fu_clock + dt
+  if fu_clock < 1 then return end
+  let gap = fu_clock
+  fu_clock = 0
+  for p in players() do
+    let f = p.fusion
+    if not p.is_npc and f != nil and f.left > 0 then
+      f.left = max(0, f.left - gap)
+      if f.left <= 0 then
+        p.message("🧪 合体が できあがった！ 合体マシンで 受けとろう", 3)
+        p.sound("bell")
+        p.waypoint(block("Fusion Pad"), "合体マシン", "#22D3EE")
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "fusionpad") then
+    p.waypoint(nil)
+    open_fusion(p)
+  end
+end
+
+on button(p, id)
+  if id == "fu_close" then p.ui_remove("fu_box")
+  elif id == "fu_take" then take_fusion(p)
+  elif starts_with(id, "fuse_") then start_fusion(p, num(replace(id, "fuse_", "")))
+  end
+end

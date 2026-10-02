@@ -1,0 +1,274 @@
+-- rivals.absc — ライバルのきち: プレイヤーのいない きちには ライバルが住んでいて、ミームが ならんでいる。
+-- ライバル本人が 見はっていて、ミームを はこぶ人を おいかける（はこんでいる人より 少し おそい）。
+-- ときどき ロックする。プレイヤーが来ると きちを ゆずって 出ていく。ぬすみの れんしゅうに ぴったり！
+-- そして ときどき 🦹 どろぼうNPC が プレイヤーのきちを ねらってくる。タッチか ギアで おいはらおう。
+
+let RIVAL_NAMES = ["ドン・ペペロン", "キャプテン・ブルブル", "マダム・ポリポリ", "ジェネラル・グラグラ",
+                   "ドクトル・ヌルヌル", "シニョール・パタパタ", "バロン・モグモグ", "レディ・キラキラ"]
+let RIVAL_COLORS = ["#B45309", "#1D4ED8", "#BE185D", "#15803D", "#C2410C", "#6D28D9", "#0E7490", "#B91C1C"]
+let RIVAL_HATS = ["top_hat", "pirate", "flower_crown", "helmet", "graduate", "beret", "chef", "crown"]
+let rv_clock = 0
+let thieves = []      -- {n, k, f, s, state, e, m, dest, until}
+let thief_next = 180
+
+func rival_level()
+  let best = 0
+  for p in players() do
+    if not p.is_npc then best = max(best, p.rebirths or 0) end
+  end
+  return min(12, best + floor(time() / 900))
+end
+
+-- 儀式に いるキャラ（ときどき ライバルが もっている）
+func ritual_need_chars()
+  let list = []
+  for rt in RITUALS do
+    let c = CHAR_BY_NAME[rt.need]
+    if c != nil then append(list, c) end
+  end
+  return list
+end
+
+func rival_roll(lv)
+  let lo = clamp(1 + floor(lv / 2), 1, 5)
+  let ws = []
+  for r in 1 to 7 do
+    let w = 0
+    if r >= lo and r <= lo + 2 then w = [60, 30, 9][r - lo + 1] end
+    if r == 7 and lv >= 8 then w = w + 2 end
+    append(ws, w)
+  end
+  let r = pick_weighted(ws)
+  if chance(14) then
+    let near = filter(ritual_need_chars(), func(c) return c.r >= r - 1 and c.r <= r + 1 end)
+    if len(near) > 0 then return random(near) end
+  end
+  return roll_char(r) or roll_char(1)
+end
+
+func rival_fill(k, n)
+  let lv = rival_level()
+  for i in 1 to n do
+    let st = free_stand(k)
+    if st == nil then return end
+    let c = rival_roll(lv)
+    let mut = "none"
+    let x = random_float(0, 100)
+    if x < 1 then mut = "rainbow" elif x < 5 then mut = "diamond" elif x < 14 then mut = "gold" end
+    place_meme(k, st.f, st.s, {id: c.id, mut: mut, tr: []}, nil)
+  end
+end
+
+func rival_arrive(k)
+  if bases[k].owner != nil or bases[k].rival != nil then return end
+  let r = {name: RIVAL_NAMES[k], floors: 1, guard: nil, next_lock: time() + random_float(30, 80), refill: 0, chasing: nil}
+  bases[k].rival = r
+  rival_fill(k, random(5, 8))
+  make_guard(k)
+  paint_stands(k)
+  update_sign(k)
+end
+
+func rival_leave(k)
+  let r = bases[k].rival
+  if r == nil then return end
+  kit_gone(r.guard)
+  bases[k].rival = nil
+  bases[k].lock_until = 0
+  clear_slots(k)
+end
+
+func make_guard(k)
+  let b = BASES[k]
+  let r = bases[k].rival
+  let g = create_npc({name: "😈 " + r.name, position: {x: b.x, y: 0.6, z: b.side * 22}, color: RIVAL_COLORS[k], head_color: "#FDE68A",
+                      leg_color: "#1F2937", speed: 0.5, health: 1000000, hat: RIVAL_HATS[k]})
+  g.guard_of = k
+  r.guard = g
+end
+
+func rival_alarm(k, p)
+  let r = bases[k].rival
+  if r == nil or r.guard == nil or not kit_here(r.guard) then return end
+  r.chasing = p
+  r.guard.say(random(["まてー！", "ぼくのミームを かえせー！", "どろぼうだー！", "にがさないぞー！"]))
+end
+
+func guard_step(k, now)
+  let r = bases[k].rival
+  if r == nil then return end
+  let g = r.guard
+  if g == nil or not kit_here(g) then
+    make_guard(k)
+    return
+  end
+  let p = r.chasing
+  if p != nil and kit_here(p) and p.carry != nil and p.carry.k == k and distance(g, p) < 45 then
+    g.follow(p)
+    if distance(g, p) < 2.6 then
+      return_carry(p, "😈 " + r.name + " に つかまった！ ミームを とりかえされた")
+      g.say("とりかえしたぞ！")
+      g.emote("cheer")
+      r.chasing = nil
+    end
+    return
+  end
+  if p != nil then
+    r.chasing = nil
+    g.say(random(["ちぇっ、にげられた…", "こんどは まけないぞ！"]))
+  end
+  if chance(5) then
+    let b = BASES[k]
+    g.move_to({x: b.x + random_float(-14, 14), y: 0.6, z: b.side * random_float(15, 34)})
+  end
+  -- ロック
+  if now > r.next_lock then
+    bases[k].lock_until = now + 20
+    r.next_lock = now + random_float(60, 110)
+    update_sign(k)
+  end
+  -- ミームの ほじゅう
+  r.refill = r.refill + 0.5
+  if r.refill >= 45 then
+    r.refill = 0
+    if meme_count(k) < 5 + floor(rival_level() / 3) then rival_fill(k, 1) end
+  end
+end
+
+-- MARK: 🦹 どろぼうNPC
+
+func send_thief()
+  let targets = []
+  for k in 1 to len(BASES) do
+    let o = bases[k].owner
+    if o != nil and not is_locked(k) and meme_count(k) >= 2 and not any(thieves, func(t) return t.k == k end) then append(targets, k) end
+  end
+  if len(targets) == 0 then return end
+  let k = random(targets)
+  let b = BASES[k]
+  let now = time()
+  -- ねらう台: 1かいの いちばん安いミーム
+  let best = nil
+  for sl in slot_list(k) do
+    if sl.f == 1 and sl.ready <= now and (best == nil or meme_income(sl.e) < meme_income(best.e)) then best = sl end
+  end
+  if best == nil then return end
+  let start = {x: b.x + random([-1, 1]) * 30, y: 0.6, z: b.side * 7}
+  let n = create_npc({name: "🦹 どろぼう ヌスット", position: start, color: "#1F2937", head_color: "#FDE68A", leg_color: "#111827",
+                      speed: 0.55, health: 1000000, size: 0.85, hat: "beanie"})
+  n.thief = true
+  n.target_k = k
+  let top = stand_top(k, best.f, best.s)
+  n.move_to(top + {x: 0, y: 0, z: 0 - b.side * 2.2})
+  n.say("ヒッヒッヒ… ミーム いただき！")
+  append(thieves, {n: n, k: k, f: best.f, s: best.s, state: "go", e: nil, m: nil, dest: start, until: now + 70})
+  let o = bases[k].owner
+  o.message("🚨 🦹 どろぼうが きちを ねらってる！ 🔒 ロックするか、タッチ・👋 で おいはらえ！", 4)
+  o.sound("alarm")
+end
+
+func thief_gone(t)
+  thieves = filter(thieves, func(x) return x.n != t.n end)
+  destroy_model(t.m)
+  if kit_here(t.n) then particles("dust", t.n, {amount: 20}) end
+  kit_gone(t.n)
+end
+
+func chase_off(p, t)
+  if t.e != nil then
+    let base = bases[t.k]
+    if base.owner != nil then
+      let st = nil
+      if slot_at(t.k, t.f, t.s) == nil then st = {f: t.f, s: t.s} else st = free_stand(t.k) end
+      if st != nil then place_meme(t.k, st.f, st.s, t.e, t.n.position) end
+    end
+  end
+  t.e = nil
+  if kit_here(p) and not p.is_npc then
+    p.message("🛡 どろぼうを おいはらった！ +" + money(500), 2)
+    pay(p, 500)
+    p.sound("win")
+    kit_quest_progress(p, "catch", 1)
+  end
+  t.n.say("ひえ〜！ おぼえてろ〜！")
+  thief_gone(t)
+end
+
+-- ギアが 当たった（gear.absc から）
+func thief_hit(n, p)
+  let t = find(thieves, func(x) return x.n == n end)
+  if t != nil then chase_off(p, t) end
+end
+
+func thief_step(t, now)
+  if not kit_here(t.n) then
+    thief_gone(t)
+    return
+  end
+  for p in players() do
+    if not p.is_npc and distance(p, t.n) < 2.8 then
+      chase_off(p, t)
+      return
+    end
+  end
+  let o = bases[t.k].owner
+  if t.state == "go" then
+    if o == nil or is_locked(t.k) or slot_at(t.k, t.f, t.s) == nil then
+      t.state = "flee"
+      t.n.move_to(t.dest)
+      t.n.say("ちぇっ！")
+      if o != nil and is_locked(t.k) then o.message("🔒 ロックで どろぼうを ふせいだ！", 2) end
+      return
+    end
+    if distance(t.n, stand_top(t.k, t.f, t.s)) < 3.2 then
+      let sl = slot_at(t.k, t.f, t.s)
+      if sl.ready > now then return end
+      t.e = remove_meme(t.k, t.f, t.s)
+      t.m = build_model(t.e, t.n.position + {x: 0, y: 2.6, z: 0}, t.n.yaw)
+      t.m.root.animation = "wobble"
+      t.state = "flee"
+      t.n.move_to(t.dest)
+      t.n.say("いただき〜！")
+      if o != nil then
+        o.message("🚨 🦹 " + meme_title(t.e) + " を もっていかれる！ おいかけて タッチ！", 3)
+        o.sound("alarm")
+      end
+    end
+  else
+    if t.m != nil then mv(t.m.root, t.n.position + {x: 0, y: 2.6, z: 0}, 0.5) end
+    if distance(t.n, t.dest) < 2.5 or now > t.until then
+      if t.e != nil and o != nil and kit_here(o) then
+        o.message("😢 どろぼうに " + meme_title(t.e) + " を ぬすまれた… 🔒 ロックを わすれずに！", 3)
+      end
+      thief_gone(t)
+    end
+  end
+end
+
+-- MARK: まいフレーム
+
+on start()
+  for k in 1 to len(BASES) do rival_arrive(k) end
+end
+
+on tick(dt)
+  rv_clock = rv_clock + dt
+  if rv_clock < 0.5 then return end
+  rv_clock = 0
+  let now = time()
+  for k in 1 to len(BASES) do
+    if bases[k].rival != nil then guard_step(k, now) end
+  end
+  for t in thieves do thief_step(t, now) end
+  if now > thief_next then
+    thief_next = now + THIEF_EVERY + random_float(-40, 40)
+    send_thief()
+  end
+end
+
+on leave(p)
+  for k in 1 to len(BASES) do
+    let r = bases[k].rival
+    if r != nil and r.chasing != nil and r.chasing.id == p.id then r.chasing = nil end
+  end
+end

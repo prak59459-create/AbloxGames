@@ -25,7 +25,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/maple-bay-life/cover-fe6b9675.png" width="200"> | 1 | **Maple Bay Life RP** | 街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。 |
 | <img src="games/fruit-seas/cover-799355aa.png" width="200"> | 2 | **Fruit Seas Adventure** | ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。 |
 | <img src="games/pet-home-paradise/cover-bc137390.png" width="200"> | 3 | **Pet Home Paradise** | たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。 |
-| <img src="games/meme-heist/cover-d3dacb50.png" width="200"> | 4 | **Meme Heist** | ランウェイを歩くヘンなミームキャラを買って自分の基地へ。キャラはお金を生み出す。ほかの人の基地からこっそり盗み出せ！ |
+| <img src="games/meme-heist/cover-bd3a94c3.png" width="200"> | 4 | **Meme Heist** | 赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。 |
 | <img src="games/reel-legends/cover-b5e14315.png" width="200"> | 5 | **Reel Legends** | つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。 |
 | <img src="games/clash-duels/cover-708781ad.png" width="200"> | 6 | **Clash Duels** | 1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。 |
 | <img src="games/sprout-garden/cover-571f726c.png" width="200"> | 7 | **Sprout Garden** | 自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。 |

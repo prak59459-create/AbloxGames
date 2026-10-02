@@ -1,0 +1,123 @@
+-- event_list.absc — 50 のイベント（どれも オリジナル）。events.absc が 動かす。
+--
+-- kind: weather（天気・ときどき 自然に起きる）/ mutation（変異の あらし）/ admin（管理人 マエストロ・ポッポ が起こす）
+--       season（日にち・曜日で 起きる: seasons.absc）/ special・ritual（だれかが 何かをすると 起きる）
+-- dur: 何秒つづくか / w: 自然に起きる 出やすさ（0 は 自然には 起きない）
+-- trait・tc: カーペットのミームに つく特性と その かくりつ(%) / mut・mc: 変異と その かくりつ(%)
+-- strike: 何秒ごとに きちのミームに「おちてきて」特性や変異を つけるか（0 は なし）/ fx: おちてくるものの 見た目
+-- look: 天気・空・画面・音楽 / boost: BOOST（core.absc）を かえる / desc: せつめい
+
+let EVENTS = [
+  -- MARK: 天気（25）
+  {id: "rain", name: "雨", icon: "☔", kind: "weather", dur: 150, w: 10, trait: "rain", tc: 30, strike: 9, fx: "drop",
+   look: {weather: "rain"}, desc: "雨がふる。ぬれたミームは もうけ +2.5"},
+  {id: "snow", name: "雪", icon: "❄️", kind: "weather", dur: 150, w: 8, trait: "snow", tc: 30, strike: 9, fx: "flake",
+   look: {weather: "snow", effect: "cool"}, desc: "雪がつもる。雪の特性 +3"},
+  {id: "starfall", name: "流れ星", icon: "🌠", kind: "weather", dur: 120, w: 6, trait: "starfall", tc: 25, strike: 7, fx: "star",
+   look: {sky: "stars"}, desc: "夜空から 星がおちてくる。流れ星の特性 +4"},
+  {id: "meteor", name: "いん石", icon: "☄️", kind: "weather", dur: 100, w: 5, trait: "meteor", tc: 20, strike: 6, fx: "meteor",
+   look: {sky: "sunset", effect: "warm"}, desc: "いん石が きちに おちてくる！ いん石の特性 +4"},
+  {id: "thunder", name: "かみなり", icon: "⚡", kind: "weather", dur: 100, w: 4, trait: "thunder", tc: 18, strike: 6, fx: "bolt",
+   look: {weather: "storm"}, desc: "ゴロゴロ ピカッ！ かみなりの特性 +6"},
+  {id: "fog", name: "きり", icon: "🌫", kind: "weather", dur: 150, w: 8, trait: "fog", tc: 30, strike: 10, fx: "generic",
+   look: {weather: "fog"}, desc: "まっしろな きり。ぬすみの チャンス？ きりの特性 +2"},
+  {id: "aurora", name: "オーロラ", icon: "🌌", kind: "weather", dur: 120, w: 4, trait: "aurora", tc: 22, strike: 8, fx: "star",
+   look: {sky: "aurora", effect: "dream"}, desc: "空に オーロラ。オーロラの特性 +5"},
+  {id: "sandstorm", name: "すなあらし", icon: "🏜", kind: "weather", dur: 120, w: 6, trait: "sand", tc: 28, strike: 9, fx: "generic",
+   look: {weather: "fog", effect: "warm"}, desc: "すなが まいあがる。すなあらしの特性 +3"},
+  {id: "sakura", name: "さくらふぶき", icon: "🌸", kind: "weather", dur: 150, w: 6, trait: "sakura", tc: 28, strike: 8, fx: "petal",
+   look: {effect: "dream"}, desc: "さくらの花びらが まう。さくらの特性 +3.5"},
+  {id: "solar", name: "たいようフレア", icon: "☀️", kind: "weather", dur: 100, w: 4, trait: "solar", tc: 20, strike: 7, fx: "star",
+   look: {effect: "bloom"}, desc: "たいようが ギラギラ。たいようの特性 +5"},
+  {id: "bubbles", name: "バブル", icon: "🫧", kind: "weather", dur: 130, w: 7, trait: "bubble", tc: 30, strike: 8, fx: "bubble",
+   look: {effect: "cool"}, desc: "あわが ふわふわ。あわの特性 +2.5"},
+  {id: "tacorain", name: "タコスの雨", icon: "🌮", kind: "weather", dur: 120, w: 5, trait: "taco", tc: 28, strike: 7, fx: "taco",
+   look: {music: "party"}, desc: "空から タコスが ふってくる！ タコスの特性 +3"},
+  {id: "strawberry", name: "イチゴの日", icon: "🍓", kind: "weather", dur: 130, w: 5, trait: "strawberry", tc: 28, strike: 8, fx: "berry",
+   look: {effect: "warm"}, desc: "イチゴが ころころ。イチゴの特性 +3.5"},
+  {id: "ghost", name: "ゆうれいの夜", icon: "👻", kind: "weather", dur: 120, w: 4, trait: "ghost", tc: 22, strike: 8, fx: "generic",
+   look: {sky: "stars", effect: "cool", music: "spooky"}, desc: "おばけが ふわり。ゆうれいの特性 +4"},
+  {id: "shark", name: "サメのひれ", icon: "🦈", kind: "weather", dur: 110, w: 4, trait: "shark", tc: 22, strike: 8, fx: "generic",
+   look: {effect: "cool"}, desc: "地面を サメのひれが およぐ。サメの特性 +4"},
+  {id: "fireworks", name: "花火", icon: "🎆", kind: "weather", dur: 120, w: 5, trait: "fireworks", tc: 25, strike: 6, fx: "firework",
+   look: {sky: "stars", music: "party"}, desc: "ドーン！ 花火大会。花火の特性 +3"},
+  {id: "crab", name: "カニダンス", icon: "🦀", kind: "weather", dur: 110, w: 4, trait: "crab", tc: 22, strike: 7, fx: "generic",
+   look: {music: "party", effect: "vivid"}, desc: "カニたちが おどり出す！ カニの特性 +5"},
+  {id: "nyan", name: "にじネコ", icon: "🐱", kind: "weather", dur: 100, w: 3, trait: "nyan", tc: 18, strike: 7, fx: "star",
+   look: {sky: "space", effect: "vivid"}, desc: "にじを ひいて ネコが とぶ。にじネコの特性 +6"},
+  {id: "drum", name: "たいこ襲来", icon: "🥁", kind: "weather", dur: 100, w: 3, trait: "drum", tc: 18, strike: 6, fx: "generic",
+   look: {music: "boss"}, desc: "ドンドコ ドン！ たいこの特性 +4.5"},
+  {id: "disco", name: "ディスコ", icon: "🪩", kind: "weather", dur: 120, w: 5, trait: "disco", tc: 25, strike: 7, fx: "generic",
+   look: {music: "party", effect: "vivid", sky: "stars"}, desc: "ミラーボールが キラキラ。ディスコの特性 +3"},
+  {id: "ufo", name: "UFO", icon: "🛸", kind: "weather", dur: 90, w: 2, trait: "ufo", tc: 15, strike: 7, fx: "beam",
+   look: {sky: "space", music: "space"}, desc: "UFO が ミームを しらべに来た！ UFO の特性 +8"},
+  {id: "yinyang", name: "いんよう", icon: "☯️", kind: "weather", dur: 90, w: 1.5, trait: "yinyang", tc: 12, strike: 8, fx: "generic",
+   look: {effect: "noir"}, desc: "白と黒の ふしぎな時間。いんようの特性 +7.5"},
+  {id: "glitch", name: "グリッチ", icon: "👾", kind: "weather", dur: 90, w: 2, trait: "glitch", tc: 15, strike: 7, fx: "generic",
+   look: {effect: "retro"}, desc: "せかいが バグった!? グリッチの特性 +5"},
+  {id: "concert", name: "コンサート", icon: "🎤", kind: "weather", dur: 120, w: 3, trait: "concert", tc: 22, strike: 8, fx: "generic",
+   look: {music: "party", sky: "stars"}, desc: "ステージで コンサート！ コンサートの特性 +3.5"},
+  {id: "clover", name: "四つ葉の日", icon: "🍀", kind: "weather", dur: 150, w: 4, trait: "clover", tc: 30, strike: 10, fx: "generic",
+   boost: {luck: 1.25}, desc: "ラッキー！ レアが 少し出やすい。クローバーの特性 +2"},
+
+  -- MARK: 変異のあらし（9）
+  {id: "lava", name: "ようがん", icon: "🌋", kind: "mutation", dur: 90, w: 3, mut: "lava", mc: 22, strike: 8, fx: "meteor",
+   look: {sky: "sunset", effect: "warm"}, desc: "ようがんの 雨！ ようがん変異は ×6"},
+  {id: "galaxy", name: "ぎんが", icon: "🌌", kind: "mutation", dur: 90, w: 2, mut: "galaxy", mc: 20, strike: 8, fx: "star",
+   look: {sky: "space", music: "space"}, desc: "ぎんがの 光。ギャラクシー変異は ×7"},
+  {id: "candy", name: "おかしの国", icon: "🍬", kind: "mutation", dur: 100, w: 3, mut: "candy", mc: 22, strike: 8, fx: "berry",
+   look: {effect: "dream"}, desc: "あまーい あらし。キャンディ変異は ×4"},
+  {id: "bloodmoon", name: "ブラッドムーン", icon: "🩸", kind: "mutation", dur: 100, w: 3, mut: "blood", mc: 25, strike: 8, fx: "generic",
+   look: {sky: "sunset", effect: "noir", music: "spooky"}, desc: "赤い 月の夜。ブラッド変異は ×2"},
+  {id: "celestial", name: "天の光", icon: "✨", kind: "mutation", dur: 90, w: 2, mut: "celestial", mc: 20, strike: 8, fx: "star",
+   look: {sky: "aurora", effect: "bloom"}, desc: "天から 光が さす。セレスティアル変異は ×4"},
+  {id: "witch", name: "魔女の夜", icon: "🧙", kind: "mutation", dur: 90, w: 2, mut: "witch", mc: 20, strike: 8, fx: "generic",
+   look: {sky: "stars", music: "spooky"}, desc: "魔女の まほう。ウィッチ変異は ×4.5"},
+  {id: "crystal", name: "クリスタルのあらし", icon: "🔷", kind: "mutation", dur: 75, w: 1, mut: "crystal", mc: 12, strike: 9, fx: "star",
+   look: {effect: "cool", sky: "aurora"}, desc: "とても めずらしい！ クリスタル変異は ×13"},
+  {id: "rainbowday", name: "にじの日", icon: "🌈", kind: "mutation", dur: 75, w: 1, mut: "rainbow", mc: 12, strike: 9, fx: "star",
+   look: {effect: "vivid"}, desc: "にじが かかる。レインボー変異は ×10"},
+  {id: "goldrush", name: "ゴールドラッシュ", icon: "🟡", kind: "mutation", dur: 120, w: 5, mut: "gold", mc: 40, strike: 7, fx: "generic",
+   look: {effect: "warm"}, desc: "金ピカだらけ！ ゴールド変異は ×1.25"},
+
+  -- MARK: 管理人のイベント（7）: マエストロ・ポッポが ステージで 起こす
+  {id: "admin_lucky", name: "ラッキーブロックの雨", icon: "🎁", kind: "admin", dur: 60, w: 3,
+   look: {music: "party"}, desc: "ラッキーブロックが ふってくる！ さわって ひろおう"},
+  {id: "admin_lanes", name: "3本カーペット", icon: "🛤", kind: "admin", dur: 120, w: 3,
+   boost: {lanes: 3, spawn: 3}, desc: "カーペットが 3列に！ ミームが 3ばい 来る"},
+  {id: "admin_luck", name: "ラッキーアップ", icon: "🍀", kind: "admin", dur: 150, w: 3, trait: "crown", tc: 10,
+   boost: {luck: 1.6}, desc: "レアなミームが とても出やすい！"},
+  {id: "admin_og", name: "OGパレード", icon: "👑", kind: "admin", dur: 60, w: 1,
+   look: {music: "boss", effect: "bloom"}, desc: "OG が カーペットを 歩く！ 管理人セールで 安い"},
+  {id: "admin_money", name: "お金の雨", icon: "💸", kind: "admin", dur: 45, w: 3,
+   desc: "お金が ふってくる！ さわって ひろおう"},
+  {id: "admin_speed", name: "はやあしパーティ", icon: "👟", kind: "admin", dur: 90, w: 2,
+   boost: {speed: 1.6, jump: 1.3}, desc: "みんな はやく走れる！"},
+  {id: "admin_double", name: "もうけ2ばい", icon: "💰", kind: "admin", dur: 120, w: 2,
+   boost: {income: 2}, desc: "すべてのミームの もうけが 2ばい！"},
+
+  -- MARK: きせつ（7）: 日にちや曜日で 起きる（seasons.absc）
+  {id: "taco", name: "タコスの火曜日", icon: "🌮", kind: "season", dur: 0, w: 0, trait: "taco", tc: 8, strike: 40, fx: "taco",
+   desc: "火曜日は タコスの日！ タコスやで タコスを 15こ あげると…"},
+  {id: "halloween", name: "ハロウィン", icon: "🎃", kind: "season", dur: 0, w: 0, trait: "pumpkin", tc: 8, mut: "witch", mc: 2, strike: 40, fx: "generic",
+   desc: "10月は ハロウィン！ かぼちゃを さがそう"},
+  {id: "christmas", name: "クリスマス", icon: "🎄", kind: "season", dur: 0, w: 0, trait: "santa", tc: 8, strike: 40, fx: "flake",
+   desc: "メリークリスマス！ プレゼントを さがそう"},
+  {id: "newyear", name: "お正月", icon: "🎍", kind: "season", dur: 0, w: 0, trait: "newyear", tc: 10, strike: 40, fx: "generic",
+   boost: {luck: 1.1}, desc: "あけまして おめでとう！ お年玉を さがそう"},
+  {id: "valentine", name: "バレンタイン", icon: "💝", kind: "season", dur: 0, w: 0, trait: "heart", tc: 10, strike: 40, fx: "heart",
+   desc: "ハートを さがそう"},
+  {id: "summer", name: "夏まつり", icon: "🏮", kind: "season", dur: 0, w: 0, trait: "festival", tc: 8, strike: 40, fx: "firework",
+   desc: "夏まつり！ ちょうちんを さがそう"},
+  {id: "fishing", name: "つり大会", icon: "🎣", kind: "season", dur: 0, w: 0, trait: "fish", tc: 10, strike: 40, fx: "drop",
+   desc: "日曜日は つり大会！ 海の ミームが 来る"},
+
+  -- MARK: とくべつ（2）
+  {id: "billion", name: "10おくの日", icon: "🍞", kind: "special", dur: 120, w: 0, mut: "gold", mc: 20,
+   look: {effect: "bloom", music: "party"}, desc: "だれかが 10おく かせいだ！ ふしぎな トースターが 来る"},
+  {id: "bombardiro", name: "ばくだん飛行機", icon: "💣", kind: "ritual", dur: 90, w: 0, trait: "bomb", tc: 25, strike: 6, fx: "meteor",
+   look: {sky: "sunset", music: "boss"}, desc: "一列の儀式で 空から ばくだん飛行機！ ばくだんの特性 +4"}
+]
+
+let EVENT_BY_ID = {}
+for ev in EVENTS do EVENT_BY_ID[ev.id] = ev end

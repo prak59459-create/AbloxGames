@@ -1,78 +1,161 @@
--- rebirth.absc — 転生（ピンクの祭だん）
--- お金と「決まっためずらしさ以上のキャラ」を持っていると転生できる。
--- 転生するとお金と台のキャラはなくなるが、かせぎがずっと何倍にもなり、ギアももらえる。
+-- rebirth.absc — 転生（西の広場の ピンクの祭だん）: お金と きまったミームを そろえると 転生できる。
+-- お金と きちのミームは なくなるけれど、もうけが ずっと ×0.5ずつ ふえ、ロックが 5秒 のび、
+-- 2かい（転生2）・3がい（転生10）が ひらき、強いギアが 買えるようになる。ギアと図鑑は のこる。15回まで。
 
-func rebirth_mult(p)
-  if p.rebirth == nil or p.rebirth == 0 then return 1 end
-  return REBIRTHS[p.rebirth].mult
-end
+let REBIRTH_COST = [1000000, 5000000, 25000000, 100000000, 400000000, 1500000000, 6000000000, 25000000000, 100000000000,
+                    400000000000, 1500000000000, 6000000000000, 25000000000000, 100000000000000, 500000000000000]
+let REBIRTH_NEED_R = [3, 3, 4, 4, 5, 5, 5, 6, 6, 6, 6, 6, 7, 7, 7]
+let MAX_REBIRTH = 15
+let REBIRTH_NEEDS = []   -- n → [キャラid, キャラid]（11回目からは「その めずらしさなら どれでも」= []）
 
-func has_rarity(p, need)
-  let rank = rarity_rank(need)
-  for item in base_memes(p) do
-    if rarity_rank(meme_by_id(item.id).rarity) >= rank then return true end
+on start()
+  for n in 1 to MAX_REBIRTH do
+    let r = REBIRTH_NEED_R[n]
+    let pool = sort_by(filter(CHARS_BY_RARITY[r], func(c) return c.src == "carpet" end), func(c) return c.inc end)
+    if n >= 11 or len(pool) < 2 then
+      append(REBIRTH_NEEDS, [])
+    else
+      let a = (n * 5) % len(pool) + 1
+      let b = (n * 5 + floor(len(pool) / 2)) % len(pool) + 1
+      if a == b then b = a % len(pool) + 1 end
+      append(REBIRTH_NEEDS, [pool[a].id, pool[b].id])
+    end
   end
-  return false
 end
 
-func rebirth_menu(p)
-  let h = 300
-  p.ui_panel("rb", {at: "center", w: 500, h: h, bg: "#500724F2", radius: 22, layer: 30})
-  if p.rebirth >= len(REBIRTHS) then
-    p.ui_text("rb_t", "♻️ 転生（最大 " + p.rebirth + " 回）", {parent: "rb", y: 0.12, size: 22, bold: true, color: "#F9A8D4"})
-    p.ui_text("rb_s", "もう最強です！かせぎ ×" + rebirth_mult(p), {parent: "rb", y: 0.4, size: 17})
-    p.ui_button("rb_close", "閉じる", {parent: "rb", y: 0.88, w: 130, h: 38, size: 15, bg: "gray"})
+-- きちにある（着いている）ミームの id
+func base_ids(p)
+  let ids = []
+  if p.base == nil then return ids end
+  let now = time()
+  for sl in slot_list(p.base) do
+    if sl.ready <= now then append(ids, sl.e.id) end
+  end
+  return ids
+end
+
+-- 必要なものの チェック。{ok, lines}
+func rebirth_check(p)
+  let n = (p.rebirths or 0) + 1
+  let lines = []
+  let ok = true
+  let cost = REBIRTH_COST[n]
+  let money_ok = kit_money(p) >= cost
+  if not money_ok then ok = false end
+  append(lines, {text: rb_mark(money_ok) + " お金 " + money(cost) + "（いま " + money(kit_money(p)) + "）", ok: money_ok})
+  let ids = base_ids(p)
+  let needs = REBIRTH_NEEDS[n]
+  let r = REBIRTH_NEED_R[n]
+  if len(needs) > 0 then
+    for id in needs do
+      let have = contains(ids, id)
+      if not have then ok = false end
+      let c = char_of(id)
+      append(lines, {text: rb_mark(have) + " " + RARITIES[c.r].name + " の " + c.n + "（" + c.k + "）", ok: have})
+    end
+  else
+    let count = len(filter(ids, func(id) return char_of(id).r >= r end))
+    let have = count >= 2
+    if not have then ok = false end
+    append(lines, {text: rb_mark(have) + " " + RARITIES[r].name + " いじょうの ミーム 2体（いま " + count + "体）", ok: have})
+  end
+  return {ok: ok, lines: lines}
+end
+
+func rb_mark(ok)
+  if ok then return "✅" end
+  return "❌"
+end
+
+func rebirth_rewards(n)
+  let list = ["もうけ ×" + fixed(1 + 0.5 * n, 1), "ロック +" + (LOCK_SECS + 5 * n) + "秒"]
+  for f in 2 to 3 do
+    if FLOOR_REBIRTH[f] == n then append(list, f + "かいが ひらく") end
+  end
+  for g in GEAR do
+    if g.rb == n then append(list, g.icon + g.name + "が 買える") end
+  end
+  return join(list, "・")
+end
+
+func open_rebirth(p)
+  p.ui_remove("rb_box")
+  let now_n = p.rebirths or 0
+  if now_n >= MAX_REBIRTH then
+    p.ui_panel("rb_box", {at: "center", w: 520, h: 160, bg: "#500724F2", radius: 22, layer: 40})
+    p.ui_text("rb_t", "🌟 転生 " + now_n + "回 — さいこう！", {parent: "rb_box", y: 0.3, size: 22, bold: true, color: "#FBCFE8"})
+    p.ui_button("rb_close", "閉じる", {parent: "rb_box", y: 0.75, w: 130, h: 40, size: 15, bg: "gray"})
     return
   end
-  let next = REBIRTHS[p.rebirth + 1]
-  let gift = gear_info(next.gift)
-  p.ui_text("rb_t", "♻️ 転生 " + (p.rebirth + 1) + " 回目", {parent: "rb", y: 0.1, size: 22, bold: true, color: "#F9A8D4"})
-  let ok_money = kit_money(p) >= next.money
-  let ok_meme = has_rarity(p, next.need)
-  let m1 = "⬜"
-  if ok_money then m1 = "✅" end
-  let m2 = "⬜"
-  if ok_meme then m2 = "✅" end
-  p.ui_text("rb_1", m1 + " お金 " + kit_short(next.money), {parent: "rb", y: 0.26, size: 16})
-  p.ui_text("rb_2", m2 + " " + RARITY[next.need].name + " 以上のキャラを基地に持っている", {parent: "rb", y: 0.36, size: 16})
-  p.ui_text("rb_3", "もらえる: かせぎ ×" + next.mult + " ずっと ＋ " + gift.name, {parent: "rb", y: 0.5, size: 15, color: "#FDE68A"})
-  p.ui_text("rb_4", "（お金と台のキャラはなくなります。台の数・ロック・ギアは残る）", {parent: "rb", y: 0.6, size: 13, color: "#FBCFE8"})
-  if ok_money and ok_meme then
-    p.ui_button("rb_go", "♻️ 転生する", {parent: "rb", x: 0.3, y: 0.85, w: 180, h: 44, size: 17, bg: "#DB2777"})
-    p.ui_button("rb_close", "やめる", {parent: "rb", x: 0.74, y: 0.85, w: 130, h: 44, size: 15, bg: "gray"})
-  else
-    p.ui_button("rb_close", "閉じる", {parent: "rb", y: 0.85, w: 130, h: 40, size: 15, bg: "gray"})
+  let n = now_n + 1
+  let check = rebirth_check(p)
+  let h = 250 + len(check.lines) * 32
+  p.ui_panel("rb_box", {at: "center", w: 680, h: h, bg: "#500724F2", radius: 22, layer: 40})
+  p.ui_text("rb_t", "🌟 転生 " + now_n + " → " + n, {parent: "rb_box", y: 28 / h, size: 22, bold: true, color: "#FBCFE8"})
+  p.ui_text("rb_need", "ひつようなもの（ミームは きちの台に おいておく）", {parent: "rb_box", y: 62 / h, size: 14, color: "#F9A8D4"})
+  let i = 0
+  for line in check.lines do
+    i = i + 1
+    let c = "#FCA5A5"
+    if line.ok then c = "#86EFAC" end
+    p.ui_text("rb_l" + i, line.text, {parent: "rb_box", y: (64 + i * 32) / h, size: 15, color: c})
   end
+  let y = 80 + i * 32
+  p.ui_text("rb_get", "🎁 " + rebirth_rewards(n), {parent: "rb_box", y: (y + 22) / h, size: 14, color: "#FDE68A"})
+  p.ui_text("rb_warn", "⚠️ お金と きちのミームは なくなります（ギア・図鑑・ラッキーブロックは のこる）", {parent: "rb_box", y: (y + 56) / h, size: 13})
+  let bg = "#475569"
+  if check.ok then bg = "#DB2777" end
+  p.ui_button("rb_go", "🌟 転生する", {parent: "rb_box", y: (h - 34) / h, dx: -90, w: 170, h: 42, size: 16, bg: bg})
+  p.ui_button("rb_close", "閉じる", {parent: "rb_box", y: (h - 34) / h, dx: 100, w: 130, h: 42, size: 15, bg: "gray"})
 end
 
 func do_rebirth(p)
-  if p.rebirth >= len(REBIRTHS) then return end
-  let next = REBIRTHS[p.rebirth + 1]
-  if kit_money(p) < next.money or not has_rarity(p, next.need) then return end
-  p.rebirth = p.rebirth + 1
-  p.coins = 100
-  kit_show_money(p)
-  p.vault = 0
-  if p.carrying != nil then drop_carry(p, nil) end
-  for s in 1 to 10 do clear_statue(p.base, s) end
-  give_gear(p, next.gift)
-  p.ui_remove("rb")
-  announce("♻️ " + p.name + " が " + p.rebirth + " 回目の転生！かせぎ ×" + next.mult, 4)
-  sound("goal")
-  kit_quest_progress(p, "rebirth", 1)
-  hud(p)
-end
-
-on button(p, id)
-  if id == "rb_close" then p.ui_remove("rb")
-  elif id == "rb_go" then do_rebirth(p)
+  if p.base == nil or (p.rebirths or 0) >= MAX_REBIRTH then return end
+  if p.carry != nil then
+    p.message("🦹 はこんでいる時は 転生できない", 1.5)
+    return
   end
+  let check = rebirth_check(p)
+  if not check.ok then
+    p.message("まだ そろっていないよ（❌ を 見てね）", 2)
+    p.sound("error")
+    return
+  end
+  if not p.rb_sure then
+    p.rb_sure = true
+    p.message("⚠️ ほんとうに 転生する？ もう一度 おすと 転生！", 2.5)
+    p.sound("tick")
+    kit_later(p, 6, func() p.rb_sure = false end)
+    return
+  end
+  p.rb_sure = false
+  let k = p.base
+  p.coins = 0
+  kit_show_money(p)
+  clear_slots(k)
+  p.rebirths = (p.rebirths or 0) + 1
+  paint_stands(k)
+  place_meme(k, 1, 3, {id: 1, mut: "none", tr: []}, nil)
+  sync_save(k)
+  relabel_base(k)
+  p.ui_remove("rb_box")
+  announce("🌟 " + p.name + " が 転生" + p.rebirths + "回目！ もうけ ×" + fixed(rebirth_mult(p), 1), 4)
+  p.message("🎁 " + rebirth_rewards(p.rebirths), 4)
+  particles("stars", p, {amount: 90})
+  sound("win")
+  kit_quest_progress(p, "rebirth", 1)
+  if p.rebirths >= 5 then kit_badge(p, "rebirth5", "転生5回") end
+  if p.rebirths >= MAX_REBIRTH then kit_badge(p, "rebirthmax", "転生 さいこう") end
 end
 
 on touch(p, b)
   if p.is_npc then return end
-  if contains(b.tags, "rebirth") and cooldown_left(p, "rb_pad") <= 0 then
-    start_cooldown(p, "rb_pad", 3)
-    rebirth_menu(p)
+  if contains(b.tags, "rebirthpad") then open_rebirth(p) end
+end
+
+on button(p, id)
+  if id == "rb_close" then p.ui_remove("rb_box")
+  elif id == "rb_go" then do_rebirth(p)
+  elif id == "rebirth_menu" then open_rebirth(p)
   end
 end

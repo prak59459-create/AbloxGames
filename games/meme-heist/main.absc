@@ -1,70 +1,225 @@
--- Meme Heist — ミームキャラを買って、守って、盗むゲーム
--- 22体のキャラ（6段階のめずらしさ）・6種類の変異・台10こ・ロック強化・ギア6種・転生4段階・イベント4種。
+-- Meme Heist — ミームどろぼう
+-- まん中の 赤いカーペットを ヘンなミームたちが 歩いてくる。買って 自分のきちの 台に ならべると、1秒ごとに お金をうむ。
+-- ほかのきち（ライバルや 友だち）から ぬすんで、自分のきちまで はこぼう。自分のきちは 🔒 ロックで まもる。
+-- 300体のミーム・8つのめずらしさ・10の変異・33の特性・50のイベント・12のギア・儀式・合体・転生15回・図鑑。
 --
 -- ファイル:
---   data.absc     表（キャラ・めずらしさ・変異・台・ロック・ギア・転生・イベント）
---   common.absc   人さがし・画面・キャラの名前とかせぎ
---   bases.absc    基地・台・像・金庫・ロック・🏠メニュー（売る・台を開ける）
---   memes.absc    カーペットのキャラ・買う・基地まで歩く・📖図鑑
---   steal.absc    盗む・運ぶ・落とす・持ち主に帰る
---   gear.absc     ギア屋とギア（バット・スラップ・糸・コイル・わな・マント・マグネット）
---   rebirth.absc  転生
---   events.absc   イベントとランキング
---   main.absc     このファイル
+--   data.absc        めずらしさ・変異・特性・お金のあらわし方・きちの場所・ゲームの数字
+--   chars.absc       300体（tools/meme-chars/make_chars.py が作る）
+--   core.absc        キャラをさがす・ばいりつ・もうけ・きちの場所・走る速さ
+--   models.absc      ミームの見た目（どうぶつ × もの をブロックで組み立てる）
+--   bases.absc       きち・台・プレート・ロック・🏠メニュー（売る）
+--   carpet.absc      カーペット・買う
+--   steal.absc       ぬすむ・はこぶ・とりかえす
+--   gear.absc        ギア屋と 12のギア
+--   lucky.absc       ラッキーブロック
+--   fusion.absc      合体マシン
+--   rebirth.absc     転生
+--   index.absc       ミーム図鑑
+--   event_list.absc  50のイベントの表
+--   events.absc      イベントを動かす・管理人 マエストロ・ポッポ・📅イベント図鑑
+--   seasons.absc     きせつと曜日（タコスの火曜日・ハロウィン…）・さがしもの
+--   rituals.absc     儀式
+--   rivals.absc      ライバルのきち・どろぼうNPC
+--   main.absc        このファイル（さいしょの画面・ボタン・クエスト・セーブ）
 
-kit_setup("Meme Heist", "ミームキャラを集めて、盗んで、守れ！", [
-  "🏠 まず空いている基地の色つきパッドにさわって自分の基地にする",
-  "🛒 カーペットを歩くキャラに近づいて「買う」→ 基地まで歩いてきて台の像になる",
-  "💸 キャラは毎秒お金をうむ。基地の真ん中のパッドで金庫から受け取る",
-  "😈 ほかの基地の台にさわると盗める。自分の基地の真ん中まで運べ（45秒）",
-  "🏏 たたかれる・糸・わな・レーザーで落とすと、キャラは持ち主に帰る",
-  "🔒 白いパッドでロック（レーザー）。🏠で台を開ける・売る・ロック強化",
-  "🛠 ギア屋（青）でギア、♻️ ピンクの祭だんで転生（ずっと何倍もかせげる）",
-  "✨ ゴールド・ダイヤ・レインボー…変異キャラはかせぎが何倍も！"
+kit_setup("Meme Heist", "ミームを買って、ならべて、ぬすんで、まもりぬけ！", [
+  "🛒 赤いカーペットを歩く ミームに 近づいて「買う」→ 自分のきちの 台へ 歩いていく",
+  "💵 ミームは 1秒ごとに お金をうむ。台の前の 緑のプレートを ふむか、金色のパッドで ぜんぶ 受けとる",
+  "🦹 ロックしていない きちの台に 近づいて「ぬすむ」→ 自分のきちまで はこぶ（60秒・おそくなる）",
+  "🚨 もちぬしに タッチ・👋 されると もどされる。🔒 赤いパッドで ロックして まもろう",
+  "🌧 イベント中は ミームに 特性（☔❄️🌠…）や 変異（🟡💎🌋🌈…）が ついて もうけが 何倍にも！",
+  "🛠 ギア屋・🎁 ラッキーブロック屋・🌟 転生（西の広場）／🧪 合体・🔮 儀式・🎩 管理人ステージ（東の広場）",
+  "🌟 転生すると もうけ アップ・2かい（転生2）・3がい（転生10）が ひらく",
+  "🧭 ボタンで いろんな場所へ ワープできる（はこんでいる時は ダメ）"
 ])
 kit_currency = "お金"
+kit_keep(["memes", "rebirths", "dex", "dexm", "gear", "lucky", "fusion", "earned", "steals", "bought", "best_inc",
+          "tacos", "taco_day", "hunt", "rituals", "evseen", "last_seen"])
 
--- セーブ: コイン・クエスト・実績のほかに、つぎも自分のiPadに保存する
-kit_keep(["gear", "seen", "index", "slots_open", "lock_level", "rebirth", "vault"])
+-- MARK: クエスト（28）
 
+kit_quest("buy", "ミームを 3体 買う", 3, 200)
+kit_quest("collect", "金色のパッドで ぜんぶ受けとる", 1, 100)
+kit_quest("lock", "きちを ロックする", 1, 150)
+kit_quest("sell", "ミームを 売る", 1, 100)
+kit_quest("steal_try", "ミームを ぬすむ（もちあげる）", 1, 300)
+kit_quest("steal", "ぬすみ 大成功", 1, 1000)
+kit_quest("rival", "ライバルの きちから 3回 ぬすみ出す", 3, 8000)
+kit_quest("steal10", "ぬすみ 大成功 10回", 10, 250000)
+kit_quest("defend", "ぬすまれたミームを とりかえす", 1, 2000)
+kit_quest("catch", "どろぼうNPCを おいはらう", 1, 2000)
+kit_quest("slap", "👋 で 3回 たたく", 3, 500)
+kit_quest("gear", "ギアを 買う", 1, 2000)
+kit_quest("trap", "🍌 ワナで つかまえる", 1, 5000)
+kit_quest("clone", "🌀 クローンで ワープする", 1, 500000)
+kit_quest("mutant", "変異ミームを 手に入れる", 1, 3000)
+kit_quest("trait", "特性つきミームを 手に入れる", 1, 3000)
+kit_quest("legend", "レジェンダリー いじょうを 手に入れる", 1, 50000)
+kit_quest("mythic", "ミシック いじょうを 手に入れる", 1, 1000000)
+kit_quest("god", "ミーム・ゴッド いじょうを 手に入れる", 1, 50000000)
+kit_quest("secret", "シークレットを 手に入れる", 1, 5000000000)
+kit_quest("lucky", "ラッキーブロックを 開ける", 1, 5000)
+kit_quest("fuse", "合体マシンを つかう", 1, 10000)
+kit_quest("dex", "図鑑に 25体 のせる", 25, 100000)
+kit_quest("dex100", "図鑑に 100体 のせる", 100, 100000000)
+kit_quest("events", "イベントを 10しゅるい 見る", 10, 200000)
+kit_quest("hunt", "きせつの さがしものを 10こ 見つける", 10, 50000)
+kit_quest("ritual", "儀式を する", 1, 500000)
+kit_quest("rebirth", "転生する", 1, 100000)
 
--- MARK: クエスト
+-- MARK: 🧭 ワープ
 
-kit_quest("buy", "キャラを買う", 1, 50)
-kit_quest("index", "8しゅるいのキャラを集める", 8, 3000)
-kit_quest("legend", "レジェンドを手に入れる", 1, 10000)
-kit_quest("mythic", "ミシック以上を手に入れる", 1, 50000)
-kit_quest("mutant", "変異キャラを手に入れる", 1, 2000)
-kit_quest("steal", "キャラを盗む", 1, 300)
-kit_quest("steal10", "10回盗みに成功", 10, 20000)
-kit_quest("defend", "盗まれたキャラを取り返す", 1, 1000)
-kit_quest("lock", "基地をロックする", 1, 100)
-kit_quest("slots", "台を開ける", 1, 1000)
-kit_quest("gear", "ギアを手に入れる", 1, 500)
-kit_quest("rebirth", "転生する", 1, 25000)
+let PLACES = [
+  {name: "🏠 自分のきち", at: nil},
+  {name: "🌀 ミームの門（カーペットの はじめ）", at: {x: -116, y: 1, z: 6.5}},
+  {name: "🛠 ギア屋", at: {x: -160, y: 1, z: -13}},
+  {name: "🎁 ラッキーブロック屋", at: {x: -160, y: 1, z: 13}},
+  {name: "🌟 転生の祭だん", at: {x: -174, y: 1, z: 0}},
+  {name: "📖 図鑑ボード", at: {x: -150, y: 1, z: 25}},
+  {name: "🧪 合体マシン", at: {x: 158, y: 1, z: -17}},
+  {name: "🔮 儀式の庭", at: {x: 160, y: 1, z: 13}},
+  {name: "🎩 管理人ステージ", at: {x: 179, y: 1, z: 0}},
+  {name: "🌮 タコスや", at: {x: 140, y: 1, z: -27}}
+]
+
+func open_places(p)
+  let n = len(PLACES)
+  let h = 110 + n * 44
+  p.ui_remove("pl_box")
+  p.ui_panel("pl_box", {at: "center", w: 440, h: h, bg: "#0F172AF0", radius: 22, layer: 40})
+  p.ui_text("pl_t", "🧭 どこへ いく？", {parent: "pl_box", y: 26 / h, size: 19, bold: true, color: "#BAE6FD"})
+  let i = 0
+  for pl in PLACES do
+    i = i + 1
+    p.ui_button("pl_go" + i, pl.name, {parent: "pl_box", y: (30 + i * 44) / h, w: 380, h: 38, size: 15, bg: "#1E3A8A"})
+  end
+  p.ui_button("pl_close", "閉じる", {parent: "pl_box", y: (h - 26) / h, w: 130, h: 36, size: 15, bg: "gray"})
+end
+
+func go_place(p, i)
+  let pl = PLACES[i]
+  if pl == nil then return end
+  p.ui_remove("pl_box")
+  if p.carry != nil then
+    p.message("🦹 はこんでいる時は ワープできない！ 走れ！", 1.5)
+    return
+  end
+  if pl.at == nil then
+    if p.base == nil then return end
+    p.teleport(base_front(p.base) + {x: 0, y: 1, z: BASES[p.base].side * 2})
+    p.yaw = face_yaw(p.base)
+  else
+    p.teleport(pl.at)
+  end
+  p.sound("teleport")
+end
+
+-- MARK: 画面
+
+func rebirth_hud(p)
+  let n = p.rebirths or 0
+  p.ui_text("rb_hud", "🌟 転生 " + n + "   もうけ ×" + fixed(income_mult(p), 2) + "   📖 " + dex_count(p) + "/" + len(CHARS),
+            {at: "top_left", dy: 34, size: 15, bold: true, color: "#FBCFE8"})
+end
+
+func side_buttons(p)
+  p.ui_button("base_menu", "🏠 きち", {at: "right", dy: -214, w: 150, h: 46, size: 16, bg: "#4338CA"})
+  p.ui_button("dex_menu", "📖 図鑑", {at: "right", dy: -162, w: 150, h: 46, size: 16, bg: "#0F766E"})
+  p.ui_button("events_menu", "📅 イベント", {at: "right", dy: -110, w: 150, h: 46, size: 16, bg: "#7C3AED"})
+  p.ui_button("places", "🧭 ワープ", {at: "right", dy: -58, w: 150, h: 46, size: 16, bg: "#0369A1"})
+  kit_quest_button(p)
+  kit_camera_button(p)
+end
+
+-- MARK: るすのあいだの もうけ（Ablox 2.3 から: today() を つかう）
+
+func day_number(y, m, d)
+  let yy = y
+  if m <= 2 then yy = yy - 1 end
+  let era = floor(yy / 400)
+  let yoe = yy - era * 400
+  let mp = (m + 9) % 12
+  let doy = floor((153 * mp + 2) / 5) + d - 1
+  let doe = yoe * 365 + floor(yoe / 4) - floor(yoe / 100) + doy
+  return era * 146097 + doe
+end
+
+func clock_now()
+  let d = today()
+  return day_number(d.year, d.month, d.day) * 86400 + d.hour * 3600 + d.minute * 60 + d.second
+end
+
+func offline_pay(p)
+  let now = clock_now()
+  let last = p.last_seen
+  p.last_seen = now
+  if last == nil or p.base == nil then return end
+  let gap = now - last
+  if gap < 120 then return end
+  let secs = min(gap, 3 * 3600)
+  let amt = floor(base_income(p.base) * secs * 0.2)
+  if amt <= 0 then return end
+  pay(p, amt)
+  p.message("💤 るすの あいだに ミームたちが かせいだ: +" + money(amt) + "（" + floor(secs / 60) + "分ぶん）", 4)
+  p.sound("coin")
+end
 
 -- MARK: 入ってきた人
 
 on join(p)
-  p.gear = []
-  p.seen = []
-  p.index = []
-  p.slots_open = 5
-  p.lock_level = 1
-  p.rebirth = 0
-  p.vault = 0
-  p.pending = 0
   kit_welcome(p)
-  kit_give(p, 100)
-  p.give("バット")
-  p.ui_button("open_base", "🏠 基地", {at: "right", dy: -120, w: 150, h: 50, size: 17, bg: "#4338CA"})
-  p.ui_button("open_index", "📖 図鑑", {at: "right", dy: -60, w: 150, h: 50, size: 17, bg: "#0F766E"})
-  kit_quest_button(p)
-  kit_camera_button(p)
-  hud(p)
+  if p.coins == nil then p.coins = START_MONEY end
+  kit_show_money(p)
+  side_buttons(p)
+  p.camera_distance = 14
+  give_gear_items(p)
+  rebirth_hud(p)
+  kit_later(p, 0.6, func() claim(p) end)
+end
+
+on loaded(p)
+  kit_later(p, 0.4, func()
+    give_gear_items(p)
+    rebirth_hud(p)
+  end)
+  kit_later(p, 1.5, func() offline_pay(p) end)
+end
+
+on start()
+  every(15, func() kit_leaderboard("💰 かせいだ") end)
+  every(30, func()
+    for p in players() do
+      if not p.is_npc and p.kit_loaded then p.last_seen = clock_now() end
+    end
+  end)
+end
+
+let mn_clock = 0
+on tick(dt)
+  mn_clock = mn_clock + dt
+  if mn_clock < 2 then return end
+  mn_clock = 0
+  for p in players() do
+    if not p.is_npc then
+      let s = floor(p.earned or 0)
+      if s != p.score then p.score = s end
+      rebirth_hud(p)
+    end
+  end
+end
+
+on button(p, id)
+  if id == "places" then open_places(p)
+  elif id == "pl_close" then p.ui_remove("pl_box")
+  elif starts_with(id, "pl_go") then go_place(p, num(replace(id, "pl_go", "")))
+  end
 end
 
 on respawn(p)
   if p.is_npc then return end
-  if contains(p.gear, "slap") then p.give("スラップハンド") else p.give("バット") end
+  refresh_move(p)
+  if p.base != nil then
+    p.teleport(base_front(p.base) + {x: 0, y: 1, z: BASES[p.base].side * 2})
+  end
 end

@@ -1,72 +1,458 @@
--- events.absc — イベントとランキング
--- 2分半ごとにイベント: いん石（ようがんキャラ）・にじ（レインボー）・ギャラクシー・ラッシュ
+-- events.absc — イベントを 動かす: 4〜6分ごとに 天気や 変異のあらしが 自然に起き、10分ごと（土曜日は もっと）に
+-- 管理人の マエストロ・ポッポが ステージで イベントを起こす。イベント中は カーペットのミームに 特性や変異が
+-- つきやすく、ときどき 空から なにかが おちてきて きちのミームにも つく。イベントだけの キャラも 歩いてくる。
+-- 📅 ボタンで 見たイベントの 図鑑（50）。
 
-let event_now = nil
-let event_until = 0
-let event_index = 0
-let event_clock = 0
-let meteors = []
+let active = []        -- {ev, until（0 は ずっと）, started, next_strike}
+let ev_clock = 0
+let next_natural = 70
+let next_admin = 300
+let maestro = nil
+let cash_drops = []    -- {b}
+let lucky_drops = []   -- {b, id}
+let look_now = {}
+let boost_income = 1
+let billion_done = false
 
-func start_event(e)
-  end_event()
-  event_now = e.id
-  event_until = time() + e.seconds
-  if e.id == "meteor" then mut_boost = {lava: 30} end
-  if e.id == "rainbow" then mut_boost = {rainbow: 8} end
-  if e.id == "galaxy" then mut_boost = {galaxy: 8} end
-  if e.id == "rush" then
-    spawn_every = 1.2
-    luck = 1.8
+func event_on(id)
+  return any(active, func(a) return a.ev.id == id end)
+end
+
+func active_of(id)
+  return find(active, func(a) return a.ev.id == id end)
+end
+
+-- カーペットのミームの 変異（イベント中だけ）
+func event_mutation()
+  for a in active do
+    if a.ev.mut != nil and chance(a.ev.mc or 0) then return a.ev.mut end
   end
-  announce(e.name + "！ " + e.text, 4)
-  sound("checkpoint")
+  return nil
 end
 
-func end_event()
-  if event_now == nil then return end
-  event_now = nil
-  mut_boost = {}
-  spawn_every = 3
-  luck = 1
-  ui_remove("event")
-  for b in meteors do gone(b) end
-  meteors = []
+func event_traits()
+  let list = []
+  for a in active do
+    let t = a.ev.trait
+    if t != nil and len(list) < MAX_TRAITS and not contains(list, t) and chance(a.ev.tc or 0) then append(list, t) end
+  end
+  return list
 end
 
--- いん石: 空から光る玉が落ちてくる（見た目だけ）
-func meteor_fx()
-  let x = random(-8, 8)
-  let z = random(-50, 50)
-  let b = create_block({name: "Meteor", shape: "sphere", position: {x: x, y: 40, z: z}, size: 2, color: "#F97316", material: "neon", solid: false})
-  b.move(0, -39, 0, 1.2)
-  append(meteors, b)
-  after(1.4, func()
-    gone(b)
-    if contains(meteors, b) then remove(meteors, index_of(meteors, b)) end
+-- MARK: はじめる・おわる
+
+func start_event(id, by)
+  let ev = EVENT_BY_ID[id]
+  if ev == nil then return end
+  let now = time()
+  let a = active_of(id)
+  if a != nil then
+    if ev.dur > 0 then a.until = max(a.until, now + ev.dur) end
+    return
+  end
+  let until = 0
+  if ev.dur > 0 then until = now + ev.dur end
+  a = {ev: ev, until: until, started: now, next_strike: now + 4}
+  append(active, a)
+  apply_boosts()
+  apply_look()
+  let who = ""
+  if by != nil then who = "（" + by + "）" end
+  if ev.kind != "season" then
+    announce(ev.icon + " " + ev.name + "！" + who + " " + ev.desc, 5)
+    sound("bell")
+  end
+  for p in players() do
+    if not p.is_npc then seen_event(p, ev) end
+  end
+  -- このイベントだけの キャラを 1体 すぐに カーペットへ
+  let special = filter(CHARS, func(c) return c.src == "event:" + id end)
+  if len(special) > 0 and ev.kind != "season" then
+    after(3, func() carpet_send(random(special), nil, nil) end)
+  end
+  if id == "admin_lucky" then drop_lucky()
+  elif id == "admin_money" then drop_cash()
+  elif id == "admin_og" then og_parade()
+  elif id == "billion" then
+    let toaster = find(CHARS, func(c) return c.src == "event:billion" end)
+    if toaster != nil then
+      after(3, func()
+        let w = carpet_send(toaster, "gold", nil)
+        walker_sale(w, 0.1)
+      end)
+    end
+  end
+end
+
+func end_event(a)
+  active = filter(active, func(x) return x != a end)
+  apply_boosts()
+  apply_look()
+  if a.ev.kind != "season" then announce(a.ev.icon + " " + a.ev.name + " が おわった", 2) end
+  if a.ev.id == "admin_lucky" then
+    for d in lucky_drops do kit_gone(d.b) end
+    lucky_drops = []
+  elif a.ev.id == "admin_money" then
+    for d in cash_drops do kit_gone(d.b) end
+    cash_drops = []
+  end
+end
+
+func stop_event(id)
+  let a = active_of(id)
+  if a != nil then end_event(a) end
+end
+
+func apply_boosts()
+  let b = {income: 1, luck: 1, spawn: 1, lanes: 1, speed: 1, jump: 1}
+  for a in active do
+    let x = a.ev.boost
+    if x != nil then
+      for k in keys(x) do
+        if k == "lanes" then b.lanes = max(b.lanes, x.lanes) else b[k] = b[k] * x[k] end
+      end
+    end
+  end
+  for k in keys(b) do BOOST[k] = b[k] end
+  if BOOST.income != boost_income then
+    boost_income = BOOST.income
+    relabel_all()
+  end
+  for p in players() do
+    if not p.is_npc then refresh_move(p) end
+  end
+end
+
+func apply_look()
+  let look = {weather: "clear", sky: "clouds", effect: "none", music: "none"}
+  for a in active do
+    let x = a.ev.look
+    if x != nil then
+      for k in keys(x) do look[k] = x[k] end
+    end
+  end
+  if look_now.weather != look.weather then world.weather = look.weather end
+  if look_now.sky != look.sky then world.sky_style = look.sky end
+  if look_now.effect != look.effect then world.effect = look.effect end
+  if look_now.music != look.music then
+    if look.music == "none" then music(nil) else music(look.music) end
+  end
+  look_now = look
+end
+
+-- MARK: おちてくるもの
+
+func strike_look(fx)
+  if fx == "drop" then return {shape: "sphere", size: 0.6, color: "#38BDF8", mat: "glass", fx: "bubbles", snd: "splash"} end
+  if fx == "flake" then return {shape: "sphere", size: 0.7, color: "#F8FAFC", mat: "neon", fx: "snow", snd: "pop"} end
+  if fx == "star" then return {shape: "sphere", size: 0.9, color: "#FDE047", mat: "neon", fx: "stars", snd: "magic"} end
+  if fx == "meteor" then return {shape: "sphere", size: 1.6, color: "#9A3412", mat: "stone", fx: "fire", snd: "explosion"} end
+  if fx == "bolt" then return {shape: "box", size: {x: 0.3, y: 6, z: 0.3}, color: "#FEF08A", mat: "neon", fx: "sparkles", snd: "laser"} end
+  if fx == "taco" then return {shape: "cylinder", size: {x: 1.2, y: 0.5, z: 1.2}, color: "#FBBF24", mat: "plastic", fx: "confetti", snd: "pop"} end
+  if fx == "berry" then return {shape: "cone", size: 0.9, color: "#EF4444", mat: "plastic", fx: "hearts", snd: "pop"} end
+  if fx == "heart" then return {shape: "sphere", size: 0.9, color: "#F472B6", mat: "neon", fx: "hearts", snd: "pop"} end
+  if fx == "petal" then return {shape: "sphere", size: 0.6, color: "#FBCFE8", mat: "plastic", fx: "leaves", snd: "pop"} end
+  if fx == "bubble" then return {shape: "sphere", size: 1, color: "#BAE6FD", mat: "glass", fx: "bubbles", snd: "pop"} end
+  if fx == "firework" then return {shape: "sphere", size: 0.7, color: "#F97316", mat: "neon", fx: "confetti", snd: "explosion"} end
+  if fx == "beam" then return {shape: "cylinder", size: {x: 1.2, y: 8, z: 1.2}, color: "#A7F3D0", mat: "neon", fx: "magic", snd: "teleport"} end
+  return {shape: "sphere", size: 0.9, color: "#C084FC", mat: "neon", fx: "magic", snd: "magic"}
+end
+
+func strike(a)
+  let now = time()
+  let cands = []
+  for k in 1 to len(BASES) do
+    if bases[k].owner != nil or bases[k].rival != nil then
+      for sl in slot_list(k) do
+        if sl.ready <= now then append(cands, sl) end
+      end
+    end
+  end
+  if len(cands) == 0 then return end
+  -- プレイヤーのきちに 少し 当たりやすく
+  let owned = filter(cands, func(sl) return bases[sl.k].owner != nil end)
+  let sl = random(cands)
+  if len(owned) > 0 and chance(55) then sl = random(owned) end
+  let ev = a.ev
+  let top = stand_top(sl.k, sl.f, sl.s)
+  let lk = strike_look(ev.fx)
+  let b = create_block({name: "Strike", position: top + {x: 0, y: 28, z: 0}, size: lk.size, shape: lk.shape, color: lk.color, material: lk.mat,
+                        solid: false})
+  if ev.fx == "meteor" then b.particles = "fire" end
+  mv(b, top + {x: 0, y: 1, z: 0}, 1.1)
+  after(1.15, func()
+    kit_gone(b)
+    particles(lk.fx, top + {x: 0, y: 1, z: 0}, {amount: 24})
+    sound(lk.snd, {volume: 0.5})
+    apply_strike(sl, ev)
   end)
+end
+
+func apply_strike(sl, ev)
+  if bases[sl.k].slots[skey(sl.f, sl.s)] != sl then return end
+  let o = bases[sl.k].owner
+  let what = nil
+  if ev.mut != nil and MUTATIONS[ev.mut].mult > MUTATIONS[sl.e.mut].mult then
+    sl.e.mut = ev.mut
+    rebuild_slot(sl)
+    what = MUTATIONS[ev.mut].icon + " " + MUTATIONS[ev.mut].name + "変異"
+  elif ev.trait != nil and not contains(sl.e.tr, ev.trait) and len(sl.e.tr) < MAX_TRAITS then
+    sl.e.tr = copy(sl.e.tr)
+    append(sl.e.tr, ev.trait)
+    slot_label(sl)
+    sync_save(sl.k)
+    what = TRAITS[ev.trait].icon + " " + TRAITS[ev.trait].name + "の特性"
+  end
+  if what != nil and o != nil and kit_here(o) then
+    o.message(what + " が " + char_of(sl.e.id).n + " に ついた！ もうけ ×" + fixed(meme_mult(sl.e.mut, sl.e.tr), 1), 2.5)
+    o.sound("magic")
+    if ev.trait != nil then kit_quest_progress(o, "trait", 1) end
+    if ev.mut != nil then kit_quest_progress(o, "mutant", 1) end
+    dex_add(o, sl.e)
+  end
+end
+
+-- MARK: 管理人のイベント
+
+func spawn_maestro()
+  let spot = block("Admin Spot")
+  if spot == nil then return end
+  maestro = create_npc({name: "マエストロ・ポッポ", position: spot.position, color: "#7C3AED", head_color: "#FDE68A", leg_color: "#1E1B4B",
+                        hat: "wizard", speed: 0.35, health: 1000000, size: 1.5})
+  maestro.admin = true
+  maestro.yaw = 270
+end
+
+func maestro_say(text)
+  if maestro != nil and kit_here(maestro) then maestro.say(text) end
+end
+
+func admin_event()
+  let list = filter(EVENTS, func(ev) return ev.kind == "admin" end)
+  let ev = list[pick_weighted(map(list, func(e) return e.w end))]
+  let lines = ["ポッポー！ みんな あつまれー！", "ステージの じかんだよ〜！", "マエストロの まほう、いくよ！", "ポッポ ポッポ… えいっ！"]
+  maestro_say(random(lines) + " " + ev.icon + " " + ev.name + "！")
+  if maestro != nil and kit_here(maestro) then maestro.emote("cheer") end
+  announce("🎩 管理人 マエストロ・ポッポ が ステージに！", 3)
+  sound("drum")
+  after(3, func() start_event(ev.id, "マエストロ") end)
+end
+
+func drop_spot()
+  let r = random(1, 3)
+  if r == 1 then return {x: random_float(-112, 112), y: 0, z: random_float(-9, 9)} end
+  if r == 2 then return {x: random_float(-185, -135), y: 0, z: random_float(-20, 20)} end
+  return {x: random_float(140, 200), y: 0, z: random_float(-15, 15)}
+end
+
+func drop_lucky()
+  for i in 1 to 14 do
+    let at = drop_spot()
+    let id = ["rare", "epic", "legend", "mythic"][pick_weighted([50, 32, 14, 4])]
+    let l = LUCKY_BY_ID[id]
+    let b = create_block({name: "Lucky Drop", position: at + {x: 0, y: 30, z: 0}, size: 1.3, color: l.color, material: "neon", solid: false,
+                          behavior: "trigger", tags: ["luckydrop"]})
+    b.animation = "spin"
+    b.label = [{text: "🎁 ？", color: l.color}]
+    b.label_size = 0.8
+    mv(b, at + {x: 0, y: 1, z: 0}, 2 + i * 0.15)
+    append(lucky_drops, {b: b, id: id})
+  end
+end
+
+func drop_cash()
+  for i in 1 to 30 do
+    let at = drop_spot()
+    let b = create_block({name: "Cash Drop", position: at + {x: 0, y: 26, z: 0}, size: {x: 1, y: 0.25, z: 1}, shape: "cylinder", color: "#22C55E",
+                          material: "neon", solid: false, behavior: "trigger", tags: ["cashdrop"], rotation: {x: 90, y: 0, z: 0}})
+    b.animation = "spin"
+    mv(b, at + {x: 0, y: 1, z: 0}, 1.5 + i * 0.08)
+    append(cash_drops, {b: b})
+  end
+end
+
+func og_parade()
+  let ogs = filter(CHARS, func(c) return c.src == "admin" end)
+  if len(ogs) == 0 then return end
+  let c = random(ogs)
+  after(3, func()
+    let w = carpet_send(c, nil, nil)
+    walker_sale(w, 0.1)
+    announce("👑 OG の " + c.n + " が カーペットに！ 管理人セールで 1/10 の ねだん！", 5)
+  end)
+end
+
+func pick_drop(p, b, list)
+  let d = find(list, func(x) return x.b == b end)
+  if d == nil then return nil end
+  kit_gone(b)
+  return d
+end
+
+-- MARK: 📅 イベント図鑑
+
+func seen_event(p, ev)
+  if p.evseen == nil then p.evseen = [] end
+  if contains(p.evseen, ev.id) then return end
+  append(p.evseen, ev.id)
+  kit_quest_progress(p, "events", 1)
+  if len(p.evseen) >= 25 then kit_badge(p, "events25", "イベントを 25しゅるい 見た") end
+end
+
+func open_events(p, page)
+  let per = 25
+  let pages = ceil(len(EVENTS) / per)
+  page = clamp(page or 1, 1, pages)
+  p.ev_page = page
+  let list = slice(EVENTS, (page - 1) * per + 1, min(len(EVENTS), page * per))
+  let h = 150 + 13 * 30
+  p.ui_remove("ev_box")
+  p.ui_panel("ev_box", {at: "center", w: 780, h: h, bg: "#1E1B4BF2", radius: 22, layer: 40})
+  p.ui_text("ev_t", "📅 イベント図鑑 " + len(p.evseen or []) + "/" + len(EVENTS) + "   " + page + "/" + pages, {parent: "ev_box", y: 24 / h, size: 19, bold: true, color: "#C7D2FE"})
+  let now_list = map(active, func(a) return a.ev.icon + a.ev.name end)
+  let now_text = "いま: なし"
+  if len(now_list) > 0 then now_text = "いま: " + join(now_list, "・") end
+  p.ui_text("ev_now", now_text, {parent: "ev_box", y: 50 / h, size: 13, color: "#FDE68A"})
+  let i = 0
+  for ev in list do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    let text = "❓ ？？？"
+    let c = "#6B7280"
+    if contains(p.evseen or [], ev.id) then
+      text = ev.icon + " " + ev.name
+      c = "#FFFFFF"
+    end
+    p.ui_button("ev_e" + i, text, {parent: "ev_box", y: (78 + row * 30) / h, dx: -190 + col * 380, w: 360, h: 26, size: 12, bg: "#312E81", color: c})
+  end
+  p.ev_view = map(list, func(ev) return ev.id end)
+  let by = (h - 28) / h
+  p.ui_button("ev_close", "閉じる", {parent: "ev_box", y: by, w: 130, h: 36, size: 15, bg: "gray"})
+  if pages > 1 then p.ui_button("ev_more", "▶ つぎ", {parent: "ev_box", y: by, dx: 170, w: 110, h: 36, size: 15, bg: "#4338CA"}) end
+end
+
+func event_detail(p, i)
+  let id = (p.ev_view or [])[i]
+  let ev = EVENT_BY_ID[id or ""]
+  if ev == nil then return end
+  if contains(p.evseen or [], ev.id) then
+    p.message(ev.icon + " " + ev.name + ": " + ev.desc, 4)
+  else
+    let hint = "ときどき 自然に起きる"
+    if ev.kind == "admin" then hint = "管理人 マエストロ・ポッポ が 起こす" end
+    if ev.kind == "season" then hint = "とくべつな 日にちや 曜日に 起きる" end
+    if ev.kind == "ritual" then hint = "儀式で 起きる" end
+    if ev.kind == "special" then hint = "だれかが すごいことを すると 起きる" end
+    p.message("❓ まだ 見ていないイベント。ヒント: " + hint, 3)
+  end
+end
+
+-- MARK: まいフレーム
+
+func event_banner()
+  let parts = []
+  let now = time()
+  for a in active do
+    if a.until > 0 then
+      append(parts, a.ev.icon + " " + a.ev.name + " " + kit_clock(a.until - now))
+    else
+      append(parts, a.ev.icon + " " + a.ev.name)
+    end
+  end
+  if len(parts) == 0 then
+    ui_remove("ev_bar")
+  else
+    ui_text("ev_bar", join(parts, "   "), {at: "top", dy: 30, size: 15, bold: true, color: "#FDE68A"})
+  end
 end
 
 on start()
-  every(150, func()
-    event_index = event_index % len(EVENTS) + 1
-    start_event(EVENTS[event_index])
-  end)
-  every(5, func() kit_leaderboard("💸 かせぎ/秒") end)
+  world.music = "adventure"
+  spawn_maestro()
 end
 
 on tick(dt)
-  event_clock = event_clock + dt
-  if event_clock < 1 then return end
-  event_clock = 0
-  if event_now == nil then return end
-  let left = event_until - time()
-  if left <= 0 then
-    end_event()
-    announce("イベントはおしまい", 2)
-    return
+  ev_clock = ev_clock + dt
+  if ev_clock < 1 then return end
+  ev_clock = 0
+  let now = time()
+  for a in active do
+    if a.until > 0 and now >= a.until then
+      end_event(a)
+    elif a.ev.strike != nil and a.ev.strike > 0 and now >= a.next_strike then
+      a.next_strike = now + a.ev.strike
+      strike(a)
+    end
   end
-  for e in EVENTS do
-    if e.id == event_now then ui_text("event", e.name + "  のこり " + kit_clock(left), {at: "top", dy: 84, size: 16, bold: true, color: "#FDE047"}) end
+  -- 天気・変異のあらし（1つずつ）
+  if now >= next_natural then
+    next_natural = now + random_float(220, 360)
+    let busy = any(active, func(a) return a.ev.kind == "weather" or a.ev.kind == "mutation" end)
+    if not busy then
+      let list = filter(EVENTS, func(ev) return ev.w > 0 and (ev.kind == "weather" or ev.kind == "mutation") end)
+      start_event(list[pick_weighted(map(list, func(e) return e.w end))].id, nil)
+    end
   end
-  if event_now == "meteor" then meteor_fx() end
+  -- 管理人
+  if now >= next_admin then
+    next_admin = now + random_float(560, 720)
+    if is_saturday() then next_admin = now + random_float(330, 450) end
+    if not any(active, func(a) return a.ev.kind == "admin" end) then admin_event() end
+  end
+  if maestro == nil or not kit_here(maestro) then spawn_maestro()
+  elif chance(6) then
+    let spot = block("Admin Spot")
+    if spot != nil then maestro.move_to(spot.position + {x: random_float(-5, 4), y: 0, z: random_float(-7, 7)}) end
+  end
+  -- 10おくの日
+  if not billion_done then
+    for p in players() do
+      if not p.is_npc and (p.earned or 0) >= 1000000000 and not billion_done then
+        billion_done = true
+        start_event("billion", p.name)
+      end
+    end
+  end
+  event_banner()
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "cashdrop") then
+    let d = pick_drop(p, b, cash_drops)
+    if d == nil then return end
+    cash_drops = filter(cash_drops, func(x) return x != d end)
+    let amt = 1000
+    if p.base != nil then amt = max(1000, floor(base_income(p.base) * 20)) end
+    pay(p, amt)
+    p.message("💸 +" + money(amt), 1)
+    p.sound("coin")
+  elif contains(b.tags, "luckydrop") then
+    let d = pick_drop(p, b, lucky_drops)
+    if d == nil then return end
+    lucky_drops = filter(lucky_drops, func(x) return x != d end)
+    add_lucky(p, d.id, 1)
+    let l = LUCKY_BY_ID[d.id]
+    p.message("🎁 " + l.name + " を ひろった！ 下のバーで 開けよう", 2)
+    p.sound("collect")
+  end
+end
+
+on button(p, id)
+  if id == "events_menu" then open_events(p, 1)
+  elif id == "ev_close" then p.ui_remove("ev_box")
+  elif id == "ev_more" then
+    let pg = (p.ev_page or 1) + 1
+    if pg > ceil(len(EVENTS) / 25) then pg = 1 end
+    open_events(p, pg)
+  elif starts_with(id, "ev_e") then event_detail(p, num(replace(id, "ev_e", "")))
+  end
+end
+
+on join(p)
+  kit_later(p, 2, func()
+    for a in active do seen_event(p, a.ev) end
+    refresh_move(p)
+  end)
 end

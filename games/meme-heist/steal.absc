@@ -1,138 +1,188 @@
--- steal.absc — 盗む・守る
--- ほかの基地の台にさわると、そのキャラをかかえて運べる（足がおそくなる）。
--- 自分の基地の真ん中のパッドまで運べば自分のもの。バットでたたかれる・クモの糸・トラップ・
--- レーザーで落とす。45秒以内に運べないとキャラは持ち主の基地へ帰る。
+-- steal.absc — ぬすむ: ロックしていない ほかのきちの台に近づいて「ぬすむ」。ミームを 頭の上に もちあげて
+-- 自分のきちまで はこぶ（おそくなる・60秒まで）。もちぬしに タッチされたり、たたかれたり、ガードに
+-- つかまったりすると ミームは もとの台に 歩いてもどる。自分のきちに入れば 大成功！
 
-let CARRY_TIME = 45
-let steal_clock = 0
+let st_clock = 0
 
-func carry_speed(p)
-  let s = 0.7
-  if contains(p.gear, "coil") then s = 0.95 end
-  return s
+func carry_height(p)
+  return 3.1 * (p.size or 1)
 end
 
-func steal(p, b)
-  let parts = split(b.name, " ")
-  let base = parts[2]
-  let slot = num(parts[4])
-  if base == p.base or p.carrying != nil then return end
-  let item = base_slots[slot_key(base, slot)]
-  if item == nil then return end
-  if is_locked(base) then
-    p.message("🔒 この基地はロック中！", 1.5)
-    return
+-- MARK: ぬすむ
+
+func steal_target(p)
+  if p.carry != nil or p.base == nil then return nil end
+  let k = base_at(p.position)
+  if k == nil or k == p.base or is_locked(k) then return nil end
+  let now = time()
+  let best = nil
+  let bd = 3.6
+  for sl in slot_list(k) do
+    if sl.ready <= now then
+      let d = distance(p.position, stand_top(k, sl.f, sl.s))
+      if d < bd then
+        bd = d
+        best = sl
+      end
+    end
   end
-  if p.base == nil then
-    p.message("盗む前に、自分の基地を持とう", 1.5)
-    return
-  end
-  clear_statue(base, slot)
-  p.carrying = {id: item.id, mut: item.mut, from: base, owner: base_owner[base], t: time()}
-  p.saved_head = p.head_color
-  p.head_color = meme_by_id(item.id).color
-  move_refresh(p)
-  set_line(p, "carry", "🏃 " + meme_title(item.id, item.mut) + " を運んでいる！自分の基地の真ん中へ！",
-           {at: "center", dy: -130, size: 20, bold: true, color: "#F87171"})
-  announce("🚨 " + p.name + " が基地 " + base + " から " + meme_title(item.id, item.mut) + " を盗んだ！", 3)
-  let owner = player_by_id(base_owner[base])
-  if owner != nil then
-    owner.message("🚨 " + p.name + " にキャラを盗まれた！たたいて取り返せ！", 3)
-    owner.sound("error")
-  end
+  return best
 end
 
--- 自分の基地に着いた
+func try_steal(p, sl)
+  if sl == nil or p.carry != nil or p.base == nil then return end
+  let k = sl.k
+  if bases[k].slots[skey(sl.f, sl.s)] != sl then return end
+  if is_locked(k) then
+    if kit_ready(p, "lockmsg", 2) then p.message("🔒 ロック中！", 1) end
+    return
+  end
+  if free_stand(p.base) == nil then
+    p.message("🏠 自分のきちの 台が いっぱい！ 先に 売るか 転生しよう", 2)
+    p.sound("error")
+    return
+  end
+  let owner = bases[k].owner
+  let rival = bases[k].rival
+  let e = remove_meme(k, sl.f, sl.s)
+  uncloak(p)
+  let m = build_model(e, p.position + {x: 0, y: carry_height(p), z: 0}, p.yaw)
+  m.root.animation = "wobble"
+  p.carry = {e: e, k: k, f: sl.f, s: sl.s, m: m, until: time() + CARRY_SECS, owner: owner, rival: rival}
+  refresh_move(p)
+  p.ui_remove("steal")
+  p.steal_label = nil
+  p.ui_button("drop", "🫳 もどす", {at: "bottom", dy: -150, w: 180, h: 48, size: 16, bg: "#57534E"})
+  p.ui_bar("carry_bar", CARRY_SECS, CARRY_SECS, {at: "top", dy: 92, w: 260, h: 12, color: "#F472B6"})
+  p.waypoint(block("Base " + p.base + " Sign"), "自分のきち", "#22C55E")
+  p.message("🦹 " + meme_title(e) + " を ぬすんだ！ 自分のきちまで はこべ！（" + CARRY_SECS + "秒）", 2.5)
+  p.sound("whoosh")
+  kit_quest_progress(p, "steal_try", 1)
+  if owner != nil and kit_here(owner) then
+    owner.message("🚨 " + p.name + " が " + meme_title(e) + " を ぬすんだ！ タッチか 👋 で とりかえせ！", 3)
+    owner.sound("alarm")
+  end
+  if rival != nil then rival_alarm(k, p) end
+end
+
+-- もとの台へ 歩いてもどる（台が うまっていたら あいている台へ）
+func return_carry(p, why)
+  let c = p.carry
+  if c == nil then return end
+  p.carry = nil
+  destroy_model(c.m)
+  let from = nil
+  if kit_here(p) then
+    from = p.position + {x: 0, y: 0.2, z: 0}
+    refresh_move(p)
+    p.ui_remove("drop")
+    p.ui_remove("carry_bar")
+    p.waypoint(nil)
+  end
+  let base = bases[c.k]
+  if base.owner == c.owner and base.rival == c.rival and (c.owner == nil or kit_here(c.owner)) then
+    let f = c.f
+    let s = c.s
+    if slot_at(c.k, f, s) != nil or f > floors_open(c.k) then
+      let st = free_stand(c.k)
+      if st != nil then
+        f = st.f
+        s = st.s
+      else
+        f = nil
+      end
+    end
+    if f != nil then place_meme(c.k, f, s, c.e, from) end
+  end
+  if why != nil and why != "" and kit_here(p) then p.message(why, 2) end
+end
+
 func deliver(p)
-  let c = p.carrying
-  if c == nil then return end
-  if put_in_base(p, c.id, c.mut) then
-    p.message("✅ " + meme_title(c.id, c.mut) + " を手に入れた！", 2.5)
-    p.sound("goal")
-    p.steals = (p.steals or 0) + 1
-    kit_quest_progress(p, "steal", 1)
-    kit_quest_progress(p, "steal10", 1)
-    chat("😈 " + p.name + " が " + meme_title(c.id, c.mut) + " の盗みに成功！")
-    end_carry(p)
-  else
-    drop_carry(p, "台がいっぱいで置けなかった…キャラは帰っていった")
+  let c = p.carry
+  let st = free_stand(p.base)
+  if st == nil then
+    if kit_ready(p, "fullbase", 3) then p.message("🏠 台が いっぱい！ 🏠メニューで 売って あけよう", 2) end
+    return
   end
-end
-
-func end_carry(p)
-  p.carrying = nil
-  if p.saved_head != nil then p.head_color = p.saved_head end
-  set_line(p, "carry", nil, nil)
-  move_refresh(p)
-end
-
--- 落とした: キャラは持ち主の基地に帰る
-func drop_carry(p, why)
-  let c = p.carrying
-  if c == nil then return end
-  end_carry(p)
-  if why != nil then p.message(why, 2) end
-  return_meme(c)
-end
-
-func return_meme(c)
-  let owner = player_by_id(c.owner)
-  if owner != nil and owner.base == c.from and put_in_base(owner, c.id, c.mut) then
-    owner.message("🛡 " + meme_title(c.id, c.mut) + " が基地に帰ってきた！", 2)
-    kit_quest_progress(owner, "defend", 1)
-  else
-    chat("💨 " + meme_title(c.id, c.mut) + " はどこかへ行ってしまった…")
+  p.carry = nil
+  destroy_model(c.m)
+  refresh_move(p)
+  p.ui_remove("drop")
+  p.ui_remove("carry_bar")
+  p.waypoint(nil)
+  place_meme(p.base, st.f, st.s, c.e, p.position)
+  got_meme(p, c.e)
+  p.steals = (p.steals or 0) + 1
+  kit_quest_progress(p, "steal", 1)
+  kit_quest_progress(p, "steal10", 1)
+  if c.rival != nil then kit_quest_progress(p, "rival", 1) end
+  p.message("🎉 ぬすみ 大成功！ " + meme_title(c.e) + " が 自分のきちに！", 2.5)
+  p.sound("win")
+  particles("confetti", p, {amount: 40})
+  let r = char_of(c.e.id).r
+  if r >= 4 then announce("🦹 " + p.name + " が " + RARITIES[r].name + " の " + meme_title(c.e) + " を ぬすみ出した！", 3) end
+  if c.owner != nil and kit_here(c.owner) then
+    c.owner.message("😢 " + meme_title(c.e) + " を ぬすまれた… 🔒 ロックを わすれずに！", 3)
   end
+  if p.steals >= 25 then kit_badge(p, "thief25", "大どろぼう（25回）") end
 end
 
-func move_refresh(p)
-  let speed = 1
-  if contains(p.gear, "coil") then speed = 1.35 end
-  if p.carrying != nil then speed = carry_speed(p) end
-  if p.mv_speed != speed then
-    p.speed = speed
-    p.mv_speed = speed
-  end
+-- だれかに たたかれたり 止められたりしたとき（ギアから よばれる）
+func knock_drop(p, why)
+  if p.carry != nil then return_carry(p, why) end
 end
+
+-- MARK: まいフレーム
 
 on tick(dt)
-  steal_clock = steal_clock + dt
-  if steal_clock < 0.5 then return end
-  steal_clock = 0
+  st_clock = st_clock + dt
+  if st_clock < 0.25 then return end
+  st_clock = 0
+  let now = time()
   for p in players() do
-    let c = p.carrying
-    if c != nil then
-      let left = CARRY_TIME - (time() - c.t)
-      if left <= 0 then
-        drop_carry(p, "⌛ 時間切れ！キャラは帰っていった")
+    if not p.is_npc then
+      let c = p.carry
+      if c != nil then
+        mv(c.m.root, p.position + {x: 0, y: carry_height(p), z: 0}, 0.25)
+        p.ui_bar("carry_bar", max(0, c.until - now), CARRY_SECS)
+        if p.base != nil and in_base(p.position, p.base) then
+          deliver(p)
+        elif now > c.until then
+          return_carry(p, "⏰ 時間切れ… ミームは もとのきちへ 歩いていった")
+        elif c.owner != nil and kit_here(c.owner) and distance(c.owner, p) < 3 then
+          return_carry(p, "🚨 つかまった！ ミームを とりかえされた")
+          c.owner.message("🛡 とりかえした！", 2)
+          c.owner.sound("win")
+          kit_quest_progress(c.owner, "defend", 1)
+        end
       else
-        set_line(p, "carry_t", "⌛ " + ceil(left), {at: "center", dy: -96, size: 18, color: "#FCA5A5"})
-        let home = home_block(p.base)
-        if home != nil and distance(p, home) < 3 then deliver(p) end
+        let sl = steal_target(p)
+        p.steal_pick = sl
+        let label = nil
+        if sl != nil then label = "🦹 ぬすむ: " + meme_title(sl.e) end
+        if label != p.steal_label then
+          p.steal_label = label
+          if label == nil then
+            p.ui_remove("steal")
+          else
+            p.ui_button("steal", label, {at: "bottom", dy: -210, w: 380, h: 54, size: 17, bg: "#7C3AED"})
+          end
+        end
       end
-    else
-      set_line(p, "carry_t", nil, nil)
     end
   end
 end
 
-on touch(p, b)
-  if p.is_npc then return end
-  if contains(b.tags, "slot") then
-    steal(p, b)
-  elif contains(b.tags, "home") and p.carrying != nil then
-    if split(b.name, " ")[2] == p.base then deliver(p) end
+on button(p, id)
+  if id == "steal" then try_steal(p, p.steal_pick)
+  elif id == "drop" then return_carry(p, "🫳 ミームを もどした")
   end
 end
 
-on death(victim, killer)
-  if not victim.is_npc then drop_carry(victim, "キャラを落とした") end
+on death(p)
+  if not p.is_npc then return_carry(p, "") end
 end
 
 on leave(p)
-  if p.carrying != nil then
-    let c = p.carrying
-    p.carrying = nil
-    return_meme(c)
-  end
+  return_carry(p, "")
 end

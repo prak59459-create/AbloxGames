@@ -7,7 +7,7 @@ katakana, a line about it in Japanese, what it earns a second and what it
 costs. The same seed gives the same 300 every time, so a save keeps
 pointing at the same characters.
 
-  python3 tools/brainrots/make_chars.py
+  python3 tools/meme-chars/make_chars.py
 """
 
 import math
@@ -219,7 +219,7 @@ def main():
             )
 
     header = (
-        "-- chars.absc — Meme Heist の300体（tools/brainrots/make_chars.py が作ります。手で書きかえないでね）\n"
+        "-- chars.absc — Meme Heist の300体（tools/meme-chars/make_chars.py が作ります。手で書きかえないでね）\n"
         "-- id: ばんごう / n: なまえ / k: よみかた / r: めずらしさ 1〜8 / inc: 1秒にうむお金 / pr: ねだん\n"
         "-- a: どうぶつ（からだ）/ t: がったいしたもの / v: 色のちがい / s: 大きさ / w: カーペットでの出やすさ\n"
         "-- src: どこで手に入るか（carpet・ritual:…・event:…・admin）/ d: せつめい\n\n"

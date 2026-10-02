@@ -1,0 +1,153 @@
+-- core.absc — キャラの表（chars.absc）を使う道具: さがす・ばいりつ・もうけ・ねだん・名前
+
+-- MARK: キャラをさがす
+let CHAR_BY_ID = {}
+let CHARS_BY_RARITY = [[], [], [], [], [], [], [], []]
+for c in CHARS do
+  CHAR_BY_ID[str(c.id)] = c
+  append(CHARS_BY_RARITY[c.r], c)
+end
+
+func char_of(id)
+  return CHAR_BY_ID[str(id)]
+end
+
+-- 1体のばいりつ: 変異 ＋ 特性（特性が ついているときは 足し算）
+func meme_mult(mut, traits)
+  let m = MUTATIONS[mut or "none"].mult
+  for t in traits or [] do
+    let tr = TRAITS[t]
+    if tr != nil then m = m + tr.mult end
+  end
+  return m
+end
+
+-- 1秒にうむお金（転生などのボーナスは あとで かける）
+func meme_income(e)
+  let c = char_of(e.id)
+  if c == nil then return 0 end
+  return c.inc * meme_mult(e.mut, e.tr)
+end
+
+-- 売るときのねだん
+func meme_value(e)
+  let c = char_of(e.id)
+  if c == nil then return 0 end
+  return floor(c.pr * meme_mult(e.mut, e.tr) * 0.5)
+end
+
+func rarity_of(e)
+  let c = char_of(e.id)
+  if c == nil then return RARITIES[1] end
+  return RARITIES[c.r]
+end
+
+func meme_title(e)
+  let c = char_of(e.id)
+  if c == nil then return "?" end
+  let m = MUTATIONS[e.mut or "none"]
+  if m.name != "" then return m.name + " " + c.n end
+  return c.n
+end
+
+func trait_icons(e)
+  let s = ""
+  for t in e.tr or [] do
+    let tr = TRAITS[t]
+    if tr != nil then s = s + tr.icon end
+  end
+  return s
+end
+
+-- MARK: きちの場所（data.absc の BASES と マップが そろっている）
+
+func skey(f, s)
+  return f + "_" + s
+end
+
+-- 台の上（ミームの足もと）
+func stand_top(k, f, s)
+  let b = BASES[k]
+  let row = 1
+  if s > 5 then row = 2 end
+  let col = (s - 1) % 5 + 1
+  return {x: b.x + STAND_X[col], y: FLOOR_TOP[f] + 0.7, z: b.side * (12 + STAND_DEPTH[row])}
+end
+
+-- きちの入口（中がわ）と、外の前
+func base_front(k)
+  let b = BASES[k]
+  return {x: b.x, y: 0.3, z: b.side * 13.5}
+end
+
+func base_outside(k)
+  let b = BASES[k]
+  return {x: b.x, y: 1, z: b.side * 8.5}
+end
+
+-- ミームが カーペットのほうを向く yaw
+func face_yaw(k)
+  if BASES[k].side > 0 then return 0 end
+  return 180
+end
+
+func in_base(pos, k)
+  let b = BASES[k]
+  let dz = pos.z * b.side
+  return abs(pos.x - b.x) < 20.2 and dz > 12.2 and dz < 44
+end
+
+func base_at(pos)
+  for k in 1 to len(BASES) do
+    if in_base(pos, k) then return k end
+  end
+  return nil
+end
+
+-- MARK: ばいりつ（転生・図鑑・イベント）
+-- イベントが かえる数: income（もうけ）・luck（レアの出やすさ）・spawn（出てくる速さ）・lanes（カーペットの列）
+-- speed・jump（みんなの 走る速さと ジャンプ）
+let BOOST = {income: 1, luck: 1, spawn: 1, lanes: 1, speed: 1, jump: 1}
+
+func rebirth_mult(p)
+  return 1 + 0.5 * (p.rebirths or 0)
+end
+
+func income_mult(p)
+  return rebirth_mult(p) * (1 + dex_bonus(p)) * BOOST.income
+end
+
+-- ブロックが まだあるときだけ動かす（消えたブロックに たのむと エラーになるので）
+func mv(b, dest, secs)
+  if b != nil and b.move_to != nil then b.move_to(dest, secs) end
+end
+
+func turn_to(m, yaw)
+  if m != nil and m.root != nil and m.root.destroy != nil then m.root.rotation = {x: 0, y: 0 - yaw, z: 0} end
+end
+
+-- タグ "k=3" などから 数を読む
+func tag_num(b, key)
+  let t = find(b.tags, func(x) return starts_with(x, key + "=") end)
+  if t == nil then return nil end
+  return num(replace(t, key + "=", ""))
+end
+
+-- 走る速さ・ジャンプ: ギア（ダッシュくつ・ふわふわ）、はこんでいるとき、イベントを まとめて決める
+func refresh_move(p)
+  if not kit_here(p) then return end
+  let now = time()
+  let s = BOOST.speed
+  let j = BOOST.jump
+  if p.coil_until != nil and now < p.coil_until then s = s * 1.6 end
+  if p.float_until != nil and now < p.float_until then j = j * 1.5 end
+  if p.carry != nil then
+    s = s * CARRY_SPEED
+    j = j * 0.8
+  end
+  if p.speed != s then p.speed = s end
+  if p.jump != j then p.jump = j end
+  let g = 1
+  if p.float_until != nil and now < p.float_until then g = 0.45 end
+  if p.gravity != g then p.gravity = g end
+end

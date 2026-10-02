@@ -1,86 +1,117 @@
--- data.absc — Meme Heist の表（ミームキャラ・めずらしさ・変異・台・ギア・転生・イベント）
+-- data.absc — Meme Heist の表（めずらしさ・変異・特性・お金のあらわし方）
+-- キャラ300体は chars.absc、見た目は models.absc。
 
--- MARK: めずらしさ（weight が小さいほど出にくい）
-let RARITY = {
-  common: {name: "コモン", color: "#9CA3AF", weight: 40},
-  rare: {name: "レア", color: "#3B82F6", weight: 25},
-  epic: {name: "エピック", color: "#A855F7", weight: 15},
-  legendary: {name: "レジェンド", color: "#F59E0B", weight: 7},
-  mythic: {name: "ミシック", color: "#EF4444", weight: 2.5},
-  secret: {name: "シークレット", color: "#111827", weight: 0.5}
-}
-let RARITY_ORDER = ["common", "rare", "epic", "legendary", "mythic", "secret"]
-
--- MARK: ミームキャラ（income: 1秒にうむお金 / price: カーペットで買う値段）
-let MEMES = [
-  {id: "toast", name: "トーストくん", rarity: "common", color: "#D97706", head: "#FDE68A", income: 2, price: 40},
-  {id: "sock", name: "ソックスねずみ", rarity: "common", color: "#E5E7EB", head: "#F472B6", income: 3, price: 60},
-  {id: "pencil", name: "鉛筆へび", rarity: "common", color: "#FACC15", head: "#F9A8D4", income: 4, price: 90},
-  {id: "mallow", name: "マシュマロうさぎ", rarity: "common", color: "#FFFFFF", head: "#FBCFE8", income: 5, price: 120},
-  {id: "pizzacat", name: "ピザねこ", rarity: "rare", color: "#F97316", head: "#FDE047", income: 8, price: 250},
-  {id: "pudding", name: "プリンペンギン", rarity: "rare", color: "#FDE68A", head: "#92400E", income: 12, price: 400},
-  {id: "banana", name: "バナナ忍者", rarity: "rare", color: "#FACC15", head: "#111827", income: 15, price: 600},
-  {id: "donut", name: "ドーナツ犬", rarity: "rare", color: "#F9A8D4", head: "#A16207", income: 20, price: 800},
-  {id: "sushi", name: "スシざめ", rarity: "epic", color: "#60A5FA", head: "#F87171", income: 35, price: 1500},
-  {id: "egg", name: "目玉焼きカメ", rarity: "epic", color: "#FFFFFF", head: "#FACC15", income: 50, price: 2500},
-  {id: "tomato", name: "トマトゾウ", rarity: "epic", color: "#EF4444", head: "#22C55E", income: 70, price: 4000},
-  {id: "ramen", name: "ラーメンぐま", rarity: "epic", color: "#FDE68A", head: "#78350F", income: 90, price: 6000},
-  {id: "octo", name: "ダンスだこ", rarity: "legendary", color: "#EC4899", head: "#F9A8D4", income: 150, price: 12000},
-  {id: "coffee", name: "コーヒーゴリラ", rarity: "legendary", color: "#78350F", head: "#D6D3D1", income: 220, price: 20000},
-  {id: "bulb", name: "電球クラゲ", rarity: "legendary", color: "#FEF08A", head: "#FFFFFF", income: 300, price: 35000},
-  {id: "balloon", name: "風船ワニ", rarity: "legendary", color: "#22C55E", head: "#F43F5E", income: 420, price: 55000},
-  {id: "neonfrog", name: "ネオンがえる", rarity: "mythic", color: "#22C55E", head: "#A3E635", income: 800, price: 120000},
-  {id: "thunderham", name: "雷ハムスター", rarity: "mythic", color: "#FACC15", head: "#FDE047", income: 1200, price: 200000},
-  {id: "kappa", name: "宇宙かっぱ", rarity: "mythic", color: "#8B5CF6", head: "#22D3EE", income: 2000, price: 400000},
-  {id: "toaster", name: "黄金のトースター", rarity: "secret", color: "#FACC15", head: "#FFFFFF", income: 6000, price: 1500000},
-  {id: "galaxypanda", name: "銀河パンダ", rarity: "secret", color: "#1E1B4B", head: "#F0ABFC", income: 10000, price: 3000000},
-  {id: "clockdragon", name: "時計じかけドラゴン", rarity: "secret", color: "#B45309", head: "#FDE68A", income: 18000, price: 6000000}
+-- MARK: めずらしさ（1〜8）
+-- carpet: カーペットに出てくる出やすさ（OG はカーペットに出ない）
+let RARITIES = [
+  {name: "コモン", en: "Common", color: "#D1D5DB", carpet: 600},
+  {name: "レア", en: "Rare", color: "#60A5FA", carpet: 250},
+  {name: "エピック", en: "Epic", color: "#C084FC", carpet: 100},
+  {name: "レジェンダリー", en: "Legendary", color: "#FBBF24", carpet: 32},
+  {name: "ミシック", en: "Mythic", color: "#F87171", carpet: 9},
+  {name: "ミーム・ゴッド", en: "Meme God", color: "#FDE047", carpet: 2},
+  {name: "シークレット", en: "Secret", color: "#F8FAFC", carpet: 0.35},
+  {name: "OG", en: "OG", color: "#22D3EE", carpet: 0}
 ]
 
--- MARK: 変異（生まれつき。income が mult 倍）
+-- MARK: 変異（体の色がかわる。1体に1つ）
+-- mult: 変異のばいりつ / w: カーペットでの出やすさ（0 はイベントだけ）
 let MUTATIONS = {
-  none: {name: "", mult: 1, weight: 88, color: nil, material: "plastic"},
-  gold: {name: "ゴールド", mult: 1.5, weight: 7, color: "#FACC15", material: "metal"},
-  diamond: {name: "ダイヤ", mult: 2, weight: 3, color: "#67E8F9", material: "glass"},
-  rainbow: {name: "レインボー", mult: 4, weight: 1.2, color: "#F472B6", material: "neon"},
-  lava: {name: "ようがん", mult: 3, weight: 0, color: "#F97316", material: "neon"},
-  galaxy: {name: "ギャラクシー", mult: 6, weight: 0, color: "#6D28D9", material: "neon"}
+  none: {name: "", mult: 1, w: 900},
+  gold: {name: "ゴールド", mult: 1.25, w: 60, color: "#FACC15", mat: "metal", icon: "🟡"},
+  diamond: {name: "ダイヤ", mult: 1.5, w: 28, color: "#67E8F9", mat: "glass", icon: "💎"},
+  blood: {name: "ブラッド", mult: 2, w: 0, color: "#991B1B", mat: "plastic", icon: "🩸"},
+  celestial: {name: "セレスティアル", mult: 4, w: 0, color: "#C4B5FD", mat: "neon", icon: "✨"},
+  candy: {name: "キャンディ", mult: 4, w: 0, color: "#F9A8D4", mat: "plastic", icon: "🍬"},
+  witch: {name: "ウィッチ", mult: 4.5, w: 0, color: "#7E22CE", mat: "plastic", icon: "🧙"},
+  lava: {name: "ようがん", mult: 6, w: 0, color: "#F97316", mat: "neon", icon: "🌋"},
+  galaxy: {name: "ギャラクシー", mult: 7, w: 0, color: "#4C1D95", mat: "neon", icon: "🌌"},
+  rainbow: {name: "レインボー", mult: 10, w: 2, color: "#EC4899", mat: "neon", icon: "🌈"},
+  crystal: {name: "クリスタル", mult: 13, w: 0, color: "#A5F3FC", mat: "glass", icon: "🔷"}
 }
-let MUTATION_ORDER = ["none", "gold", "diamond", "rainbow", "lava", "galaxy"]
+let MUT_ORDER = ["none", "gold", "diamond", "blood", "celestial", "candy", "witch", "lava", "galaxy", "rainbow", "crystal"]
+let RAINBOW = ["#EF4444", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7"]
 
--- MARK: 台（5つは最初から。6〜10は買って開ける）
-let SLOT_PRICES = [0, 0, 0, 0, 0, 5000, 15000, 50000, 150000, 500000]
+-- MARK: 特性（イベントでつく。いくつも つく。頭の上にマーク）
+let TRAITS = {
+  rain: {name: "雨", mult: 2.5, icon: "☔"},
+  snow: {name: "雪", mult: 3, icon: "❄️"},
+  starfall: {name: "流れ星", mult: 4, icon: "🌠"},
+  meteor: {name: "いん石", mult: 4, icon: "☄️"},
+  thunder: {name: "かみなり", mult: 6, icon: "⚡"},
+  fog: {name: "きり", mult: 2, icon: "🌫"},
+  aurora: {name: "オーロラ", mult: 5, icon: "🌌"},
+  sand: {name: "すなあらし", mult: 3, icon: "🏜"},
+  sakura: {name: "さくら", mult: 3.5, icon: "🌸"},
+  solar: {name: "たいよう", mult: 5, icon: "☀️"},
+  taco: {name: "タコス", mult: 3, icon: "🌮"},
+  nyan: {name: "にじネコ", mult: 6, icon: "🐱"},
+  crab: {name: "カニ", mult: 5, icon: "🦀"},
+  drum: {name: "たいこ", mult: 4.5, icon: "🥁"},
+  glitch: {name: "グリッチ", mult: 5, icon: "👾"},
+  bomb: {name: "ばくだん", mult: 4, icon: "💣"},
+  disco: {name: "ディスコ", mult: 3, icon: "🪩"},
+  ufo: {name: "UFO", mult: 8, icon: "🛸"},
+  strawberry: {name: "イチゴ", mult: 3.5, icon: "🍓"},
+  yinyang: {name: "いんよう", mult: 7.5, icon: "☯️"},
+  ghost: {name: "ゆうれい", mult: 4, icon: "👻"},
+  shark: {name: "サメ", mult: 4, icon: "🦈"},
+  fireworks: {name: "花火", mult: 3, icon: "🎆"},
+  bubble: {name: "あわ", mult: 2.5, icon: "🫧"},
+  heart: {name: "ハート", mult: 3, icon: "💖"},
+  festival: {name: "おまつり", mult: 3, icon: "🏮"},
+  fish: {name: "つり", mult: 3, icon: "🎣"},
+  santa: {name: "サンタ", mult: 4, icon: "🎅"},
+  newyear: {name: "お正月", mult: 4, icon: "🎍"},
+  pumpkin: {name: "かぼちゃ", mult: 4, icon: "🎃"},
+  crown: {name: "おうかん", mult: 5, icon: "👑"},
+  clover: {name: "クローバー", mult: 2, icon: "🍀"},
+  concert: {name: "コンサート", mult: 3.5, icon: "🎤"}
+}
+let MAX_TRAITS = 4
 
--- MARK: ロック（ロックパッド）: 長さを強化できる
-let LOCK_LEVELS = [
-  {secs: 30, price: 0},
-  {secs: 45, price: 8000},
-  {secs: 60, price: 40000},
-  {secs: 90, price: 200000}
-]
+-- MARK: お金のあらわし方（$1.2K・$3.4M・$5B・$6T・$7Qa）
+let MONEY_UNITS = [{n: 1000000000000000000, s: "Qi"}, {n: 1000000000000000, s: "Qa"}, {n: 1000000000000, s: "T"},
+                   {n: 1000000000, s: "B"}, {n: 1000000, s: "M"}, {n: 1000, s: "K"}]
 
--- MARK: ギア（ギア屋）
-let GEAR = [
-  {id: "slap", name: "👋 スラップハンド", price: 2000, text: "たたいた相手をふっとばす"},
-  {id: "web", name: "🕸 クモの糸", price: 8000, text: "当たった人を2.5秒止めて、運んでいる物を落とさせる"},
-  {id: "coil", name: "⚡ スピードコイル", price: 15000, text: "いつも速く走れる（運ぶときも）"},
-  {id: "trap", name: "🪤 トラップ", price: 25000, text: "ふんだ人を3秒止める（2こまで置ける）"},
-  {id: "cloak", name: "🫥 透明マント", price: 40000, text: "6秒 見えなくなる"},
-  {id: "magnet", name: "🧲 お金マグネット", price: 90000, text: "基地にいなくても金庫のお金が入る"}
-]
+func short(n)
+  if n == nil then return "0" end
+  let a = abs(n)
+  for u in MONEY_UNITS do
+    if a >= u.n then
+      let v = n / u.n
+      if abs(v) >= 100 then return str(floor(v)) + u.s end
+      return fixed(v, 1) + u.s
+    end
+  end
+  return str(floor(n))
+end
 
--- MARK: 転生（お金とキャラをリセットするかわりに、ずっと強くなる）
-let REBIRTHS = [
-  {money: 50000, need: "epic", mult: 1.5, gift: "slap"},
-  {money: 250000, need: "legendary", mult: 2, gift: "web"},
-  {money: 1000000, need: "mythic", mult: 3, gift: "cloak"},
-  {money: 5000000, need: "secret", mult: 5, gift: "magnet"}
-]
+func money(n)
+  return "$" + short(n)
+end
 
--- MARK: イベント
-let EVENTS = [
-  {id: "meteor", name: "☄️ いん石シャワー", text: "ようがんキャラが歩いてくる！", seconds: 60},
-  {id: "rainbow", name: "🌈 にじの時間", text: "レインボーが出やすい！", seconds: 60},
-  {id: "galaxy", name: "🌌 ギャラクシーナイト", text: "ギャラクシーキャラが出るかも！", seconds: 45},
-  {id: "rush", name: "🎉 ラッシュタイム", text: "キャラがたくさん歩いてくる＆レアが出やすい", seconds: 60}
-]
+-- MARK: きち（マップと そろえること: tools/generator/MapsMemeHeist.swift）
+-- side: カーペットの北（+1）か南（-1）か。前（カーペットがわ）は z = side*12、おくは side*44
+let BASES = [{x: -90, side: 1}, {x: -30, side: 1}, {x: 30, side: 1}, {x: 90, side: 1},
+             {x: -90, side: -1}, {x: -30, side: -1}, {x: 30, side: -1}, {x: 90, side: -1}]
+let FLOOR_TOP = [0.2, 7.2, 14.2]
+let STAND_X = [-14, -7, 0, 7, 14]
+let STAND_DEPTH = [9, 21]
+let STANDS = 10
+-- 2かいは 転生2、3がいは 転生10 で ひらく
+let FLOOR_REBIRTH = [0, 2, 10]
+let FLOOR_COLORS = ["#F8FAFC", "#E0F2FE", "#FCE7F3"]
+
+-- MARK: ゲームの数字
+let START_MONEY = 100
+let LOCK_SECS = 60          -- ロックの長さ（転生1回ごとに +5秒）
+let JOIN_LOCK = 30          -- 来たばかりのときの ロック
+let CARRY_SECS = 60         -- ぬすんだミームを はこべる時間
+let CARRY_SPEED = 0.62      -- はこんでいるときの はやさ
+let CARPET_EVERY = 2.4      -- カーペットに ミームが出てくる間かく（秒）
+let CARPET_SPEED = 3.2      -- カーペットを歩く はやさ
+let LEGEND_EVERY = 300      -- レジェンダリー以上が かならず出る間かく
+let MYTHIC_EVERY = 900      -- ミシック以上が かならず出る間かく
+let SELL_RATE = 0.5         -- 売るときは ねだんの半分
+let THIEF_EVERY = 150       -- どろぼうNPCが来る だいたいの間かく

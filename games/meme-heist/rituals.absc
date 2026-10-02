@@ -1,0 +1,176 @@
+-- rituals.absc — 儀式（東の広場の 紫の庭）: きまったミームを 何体か そろえて 祭だんの パッドへ。
+-- ミームが 形（一列・三角・十字・四角・かさなり・なかよし・グリッチの四すみ・はさみ）に ならんで 儀式が始まり、
+-- 儀式でしか 生まれない ミームが 来て、とくべつなイベントが 起きる。ミームは なくならない。
+-- 友だちと いっしょなら: 庭に いる人の きちの ミームも かぞえる（みんなで 儀式！）。
+
+let GARDEN = {x: 160, y: 0.32, z: 30}
+let RITUALS = [
+  {id: "line", name: "一列の儀式", icon: "➖", need: "Razzolino Coccodrillo", count: 3, out: "Coccodrillo Bombardone", event: "bombardiro",
+   spots: [{x: -4, y: 0, z: 0}, {x: 0, y: 0, z: 0}, {x: 4, y: 0, z: 0}]},
+  {id: "triangle", name: "三角の儀式", icon: "🔺", need: "La Mucca Lunare", count: 3, out: "Lunavacca Stellata", event: "meteor",
+   spots: [{x: 0, y: 0, z: -4}, {x: -3.6, y: 0, z: 2.6}, {x: 3.6, y: 0, z: 2.6}]},
+  {id: "cross", name: "十字の儀式", icon: "➕", need: "Treno Treno Topolino", count: 4, out: "Los Topolinos", event: "concert",
+   spots: [{x: 0, y: 0, z: -4.5}, {x: 0, y: 0, z: 4.5}, {x: -4.5, y: 0, z: 0}, {x: 4.5, y: 0, z: 0}]},
+  {id: "square", name: "四角の儀式", icon: "🟪", need: "Matitina Ragnetta", count: 4, out: "Ragnone Scolastico", event: "yinyang",
+   spots: [{x: -3.5, y: 0, z: -3.5}, {x: 3.5, y: 0, z: -3.5}, {x: -3.5, y: 0, z: 3.5}, {x: 3.5, y: 0, z: 3.5}]},
+  {id: "stack", name: "かさなりの儀式", icon: "🗼", need: "Fungo Fungo Pinguino", count: 3, out: "Los Funghini", event: "thunder",
+   spots: [{x: 0, y: 0, z: 0}, {x: 0, y: 1.9, z: 0}, {x: 0, y: 3.8, z: 0}]},
+  {id: "hug", name: "なかよしの儀式", icon: "🤗", need: "Gattino Abbraccino", count: 2, out: "Los Abbraccini", event: "sakura",
+   spots: [{x: -0.9, y: 0, z: 0}, {x: 0.9, y: 0, z: 0}]},
+  {id: "corners", name: "グリッチの儀式", icon: "👾", need: "Robotto Pizzaiolo", count: 4, out: "Glitchino Quattrocentoquattro", event: "glitch",
+   place: {x: 214, y: 0.2, z: 0}, spots: [{x: -5.5, y: 0, z: -5.5}, {x: 5.5, y: 0, z: -5.5}, {x: -5.5, y: 0, z: 5.5}, {x: 5.5, y: 0, z: 5.5}]},
+  {id: "sides", name: "はさみの儀式", icon: "🛸", need: "Ombrellone Squalone", count: 4, out: "Squalo Spaziale", event: "ufo",
+   place: {x: 116, y: 0.22, z: 0}, spots: [{x: -3, y: 0, z: -2.6}, {x: 3, y: 0, z: -2.6}, {x: -3, y: 0, z: 2.6}, {x: 3, y: 0, z: 2.6}]}
+]
+let RITUAL_COOLDOWN = 300
+let rit_next = {}
+let rit_busy = false
+let CHAR_BY_NAME = {}
+for c in CHARS do CHAR_BY_NAME[c.n] = c end
+
+-- 庭にいる人（と 自分）の きちの、そのキャラの数
+func ritual_helpers(p)
+  let list = [p]
+  for q in players() do
+    if not q.is_npc and q.id != p.id and q.base != nil and distance(q.position, GARDEN) < 16 then append(list, q) end
+  end
+  return list
+end
+
+func ritual_have(p, rt)
+  let c = CHAR_BY_NAME[rt.need]
+  if c == nil then return [] end
+  let found = []
+  let now = time()
+  for q in ritual_helpers(p) do
+    if q.base != nil then
+      for sl in slot_list(q.base) do
+        if sl.e.id == c.id and sl.ready <= now then append(found, sl.e) end
+      end
+    end
+  end
+  return found
+end
+
+func open_rituals(p)
+  let h = 140 + len(RITUALS) * 46
+  p.ui_remove("rt_box")
+  p.ui_panel("rt_box", {at: "center", w: 780, h: h, bg: "#2E1065F2", radius: 22, layer: 40})
+  p.ui_text("rt_t", "🔮 儀式の庭   ミームを そろえて「はじめる」（ミームは なくならない・庭の友だちの分も かぞえる）",
+            {parent: "rt_box", y: 26 / h, size: 14, bold: true, color: "#E9D5FF"})
+  let i = 0
+  let now = time()
+  for rt in RITUALS do
+    i = i + 1
+    let y = (34 + i * 46) / h
+    let c = CHAR_BY_NAME[rt.need]
+    let have = len(ritual_have(p, rt))
+    let done = contains(p.rituals or [], rt.id)
+    let mark = ""
+    if done then mark = " ✅" end
+    let need_text = rt.icon + " " + rt.name + mark + "： " + c.n + " ×" + rt.count + "（" + have + "/" + rt.count + "）"
+    p.ui_text("rt_n" + i, need_text, {parent: "rt_box", y: y - 8 / h, dx: -110, size: 14, color: RARITIES[c.r].color})
+    let out = CHAR_BY_NAME[rt.out]
+    let out_text = "→ ？？？"
+    if done then out_text = "→ " + out.n end
+    p.ui_text("rt_o" + i, out_text + "  と " + EVENT_BY_ID[rt.event].icon + " " + EVENT_BY_ID[rt.event].name, {parent: "rt_box", y: y + 11 / h, dx: -110, size: 12, color: "#C4B5FD"})
+    let label = "はじめる"
+    let bg = "#7C3AED"
+    if have < rt.count then bg = "#4B5563" end
+    if rit_next[rt.id] != nil and now < rit_next[rt.id] then
+      label = "あと " + kit_clock(rit_next[rt.id] - now)
+      bg = "#4B5563"
+    end
+    p.ui_button("rtgo_" + i, label, {parent: "rt_box", y: y, dx: 300, w: 140, h: 36, size: 14, bg: bg})
+  end
+  p.ui_button("rt_close", "閉じる", {parent: "rt_box", y: (h - 28) / h, w: 140, h: 38, size: 15, bg: "gray"})
+end
+
+func start_ritual(p, i)
+  let rt = RITUALS[i]
+  if rt == nil or p.base == nil then return end
+  if rit_busy then
+    p.message("🔮 いま ほかの儀式を しているよ。おわるまで 待ってね", 2)
+    return
+  end
+  let now = time()
+  if rit_next[rt.id] != nil and now < rit_next[rt.id] then
+    p.message("🔮 " + rt.name + " は あと " + kit_clock(rit_next[rt.id] - now) + " で できる", 2)
+    return
+  end
+  let have = ritual_have(p, rt)
+  if len(have) < rt.count then
+    let c = CHAR_BY_NAME[rt.need]
+    p.message("🔮 " + c.n + " が " + rt.count + "体 いるよ（いま " + len(have) + "体）。" + c.d, 3)
+    p.sound("error")
+    return
+  end
+  rit_busy = true
+  rit_next[rt.id] = now + RITUAL_COOLDOWN
+  p.ui_remove("rt_box")
+  let at = rt.place or GARDEN
+  let models = []
+  for j in 1 to rt.count do
+    let spot = rt.spots[j]
+    let pos = at + spot
+    let m = build_model(have[j], pos, yaw_to(pos, at))
+    m.root.animation = "dance"
+    append(models, m)
+  end
+  announce("🔮 " + p.name + " が " + rt.icon + " " + rt.name + " を はじめた！", 4)
+  sound("magic", {pitch: 0.7})
+  particles("magic", at + {x: 0, y: 1.5, z: 0}, {seconds: 8, amount: 60})
+  world.effect = "dream"
+  shake(0.3, 2)
+  after(5, func()
+    sound("drum")
+    particles("stars", at + {x: 0, y: 3, z: 0}, {amount: 80})
+  end)
+  after(9, func()
+    for m in models do destroy_model(m) end
+    rit_busy = false
+    apply_look()
+    particles("confetti", at + {x: 0, y: 2, z: 0}, {amount: 100})
+    sound("win")
+    let out = CHAR_BY_NAME[rt.out]
+    if not kit_here(p) then return end
+    if p.rituals == nil then p.rituals = [] end
+    if not contains(p.rituals, rt.id) then append(p.rituals, rt.id) end
+    if len(p.rituals) >= len(RITUALS) then kit_badge(p, "rituals", "儀式を ぜんぶ やった") end
+    kit_quest_progress(p, "ritual", 1)
+    if out != nil and p.base != nil then
+      let e = {id: out.id, mut: "none", tr: []}
+      let st = free_stand(p.base)
+      if st != nil then
+        place_meme(p.base, st.f, st.s, e, at)
+        got_meme(p, e)
+        announce("🔮 儀式で " + RARITIES[out.r].name + " の " + out.n + " が 生まれた！ " + p.name + " のきちへ", 4)
+      else
+        let w = carpet_send(out, nil, nil)
+        walker_sale(w, 0.2)
+        announce("🔮 儀式で " + out.n + " が 生まれた！ カーペットを 歩いているよ（" + p.name + " の台が いっぱい）", 4)
+      end
+    end
+    start_event(rt.event, p.name)
+    -- いっしょに 儀式をした人にも ほうび
+    for q in ritual_helpers(p) do
+      if q.id != p.id and kit_here(q) then
+        pay(q, max(1000, floor(base_income(q.base) * 30)))
+        q.message("🔮 儀式を てつだった！ ごほうび", 2)
+        kit_quest_progress(q, "ritual", 1)
+      end
+    end
+  end)
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "altarpad") then open_rituals(p) end
+end
+
+on button(p, id)
+  if id == "rt_close" then p.ui_remove("rt_box")
+  elif id == "ritual_menu" then open_rituals(p)
+  elif starts_with(id, "rtgo_") then start_ritual(p, num(replace(id, "rtgo_", "")))
+  end
+end

@@ -41,6 +41,19 @@ final class MapBuilder {
         return block.id
     }
 
+    /// Words floating over a block (a sign's text): lines of (text, colour).
+    func label(_ id: UUID, _ lines: [(String, String)], height: Float = 0.4, size: Float = 1, range: Float = 60) {
+        guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
+        blocks[index].label = BlockLabel(lines: lines.map { BlockLabel.Line(text: $0.0, color: Self.color($0.1)) },
+                                         height: height, size: size, range: range)
+    }
+
+    /// A block that moves by itself on every iPad (spin, sway, dance, bounce, pulse, wobble).
+    func animate(_ id: UUID, _ kind: BlockAnimation.Kind, speed: Float = 1) {
+        guard let index = blocks.firstIndex(where: { $0.id == id }) else { return }
+        blocks[index].animation = BlockAnimation(kind: kind, speed: speed)
+    }
+
     /// A box sitting on `y` (its bottom face), rather than centred on it.
     @discardableResult
     func slab(_ name: String, x: Float, y: Float, z: Float, w: Float, h: Float, d: Float, color: String,

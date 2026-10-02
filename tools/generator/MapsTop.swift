@@ -13,7 +13,7 @@ let topGames: [Game] = [
          summary: "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
          tags: ["pets", "collect", "cute", "top20"], maxPlayers: 12, build: petHome),
     Game(number: 4, id: "meme-heist", title: "Meme Heist",
-         summary: "ランウェイを歩くヘンなミームキャラを買って自分の基地へ。キャラはお金を生み出す。ほかの人の基地からこっそり盗み出せ！",
+         summary: "赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。",
          tags: ["simulator", "steal", "funny", "top20"], maxPlayers: 8, build: memeHeist),
     Game(number: 5, id: "reel-legends", title: "Reel Legends",
          summary: "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",
@@ -364,56 +364,6 @@ func petHome(_ m: MapBuilder) {
 
 // MARK: 4 Meme Heist
 
-func memeHeist(_ m: MapBuilder) {
-    m.sky("#FF7AD9", "#FFE3A3", light: 0.8, ground: "#3B2A6B")
-    m.ground(160, 160, color: "#4C3A8A")
-    // The carpet memes walk along, from the gate at -z to the stage at +z.
-    m.part("Red Carpet", at: (0, 0.05, 0), size: (6, 0.1, 110), color: "#DC2626", material: .matte)
-    m.slab("Meme Gate", x: 0, y: 0, z: -56, w: 10, h: 6, d: 1, color: "#FACC15", material: .neon)
-    m.slab("Meme Stage", x: 0, y: 0, z: 58, w: 12, h: 1, d: 6, color: "#FDE047")
-    m.part("Carpet Start", at: (0, 0.2, -52), size: (2, 0.2, 2), color: "#FFFFFF", shape: .cylinder, visible: false)
-    m.part("Carpet End", at: (0, 0.2, 52), size: (2, 0.2, 2), color: "#FFFFFF", shape: .cylinder, visible: false)
-    m.spawnRing(0, -40, radius: 3, count: 4, color: "#FDE047")
-    // Carpet-side spots where robots and players stand to buy.
-    m.markers("Carpet Spot", points: [(4, -30), (-4, -10), (4, 10), (-4, 30)], color: "#FDE047", size: 1.6)
-
-    // The gear shop and the rebirth altar, at the top of the carpet.
-    m.shop("Gear Shop", x: -16, z: -48, w: 10, d: 8, color: "#1E293B", sign: "#22D3EE")
-    m.pad("Gear Counter", x: -16, z: -50, size: 2.4, color: "#22D3EE", tags: ["gear"])
-    m.part("Rebirth Altar", at: (16, 0.6, -48), size: (4, 1.2, 4), color: "#F472B6", shape: .cylinder, material: .neon,
-           behavior: .trigger, tags: ["rebirth"])
-    m.part("Rebirth Crystal", at: (16, 3, -48), size: (1.6, 3, 1.6), color: "#E879F9", shape: .cone, material: .neon, solid: false)
-
-    // Eight bases, four on each side of the carpet. The doorway faces the carpet.
-    let colors = ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B", "#A855F7", "#EC4899", "#14B8A6", "#F97316"]
-    for i in 0..<8 {
-        let side: Float = i < 4 ? -1 : 1
-        let z = -36 + Float(i % 4) * 24
-        let x = side * 34
-        let n = i + 1
-        m.slab("Base \(n) Floor", x: x, y: 0, z: z, w: 20, h: 0.4, d: 18, color: "#1F1B3A", tags: ["base"])
-        m.pad("Base \(n) Claim", x: x - side * 7.5, z: z - 6, y: 0.4, size: 2.5, color: colors[i], tags: ["claim"])
-        m.pad("Base \(n) Home", x: x - side * 2, z: z, y: 0.4, size: 4, color: colors[i], tags: ["home"], shape: .box)
-        m.pad("Base \(n) Lock", x: x - side * 7.5, z: z + 6, y: 0.4, size: 2, color: "#FFFFFF", tags: ["lock"])
-        // A wall of lasers across the doorway, off until locked.
-        m.part("Base \(n) Laser", at: (x - side * 10, 1.9, z), size: (0.3, 3, 7), color: colors[i], material: .neon,
-               behavior: .trigger, tags: ["laser"], solid: false, visible: false)
-        // Ten pedestals: the outer row first, the inner row unlocked later.
-        for k in 0..<10 {
-            let row: Float = k < 5 ? 7 : 3.5
-            let sz = z - 6 + Float(k % 5) * 3
-            m.part("Base \(n) Slot \(k + 1)", at: (x + side * row, 0.9, sz), size: (2, 1, 2), color: k < 5 ? "#D4D4D8" : "#6B7280",
-                   shape: .cylinder, material: .metal, behavior: .trigger, tags: ["slot"])
-        }
-        // Walls: back, two sides, and the front in two parts around a 7 m doorway.
-        let wall = "Base \(n) Wall"
-        m.slab(wall, x: x + side * 10, y: 0.4, z: z, w: 0.4, h: 2.5, d: 18, color: colors[i], opacity: 0.35)
-        m.slab(wall, x: x, y: 0.4, z: z - 9, w: 20, h: 2.5, d: 0.4, color: colors[i], opacity: 0.35)
-        m.slab(wall, x: x, y: 0.4, z: z + 9, w: 20, h: 2.5, d: 0.4, color: colors[i], opacity: 0.35)
-        m.slab(wall, x: x - side * 10, y: 0.4, z: z - 6.25, w: 0.4, h: 2.5, d: 5.5, color: colors[i], opacity: 0.35)
-        m.slab(wall, x: x - side * 10, y: 0.4, z: z + 6.25, w: 0.4, h: 2.5, d: 5.5, color: colors[i], opacity: 0.35)
-    }
-}
 
 // MARK: 5 Reel Legends
 

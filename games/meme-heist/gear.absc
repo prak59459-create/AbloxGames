@@ -1,174 +1,428 @@
--- gear.absc — ギア（ギア屋の青いパッド）
--- 🏏 バット（はじめから）・👋 スラップハンド・🕸 クモの糸・⚡ スピードコイル・🪤 トラップ・
--- 🫥 透明マント・🧲 お金マグネット。たたいても体力は減らない（キャラを落とすだけ）。
+-- gear.absc — ギア屋（西の広場の青いお店）と 12このギア。買ったギアは 下のバーに出て、タップで つかう。
+-- 強いギアは 転生しないと 買えない。ミームを はこんでいる時に つかえるのは 👟・🎈・🌀 だけ。
 
-kit_melee("バット", 10, 2, 5)
-kit_melee("スラップハンド", 12, 1.6, 5.5)
+let GEAR = [
+  {id: "slap", name: "ペチペチハンド", icon: "👋", price: 0, rb: 0, cd: 1.5, carry: false,
+   desc: "近くの人を はじく。はこんでいるミームを おとさせる"},
+  {id: "coil", name: "ダッシュくつ", icon: "👟", price: 2500, rb: 0, cd: 14, carry: true,
+   desc: "8秒 はやく走れる"},
+  {id: "float", name: "ふわふわバルーン", icon: "🎈", price: 12000, rb: 0, cd: 14, carry: true,
+   desc: "8秒 高くジャンプして ゆっくり おちる"},
+  {id: "trap", name: "バナナのワナ", icon: "🍌", price: 60000, rb: 0, cd: 10, carry: false,
+   desc: "足もとに おく。ふんだ人は ころんで止まる（3こまで）"},
+  {id: "grapple", name: "ジャンプフック", icon: "🪝", price: 300000, rb: 1, cd: 4, carry: false,
+   desc: "見ている方へ びゅーんと とぶ"},
+  {id: "web", name: "クモの糸", icon: "🕸", price: 1500000, rb: 1, cd: 8, carry: false,
+   desc: "前の人を 糸で 2.5秒 止める"},
+  {id: "cloak", name: "とうめいマント", icon: "🫥", price: 8000000, rb: 2, cd: 30, carry: false,
+   desc: "10秒 見えなくなる（ぬすむと とける）"},
+  {id: "cloner", name: "クローンそうち", icon: "🌀", price: 40000000, rb: 3, cd: 40, carry: true,
+   desc: "1回目: クローンを おく / 2回目: クローンの所へ ワープ"},
+  {id: "boogie", name: "ブギーボム", icon: "🪩", price: 250000000, rb: 4, cd: 25, carry: false,
+   desc: "前の場所の みんなが 3秒 おどり出す"},
+  {id: "medusa", name: "メデューサの頭", icon: "🐍", price: 1500000000, rb: 5, cd: 30, carry: false,
+   desc: "前にいる人を 3秒 石にする"},
+  {id: "turret", name: "レーザータレット", icon: "🔫", price: 8000000000, rb: 7, cd: 120, carry: false,
+   desc: "自分のきちに おく。どろぼうを 2分 うつ"},
+  {id: "golden", name: "ゴールデンハンド", icon: "🌟", price: 50000000000, rb: 9, cd: 1.5, carry: false,
+   desc: "とても強いペチペチ。1.5秒 止める"}
+]
 
-let traps = []   -- {block, owner}
-
-func gear_info(id)
-  for g in GEAR do
-    if g.id == id then return g end
-  end
-  return nil
+let GEAR_BY_NAME = {}
+let GEAR_BY_ID = {}
+for g in GEAR do
+  GEAR_BY_NAME[g.name] = g
+  GEAR_BY_ID[g.id] = g
 end
 
-func gear_shop(p)
-  let h = 130 + len(GEAR) * 56
-  p.ui_panel("gshop", {at: "center", w: 560, h: h, bg: "#0C1A2BF2", radius: 22, layer: 30})
-  p.ui_text("gshop_t", "🛠 ギア屋", {parent: "gshop", y: 26 / h, size: 22, bold: true, color: "#67E8F9"})
-  let i = 0
+let turrets = []   -- {b, head, k, owner, until, next}
+let traps = []     -- {b, owner}
+let gr_clock = 0
+
+func has_gear(p, id)
+  if id == "slap" then return true end
+  return contains(p.gear or [], id)
+end
+
+func give_gear_items(p)
+  p.clear_items()
   for g in GEAR do
-    i = i + 1
-    let label = g.name + "  💰" + kit_short(g.price) + "  " + g.text
-    let bg = "#0E7490"
-    if contains(p.gear, g.id) then
-      label = "✅ " + g.name + "（持っている）"
-      bg = "#334155"
+    if has_gear(p, g.id) then p.give_item(g.name, 1, g.icon) end
+  end
+  lucky_items(p)
+  if (p.tacos or 0) > 0 then p.give_item("タコス", p.tacos, "🌮") end
+end
+
+-- MARK: 止める・はじく
+
+func freeze(t, secs)
+  if not kit_here(t) then return end
+  let until = time() + secs
+  if t.frozen_until == nil or t.frozen_until < until then t.frozen_until = until end
+  t.frozen = true
+  after(secs + 0.05, func()
+    if kit_here(t) and time() >= (t.frozen_until or 0) then t.frozen = false end
+  end)
+end
+
+-- 前にいる人（とどろぼうNPC）。いちばん近い人
+func front_target(p, range, cone)
+  let best = nil
+  let bd = range
+  let look = normalize({x: p.look.x, y: 0, z: p.look.z})
+  for c in kit_everyone() do
+    if c.id != p.id and c.alive and (not c.is_npc or c.thief) and not (c.is_npc and c.clone_of != nil) then
+      let off = c.position - p.position
+      let d = magnitude(off)
+      if d < bd and d > 0.01 then
+        let flat = normalize({x: off.x, y: 0, z: off.z})
+        if dot(look, flat) >= cone then
+          bd = d
+          best = c
+        end
+      end
     end
-    p.ui_button("gear_" + g.id, label, {parent: "gshop", y: (30 + i * 56) / h, w: 520, h: 46, size: 13, bg: bg})
   end
-  p.ui_button("gshop_close", "閉じる", {parent: "gshop", y: (h - 28) / h, w: 130, h: 38, size: 15, bg: "gray"})
+  return best
 end
 
-func give_gear(p, id)
-  if contains(p.gear, id) then return end
-  append(p.gear, id)
-  kit_quest_progress(p, "gear", 1)
-  if id == "slap" then p.give("スラップハンド") end
-  move_refresh(p)
-  gear_buttons(p)
+-- みんな（自分以外・どろぼうNPCも）で center から radius 以内
+func around(p, center, radius)
+  let list = []
+  for c in kit_everyone() do
+    if c.id != p.id and c.alive and (not c.is_npc or c.thief) and distance(c, center) <= radius then append(list, c) end
+  end
+  return list
 end
 
-func buy_gear(p, id)
-  let g = gear_info(id)
-  if g == nil or contains(p.gear, id) then return end
-  if not kit_pay(p, g.price) then return end
-  give_gear(p, id)
-  p.message("🛠 " + g.name + " を手に入れた！", 2)
-  p.sound("collect")
-  gear_shop(p)
-end
-
-func gear_buttons(p)
-  let x = -120
-  if contains(p.gear, "web") then
-    p.ui_button("use_web", "🕸 糸", {at: "bottom_right", dx: x, dy: -200, w: 96, h: 50, size: 16, bg: "#6B7280", radius: 18})
-    x = x - 104
-  end
-  if contains(p.gear, "trap") then
-    p.ui_button("use_trap", "🪤 わな", {at: "bottom_right", dx: x, dy: -200, w: 96, h: 50, size: 16, bg: "#92400E", radius: 18})
-    x = x - 104
-  end
-  if contains(p.gear, "cloak") then
-    p.ui_button("use_cloak", "🫥 消える", {at: "bottom_right", dx: x, dy: -200, w: 96, h: 50, size: 15, bg: "#4C1D95", radius: 18})
-  end
-end
-
--- MARK: 使う
-
-func use_web(p)
-  if not contains(p.gear, "web") then return end
-  if cooldown_left(p, "web") > 0 then
-    p.message("🕸 あと " + ceil(cooldown_left(p, "web")) + " 秒", 1)
+-- ギアが 当たったとき。どろぼうNPCなら おいはらう
+func gear_hit(p, t, why)
+  if t.is_npc then
+    if t.thief then thief_hit(t, p) end
     return
   end
-  start_cooldown(p, "web", 12)
-  let hit = raycast(p, p.look, 30)
-  let dir = kit_dir(p.yaw)
-  let from = p.position + {x: 0, y: 1.3, z: 0}
-  let reach = 30
-  if hit != nil then reach = max(1, hit.distance) end
-  let mid = from + dir * (reach / 2)
-  let web = create_block({name: "Web", shape: "box", position: mid, size: {x: 0.15, y: 0.15, z: reach}, rotation: {x: 0, y: atan2(dir.x, dir.z), z: 0},
-                          color: "#F8FAFC", material: "neon", solid: false, opacity: 0.8})
-  after(0.4, func() gone(web) end)
-  if hit != nil and hit.player != nil and not hit.player.is_npc then
-    let v = hit.player
-    v.frozen = true
-    v.message("🕸 クモの糸で動けない！", 1.5)
-    after(2.5, func() if kit_here(v) then v.frozen = false end end)
-    drop_carry(v, "🕸 糸でキャラを落とした！")
-    p.message("🕸 命中！", 1)
+  knock_drop(t, why)
+  uncloak(t)
+end
+
+func slap(p, power, stun)
+  p.emote("point")
+  let t = front_target(p, 5.5 + power, 0.15)
+  p.sound("whoosh")
+  if t == nil then return end
+  let dir = normalize({x: t.x - p.x, y: 0, z: t.z - p.z})
+  if not t.is_npc then t.launch(dir.x * 16 * power, 7 + power * 2, dir.z * 16 * power) end
+  gear_hit(p, t, "👋 " + p.name + " に たたかれて ミームを おとした！")
+  if stun > 0 and not t.is_npc then freeze(t, stun) end
+  sound("hit", {volume: 0.8})
+  particles("stars", t, {amount: 10})
+  kit_quest_progress(p, "slap", 1)
+end
+
+-- 2つの場所のあいだに 点々（糸・レーザー）
+func beam(a, b, color, secs)
+  let list = []
+  for i in 1 to 7 do
+    let at = lerp(a, b, i / 8)
+    append(list, create_block({name: "Beam", position: at, size: 0.22, shape: "sphere", color: color, material: "neon", solid: false}))
+  end
+  after(secs, func()
+    for x in list do kit_gone(x) end
+  end)
+end
+
+func uncloak(p)
+  if p.cloak_until == nil then return end
+  p.cloak_until = nil
+  if kit_here(p) then p.visible = true end
+end
+
+-- MARK: つかう
+
+func use_gear(p, g)
+  if p.carry != nil and not g.carry then
+    if kit_ready(p, "carrygear", 2) then p.message("🦹 はこんでいる時は " + g.icon + " " + g.name + " は つかえない", 1.5) end
+    return
+  end
+  if g.id == "cloner" and p.clone != nil and kit_here(p.clone) then
+    clone_jump(p)
+    return
+  end
+  if not kit_ready(p, "gear_" + g.id, g.cd) then return end
+  if g.id == "slap" then slap(p, 1, 0)
+  elif g.id == "golden" then slap(p, 2, 1.5)
+  elif g.id == "coil" then
+    p.coil_until = time() + 8
+    refresh_move(p)
+    kit_later(p, 8.1, func() refresh_move(p) end)
+    p.sound("powerup")
+    particles("dust", p, {amount: 20})
+  elif g.id == "float" then
+    p.float_until = time() + 8
+    refresh_move(p)
+    kit_later(p, 8.1, func() refresh_move(p) end)
+    p.sound("bounce")
+    particles("bubbles", p, {amount: 20})
+  elif g.id == "trap" then place_trap(p)
+  elif g.id == "grapple" then
+    let look = normalize({x: p.look.x, y: 0, z: p.look.z})
+    p.launch(look.x * 26, 15, look.z * 26)
+    p.sound("whoosh")
+    beam(p.position + {x: 0, y: 1.5, z: 0}, p.position + look * 10 + {x: 0, y: 4, z: 0}, "#A16207", 0.5)
+  elif g.id == "web" then
+    let t = front_target(p, 28, 0.6)
+    p.sound("shoot")
+    if t == nil then
+      beam(p.position + {x: 0, y: 1.5, z: 0}, p.position + p.look * 20, "#F8FAFC", 0.5)
+      return
+    end
+    beam(p.position + {x: 0, y: 1.5, z: 0}, t.position + {x: 0, y: 1.2, z: 0}, "#F8FAFC", 0.8)
+    if not t.is_npc then freeze(t, 2.5) end
+    gear_hit(p, t, "🕸 " + p.name + " の 糸に つかまった！")
+  elif g.id == "cloak" then
+    p.visible = false
+    p.cloak_until = time() + 10
+    p.sound("magic")
+    particles("magic", p, {amount: 25})
+    p.message("🫥 10秒 とうめい！（ぬすむと とける）", 2)
+    kit_later(p, 10, func()
+      if p.cloak_until != nil and time() >= p.cloak_until - 0.1 then uncloak(p) end
+    end)
+  elif g.id == "cloner" then place_clone(p)
+  elif g.id == "boogie" then
+    let center = p.position + normalize({x: p.look.x, y: 0, z: p.look.z}) * 8
+    particles("confetti", center, {amount: 60})
+    sound("drum")
+    for t in around(p, center, 9) do
+      gear_hit(p, t, "🪩 ブギーボムで おどっちゃった！")
+      if not t.is_npc then
+        freeze(t, 3)
+        t.emote("dance")
+      end
+    end
+  elif g.id == "medusa" then
+    sound("magic", {pitch: 0.6})
+    for t in kit_everyone() do
+      if t.id != p.id and t.alive and not t.is_npc and distance(t, p) < 14 then
+        let off = normalize({x: t.x - p.x, y: 0, z: t.z - p.z})
+        if dot(normalize({x: p.look.x, y: 0, z: p.look.z}), off) > 0.55 then
+          gear_hit(p, t, "🐍 石にされた！")
+          freeze(t, 3)
+          let old = t.color
+          if t.stone_color == nil then t.stone_color = old end
+          t.color = "#9CA3AF"
+          kit_later(t, 3, func()
+            if t.stone_color != nil then
+              t.color = t.stone_color
+              t.stone_color = nil
+            end
+          end)
+          particles("dust", t, {amount: 20})
+        end
+      end
+    end
+  elif g.id == "turret" then place_turret(p)
   end
 end
 
-func use_trap(p)
-  if not contains(p.gear, "trap") then return end
-  let mine = filter(traps, func(t) return t.owner == p.id end)
-  if len(mine) >= 2 then
-    gone(mine[1].block)
-    remove(traps, index_of(traps, mine[1]))
+-- MARK: ワナ
+
+func place_trap(p)
+  let mine = filter(traps, func(t) return t.owner == p end)
+  if len(mine) >= 3 then
+    kit_gone(mine[1].b)
+    traps = filter(traps, func(t) return t != mine[1] end)
   end
-  let b = create_block({name: "Trap", shape: "cylinder", position: p.position + {x: 0, y: 0.1, z: 0}, size: {x: 1.6, y: 0.15, z: 1.6},
-                        color: "#78350F", material: "metal", behavior: "trigger", tags: ["trap"], solid: false})
-  append(traps, {block: b, owner: p.id})
-  p.message("🪤 トラップを置いた（2こまで）", 1.5)
+  let b = create_block({name: "Banana Trap", position: {x: p.x, y: p.y + 0.1, z: p.z}, size: {x: 1.3, y: 0.18, z: 1.3}, shape: "cylinder",
+                        color: "#FDE047", material: "plastic", solid: false, behavior: "trigger", tags: ["trap"]})
+  append(traps, {b: b, owner: p})
+  p.sound("pop")
+  p.message("🍌 ワナを おいた（" + min(3, len(mine) + 1) + "/3）", 1)
 end
 
-func trap_touch(p, b)
-  for t in copy(traps) do
-    if t.block == b and t.owner != p.id then
-      gone(b)
-      remove(traps, index_of(traps, t))
-      p.frozen = true
-      p.message("🪤 トラップにかかった！", 2)
-      after(3, func() if kit_here(p) then p.frozen = false end end)
-      drop_carry(p, "🪤 トラップでキャラを落とした！")
-      let owner = player_by_id(t.owner)
-      if owner != nil then owner.message("🪤 " + p.name + " がトラップにかかった！", 2) end
+func trap_touched(p, b)
+  let t = find(traps, func(x) return x.b == b end)
+  if t == nil or t.owner == p then return end
+  traps = filter(traps, func(x) return x != t end)
+  kit_gone(b)
+  freeze(p, 2.5)
+  knock_drop(p, "🍌 バナナで ころんで ミームを おとした！")
+  uncloak(p)
+  p.emote("sit")
+  p.sound("bounce")
+  particles("stars", p, {amount: 12})
+  if kit_here(t.owner) then
+    t.owner.message("🍌 " + p.name + " が ワナに かかった！", 1.5)
+    kit_quest_progress(t.owner, "trap", 1)
+  end
+end
+
+-- MARK: クローン
+
+func place_clone(p)
+  kit_gone(p.clone)
+  let n = create_npc({name: p.name + " のクローン", position: p.position, color: p.color, head_color: p.head_color, leg_color: p.leg_color,
+                      hat: p.hat, speed: 0.01, health: 100000})
+  n.clone_of = p
+  n.frozen = true
+  n.yaw = p.yaw
+  p.clone = n
+  p.sound("teleport")
+  particles("magic", p, {amount: 25})
+  p.message("🌀 クローンを おいた！ もう一度 🌀 で ここへ ワープ（60秒まで）", 3)
+  kit_later(p, 60, func()
+    if p.clone == n then
+      kit_gone(n)
+      p.clone = nil
+    end
+  end)
+end
+
+func clone_jump(p)
+  let n = p.clone
+  p.clone = nil
+  particles("magic", p, {amount: 20})
+  p.teleport(n.position + {x: 0, y: 0.3, z: 0})
+  kit_gone(n)
+  p.sound("teleport")
+  particles("magic", p, {amount: 25})
+  kit_quest_progress(p, "clone", 1)
+end
+
+-- MARK: タレット
+
+func place_turret(p)
+  let k = p.base
+  if k == nil or not in_base(p.position, k) then
+    p.message("🔫 タレットは 自分のきちの中に おこう", 2)
+    kit_cds[p.id + ":gear_turret"] = nil
+    return
+  end
+  for t in filter(turrets, func(x) return x.owner == p end) do
+    kit_gone(t.b)
+    turrets = filter(turrets, func(x) return x != t end)
+  end
+  -- 足もとではなく 2歩 前に（中に うまらないように）
+  let at = p.position + forward(p.yaw) * 2
+  let b = create_block({name: "Turret", position: at + {x: 0, y: 0.6, z: 0}, size: {x: 1.2, y: 1.2, z: 1.2}, shape: "cylinder", color: "#334155",
+                        material: "metal", solid: true})
+  let head = create_block({parent: b, name: "Turret Eye", position: {x: 0, y: 0.75, z: 0}, size: {x: 0.7, y: 0.6, z: 0.7}, shape: "sphere",
+                           color: "#EF4444", material: "neon", solid: false})
+  head.animation = "spin"
+  b.label = [{text: "🔫 " + p.name + " のタレット", color: "#FCA5A5"}]
+  b.label_height = 1.4
+  b.label_size = 0.7
+  append(turrets, {b: b, k: k, owner: p, until: time() + 120, next: 0})
+  p.sound("powerup")
+  p.message("🔫 タレットを おいた！ 2分間 どろぼうを うつ", 2)
+end
+
+func turret_step(t, now)
+  if now > t.until or not kit_here(t.owner) or t.owner.base != t.k then
+    kit_gone(t.b)
+    turrets = filter(turrets, func(x) return x != t end)
+    return
+  end
+  if now < t.next then return end
+  let from = t.b.position + {x: 0, y: 1, z: 0}
+  for p in players() do
+    if not p.is_npc and p.carry != nil and p.carry.k == t.k and distance(p, t.b) < 16 then
+      t.next = now + 3
+      beam(from, p.position + {x: 0, y: 1, z: 0}, "#EF4444", 0.4)
+      sound("laser")
+      freeze(p, 2)
+      knock_drop(p, "🔫 タレットに うたれて ミームを おとした！")
+      return
+    end
+  end
+  for n in npcs() do
+    if n.thief and n.target_k == t.k and distance(n, t.b) < 16 then
+      t.next = now + 3
+      beam(from, n.position + {x: 0, y: 1, z: 0}, "#EF4444", 0.4)
+      sound("laser")
+      thief_hit(n, t.owner)
       return
     end
   end
 end
 
-func use_cloak(p)
-  if not contains(p.gear, "cloak") then return end
-  if cooldown_left(p, "cloak") > 0 then
-    p.message("🫥 あと " + ceil(cooldown_left(p, "cloak")) + " 秒", 1)
+-- MARK: ギア屋
+
+func open_gear_shop(p)
+  let n = len(GEAR)
+  let h = 130 + n * 42
+  p.ui_remove("gs_box")
+  p.ui_panel("gs_box", {at: "center", w: 760, h: h, bg: "#0C1E3AF2", radius: 22, layer: 40})
+  p.ui_text("gs_t", "🛠 ギア屋   （転生 " + (p.rebirths or 0) + "回）", {parent: "gs_box", y: 26 / h, size: 20, bold: true, color: "#93C5FD"})
+  let i = 0
+  for g in GEAR do
+    i = i + 1
+    let y = (28 + i * 42) / h
+    p.ui_text("gs_n" + i, g.icon + " " + g.name + " — " + g.desc, {parent: "gs_box", y: y, dx: -110, size: 13})
+    let label = "💰" + short(g.price)
+    let bg = "#2563EB"
+    if has_gear(p, g.id) then
+      label = "もっている"
+      bg = "#475569"
+    elif (p.rebirths or 0) < g.rb then
+      label = "🌟転生" + g.rb + "から"
+      bg = "#57534E"
+    end
+    p.ui_button("gsbuy_" + i, label, {parent: "gs_box", y: y, dx: 300, w: 140, h: 34, size: 13, bg: bg})
+  end
+  p.ui_button("gs_close", "閉じる", {parent: "gs_box", y: (h - 28) / h, w: 140, h: 38, size: 15, bg: "gray"})
+end
+
+func buy_gear(p, i)
+  let g = GEAR[i]
+  if g == nil or has_gear(p, g.id) then return end
+  if (p.rebirths or 0) < g.rb then
+    p.message("🌟 " + g.name + " は 転生" + g.rb + "回 から 買えるよ", 2)
+    p.sound("error")
     return
   end
-  start_cooldown(p, "cloak", 30)
-  p.visible = false
-  p.message("🫥 6秒 見えない！", 1.5)
-  kit_later(p, 6, func() p.visible = true end)
+  if not kit_pay(p, g.price) then return end
+  if p.gear == nil then p.gear = [] end
+  append(p.gear, g.id)
+  p.give_item(g.name, 1, g.icon)
+  p.message(g.icon + " " + g.name + " を 買った！ 下のバーで つかえる", 2.5)
+  p.sound("powerup")
+  kit_quest_progress(p, "gear", 1)
+  if len(p.gear) >= 11 then kit_badge(p, "allgear", "ギアを ぜんぶ そろえた") end
+  open_gear_shop(p)
 end
 
-on hit(victim, attacker, damage)
-  if victim.is_npc or attacker == nil then return 0 end
-  if victim.carrying != nil then drop_carry(victim, "💥 たたかれてキャラを落とした！") end
-  if attacker.weapon == "スラップハンド" then
-    let d = normalize(victim.position - attacker.position)
-    victim.launch(d.x * 26, 10, d.z * 26)
-  end
-  return 0
+-- MARK: まいフレーム
+
+on tick(dt)
+  gr_clock = gr_clock + dt
+  if gr_clock < 0.5 then return end
+  gr_clock = 0
+  let now = time()
+  for t in turrets do turret_step(t, now) end
 end
 
-on button(p, id)
-  if id == "gshop_close" then p.ui_remove("gshop")
-  elif starts_with(id, "gear_") then buy_gear(p, replace(id, "gear_", ""))
-  elif id == "use_web" then use_web(p)
-  elif id == "use_trap" then use_trap(p)
-  elif id == "use_cloak" then use_cloak(p)
-  end
+on use(p, item)
+  let g = GEAR_BY_NAME[item]
+  if g != nil then use_gear(p, g) end
 end
 
 on touch(p, b)
   if p.is_npc then return end
-  if contains(b.tags, "gear") and cooldown_left(p, "gear_pad") <= 0 then
-    start_cooldown(p, "gear_pad", 3)
-    gear_shop(p)
-  elif contains(b.tags, "trap") then
-    trap_touch(p, b)
+  if contains(b.tags, "trap") then trap_touched(p, b)
+  elif contains(b.tags, "gearshop") then open_gear_shop(p)
+  end
+end
+
+on button(p, id)
+  if id == "gs_close" then p.ui_remove("gs_box")
+  elif id == "gear_shop" then open_gear_shop(p)
+  elif starts_with(id, "gsbuy_") then buy_gear(p, num(replace(id, "gsbuy_", "")))
   end
 end
 
 on leave(p)
-  for t in copy(traps) do
-    if t.owner == p.id then
-      gone(t.block)
-      remove(traps, index_of(traps, t))
-    end
-  end
+  kit_gone(p.clone)
+  for t in filter(traps, func(x) return x.owner == p end) do kit_gone(t.b) end
+  traps = filter(traps, func(x) return x.owner != p end)
 end

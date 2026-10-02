@@ -1,0 +1,249 @@
+-- carpet.absc — 赤いカーペット: 西の「ミームの門」から ミームが 1体ずつ 歩いてくる。近くで「買う」と
+-- 自分のきちまで 歩いていき、あいている台に のる。早いもの勝ち！ めずらしいほど 出にくい。
+-- 5分ごとに レジェンダリー以上、15分ごとに ミシック以上が かならず出る。イベント中は 変異や特性つきが出やすい。
+
+let walkers = []    -- {e, m, x0, t0, lane, price}
+let cp_clock = 0
+let cp_next = 0
+let next_legend = 0
+let next_mythic = 0
+let CARPET_X0 = -122
+let CARPET_X1 = 124
+let LANES = [0, -1.9, 1.9]
+
+func walker_x(w)
+  return w.x0 + CARPET_SPEED * (time() - w.t0)
+end
+
+func walker_pos(w)
+  return {x: walker_x(w), y: 0.22, z: w.lane}
+end
+
+-- MARK: どれが出るか
+
+func roll_rarity(min_r)
+  let ws = []
+  for i in 1 to 7 do
+    let w = RARITIES[i].carpet
+    if i < (min_r or 1) then w = 0 end
+    if w > 0 and BOOST.luck != 1 then w = pow(w, 1 / BOOST.luck) end
+    append(ws, w)
+  end
+  return pick_weighted(ws)
+end
+
+-- イベントのキャラは そのイベントのあいだだけ 出てくる（出やすい）
+func roll_char(r)
+  let pool = []
+  let ws = []
+  for c in CHARS_BY_RARITY[r] do
+    let w = 0
+    if c.src == "carpet" then
+      w = c.w
+    elif starts_with(c.src, "event:") and event_on(replace(c.src, "event:", "")) then
+      w = c.w * 8
+    end
+    if w > 0 then
+      append(pool, c)
+      append(ws, w)
+    end
+  end
+  if len(pool) == 0 then return nil end
+  return pool[pick_weighted(ws)]
+end
+
+func roll_mut()
+  let m = event_mutation()
+  if m != nil then return m end
+  let ws = []
+  for k in MUT_ORDER do append(ws, MUTATIONS[k].w) end
+  return MUT_ORDER[pick_weighted(ws)]
+end
+
+func carpet_price(e)
+  let c = char_of(e.id)
+  return floor(c.pr * MUTATIONS[e.mut].mult)
+end
+
+-- MARK: 出す・消す
+
+func spawn_walker(at_x, min_r, forced)
+  let c = forced
+  if c == nil then c = roll_char(roll_rarity(min_r)) end
+  if c == nil then c = roll_char(1) end
+  let e = {id: c.id, mut: roll_mut(), tr: event_traits()}
+  let lane = 0
+  if BOOST.lanes > 1 then lane = LANES[random(1, min(3, BOOST.lanes))] end
+  let x0 = at_x or CARPET_X0
+  let m = build_model(e, {x: x0, y: 0.22, z: lane}, 90)
+  m.root.animation = "bounce"
+  m.root.animation_speed = 1.6
+  let price = carpet_price(e)
+  meme_label(m, e, money(price) + "   " + money(meme_income(e)) + "/秒", "#FDE047")
+  mv(m.root, {x: CARPET_X1, y: 0.22, z: lane}, (CARPET_X1 - x0) / CARPET_SPEED)
+  let w = {e: e, m: m, x0: x0, t0: time(), lane: lane, price: price}
+  append(walkers, w)
+  if at_x == nil then
+    if c.r >= 5 then
+      announce(RARITIES[c.r].name + "！ " + meme_title(e) + " が カーペットに来た！ " + money(price), 4)
+      sound("bell")
+    elif e.mut != "none" and MUTATIONS[e.mut].mult >= 4 then
+      announce(MUTATIONS[e.mut].icon + " " + meme_title(e) + " が カーペットに！", 3)
+    end
+  end
+  return w
+end
+
+func remove_walker(w)
+  walkers = filter(walkers, func(x) return x != w end)
+  destroy_model(w.m)
+end
+
+-- イベントや儀式から: このキャラを カーペットに出す
+func carpet_send(c, mut, traits)
+  let w = spawn_walker(nil, nil, c)
+  if mut != nil or traits != nil then
+    let pos = walker_pos(w)
+    destroy_model(w.m)
+    if mut != nil then w.e.mut = mut end
+    if traits != nil then w.e.tr = traits end
+    w.price = carpet_price(w.e)
+    w.m = build_model(w.e, pos, 90)
+    w.m.root.animation = "bounce"
+    w.m.root.animation_speed = 1.6
+    meme_label(w.m, w.e, money(w.price) + "   " + money(meme_income(w.e)) + "/秒", "#FDE047")
+    mv(w.m.root, {x: CARPET_X1, y: 0.22, z: w.lane}, (CARPET_X1 - pos.x) / CARPET_SPEED)
+    w.x0 = pos.x
+    w.t0 = time()
+  end
+  return w
+end
+
+-- MARK: 買う
+
+func walker_near(p)
+  if abs(p.z) > 5.5 or p.y > 4 then return nil end
+  let best = nil
+  let bd = 3.6
+  for w in walkers do
+    let d = abs(walker_x(w) - p.x) + abs(w.lane - p.z) * 0.5
+    if d < bd then
+      bd = d
+      best = w
+    end
+  end
+  return best
+end
+
+func buy_walker(p)
+  let w = p.cp_pick
+  if w == nil or not contains(walkers, w) or abs(walker_x(w) - p.x) > 5 then
+    p.message("ミームが 歩いていっちゃった…", 1.2)
+    return
+  end
+  if p.base == nil then return end
+  if p.carry != nil then
+    p.message("🦹 ミームを はこんでいる時は 買えない", 1.5)
+    return
+  end
+  let st = free_stand(p.base)
+  if st == nil then
+    p.message("🏠 台が いっぱい！ 🏠メニューで 売るか、🌟転生で 台をふやそう", 2.5)
+    p.sound("error")
+    return
+  end
+  if not kit_pay(p, w.price) then return end
+  let from = walker_pos(w)
+  remove_walker(w)
+  place_meme(p.base, st.f, st.s, w.e, from)
+  got_meme(p, w.e)
+  p.bought = (p.bought or 0) + 1
+  kit_quest_progress(p, "buy", 1)
+  let c = char_of(w.e.id)
+  p.message("🛒 " + meme_title(w.e) + " を買った！ きちまで 歩いていくよ", 2.5)
+  p.sound("pop")
+  particles("confetti", from, {amount: 16})
+  if c.r >= 5 then
+    announce("🌟 " + p.name + " が " + RARITIES[c.r].name + " の " + meme_title(w.e) + " を手に入れた！", 3)
+  end
+end
+
+-- 手に入れたときの 記録（図鑑・クエスト）
+func got_meme(p, e)
+  let c = char_of(e.id)
+  dex_add(p, e)
+  if c.r >= 4 then kit_quest_progress(p, "legend", 1) end
+  if c.r >= 5 then kit_quest_progress(p, "mythic", 1) end
+  if c.r >= 6 then kit_quest_progress(p, "god", 1) end
+  if c.r >= 7 then
+    kit_quest_progress(p, "secret", 1)
+    kit_badge(p, "secret", "シークレットを 手に入れた")
+  end
+  if e.mut != "none" then kit_quest_progress(p, "mutant", 1) end
+  if len(e.tr or []) > 0 then kit_quest_progress(p, "trait", 1) end
+  let inc = meme_income(e)
+  if inc > (p.best_inc or 0) then p.best_inc = inc end
+end
+
+-- MARK: まいフレーム
+
+on start()
+  next_legend = LEGEND_EVERY
+  next_mythic = MYTHIC_EVERY
+  -- はじめから カーペットに ならんでいるように
+  for i in 1 to 26 do spawn_walker(CARPET_X0 + i * 9, nil, nil) end
+end
+
+on tick(dt)
+  cp_clock = cp_clock + dt
+  if cp_clock < 0.25 then return end
+  cp_clock = 0
+  let now = time()
+  if now >= cp_next then
+    cp_next = now + CARPET_EVERY / BOOST.spawn
+    let min_r = 1
+    if now >= next_mythic then
+      min_r = 5
+      next_mythic = now + MYTHIC_EVERY
+      next_legend = now + LEGEND_EVERY
+    elif now >= next_legend then
+      min_r = 4
+      next_legend = now + LEGEND_EVERY
+    end
+    spawn_walker(nil, min_r, nil)
+  end
+  for w in walkers do
+    if walker_x(w) >= CARPET_X1 - 0.5 then
+      particles("magic", walker_pos(w), {amount: 6})
+      remove_walker(w)
+    end
+  end
+  for p in players() do
+    if not p.is_npc then
+      let w = nil
+      if p.carry == nil then w = walker_near(p) end
+      p.cp_pick = w
+      let label = nil
+      if w != nil then label = "🛒 " + meme_title(w.e) + " を買う  " + money(w.price) end
+      if label != p.cp_label then
+        p.cp_label = label
+        if label == nil then
+          p.ui_remove("buymeme")
+        else
+          p.ui_button("buymeme", label, {at: "bottom", dy: -150, w: 420, h: 56, size: 17, bg: "#BE185D"})
+        end
+      end
+    end
+  end
+end
+
+on button(p, id)
+  if id == "buymeme" then buy_walker(p) end
+end
+
+-- 管理人セールなど: ねだんを 下げる
+func walker_sale(w, factor)
+  if w == nil then return end
+  w.price = max(1, floor(w.price * factor))
+  meme_label(w.m, w.e, "🏷 セール " + money(w.price) + "   " + money(meme_income(w.e)) + "/秒", "#F472B6")
+end

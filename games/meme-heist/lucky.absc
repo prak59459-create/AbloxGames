@@ -1,0 +1,148 @@
+-- lucky.absc — ラッキーブロック: 西の広場の黄色いお店で買う（管理人イベントの「ラッキーブロックの雨」でも ひろえる）。
+-- 下のバーで タップすると 自分のきちの あいている台で ぱかっと開いて、中のミームが出てくる。
+-- 中身は ブロックの色で きまる めずらしさの中から（たまに 変異つき）。
+
+let LUCKY = [
+  {id: "rare", name: "レア ラッキーブロック", icon: "🟦", color: "#60A5FA", price: 100000, odds: [0, 70, 27, 3, 0, 0, 0]},
+  {id: "epic", name: "エピック ラッキーブロック", icon: "🟪", color: "#C084FC", price: 1200000, odds: [0, 0, 70, 27, 3, 0, 0]},
+  {id: "legend", name: "レジェンダリー ラッキーブロック", icon: "🟨", color: "#FBBF24", price: 15000000, odds: [0, 0, 0, 70, 27, 3, 0]},
+  {id: "mythic", name: "ミシック ラッキーブロック", icon: "🟥", color: "#F87171", price: 250000000, odds: [0, 0, 0, 0, 72, 26, 2]},
+  {id: "god", name: "ゴッド ラッキーブロック", icon: "🌟", color: "#FDE047", price: 1500000000, odds: [0, 0, 0, 0, 0, 85, 15]},
+  {id: "secret", name: "シークレット ラッキーブロック", icon: "⬛", color: "#111827", price: 12000000000, odds: [0, 0, 0, 0, 0, 0, 100]}
+]
+let LUCKY_BY_NAME = {}
+let LUCKY_BY_ID = {}
+for l in LUCKY do
+  LUCKY_BY_NAME[l.name] = l
+  LUCKY_BY_ID[l.id] = l
+end
+
+func lucky_count(p, id)
+  return (p.lucky or {})[id] or 0
+end
+
+func add_lucky(p, id, n)
+  if p.lucky == nil then p.lucky = {} end
+  let l = LUCKY_BY_ID[id]
+  p.lucky[id] = lucky_count(p, id) + n
+  if n > 0 then p.give_item(l.name, n, l.icon) end
+end
+
+func lucky_items(p)
+  for l in LUCKY do
+    let n = lucky_count(p, l.id)
+    if n > 0 then p.give_item(l.name, n, l.icon) end
+  end
+end
+
+-- 中身を きめる
+func lucky_roll(l)
+  let r = pick_weighted(l.odds)
+  let c = roll_char(r)
+  if c == nil then c = roll_char(max(1, r - 1)) end
+  let mut = "none"
+  let x = random_float(0, 100)
+  if x < 0.5 then mut = "rainbow" elif x < 4 then mut = "diamond" elif x < 12 then mut = "gold" end
+  return {id: c.id, mut: mut, tr: []}
+end
+
+func open_lucky(p, l)
+  if p.base == nil then return end
+  if p.carry != nil then
+    p.message("🦹 はこんでいる時は 開けられない", 1.5)
+    return
+  end
+  let st = free_stand(p.base)
+  if st == nil then
+    p.message("🏠 台が いっぱい！ あけてから 開けよう", 2)
+    p.sound("error")
+    return
+  end
+  if lucky_count(p, l.id) <= 0 then return end
+  p.lucky[l.id] = lucky_count(p, l.id) - 1
+  p.take_item(l.name, 1)
+  let k = p.base
+  let top = stand_top(k, st.f, st.s)
+  let cube = create_block({name: "Lucky Block", position: top + {x: 0, y: 1.1, z: 0}, size: 1.8, color: l.color, material: "neon", solid: false})
+  cube.animation = "spin"
+  cube.animation_speed = 2
+  cube.label = [{text: "？", color: "#FFFFFF"}, {text: l.name, color: l.color}]
+  cube.label_height = 0.6
+  create_block({parent: cube, name: "Lucky Mark", position: {x: 0, y: 0, z: -0.52}, size: {x: 0.5, y: 0.7, z: 0.05}, color: "#FFFFFF",
+                           material: "neon", solid: false})
+  p.message(l.icon + " " + l.name + " を 開けるよ… 3・2・1！（きちの台を 見てね）", 3)
+  p.sound("drum")
+  let e = lucky_roll(l)
+  after(3.2, func()
+    kit_gone(cube)
+    particles("confetti", top, {amount: 50})
+    sound("magic")
+    if bases[k].owner != p or not kit_here(p) then return end
+    let f = st.f
+    let s = st.s
+    if slot_at(k, f, s) != nil then
+      let other = free_stand(k)
+      if other == nil then
+        add_lucky(p, l.id, 1)
+        return
+      end
+      f = other.f
+      s = other.s
+    end
+    place_meme(k, f, s, e, nil)
+    got_meme(p, e)
+    kit_quest_progress(p, "lucky", 1)
+    let c = char_of(e.id)
+    p.message("🎉 " + RARITIES[c.r].name + " の " + meme_title(e) + " が出た！", 3)
+    if c.r >= 6 then announce("🎁 " + p.name + " の ラッキーブロックから " + RARITIES[c.r].name + " の " + meme_title(e) + "！", 4) end
+  end)
+end
+
+-- MARK: お店
+
+func open_lucky_shop(p)
+  let n = len(LUCKY)
+  let h = 130 + n * 46
+  p.ui_remove("ls_box")
+  p.ui_panel("ls_box", {at: "center", w: 680, h: h, bg: "#3A2A05F2", radius: 22, layer: 40})
+  p.ui_text("ls_t", "🎁 ラッキーブロック屋   買ったブロックは 下のバーで 開けよう", {parent: "ls_box", y: 26 / h, size: 17, bold: true, color: "#FDE68A"})
+  let i = 0
+  for l in LUCKY do
+    i = i + 1
+    let y = (30 + i * 46) / h
+    let odds = ""
+    for r in 1 to 7 do
+      if l.odds[r] > 0 then odds = odds + RARITIES[r].name + " " + l.odds[r] + "%  " end
+    end
+    p.ui_text("ls_n" + i, l.icon + " " + l.name + "（" + lucky_count(p, l.id) + "こ）", {parent: "ls_box", y: y - 9 / h, dx: -120, size: 14, color: l.color})
+    p.ui_text("ls_o" + i, odds, {parent: "ls_box", y: y + 10 / h, dx: -120, size: 11, color: "#E5E7EB"})
+    p.ui_button("lsbuy_" + i, "💰" + short(l.price), {parent: "ls_box", y: y, dx: 250, w: 140, h: 36, size: 14, bg: "#B45309"})
+  end
+  p.ui_button("ls_close", "閉じる", {parent: "ls_box", y: (h - 28) / h, w: 140, h: 38, size: 15, bg: "gray"})
+end
+
+func buy_lucky(p, i)
+  let l = LUCKY[i]
+  if l == nil then return end
+  if not kit_pay(p, l.price) then return end
+  add_lucky(p, l.id, 1)
+  p.sound("collect")
+  p.message(l.icon + " " + l.name + " を 買った！ 下のバーで 開けよう", 2)
+  open_lucky_shop(p)
+end
+
+on use(p, item)
+  let l = LUCKY_BY_NAME[item]
+  if l != nil then open_lucky(p, l) end
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "luckyshop") then open_lucky_shop(p) end
+end
+
+on button(p, id)
+  if id == "ls_close" then p.ui_remove("ls_box")
+  elif starts_with(id, "lsbuy_") then buy_lucky(p, num(replace(id, "lsbuy_", "")))
+  end
+end

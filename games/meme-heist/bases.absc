@@ -1,374 +1,566 @@
--- bases.absc — 基地
--- 色つきパッドで基地をもらう。台（はじめ5つ・買うと10まで）にキャラの像がならぶ。
--- キャラは毎秒お金をうみ、基地の「金庫」にたまる → 基地の真ん中のパッドで受け取る。
--- 白いパッドでロック（レーザー）。ロックの長さは強化できる。🏠ボタンで売る・台を開ける。
+-- bases.absc — きち: 来た人は あいている きちを もらう。台のミームは 1秒ごとに お金をうみ、台の前の
+-- 緑のプレートに たまる（ふむと受けとれる。金色のパッドで ぜんぶ）。赤いパッドで 🔒 ロック（レーザーで
+-- ほかの人は入れない）。2かいは 転生2、3がいは 転生10 で ひらく。プレイヤーのいない きちは ライバルのもの（rivals.absc）。
 
-let base_owner = {}   -- "1" → プレイヤーid
-let base_slots = {}   -- "1:3" → {id, mut}
-let statues = {}      -- "1:3" → [体, 頭]
-let locked_until = {} -- "1" → 時間
-let base_clock = 0
-let income_bonus = 1  -- イベントで変わる
+let bases = []      -- k → {owner, rival, slots: {"f_s": slot}, lock_until, lasers, sign}
+                    -- slot: {e: {id, mut, tr}, m: 見た目, bank: たまったお金, ready: 着く時刻, k, f, s}
+let PLATES = {}     -- "k_f_s" → プレートのブロック
+let plate_text = {} -- "k_f_s" → いまの文字
+let bs_clock = 0
+let laser_clock = 0
+let plate_clock = 0
+let save_clock = 0
 
-func slot_key(base, slot)
-  return base + ":" + slot
-end
-
-func slot_block(base, slot)
-  return block("Base " + base + " Slot " + slot)
-end
-
-func home_block(base)
-  return block("Base " + base + " Home")
-end
-
--- 基地の入り口の外（カーペット側）
-func base_door(base)
-  let home = home_block(base)
-  let side = 1
-  if home.x < 0 then side = -1 end
-  return {x: side * 22, y: 0.5, z: home.z}
-end
-
-func is_locked(base)
-  return locked_until[str(base)] != nil and time() < locked_until[str(base)]
-end
-
--- MARK: 像
-
-func place_statue(base, slot, id, mut)
-  let key = slot_key(base, slot)
-  clear_statue(base, slot)
-  base_slots[key] = {id: id, mut: mut}
-  let m = meme_by_id(id)
-  let mu = MUTATIONS[mut or "none"]
-  let pad = slot_block(base, slot)
-  if pad == nil then return end
-  let head_color = m.head
-  let material = "plastic"
-  if mu.color != nil then
-    head_color = mu.color
-    material = mu.material
+on start()
+  for k in 1 to len(BASES) do
+    append(bases, {owner: nil, rival: nil, slots: {}, lock_until: 0, lasers: false, sign: ""})
+    for f in 1 to 3 do
+      for s in 1 to STANDS do PLATES[k + "_" + f + "_" + s] = block("Plate " + k + "_" + f + "_" + s) end
+    end
   end
-  let body = create_block({name: "Statue " + key, shape: "box", position: pad.position + {x: 0, y: 1.15, z: 0},
-                           size: {x: 1.1, y: 1.3, z: 1.1}, color: m.color, material: material, solid: false})
-  let head = create_block({name: "Statue " + key + " Head", shape: "sphere", position: pad.position + {x: 0, y: 2.3, z: 0},
-                           size: 1.05, color: head_color, material: material, solid: false})
-  statues[key] = [body, head]
-end
-
-func clear_statue(base, slot)
-  let key = slot_key(base, slot)
-  let parts = statues[key]
-  if parts != nil then
-    for b in parts do gone(b) end
+  for k in 1 to len(BASES) do
+    paint_stands(k)
+    update_sign(k)
   end
-  remove(statues, key)
-  remove(base_slots, key)
 end
 
 -- MARK: 台
 
-func free_slot(p)
-  if p.base == nil then return nil end
-  for s in 1 to p.slots_open do
-    if base_slots[slot_key(p.base, s)] == nil then return s end
+func slot_at(k, f, s)
+  return bases[k].slots[skey(f, s)]
+end
+
+func floors_open(k)
+  let o = bases[k].owner
+  if o == nil then
+    let r = bases[k].rival
+    if r != nil then return r.floors end
+    return 1
+  end
+  let n = 1
+  for f in 2 to 3 do
+    if (o.rebirths or 0) >= FLOOR_REBIRTH[f] then n = f end
+  end
+  return n
+end
+
+func capacity(k)
+  return floors_open(k) * STANDS
+end
+
+func free_stand(k)
+  for f in 1 to floors_open(k) do
+    for s in 1 to STANDS do
+      if slot_at(k, f, s) == nil then return {f: f, s: s} end
+    end
   end
   return nil
 end
 
--- 空いている台の数（歩いてくるキャラの分は予約ずみ）
-func free_count(p)
-  if p.base == nil then return 0 end
+func slot_list(k)
+  return values(bases[k].slots)
+end
+
+func meme_count(k)
+  return len(bases[k].slots)
+end
+
+func base_mult(k)
+  let o = bases[k].owner
+  if o == nil then return 1 end
+  return income_mult(o)
+end
+
+func slot_income(sl)
+  return meme_income(sl.e) * base_mult(sl.k)
+end
+
+func base_income(k)
   let n = 0
-  for s in 1 to p.slots_open do
-    if base_slots[slot_key(p.base, s)] == nil then n = n + 1 end
+  for sl in slot_list(k) do
+    if sl.ready <= time() then n = n + slot_income(sl) end
   end
-  return n - (p.pending or 0)
+  return n
 end
 
-func base_income(p)
-  if p.base == nil then return 0 end
-  let total = 0
-  for s in 1 to 10 do
-    let item = base_slots[slot_key(p.base, s)]
-    if item != nil then total = total + meme_income(item.id, item.mut) end
-  end
-  return total * rebirth_mult(p) * income_bonus
+func slot_label(sl)
+  meme_label(sl.m, sl.e, money(slot_income(sl)) + "/秒", nil)
 end
 
-func base_memes(p)
-  let list = []
-  if p.base == nil then return list end
-  for s in 1 to 10 do
-    let item = base_slots[slot_key(p.base, s)]
-    if item != nil then append(list, {slot: s, id: item.id, mut: item.mut}) end
-  end
-  return list
+func relabel_base(k)
+  for sl in slot_list(k) do slot_label(sl) end
 end
 
--- 自分の基地の台にキャラを置く（買った・盗んだ）
-func put_in_base(p, id, mut)
-  let s = free_slot(p)
-  if s == nil then return false end
-  place_statue(p.base, s, id, mut)
-  if p.index == nil then p.index = [] end
-  let key = id + ":" + (mut or "none")
-  if not contains(p.index, key) then append(p.index, key) end
-  if not contains(p.seen, id) then
-    append(p.seen, id)
-    kit_quest_progress(p, "index", 1)
+func relabel_all()
+  for k in 1 to len(BASES) do
+    if bases[k].owner != nil then relabel_base(k) end
   end
-  let r = meme_by_id(id).rarity
-  if r == "legendary" then kit_quest_progress(p, "legend", 1) end
-  if r == "mythic" or r == "secret" then kit_quest_progress(p, "mythic", 1) end
-  if mut != nil and mut != "none" then kit_quest_progress(p, "mutant", 1) end
-  hud(p)
-  return true
 end
 
--- MARK: 基地をもらう・手放す
+-- ミームを台に置く。from があれば そこから 歩いてくる
+func place_meme(k, f, s, e, from)
+  let top = stand_top(k, f, s)
+  let start = top
+  if from != nil then start = from end
+  let m = build_model(e, start, face_yaw(k))
+  idle_anim(m)
+  let sl = {e: e, m: m, bank: 0, ready: 0, k: k, f: f, s: s}
+  bases[k].slots[skey(f, s)] = sl
+  slot_label(sl)
+  if from != nil then
+    let door = base_front(k)
+    let d1 = max(0.4, distance(from, door) / 10)
+    let d2 = max(0.4, distance(door, top) / 7)
+    turn_to(m, yaw_to(from, door))
+    mv(m.root, door, d1)
+    sl.ready = time() + d1 + d2
+    after(d1, func()
+      if bases[k].slots[skey(f, s)] == sl and m.root != nil then
+        turn_to(m, yaw_to(door, top))
+        mv(m.root, top, d2)
+      end
+    end)
+    after(d1 + d2, func()
+      if bases[k].slots[skey(f, s)] == sl and m.root != nil then
+        turn_to(m, face_yaw(k))
+        particles("sparkles", top, {amount: 12})
+      end
+    end)
+  end
+  sync_save(k)
+  return sl
+end
 
-func claim_base(p, base)
-  if p.base != nil then
-    if p.base != base then p.message("あなたの基地は " + p.base + " です", 1.2) end
-    return
+-- 台から とる（見た目は消える）。たまっていたお金は もちぬしへ
+func remove_meme(k, f, s)
+  let sl = slot_at(k, f, s)
+  if sl == nil then return nil end
+  bases[k].slots[skey(f, s)] = nil
+  destroy_model(sl.m)
+  let o = bases[k].owner
+  if o != nil and sl.bank >= 1 then pay(o, floor(sl.bank)) end
+  set_plate(k, f, s, nil)
+  sync_save(k)
+  return sl.e
+end
+
+func clear_slots(k)
+  for sl in slot_list(k) do
+    bases[k].slots[skey(sl.f, sl.s)] = nil
+    destroy_model(sl.m)
+    set_plate(k, sl.f, sl.s, nil)
   end
-  if base_owner[base] != nil then
-    p.message("ここは " + (player_by_id(base_owner[base]) or {name: "だれか"}).name + " の基地", 1.2)
-    return
-  end
-  base_owner[base] = p.id
-  p.base = base
-  p.message("🏠 基地 " + base + " があなたの基地になった！カーペットのキャラを買おう", 3)
-  p.sound("checkpoint")
-  -- 開いている台の色を明るく
-  for s in 1 to 10 do
-    let pad = slot_block(base, s)
-    if pad != nil then
-      if s <= p.slots_open then pad.color = "#E4E4E7" else pad.color = "#4B5563" end
+end
+
+-- ミームの 変異や特性が かわったとき: 見た目を作りなおす
+func rebuild_slot(sl)
+  let k = sl.k
+  if bases[k].slots[skey(sl.f, sl.s)] != sl then return end
+  destroy_model(sl.m)
+  sl.m = build_model(sl.e, stand_top(k, sl.f, sl.s), face_yaw(k))
+  idle_anim(sl.m)
+  slot_label(sl)
+  sync_save(k)
+end
+
+-- MARK: 台の色・プレート・看板
+
+func paint_stands(k)
+  let open = floors_open(k)
+  let owned = bases[k].owner != nil
+  for f in 1 to 3 do
+    for s in 1 to STANDS do
+      let ped = block("Ped " + k + "_" + f + "_" + s)
+      let plate = PLATES[k + "_" + f + "_" + s]
+      let pc = "#64748B"
+      let lc = "#475569"
+      if f <= open then
+        pc = FLOOR_COLORS[f]
+        if owned then lc = "#22C55E" else lc = "#86EFAC" end
+      end
+      if ped != nil and ped.color != pc then ped.color = pc end
+      if plate != nil and plate.color != lc then plate.color = lc end
     end
   end
-  hud(p)
 end
 
-func release_base(p)
-  let base = p.base
-  if base == nil then return end
-  for s in 1 to 10 do clear_statue(base, s) end
-  remove(base_owner, base)
-  remove(locked_until, base)
-  let laser = block("Base " + base + " Laser")
-  if laser != nil then laser.visible = false end
-  p.base = nil
+func set_plate(k, f, s, text)
+  let key = k + "_" + f + "_" + s
+  if plate_text[key] == text then return end
+  plate_text[key] = text
+  let plate = PLATES[key]
+  if plate == nil then return end
+  if text == nil then
+    plate.label = nil
+  else
+    plate.label = [{text: text, color: "#86EFAC"}]
+    plate.label_height = 0.5
+    plate.label_size = 0.8
+    plate.label_range = 26
+  end
 end
 
--- MARK: 金庫
-
-func vault_cap(p)
-  return max(500, base_income(p) * 180)
+func update_plates(k)
+  if bases[k].owner == nil then return end
+  for sl in slot_list(k) do
+    if sl.bank >= 1 then set_plate(k, sl.f, sl.s, money(floor(sl.bank))) else set_plate(k, sl.f, sl.s, nil) end
+  end
 end
 
-func collect(p)
-  if (p.vault or 0) < 1 then return end
-  let n = floor(p.vault)
-  p.vault = p.vault - n
-  kit_give(p, n)
-  p.message("💰 金庫から +" + kit_short(n), 1.2)
-  p.sound("collect")
-  hud(p)
+func update_sign(k)
+  let base = bases[k]
+  let title = {text: "BASE " + k, color: "#FFFFFF"}
+  let line = {text: "あいています", color: "#E5E7EB"}
+  if base.owner != nil then
+    title = {text: base.owner.name + " のきち", color: "#FFFFFF"}
+    if is_locked(k) then
+      line = {text: "🔒 ロック中 " + ceil(base.lock_until - time()), color: "#FCA5A5"}
+    else
+      line = {text: "🔓 あいてる", color: "#86EFAC"}
+    end
+  elif base.rival != nil then
+    title = {text: "😈 " + base.rival.name, color: "#FDE68A"}
+    if is_locked(k) then line = {text: "🔒 ロック中", color: "#FCA5A5"} else line = {text: "ぬすめるかも…", color: "#E5E7EB"} end
+  end
+  let key = title.text + "|" + line.text
+  if key == base.sign then return end
+  base.sign = key
+  let sign = block("Base " + k + " Sign")
+  if sign != nil then sign.label = [title, line] end
 end
 
 -- MARK: ロック
 
-func lock_base(p)
-  if p.base == nil then return end
-  if is_locked(p.base) then return end
-  let left = cooldown_left(p, "lock")
-  if left > 0 then
-    p.message("🔒 次のロックまで " + ceil(left) + " 秒", 1.2)
+func is_locked(k)
+  return time() < bases[k].lock_until
+end
+
+func lock_secs(p)
+  return LOCK_SECS + 5 * (p.rebirths or 0)
+end
+
+func lock(p, k)
+  if p.base != k then
+    if kit_ready(p, "notmine", 3) then p.message("ここは ほかの人の きち。自分のきちの 赤いパッドで ロックしよう", 1.5) end
     return
   end
-  let secs = LOCK_LEVELS[p.lock_level].secs
-  locked_until[p.base] = time() + secs
-  start_cooldown(p, "lock", secs + 30)
-  let laser = block("Base " + p.base + " Laser")
-  if laser != nil then laser.visible = true end
-  p.message("🔒 " + secs + "秒ロック！レーザーでだれも入れない", 2)
-  p.sound("checkpoint")
+  if is_locked(k) then
+    if kit_ready(p, "locked_already", 2) then p.message("🔒 まだ ロック中（あと " + ceil(bases[k].lock_until - time()) + "秒）", 1.2) end
+    return
+  end
+  bases[k].lock_until = time() + lock_secs(p)
+  p.message("🔒 ロック！ " + lock_secs(p) + "秒、ほかの人は入れない", 2)
+  p.sound("door")
   kit_quest_progress(p, "lock", 1)
+  update_sign(k)
 end
 
-func laser_touch(p, b)
-  let base = split(b.name, " ")[2]
-  if not is_locked(base) or p.base == base then return end
-  -- はじき返す
-  let home = home_block(base)
-  let d = normalize(p.position - home.position)
-  p.launch(d.x * 22, 8, d.z * 22)
-  p.message("⚡ レーザー！ロック中の基地には入れない", 1.5)
-  if p.carrying != nil then drop_carry(p, "レーザーでキャラを落とした") end
+func show_lasers(k, on_now)
+  if bases[k].lasers == on_now then return end
+  bases[k].lasers = on_now
+  for b in blocks("laser" + k) do b.visible = on_now end
+  if on_now then sound("laser", {volume: 0.4}) end
 end
 
--- MARK: 🏠 基地メニュー
+-- MARK: もらう・かえす
 
-func base_menu(p)
-  if p.base == nil then
-    p.message("まず空いている基地の色つきパッドにさわろう", 2)
+func claim(p)
+  if p.base != nil then return end
+  let k = nil
+  for i in 1 to len(BASES) do
+    if k == nil and bases[i].owner == nil then k = i end
+  end
+  if k == nil then
+    p.message("きちが ぜんぶ うまっています。見学しよう！", 3)
     return
   end
-  let rows = 10
-  let h = 200 + rows * 38
-  p.ui_panel("bmenu", {at: "center", w: 560, h: h, bg: "#1E1B4BF2", radius: 22, layer: 30})
-  p.ui_text("bmenu_t", "🏠 基地 " + p.base + "   💸 " + kit_short(base_income(p)) + "/秒", {parent: "bmenu", y: 24 / h, size: 20, bold: true, color: "#FDE68A"})
-  for s in 1 to 10 do
-    let y = (34 + s * 38) / h
-    let item = base_slots[slot_key(p.base, s)]
-    if s > p.slots_open then
-      if s == p.slots_open + 1 then
-        p.ui_button("unlock_slot", "🔓 台" + s + " を開ける  💰" + kit_short(SLOT_PRICES[s]), {parent: "bmenu", y: y, w: 480, h: 32, size: 14, bg: "#15803D"})
+  rival_leave(k)
+  clear_slots(k)
+  let base = bases[k]
+  base.owner = p
+  base.lock_until = time() + JOIN_LOCK
+  p.base = k
+  paint_stands(k)
+  if p.memes != nil and len(p.memes) > 0 then
+    restore_memes(p)
+  else
+    place_meme(k, 1, 3, {id: 1, mut: "none", tr: []}, nil)
+  end
+  update_sign(k)
+  p.teleport(base_front(k) + {x: 0, y: 1, z: BASES[k].side * 2})
+  p.yaw = face_yaw(k)
+  p.message("🏠 きち " + k + " が あなたのもの！ 赤いカーペットで ミームを買おう（さいしょの" + JOIN_LOCK + "秒は ロック中）", 4)
+  p.sound("goal")
+end
+
+-- セーブから 台にもどす
+func restore_memes(p)
+  let k = p.base
+  if k == nil then return end
+  clear_slots(k)
+  let rest = []
+  for it in p.memes or [] do
+    let f = it.f or 1
+    let s = it.s or 1
+    if char_of(it.id) != nil then
+      let e = {id: it.id, mut: it.mut or "none", tr: it.tr or []}
+      if f <= floors_open(k) and s >= 1 and s <= STANDS and slot_at(k, f, s) == nil then
+        let sl = place_meme(k, f, s, e, nil)
+        sl.bank = it.b or 0
       else
-        p.ui_text("bslot_" + s, "🔒 台" + s, {parent: "bmenu", y: y, size: 13, color: "#6B7280"})
+        append(rest, {e: e, b: it.b or 0})
       end
-    elif item == nil then
-      p.ui_text("bslot_" + s, "台" + s + "：あいている", {parent: "bmenu", y: y, size: 14, color: "#A5B4FC"})
-    else
-      let m = meme_by_id(item.id)
-      p.ui_button("sell_" + s, "台" + s + "：" + meme_title(item.id, item.mut) + "  +" + kit_short(meme_income(item.id, item.mut)) + "/秒  [売る 💰" + kit_short(meme_value(item.id, item.mut) / 2) + "]",
-                  {parent: "bmenu", y: y, w: 480, h: 32, size: 13, bg: RARITY[m.rarity].color})
     end
   end
-  let lock = LOCK_LEVELS[p.lock_level]
-  if p.lock_level < len(LOCK_LEVELS) then
-    let next = LOCK_LEVELS[p.lock_level + 1]
-    p.ui_button("lock_up", "🔒 ロック " + lock.secs + "秒 → " + next.secs + "秒  💰" + kit_short(next.price), {parent: "bmenu", y: (h - 80) / h, w: 400, h: 36, size: 14, bg: "#4338CA"})
-  else
-    p.ui_text("lock_max", "🔒 ロック " + lock.secs + "秒（最大）", {parent: "bmenu", y: (h - 80) / h, size: 14, color: "#C7D2FE"})
+  for r in rest do
+    let st = free_stand(k)
+    if st != nil then
+      let sl = place_meme(k, st.f, st.s, r.e, nil)
+      sl.bank = r.b
+    end
   end
-  p.ui_button("bmenu_close", "閉じる", {parent: "bmenu", y: (h - 30) / h, w: 130, h: 38, size: 15, bg: "gray"})
+  sync_save(k)
 end
 
-func sell_slot(p, s)
-  let item = base_slots[slot_key(p.base, s)]
-  if item == nil then return end
-  if p.sell_confirm != s then
-    p.sell_confirm = s
-    p.message("もう一度押すと " + meme_title(item.id, item.mut) + " を売ります", 1.5)
+func unclaim(p)
+  let k = p.base
+  if k == nil then return end
+  sync_save(k)
+  let base = bases[k]
+  base.owner = nil
+  base.lock_until = 0
+  clear_slots(k)
+  p.base = nil
+  paint_stands(k)
+  update_sign(k)
+  after(8, func()
+    if bases[k].owner == nil and bases[k].rival == nil then rival_arrive(k) end
+  end)
+end
+
+-- 保存: きちのミームを その人に おぼえさせる（kit が 2秒ごとに 送る）
+func sync_save(k)
+  let o = bases[k].owner
+  if o == nil then return end
+  let list = []
+  for sl in slot_list(k) do
+    append(list, {id: sl.e.id, mut: sl.e.mut, tr: sl.e.tr, f: sl.f, s: sl.s, b: floor(sl.bank)})
+  end
+  o.memes = list
+end
+
+-- MARK: お金を受けとる
+
+func pay(p, amount)
+  if amount <= 0 then return end
+  kit_give(p, amount)
+  p.earned = (p.earned or 0) + amount
+end
+
+func collect_plate(p, k, f, s)
+  if p.base != k then return end
+  let sl = slot_at(k, f, s)
+  if sl == nil or sl.bank < 1 then return end
+  let amt = floor(sl.bank)
+  sl.bank = 0
+  set_plate(k, f, s, nil)
+  pay(p, amt)
+  p.message("💵 +" + money(amt), 0.8)
+  p.sound("coin", {volume: 0.6, pitch: 1 + min(0.6, sl.f * 0.1)})
+end
+
+func collect_all(p, k)
+  if p.base != k then
+    if kit_ready(p, "notmine2", 3) then p.message("ここは ほかの人の きち", 1) end
+    return
+  end
+  let total = 0
+  for sl in slot_list(k) do
+    if sl.bank >= 1 then
+      total = total + floor(sl.bank)
+      sl.bank = 0
+      set_plate(k, sl.f, sl.s, nil)
+    end
+  end
+  if total <= 0 then
+    if kit_ready(p, "nocash", 2) then p.message("まだ お金が たまっていないよ", 1) end
+    return
+  end
+  pay(p, total)
+  p.message("💰 ぜんぶ受けとった！ +" + money(total), 1.5)
+  p.sound("coin")
+  particles("confetti", p, {amount: 20})
+  kit_quest_progress(p, "collect", 1)
+end
+
+-- MARK: 🏠 きちのメニュー（ミームを見る・売る）
+
+func sell_price(e)
+  return meme_value(e)
+end
+
+func open_base_menu(p, page)
+  let k = p.base
+  if k == nil then return end
+  let list = sort_by(slot_list(k), func(sl) return 0 - meme_income(sl.e) end)
+  let per = 8
+  let pages = max(1, ceil(len(list) / per))
+  page = clamp(page or 1, 1, pages)
+  p.bm_page = page
+  let shown = slice(list, (page - 1) * per + 1, min(len(list), page * per))
+  let h = 156 + max(1, len(shown)) * 44
+  p.ui_remove("bm_box")
+  p.ui_panel("bm_box", {at: "center", w: 700, h: h, bg: "#1E1B4BF2", radius: 22, layer: 40})
+  let title = "🏠 きち" + k + " のミーム " + len(list) + "/" + capacity(k) + "   📈 " + money(base_income(k)) + "/秒"
+  if pages > 1 then title = title + "   " + page + "/" + pages end
+  p.ui_text("bm_t", title, {parent: "bm_box", y: 26 / h, size: 18, bold: true, color: "#C7D2FE"})
+  if len(shown) == 0 then p.ui_text("bm_none", "赤いカーペットで ミームを買おう！", {parent: "bm_box", y: 76 / h, size: 15}) end
+  let view = []
+  let i = 0
+  for sl in shown do
+    i = i + 1
+    let y = (34 + i * 44) / h
+    let r = rarity_of(sl.e)
+    let floor_mark = ["1F", "2F", "3F"][sl.f]
+    p.ui_text("bm_n" + i, floor_mark + " " + meme_title(sl.e) + " " + trait_icons(sl.e), {parent: "bm_box", y: y, dx: -150, size: 14, color: r.color})
+    p.ui_text("bm_i" + i, money(slot_income(sl)) + "/秒", {parent: "bm_box", y: y, dx: 110, size: 14, color: "#86EFAC"})
+    p.ui_button("bmsell_" + i, "売る " + money(floor(sell_price(sl.e) * rebirth_mult(p))), {parent: "bm_box", y: y, dx: 265, w: 150, h: 34, size: 13, bg: "#16A34A"})
+    append(view, {f: sl.f, s: sl.s, id: sl.e.id})
+  end
+  p.bm_view = view
+  let by = (h - 30) / h
+  p.ui_button("bm_close", "閉じる", {parent: "bm_box", y: by, w: 130, h: 38, size: 15, bg: "gray"})
+  if pages > 1 then
+    p.ui_button("bm_prev", "◀", {parent: "bm_box", y: by, dx: -150, w: 70, h: 38, size: 15, bg: "#4338CA"})
+    p.ui_button("bm_next", "▶", {parent: "bm_box", y: by, dx: 150, w: 70, h: 38, size: 15, bg: "#4338CA"})
+  end
+end
+
+func sell_from_menu(p, i)
+  let k = p.base
+  let v = (p.bm_view or [])[i]
+  if k == nil or v == nil then return end
+  let sl = slot_at(k, v.f, v.s)
+  if sl == nil or sl.e.id != v.id then
+    open_base_menu(p, p.bm_page)
+    return
+  end
+  -- めずらしいミームは 2回おして 売る
+  let c = char_of(sl.e.id)
+  let key = v.f + "_" + v.s + "_" + v.id
+  if c.r >= 4 and p.sell_confirm != key then
+    p.sell_confirm = key
+    p.message("⚠️ " + meme_title(sl.e) + " を ほんとうに 売る？ もう一度 おすと 売ります", 2.5)
+    p.sound("tick")
     return
   end
   p.sell_confirm = nil
-  let price = floor(meme_value(item.id, item.mut) / 2)
-  clear_statue(p.base, s)
-  kit_give(p, price)
-  p.message("💰 " + meme_title(item.id, item.mut) + " を売った +" + kit_short(price), 2)
-  p.sound("collect")
-  base_menu(p)
-  hud(p)
+  let e = remove_meme(k, v.f, v.s)
+  let price = floor(sell_price(e) * rebirth_mult(p))
+  pay(p, price)
+  p.message("💵 " + meme_title(e) + " を売った +" + money(price), 2)
+  p.sound("coin")
+  kit_quest_progress(p, "sell", 1)
+  open_base_menu(p, p.bm_page)
 end
 
-func unlock_slot(p)
-  let s = p.slots_open + 1
-  if s > 10 then return end
-  if not kit_pay(p, SLOT_PRICES[s]) then return end
-  p.slots_open = s
-  let pad = slot_block(p.base, s)
-  if pad != nil then pad.color = "#E4E4E7" end
-  p.message("🔓 台" + s + " が使えるようになった！", 2)
-  p.sound("goal")
-  kit_quest_progress(p, "slots", 1)
-  base_menu(p)
-end
+-- MARK: まいフレーム
 
-func lock_upgrade(p)
-  if p.lock_level >= len(LOCK_LEVELS) then return end
-  let next = LOCK_LEVELS[p.lock_level + 1]
-  if not kit_pay(p, next.price) then return end
-  p.lock_level = p.lock_level + 1
-  p.message("🔒 ロックが " + next.secs + "秒 になった！", 2)
-  base_menu(p)
-end
-
--- MARK: 画面
-
-func hud(p)
-  if not kit_here(p) then return end
-  if p.base == nil then
-    set_line(p, "base", "🏠 空いている基地の色つきパッドにさわろう", {at: "top", dy: 30, size: 16, color: "#FDE68A"})
-    return
+func push_out(k)
+  for p in players() do
+    if not p.is_npc and p.base != k and in_base(p.position, k) then
+      p.teleport({x: p.x, y: 1, z: BASES[k].side * 8})
+      if kit_ready(p, "lasered", 2) then p.message("🔴 ロック中！ レーザーで 入れない", 1.2) end
+      p.sound("error")
+    end
   end
-  let lock = ""
-  if is_locked(p.base) then lock = "   🔒 " + ceil(locked_until[p.base] - time()) + "秒" end
-  set_line(p, "base", "🏠 基地 " + p.base + "   💸 " + kit_short(base_income(p)) + "/秒" + lock, {at: "top", dy: 30, size: 18, bold: true})
-  let vault = "🏦 金庫 " + kit_short(p.vault or 0) + " / " + kit_short(vault_cap(p))
-  if contains(p.gear, "magnet") then vault = "🧲 マグネットで自動回収中" end
-  set_line(p, "vault", vault, {at: "top", dy: 56, size: 15, color: "#A7F3D0"})
-  let rb = ""
-  if p.rebirth > 0 then rb = "♻️ 転生 " + p.rebirth + "（×" + rebirth_mult(p) + "）" end
-  set_line(p, "rb", rb, {at: "top_left", dy: 34, size: 15, color: "#F9A8D4"})
-  p.score = floor(base_income(p))
+end
+
+func base_hud(p)
+  let k = p.base
+  if k == nil then return end
+  let lk = "🔓 あいてる（赤いパッドで ロック）"
+  if is_locked(k) then lk = "🔒 ロック " + ceil(bases[k].lock_until - time()) + "秒" end
+  let bank = 0
+  for sl in slot_list(k) do bank = bank + sl.bank end
+  p.ui_text("bs_hud", "🏠 きち" + k + "   " + lk + "   📈 " + money(base_income(k)) + "/秒   🏦 " + money(floor(bank)),
+            {at: "top", dy: 58, size: 15, bold: true, color: "#FFFFFF"})
 end
 
 on tick(dt)
-  base_clock = base_clock + dt
-  if base_clock < 1 then return end
-  base_clock = 0
-  for p in players() do
-    if p.base != nil then
-      let earn = base_income(p)
-      if contains(p.gear, "magnet") then
-        kit_give(p, earn)
-      else
-        p.vault = min(vault_cap(p), (p.vault or 0) + earn)
-        let home = home_block(p.base)
-        if home != nil and distance(p, home) < 3.5 then collect(p) end
+  laser_clock = laser_clock + dt
+  if laser_clock >= 0.2 then
+    laser_clock = 0
+    for k in 1 to len(BASES) do
+      let locked = is_locked(k)
+      show_lasers(k, locked)
+      if locked then push_out(k) end
+    end
+  end
+  bs_clock = bs_clock + dt
+  if bs_clock < 1 then return end
+  let gap = bs_clock
+  bs_clock = 0
+  let now = time()
+  for k in 1 to len(BASES) do
+    let base = bases[k]
+    let o = base.owner
+    if o != nil and not kit_here(o) then
+      base.owner = nil
+      clear_slots(k)
+      paint_stands(k)
+      o = nil
+    end
+    if o != nil then
+      let mult = income_mult(o)
+      for sl in slot_list(k) do
+        if sl.ready <= now then sl.bank = sl.bank + meme_income(sl.e) * mult * gap end
       end
+      base_hud(o)
     end
-    hud(p)
+    update_sign(k)
   end
-  -- ロックが切れたらレーザーを消す
-  for key in keys(locked_until) do
-    if time() >= locked_until[key] then
-      remove(locked_until, key)
-      let laser = block("Base " + key + " Laser")
-      if laser != nil then laser.visible = false end
-      let owner = player_by_id(base_owner[key])
-      if owner != nil then owner.message("🔓 ロックが切れた！", 1.5) end
-    end
+  plate_clock = plate_clock + gap
+  if plate_clock >= 3 then
+    plate_clock = 0
+    for k in 1 to len(BASES) do update_plates(k) end
   end
-  -- レインボーの像は色が変わる
-  for key in keys(base_slots) do
-    let item = base_slots[key]
-    if item.mut == "rainbow" and statues[key] != nil then
-      statues[key][2].color = random(["#F43F5E", "#F97316", "#FACC15", "#22C55E", "#3B82F6", "#A855F7"])
-    end
+  save_clock = save_clock + gap
+  if save_clock >= 10 then
+    save_clock = 0
+    for k in 1 to len(BASES) do sync_save(k) end
   end
 end
 
 on touch(p, b)
   if p.is_npc then return end
-  let parts = split(b.name, " ")
-  if contains(b.tags, "claim") then
-    claim_base(p, parts[2])
-  elif contains(b.tags, "home") then
-    if parts[2] == p.base then collect(p) end
-  elif contains(b.tags, "lock") then
-    if parts[2] == p.base then lock_base(p) end
-  elif contains(b.tags, "laser") then
-    laser_touch(p, b)
+  if contains(b.tags, "plate") then collect_plate(p, tag_num(b, "k"), tag_num(b, "f"), tag_num(b, "s"))
+  elif contains(b.tags, "collectall") then collect_all(p, tag_num(b, "k"))
+  elif contains(b.tags, "lock") then lock(p, tag_num(b, "k"))
   end
 end
 
 on button(p, id)
-  if id == "open_base" then base_menu(p)
-  elif id == "bmenu_close" then
-    p.ui_remove("bmenu")
-    p.sell_confirm = nil
-  elif starts_with(id, "sell_") then sell_slot(p, num(replace(id, "sell_", "")))
-  elif id == "unlock_slot" then unlock_slot(p)
-  elif id == "lock_up" then lock_upgrade(p)
+  if id == "base_menu" then open_base_menu(p, 1)
+  elif id == "bm_close" then p.ui_remove("bm_box")
+  elif id == "bm_prev" then open_base_menu(p, (p.bm_page or 1) - 1)
+  elif id == "bm_next" then open_base_menu(p, (p.bm_page or 1) + 1)
+  elif starts_with(id, "bmsell_") then sell_from_menu(p, num(replace(id, "bmsell_", "")))
   end
 end
 
+on loaded(p)
+  -- 前の Meme Heist の セーブ（rebirth）から
+  if p.rebirths == nil and p.saved != nil and p.saved.rebirth != nil then p.rebirths = min(3, p.saved.rebirth) end
+  kit_later(p, 0.3, func()
+    if p.base != nil then
+      paint_stands(p.base)
+      if p.memes != nil and len(p.memes) > 0 then restore_memes(p) end
+      relabel_base(p.base)
+    end
+  end)
+end
+
 on leave(p)
-  release_base(p)
+  unclaim(p)
 end

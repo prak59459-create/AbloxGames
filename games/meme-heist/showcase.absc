@@ -1,0 +1,64 @@
+-- showcase.absc — 🏛 ミーム博物館（スポーンのそば）: 12の台に めずらしいミームが かざってある（見るだけ）。
+-- 2分ごとに 入れかわる。さいしょは とびきり めずらしいのを ならべておく。
+
+let SHOW_COUNT = 12
+let show_models = []
+let show_clock = 0
+let show_round = 0
+
+func show_pick()
+  -- ミシック〜OG を多めに、ときどき 変異つき
+  let list = []
+  let weights = [0, 0, 0, 2, 4, 5, 4, 2]
+  for i in 1 to SHOW_COUNT do
+    let r = pick_weighted(weights)
+    let c = random(CHARS_BY_RARITY[r])
+    let mut = "none"
+    let x = random_float(0, 100)
+    if x < 8 then mut = "rainbow" elif x < 16 then mut = "galaxy" elif x < 26 then mut = "lava" elif x < 40 then mut = "gold" elif x < 50 then mut = "diamond" end
+    append(list, {id: c.id, mut: mut, tr: []})
+  end
+  return list
+end
+
+-- 台の上の場所と 向き（スポーンのほうを向く）
+func show_spot(i)
+  let row = 0
+  if i > 6 then row = 1 end
+  let col = (i - 1) % 6
+  let z = -11
+  let yaw = 0
+  if row == 1 then
+    z = 11
+    yaw = 180
+  end
+  return {at: {x: -176 + col * 8, y: 1.02, z: z}, yaw: yaw}
+end
+
+func fill_showcase()
+  for m in show_models do destroy_model(m) end
+  show_models = []
+  show_round = show_round + 1
+  let picks = show_pick()
+  let i = 0
+  for e in picks do
+    i = i + 1
+    let sp = show_spot(i)
+    let m = build_model(e, sp.at, sp.yaw)
+    idle_anim(m)
+    let c = char_of(e.id)
+    meme_label(m, e, money(c.inc * MUTATIONS[e.mut].mult) + "/秒  " + dex_hint(c), "#86EFAC")
+    append(show_models, m)
+  end
+end
+
+on start()
+  fill_showcase()
+end
+
+on tick(dt)
+  show_clock = show_clock + dt
+  if show_clock < 120 then return end
+  show_clock = 0
+  fill_showcase()
+end

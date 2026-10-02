@@ -1,0 +1,928 @@
+-- models.absc — ミームキャラの見た目（ブロックで組み立てる）
+--
+-- どのキャラも「どうぶつのからだ」＋「がったいしたもの」。いちばん下に小さな「根っこ」のブロックがあって、
+-- ほかのパーツは ぜんぶそれにぶら下がる（create_block の parent）。だから move_to 1回で まるごと動き、
+-- アニメーション（ゆらゆら・ぴょんぴょん…）も まるごとになる。頭の上には めずらしさ・名前・お金の文字。
+--
+-- 前は -z の向き。根っこは 0.1 の大きさなので、子どもの位置と大きさは 10 ばいして書く（RS）。
+
+let ROOT = 0.1
+let RS = 10
+-- めずらしさごとの大きさ
+let RSCALE = [1, 1.06, 1.14, 1.26, 1.4, 1.58, 1.8, 2.05]
+
+-- MARK: パーツ
+
+func mpart(m, x, y, z, w, h, d, shape, color, mat, rot)
+  let k = m.k * RS
+  let o = {parent: m.root, position: {x: x * k, y: y * k, z: z * k}, size: {x: w * k, y: h * k, z: d * k}, shape: shape,
+           color: color, material: mat or "plastic", solid: false}
+  if rot != nil then o.rotation = rot end
+  let b = create_block(o)
+  append(m.parts, b)
+  return b
+end
+
+func mbox(m, x, y, z, w, h, d, color)
+  return mpart(m, x, y, z, w, h, d, "box", color, nil, nil)
+end
+
+func mball(m, x, y, z, w, h, d, color)
+  return mpart(m, x, y, z, w, h, d, "sphere", color, nil, nil)
+end
+
+func mcyl(m, x, y, z, w, h, d, color, rot)
+  return mpart(m, x, y, z, w, h, d, "cylinder", color, nil, rot)
+end
+
+func mcone(m, x, y, z, w, h, d, color, rot)
+  return mpart(m, x, y, z, w, h, d, "cone", color, nil, rot)
+end
+
+-- 目: 頭の前に 黒い2つ（白いふちつき）
+func eyes(m, h)
+  let s = h.s
+  let f = h.z - h.d / 2 - 0.01
+  for side in [-1, 1] do
+    mball(m, h.x + side * s * 0.22, h.y + s * 0.08, f, s * 0.24, s * 0.26, 0.06, "#F8FAFC")
+    mball(m, h.x + side * s * 0.22, h.y + s * 0.06, f - 0.03, s * 0.13, s * 0.15, 0.05, "#111827")
+  end
+end
+
+func mix(a, b, t)
+  return mix_color(a, b, t)
+end
+
+-- MARK: からだのつくり（plan）
+-- どれも「頭」「からだ」「手」「せなか」「足」の場所を返す。no_head / no_body のときは そこを作らない（ものが入る）。
+
+func plan_quad(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then mbox(m, 0, 0.78, 0.05, 1.15, 0.72, 1.55, c1) end
+  for x in [-0.38, 0.38] do
+    for z in [-0.5, 0.58] do mbox(m, x, 0.22, z, 0.26, 0.44, 0.28, c2) end
+  end
+  let head = {x: 0, y: 1.25, z: -0.95, s: 0.72, d: 0.68}
+  if not o.no_head then mbox(m, head.x, head.y, head.z, 0.72, 0.66, 0.68, c1) end
+  let a = m.a
+  if a == "Gatto" or a == "Volpe" or a == "Lupo" then
+    mcone(m, -0.22, 1.66, -0.95, 0.2, 0.26, 0.14, c1, nil)
+    mcone(m, 0.22, 1.66, -0.95, 0.2, 0.26, 0.14, c1, nil)
+    mcyl(m, 0, 1.05, 0.95, 0.12, 0.7, 0.12, c1, {x: 50, y: 0, z: 0})
+  elif a == "Cane" then
+    mbox(m, -0.42, 1.22, -0.92, 0.12, 0.42, 0.3, c2)
+    mbox(m, 0.42, 1.22, -0.92, 0.12, 0.42, 0.3, c2)
+    mcyl(m, 0, 1.08, 0.92, 0.1, 0.5, 0.1, c1, {x: -40, y: 0, z: 0})
+  elif a == "Elefante" then
+    mbox(m, -0.5, 1.25, -0.82, 0.08, 0.62, 0.55, c2)
+    mbox(m, 0.5, 1.25, -0.82, 0.08, 0.62, 0.55, c2)
+    mcyl(m, 0, 0.92, -1.32, 0.18, 0.7, 0.18, c1, {x: 15, y: 0, z: 0})
+  elif a == "Leone" then
+    mball(m, 0, 1.28, -0.84, 1.05, 1.0, 0.5, c2)
+    mcyl(m, 0, 1.0, 0.95, 0.1, 0.6, 0.1, c1, {x: 50, y: 0, z: 0})
+  elif a == "Tigre" then
+    for z in [-0.3, 0.1, 0.5] do mbox(m, 0, 0.8, z, 1.18, 0.74, 0.1, c2) end
+  elif a == "Mucca" then
+    mbox(m, 0.58, 0.85, 0.2, 0.02, 0.32, 0.4, c2)
+    mbox(m, -0.58, 0.72, -0.15, 0.02, 0.28, 0.32, c2)
+    mcone(m, -0.3, 1.66, -0.9, 0.1, 0.24, 0.1, "#FEF3C7", {x: 0, y: 0, z: -20})
+    mcone(m, 0.3, 1.66, -0.9, 0.1, 0.24, 0.1, "#FEF3C7", {x: 0, y: 0, z: 20})
+  elif a == "Maiale" then
+    mcyl(m, 0, 1.18, -1.32, 0.34, 0.12, 0.34, c2, {x: 90, y: 0, z: 0})
+  elif a == "Capra" or a == "Renna" then
+    let horn = "#A16207"
+    if a == "Capra" then horn = "#78716C" end
+    mcone(m, -0.24, 1.7, -0.85, 0.12, 0.36, 0.12, horn, {x: -25, y: 0, z: -20})
+    mcone(m, 0.24, 1.7, -0.85, 0.12, 0.36, 0.12, horn, {x: -25, y: 0, z: 20})
+  elif a == "Unicorno" then
+    mcone(m, 0, 1.78, -1.05, 0.14, 0.5, 0.14, "#FACC15", {x: -25, y: 0, z: 0})
+    mbox(m, 0, 1.25, -0.52, 0.16, 0.5, 0.4, c2)
+  end
+  return {head: head, body: {x: 0, y: 0.78, z: 0.05, s: 1.15}, hand: {x: 0.42, y: 1.0, z: -1.25}, back: {x: 0, y: 1.25, z: 0.2},
+          feet: [{x: -0.38, z: -0.5}, {x: 0.38, z: -0.5}], top: 1.6}
+end
+
+func plan_tall(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then mbox(m, 0, 1.3, 0.1, 0.9, 0.6, 1.3, c1) end
+  for x in [-0.3, 0.3] do
+    for z in [-0.4, 0.55] do mbox(m, x, 0.5, z, 0.2, 1.0, 0.22, c2) end
+  end
+  mbox(m, 0, 1.85, -0.5, 0.32, 1.0, 0.32, c1)
+  let head = {x: 0, y: 2.45, z: -0.72, s: 0.58, d: 0.7}
+  if not o.no_head then mbox(m, head.x, head.y, head.z, 0.5, 0.48, 0.7, c1) end
+  if m.a == "Giraffa" then
+    mbox(m, 0.46, 1.35, 0.1, 0.02, 0.24, 0.3, c2)
+    mbox(m, -0.46, 1.25, 0.3, 0.02, 0.2, 0.26, c2)
+    mcyl(m, -0.12, 2.8, -0.68, 0.06, 0.22, 0.06, c2, nil)
+    mcyl(m, 0.12, 2.8, -0.68, 0.06, 0.22, 0.06, c2, nil)
+  elif m.a == "Cammello" then
+    mball(m, 0, 1.72, -0.05, 0.5, 0.42, 0.45, c1)
+    mball(m, 0, 1.72, 0.42, 0.45, 0.38, 0.42, c1)
+  else
+    mbox(m, 0, 2.05, -0.32, 0.1, 0.9, 0.3, c2)
+    mcyl(m, 0, 1.4, 0.85, 0.12, 0.7, 0.12, c2, {x: 30, y: 0, z: 0})
+  end
+  return {head: head, body: {x: 0, y: 1.3, z: 0.1, s: 0.9}, hand: {x: 0.32, y: 1.4, z: -0.7}, back: {x: 0, y: 1.7, z: 0.35},
+          feet: [{x: -0.3, z: -0.4}, {x: 0.3, z: -0.4}], top: 2.8}
+end
+
+func plan_fish(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  let big = 1
+  if m.a == "Balena" then big = 1.25 end
+  if not o.no_body then
+    mball(m, 0, 1.0 * big, 0.1, 0.95 * big, 0.85 * big, 1.9 * big, c1)
+    mball(m, 0, 0.82 * big, -0.1, 0.7 * big, 0.5 * big, 1.4 * big, c2)
+  end
+  mbox(m, 0, 1.15 * big, 1.15 * big, 0.08, 0.7 * big, 0.45, c1)
+  mcone(m, 0, 1.6 * big, 0.15, 0.1, 0.5 * big, 0.5, c1, nil)
+  mbox(m, -0.55 * big, 0.85 * big, -0.05, 0.4, 0.06, 0.3, c1)
+  mbox(m, 0.55 * big, 0.85 * big, -0.05, 0.4, 0.06, 0.3, c1)
+  -- くつを はいている
+  for x in [-0.22, 0.22] do
+    mcyl(m, x, 0.35, -0.05, 0.1, 0.5, 0.1, c1, nil)
+    mbox(m, x, 0.08, -0.12, 0.26, 0.16, 0.42, "#F8FAFC")
+  end
+  let head = {x: 0, y: 1.1 * big, z: -0.85 * big, s: 0.75 * big, d: 0.5}
+  if m.a == "Delfino" then mcyl(m, 0, 1.0 * big, -1.05 * big, 0.2, 0.4, 0.2, c1, {x: 90, y: 0, z: 0}) end
+  return {head: head, body: {x: 0, y: 1.0 * big, z: 0.1, s: 0.95 * big}, hand: {x: 0.6, y: 0.85, z: -0.4},
+          back: {x: 0, y: 1.45 * big, z: 0.3}, feet: [{x: -0.22, z: -0.12}, {x: 0.22, z: -0.12}], top: 1.9 * big}
+end
+
+func plan_long(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  let snake = m.a == "Serpente"
+  let shrimp = m.a == "Gamberetto"
+  if not o.no_body then
+    mbox(m, 0, 0.42, 0.25, 0.8, 0.5, 1.2, c1)
+    mbox(m, 0, 0.38, 1.15, 0.6, 0.4, 0.8, c1)
+    mbox(m, 0, 0.3, 1.8, 0.35, 0.28, 0.6, c1)
+  end
+  if not snake and not shrimp then
+    for x in [-0.45, 0.45] do
+      for z in [-0.1, 0.75] do mbox(m, x, 0.14, z, 0.18, 0.28, 0.2, c1) end
+    end
+  end
+  let head = {x: 0, y: 0.55, z: -0.62, s: 0.62, d: 0.6}
+  if not o.no_head then
+    mbox(m, head.x, head.y, head.z, 0.62, 0.48, 0.6, c1)
+    mbox(m, 0, 0.42, -1.12, 0.46, 0.22, 0.5, c2)
+  end
+  if shrimp then
+    mcyl(m, -0.12, 0.95, -0.85, 0.03, 0.8, 0.03, c2, {x: -40, y: 0, z: 0})
+    mcyl(m, 0.12, 0.95, -0.85, 0.03, 0.8, 0.03, c2, {x: -40, y: 0, z: 0})
+  elif m.a == "Coccodrillo" then
+    for z in [0.0, 0.5, 1.0, 1.5] do mcone(m, 0, 0.75, z, 0.12, 0.16, 0.12, c2, nil) end
+  end
+  return {head: head, body: {x: 0, y: 0.42, z: 0.25, s: 0.8}, hand: {x: 0.45, y: 0.5, z: -0.3}, back: {x: 0, y: 0.8, z: 0.4},
+          feet: [{x: -0.45, z: -0.1}, {x: 0.45, z: -0.1}], top: 0.9}
+end
+
+func plan_biped(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  let a = m.a
+  for x in [-0.22, 0.22] do mbox(m, x, 0.22, 0, 0.26, 0.44, 0.3, c2) end
+  if not o.no_body then
+    mbox(m, 0, 0.82, 0, 0.82, 0.8, 0.55, c1)
+    if a == "Pinguino" or a == "Panda" or a == "Koala" or a == "Orso" then mbox(m, 0, 0.78, -0.28, 0.55, 0.6, 0.02, c2) end
+  end
+  for x in [-0.52, 0.52] do mbox(m, x, 0.85, 0, 0.2, 0.6, 0.24, c1) end
+  let head = {x: 0, y: 1.6, z: -0.02, s: 0.74, d: 0.66}
+  if not o.no_head then mbox(m, head.x, head.y, head.z, 0.74, 0.7, 0.66, c1) end
+  if a == "Pinguino" then
+    mcone(m, 0, 1.52, -0.45, 0.18, 0.22, 0.18, "#F97316", {x: -90, y: 0, z: 0})
+  elif a == "Scimmia" then
+    mbox(m, 0, 1.5, -0.36, 0.5, 0.36, 0.04, c2)
+    mcyl(m, 0, 0.6, 0.45, 0.08, 0.7, 0.08, c1, {x: 40, y: 0, z: 0})
+  elif a == "Orso" or a == "Panda" or a == "Koala" then
+    let r = 0.2
+    if a == "Koala" then r = 0.3 end
+    mcyl(m, -0.32, 2.0, 0, r, 0.08, r, c2, {x: 90, y: 0, z: 0})
+    mcyl(m, 0.32, 2.0, 0, r, 0.08, r, c2, {x: 90, y: 0, z: 0})
+    if a == "Panda" then
+      mball(m, -0.17, 1.66, -0.33, 0.2, 0.22, 0.04, "#111827")
+      mball(m, 0.17, 1.66, -0.33, 0.2, 0.22, 0.04, "#111827")
+    end
+  elif a == "Canguro" then
+    mcyl(m, 0, 0.45, 0.45, 0.18, 0.8, 0.18, c1, {x: 55, y: 0, z: 0})
+    mbox(m, -0.16, 2.08, 0, 0.12, 0.34, 0.08, c1)
+    mbox(m, 0.16, 2.08, 0, 0.12, 0.34, 0.08, c1)
+  end
+  return {head: head, body: {x: 0, y: 0.82, z: 0, s: 0.82}, hand: {x: 0.55, y: 0.6, z: -0.25}, back: {x: 0, y: 0.95, z: 0.38},
+          feet: [{x: -0.22, z: 0}, {x: 0.22, z: 0}], top: 2.0}
+end
+
+func plan_squat(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then
+    mball(m, 0, 0.45, 0.05, 1.1, 0.75, 1.05, c1)
+    mball(m, 0, 0.36, -0.22, 0.75, 0.45, 0.55, c2)
+  end
+  mball(m, -0.32, 0.88, -0.25, 0.32, 0.32, 0.32, c1)
+  mball(m, 0.32, 0.88, -0.25, 0.32, 0.32, 0.32, c1)
+  mbox(m, -0.5, 0.12, 0.35, 0.4, 0.2, 0.5, c1)
+  mbox(m, 0.5, 0.12, 0.35, 0.4, 0.2, 0.5, c1)
+  let head = {x: 0, y: 0.82, z: -0.25, s: 0.75, d: 0.38}
+  return {head: head, body: {x: 0, y: 0.45, z: 0.05, s: 1.1}, hand: {x: 0.55, y: 0.4, z: -0.4}, back: {x: 0, y: 0.85, z: 0.35},
+          feet: [{x: -0.5, z: 0.35}, {x: 0.5, z: 0.35}], top: 1.05}
+end
+
+func plan_shell(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then
+    mball(m, 0, 0.62, 0.1, 1.25, 0.8, 1.4, c2)
+    mcyl(m, 0, 0.38, 0.1, 1.3, 0.1, 1.45, c1, nil)
+  end
+  for x in [-0.48, 0.48] do
+    for z in [-0.4, 0.6] do mbox(m, x, 0.16, z, 0.24, 0.32, 0.26, c1) end
+  end
+  let head = {x: 0, y: 0.62, z: -0.82, s: 0.5, d: 0.5}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.5, 0.46, 0.5, c1) end
+  return {head: head, body: {x: 0, y: 0.62, z: 0.1, s: 1.25}, hand: {x: 0.55, y: 0.45, z: -0.5}, back: {x: 0, y: 1.1, z: 0.2},
+          feet: [{x: -0.48, z: -0.4}, {x: 0.48, z: -0.4}], top: 1.05}
+end
+
+func plan_octo(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  for i in 0 to 5 do
+    let yaw = i * 60
+    let dir = forward(yaw)
+    mcyl(m, dir.x * 0.45, 0.3, dir.z * 0.45, 0.16, 0.7, 0.16, c1, {x: 0, y: yaw, z: 0})
+  end
+  let head = {x: 0, y: 1.05, z: 0, s: 1.05, d: 1.0}
+  if not o.no_head and not o.no_body then
+    mball(m, 0, 1.05, 0, 1.05, 1.05, 1.0, c1)
+    mball(m, 0, 1.25, 0.15, 0.6, 0.5, 0.5, c2)
+  end
+  return {head: {x: 0, y: 1.0, z: -0.1, s: 0.9, d: 0.95}, body: {x: 0, y: 1.0, z: 0, s: 1.0}, hand: {x: 0.6, y: 0.4, z: -0.35},
+          back: {x: 0, y: 1.2, z: 0.45}, feet: [], top: 1.6}
+end
+
+func plan_bird(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  let a = m.a
+  for x in [-0.18, 0.18] do mcyl(m, x, 0.22, 0, 0.06, 0.44, 0.06, "#F59E0B", nil) end
+  if not o.no_body then mball(m, 0, 0.82, 0.05, 0.9, 0.85, 1.0, c1) end
+  mbox(m, -0.48, 0.85, 0.1, 0.08, 0.45, 0.6, c1)
+  mbox(m, 0.48, 0.85, 0.1, 0.08, 0.45, 0.6, c1)
+  let head = {x: 0, y: 1.42, z: -0.22, s: 0.6, d: 0.6}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.6, 0.6, 0.6, c1) end
+  mcone(m, 0, 1.36, -0.6, 0.16, 0.24, 0.16, "#F59E0B", {x: -90, y: 0, z: 0})
+  if a == "Pollo" then
+    mbox(m, 0, 1.8, -0.2, 0.08, 0.22, 0.3, c2)
+  elif a == "Gufo" then
+    mcone(m, -0.2, 1.78, -0.2, 0.12, 0.2, 0.12, c1, nil)
+    mcone(m, 0.2, 1.78, -0.2, 0.12, 0.2, 0.12, c1, nil)
+    mball(m, 0, 0.75, -0.42, 0.5, 0.55, 0.05, c2)
+  elif a == "Pappagallo" then
+    mbox(m, 0, 0.6, 0.75, 0.2, 0.08, 0.8, c2)
+  end
+  return {head: head, body: {x: 0, y: 0.82, z: 0.05, s: 0.9}, hand: {x: 0.5, y: 0.6, z: -0.2}, back: {x: 0, y: 1.2, z: 0.4},
+          feet: [{x: -0.18, z: 0}, {x: 0.18, z: 0}], top: 1.75}
+end
+
+func plan_small(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then mball(m, 0, 0.42, 0.1, 0.75, 0.7, 0.9, c1) end
+  let head = {x: 0, y: 0.72, z: -0.38, s: 0.55, d: 0.5}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.55, 0.52, 0.5, c1) end
+  mcyl(m, -0.2, 1.05, -0.35, 0.24, 0.05, 0.24, c2, {x: 90, y: 0, z: 0})
+  mcyl(m, 0.2, 1.05, -0.35, 0.24, 0.05, 0.24, c2, {x: 90, y: 0, z: 0})
+  mball(m, 0, 0.66, -0.66, 0.1, 0.1, 0.1, c2)
+  if m.a == "Topo" then mcyl(m, 0, 0.3, 0.75, 0.05, 0.8, 0.05, c2, {x: 70, y: 0, z: 0}) end
+  return {head: head, body: {x: 0, y: 0.42, z: 0.1, s: 0.75}, hand: {x: 0.38, y: 0.35, z: -0.3}, back: {x: 0, y: 0.8, z: 0.2},
+          feet: [{x: -0.2, z: -0.1}, {x: 0.2, z: -0.1}], top: 1.15}
+end
+
+func plan_bug(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then
+    mball(m, 0, 1.0, 0.25, 0.85, 0.8, 1.05, c1)
+    mcyl(m, 0, 1.0, 0.25, 0.86, 0.18, 0.86, c2, {x: 90, y: 0, z: 0})
+    mcone(m, 0, 1.0, 0.85, 0.16, 0.3, 0.16, c2, {x: 90, y: 0, z: 0})
+  end
+  let head = {x: 0, y: 1.15, z: -0.42, s: 0.55, d: 0.5}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.55, 0.52, 0.5, c2) end
+  mpart(m, -0.45, 1.5, 0.15, 0.6, 0.06, 0.45, "box", "#E0F2FE", "glass", {x: 0, y: 0, z: 25})
+  mpart(m, 0.45, 1.5, 0.15, 0.6, 0.06, 0.45, "box", "#E0F2FE", "glass", {x: 0, y: 0, z: -25})
+  mcyl(m, -0.12, 1.55, -0.45, 0.03, 0.4, 0.03, c2, {x: -25, y: 0, z: 0})
+  mcyl(m, 0.12, 1.55, -0.45, 0.03, 0.4, 0.03, c2, {x: -25, y: 0, z: 0})
+  for x in [-0.2, 0.2] do mcyl(m, x, 0.3, 0.1, 0.06, 0.6, 0.06, c2, nil) end
+  return {head: head, body: {x: 0, y: 1.0, z: 0.25, s: 0.85}, hand: {x: 0.45, y: 0.7, z: -0.3}, back: {x: 0, y: 1.45, z: 0.45},
+          feet: [{x: -0.2, z: 0.1}, {x: 0.2, z: 0.1}], top: 1.6}
+end
+
+func plan_spider(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then
+    mball(m, 0, 0.6, 0.3, 0.95, 0.75, 1.0, c1)
+    mball(m, 0, 0.82, 0.3, 0.3, 0.12, 0.3, c2)
+  end
+  for yaw in [20, 60, 120, 160] do
+    mpart(m, 0, 0.32, 0.2, 2.0, 0.08, 0.08, "box", c1, nil, {x: 0, y: yaw, z: 0})
+  end
+  let head = {x: 0, y: 0.6, z: -0.3, s: 0.55, d: 0.5}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.55, 0.5, 0.5, c1) end
+  return {head: head, body: {x: 0, y: 0.6, z: 0.3, s: 0.95}, hand: {x: 0.5, y: 0.5, z: -0.5}, back: {x: 0, y: 1.0, z: 0.4},
+          feet: [], top: 1.0}
+end
+
+func plan_snail(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  mbox(m, 0, 0.18, 0, 0.55, 0.36, 1.6, c1)
+  if not o.no_body then
+    mcyl(m, 0, 0.75, 0.25, 0.95, 0.4, 0.95, c2, {x: 0, y: 0, z: 90})
+    mcyl(m, 0, 0.75, 0.25, 0.5, 0.42, 0.5, mix(c2, "#FFFFFF", 0.35), {x: 0, y: 0, z: 90})
+  end
+  mcyl(m, -0.13, 0.65, -0.65, 0.05, 0.5, 0.05, c1, nil)
+  mcyl(m, 0.13, 0.65, -0.65, 0.05, 0.5, 0.05, c1, nil)
+  let head = {x: 0, y: 0.5, z: -0.7, s: 0.48, d: 0.4}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.48, 0.45, 0.4, c1) end
+  return {head: head, body: {x: 0, y: 0.75, z: 0.25, s: 0.95}, hand: {x: 0.35, y: 0.3, z: -0.5}, back: {x: 0, y: 1.2, z: 0.25},
+          feet: [], top: 1.25}
+end
+
+func plan_crab(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then mball(m, 0, 0.55, 0, 1.3, 0.55, 0.9, c1) end
+  mball(m, -0.85, 0.7, -0.45, 0.4, 0.32, 0.42, c1)
+  mball(m, 0.85, 0.7, -0.45, 0.4, 0.32, 0.42, c1)
+  mbox(m, 0, 0.25, 0.1, 1.8, 0.08, 0.1, c2)
+  mbox(m, 0, 0.25, 0.4, 1.7, 0.08, 0.1, c2)
+  mcyl(m, -0.2, 0.95, -0.25, 0.05, 0.35, 0.05, c1, nil)
+  mcyl(m, 0.2, 0.95, -0.25, 0.05, 0.35, 0.05, c1, nil)
+  let head = {x: 0, y: 1.05, z: -0.3, s: 0.6, d: 0.2}
+  return {head: head, body: {x: 0, y: 0.55, z: 0, s: 1.3}, hand: {x: 0.85, y: 0.7, z: -0.45}, back: {x: 0, y: 0.9, z: 0.25},
+          feet: [], top: 1.2}
+end
+
+func plan_stilt(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  for x in [-0.15, 0.15] do mcyl(m, x, 0.6, 0, 0.06, 1.2, 0.06, c2, nil) end
+  if not o.no_body then mball(m, 0, 1.45, 0.1, 0.8, 0.65, 1.1, c1) end
+  mcyl(m, 0, 2.05, -0.3, 0.12, 0.9, 0.12, c1, {x: -15, y: 0, z: 0})
+  let head = {x: 0, y: 2.6, z: -0.42, s: 0.42, d: 0.42}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.42, 0.42, 0.42, c1) end
+  mcone(m, 0, 2.55, -0.72, 0.12, 0.28, 0.12, "#111827", {x: -110, y: 0, z: 0})
+  return {head: head, body: {x: 0, y: 1.45, z: 0.1, s: 0.8}, hand: {x: 0.45, y: 1.3, z: -0.2}, back: {x: 0, y: 1.85, z: 0.35},
+          feet: [{x: -0.15, z: 0}, {x: 0.15, z: 0}], top: 2.85}
+end
+
+func plan_spiky(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then mball(m, 0, 0.55, 0.1, 1.0, 0.85, 1.1, c1) end
+  for p in [{x: 0, y: 1.0, z: 0.2}, {x: -0.35, y: 0.85, z: 0.3}, {x: 0.35, y: 0.85, z: 0.3}, {x: 0, y: 0.8, z: 0.6}] do
+    mcone(m, p.x, p.y, p.z, 0.2, 0.35, 0.2, "#451A03", {x: 20, y: 0, z: 0})
+  end
+  let head = {x: 0, y: 0.6, z: -0.45, s: 0.55, d: 0.45}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.55, 0.5, 0.5, c2) end
+  mball(m, 0, 0.55, -0.72, 0.12, 0.12, 0.12, "#111827")
+  return {head: head, body: {x: 0, y: 0.55, z: 0.1, s: 1.0}, hand: {x: 0.5, y: 0.4, z: -0.3}, back: {x: 0, y: 1.0, z: 0.35},
+          feet: [{x: -0.25, z: -0.2}, {x: 0.25, z: -0.2}], top: 1.2}
+end
+
+func plan_bunny(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  for x in [-0.2, 0.2] do mbox(m, x, 0.12, -0.05, 0.24, 0.24, 0.45, c1) end
+  if not o.no_body then mball(m, 0, 0.62, 0.05, 0.75, 0.85, 0.7, c1) end
+  mball(m, 0, 0.5, 0.42, 0.28, 0.28, 0.28, "#F8FAFC")
+  let head = {x: 0, y: 1.22, z: -0.08, s: 0.6, d: 0.55}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.6, 0.56, 0.55, c1) end
+  mbox(m, -0.14, 1.75, -0.05, 0.14, 0.62, 0.08, c1)
+  mbox(m, 0.14, 1.75, -0.05, 0.14, 0.62, 0.08, c1)
+  mbox(m, -0.14, 1.75, -0.1, 0.07, 0.48, 0.02, c2)
+  mbox(m, 0.14, 1.75, -0.1, 0.07, 0.48, 0.02, c2)
+  return {head: head, body: {x: 0, y: 0.62, z: 0.05, s: 0.75}, hand: {x: 0.42, y: 0.55, z: -0.25}, back: {x: 0, y: 0.85, z: 0.38},
+          feet: [{x: -0.2, z: -0.05}, {x: 0.2, z: -0.05}], top: 2.05}
+end
+
+func plan_jelly(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then mpart(m, 0, 1.45, 0, 1.15, 0.9, 1.15, "sphere", c1, "glass", nil) end
+  for p in [{x: -0.3, z: 0}, {x: 0.3, z: 0}, {x: 0, z: 0.3}, {x: 0, z: -0.25}] do
+    mpart(m, p.x, 0.6, p.z, 0.08, 1.0, 0.08, "cylinder", c2, "glass", nil)
+  end
+  let head = {x: 0, y: 1.4, z: -0.15, s: 0.85, d: 1.0}
+  return {head: head, body: {x: 0, y: 1.45, z: 0, s: 1.15}, hand: {x: 0.5, y: 0.9, z: -0.3}, back: {x: 0, y: 1.8, z: 0.4},
+          feet: [], top: 1.95}
+end
+
+func plan_dragon(m, o)
+  let a = plan_quad(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  mpart(m, -0.9, 1.45, 0.1, 1.0, 0.06, 0.8, "box", c2, nil, {x: 0, y: 0, z: 30})
+  mpart(m, 0.9, 1.45, 0.1, 1.0, 0.06, 0.8, "box", c2, nil, {x: 0, y: 0, z: -30})
+  mcone(m, -0.2, 1.72, -0.85, 0.12, 0.3, 0.12, "#FDE68A", {x: -30, y: 0, z: 0})
+  mcone(m, 0.2, 1.72, -0.85, 0.12, 0.3, 0.12, "#FDE68A", {x: -30, y: 0, z: 0})
+  mcyl(m, 0, 0.75, 1.25, 0.2, 1.0, 0.2, c1, {x: 70, y: 0, z: 0})
+  a.top = 1.8
+  return a
+end
+
+func plan_robot(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  for x in [-0.24, 0.24] do mpart(m, x, 0.25, 0, 0.26, 0.5, 0.3, "box", c1, "metal", nil) end
+  if not o.no_body then
+    mpart(m, 0, 0.9, 0, 0.9, 0.8, 0.6, "box", c1, "metal", nil)
+    mpart(m, 0, 0.95, -0.31, 0.5, 0.3, 0.02, "box", c2, "neon", nil)
+  end
+  for x in [-0.56, 0.56] do mpart(m, x, 0.9, 0, 0.18, 0.62, 0.2, "box", c1, "metal", nil) end
+  let head = {x: 0, y: 1.62, z: 0, s: 0.68, d: 0.6}
+  if not o.no_head then mpart(m, head.x, head.y, head.z, 0.68, 0.6, 0.6, "box", c1, "metal", nil) end
+  mcyl(m, 0, 2.08, 0, 0.04, 0.35, 0.04, "#111827", nil)
+  mpart(m, 0, 2.28, 0, 0.14, 0.14, 0.14, "sphere", c2, "neon", nil)
+  return {head: head, body: {x: 0, y: 0.9, z: 0, s: 0.9}, hand: {x: 0.6, y: 0.6, z: -0.2}, back: {x: 0, y: 1.0, z: 0.4},
+          feet: [{x: -0.24, z: 0}, {x: 0.24, z: 0}], top: 2.3}
+end
+
+func plan_bat(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then mball(m, 0, 1.2, 0, 0.6, 0.7, 0.55, c1) end
+  mpart(m, -0.75, 1.3, 0.05, 0.9, 0.5, 0.05, "box", c2, nil, {x: 0, y: 0, z: 15})
+  mpart(m, 0.75, 1.3, 0.05, 0.9, 0.5, 0.05, "box", c2, nil, {x: 0, y: 0, z: -15})
+  let head = {x: 0, y: 1.72, z: -0.05, s: 0.48, d: 0.45}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.48, 0.45, 0.45, c1) end
+  mcone(m, -0.15, 2.02, 0, 0.12, 0.22, 0.08, c1, nil)
+  mcone(m, 0.15, 2.02, 0, 0.12, 0.22, 0.08, c1, nil)
+  for x in [-0.12, 0.12] do mcyl(m, x, 0.7, 0, 0.05, 0.3, 0.05, c2, nil) end
+  return {head: head, body: {x: 0, y: 1.2, z: 0, s: 0.6}, hand: {x: 0.4, y: 1.0, z: -0.25}, back: {x: 0, y: 1.3, z: 0.3},
+          feet: [], top: 2.1}
+end
+
+func plan_ghost(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  if not o.no_body then
+    mpart(m, 0, 1.05, 0, 0.95, 1.3, 0.85, "sphere", c1, "glass", nil)
+    mpart(m, 0, 0.45, 0, 0.9, 0.3, 0.8, "cylinder", c1, "glass", nil)
+  end
+  mpart(m, -0.55, 1.05, -0.05, 0.3, 0.16, 0.16, "sphere", c1, "glass", nil)
+  mpart(m, 0.55, 1.05, -0.05, 0.3, 0.16, 0.16, "sphere", c1, "glass", nil)
+  let head = {x: 0, y: 1.35, z: -0.05, s: 0.8, d: 0.8}
+  return {head: head, body: {x: 0, y: 1.05, z: 0, s: 0.95}, hand: {x: 0.6, y: 1.0, z: -0.2}, back: {x: 0, y: 1.3, z: 0.4},
+          feet: [], top: 1.8}
+end
+
+func plan_alien(m, o)
+  let c1 = m.c1
+  let c2 = m.c2
+  for x in [-0.15, 0.15] do mbox(m, x, 0.3, 0, 0.14, 0.6, 0.16, c1) end
+  if not o.no_body then mbox(m, 0, 0.85, 0, 0.5, 0.6, 0.36, c1) end
+  for x in [-0.35, 0.35] do mbox(m, x, 0.8, 0, 0.1, 0.55, 0.12, c1) end
+  let head = {x: 0, y: 1.5, z: -0.02, s: 0.85, d: 0.75}
+  if not o.no_head then mball(m, head.x, head.y, head.z, 0.85, 0.72, 0.75, c1) end
+  for x in [-0.22, 0.22] do
+    mcyl(m, x, 2.0, 0, 0.03, 0.4, 0.03, c1, {x: 0, y: 0, z: x * 60})
+    mball(m, x * 1.6, 2.22, 0, 0.12, 0.12, 0.12, c2)
+  end
+  return {head: head, body: {x: 0, y: 0.85, z: 0, s: 0.5}, hand: {x: 0.4, y: 0.6, z: -0.2}, back: {x: 0, y: 0.95, z: 0.25},
+          feet: [{x: -0.15, z: 0}, {x: 0.15, z: 0}], top: 2.3}
+end
+
+func build_plan(m, o)
+  let plan = ANIMALS[m.a].plan
+  if plan == "quad" then return plan_quad(m, o) end
+  if plan == "tall" then return plan_tall(m, o) end
+  if plan == "fish" then return plan_fish(m, o) end
+  if plan == "long" then return plan_long(m, o) end
+  if plan == "biped" then return plan_biped(m, o) end
+  if plan == "squat" then return plan_squat(m, o) end
+  if plan == "shell" then return plan_shell(m, o) end
+  if plan == "octo" then return plan_octo(m, o) end
+  if plan == "bird" then return plan_bird(m, o) end
+  if plan == "small" then return plan_small(m, o) end
+  if plan == "bug" then return plan_bug(m, o) end
+  if plan == "spider" then return plan_spider(m, o) end
+  if plan == "snail" then return plan_snail(m, o) end
+  if plan == "crab" then return plan_crab(m, o) end
+  if plan == "stilt" then return plan_stilt(m, o) end
+  if plan == "spiky" then return plan_spiky(m, o) end
+  if plan == "bunny" then return plan_bunny(m, o) end
+  if plan == "jelly" then return plan_jelly(m, o) end
+  if plan == "dragon" then return plan_dragon(m, o) end
+  if plan == "robot" then return plan_robot(m, o) end
+  if plan == "bat" then return plan_bat(m, o) end
+  if plan == "ghost" then return plan_ghost(m, o) end
+  return plan_alien(m, o)
+end
+
+-- MARK: がったいするもの
+-- fit: head（頭になる）・hat（頭の上）・body（からだになる）・held（手に持つ）・back（せなか）・feet（足）・ring（まわり）
+
+func thing_head(m, t, h)
+  let s = h.s
+  let c = m.tc
+  if t == "Limone" then
+    mball(m, h.x, h.y, h.z, s * 0.85, s * 0.8, s * 1.05, c)
+    mball(m, h.x, h.y, h.z - s * 0.55, s * 0.18, s * 0.18, s * 0.18, c)
+  elif t == "Fragola" then
+    mcone(m, h.x, h.y - s * 0.05, h.z, s * 0.95, s * 1.0, s * 0.95, c, {x: 180, y: 0, z: 0})
+    mcone(m, h.x, h.y + s * 0.5, h.z, s * 0.6, s * 0.2, s * 0.6, "#16A34A", nil)
+  elif t == "Pomodoro" or t == "Zucca" then
+    mball(m, h.x, h.y, h.z, s * 1.0, s * 0.85, s * 1.0, c)
+    mcyl(m, h.x, h.y + s * 0.48, h.z, s * 0.12, s * 0.2, s * 0.12, "#15803D", nil)
+  elif t == "Cappuccio" or t == "Tazza" then
+    mcyl(m, h.x, h.y, h.z, s * 0.85, s * 0.85, s * 0.85, c, nil)
+    let top = "#FEF3C7"
+    if t == "Tazza" then top = "#78350F" end
+    mcyl(m, h.x, h.y + s * 0.43, h.z, s * 0.78, s * 0.05, s * 0.78, top, nil)
+    mcyl(m, h.x + s * 0.5, h.y, h.z, s * 0.3, s * 0.08, s * 0.3, c, {x: 90, y: 0, z: 0})
+  elif t == "Raviolo" then
+    mbox(m, h.x, h.y, h.z, s * 1.0, s * 0.45, s * 1.0, c)
+    mbox(m, h.x, h.y, h.z, s * 1.12, s * 0.12, s * 1.12, mix(c, "#B45309", 0.3))
+  elif t == "Mozzarella" or t == "Pallone" then
+    mball(m, h.x, h.y, h.z, s, s, s, c)
+    if t == "Pallone" then
+      mball(m, h.x, h.y + s * 0.3, h.z - s * 0.3, s * 0.3, s * 0.3, s * 0.3, "#111827")
+      mball(m, h.x + s * 0.38, h.y - s * 0.1, h.z, s * 0.28, s * 0.28, s * 0.28, "#111827")
+    end
+  elif t == "Ananas" then
+    mcyl(m, h.x, h.y, h.z, s * 0.8, s * 1.0, s * 0.8, c, nil)
+    mcone(m, h.x, h.y + s * 0.75, h.z, s * 0.5, s * 0.55, s * 0.5, "#16A34A", nil)
+  elif t == "Lampadina" then
+    mpart(m, h.x, h.y + s * 0.1, h.z, s * 0.9, s * 0.95, s * 0.9, "sphere", c, "neon", nil)
+    mpart(m, h.x, h.y - s * 0.5, h.z, s * 0.45, s * 0.3, s * 0.45, "cylinder", "#9CA3AF", "metal", nil)
+  elif t == "Televisore" then
+    mbox(m, h.x, h.y, h.z, s * 1.2, s * 0.9, s * 0.6, c)
+    mpart(m, h.x, h.y, h.z - s * 0.31, s * 0.95, s * 0.68, 0.03, "box", "#38BDF8", "neon", nil)
+  elif t == "Sole" then
+    mpart(m, h.x, h.y, h.z + s * 0.1, s * 1.6, 0.06, s * 1.6, "cylinder", "#F97316", "neon", {x: 90, y: 0, z: 0})
+    mpart(m, h.x, h.y, h.z, s, s, s, "sphere", c, "neon", nil)
+  else
+    mball(m, h.x, h.y, h.z, s, s, s, c)
+  end
+end
+
+func thing_hat(m, t, h)
+  let s = h.s
+  let c = m.tc
+  let top = h.y + s * 0.5
+  if t == "Pizza" then
+    mcyl(m, h.x, top + 0.04, h.z, s * 1.1, 0.08, s * 1.1, c, nil)
+    mcyl(m, h.x, top + 0.09, h.z, s * 0.95, 0.03, s * 0.95, "#EF4444", nil)
+    for p in [{x: -0.22, z: -0.2}, {x: 0.25, z: 0.05}, {x: -0.05, z: 0.28}] do
+      mcyl(m, h.x + p.x * s, top + 0.12, h.z + p.z * s, s * 0.2, 0.03, s * 0.2, "#991B1B", nil)
+    end
+  elif t == "Gelato" then
+    mcone(m, h.x, top + s * 0.15, h.z, s * 0.55, s * 0.4, s * 0.55, "#D97706", {x: 180, y: 0, z: 0})
+    mball(m, h.x, top + s * 0.5, h.z, s * 0.6, s * 0.55, s * 0.6, c)
+    mball(m, h.x, top + s * 0.85, h.z, s * 0.15, s * 0.15, s * 0.15, "#DC2626")
+  elif t == "Spaghetto" then
+    mball(m, h.x, top, h.z, s * 1.1, s * 0.45, s * 1.05, c)
+    mcyl(m, h.x - s * 0.45, top - s * 0.45, h.z - s * 0.1, 0.05, s * 0.7, 0.05, c, nil)
+    mcyl(m, h.x + s * 0.45, top - s * 0.45, h.z - s * 0.1, 0.05, s * 0.7, 0.05, c, nil)
+    mball(m, h.x + s * 0.2, top + s * 0.18, h.z - s * 0.2, s * 0.22, s * 0.22, s * 0.22, "#B91C1C")
+  elif t == "Cornetto" then
+    mcyl(m, h.x, top + s * 0.12, h.z, s * 0.4, s * 1.2, s * 0.4, c, {x: 0, y: 0, z: 90})
+    mcone(m, h.x - s * 0.7, top + s * 0.05, h.z, s * 0.25, s * 0.3, s * 0.25, c, {x: 0, y: 0, z: 120})
+    mcone(m, h.x + s * 0.7, top + s * 0.05, h.z, s * 0.25, s * 0.3, s * 0.25, c, {x: 0, y: 0, z: -120})
+  elif t == "Panettone" then
+    mcyl(m, h.x, top + s * 0.2, h.z, s * 0.85, s * 0.45, s * 0.85, c, nil)
+    mball(m, h.x, top + s * 0.45, h.z, s * 0.88, s * 0.4, s * 0.88, mix(c, "#78350F", 0.3))
+  elif t == "Ombrello" then
+    mcyl(m, h.x, top + s * 0.55, h.z, 0.05, s * 1.1, 0.05, "#1F2937", nil)
+    mcone(m, h.x, top + s * 1.15, h.z, s * 1.9, s * 0.55, s * 1.9, c, nil)
+  elif t == "Cappellone" then
+    mcyl(m, h.x, top + 0.03, h.z, s * 1.2, 0.06, s * 1.2, c, nil)
+    mcyl(m, h.x, top + s * 0.4, h.z, s * 0.7, s * 0.75, s * 0.7, c, nil)
+    mcyl(m, h.x, top + s * 0.12, h.z, s * 0.72, s * 0.12, s * 0.72, "#DC2626", nil)
+  elif t == "Candela" then
+    mcyl(m, h.x, top + s * 0.35, h.z, s * 0.3, s * 0.7, s * 0.3, c, nil)
+    mpart(m, h.x, top + s * 0.85, h.z, s * 0.18, s * 0.3, s * 0.18, "cone", "#F97316", "neon", nil)
+  elif t == "Fungo" then
+    mball(m, h.x, top + s * 0.15, h.z, s * 1.35, s * 0.6, s * 1.35, c)
+    mball(m, h.x - s * 0.3, top + s * 0.38, h.z - s * 0.2, s * 0.22, s * 0.12, s * 0.22, "#F8FAFC")
+    mball(m, h.x + s * 0.3, top + s * 0.35, h.z + s * 0.15, s * 0.2, s * 0.12, s * 0.2, "#F8FAFC")
+  elif t == "Stella" then
+    mpart(m, h.x, top + s * 0.55, h.z, s * 0.7, s * 0.7, 0.1, "box", c, "neon", {x: 0, y: 0, z: 45})
+    mpart(m, h.x, top + s * 0.55, h.z, s * 0.7, s * 0.7, 0.1, "box", c, "neon", nil)
+  elif t == "Corona" then
+    mpart(m, h.x, top + s * 0.12, h.z, s * 0.85, s * 0.25, s * 0.85, "cylinder", c, "metal", nil)
+    for i in 0 to 3 do
+      let dir = forward(i * 90 + 45)
+      mpart(m, h.x + dir.x * s * 0.32, top + s * 0.35, h.z + dir.z * s * 0.32, s * 0.16, s * 0.25, s * 0.16, "cone", c, "metal", nil)
+    end
+  else
+    mball(m, h.x, top + s * 0.2, h.z, s * 0.6, s * 0.4, s * 0.6, c)
+  end
+end
+
+func thing_body(m, t, b)
+  let s = b.s
+  let c = m.tc
+  let x = b.x
+  let y = b.y
+  let z = b.z
+  if t == "Biscotto" then
+    mcyl(m, x, y, z, s * 1.1, s * 0.3, s * 1.1, c, {x: 90, y: 0, z: 0})
+    for p in [{x: -0.25, y: 0.2}, {x: 0.2, y: -0.15}, {x: 0.05, y: 0.3}] do
+      mball(m, x + p.x * s, y + p.y * s, z - s * 0.16, s * 0.15, s * 0.15, s * 0.08, "#451A03")
+    end
+  elif t == "Melone" or t == "Anguria" then
+    mball(m, x, y, z, s * 1.05, s * 0.95, s * 1.05, c)
+    if t == "Anguria" then
+      mball(m, x, y + s * 0.18, z, s * 1.0, s * 0.62, s * 1.0, "#EF4444")
+    else
+      mcyl(m, x, y, z, s * 1.07, s * 0.08, s * 1.07, mix(c, "#FFFFFF", 0.4), {x: 90, y: 0, z: 0})
+    end
+  elif t == "Panino" or t == "Lasagna" or t == "Tiramisu" then
+    let layers = ["#FCD34D", "#22C55E", "#EF4444", "#FCD34D"]
+    if t == "Lasagna" then layers = ["#FDBA74", "#DC2626", "#FEF3C7", "#F97316"] end
+    if t == "Tiramisu" then layers = ["#78350F", "#FEF3C7", "#A16207", "#FEF3C7"] end
+    let i = 0
+    for col in layers do
+      mbox(m, x, y - s * 0.3 + i * s * 0.2, z, s * 1.0, s * 0.2, s * 0.9, col)
+      i = i + 1
+    end
+  elif t == "Telefono" then
+    mbox(m, x, y, z, s * 0.75, s * 1.2, s * 0.3, c)
+    mpart(m, x, y + s * 0.05, z - s * 0.16, s * 0.6, s * 0.95, 0.03, "box", "#A5F3FC", "neon", nil)
+  elif t == "Calzino" then
+    mcyl(m, x, y + s * 0.1, z, s * 0.7, s * 1.0, s * 0.7, c, nil)
+    mbox(m, x, y - s * 0.38, z - s * 0.3, s * 0.68, s * 0.35, s * 0.7, c)
+    mcyl(m, x, y + s * 0.55, z, s * 0.72, s * 0.12, s * 0.72, "#F8FAFC", nil)
+  elif t == "Orologio" then
+    mcyl(m, x, y, z, s * 1.15, s * 0.3, s * 1.15, c, {x: 90, y: 0, z: 0})
+    mcyl(m, x, y, z - s * 0.16, s * 0.95, 0.03, s * 0.95, "#F8FAFC", {x: 90, y: 0, z: 0})
+    mbox(m, x, y + s * 0.15, z - s * 0.18, 0.05, s * 0.32, 0.03, "#111827")
+    mbox(m, x + s * 0.12, y, z - s * 0.18, s * 0.24, 0.05, 0.03, "#111827")
+  elif t == "Treno" then
+    mbox(m, x, y, z, s * 0.9, s * 0.85, s * 1.4, c)
+    for zz in [-0.35, 0.2] do mpart(m, x - s * 0.46, y + s * 0.15, z + zz * s, 0.03, s * 0.25, s * 0.32, "box", "#FEF08A", "neon", nil) end
+    mcyl(m, x, y - s * 0.42, z - s * 0.4, s * 0.95, s * 0.3, s * 0.3, "#111827", {x: 0, y: 0, z: 90})
+    mcyl(m, x, y - s * 0.42, z + s * 0.4, s * 0.95, s * 0.3, s * 0.3, "#111827", {x: 0, y: 0, z: 90})
+  elif t == "Tostapane" then
+    mpart(m, x, y, z, s * 1.1, s * 0.8, s * 0.75, "box", c, "metal", nil)
+    mbox(m, x - s * 0.2, y + s * 0.45, z, s * 0.18, s * 0.3, s * 0.55, "#D97706")
+    mbox(m, x + s * 0.2, y + s * 0.42, z, s * 0.18, s * 0.25, s * 0.55, "#D97706")
+  elif t == "Bottiglia" then
+    mpart(m, x, y, z, s * 0.75, s * 1.0, s * 0.75, "cylinder", c, "glass", nil)
+    mpart(m, x, y + s * 0.7, z, s * 0.3, s * 0.45, s * 0.3, "cylinder", c, "glass", nil)
+  elif t == "Cuscino" then
+    mball(m, x, y, z, s * 1.2, s * 0.75, s * 1.0, c)
+  elif t == "Lavatrice" or t == "Frigorifero" then
+    let hgt = 1.0
+    if t == "Frigorifero" then hgt = 1.45 end
+    mpart(m, x, y + s * (hgt - 1) / 2, z, s * 0.95, s * hgt, s * 0.85, "box", c, "metal", nil)
+    if t == "Lavatrice" then
+      mpart(m, x, y, z - s * 0.43, s * 0.6, 0.04, s * 0.6, "cylinder", "#7DD3FC", "glass", {x: 90, y: 0, z: 0})
+    else
+      mbox(m, x + s * 0.3, y + s * 0.3, z - s * 0.44, 0.06, s * 0.4, 0.06, "#64748B")
+      mbox(m, x, y + s * 0.05, z - s * 0.43, s * 0.95, 0.03, 0.02, "#64748B")
+    end
+  elif t == "Cactus" then
+    mcyl(m, x, y + s * 0.1, z, s * 0.6, s * 1.3, s * 0.6, c, nil)
+    mcyl(m, x - s * 0.45, y + s * 0.25, z, s * 0.25, s * 0.55, s * 0.25, c, nil)
+    mcyl(m, x + s * 0.45, y + s * 0.4, z, s * 0.25, s * 0.55, s * 0.25, c, nil)
+    mball(m, x, y + s * 0.78, z, s * 0.25, s * 0.2, s * 0.25, "#F472B6")
+  elif t == "Vulcano" then
+    mcone(m, x, y, z, s * 1.3, s * 1.1, s * 1.3, c, nil)
+    mpart(m, x, y + s * 0.5, z, s * 0.4, s * 0.25, s * 0.4, "cone", "#F97316", "neon", nil)
+  elif t == "Tamburo" then
+    mcyl(m, x, y, z, s * 1.1, s * 0.85, s * 1.1, c, nil)
+    mcyl(m, x, y + s * 0.44, z, s * 1.12, 0.04, s * 1.12, "#F8FAFC", nil)
+    mcyl(m, x, y, z, s * 1.13, s * 0.08, s * 1.13, "#FACC15", nil)
+  elif t == "Taco" then
+    mcyl(m, x, y, z, s * 1.1, s * 0.6, s * 1.1, c, {x: 0, y: 0, z: 90})
+    mbox(m, x, y + s * 0.45, z, s * 0.5, s * 0.15, s * 0.9, "#22C55E")
+    mbox(m, x, y + s * 0.5, z, s * 0.35, s * 0.12, s * 0.8, "#DC2626")
+  else
+    mball(m, x, y, z, s, s, s, c)
+  end
+end
+
+func thing_held(m, t, hd)
+  let c = m.tc
+  let x = hd.x
+  let y = hd.y
+  let z = hd.z
+  if t == "Cannolo" then
+    mcyl(m, x, y, z, 0.28, 0.7, 0.28, c, {x: 0, y: 0, z: 90})
+    mball(m, x - 0.36, y, z, 0.24, 0.24, 0.24, "#FEF3C7")
+    mball(m, x + 0.36, y, z, 0.24, 0.24, 0.24, "#FEF3C7")
+  elif t == "Chitarra" then
+    mbox(m, x, y - 0.1, z, 0.45, 0.55, 0.15, c)
+    mbox(m, x, y + 0.4, z, 0.1, 0.6, 0.08, "#451A03")
+  elif t == "Tromba" then
+    mpart(m, x, y, z - 0.25, 0.3, 0.35, 0.3, "cone", c, "metal", {x: 90, y: 0, z: 0})
+    mpart(m, x, y, z + 0.15, 0.08, 0.5, 0.08, "cylinder", c, "metal", {x: 90, y: 0, z: 0})
+  elif t == "Palloncino" then
+    mcyl(m, x, y + 0.6, z, 0.02, 1.2, 0.02, "#F8FAFC", nil)
+    mball(m, x, y + 1.45, z, 0.55, 0.65, 0.55, c)
+  elif t == "Matita" then
+    mcyl(m, x, y + 0.3, z, 0.14, 1.0, 0.14, c, nil)
+    mcone(m, x, y - 0.3, z, 0.14, 0.22, 0.14, "#FDE68A", {x: 180, y: 0, z: 0})
+    mcyl(m, x, y + 0.84, z, 0.15, 0.1, 0.15, "#F472B6", nil)
+  elif t == "Libro" then
+    mbox(m, x, y, z, 0.5, 0.62, 0.14, c)
+    mbox(m, x + 0.02, y, z, 0.46, 0.56, 0.12, "#F8FAFC")
+  elif t == "Radio" then
+    mbox(m, x, y, z, 0.6, 0.4, 0.25, c)
+    mcyl(m, x - 0.2, y + 0.4, z, 0.02, 0.45, 0.02, "#111827", {x: 0, y: 0, z: 20})
+    mcyl(m, x + 0.12, y, z - 0.13, 0.22, 0.02, 0.22, "#111827", {x: 90, y: 0, z: 0})
+  else
+    mball(m, x, y, z, 0.4, 0.4, 0.4, c)
+  end
+end
+
+func thing_back(m, t, bk)
+  let c = m.tc
+  let x = bk.x
+  let y = bk.y
+  let z = bk.z
+  if t == "Razzo" then
+    mcyl(m, x, y, z + 0.15, 0.35, 0.95, 0.35, c, nil)
+    mcone(m, x, y + 0.65, z + 0.15, 0.36, 0.38, 0.36, "#F8FAFC", nil)
+    mbox(m, x, y - 0.35, z + 0.15, 0.7, 0.25, 0.05, "#1F2937")
+    mpart(m, x, y - 0.65, z + 0.15, 0.22, 0.35, 0.22, "cone", "#F97316", "neon", {x: 180, y: 0, z: 0})
+  elif t == "Aereo" then
+    mbox(m, x, y, z, 2.3, 0.08, 0.5, c)
+    mbox(m, x, y + 0.25, z + 0.55, 0.06, 0.45, 0.35, c)
+    mcyl(m, x, y, z - 0.3, 0.12, 0.08, 0.12, "#1F2937", {x: 90, y: 0, z: 0})
+  elif t == "Valigia" or t == "Zaino" then
+    mbox(m, x, y, z + 0.18, 0.65, 0.7, 0.35, c)
+    if t == "Valigia" then mbox(m, x, y + 0.42, z + 0.18, 0.25, 0.08, 0.08, "#1F2937") else mbox(m, x, y - 0.12, z + 0.38, 0.45, 0.28, 0.06, mix(c, "#FFFFFF", 0.3)) end
+  elif t == "Luna" then
+    mpart(m, x, y + 0.35, z + 0.35, 1.0, 1.0, 0.3, "sphere", c, "neon", nil)
+    mball(m, x + 0.15, y + 0.5, z + 0.18, 0.2, 0.2, 0.05, mix(c, "#78716C", 0.4))
+  elif t == "Fulmine" then
+    mpart(m, x - 0.1, y + 0.35, z + 0.25, 0.18, 0.6, 0.08, "box", c, "neon", {x: 0, y: 0, z: -25})
+    mpart(m, x + 0.1, y - 0.1, z + 0.25, 0.18, 0.6, 0.08, "box", c, "neon", {x: 0, y: 0, z: -25})
+  elif t == "Arcobaleno" then
+    let cols = ["#EF4444", "#FACC15", "#22C55E", "#3B82F6"]
+    let i = 0
+    for col in cols do
+      mpart(m, x, y + 0.2, z + 0.3 + i * 0.03, 1.6 - i * 0.3, 0.05, 1.6 - i * 0.3, "cylinder", col, "neon", {x: 90, y: 0, z: 0})
+      i = i + 1
+    end
+  else
+    mbox(m, x, y, z + 0.2, 0.5, 0.5, 0.3, c)
+  end
+end
+
+func thing_feet(m, t, a)
+  let c = m.tc
+  let feet = a.feet
+  if len(feet) == 0 then feet = [{x: -0.25, z: a.body.z}, {x: 0.25, z: a.body.z}] end
+  for f in feet do
+    mbox(m, f.x, 0.1, f.z - 0.05, 0.34, 0.2, 0.55, c)
+    mbox(m, f.x, 0.14, f.z - 0.05, 0.36, 0.05, 0.57, "#EF4444")
+  end
+end
+
+func thing_ring(m, t, b)
+  let c = m.tc
+  if t == "Ciambella" then
+    mcyl(m, b.x, b.y, b.z, b.s * 1.35, b.s * 0.3, b.s * 1.35, c, nil)
+    mcyl(m, b.x, b.y + b.s * 0.16, b.z, b.s * 1.25, 0.03, b.s * 1.25, "#FDE68A", nil)
+  else
+    for i in 0 to 3 do
+      let dir = forward(i * 90)
+      mball(m, b.x + dir.x * b.s * 0.6, 0.25, b.z + dir.z * b.s * 0.6, 0.6, 0.45, 0.6, c)
+    end
+  end
+end
+
+func build_thing(m, fit, a)
+  let t = m.t
+  if fit == "head" then thing_head(m, t, a.head)
+  elif fit == "hat" then thing_hat(m, t, a.head)
+  elif fit == "body" then thing_body(m, t, a.body)
+  elif fit == "held" then thing_held(m, t, a.hand)
+  elif fit == "back" then thing_back(m, t, a.back)
+  elif fit == "feet" then thing_feet(m, t, a)
+  else thing_ring(m, t, a.body)
+  end
+end
+
+-- MARK: めずらしさの かざり
+-- ゴッド: 頭の上に光の輪 / シークレット: 足もとに暗いオーラ / OG: 輪とおうかん。上のほどキラキラ
+
+func rarity_bling(m, r, a)
+  let top = a.top
+  if r >= 6 then
+    mpart(m, a.head.x, top + 0.35, a.head.z, 0.9, 0.06, 0.9, "cylinder", "#FDE047", "neon", nil)
+  end
+  if r >= 7 then
+    mpart(m, 0, 0.03, 0, 2.2, 0.05, 2.2, "cylinder", "#581C87", "neon", nil)
+  end
+  if r == 8 and m.t != "Corona" then
+    mpart(m, a.head.x, top + 0.1, a.head.z, 0.55, 0.18, 0.55, "cylinder", "#FACC15", "metal", nil)
+  end
+end
+
+-- MARK: 変異の色
+func apply_mutation(m, mut)
+  if mut == nil or mut == "none" then return end
+  let info = MUTATIONS[mut]
+  let i = 0
+  for b in m.parts do
+    if not contains(m.eye_parts, b) then
+      i = i + 1
+      if mut == "rainbow" then
+        b.color = RAINBOW[i % len(RAINBOW) + 1]
+      elif mut == "candy" then
+        b.color = ["#F9A8D4", "#F8FAFC", "#FDE68A"][i % 3 + 1]
+      else
+        b.color = mix(b.color, info.color, 0.72)
+      end
+      if b.material != "glass" or info.mat == "glass" then b.material = info.mat end
+    end
+  end
+  if mut == "lava" then m.root.particles = "fire"
+  elif mut == "galaxy" then m.root.particles = "stars"
+  elif mut == "crystal" or mut == "celestial" then m.root.particles = "sparkles"
+  end
+end
+
+-- MARK: 頭の上の文字
+-- 1行目: めずらしさ / 2行目: 名前（変異つき）/ 3行目: お金 / 4行目: 特性のマーク
+func meme_label(m, e, money_line, money_color)
+  let c = char_of(e.id)
+  let lines = [{text: RARITIES[c.r].name, color: RARITIES[c.r].color}]
+  let mut = MUTATIONS[e.mut or "none"]
+  if mut.name != "" then
+    append(lines, {text: mut.name + " " + c.n, color: mut.color})
+  else
+    append(lines, {text: c.n, color: "#FFFFFF"})
+  end
+  append(lines, {text: money_line, color: money_color or "#4ADE80"})
+  let icons = trait_icons(e)
+  if icons != "" then append(lines, {text: icons, color: "#FFFFFF"}) end
+  m.root.label = lines
+  m.root.label_height = m.top * m.k + 0.35
+  m.root.label_size = 0.85 + c.r * 0.06
+  m.root.label_range = 38 + c.r * 4
+end
+
+-- MARK: まるごと組み立てる
+-- e: {id, mut, tr}（キャラ・変異・特性）/ at: 足もとの場所 / yaw: 向き（プレイヤーの yaw と同じ）
+-- 返すもの: {root, parts, eye_parts, k, top, e}
+func build_model(e, at, yaw)
+  let c = char_of(e.id)
+  let look = ANIMALS[c.a]
+  let thing = THINGS[c.t]
+  let c1 = look.c1
+  let c2 = look.c2
+  if c.v == 1 then
+    c1 = look.c2
+    c2 = look.c1
+  elif c.v == 2 then
+    c1 = mix(look.c1, thing.c, 0.35)
+  end
+  -- yaw は プレイヤーと同じ向き（0: -z、90: +x）。ブロックの回転は 逆まわりなので マイナスにする
+  let root = create_block({name: "Meme", position: at, size: ROOT, color: "#FFFFFF", opacity: 0, solid: false,
+                           rotation: {x: 0, y: 0 - yaw, z: 0}, tags: ["meme"]})
+  let m = {root: root, parts: [], eye_parts: [], k: RSCALE[c.r] * c.s, a: c.a, t: c.t, c1: c1, c2: c2, tc: thing.c, e: e}
+  let fit = thing.fit
+  let a = build_plan(m, {no_head: fit == "head", no_body: fit == "body"})
+  build_thing(m, fit, a)
+  let before = len(m.parts)
+  eyes(m, a.head)
+  m.eye_parts = slice(m.parts, before + 1, len(m.parts))
+  rarity_bling(m, c.r, a)
+  m.top = a.top
+  if fit == "hat" or fit == "head" then m.top = a.top + 0.4 end
+  if fit == "held" and c.t == "Palloncino" then m.top = a.top + 0.9 end
+  apply_mutation(m, e.mut)
+  if c.r >= 6 and m.root.particles == nil then
+    if c.r == 6 then m.root.particles = "sparkles" elif c.r == 7 then m.root.particles = "magic" else m.root.particles = "stars" end
+  end
+  return m
+end
+
+func destroy_model(m)
+  if m == nil then return end
+  if m.root != nil and m.root.destroy != nil then m.root.destroy() end
+  m.root = nil
+end
+
+-- ゆらゆら・ぴょんぴょん…（キャラごとに ちがう）
+let IDLE_ANIMS = ["sway", "dance", "bounce", "pulse", "wobble"]
+func idle_anim(m)
+  let c = char_of(m.e.id)
+  m.root.animation = IDLE_ANIMS[c.id % len(IDLE_ANIMS) + 1]
+  m.root.animation_speed = 0.7 + (c.id % 5) * 0.12
+end

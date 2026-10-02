@@ -1,0 +1,133 @@
+-- index.absc — 📖 ミーム図鑑: 手に入れたミームが のる（300体）。10体ごとに もうけ +1%（30%まで）、
+-- 10・25・50…体で ごほうびのお金。めずらしさを ぜんぶ そろえると 実績。変異図鑑も ある。
+-- ボタンを おすと そのミームの 読みかたと せつめい（まだのミームは 手に入れかたの ヒント）。
+
+let DEX_MILESTONES = [{n: 10, cash: 5000}, {n: 25, cash: 60000}, {n: 50, cash: 800000}, {n: 75, cash: 10000000},
+                      {n: 100, cash: 150000000}, {n: 150, cash: 3000000000}, {n: 200, cash: 60000000000},
+                      {n: 250, cash: 1000000000000}, {n: 300, cash: 30000000000000}]
+let DEX_PER_PAGE = 20
+
+func dex_count(p)
+  return len(p.dex or [])
+end
+
+func dex_bonus(p)
+  return min(0.3, floor(dex_count(p) / 10) * 0.01)
+end
+
+func dex_add(p, e)
+  if p.dex == nil then p.dex = [] end
+  if p.dexm == nil then p.dexm = [] end
+  if e.mut != nil and e.mut != "none" and not contains(p.dexm, e.mut) then
+    append(p.dexm, e.mut)
+    p.message("🧬 変異図鑑に のった: " + MUTATIONS[e.mut].icon + " " + MUTATIONS[e.mut].name + "（" + len(p.dexm) + "/10）", 2)
+  end
+  if contains(p.dex, e.id) then return end
+  append(p.dex, e.id)
+  let c = char_of(e.id)
+  let n = len(p.dex)
+  p.message("📖 図鑑に のった！ " + c.n + "（" + n + "/" + len(CHARS) + "）", 2)
+  kit_quest_progress(p, "dex", 1)
+  kit_quest_progress(p, "dex100", 1)
+  for m in DEX_MILESTONES do
+    if n == m.n then
+      pay(p, m.cash)
+      announce("📖 " + p.name + " の図鑑が " + n + "体に！ ごほうび " + money(m.cash), 3)
+      sound("win")
+    end
+  end
+  if n % 10 == 0 then
+    p.message("📖 図鑑 " + n + "体！ もうけ +" + floor(dex_bonus(p) * 100) + "%", 2.5)
+    if p.base != nil then relabel_base(p.base) end
+  end
+  let r = c.r
+  let have = len(filter(p.dex, func(id) return char_of(id).r == r end))
+  if have == len(CHARS_BY_RARITY[r]) then kit_badge(p, "dex" + r, RARITIES[r].name + " コンプリート") end
+end
+
+func dex_hint(c)
+  if c.src == "carpet" then return "カーペットに 来る" end
+  if c.src == "admin" then return "管理人の イベントで 手に入る" end
+  if starts_with(c.src, "ritual:") then return "儀式で 生まれる" end
+  if starts_with(c.src, "event:") then
+    let ev = EVENT_BY_ID[replace(c.src, "event:", "")]
+    if ev != nil then return ev.icon + " " + ev.name + " のときに 来る" end
+    return "イベントのときに 来る"
+  end
+  return "どこかに いる"
+end
+
+func open_dex(p, page)
+  let pages = ceil(len(CHARS) / DEX_PER_PAGE)
+  page = clamp(page or 1, 1, pages)
+  p.dex_page = page
+  let first = (page - 1) * DEX_PER_PAGE + 1
+  let list = slice(CHARS, first, min(len(CHARS), first + DEX_PER_PAGE - 1))
+  let h = 190 + 10 * 34
+  p.ui_remove("dx_box")
+  p.ui_panel("dx_box", {at: "center", w: 760, h: h, bg: "#042F2EF2", radius: 22, layer: 40})
+  let n = dex_count(p)
+  p.ui_text("dx_t", "📖 ミーム図鑑 " + n + "/" + len(CHARS) + "   もうけ +" + floor(dex_bonus(p) * 100) + "%   " + page + "/" + pages,
+            {parent: "dx_box", y: 24 / h, size: 19, bold: true, color: "#99F6E4"})
+  let next = find(DEX_MILESTONES, func(m) return m.n > n end)
+  let sub = "🧬 変異 " + len(p.dexm or []) + "/10 "
+  for k in p.dexm or [] do sub = sub + MUTATIONS[k].icon end
+  if next != nil then sub = sub + "   つぎのごほうび: " + next.n + "体で " + money(next.cash) end
+  p.ui_text("dx_s", sub, {parent: "dx_box", y: 52 / h, size: 13, color: "#CCFBF1"})
+  let i = 0
+  let view = []
+  for c in list do
+    i = i + 1
+    let col = (i - 1) % 2
+    let row = floor((i - 1) / 2)
+    let known = contains(p.dex or [], c.id)
+    let label = "❓ ？？？（" + RARITIES[c.r].name + "）"
+    let bg = "#1F2937"
+    if known then
+      label = "✅ " + c.n
+      bg = mix_color(RARITIES[c.r].color, "#111827", 0.55)
+    end
+    p.ui_button("dx_e" + i, label, {parent: "dx_box", y: (84 + row * 34) / h, dx: -180 + col * 360, w: 350, h: 30, size: 12, bg: bg,
+                                     color: RARITIES[c.r].color})
+    append(view, c.id)
+  end
+  p.dex_view = view
+  let by = (h - 30) / h
+  p.ui_button("dx_prev", "◀", {parent: "dx_box", y: by, dx: -160, w: 80, h: 38, size: 16, bg: "#0F766E"})
+  p.ui_button("dx_close", "閉じる", {parent: "dx_box", y: by, w: 130, h: 38, size: 15, bg: "gray"})
+  p.ui_button("dx_next", "▶", {parent: "dx_box", y: by, dx: 160, w: 80, h: 38, size: 16, bg: "#0F766E"})
+end
+
+func dex_detail(p, i)
+  let id = (p.dex_view or [])[i]
+  if id == nil then return end
+  let c = char_of(id)
+  if contains(p.dex or [], id) then
+    p.message(c.n + "（" + c.k + "）\n" + RARITIES[c.r].name + "・" + money(c.inc) + "/秒・" + c.d, 4)
+  else
+    p.message("❓ まだ 会っていない " + RARITIES[c.r].name + "。ヒント: " + dex_hint(c), 3)
+  end
+  p.sound("click")
+end
+
+on touch(p, b)
+  if p.is_npc then return end
+  if contains(b.tags, "indexpad") then open_dex(p, p.dex_page or 1) end
+end
+
+on button(p, id)
+  if id == "dex_menu" then open_dex(p, p.dex_page or 1)
+  elif id == "dx_close" then p.ui_remove("dx_box")
+  elif id == "dx_prev" then
+    let pages = ceil(len(CHARS) / DEX_PER_PAGE)
+    let pg = (p.dex_page or 1) - 1
+    if pg < 1 then pg = pages end
+    open_dex(p, pg)
+  elif id == "dx_next" then
+    let pages = ceil(len(CHARS) / DEX_PER_PAGE)
+    let pg = (p.dex_page or 1) + 1
+    if pg > pages then pg = 1 end
+    open_dex(p, pg)
+  elif starts_with(id, "dx_e") then dex_detail(p, num(replace(id, "dx_e", "")))
+  end
+end
