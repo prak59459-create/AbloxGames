@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 244,
-  "bytes" : 163758,
-  "cover" : "games\/crusher-yard\/cover-fe5d7b18.png",
+  "blockCount" : 264,
+  "bytes" : 173236,
+  "cover" : "games\/crusher-yard\/cover-eaf7503a.png",
   "id" : "crusher-yard",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/crusher-yard\/main.absc"
   ],
   "shots" : [
-    "games\/crusher-yard\/shot1-391fd440.png",
-    "games\/crusher-yard\/shot2-d5b202c2.png"
+    "games\/crusher-yard\/shot1-eb810806.png",
+    "games\/crusher-yard\/shot2-65eab564.png"
   ],
   "summary" : "自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！",
   "tags" : [

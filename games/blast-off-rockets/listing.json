@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 214,
-  "bytes" : 147926,
-  "cover" : "games\/blast-off-rockets\/cover-81355711.png",
+  "blockCount" : 252,
+  "bytes" : 166077,
+  "cover" : "games\/blast-off-rockets\/cover-f666c7e7.png",
   "id" : "blast-off-rockets",
   "maxPlayers" : 8,
   "schemaVersion" : 2,
@@ -16,8 +16,8 @@
     "games\/blast-off-rockets\/main.absc"
   ],
   "shots" : [
-    "games\/blast-off-rockets\/shot1-6df5f740.png",
-    "games\/blast-off-rockets\/shot2-ab201efd.png"
+    "games\/blast-off-rockets\/shot1-ff5331ca.png",
+    "games\/blast-off-rockets\/shot2-50cdd12d.png"
   ],
   "summary" : "燃料をためて、ロケットを空へ発射！ 高く上がるほどお金が入る。雲をぬけて宇宙ステーション、そして2000m上の月へ。部品を強くして、月に着いたら生まれかわってもっと上へ！",
   "tags" : [

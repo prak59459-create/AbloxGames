@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 856,
-  "bytes" : 453097,
-  "cover" : "games\/buzz-meadow\/cover-f2d25aa4.png",
+  "blockCount" : 959,
+  "bytes" : 502111,
+  "cover" : "games\/buzz-meadow\/cover-046ec7ee.png",
   "id" : "buzz-meadow",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -17,8 +17,8 @@
     "games\/buzz-meadow\/main.absc"
   ],
   "shots" : [
-    "games\/buzz-meadow\/shot1-d88bce0e.png",
-    "games\/buzz-meadow\/shot2-4cd042d7.png"
+    "games\/buzz-meadow\/shot1-8be94988.png",
+    "games\/buzz-meadow\/shot2-2ab5460d.png"
   ],
   "summary" : "ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！",
   "tags" : [

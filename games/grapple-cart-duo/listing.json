@@ -2,7 +2,7 @@
   "author" : "Ablox Games",
   "blockCount" : 234,
   "bytes" : 156242,
-  "cover" : "games\/grapple-cart-duo\/cover-3e77496b.png",
+  "cover" : "games\/grapple-cart-duo\/cover-c1665834.png",
   "id" : "grapple-cart-duo",
   "maxPlayers" : 10,
   "schemaVersion" : 2,
@@ -17,8 +17,8 @@
     "games\/grapple-cart-duo\/main.absc"
   ],
   "shots" : [
-    "games\/grapple-cart-duo\/shot1-65aa4122.png",
-    "games\/grapple-cart-duo\/shot2-40d0467e.png"
+    "games\/grapple-cart-duo\/shot1-94e58236.png",
+    "games\/grapple-cart-duo\/shot2-5eb485ec.png"
   ],
   "summary" : "カートでオビー！ すき間は🪝グラップルでびゅーん、ジャンプ台でひとっとび。ふたり組になると、落ちてもロープで引き上げてもらえる。ハンマーをよけて20ステージをゴールまで！",
   "tags" : [

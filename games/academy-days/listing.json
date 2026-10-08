@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 99,
-  "bytes" : 84988,
-  "cover" : "games\/academy-days\/cover-c1256194.png",
+  "blockCount" : 119,
+  "bytes" : 94490,
+  "cover" : "games\/academy-days\/cover-982ef03c.png",
   "id" : "academy-days",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
@@ -15,8 +15,8 @@
     "games\/academy-days\/main.absc"
   ],
   "shots" : [
-    "games\/academy-days\/shot1-7817cec1.png",
-    "games\/academy-days\/shot2-f01d1ec1.png"
+    "games\/academy-days\/shot1-f396855f.png",
+    "games\/academy-days\/shot2-2ded0c09.png"
   ],
   "summary" : "4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！",
   "tags" : [

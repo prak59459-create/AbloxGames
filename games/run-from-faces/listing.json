@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 594,
-  "bytes" : 321250,
+  "blockCount" : 654,
+  "bytes" : 350152,
   "cover" : "games\/run-from-faces\/cover-a4f6a952.png",
   "id" : "run-from-faces",
   "maxPlayers" : 12,
@@ -16,8 +16,8 @@
     "games\/run-from-faces\/main.absc"
   ],
   "shots" : [
-    "games\/run-from-faces\/shot1-bdf86c70.png",
-    "games\/run-from-faces\/shot2-934487b9.png"
+    "games\/run-from-faces\/shot1-38d826b5.png",
+    "games\/run-from-faces\/shot2-24289231.png"
   ],
   "summary" : "5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！",
   "tags" : [

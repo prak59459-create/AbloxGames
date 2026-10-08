@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 326,
-  "bytes" : 193058,
-  "cover" : "games\/island-flight-school\/cover-fcd55be5.png",
+  "blockCount" : 430,
+  "bytes" : 242451,
+  "cover" : "games\/island-flight-school\/cover-f8e233b8.png",
   "id" : "island-flight-school",
   "maxPlayers" : 12,
   "schemaVersion" : 2,
@@ -15,8 +15,8 @@
     "games\/island-flight-school\/main.absc"
   ],
   "shots" : [
-    "games\/island-flight-school\/shot1-99de9b05.png",
-    "games\/island-flight-school\/shot2-f2523d59.png"
+    "games\/island-flight-school\/shot1-95cdd216.png",
+    "games\/island-flight-school\/shot2-6cd0dfbb.png"
   ],
   "summary" : "島の空港でパイロットになろう！ スロットルで速さ、⬆⬇で上昇・下降。お客さんをのせて ほかの島の空港へ飛び、滑走路にふんわり着陸。ランクが上がると ジェット機や旅客機に乗れる。",
   "tags" : [

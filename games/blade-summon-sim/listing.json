@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 310,
-  "bytes" : 204888,
-  "cover" : "games\/blade-summon-sim\/cover-58e4a27c.png",
+  "blockCount" : 346,
+  "bytes" : 222032,
+  "cover" : "games\/blade-summon-sim\/cover-1a1e4190.png",
   "id" : "blade-summon-sim",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/blade-summon-sim\/main.absc"
   ],
   "shots" : [
-    "games\/blade-summon-sim\/shot1-d9bcec42.png",
-    "games\/blade-summon-sim\/shot2-dac685d7.png"
+    "games\/blade-summon-sim\/shot1-86729d63.png",
+    "games\/blade-summon-sim\/shot2-8d44055b.png"
   ],
   "summary" : "召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！",
   "tags" : [

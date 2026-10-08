@@ -2,7 +2,7 @@
   "author" : "Ablox Games",
   "blockCount" : 106,
   "bytes" : 97562,
-  "cover" : "games\/arm-wrestle-champions\/cover-c8ec5112.png",
+  "cover" : "games\/arm-wrestle-champions\/cover-05a6c779.png",
   "id" : "arm-wrestle-champions",
   "maxPlayers" : 12,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/arm-wrestle-champions\/main.absc"
   ],
   "shots" : [
-    "games\/arm-wrestle-champions\/shot1-8aee5c76.png",
-    "games\/arm-wrestle-champions\/shot2-61aebccd.png"
+    "games\/arm-wrestle-champions\/shot1-b00a94db.png",
+    "games\/arm-wrestle-champions\/shot2-8575cd17.png"
   ],
   "summary" : "うでずもうチャンピオンをめざせ！ にぎる道具でうでをきたえて、テーブルのライバルに勝負。💪を連打して押しかえせ！ ボスに勝つと次のエリアへ。友だちとの対戦テーブルも。",
   "tags" : [

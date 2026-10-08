@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 175,
-  "bytes" : 138924,
+  "blockCount" : 181,
+  "bytes" : 141774,
   "cover" : "games\/shark-attack-bay\/cover-b023a82c.png",
   "id" : "shark-attack-bay",
   "maxPlayers" : 12,
@@ -17,7 +17,7 @@
     "games\/shark-attack-bay\/main.absc"
   ],
   "shots" : [
-    "games\/shark-attack-bay\/shot1-c137815f.png",
+    "games\/shark-attack-bay\/shot1-c88c9d0b.png",
     "games\/shark-attack-bay\/shot2-2d550e8e.png"
   ],
   "summary" : "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",

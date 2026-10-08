@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 218,
-  "bytes" : 140765,
-  "cover" : "games\/smile-outbreak\/cover-21b3817b.png",
+  "blockCount" : 238,
+  "bytes" : 150083,
+  "cover" : "games\/smile-outbreak\/cover-163337e5.png",
   "id" : "smile-outbreak",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/smile-outbreak\/main.absc"
   ],
   "shots" : [
-    "games\/smile-outbreak\/shot1-8255cfa6.png",
-    "games\/smile-outbreak\/shot2-fe218c5c.png"
+    "games\/smile-outbreak\/shot1-4c49e8de.png",
+    "games\/smile-outbreak\/shot2-f099476b.png"
   ],
   "summary" : "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
   "tags" : [

@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 280,
-  "bytes" : 178195,
-  "cover" : "games\/last-train-west\/cover-f16359c8.png",
+  "blockCount" : 340,
+  "bytes" : 206747,
+  "cover" : "games\/last-train-west\/cover-8bb2abd4.png",
   "id" : "last-train-west",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/last-train-west\/main.absc"
   ],
   "shots" : [
-    "games\/last-train-west\/shot1-f1e13267.png",
-    "games\/last-train-west\/shot2-ef159a06.png"
+    "games\/last-train-west\/shot1-34a35e75.png",
+    "games\/last-train-west\/shot2-ca455a20.png"
   ],
   "summary" : "荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！",
   "tags" : [

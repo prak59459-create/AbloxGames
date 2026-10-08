@@ -3,9 +3,9 @@
   "games" : [
     {
       "author" : "Ablox Games",
-      "blockCount" : 510,
-      "bytes" : 378327,
-      "cover" : "games\/maple-bay-life\/cover-fe6b9675.png",
+      "blockCount" : 706,
+      "bytes" : 470580,
+      "cover" : "games\/maple-bay-life\/cover-cbe517d2.png",
       "id" : "maple-bay-life",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -21,8 +21,8 @@
         "games\/maple-bay-life\/main.absc"
       ],
       "shots" : [
-        "games\/maple-bay-life\/shot1-df49918d.png",
-        "games\/maple-bay-life\/shot2-d318aa64.png"
+        "games\/maple-bay-life\/shot1-debd2583.png",
+        "games\/maple-bay-life\/shot2-787e19e7.png"
       ],
       "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",
       "tags" : [
@@ -37,9 +37,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 291,
-      "bytes" : 239282,
-      "cover" : "games\/fruit-seas\/cover-799355aa.png",
+      "blockCount" : 381,
+      "bytes" : 282009,
+      "cover" : "games\/fruit-seas\/cover-96d50579.png",
       "id" : "fruit-seas",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -56,8 +56,8 @@
         "games\/fruit-seas\/main.absc"
       ],
       "shots" : [
-        "games\/fruit-seas\/shot1-7b5c4aac.png",
-        "games\/fruit-seas\/shot2-c2b5b8d2.png"
+        "games\/fruit-seas\/shot1-135c072d.png",
+        "games\/fruit-seas\/shot2-50914e90.png"
       ],
       "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",
       "tags" : [
@@ -72,9 +72,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 308,
-      "bytes" : 225846,
-      "cover" : "games\/pet-home-paradise\/cover-bc137390.png",
+      "blockCount" : 400,
+      "bytes" : 269528,
+      "cover" : "games\/pet-home-paradise\/cover-f4b6388a.png",
       "id" : "pet-home-paradise",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -89,8 +89,8 @@
         "games\/pet-home-paradise\/main.absc"
       ],
       "shots" : [
-        "games\/pet-home-paradise\/shot1-15e4e809.png",
-        "games\/pet-home-paradise\/shot2-149db4e2.png"
+        "games\/pet-home-paradise\/shot1-2db5f9a0.png",
+        "games\/pet-home-paradise\/shot2-0a4a6c82.png"
       ],
       "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
       "tags" : [
@@ -105,9 +105,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 1132,
-      "bytes" : 834905,
-      "cover" : "games\/meme-heist\/cover-bd3a94c3.png",
+      "blockCount" : 1334,
+      "bytes" : 931221,
+      "cover" : "games\/meme-heist\/cover-c6ea7f29.png",
       "id" : "meme-heist",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -134,8 +134,8 @@
         "games\/meme-heist\/main.absc"
       ],
       "shots" : [
-        "games\/meme-heist\/shot1-11b22d14.png",
-        "games\/meme-heist\/shot2-c9705586.png"
+        "games\/meme-heist\/shot1-cf136564.png",
+        "games\/meme-heist\/shot2-929918ce.png"
       ],
       "summary" : "赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。",
       "tags" : [
@@ -150,9 +150,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 140,
-      "bytes" : 131671,
-      "cover" : "games\/reel-legends\/cover-b5e14315.png",
+      "blockCount" : 182,
+      "bytes" : 151544,
+      "cover" : "games\/reel-legends\/cover-5a0ae04d.png",
       "id" : "reel-legends",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -167,8 +167,8 @@
         "games\/reel-legends\/main.absc"
       ],
       "shots" : [
-        "games\/reel-legends\/shot1-3f5c3630.png",
-        "games\/reel-legends\/shot2-534c2c65.png"
+        "games\/reel-legends\/shot1-fd9e8c99.png",
+        "games\/reel-legends\/shot2-e2db7d63.png"
       ],
       "summary" : "つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。",
       "tags" : [
@@ -218,9 +218,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 277,
-      "bytes" : 195069,
-      "cover" : "games\/sprout-garden\/cover-571f726c.png",
+      "blockCount" : 347,
+      "bytes" : 228209,
+      "cover" : "games\/sprout-garden\/cover-09d97941.png",
       "id" : "sprout-garden",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -235,8 +235,8 @@
         "games\/sprout-garden\/main.absc"
       ],
       "shots" : [
-        "games\/sprout-garden\/shot1-02d5aad4.png",
-        "games\/sprout-garden\/shot2-079d6d26.png"
+        "games\/sprout-garden\/shot1-4fe7e66c.png",
+        "games\/sprout-garden\/shot2-31b31de2.png"
       ],
       "summary" : "自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。",
       "tags" : [
@@ -314,9 +314,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 253,
-      "bytes" : 181722,
-      "cover" : "games\/99-nights-camp\/cover-325c0e39.png",
+      "blockCount" : 263,
+      "bytes" : 186422,
+      "cover" : "games\/99-nights-camp\/cover-752172a7.png",
       "id" : "99-nights-camp",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -333,8 +333,8 @@
         "games\/99-nights-camp\/main.absc"
       ],
       "shots" : [
-        "games\/99-nights-camp\/shot1-cab0dc83.png",
-        "games\/99-nights-camp\/shot2-e07ba1bf.png"
+        "games\/99-nights-camp\/shot1-7703567e.png",
+        "games\/99-nights-camp\/shot2-830a8cb1.png"
       ],
       "summary" : "森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。",
       "tags" : [
@@ -349,9 +349,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 103,
-      "bytes" : 90408,
-      "cover" : "games\/lucky-kick-run\/cover-6a8e2876.png",
+      "blockCount" : 115,
+      "bytes" : 96120,
+      "cover" : "games\/lucky-kick-run\/cover-6cf4b7fd.png",
       "id" : "lucky-kick-run",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -366,7 +366,7 @@
       ],
       "shots" : [
         "games\/lucky-kick-run\/shot1-8e82842e.png",
-        "games\/lucky-kick-run\/shot2-5757478d.png"
+        "games\/lucky-kick-run\/shot2-19f8d13f.png"
       ],
       "summary" : "ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！",
       "tags" : [
@@ -509,9 +509,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 154,
-      "bytes" : 149527,
-      "cover" : "games\/crystal-wars\/cover-e2badc92.png",
+      "blockCount" : 162,
+      "bytes" : 153250,
+      "cover" : "games\/crystal-wars\/cover-a5772ead.png",
       "id" : "crystal-wars",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -531,8 +531,8 @@
         "games\/crystal-wars\/main.absc"
       ],
       "shots" : [
-        "games\/crystal-wars\/shot1-025e78e5.png",
-        "games\/crystal-wars\/shot2-8c71c94b.png"
+        "games\/crystal-wars\/shot1-ed6edd32.png",
+        "games\/crystal-wars\/shot2-2c509dc1.png"
       ],
       "summary" : "浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。",
       "tags" : [
@@ -547,9 +547,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 128,
-      "bytes" : 123197,
-      "cover" : "games\/slime-roll\/cover-6e363cea.png",
+      "blockCount" : 152,
+      "bytes" : 134603,
+      "cover" : "games\/slime-roll\/cover-1c724817.png",
       "id" : "slime-roll",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -568,8 +568,8 @@
         "games\/slime-roll\/main.absc"
       ],
       "shots" : [
-        "games\/slime-roll\/shot1-04c04ee2.png",
-        "games\/slime-roll\/shot2-947ee768.png"
+        "games\/slime-roll\/shot1-88105cca.png",
+        "games\/slime-roll\/shot2-e925050d.png"
       ],
       "summary" : "運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？",
       "tags" : [
@@ -584,9 +584,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 100,
-      "bytes" : 106254,
-      "cover" : "games\/hero-tower-defense\/cover-23a256b8.png",
+      "blockCount" : 128,
+      "bytes" : 119576,
+      "cover" : "games\/hero-tower-defense\/cover-36132369.png",
       "id" : "hero-tower-defense",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -603,8 +603,8 @@
         "games\/hero-tower-defense\/main.absc"
       ],
       "shots" : [
-        "games\/hero-tower-defense\/shot1-c9d61f2e.png",
-        "games\/hero-tower-defense\/shot2-81f8ab4f.png"
+        "games\/hero-tower-defense\/shot1-9fc61369.png",
+        "games\/hero-tower-defense\/shot2-2d33d892.png"
       ],
       "summary" : "道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。",
       "tags" : [
@@ -687,9 +687,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 181,
-      "bytes" : 133220,
-      "cover" : "games\/power-training-sim\/cover-d056f1f1.png",
+      "blockCount" : 217,
+      "bytes" : 150444,
+      "cover" : "games\/power-training-sim\/cover-14ec11d1.png",
       "id" : "power-training-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -705,8 +705,8 @@
         "games\/power-training-sim\/main.absc"
       ],
       "shots" : [
-        "games\/power-training-sim\/shot1-590aef72.png",
-        "games\/power-training-sim\/shot2-d6be3e01.png"
+        "games\/power-training-sim\/shot1-2aac67ac.png",
+        "games\/power-training-sim\/shot2-e92fb22d.png"
       ],
       "summary" : "力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。",
       "tags" : [
@@ -785,9 +785,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 77,
-      "bytes" : 74505,
-      "cover" : "games\/warrior-brawl\/cover-c8a7f55b.png",
+      "blockCount" : 97,
+      "bytes" : 83951,
+      "cover" : "games\/warrior-brawl\/cover-b6dcdbd6.png",
       "id" : "warrior-brawl",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -801,8 +801,8 @@
         "games\/warrior-brawl\/main.absc"
       ],
       "shots" : [
-        "games\/warrior-brawl\/shot1-b78e278d.png",
-        "games\/warrior-brawl\/shot2-2e2038e0.png"
+        "games\/warrior-brawl\/shot1-975a4c88.png",
+        "games\/warrior-brawl\/shot2-75a43984.png"
       ],
       "summary" : "やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。",
       "tags" : [
@@ -958,8 +958,8 @@
         "games\/last-squad\/main.absc"
       ],
       "shots" : [
-        "games\/last-squad\/shot1-b6ba4e14.png",
-        "games\/last-squad\/shot2-3d499483.png"
+        "games\/last-squad\/shot1-6b92322a.png",
+        "games\/last-squad\/shot2-77728454.png"
       ],
       "summary" : "人間チームとゾンビの大群のサバイバル。やられた人間はゾンビになる！3分間生きのびて、ヘリで脱出せよ。",
       "tags" : [
@@ -1004,9 +1004,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 251,
-      "bytes" : 232052,
-      "cover" : "games\/hero-academy-sim\/cover-037510ae.png",
+      "blockCount" : 313,
+      "bytes" : 261212,
+      "cover" : "games\/hero-academy-sim\/cover-ef2a127f.png",
       "id" : "hero-academy-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1025,8 +1025,8 @@
         "games\/hero-academy-sim\/main.absc"
       ],
       "shots" : [
-        "games\/hero-academy-sim\/shot1-781219ab.png",
-        "games\/hero-academy-sim\/shot2-72c21657.png"
+        "games\/hero-academy-sim\/shot1-436ab3c5.png",
+        "games\/hero-academy-sim\/shot2-193f73c8.png"
       ],
       "summary" : "ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。",
       "tags" : [
@@ -1040,9 +1040,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 256,
-      "bytes" : 216452,
-      "cover" : "games\/oni-blade\/cover-68e76fd0.png",
+      "blockCount" : 322,
+      "bytes" : 248478,
+      "cover" : "games\/oni-blade\/cover-0fbf9474.png",
       "id" : "oni-blade",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1059,8 +1059,8 @@
         "games\/oni-blade\/main.absc"
       ],
       "shots" : [
-        "games\/oni-blade\/shot1-d8c47ca4.png",
-        "games\/oni-blade\/shot2-0b8a509b.png"
+        "games\/oni-blade\/shot1-c8071075.png",
+        "games\/oni-blade\/shot2-1b4ad73c.png"
       ],
       "summary" : "夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。",
       "tags" : [
@@ -1074,9 +1074,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 291,
-      "bytes" : 203847,
-      "cover" : "games\/pom-town\/cover-3207dc56.png",
+      "blockCount" : 417,
+      "bytes" : 263602,
+      "cover" : "games\/pom-town\/cover-eab3abe1.png",
       "id" : "pom-town",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1091,8 +1091,8 @@
         "games\/pom-town\/main.absc"
       ],
       "shots" : [
-        "games\/pom-town\/shot1-b26f3717.png",
-        "games\/pom-town\/shot2-4e4ad11d.png"
+        "games\/pom-town\/shot1-129c0c80.png",
+        "games\/pom-town\/shot2-96c4abda.png"
       ],
       "summary" : "家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！",
       "tags" : [
@@ -1106,9 +1106,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 325,
-      "bytes" : 216483,
-      "cover" : "games\/cherry-lane-rp\/cover-3f94fb5c.png",
+      "blockCount" : 441,
+      "bytes" : 271402,
+      "cover" : "games\/cherry-lane-rp\/cover-ae4df771.png",
       "id" : "cherry-lane-rp",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1123,8 +1123,8 @@
         "games\/cherry-lane-rp\/main.absc"
       ],
       "shots" : [
-        "games\/cherry-lane-rp\/shot1-0ab43a88.png",
-        "games\/cherry-lane-rp\/shot2-4d87fa83.png"
+        "games\/cherry-lane-rp\/shot1-e5a33f37.png",
+        "games\/cherry-lane-rp\/shot2-44d4c745.png"
       ],
       "summary" : "学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。",
       "tags" : [
@@ -1138,9 +1138,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 155,
-      "bytes" : 121007,
-      "cover" : "games\/pizza-shift\/cover-6c3f14ea.png",
+      "blockCount" : 191,
+      "bytes" : 138056,
+      "cover" : "games\/pizza-shift\/cover-8714f2ba.png",
       "id" : "pizza-shift",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1153,8 +1153,8 @@
         "games\/pizza-shift\/main.absc"
       ],
       "shots" : [
-        "games\/pizza-shift\/shot1-db86123f.png",
-        "games\/pizza-shift\/shot2-84eda788.png"
+        "games\/pizza-shift\/shot1-e4c533bc.png",
+        "games\/pizza-shift\/shot2-3faca69c.png"
       ],
       "summary" : "ピザ屋でみんなで働こう。レジで注文、レシピどおりに具をのせて、こげる前にオーブンから出して手わたし・配達！ ★評価と店のお金で店を強化、昇進で給料アップ。",
       "tags" : [
@@ -1200,9 +1200,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 66,
-      "bytes" : 78474,
-      "cover" : "games\/club-hangout\/cover-6af370b0.png",
+      "blockCount" : 76,
+      "bytes" : 83197,
+      "cover" : "games\/club-hangout\/cover-5bbad756.png",
       "id" : "club-hangout",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1216,8 +1216,8 @@
         "games\/club-hangout\/main.absc"
       ],
       "shots" : [
-        "games\/club-hangout\/shot1-64e3a46d.png",
-        "games\/club-hangout\/shot2-d089d44a.png"
+        "games\/club-hangout\/shot1-a0af831d.png",
+        "games\/club-hangout\/shot2-6dcdb3fe.png"
       ],
       "summary" : "空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。",
       "tags" : [
@@ -1231,9 +1231,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 270,
-      "bytes" : 176155,
-      "cover" : "games\/ridgeport-cops\/cover-72ec609e.png",
+      "blockCount" : 350,
+      "bytes" : 213778,
+      "cover" : "games\/ridgeport-cops\/cover-beb7b9ba.png",
       "id" : "ridgeport-cops",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1247,8 +1247,8 @@
         "games\/ridgeport-cops\/main.absc"
       ],
       "shots" : [
-        "games\/ridgeport-cops\/shot1-2e4afdda.png",
-        "games\/ridgeport-cops\/shot2-d8360bb3.png"
+        "games\/ridgeport-cops\/shot1-907a4262.png",
+        "games\/ridgeport-cops\/shot2-2d6e2e3f.png"
       ],
       "summary" : "警察と強盗の街アクション。ガソスタ・宝石店・銀行の暗証番号・銃砲店・現金輸送車をねらう強盗と、テーザーと手錠で追う警察。階級・武器・車・脱獄・保釈も！",
       "tags" : [
@@ -1323,9 +1323,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 254,
-      "bytes" : 160978,
-      "cover" : "games\/life-ville\/cover-38e62185.png",
+      "blockCount" : 332,
+      "bytes" : 197763,
+      "cover" : "games\/life-ville\/cover-3f9a3333.png",
       "id" : "life-ville",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1338,8 +1338,8 @@
         "games\/life-ville\/main.absc"
       ],
       "shots" : [
-        "games\/life-ville\/shot1-99836838.png",
-        "games\/life-ville\/shot2-a0da77ca.png"
+        "games\/life-ville\/shot1-049a3bd0.png",
+        "games\/life-ville\/shot2-b104f3fd.png"
       ],
       "summary" : "5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。",
       "tags" : [
@@ -1353,9 +1353,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 277,
-      "bytes" : 178473,
-      "cover" : "games\/metro-response\/cover-3572ef31.png",
+      "blockCount" : 317,
+      "bytes" : 197435,
+      "cover" : "games\/metro-response\/cover-223c80cc.png",
       "id" : "metro-response",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1371,8 +1371,8 @@
         "games\/metro-response\/main.absc"
       ],
       "shots" : [
-        "games\/metro-response\/shot1-20f97afd.png",
-        "games\/metro-response\/shot2-e1e3477d.png"
+        "games\/metro-response\/shot1-e2b0dcc3.png",
+        "games\/metro-response\/shot2-764291fc.png"
       ],
       "summary" : "警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。",
       "tags" : [
@@ -1386,9 +1386,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 99,
-      "bytes" : 84988,
-      "cover" : "games\/academy-days\/cover-c1256194.png",
+      "blockCount" : 119,
+      "bytes" : 94490,
+      "cover" : "games\/academy-days\/cover-982ef03c.png",
       "id" : "academy-days",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -1401,8 +1401,8 @@
         "games\/academy-days\/main.absc"
       ],
       "shots" : [
-        "games\/academy-days\/shot1-7817cec1.png",
-        "games\/academy-days\/shot2-f01d1ec1.png"
+        "games\/academy-days\/shot1-f396855f.png",
+        "games\/academy-days\/shot2-2ded0c09.png"
       ],
       "summary" : "4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！",
       "tags" : [
@@ -1451,9 +1451,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 822,
-      "bytes" : 468273,
-      "cover" : "games\/street-drive-empire\/cover-2068d4de.png",
+      "blockCount" : 1012,
+      "bytes" : 558132,
+      "cover" : "games\/street-drive-empire\/cover-2c6a08a0.png",
       "id" : "street-drive-empire",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1469,8 +1469,8 @@
         "games\/street-drive-empire\/main.absc"
       ],
       "shots" : [
-        "games\/street-drive-empire\/shot1-ce178eda.png",
-        "games\/street-drive-empire\/shot2-8f01f897.png"
+        "games\/street-drive-empire\/shot1-f4e4c378.png",
+        "games\/street-drive-empire\/shot2-444ec7a7.png"
       ],
       "summary" : "車を集めて街を走るドライブゲーム。16台の車を買って色とパーツをカスタム。4つのレース（サーキット・ドラッグ・市街地・ラリー）でライバルと勝負、配達とタクシーでかせいでライセンスを上げよう！",
       "tags" : [
@@ -1517,9 +1517,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 119,
-      "bytes" : 100967,
-      "cover" : "games\/porkys-house\/cover-e6344ecc.png",
+      "blockCount" : 129,
+      "bytes" : 105580,
+      "cover" : "games\/porkys-house\/cover-14c37ce6.png",
       "id" : "porkys-house",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1534,8 +1534,8 @@
         "games\/porkys-house\/main.absc"
       ],
       "shots" : [
-        "games\/porkys-house\/shot1-c8946487.png",
-        "games\/porkys-house\/shot2-127e221e.png"
+        "games\/porkys-house\/shot1-ac37f4ce.png",
+        "games\/porkys-house\/shot2-865c14ac.png"
       ],
       "summary" : "毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！",
       "tags" : [
@@ -1549,8 +1549,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 594,
-      "bytes" : 321250,
+      "blockCount" : 654,
+      "bytes" : 350152,
       "cover" : "games\/run-from-faces\/cover-a4f6a952.png",
       "id" : "run-from-faces",
       "maxPlayers" : 12,
@@ -1565,8 +1565,8 @@
         "games\/run-from-faces\/main.absc"
       ],
       "shots" : [
-        "games\/run-from-faces\/shot1-bdf86c70.png",
-        "games\/run-from-faces\/shot2-934487b9.png"
+        "games\/run-from-faces\/shot1-38d826b5.png",
+        "games\/run-from-faces\/shot2-24289231.png"
       ],
       "summary" : "5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！",
       "tags" : [
@@ -1610,9 +1610,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 280,
-      "bytes" : 178195,
-      "cover" : "games\/last-train-west\/cover-f16359c8.png",
+      "blockCount" : 340,
+      "bytes" : 206747,
+      "cover" : "games\/last-train-west\/cover-8bb2abd4.png",
       "id" : "last-train-west",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1626,8 +1626,8 @@
         "games\/last-train-west\/main.absc"
       ],
       "shots" : [
-        "games\/last-train-west\/shot1-f1e13267.png",
-        "games\/last-train-west\/shot2-ef159a06.png"
+        "games\/last-train-west\/shot1-34a35e75.png",
+        "games\/last-train-west\/shot2-ca455a20.png"
       ],
       "summary" : "荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！",
       "tags" : [
@@ -1641,9 +1641,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 651,
-      "bytes" : 382977,
-      "cover" : "games\/yokai-shrine\/cover-4932a09e.png",
+      "blockCount" : 675,
+      "bytes" : 394497,
+      "cover" : "games\/yokai-shrine\/cover-70e3766e.png",
       "id" : "yokai-shrine",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1657,8 +1657,8 @@
         "games\/yokai-shrine\/main.absc"
       ],
       "shots" : [
-        "games\/yokai-shrine\/shot1-674f1fdd.png",
-        "games\/yokai-shrine\/shot2-10c7bf1c.png"
+        "games\/yokai-shrine\/shot1-2c8c8db4.png",
+        "games\/yokai-shrine\/shot2-d07f8835.png"
       ],
       "summary" : "夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！",
       "tags" : [
@@ -1672,9 +1672,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 676,
-      "bytes" : 382867,
-      "cover" : "games\/night-lockdown\/cover-190d3a3d.png",
+      "blockCount" : 842,
+      "bytes" : 461495,
+      "cover" : "games\/night-lockdown\/cover-56def73e.png",
       "id" : "night-lockdown",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
@@ -1688,8 +1688,8 @@
         "games\/night-lockdown\/main.absc"
       ],
       "shots" : [
-        "games\/night-lockdown\/shot1-c5cffd8b.png",
-        "games\/night-lockdown\/shot2-a60082d0.png"
+        "games\/night-lockdown\/shot1-b1267abc.png",
+        "games\/night-lockdown\/shot2-b3acb8f5.png"
       ],
       "summary" : "昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！",
       "tags" : [
@@ -1766,8 +1766,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 499,
-      "bytes" : 272864,
+      "blockCount" : 509,
+      "bytes" : 277528,
       "cover" : "games\/endless-rooms\/cover-a234369a.png",
       "id" : "endless-rooms",
       "maxPlayers" : 8,
@@ -1781,7 +1781,7 @@
         "games\/endless-rooms\/main.absc"
       ],
       "shots" : [
-        "games\/endless-rooms\/shot1-c6c1db81.png",
+        "games\/endless-rooms\/shot1-3ceee025.png",
         "games\/endless-rooms\/shot2-ec6790ea.png"
       ],
       "summary" : "黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！",
@@ -1827,9 +1827,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 218,
-      "bytes" : 140765,
-      "cover" : "games\/smile-outbreak\/cover-21b3817b.png",
+      "blockCount" : 238,
+      "bytes" : 150083,
+      "cover" : "games\/smile-outbreak\/cover-163337e5.png",
       "id" : "smile-outbreak",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -1843,8 +1843,8 @@
         "games\/smile-outbreak\/main.absc"
       ],
       "shots" : [
-        "games\/smile-outbreak\/shot1-8255cfa6.png",
-        "games\/smile-outbreak\/shot2-fe218c5c.png"
+        "games\/smile-outbreak\/shot1-4c49e8de.png",
+        "games\/smile-outbreak\/shot2-f099476b.png"
       ],
       "summary" : "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
       "tags" : [
@@ -1858,9 +1858,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 214,
-      "bytes" : 149359,
-      "cover" : "games\/watch-the-house\/cover-20532b4b.png",
+      "blockCount" : 234,
+      "bytes" : 158746,
+      "cover" : "games\/watch-the-house\/cover-ebb54b21.png",
       "id" : "watch-the-house",
       "maxPlayers" : 6,
       "schemaVersion" : 1,
@@ -1875,8 +1875,8 @@
         "games\/watch-the-house\/main.absc"
       ],
       "shots" : [
-        "games\/watch-the-house\/shot1-26356182.png",
-        "games\/watch-the-house\/shot2-10935b9a.png"
+        "games\/watch-the-house\/shot1-814538d9.png",
+        "games\/watch-the-house\/shot2-772cdf3c.png"
       ],
       "summary" : "田中さん一家の家で5日間の留守番。窓にひびを入れにくるものをカメラで探してライトで追い払い、玄関の来客はご近所リストとくらべてニセものを見やぶれ。家のしごと・猫のタマ・停電・スマホ通販も！",
       "tags" : [
@@ -1890,8 +1890,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 110,
-      "bytes" : 94987,
+      "blockCount" : 120,
+      "bytes" : 99738,
       "cover" : "games\/aura-roll\/cover-96aca629.png",
       "id" : "aura-roll",
       "maxPlayers" : 12,
@@ -1906,7 +1906,7 @@
         "games\/aura-roll\/main.absc"
       ],
       "shots" : [
-        "games\/aura-roll\/shot1-10ed0203.png",
+        "games\/aura-roll\/shot1-0a72074b.png",
         "games\/aura-roll\/shot2-5d0ce0ec.png"
       ],
       "summary" : "ボタンでオーラを引く運だめし。32種のオーラ、8つの天気（その天気だけのオーラ）、素材とオーラでギアをクラフト、旅の商人のポーション、運の塔。10回ごとのボーナスで1億分の1を引き当てろ！",
@@ -1921,9 +1921,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 133,
-      "bytes" : 98824,
-      "cover" : "games\/raft-to-treasure\/cover-e88fd58f.png",
+      "blockCount" : 165,
+      "bytes" : 113955,
+      "cover" : "games\/raft-to-treasure\/cover-33cb5af3.png",
       "id" : "raft-to-treasure",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -1937,8 +1937,8 @@
         "games\/raft-to-treasure\/main.absc"
       ],
       "shots" : [
-        "games\/raft-to-treasure\/shot1-211604ac.png",
-        "games\/raft-to-treasure\/shot2-52e4395b.png"
+        "games\/raft-to-treasure\/shot1-c982a15e.png",
+        "games\/raft-to-treasure\/shot2-36ae9619.png"
       ],
       "summary" : "ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！",
       "tags" : [
@@ -2014,9 +2014,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 856,
-      "bytes" : 453097,
-      "cover" : "games\/buzz-meadow\/cover-f2d25aa4.png",
+      "blockCount" : 959,
+      "bytes" : 502111,
+      "cover" : "games\/buzz-meadow\/cover-046ec7ee.png",
       "id" : "buzz-meadow",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2031,8 +2031,8 @@
         "games\/buzz-meadow\/main.absc"
       ],
       "shots" : [
-        "games\/buzz-meadow\/shot1-d88bce0e.png",
-        "games\/buzz-meadow\/shot2-4cd042d7.png"
+        "games\/buzz-meadow\/shot1-8be94988.png",
+        "games\/buzz-meadow\/shot2-2ab5460d.png"
       ],
       "summary" : "ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！",
       "tags" : [
@@ -2081,9 +2081,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 398,
-      "bytes" : 258746,
-      "cover" : "games\/critter-quest\/cover-e33e63e0.png",
+      "blockCount" : 514,
+      "bytes" : 313901,
+      "cover" : "games\/critter-quest\/cover-06e51d3b.png",
       "id" : "critter-quest",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2096,8 +2096,8 @@
         "games\/critter-quest\/main.absc"
       ],
       "shots" : [
-        "games\/critter-quest\/shot1-ee53571a.png",
-        "games\/critter-quest\/shot2-b3431bf5.png"
+        "games\/critter-quest\/shot1-854a671d.png",
+        "games\/critter-quest\/shot2-82af878f.png"
       ],
       "summary" : "草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！",
       "tags" : [
@@ -2111,9 +2111,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 310,
-      "bytes" : 204888,
-      "cover" : "games\/blade-summon-sim\/cover-58e4a27c.png",
+      "blockCount" : 346,
+      "bytes" : 222032,
+      "cover" : "games\/blade-summon-sim\/cover-1a1e4190.png",
       "id" : "blade-summon-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2127,8 +2127,8 @@
         "games\/blade-summon-sim\/main.absc"
       ],
       "shots" : [
-        "games\/blade-summon-sim\/shot1-d9bcec42.png",
-        "games\/blade-summon-sim\/shot2-dac685d7.png"
+        "games\/blade-summon-sim\/shot1-86729d63.png",
+        "games\/blade-summon-sim\/shot2-8d44055b.png"
       ],
       "summary" : "召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！",
       "tags" : [
@@ -2142,9 +2142,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 244,
-      "bytes" : 163758,
-      "cover" : "games\/crusher-yard\/cover-fe5d7b18.png",
+      "blockCount" : 264,
+      "bytes" : 173236,
+      "cover" : "games\/crusher-yard\/cover-eaf7503a.png",
       "id" : "crusher-yard",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -2158,8 +2158,8 @@
         "games\/crusher-yard\/main.absc"
       ],
       "shots" : [
-        "games\/crusher-yard\/shot1-391fd440.png",
-        "games\/crusher-yard\/shot2-d5b202c2.png"
+        "games\/crusher-yard\/shot1-eb810806.png",
+        "games\/crusher-yard\/shot2-65eab564.png"
       ],
       "summary" : "自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！",
       "tags" : [
@@ -2173,9 +2173,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 408,
-      "bytes" : 235240,
-      "cover" : "games\/slime-merge\/cover-dd745757.png",
+      "blockCount" : 460,
+      "bytes" : 260103,
+      "cover" : "games\/slime-merge\/cover-3d784bf1.png",
       "id" : "slime-merge",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
@@ -2189,8 +2189,8 @@
         "games\/slime-merge\/main.absc"
       ],
       "shots" : [
-        "games\/slime-merge\/shot1-5c1d02e1.png",
-        "games\/slime-merge\/shot2-e1d6ce9f.png"
+        "games\/slime-merge\/shot1-2c468262.png",
+        "games\/slime-merge\/shot2-91bdd5b5.png"
       ],
       "summary" : "スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！",
       "tags" : [
@@ -2204,8 +2204,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 825,
-      "bytes" : 432460,
+      "blockCount" : 877,
+      "bytes" : 456832,
       "cover" : "games\/mansion-builder-tycoon\/cover-c8844d41.png",
       "id" : "mansion-builder-tycoon",
       "maxPlayers" : 8,
@@ -2220,8 +2220,8 @@
         "games\/mansion-builder-tycoon\/main.absc"
       ],
       "shots" : [
-        "games\/mansion-builder-tycoon\/shot1-78439314.png",
-        "games\/mansion-builder-tycoon\/shot2-b7bbc461.png"
+        "games\/mansion-builder-tycoon\/shot1-3cdb1bfe.png",
+        "games\/mansion-builder-tycoon\/shot2-8d1c6611.png"
       ],
       "summary" : "土台から26段階で大豪邸が立ち上がるタイクーン。家賃は郵便受けに、執事で自動回収、投資、壁と屋根のペンキ、パーティーのゲストのチップ、豪邸コンテスト、完成したら売って転生！",
       "tags" : [
@@ -2265,9 +2265,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 185,
-      "bytes" : 129553,
-      "cover" : "games\/disaster-island\/cover-7827d12c.png",
+      "blockCount" : 233,
+      "bytes" : 152350,
+      "cover" : "games\/disaster-island\/cover-0019a93d.png",
       "id" : "disaster-island",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -2281,8 +2281,8 @@
         "games\/disaster-island\/main.absc"
       ],
       "shots" : [
-        "games\/disaster-island\/shot1-c6987adb.png",
-        "games\/disaster-island\/shot2-12579611.png"
+        "games\/disaster-island\/shot1-724049a8.png",
+        "games\/disaster-island\/shot2-4f0cce03.png"
       ],
       "summary" : "15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！",
       "tags" : [
@@ -2296,8 +2296,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 162,
-      "bytes" : 117789,
+      "blockCount" : 168,
+      "bytes" : 120625,
       "cover" : "games\/chaos-golf\/cover-3cdce0ba.png",
       "id" : "chaos-golf",
       "maxPlayers" : 8,
@@ -2311,7 +2311,7 @@
         "games\/chaos-golf\/main.absc"
       ],
       "shots" : [
-        "games\/chaos-golf\/shot1-f7097fec.png",
+        "games\/chaos-golf\/shot1-93dfecaf.png",
         "games\/chaos-golf\/shot2-e733528c.png"
       ],
       "summary" : "ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！",
@@ -2356,9 +2356,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 232,
-      "bytes" : 154870,
-      "cover" : "games\/island-drama-show\/cover-ee70cda8.png",
+      "blockCount" : 242,
+      "bytes" : 159645,
+      "cover" : "games\/island-drama-show\/cover-a0966407.png",
       "id" : "island-drama-show",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2371,8 +2371,8 @@
         "games\/island-drama-show\/main.absc"
       ],
       "shots" : [
-        "games\/island-drama-show\/shot1-fe4a0621.png",
-        "games\/island-drama-show\/shot2-3ad9735e.png"
+        "games\/island-drama-show\/shot1-d31baaa7.png",
+        "games\/island-drama-show\/shot2-d0c4a233.png"
       ],
       "summary" : "無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！",
       "tags" : [
@@ -2386,9 +2386,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 168,
-      "bytes" : 111912,
-      "cover" : "games\/prop-hide-and-seek\/cover-61d5140b.png",
+      "blockCount" : 176,
+      "bytes" : 115635,
+      "cover" : "games\/prop-hide-and-seek\/cover-1890ba93.png",
       "id" : "prop-hide-and-seek",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -2473,9 +2473,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 421,
-      "bytes" : 266363,
-      "cover" : "games\/last-survivor-games\/cover-f8f551c1.png",
+      "blockCount" : 425,
+      "bytes" : 268230,
+      "cover" : "games\/last-survivor-games\/cover-ae48890b.png",
       "id" : "last-survivor-games",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -2507,8 +2507,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 175,
-      "bytes" : 138924,
+      "blockCount" : 181,
+      "bytes" : 141774,
       "cover" : "games\/shark-attack-bay\/cover-b023a82c.png",
       "id" : "shark-attack-bay",
       "maxPlayers" : 12,
@@ -2524,7 +2524,7 @@
         "games\/shark-attack-bay\/main.absc"
       ],
       "shots" : [
-        "games\/shark-attack-bay\/shot1-c137815f.png",
+        "games\/shark-attack-bay\/shot1-c88c9d0b.png",
         "games\/shark-attack-bay\/shot2-2d550e8e.png"
       ],
       "summary" : "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",
@@ -2539,9 +2539,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 201,
-      "bytes" : 162800,
-      "cover" : "games\/tip-jar-plaza\/cover-3b7cc0f0.png",
+      "blockCount" : 237,
+      "bytes" : 180088,
+      "cover" : "games\/tip-jar-plaza\/cover-53b42369.png",
       "id" : "tip-jar-plaza",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -2556,8 +2556,8 @@
         "games\/tip-jar-plaza\/main.absc"
       ],
       "shots" : [
-        "games\/tip-jar-plaza\/shot1-c2872c18.png",
-        "games\/tip-jar-plaza\/shot2-43d3b405.png"
+        "games\/tip-jar-plaza\/shot1-8153dcc0.png",
+        "games\/tip-jar-plaza\/shot2-5987cb03.png"
       ],
       "summary" : "広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです）",
       "tags" : [
@@ -2605,7 +2605,7 @@
       "author" : "Ablox Games",
       "blockCount" : 373,
       "bytes" : 219920,
-      "cover" : "games\/color-chart-obby\/cover-c5b2a869.png",
+      "cover" : "games\/color-chart-obby\/cover-5a5ce21e.png",
       "id" : "color-chart-obby",
       "maxPlayers" : 16,
       "schemaVersion" : 2,
@@ -2619,8 +2619,8 @@
         "games\/color-chart-obby\/main.absc"
       ],
       "shots" : [
-        "games\/color-chart-obby\/shot1-86201c62.png",
-        "games\/color-chart-obby\/shot2-73fb936b.png"
+        "games\/color-chart-obby\/shot1-20eef283.png",
+        "games\/color-chart-obby\/shot2-6bb0e14b.png"
       ],
       "summary" : "12段階の難しさを色で進む60ステージ。らくらく（緑）からだいさいがい（白）まで、ゾーンをこえるたびにバッジ。コイルと⏱ゾーンタイムアタックも。",
       "tags" : [
@@ -2634,9 +2634,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 324,
-      "bytes" : 198454,
-      "cover" : "games\/pedal-obby\/cover-39331dc3.png",
+      "blockCount" : 348,
+      "bytes" : 209957,
+      "cover" : "games\/pedal-obby\/cover-aad131fb.png",
       "id" : "pedal-obby",
       "maxPlayers" : 16,
       "schemaVersion" : 2,
@@ -2650,8 +2650,8 @@
         "games\/pedal-obby\/main.absc"
       ],
       "shots" : [
-        "games\/pedal-obby\/shot1-29d7d229.png",
-        "games\/pedal-obby\/shot2-4959be68.png"
+        "games\/pedal-obby\/shot1-f4b91383.png",
+        "games\/pedal-obby\/shot2-e96d7281.png"
       ],
       "summary" : "自転車に乗ったままクリアするオビー。公園・キャニオン・雪山・ネオンの街の40ステージを、ジャンプ台とブースト床でとびこえろ。空中でトリックを決めるとコイン、ガレージで6台の自転車。",
       "tags" : [
@@ -2757,9 +2757,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 528,
-      "bytes" : 290589,
-      "cover" : "games\/easy-peasy-obby\/cover-60a66188.png",
+      "blockCount" : 553,
+      "bytes" : 302348,
+      "cover" : "games\/easy-peasy-obby\/cover-7a26b18d.png",
       "id" : "easy-peasy-obby",
       "maxPlayers" : 16,
       "schemaVersion" : 2,
@@ -2772,8 +2772,8 @@
         "games\/easy-peasy-obby\/main.absc"
       ],
       "shots" : [
-        "games\/easy-peasy-obby\/shot1-81d5a258.png",
-        "games\/easy-peasy-obby\/shot2-ca9f5168.png"
+        "games\/easy-peasy-obby\/shot1-f84e104a.png",
+        "games\/easy-peasy-obby\/shot2-8ae6a86b.png"
       ],
       "summary" : "小さい子でもクリアできる、とってもやさしい100ステージ。草原・おかし・ビーチ・雪・宇宙など10のワールド。ついてくるペット、ワールドごとのシールとぼうし、コイン集め。",
       "tags" : [
@@ -2787,9 +2787,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 565,
-      "bytes" : 305162,
-      "cover" : "games\/cart-ride-wonderland\/cover-a54f8f02.png",
+      "blockCount" : 577,
+      "bytes" : 310747,
+      "cover" : "games\/cart-ride-wonderland\/cover-d6019e4e.png",
       "id" : "cart-ride-wonderland",
       "maxPlayers" : 16,
       "schemaVersion" : 2,
@@ -2803,8 +2803,8 @@
         "games\/cart-ride-wonderland\/main.absc"
       ],
       "shots" : [
-        "games\/cart-ride-wonderland\/shot1-0a55ba78.png",
-        "games\/cart-ride-wonderland\/shot2-9df21cab.png"
+        "games\/cart-ride-wonderland\/shot1-43e2499c.png",
+        "games\/cart-ride-wonderland\/shot2-382c3062.png"
       ],
       "summary" : "カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！",
       "tags" : [
@@ -2878,9 +2878,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 262,
-      "bytes" : 156563,
-      "cover" : "games\/swing-rope-obby\/cover-5199846f.png",
+      "blockCount" : 294,
+      "bytes" : 171669,
+      "cover" : "games\/swing-rope-obby\/cover-65b9cf7c.png",
       "id" : "swing-rope-obby",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -2892,8 +2892,8 @@
         "games\/swing-rope-obby\/main.absc"
       ],
       "shots" : [
-        "games\/swing-rope-obby\/shot1-29c3d53e.png",
-        "games\/swing-rope-obby\/shot2-b4bd2075.png"
+        "games\/swing-rope-obby\/shot1-d02b8f9f.png",
+        "games\/swing-rope-obby\/shot2-b85b5a56.png"
       ],
       "summary" : "ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。",
       "tags" : [
@@ -2996,9 +2996,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 307,
-      "bytes" : 186465,
-      "cover" : "games\/fishy-obby\/cover-e795e82d.png",
+      "blockCount" : 363,
+      "bytes" : 213329,
+      "cover" : "games\/fishy-obby\/cover-63fead7d.png",
       "id" : "fishy-obby",
       "maxPlayers" : 16,
       "schemaVersion" : 2,
@@ -3012,8 +3012,8 @@
         "games\/fishy-obby\/main.absc"
       ],
       "shots" : [
-        "games\/fishy-obby\/shot1-df210433.png",
-        "games\/fishy-obby\/shot2-318b8676.png"
+        "games\/fishy-obby\/shot1-5f0d4cf1.png",
+        "games\/fishy-obby\/shot2-ffa66c4b.png"
       ],
       "summary" : "きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。",
       "tags" : [
@@ -3027,9 +3027,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 82,
-      "bytes" : 82516,
-      "cover" : "games\/drag-strip-kings\/cover-3cd478cf.png",
+      "blockCount" : 106,
+      "bytes" : 93776,
+      "cover" : "games\/drag-strip-kings\/cover-4533b073.png",
       "id" : "drag-strip-kings",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3043,8 +3043,8 @@
         "games\/drag-strip-kings\/main.absc"
       ],
       "shots" : [
-        "games\/drag-strip-kings\/shot1-b23a1f78.png",
-        "games\/drag-strip-kings\/shot2-c10517c7.png"
+        "games\/drag-strip-kings\/shot1-3f8a22da.png",
+        "games\/drag-strip-kings\/shot2-2967ac17.png"
       ],
       "summary" : "400mのドラッグレース！ メーターが🟩のときにシフトアップ、ここぞでニトロ。エンジン・ターボ・タイヤをチューニングして、10人のライバルに勝ちすすめ。ウイリーも。",
       "tags" : [
@@ -3060,7 +3060,7 @@
       "author" : "Ablox Games",
       "blockCount" : 507,
       "bytes" : 282905,
-      "cover" : "games\/midnight-highway-battle\/cover-a417ca04.png",
+      "cover" : "games\/midnight-highway-battle\/cover-834443ac.png",
       "id" : "midnight-highway-battle",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3075,8 +3075,8 @@
         "games\/midnight-highway-battle\/main.absc"
       ],
       "shots" : [
-        "games\/midnight-highway-battle\/shot1-8c60d264.png",
-        "games\/midnight-highway-battle\/shot2-90400f2a.png"
+        "games\/midnight-highway-battle\/shot1-f27eae03.png",
+        "games\/midnight-highway-battle\/shot2-64ee71d3.png"
       ],
       "summary" : "真夜中の高速道路。ライバルのうしろでパッシング🔦するとバトル開始！ はなされるほどSPがへって、先に0になったほうの負け。一般車をよけながら走れ。パーキングで車とチューニング。",
       "tags" : [
@@ -3090,9 +3090,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 466,
-      "bytes" : 262746,
-      "cover" : "games\/dream-car-dealership\/cover-a118f320.png",
+      "blockCount" : 526,
+      "bytes" : 291545,
+      "cover" : "games\/dream-car-dealership\/cover-47cac0ef.png",
       "id" : "dream-car-dealership",
       "maxPlayers" : 6,
       "schemaVersion" : 2,
@@ -3106,8 +3106,8 @@
         "games\/dream-car-dealership\/main.absc"
       ],
       "shots" : [
-        "games\/dream-car-dealership\/shot1-6802dcab.png",
-        "games\/dream-car-dealership\/shot2-eef15e1e.png"
+        "games\/dream-car-dealership\/shot1-4ea83b4f.png",
+        "games\/dream-car-dealership\/shot2-4de4cb9e.png"
       ],
       "summary" : "自分の車屋さんをひらこう！ 工場から車を仕入れて並べると、お客さんが見に来て買っていく。店を大きく、スタッフをやとって、スーパーカーまで。自分の車はテストコースで試乗も。",
       "tags" : [
@@ -3121,9 +3121,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 1147,
-      "bytes" : 602578,
-      "cover" : "games\/green-valley-drive\/cover-3f4c0245.png",
+      "blockCount" : 1407,
+      "bytes" : 725409,
+      "cover" : "games\/green-valley-drive\/cover-c7f9aacc.png",
       "id" : "green-valley-drive",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3139,8 +3139,8 @@
         "games\/green-valley-drive\/main.absc"
       ],
       "shots" : [
-        "games\/green-valley-drive\/shot1-0d2c533f.png",
-        "games\/green-valley-drive\/shot2-da85b5cb.png"
+        "games\/green-valley-drive\/shot1-9fd2ca8a.png",
+        "games\/green-valley-drive\/shot2-be940179.png"
       ],
       "summary" : "緑の谷の町をドライブ！ ガソリンを入れて、信号とスピードを守って、宅配やピザ配達でお金をかせごう。免許試験に合格すると乗れる車がふえる。洗車もできるよ。",
       "tags" : [
@@ -3154,9 +3154,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 640,
-      "bytes" : 358214,
-      "cover" : "games\/dusty-road-trip\/cover-3784e7af.png",
+      "blockCount" : 752,
+      "bytes" : 411200,
+      "cover" : "games\/dusty-road-trip\/cover-10100a00.png",
       "id" : "dusty-road-trip",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3172,8 +3172,8 @@
         "games\/dusty-road-trip\/main.absc"
       ],
       "shots" : [
-        "games\/dusty-road-trip\/shot1-a6ca4f89.png",
-        "games\/dusty-road-trip\/shot2-548b2140.png"
+        "games\/dusty-road-trip\/shot1-b247339b.png",
+        "games\/dusty-road-trip\/shot2-36dbf62c.png"
       ],
       "summary" : "砂漠の一本道を、どこまで行ける？ ガソリン・エンジン・水に気をつけて、とちゅうの廃墟でガソリン缶や部品をひろおう。夜は盗賊、昼は砂あらし。2.4km先のオアシスの町をめざせ！",
       "tags" : [
@@ -3187,9 +3187,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 317,
-      "bytes" : 186390,
-      "cover" : "games\/build-a-plane\/cover-5e0fea5f.png",
+      "blockCount" : 341,
+      "bytes" : 197577,
+      "cover" : "games\/build-a-plane\/cover-aa146486.png",
       "id" : "build-a-plane",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3217,9 +3217,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 326,
-      "bytes" : 193058,
-      "cover" : "games\/island-flight-school\/cover-fcd55be5.png",
+      "blockCount" : 430,
+      "bytes" : 242451,
+      "cover" : "games\/island-flight-school\/cover-f8e233b8.png",
       "id" : "island-flight-school",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3232,8 +3232,8 @@
         "games\/island-flight-school\/main.absc"
       ],
       "shots" : [
-        "games\/island-flight-school\/shot1-99de9b05.png",
-        "games\/island-flight-school\/shot2-f2523d59.png"
+        "games\/island-flight-school\/shot1-95cdd216.png",
+        "games\/island-flight-school\/shot2-6cd0dfbb.png"
       ],
       "summary" : "島の空港でパイロットになろう！ スロットルで速さ、⬆⬇で上昇・下降。お客さんをのせて ほかの島の空港へ飛び、滑走路にふんわり着陸。ランクが上がると ジェット機や旅客機に乗れる。",
       "tags" : [
@@ -3247,9 +3247,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 499,
-      "bytes" : 280216,
-      "cover" : "games\/county-line-railway\/cover-6ebb9054.png",
+      "blockCount" : 601,
+      "bytes" : 328848,
+      "cover" : "games\/county-line-railway\/cover-dd1adbaf.png",
       "id" : "county-line-railway",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3263,8 +3263,8 @@
         "games\/county-line-railway\/main.absc"
       ],
       "shots" : [
-        "games\/county-line-railway\/shot1-b05acb39.png",
-        "games\/county-line-railway\/shot2-181cca2b.png"
+        "games\/county-line-railway\/shot1-00f81667.png",
+        "games\/county-line-railway\/shot2-bd6fbe8f.png"
       ],
       "summary" : "電車の運転士になろう！ ノッチで加速とブレーキ、信号を守って、6つの駅にぴったり止まる。ドアをあけてお客さんをのせ、時間どおりに次の駅へ。急行・特急にも乗れるようになる。",
       "tags" : [
@@ -3278,9 +3278,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 527,
-      "bytes" : 293076,
-      "cover" : "games\/ice-cream-van\/cover-d90ea7dc.png",
+      "blockCount" : 625,
+      "bytes" : 339746,
+      "cover" : "games\/ice-cream-van\/cover-baa47f5c.png",
       "id" : "ice-cream-van",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3294,8 +3294,8 @@
         "games\/ice-cream-van\/main.absc"
       ],
       "shots" : [
-        "games\/ice-cream-van\/shot1-976cd80e.png",
-        "games\/ice-cream-van\/shot2-5019e4aa.png"
+        "games\/ice-cream-van\/shot1-f433b76a.png",
+        "games\/ice-cream-van\/shot2-4227b319.png"
       ],
       "summary" : "アイスクリームカーで町をまわろう！ 🔔チャイムを鳴らすとお客さんが集まってくる。注文どおりにコーン・味・トッピングを作ってわたそう。公園・ビーチ・学校・住宅街、アイスを仕入れて新しい味も。",
       "tags" : [
@@ -3338,9 +3338,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 649,
-      "bytes" : 339260,
-      "cover" : "games\/lawn-mower-kings\/cover-c9b8b99c.png",
+      "blockCount" : 729,
+      "bytes" : 377349,
+      "cover" : "games\/lawn-mower-kings\/cover-11c3b5d3.png",
       "id" : "lawn-mower-kings",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3353,8 +3353,8 @@
         "games\/lawn-mower-kings\/main.absc"
       ],
       "shots" : [
-        "games\/lawn-mower-kings\/shot1-78068708.png",
-        "games\/lawn-mower-kings\/shot2-7b9b6355.png"
+        "games\/lawn-mower-kings\/shot1-e0f2e43c.png",
+        "games\/lawn-mower-kings\/shot2-d318db60.png"
       ],
       "summary" : "芝かりでお金持ちに！ 草の上を走ると芝がかれてお金が入る。バッグがいっぱいになったら たい肥場へ。刃・エンジン・バッグを強くして、大きな庭やゴルフ場もピカピカに。金色の草はおたから！",
       "tags" : [
@@ -3370,7 +3370,7 @@
       "author" : "Ablox Games",
       "blockCount" : 234,
       "bytes" : 156242,
-      "cover" : "games\/grapple-cart-duo\/cover-3e77496b.png",
+      "cover" : "games\/grapple-cart-duo\/cover-c1665834.png",
       "id" : "grapple-cart-duo",
       "maxPlayers" : 10,
       "schemaVersion" : 2,
@@ -3385,8 +3385,8 @@
         "games\/grapple-cart-duo\/main.absc"
       ],
       "shots" : [
-        "games\/grapple-cart-duo\/shot1-65aa4122.png",
-        "games\/grapple-cart-duo\/shot2-40d0467e.png"
+        "games\/grapple-cart-duo\/shot1-94e58236.png",
+        "games\/grapple-cart-duo\/shot2-5eb485ec.png"
       ],
       "summary" : "カートでオビー！ すき間は🪝グラップルでびゅーん、ジャンプ台でひとっとび。ふたり組になると、落ちてもロープで引き上げてもらえる。ハンマーをよけて20ステージをゴールまで！",
       "tags" : [
@@ -3400,9 +3400,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 214,
-      "bytes" : 147926,
-      "cover" : "games\/blast-off-rockets\/cover-81355711.png",
+      "blockCount" : 252,
+      "bytes" : 166077,
+      "cover" : "games\/blast-off-rockets\/cover-f666c7e7.png",
       "id" : "blast-off-rockets",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3416,8 +3416,8 @@
         "games\/blast-off-rockets\/main.absc"
       ],
       "shots" : [
-        "games\/blast-off-rockets\/shot1-6df5f740.png",
-        "games\/blast-off-rockets\/shot2-ab201efd.png"
+        "games\/blast-off-rockets\/shot1-ff5331ca.png",
+        "games\/blast-off-rockets\/shot2-50cdd12d.png"
       ],
       "summary" : "燃料をためて、ロケットを空へ発射！ 高く上がるほどお金が入る。雲をぬけて宇宙ステーション、そして2000m上の月へ。部品を強くして、月に着いたら生まれかわってもっと上へ！",
       "tags" : [
@@ -3431,9 +3431,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 766,
-      "bytes" : 408487,
-      "cover" : "games\/taxi-town\/cover-3a65c281.png",
+      "blockCount" : 786,
+      "bytes" : 418057,
+      "cover" : "games\/taxi-town\/cover-df51a33c.png",
       "id" : "taxi-town",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3447,7 +3447,7 @@
         "games\/taxi-town\/main.absc"
       ],
       "shots" : [
-        "games\/taxi-town\/shot1-e2a423ca.png",
+        "games\/taxi-town\/shot1-3a03f520.png",
         "games\/taxi-town\/shot2-27c6fd1e.png"
       ],
       "summary" : "タクシーの運転手になって、大きな町でお客さんを運ぼう！ 🙋手をあげている人の前で止まって乗せ、目的地へ。はやく安全に着くとチップ。タクシー会社を大きくして、運転手をやとおう。",
@@ -3462,9 +3462,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 593,
-      "bytes" : 310670,
-      "cover" : "games\/snow-plow-crew\/cover-7fcb03c2.png",
+      "blockCount" : 719,
+      "bytes" : 370412,
+      "cover" : "games\/snow-plow-crew\/cover-f9840d39.png",
       "id" : "snow-plow-crew",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3477,8 +3477,8 @@
         "games\/snow-plow-crew\/main.absc"
       ],
       "shots" : [
-        "games\/snow-plow-crew\/shot1-acbf58b7.png",
-        "games\/snow-plow-crew\/shot2-0ef47043.png"
+        "games\/snow-plow-crew\/shot1-933fbca6.png",
+        "games\/snow-plow-crew\/shot2-4b02b516.png"
       ],
       "summary" : "雪の町の除雪車チーム！ 道や駐車場の雪をかいて、お仕事の時間内にピカピカに。ふぶきが来たらまた出動。こおった道には🧂塩をまこう。ブレードやタンクを強くして、空港の滑走路まで！",
       "tags" : [
@@ -3492,9 +3492,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 166,
-      "bytes" : 127313,
-      "cover" : "games\/bubble-gum-legends\/cover-9ac4d63d.png",
+      "blockCount" : 202,
+      "bytes" : 144616,
+      "cover" : "games\/bubble-gum-legends\/cover-494687eb.png",
       "id" : "bubble-gum-legends",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3507,8 +3507,8 @@
         "games\/bubble-gum-legends\/main.absc"
       ],
       "shots" : [
-        "games\/bubble-gum-legends\/shot1-f2926b7d.png",
-        "games\/bubble-gum-legends\/shot2-f335647d.png"
+        "games\/bubble-gum-legends\/shot1-16cb6490.png",
+        "games\/bubble-gum-legends\/shot2-9b4fc28d.png"
       ],
       "summary" : "ガムをかんで大きなあわをふくらませて売ろう！ あわが大きいほどお金に。空にうかぶ島へバブルジャンプで上がると、もっと高く売れる。たまごからペット、生まれかわってもっと大きく！",
       "tags" : [
@@ -3522,9 +3522,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 144,
-      "bytes" : 112335,
-      "cover" : "games\/mega-muscle-legends\/cover-b382aea5.png",
+      "blockCount" : 155,
+      "bytes" : 117678,
+      "cover" : "games\/mega-muscle-legends\/cover-914e6a80.png",
       "id" : "mega-muscle-legends",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3536,8 +3536,8 @@
         "games\/mega-muscle-legends\/main.absc"
       ],
       "shots" : [
-        "games\/mega-muscle-legends\/shot1-dc2b1f8f.png",
-        "games\/mega-muscle-legends\/shot2-03c166ca.png"
+        "games\/mega-muscle-legends\/shot1-560b4ced.png",
+        "games\/mega-muscle-legends\/shot2-6ab36c26.png"
       ],
       "summary" : "タップでトレーニング、きんにくムキムキ！ パワーがつくほど体が大きくなる。浜辺のジムから、氷・神話・永遠のジムへ。岩をこわしてお金、アリーナでパンチ勝負。ペットと生まれかわりで最強へ！",
       "tags" : [
@@ -3596,7 +3596,7 @@
       ],
       "shots" : [
         "games\/speed-legends-city\/shot1-99e7f658.png",
-        "games\/speed-legends-city\/shot2-7ed9d37e.png"
+        "games\/speed-legends-city\/shot2-2afdd8ea.png"
       ],
       "summary" : "走れば走るほど速くなる！ 町を走ってステップをため、光る玉とリングを集めよう。くつを強くしてもっと速く、さばくの町・ようがんの谷へ。🏁レースで1位をねらえ！",
       "tags" : [
@@ -3610,9 +3610,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 261,
-      "bytes" : 172306,
-      "cover" : "games\/tap-race-clicker\/cover-9e1f89d0.png",
+      "blockCount" : 381,
+      "bytes" : 229868,
+      "cover" : "games\/tap-race-clicker\/cover-e17a40b9.png",
       "id" : "tap-race-clicker",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3625,8 +3625,8 @@
         "games\/tap-race-clicker\/main.absc"
       ],
       "shots" : [
-        "games\/tap-race-clicker\/shot1-fa087d43.png",
-        "games\/tap-race-clicker\/shot2-46d6b7b6.png"
+        "games\/tap-race-clicker\/shot1-9219fe14.png",
+        "games\/tap-race-clicker\/shot2-adf237ea.png"
       ],
       "summary" : "タップタイムに いっぱいタップして速さをためて、レースで いっきに走れ！ 50mごとのゲートをくぐるたびに ごほうび。ペットと生まれかわりで、1500mのコースを走りきろう。",
       "tags" : [
@@ -3642,7 +3642,7 @@
       "author" : "Ablox Games",
       "blockCount" : 106,
       "bytes" : 97562,
-      "cover" : "games\/arm-wrestle-champions\/cover-c8ec5112.png",
+      "cover" : "games\/arm-wrestle-champions\/cover-05a6c779.png",
       "id" : "arm-wrestle-champions",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3654,8 +3654,8 @@
         "games\/arm-wrestle-champions\/main.absc"
       ],
       "shots" : [
-        "games\/arm-wrestle-champions\/shot1-8aee5c76.png",
-        "games\/arm-wrestle-champions\/shot2-61aebccd.png"
+        "games\/arm-wrestle-champions\/shot1-b00a94db.png",
+        "games\/arm-wrestle-champions\/shot2-8575cd17.png"
       ],
       "summary" : "うでずもうチャンピオンをめざせ！ にぎる道具でうでをきたえて、テーブルのライバルに勝負。💪を連打して押しかえせ！ ボスに勝つと次のエリアへ。友だちとの対戦テーブルも。",
       "tags" : [
@@ -3669,9 +3669,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 884,
-      "bytes" : 464725,
-      "cover" : "games\/deep-mine-simulator\/cover-bf95d479.png",
+      "blockCount" : 920,
+      "bytes" : 482042,
+      "cover" : "games\/deep-mine-simulator\/cover-3ec6dd0e.png",
       "id" : "deep-mine-simulator",
       "maxPlayers" : 10,
       "schemaVersion" : 2,
@@ -3683,8 +3683,8 @@
         "games\/deep-mine-simulator\/main.absc"
       ],
       "shots" : [
-        "games\/deep-mine-simulator\/shot1-e0e4e096.png",
-        "games\/deep-mine-simulator\/shot2-4c6da79e.png"
+        "games\/deep-mine-simulator\/shot1-000c7d6e.png",
+        "games\/deep-mine-simulator\/shot2-98194f6f.png"
       ],
       "summary" : "つるはしで地下をほり進もう！ 深くなるほど かたい岩と レアな鉱石。リュックがいっぱいになったら地上で売る。つるはし・リュック・ペットで、いちばん下のマグマの宝石まで！",
       "tags" : [
@@ -3698,9 +3698,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 396,
-      "bytes" : 235369,
-      "cover" : "games\/sand-treasure-hunt\/cover-73729fa8.png",
+      "blockCount" : 448,
+      "bytes" : 260159,
+      "cover" : "games\/sand-treasure-hunt\/cover-f5c07886.png",
       "id" : "sand-treasure-hunt",
       "maxPlayers" : 10,
       "schemaVersion" : 2,
@@ -3712,8 +3712,8 @@
         "games\/sand-treasure-hunt\/main.absc"
       ],
       "shots" : [
-        "games\/sand-treasure-hunt\/shot1-2651ed2f.png",
-        "games\/sand-treasure-hunt\/shot2-f0a8c036.png"
+        "games\/sand-treasure-hunt\/shot1-dcd4aa08.png",
+        "games\/sand-treasure-hunt\/shot2-f4319ce6.png"
       ],
       "summary" : "スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！",
       "tags" : [
@@ -3727,9 +3727,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 85,
-      "bytes" : 83470,
-      "cover" : "games\/mega-magnet-sim\/cover-fad07891.png",
+      "blockCount" : 115,
+      "bytes" : 97683,
+      "cover" : "games\/mega-magnet-sim\/cover-c40abe96.png",
       "id" : "mega-magnet-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3741,8 +3741,8 @@
         "games\/mega-magnet-sim\/main.absc"
       ],
       "shots" : [
-        "games\/mega-magnet-sim\/shot1-a07628bf.png",
-        "games\/mega-magnet-sim\/shot2-83aca210.png"
+        "games\/mega-magnet-sim\/shot1-369ac1b0.png",
+        "games\/mega-magnet-sim\/shot2-51888725.png"
       ],
       "summary" : "マグネットでコインをすいよせろ！ 歩くだけで近くのコインがあつまる。リュックがいっぱいになったら銀行へ。強いマグネットほど遠くまで、大きなコイン。公園・町・金庫の部屋へ！",
       "tags" : [
@@ -3756,9 +3756,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 99,
-      "bytes" : 93041,
-      "cover" : "games\/saber-swing-sim\/cover-09d7bee1.png",
+      "blockCount" : 121,
+      "bytes" : 103684,
+      "cover" : "games\/saber-swing-sim\/cover-6ebd7994.png",
       "id" : "saber-swing-sim",
       "maxPlayers" : 12,
       "schemaVersion" : 2,
@@ -3770,8 +3770,8 @@
         "games\/saber-swing-sim\/main.absc"
       ],
       "shots" : [
-        "games\/saber-swing-sim\/shot1-a2b60de7.png",
-        "games\/saber-swing-sim\/shot2-aee15e4e.png"
+        "games\/saber-swing-sim\/shot1-b7971a03.png",
+        "games\/saber-swing-sim\/shot2-d6369b90.png"
       ],
       "summary" : "セイバーをふって力をためよう！ DNAびんがいっぱいになったら 売ってお金に。力がつくほど体が大きくなる。ときどきあらわれるボスに みんなでいどめ！ セイバー・DNA・ペットで最強の騎士へ。",
       "tags" : [
@@ -3785,9 +3785,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 247,
-      "bytes" : 163803,
-      "cover" : "games\/snowball-shovel-sim\/cover-30aac8a5.png",
+      "blockCount" : 293,
+      "bytes" : 185627,
+      "cover" : "games\/snowball-shovel-sim\/cover-be270327.png",
       "id" : "snowball-shovel-sim",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
@@ -3799,8 +3799,8 @@
         "games\/snowball-shovel-sim\/main.absc"
       ],
       "shots" : [
-        "games\/snowball-shovel-sim\/shot1-dd292c28.png",
-        "games\/snowball-shovel-sim\/shot2-aa8fb9d7.png"
+        "games\/snowball-shovel-sim\/shot1-438827f2.png",
+        "games\/snowball-shovel-sim\/shot2-13d3b0a3.png"
       ],
       "summary" : "スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！",
       "tags" : [
@@ -3844,9 +3844,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 129,
-      "bytes" : 108834,
-      "cover" : "games\/dig-it-deep\/cover-325b88bd.png",
+      "blockCount" : 169,
+      "bytes" : 127815,
+      "cover" : "games\/dig-it-deep\/cover-ba5ed054.png",
       "id" : "dig-it-deep",
       "maxPlayers" : 10,
       "schemaVersion" : 2,
@@ -3858,8 +3858,8 @@
         "games\/dig-it-deep\/main.absc"
       ],
       "shots" : [
-        "games\/dig-it-deep\/shot1-ded01172.png",
-        "games\/dig-it-deep\/shot2-a40eb123.png"
+        "games\/dig-it-deep\/shot1-5a6904bc.png",
+        "games\/dig-it-deep\/shot2-2dfe3fa9.png"
       ],
       "summary" : "どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！",
       "tags" : [
@@ -3873,9 +3873,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 145,
-      "bytes" : 113575,
-      "cover" : "games\/ghost-vacuum-sim\/cover-3fba1176.png",
+      "blockCount" : 189,
+      "bytes" : 134461,
+      "cover" : "games\/ghost-vacuum-sim\/cover-472fa4ce.png",
       "id" : "ghost-vacuum-sim",
       "maxPlayers" : 10,
       "schemaVersion" : 2,
@@ -3887,8 +3887,8 @@
         "games\/ghost-vacuum-sim\/main.absc"
       ],
       "shots" : [
-        "games\/ghost-vacuum-sim\/shot1-a76bb44e.png",
-        "games\/ghost-vacuum-sim\/shot2-34fe07fa.png"
+        "games\/ghost-vacuum-sim\/shot1-fa943735.png",
+        "games\/ghost-vacuum-sim\/shot2-4cb1d657.png"
       ],
       "summary" : "そうじきで おばけをすいこもう！ ふわふわ動くおばけに近づいて🌀。つかまえたおばけのエクトプラズムを売って、強いそうじきへ。公園・おばけやしき・おはか・お城、そして大おばけ！",
       "tags" : [
@@ -3904,7 +3904,7 @@
       "author" : "Ablox Games",
       "blockCount" : 44,
       "bytes" : 51942,
-      "cover" : "games\/dice-heroes\/cover-b1dd2b92.png",
+      "cover" : "games\/dice-heroes\/cover-cea058b8.png",
       "id" : "dice-heroes",
       "maxPlayers" : 10,
       "schemaVersion" : 2,
@@ -3916,8 +3916,8 @@
         "games\/dice-heroes\/main.absc"
       ],
       "shots" : [
-        "games\/dice-heroes\/shot1-e57cf22e.png",
-        "games\/dice-heroes\/shot2-776a95cb.png"
+        "games\/dice-heroes\/shot1-00680d81.png",
+        "games\/dice-heroes\/shot2-8b7b3658.png"
       ],
       "summary" : "🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！",
       "tags" : [
@@ -3931,8 +3931,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 568,
-      "bytes" : 317059,
+      "blockCount" : 598,
+      "bytes" : 331243,
       "cover" : "games\/lumber-valley-tycoon\/cover-6b93eac5.png",
       "id" : "lumber-valley-tycoon",
       "maxPlayers" : 6,
@@ -3947,7 +3947,7 @@
       ],
       "shots" : [
         "games\/lumber-valley-tycoon\/shot1-2535bc05.png",
-        "games\/lumber-valley-tycoon\/shot2-1dec5bd3.png"
+        "games\/lumber-valley-tycoon\/shot2-65437c4c.png"
       ],
       "summary" : "森で木をきって、トラックで自分の土地へ。製材所で板にすると お金になる。のこぎり・かま・家具工房をふやして、丸太小屋も建てよう。金の木やクリスタルの木もあるよ！",
       "tags" : [
@@ -3961,8 +3961,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 635,
-      "bytes" : 344029,
+      "blockCount" : 655,
+      "bytes" : 353375,
       "cover" : "games\/corner-store-tycoon\/cover-0a6e69eb.png",
       "id" : "corner-store-tycoon",
       "maxPlayers" : 6,
@@ -3975,8 +3975,8 @@
         "games\/corner-store-tycoon\/main.absc"
       ],
       "shots" : [
-        "games\/corner-store-tycoon\/shot1-5d4383dc.png",
-        "games\/corner-store-tycoon\/shot2-7db69d90.png"
+        "games\/corner-store-tycoon\/shot1-2d8f04ed.png",
+        "games\/corner-store-tycoon\/shot2-2aee540b.png"
       ],
       "summary" : "自分のお店をひらこう！ たなを買って品物をならべると お客さんがやってくる。レジでお会計、へった品物は 倉庫から補充。店員をやとって、お菓子屋さんから ゲームや宝石のお店へ！",
       "tags" : [
@@ -4048,8 +4048,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 368,
-      "bytes" : 217811,
+      "blockCount" : 375,
+      "bytes" : 221100,
       "cover" : "games\/build-your-island\/cover-ccb12943.png",
       "id" : "build-your-island",
       "maxPlayers" : 6,
@@ -4062,8 +4062,8 @@
         "games\/build-your-island\/main.absc"
       ],
       "shots" : [
-        "games\/build-your-island\/shot1-fa1a2c4e.png",
-        "games\/build-your-island\/shot2-5502f83a.png"
+        "games\/build-your-island\/shot1-34c186cb.png",
+        "games\/build-your-island\/shot2-1080e987.png"
       ],
       "summary" : "小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！",
       "tags" : [
@@ -4077,8 +4077,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 344,
-      "bytes" : 200507,
+      "blockCount" : 354,
+      "bytes" : 205274,
       "cover" : "games\/cruise-ship-tycoon\/cover-0c6e16bd.png",
       "id" : "cruise-ship-tycoon",
       "maxPlayers" : 6,
@@ -4106,9 +4106,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 655,
-      "bytes" : 360841,
-      "cover" : "games\/build-a-zoo-park\/cover-56683f48.png",
+      "blockCount" : 686,
+      "bytes" : 375639,
+      "cover" : "games\/build-a-zoo-park\/cover-177d9f82.png",
       "id" : "build-a-zoo-park",
       "maxPlayers" : 6,
       "schemaVersion" : 2,
@@ -4120,8 +4120,8 @@
         "games\/build-a-zoo-park\/main.absc"
       ],
       "shots" : [
-        "games\/build-a-zoo-park\/shot1-ee6c8cea.png",
-        "games\/build-a-zoo-park\/shot2-78c74163.png"
+        "games\/build-a-zoo-park\/shot1-11d22e83.png",
+        "games\/build-a-zoo-park\/shot2-df920215.png"
       ],
       "summary" : "どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！",
       "tags" : [
@@ -4195,9 +4195,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 188,
-      "bytes" : 138306,
-      "cover" : "games\/egg-heist\/cover-31641b3a.png",
+      "blockCount" : 240,
+      "bytes" : 163258,
+      "cover" : "games\/egg-heist\/cover-e0aa137b.png",
       "id" : "egg-heist",
       "maxPlayers" : 6,
       "schemaVersion" : 2,
@@ -4210,8 +4210,8 @@
         "games\/egg-heist\/main.absc"
       ],
       "shots" : [
-        "games\/egg-heist\/shot1-5f8c20af.png",
-        "games\/egg-heist\/shot2-581b5efe.png"
+        "games\/egg-heist\/shot1-ca709dc5.png",
+        "games\/egg-heist\/shot2-8c6d52f2.png"
       ],
       "summary" : "まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！",
       "tags" : [

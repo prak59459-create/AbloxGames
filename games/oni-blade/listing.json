@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 256,
-  "bytes" : 216452,
-  "cover" : "games\/oni-blade\/cover-68e76fd0.png",
+  "blockCount" : 322,
+  "bytes" : 248478,
+  "cover" : "games\/oni-blade\/cover-0fbf9474.png",
   "id" : "oni-blade",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -19,8 +19,8 @@
     "games\/oni-blade\/main.absc"
   ],
   "shots" : [
-    "games\/oni-blade\/shot1-d8c47ca4.png",
-    "games\/oni-blade\/shot2-0b8a509b.png"
+    "games\/oni-blade\/shot1-c8071075.png",
+    "games\/oni-blade\/shot2-1b4ad73c.png"
   ],
   "summary" : "夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。",
   "tags" : [

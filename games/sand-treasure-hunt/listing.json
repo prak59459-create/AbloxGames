@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 396,
-  "bytes" : 235369,
-  "cover" : "games\/sand-treasure-hunt\/cover-73729fa8.png",
+  "blockCount" : 448,
+  "bytes" : 260159,
+  "cover" : "games\/sand-treasure-hunt\/cover-f5c07886.png",
   "id" : "sand-treasure-hunt",
   "maxPlayers" : 10,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/sand-treasure-hunt\/main.absc"
   ],
   "shots" : [
-    "games\/sand-treasure-hunt\/shot1-2651ed2f.png",
-    "games\/sand-treasure-hunt\/shot2-f0a8c036.png"
+    "games\/sand-treasure-hunt\/shot1-dcd4aa08.png",
+    "games\/sand-treasure-hunt\/shot2-f4319ce6.png"
   ],
   "summary" : "スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！",
   "tags" : [

@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 1147,
-  "bytes" : 602578,
-  "cover" : "games\/green-valley-drive\/cover-3f4c0245.png",
+  "blockCount" : 1407,
+  "bytes" : 725409,
+  "cover" : "games\/green-valley-drive\/cover-c7f9aacc.png",
   "id" : "green-valley-drive",
   "maxPlayers" : 12,
   "schemaVersion" : 2,
@@ -18,8 +18,8 @@
     "games\/green-valley-drive\/main.absc"
   ],
   "shots" : [
-    "games\/green-valley-drive\/shot1-0d2c533f.png",
-    "games\/green-valley-drive\/shot2-da85b5cb.png"
+    "games\/green-valley-drive\/shot1-9fd2ca8a.png",
+    "games\/green-valley-drive\/shot2-be940179.png"
   ],
   "summary" : "緑の谷の町をドライブ！ ガソリンを入れて、信号とスピードを守って、宅配やピザ配達でお金をかせごう。免許試験に合格すると乗れる車がふえる。洗車もできるよ。",
   "tags" : [

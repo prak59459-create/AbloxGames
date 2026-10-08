@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 253,
-  "bytes" : 181722,
-  "cover" : "games\/99-nights-camp\/cover-325c0e39.png",
+  "blockCount" : 263,
+  "bytes" : 186422,
+  "cover" : "games\/99-nights-camp\/cover-752172a7.png",
   "id" : "99-nights-camp",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
@@ -19,8 +19,8 @@
     "games\/99-nights-camp\/main.absc"
   ],
   "shots" : [
-    "games\/99-nights-camp\/shot1-cab0dc83.png",
-    "games\/99-nights-camp\/shot2-e07ba1bf.png"
+    "games\/99-nights-camp\/shot1-7703567e.png",
+    "games\/99-nights-camp\/shot2-830a8cb1.png"
   ],
   "summary" : "森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。",
   "tags" : [

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 635,
-  "bytes" : 344029,
+  "blockCount" : 655,
+  "bytes" : 353375,
   "cover" : "games\/corner-store-tycoon\/cover-0a6e69eb.png",
   "id" : "corner-store-tycoon",
   "maxPlayers" : 6,
@@ -14,8 +14,8 @@
     "games\/corner-store-tycoon\/main.absc"
   ],
   "shots" : [
-    "games\/corner-store-tycoon\/shot1-5d4383dc.png",
-    "games\/corner-store-tycoon\/shot2-7db69d90.png"
+    "games\/corner-store-tycoon\/shot1-2d8f04ed.png",
+    "games\/corner-store-tycoon\/shot2-2aee540b.png"
   ],
   "summary" : "自分のお店をひらこう！ たなを買って品物をならべると お客さんがやってくる。レジでお会計、へった品物は 倉庫から補充。店員をやとって、お菓子屋さんから ゲームや宝石のお店へ！",
   "tags" : [

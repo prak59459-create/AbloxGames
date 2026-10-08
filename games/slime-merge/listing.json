@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 408,
-  "bytes" : 235240,
-  "cover" : "games\/slime-merge\/cover-dd745757.png",
+  "blockCount" : 460,
+  "bytes" : 260103,
+  "cover" : "games\/slime-merge\/cover-3d784bf1.png",
   "id" : "slime-merge",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/slime-merge\/main.absc"
   ],
   "shots" : [
-    "games\/slime-merge\/shot1-5c1d02e1.png",
-    "games\/slime-merge\/shot2-e1d6ce9f.png"
+    "games\/slime-merge\/shot1-2c468262.png",
+    "games\/slime-merge\/shot2-91bdd5b5.png"
   ],
   "summary" : "スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！",
   "tags" : [

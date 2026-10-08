@@ -2,7 +2,7 @@
   "author" : "Ablox Games",
   "blockCount" : 44,
   "bytes" : 51942,
-  "cover" : "games\/dice-heroes\/cover-b1dd2b92.png",
+  "cover" : "games\/dice-heroes\/cover-cea058b8.png",
   "id" : "dice-heroes",
   "maxPlayers" : 10,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/dice-heroes\/main.absc"
   ],
   "shots" : [
-    "games\/dice-heroes\/shot1-e57cf22e.png",
-    "games\/dice-heroes\/shot2-776a95cb.png"
+    "games\/dice-heroes\/shot1-00680d81.png",
+    "games\/dice-heroes\/shot2-8b7b3658.png"
   ],
   "summary" : "🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！",
   "tags" : [

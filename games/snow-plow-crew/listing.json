@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 593,
-  "bytes" : 310670,
-  "cover" : "games\/snow-plow-crew\/cover-7fcb03c2.png",
+  "blockCount" : 719,
+  "bytes" : 370412,
+  "cover" : "games\/snow-plow-crew\/cover-f9840d39.png",
   "id" : "snow-plow-crew",
   "maxPlayers" : 8,
   "schemaVersion" : 2,
@@ -15,8 +15,8 @@
     "games\/snow-plow-crew\/main.absc"
   ],
   "shots" : [
-    "games\/snow-plow-crew\/shot1-acbf58b7.png",
-    "games\/snow-plow-crew\/shot2-0ef47043.png"
+    "games\/snow-plow-crew\/shot1-933fbca6.png",
+    "games\/snow-plow-crew\/shot2-4b02b516.png"
   ],
   "summary" : "雪の町の除雪車チーム！ 道や駐車場の雪をかいて、お仕事の時間内にピカピカに。ふぶきが来たらまた出動。こおった道には🧂塩をまこう。ブレードやタンクを強くして、空港の滑走路まで！",
   "tags" : [

@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 822,
-  "bytes" : 468273,
-  "cover" : "games\/street-drive-empire\/cover-2068d4de.png",
+  "blockCount" : 1012,
+  "bytes" : 558132,
+  "cover" : "games\/street-drive-empire\/cover-2c6a08a0.png",
   "id" : "street-drive-empire",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -18,8 +18,8 @@
     "games\/street-drive-empire\/main.absc"
   ],
   "shots" : [
-    "games\/street-drive-empire\/shot1-ce178eda.png",
-    "games\/street-drive-empire\/shot2-8f01f897.png"
+    "games\/street-drive-empire\/shot1-f4e4c378.png",
+    "games\/street-drive-empire\/shot2-444ec7a7.png"
   ],
   "summary" : "車を集めて街を走るドライブゲーム。16台の車を買って色とパーツをカスタム。4つのレース（サーキット・ドラッグ・市街地・ラリー）でライバルと勝負、配達とタクシーでかせいでライセンスを上げよう！",
   "tags" : [

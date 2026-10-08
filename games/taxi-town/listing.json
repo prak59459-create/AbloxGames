@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 766,
-  "bytes" : 408487,
-  "cover" : "games\/taxi-town\/cover-3a65c281.png",
+  "blockCount" : 786,
+  "bytes" : 418057,
+  "cover" : "games\/taxi-town\/cover-df51a33c.png",
   "id" : "taxi-town",
   "maxPlayers" : 12,
   "schemaVersion" : 2,
@@ -16,7 +16,7 @@
     "games\/taxi-town\/main.absc"
   ],
   "shots" : [
-    "games\/taxi-town\/shot1-e2a423ca.png",
+    "games\/taxi-town\/shot1-3a03f520.png",
     "games\/taxi-town\/shot2-27c6fd1e.png"
   ],
   "summary" : "タクシーの運転手になって、大きな町でお客さんを運ぼう！ 🙋手をあげている人の前で止まって乗せ、目的地へ。はやく安全に着くとチップ。タクシー会社を大きくして、運転手をやとおう。",

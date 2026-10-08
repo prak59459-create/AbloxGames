@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 308,
-  "bytes" : 225846,
-  "cover" : "games\/pet-home-paradise\/cover-bc137390.png",
+  "blockCount" : 400,
+  "bytes" : 269528,
+  "cover" : "games\/pet-home-paradise\/cover-f4b6388a.png",
   "id" : "pet-home-paradise",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -17,8 +17,8 @@
     "games\/pet-home-paradise\/main.absc"
   ],
   "shots" : [
-    "games\/pet-home-paradise\/shot1-15e4e809.png",
-    "games\/pet-home-paradise\/shot2-149db4e2.png"
+    "games\/pet-home-paradise\/shot1-2db5f9a0.png",
+    "games\/pet-home-paradise\/shot2-0a4a6c82.png"
   ],
   "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
   "tags" : [

@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 100,
-  "bytes" : 106254,
-  "cover" : "games\/hero-tower-defense\/cover-23a256b8.png",
+  "blockCount" : 128,
+  "bytes" : 119576,
+  "cover" : "games\/hero-tower-defense\/cover-36132369.png",
   "id" : "hero-tower-defense",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
@@ -19,8 +19,8 @@
     "games\/hero-tower-defense\/main.absc"
   ],
   "shots" : [
-    "games\/hero-tower-defense\/shot1-c9d61f2e.png",
-    "games\/hero-tower-defense\/shot2-81f8ab4f.png"
+    "games\/hero-tower-defense\/shot1-9fc61369.png",
+    "games\/hero-tower-defense\/shot2-2d33d892.png"
   ],
   "summary" : "道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。",
   "tags" : [

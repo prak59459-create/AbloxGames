@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 676,
-  "bytes" : 382867,
-  "cover" : "games\/night-lockdown\/cover-190d3a3d.png",
+  "blockCount" : 842,
+  "bytes" : 461495,
+  "cover" : "games\/night-lockdown\/cover-56def73e.png",
   "id" : "night-lockdown",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/night-lockdown\/main.absc"
   ],
   "shots" : [
-    "games\/night-lockdown\/shot1-c5cffd8b.png",
-    "games\/night-lockdown\/shot2-a60082d0.png"
+    "games\/night-lockdown\/shot1-b1267abc.png",
+    "games\/night-lockdown\/shot2-b3acb8f5.png"
   ],
   "summary" : "昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！",
   "tags" : [

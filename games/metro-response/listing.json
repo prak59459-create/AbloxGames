@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 277,
-  "bytes" : 178473,
-  "cover" : "games\/metro-response\/cover-3572ef31.png",
+  "blockCount" : 317,
+  "bytes" : 197435,
+  "cover" : "games\/metro-response\/cover-223c80cc.png",
   "id" : "metro-response",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
@@ -18,8 +18,8 @@
     "games\/metro-response\/main.absc"
   ],
   "shots" : [
-    "games\/metro-response\/shot1-20f97afd.png",
-    "games\/metro-response\/shot2-e1e3477d.png"
+    "games\/metro-response\/shot1-e2b0dcc3.png",
+    "games\/metro-response\/shot2-764291fc.png"
   ],
   "summary" : "警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。",
   "tags" : [

@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 188,
-  "bytes" : 138306,
-  "cover" : "games\/egg-heist\/cover-31641b3a.png",
+  "blockCount" : 240,
+  "bytes" : 163258,
+  "cover" : "games\/egg-heist\/cover-e0aa137b.png",
   "id" : "egg-heist",
   "maxPlayers" : 6,
   "schemaVersion" : 2,
@@ -15,8 +15,8 @@
     "games\/egg-heist\/main.absc"
   ],
   "shots" : [
-    "games\/egg-heist\/shot1-5f8c20af.png",
-    "games\/egg-heist\/shot2-581b5efe.png"
+    "games\/egg-heist\/shot1-ca709dc5.png",
+    "games\/egg-heist\/shot2-8c6d52f2.png"
   ],
   "summary" : "まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！",
   "tags" : [

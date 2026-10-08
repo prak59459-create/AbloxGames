@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 884,
-  "bytes" : 464725,
-  "cover" : "games\/deep-mine-simulator\/cover-bf95d479.png",
+  "blockCount" : 920,
+  "bytes" : 482042,
+  "cover" : "games\/deep-mine-simulator\/cover-3ec6dd0e.png",
   "id" : "deep-mine-simulator",
   "maxPlayers" : 10,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/deep-mine-simulator\/main.absc"
   ],
   "shots" : [
-    "games\/deep-mine-simulator\/shot1-e0e4e096.png",
-    "games\/deep-mine-simulator\/shot2-4c6da79e.png"
+    "games\/deep-mine-simulator\/shot1-000c7d6e.png",
+    "games\/deep-mine-simulator\/shot2-98194f6f.png"
   ],
   "summary" : "つるはしで地下をほり進もう！ 深くなるほど かたい岩と レアな鉱石。リュックがいっぱいになったら地上で売る。つるはし・リュック・ペットで、いちばん下のマグマの宝石まで！",
   "tags" : [

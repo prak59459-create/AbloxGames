@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 247,
-  "bytes" : 163803,
-  "cover" : "games\/snowball-shovel-sim\/cover-30aac8a5.png",
+  "blockCount" : 293,
+  "bytes" : 185627,
+  "cover" : "games\/snowball-shovel-sim\/cover-be270327.png",
   "id" : "snowball-shovel-sim",
   "maxPlayers" : 8,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/snowball-shovel-sim\/main.absc"
   ],
   "shots" : [
-    "games\/snowball-shovel-sim\/shot1-dd292c28.png",
-    "games\/snowball-shovel-sim\/shot2-aa8fb9d7.png"
+    "games\/snowball-shovel-sim\/shot1-438827f2.png",
+    "games\/snowball-shovel-sim\/shot2-13d3b0a3.png"
   ],
   "summary" : "スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！",
   "tags" : [

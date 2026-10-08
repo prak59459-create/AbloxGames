@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 291,
-  "bytes" : 203847,
-  "cover" : "games\/pom-town\/cover-3207dc56.png",
+  "blockCount" : 417,
+  "bytes" : 263602,
+  "cover" : "games\/pom-town\/cover-eab3abe1.png",
   "id" : "pom-town",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -17,8 +17,8 @@
     "games\/pom-town\/main.absc"
   ],
   "shots" : [
-    "games\/pom-town\/shot1-b26f3717.png",
-    "games\/pom-town\/shot2-4e4ad11d.png"
+    "games\/pom-town\/shot1-129c0c80.png",
+    "games\/pom-town\/shot2-96c4abda.png"
   ],
   "summary" : "家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！",
   "tags" : [

@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 1132,
-  "bytes" : 834905,
-  "cover" : "games\/meme-heist\/cover-bd3a94c3.png",
+  "blockCount" : 1334,
+  "bytes" : 931221,
+  "cover" : "games\/meme-heist\/cover-c6ea7f29.png",
   "id" : "meme-heist",
   "maxPlayers" : 8,
   "schemaVersion" : 2,
@@ -29,8 +29,8 @@
     "games\/meme-heist\/main.absc"
   ],
   "shots" : [
-    "games\/meme-heist\/shot1-11b22d14.png",
-    "games\/meme-heist\/shot2-c9705586.png"
+    "games\/meme-heist\/shot1-cf136564.png",
+    "games\/meme-heist\/shot2-929918ce.png"
   ],
   "summary" : "赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。",
   "tags" : [

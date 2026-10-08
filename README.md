@@ -22,24 +22,24 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
-| <img src="games/maple-bay-life/cover-fe6b9675.png" width="200"> | 1 | **Maple Bay Life RP** | 街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。 |
-| <img src="games/fruit-seas/cover-799355aa.png" width="200"> | 2 | **Fruit Seas Adventure** | ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。 |
-| <img src="games/pet-home-paradise/cover-bc137390.png" width="200"> | 3 | **Pet Home Paradise** | たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。 |
-| <img src="games/meme-heist/cover-bd3a94c3.png" width="200"> | 4 | **Meme Heist** | 赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。 |
-| <img src="games/reel-legends/cover-b5e14315.png" width="200"> | 5 | **Reel Legends** | つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。 |
+| <img src="games/maple-bay-life/cover-cbe517d2.png" width="200"> | 1 | **Maple Bay Life RP** | 街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。 |
+| <img src="games/fruit-seas/cover-96d50579.png" width="200"> | 2 | **Fruit Seas Adventure** | ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。 |
+| <img src="games/pet-home-paradise/cover-f4b6388a.png" width="200"> | 3 | **Pet Home Paradise** | たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。 |
+| <img src="games/meme-heist/cover-c6ea7f29.png" width="200"> | 4 | **Meme Heist** | 赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。 |
+| <img src="games/reel-legends/cover-5a0ae04d.png" width="200"> | 5 | **Reel Legends** | つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。 |
 | <img src="games/clash-duels/cover-708781ad.png" width="200"> | 6 | **Clash Duels** | 1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。 |
-| <img src="games/sprout-garden/cover-571f726c.png" width="200"> | 7 | **Sprout Garden** | 自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。 |
+| <img src="games/sprout-garden/cover-09d97941.png" width="200"> | 7 | **Sprout Garden** | 自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。 |
 | <img src="games/runway-star/cover-9827a7d3.png" width="200"> | 8 | **Runway Star** | テーマに合わせて服の色や帽子をコーディネートしてランウェイへ。みんなで星をつけ合って、トップモデルを決めよう。 |
 | <img src="games/mystery-manor/cover-756a1df5.png" width="200"> | 9 | **Mystery Manor** | 市民・保安官・犯人に分かれる推理サバイバル。犯人は正体をかくして全員を、保安官は犯人を見つけてたおせ。市民は生きのこれ！ |
-| <img src="games/99-nights-camp/cover-325c0e39.png" width="200"> | 10 | **99 Nights Camp** | 森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。 |
-| <img src="games/lucky-kick-run/cover-6a8e2876.png" width="200"> | 11 | **Lucky Kick Run** | ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！ |
+| <img src="games/99-nights-camp/cover-752172a7.png" width="200"> | 10 | **99 Nights Camp** | 森のキャンプで99日を生きのびるサバイバル。昼は木を切ってたき火を守り、夜はおそってくる怪物からみんなで身を守ろう。 |
+| <img src="games/lucky-kick-run/cover-6cf4b7fd.png" width="200"> | 11 | **Lucky Kick Run** | ラッキーブロックをけとばして何が出るかな？アイテムを手に入れたら、せまる大津波から高台へにげろ！ |
 | <img src="games/battleground-legends/cover-b92161e3.png" width="200"> | 12 | **Battleground Legends** | パンチ、アッパー、衝撃波、そして必殺の覚醒！技を組み合わせてオープンフィールドで戦う爽快バトル。 |
 | <img src="games/hotel-100-doors/cover-a1eb89ca.png" width="200"> | 13 | **Hotel 100 Doors** | なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。 |
 | <img src="games/pet-coin-frenzy/cover-42850825.png" width="200"> | 14 | **Pet Coin Frenzy** | コインの山をタップしてこわし、たまごからペットを出してパワーアップ。新しいエリアを開いて、巨大ペットを引き当てろ！ |
 | <img src="games/tower-of-chaos/cover-054858ae.png" width="200"> | 15 | **Tower of Chaos** | チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！ |
-| <img src="games/crystal-wars/cover-e2badc92.png" width="200"> | 16 | **Crystal Wars** | 浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。 |
-| <img src="games/slime-roll/cover-6e363cea.png" width="200"> | 17 | **Slime Roll** | 運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？ |
-| <img src="games/hero-tower-defense/cover-23a256b8.png" width="200"> | 18 | **Hero Tower Defense** | 道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。 |
+| <img src="games/crystal-wars/cover-a5772ead.png" width="200"> | 16 | **Crystal Wars** | 浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。 |
+| <img src="games/slime-roll/cover-1c724817.png" width="200"> | 17 | **Slime Roll** | 運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？ |
+| <img src="games/hero-tower-defense/cover-36132369.png" width="200"> | 18 | **Hero Tower Defense** | 道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。 |
 | <img src="games/domain-clash/cover-3c1f1717.png" width="200"> | 19 | **Domain Clash** | 炎・雷・重力・影の術で戦うバトル。ゲージがたまったら「領域展開」で相手を閉じこめろ！地面や柱もこわれる。 |
 | <img src="games/tsunami-dash/cover-a33973d9.png" width="200"> | 20 | **Tsunami Dash** | うしろからせまる巨大な津波！障害物をかわし、アイテムを拾いながらゴールまで走りぬけろ。ミームだらけのにぎやかコース。 |
 
@@ -47,69 +47,69 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
-| <img src="games/power-training-sim/cover-d056f1f1.png" width="200"> | 21 | **Power Training Sim** | 力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。 |
+| <img src="games/power-training-sim/cover-14ec11d1.png" width="200"> | 21 | **Power Training Sim** | 力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。 |
 | <img src="games/deflect-ball/cover-e14bc4e1.png" width="200"> | 22 | **Deflect Ball** | ねらった相手を追いかける光のボール。ギリギリで「はじく」を押して打ち返せ！最後まで残った人の勝ち。 |
 | <img src="games/gun-swap-arena/cover-1ef2966f.png" width="200"> | 23 | **Gun Swap Arena** | たおすたびに武器が変わるスピードFPS。12の武器を順番にクリアして、最後の黄金ナイフで決めた人の勝ち。 |
-| <img src="games/warrior-brawl/cover-c8a7f55b.png" width="200"> | 24 | **Warrior Brawl** | やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。 |
+| <img src="games/warrior-brawl/cover-b6dcdbd6.png" width="200"> | 24 | **Warrior Brawl** | やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。 |
 | <img src="games/ring-boxing-league/cover-67a4e0a2.png" width="200"> | 25 | **Ring Boxing League** | リングで1対1のボクシング。ジャブ、ストレート、アッパー、ガード。スタミナを考えて打ち合い、ランキングを上げよう。 |
 | <img src="games/power-roulette/cover-2e950cfc.png" width="200"> | 26 | **Power Roulette** | ラウンドごとにルーレットで能力が決まる！炎、巨大化、ワープ、分身…運と工夫で最後まで生きのこれ。 |
 | <img src="games/armed-racers/cover-9f7ac916.png" width="200"> | 27 | **Armed Racers** | 武装したレースカーでコースを3周。アイテム箱からミサイル、オイル、ブーストを手に入れて、ライバルをじゃましろ！ |
 | <img src="games/blade-and-revolver/cover-3b0c7383.png" width="200"> | 28 | **Blade & Revolver** | ナイフとリボルバーだけのデスマッチ。ナイフは投げることもできる。先に20キルした人の勝ち。 |
 | <img src="games/last-squad/cover-11f1674d.png" width="200"> | 29 | **Last Squad vs Horde** | 人間チームとゾンビの大群のサバイバル。やられた人間はゾンビになる！3分間生きのびて、ヘリで脱出せよ。 |
 | <img src="games/style-boxing/cover-86903e41.png" width="200"> | 30 | **Style Boxing** | スピード、パワー、タンク、カウンター。自分のスタイルを選んで、必殺技ゲージをためて殴り合うボクシングバトル。 |
-| <img src="games/hero-academy-sim/cover-037510ae.png" width="200"> | 31 | **Hero Academy Sim** | ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。 |
-| <img src="games/oni-blade/cover-68e76fd0.png" width="200"> | 32 | **Oni Blade** | 夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。 |
+| <img src="games/hero-academy-sim/cover-ef2a127f.png" width="200"> | 31 | **Hero Academy Sim** | ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。 |
+| <img src="games/oni-blade/cover-0fbf9474.png" width="200"> | 32 | **Oni Blade** | 夜になると鬼が村をおそう。7つの流派の型をきわめ、刀をきたえて家を守れ。4夜ごとに土蜘蛛や酒呑童子など昔話の鬼の大将があらわれる。 |
 
 ### 🏡 ロールプレイ・生活
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
-| <img src="games/pom-town/cover-3207dc56.png" width="200"> | 33 | **Pom Town** | 家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！ |
-| <img src="games/cherry-lane-rp/cover-3f94fb5c.png" width="200"> | 34 | **Cherry Lane RP** | 学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。 |
-| <img src="games/pizza-shift/cover-6c3f14ea.png" width="200"> | 35 | **Pizza Shift** | ピザ屋でみんなで働こう。レジで注文、レシピどおりに具をのせて、こげる前にオーブンから出して手わたし・配達！ ★評価と店のお金で店を強化、昇進で給料アップ。 |
+| <img src="games/pom-town/cover-eab3abe1.png" width="200"> | 33 | **Pom Town** | 家を家具でかざって★5のおうちに。タマゴからかえる15種類のポムをお世話して伝説まで育てよう。釣り・配達・水やりでスターを集めて、パーティーとおうちコンテスト！ |
+| <img src="games/cherry-lane-rp/cover-ae4df771.png" width="200"> | 34 | **Cherry Lane RP** | 学校と家族とお仕事のロールプレイ。チャイムで授業（クイズ・音楽・体育）に出て通知表で進級・卒業。家族をつくって赤ちゃんのお世話、カフェ店員や美容師でお給料、服と乗り物も。 |
+| <img src="games/pizza-shift/cover-8714f2ba.png" width="200"> | 35 | **Pizza Shift** | ピザ屋でみんなで働こう。レジで注文、レシピどおりに具をのせて、こげる前にオーブンから出して手わたし・配達！ ★評価と店のお金で店を強化、昇進で給料アップ。 |
 | <img src="games/neo-city-life/cover-8820042d.png" width="200"> | 36 | **Neo City Life** | 未来都市のRP。6つの仕事（修理・救助・逮捕・料理・空の配達・ハッキング）でかせぎ、乗り物を集めて空の家をスマートホームに。指名手配と刑務所、ドローンレース、ネオンナイトも。 |
-| <img src="games/club-hangout/cover-6af370b0.png" width="200"> | 37 | **Club Hangout** | 空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。 |
-| <img src="games/ridgeport-cops/cover-72ec609e.png" width="200"> | 38 | **Ridgeport Cops & Robbers** | 警察と強盗の街アクション。ガソスタ・宝石店・銀行の暗証番号・銃砲店・現金輸送車をねらう強盗と、テーザーと手錠で追う警察。階級・武器・車・脱獄・保釈も！ |
+| <img src="games/club-hangout/cover-5bbad756.png" width="200"> | 37 | **Club Hangout** | 空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。 |
+| <img src="games/ridgeport-cops/cover-beb7b9ba.png" width="200"> | 38 | **Ridgeport Cops & Robbers** | 警察と強盗の街アクション。ガソスタ・宝石店・銀行の暗証番号・銃砲店・現金輸送車をねらう強盗と、テーザーと手錠で追う警察。階級・武器・車・脱獄・保釈も！ |
 | <img src="games/dinner-rush-tycoon/cover-ff04d183.png" width="200"> | 39 | **Dinner Rush Tycoon** | レストランを経営。19の設備で6品のメニューを増やし、シェフとウェイターをやとって自動化。評判と料理評論家、2号店（リバース）で永久ボーナス！ |
 | <img src="games/coaster-park-tycoon/cover-84af2a72.png" width="200"> | 40 | **Coaster Park Tycoon** | 遊園地を作ろう。14のアトラクションと屋台、お客さんの楽しさ・空腹・のど・トイレ、入場料、故障の修理とゴミそうじ、スタッフ、ベストパーク賞。自分でも乗れる！ |
-| <img src="games/life-ville/cover-38e62185.png" width="200"> | 41 | **Life Ville** | 5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。 |
-| <img src="games/metro-response/cover-3572ef31.png" width="200"> | 42 | **Metro Response** | 警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。 |
-| <img src="games/academy-days/cover-c1256194.png" width="200"> | 43 | **Academy Days** | 4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！ |
+| <img src="games/life-ville/cover-3f9a3333.png" width="200"> | 41 | **Life Ville** | 5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。 |
+| <img src="games/metro-response/cover-223c80cc.png" width="200"> | 42 | **Metro Response** | 警察・消防・救急・市民・犯罪者に分かれる街のRP。出動指令を受けて、火事を消し（水タンクと消火栓）、けが人を病院へ、犯人を手錠で確保。倒れた仲間の蘇生、タクシー、金庫やぶりも。 |
+| <img src="games/academy-days/cover-982ef03c.png" width="200"> | 43 | **Academy Days** | 4つの寮に分かれる学園生活。チャイムで6つの教室へ（算数・美術・音楽・体育・ポーション学・図書館）。宿題と部活で寮ポイント、寮杯と生徒会選挙も！ |
 | <img src="games/willow-hospital/cover-28670bac.png" width="200"> | 44 | **Willow Hospital RP** | 病院のお仕事RP。医者・看護師・外科医・薬剤師・救急隊・患者に。トリアージ、バイタル、12の病気の診断、薬の調合、手術、救急車の出動。病院の資金でベッドや設備を強化！ |
-| <img src="games/street-drive-empire/cover-2068d4de.png" width="200"> | 45 | **Street Drive Empire** | 車を集めて街を走るドライブゲーム。16台の車を買って色とパーツをカスタム。4つのレース（サーキット・ドラッグ・市街地・ラリー）でライバルと勝負、配達とタクシーでかせいでライセンスを上げよう！ |
+| <img src="games/street-drive-empire/cover-2c6a08a0.png" width="200"> | 45 | **Street Drive Empire** | 車を集めて街を走るドライブゲーム。16台の車を買って色とパーツをカスタム。4つのレース（サーキット・ドラッグ・市街地・ラリー）でライバルと勝負、配達とタクシーでかせいでライセンスを上げよう！ |
 
 ### 👻 ホラー・サバイバル
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
 | <img src="games/color-monsters/cover-6e16b7bf.png" width="200"> | 46 | **Color Monsters** | 夜のおもちゃ倉庫で5色のモンスターから隠れて、夜ごとの任務（ブロック・ヒューズ・電池・ガス・ロケットの部品）を集めよう。箱やロッカーに隠れ、つかまった仲間は檻から助けて、5夜目にロケットで脱出！ |
-| <img src="games/porkys-house/cover-e6344ecc.png" width="200"> | 47 | **Porky's House** | 毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！ |
+| <img src="games/porkys-house/cover-14c37ce6.png" width="200"> | 47 | **Porky's House** | 毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！ |
 | <img src="games/run-from-faces/cover-a4f6a952.png" width="200"> | 48 | **Run From The Faces** | 5種類の巨大な顔（ダッシュ・ワープ・ジャンプ・分裂）が追いかけてくる！ ダッシュとアイテムで逃げて、倒れた仲間は助け起こそう。モール・屋上・迷路・公園の4ステージを投票で。3分生きのびたら勝ち！ |
 | <img src="games/anomaly-hallway/cover-539ab900.png" width="200"> | 49 | **Anomaly Hallway** | 終わらない駅の廊下。30種類の「異変」— 色・位置・数・おじさんの動き・せまる赤い波 — を見つけたら引き返し、なければ進む。8回続けて正解で出口へ。異変図鑑を集め、最速記録と裏モードにも挑戦！ |
-| <img src="games/last-train-west/cover-f16359c8.png" width="200"> | 50 | **Last Train West** | 荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！ |
-| <img src="games/yokai-shrine/cover-4932a09e.png" width="200"> | 51 | **Yokai Shrine** | 夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！ |
-| <img src="games/night-lockdown/cover-190d3a3d.png" width="200"> | 52 | **Night Lockdown** | 昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！ |
+| <img src="games/last-train-west/cover-8bb2abd4.png" width="200"> | 50 | **Last Train West** | 荒野を走る最後の列車で10kmの旅。石炭をくべて走らせ、4つの町（ゴーストタウン・銀行・教会・砦）で物資と金塊を集め、夜の怪物とならず者から列車を守れ。役割と列車の強化、最後は大きな橋の防衛戦！ |
+| <img src="games/yokai-shrine/cover-70e3766e.png" width="200"> | 51 | **Yokai Shrine** | 夜の神社でお札を集めて本殿に納める、三つの夜の和風ホラー。仲間に化けるのっぺらぼう・灯籠を消す狐火・お札をうばうからかさ・池のかっぱ、そして最後は目ざめた鬼から鳥居の外へ逃げろ。勇気・おみくじ・お守り・妖怪図鑑！ |
+| <img src="games/night-lockdown/cover-56def73e.png" width="200"> | 52 | **Night Lockdown** | 昼は町の6つのお店で板・釘・鉄板・食料・燃料を集め、夜は家の窓とドアに板を打って立てこもる。わな・作業場・発電機、5種類の侵入者。おばあちゃん・妹・犬を守って5日目の救助ヘリへ！ |
 | <img src="games/toy-factory-night-shift/cover-fe88ac40.png" width="200"> | 53 | **Toy Factory Night Shift** | おもちゃ工場の夜間警備。9台のカメラ・左右のドアとライト・通気口で、歩きまわるクマ・ウサギ・ニワトリ、見られないと飛び出すキツネ、オルゴールが止まると開くびっくり箱から身を守れ。電力を節約して朝6時まで。6夜目はナイトメア！ |
 | <img src="games/midnight-guard/cover-f0fc2780.png" width="200"> | 54 | **Midnight Guard** | 真夜中の研究施設の警備員になって3つの夜を見回る。所長の巡回リスト（ニセの無線に注意）、6つの棟の発電機と燃料運び、電池つきのライトで影を消し、見張る者・迷子・停電の王に立ち向かえ。 |
 | <img src="games/endless-rooms/cover-a234369a.png" width="200"> | 55 | **Endless Rooms** | 黄色い部屋の迷路から、倉庫・パイプ・電気室・空きオフィス・終わらない廊下へ。レベルごとに出口のなぞ（ヒューズ・バルブ・ブレーカー）と別の「何か」。正気度とアーモンド水、メモと記憶のかけらを集めて外の世界へ！ |
 | <img src="games/infinite-store/cover-4f5b8a5a.png" width="200"> | 56 | **Infinite Store** | 終わりのない巨大家具店。9つの売り場で家具を拾って基地を作り、夜は家具をこわしてくる店員（3日目と6日目は店長！）から守れ。おなか・武器の箱・落とし物・サービスカウンター。7日目の閉店で出口が開く！ |
-| <img src="games/smile-outbreak/cover-21b3817b.png" width="200"> | 57 | **Smile Outbreak** | 笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！ |
-| <img src="games/watch-the-house/cover-20532b4b.png" width="200"> | 58 | **Watch The House** | 田中さん一家の家で5日間の留守番。窓にひびを入れにくるものをカメラで探してライトで追い払い、玄関の来客はご近所リストとくらべてニセものを見やぶれ。家のしごと・猫のタマ・停電・スマホ通販も！ |
+| <img src="games/smile-outbreak/cover-163337e5.png" width="200"> | 57 | **Smile Outbreak** | 笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！ |
+| <img src="games/watch-the-house/cover-ebb54b21.png" width="200"> | 58 | **Watch The House** | 田中さん一家の家で5日間の留守番。窓にひびを入れにくるものをカメラで探してライトで追い払い、玄関の来客はご近所リストとくらべてニセものを見やぶれ。家のしごと・猫のタマ・停電・スマホ通販も！ |
 
 ### 🏗️ 放置・ガチャ・タイクーン
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
 | <img src="games/aura-roll/cover-96aca629.png" width="200"> | 59 | **Aura Roll** | ボタンでオーラを引く運だめし。32種のオーラ、8つの天気（その天気だけのオーラ）、素材とオーラでギアをクラフト、旅の商人のポーション、運の塔。10回ごとのボーナスで1億分の1を引き当てろ！ |
-| <img src="games/raft-to-treasure/cover-e88fd58f.png" width="200"> | 60 | **Raft to Treasure** | ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！ |
+| <img src="games/raft-to-treasure/cover-33cb5af3.png" width="200"> | 60 | **Raft to Treasure** | ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！ |
 | <img src="games/obby-maker/cover-5fdbb1a6.png" width="200"> | 61 | **Obby Maker** | 自分だけのアスレチックコースを作って公開しよう。17種のパーツ（動く床・回る溶岩バー・ワープ・コインも）、グリッドと回転、テストでクリアして公開、タイムといいね。お手本コースやみんなのコースに挑戦！ |
 | <img src="games/toy-army-tycoon/cover-0017ccc3.png" width="200"> | 62 | **Toy Army Tycoon** | おもちゃの軍隊の基地を16の設備で大きくするタイクーン。兵隊・戦車・タレット・狙撃塔・迫撃砲・空爆で、予告つきの襲撃（5回ごとにおもちゃ将軍）からコアを守れ。研究所・銀行・昇進も！ |
-| <img src="games/buzz-meadow/cover-f2d25aa4.png" width="200"> | 63 | **Buzz Meadow** | ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！ |
+| <img src="games/buzz-meadow/cover-046ec7ee.png" width="200"> | 63 | **Buzz Meadow** | ハチを育てて花粉をハチミツに。12種のハチ（赤・青の花畑が得意なハチも）、8つの花畑、たまごとロイヤルゼリー、道具とバッグ、トークン、虫たいじと洞くつのカブトムシの王、くまさんの9つのクエスト！ |
 | <img src="games/dungeon-delve/cover-9bb989ca.png" width="200"> | 64 | **Dungeon Delve** | 4つの職業で挑む協力ハクスラ。部屋ごとに戦い・強敵・宝物庫・祭壇・ワナ・休けい所、奥にはボス。4つのテーマと4体のボス、5段階のレア装備、12の遺物、鍛冶屋で強化してもっと深い階へ！ |
-| <img src="games/critter-quest/cover-e33e63e0.png" width="200"> | 65 | **Critter Quest** | 草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！ |
-| <img src="games/blade-summon-sim/cover-58e4a27c.png" width="200"> | 66 | **Blade Summon Sim** | 召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！ |
-| <img src="games/crusher-yard/cover-fe5d7b18.png" width="200"> | 67 | **Crusher Yard** | 自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！ |
-| <img src="games/slime-merge/cover-dd745757.png" width="200"> | 68 | **Slime Merge** | スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！ |
+| <img src="games/critter-quest/cover-06e51d3b.png" width="200"> | 65 | **Critter Quest** | 草むらでクリッターに出会って、つかまえて、育てるターン制RPG。24種（進化あり）、9タイプの相性、31の技と状態異常、4人のリーダーとチャンピオン、図鑑とあずかりボックス、そして伝説のクリッター！ |
+| <img src="games/blade-summon-sim/cover-1a1e4190.png" width="200"> | 66 | **Blade Summon Sim** | 召喚した武器がまわりを回って敵を自動でたおす放置系。6つのワールドと36本の武器、6段階のレア度、★合体、エンチャント、道場の強化、ワールドボス、転生と転生ショップ！ |
+| <img src="games/crusher-yard/cover-eaf7503a.png" width="200"> | 67 | **Crusher Yard** | 自分のレーンで車をグシャッ！ 12台の車（部品ごとにこわれる）と6つの機械（プレス・シュレッダー・溶岩・レーザー・鉄球・ブラックホール）。スクラップ集め・磁石・自動投入・転生・スクラップラッシュ！ |
+| <img src="games/slime-merge/cover-3d784bf1.png" width="200"> | 68 | **Slime Merge** | スライムをすいこんで、自分の牧場の台で合体！ 8種類×10レベル、7つのバイオームとゲート、台16こ、自動合体、たまご屋と市場、図鑑80こ、スライムの雨とにげ足の速いにじいろスライム！ |
 | <img src="games/mansion-builder-tycoon/cover-c8844d41.png" width="200"> | 69 | **Mansion Builder Tycoon** | 土台から26段階で大豪邸が立ち上がるタイクーン。家賃は郵便受けに、執事で自動回収、投資、壁と屋根のペンキ、パーティーのゲストのチップ、豪邸コンテスト、完成したら売って転生！ |
 | <img src="games/plus-one-speed-escape/cover-e9fc3578.png" width="200"> | 70 | **+1 Speed Wall Escape** | 1秒ごとにスピード+1！ ラウンドごとに巨大なかべから逃げて1500m先のゴールへ。ハードル・すきま・溶岩・動くかべ・ジャンプ台・氷の橋・加速床の10ゾーン、トレッドミル、ペット、強化、転生！ |
 
@@ -117,76 +117,76 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
-| <img src="games/disaster-island/cover-7827d12c.png" width="200"> | 71 | **Disaster Island** | 15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！ |
+| <img src="games/disaster-island/cover-0019a93d.png" width="200"> | 71 | **Disaster Island** | 15種類の自然災害（洪水・津波・いん石・火山・たつまき・地震・酸性雨・吹雪・雷・砂嵐・火事・巨人・UFO・ブラックホール・熱波）を島で生きのびろ。警報のヒント、ダブル災害、くずれる建物、装備のお店！ |
 | <img src="games/chaos-golf/cover-3cdce0ba.png" width="200"> | 72 | **Chaos Golf** | ボールがほんとうにころがるミニゴルフ大会。坂・砂・氷・加速床・水・ワープ・風車の9ホールを、みんな同時にプレイ。アイテム（スーパー・マグネット・ゴースト・アイス・たつまき・スワップ）でカオスに！ |
 | <img src="games/speed-worlds/cover-0a1c060a.png" width="200"> | 73 | **Speed Worlds** | 8つのワールド（草原・氷・溶岩・宇宙・おかし・砂漠・雲・ネオン）を超スピードで走るスピードラン。金銀銅メダル、自分のベスト走りの👻ゴースト、レース大会、シューズ・ブーツ・グライダー！ |
-| <img src="games/island-drama-show/cover-ee70cda8.png" width="200"> | 74 | **Island Drama Show** | 無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！ |
-| <img src="games/prop-hide-and-seek/cover-61d5140b.png" width="200"> | 75 | **Prop Hide & Seek** | 家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！ |
+| <img src="games/island-drama-show/cover-a0966407.png" width="200"> | 74 | **Island Drama Show** | 無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！ |
+| <img src="games/prop-hide-and-seek/cover-1890ba93.png" width="200"> | 75 | **Prop Hide & Seek** | 家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！ |
 | <img src="games/mega-minigames/cover-320873fe.png" width="200"> | 76 | **Mega Minigames** | 投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！ |
 | <img src="games/rhythm-battle/cover-81d9b098.png" width="200"> | 77 | **Rhythm Battle** | 8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ |
-| <img src="games/last-survivor-games/cover-f8f551c1.png" width="200"> | 78 | **Last Survivor Games** | 24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！ |
+| <img src="games/last-survivor-games/cover-ae48890b.png" width="200"> | 78 | **Last Survivor Games** | 24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！ |
 | <img src="games/shark-attack-bay/cover-b023a82c.png" width="200"> | 79 | **Shark Attack Bay** | サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ |
-| <img src="games/tip-jar-plaza/cover-3b7cc0f0.png" width="200"> | 80 | **Tip Jar Plaza** | 広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです） |
+| <img src="games/tip-jar-plaza/cover-53b42369.png" width="200"> | 80 | **Tip Jar Plaza** | 広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです） |
 
 ### 🧗 オビー・アスレチック
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
 | <img src="games/cell-block-run/cover-21f3d4ed.png" width="200"> | 81 | **Cell Block Run** | ブルーノ所長の刑務所から脱獄！ 牢屋→通気口→食堂→洗濯室→運動場→所長室→下水道→屋根→ヘリの21ステージ。サーチライトと看守、起きたら止まれ、屋根では所長が追ってくる。 |
-| <img src="games/color-chart-obby/cover-c5b2a869.png" width="200"> | 82 | **Color Chart Obby** | 12段階の難しさを色で進む60ステージ。らくらく（緑）からだいさいがい（白）まで、ゾーンをこえるたびにバッジ。コイルと⏱ゾーンタイムアタックも。 |
-| <img src="games/pedal-obby/cover-39331dc3.png" width="200"> | 83 | **Pedal Obby** | 自転車に乗ったままクリアするオビー。公園・キャニオン・雪山・ネオンの街の40ステージを、ジャンプ台とブースト床でとびこえろ。空中でトリックを決めるとコイン、ガレージで6台の自転車。 |
+| <img src="games/color-chart-obby/cover-5a5ce21e.png" width="200"> | 82 | **Color Chart Obby** | 12段階の難しさを色で進む60ステージ。らくらく（緑）からだいさいがい（白）まで、ゾーンをこえるたびにバッジ。コイルと⏱ゾーンタイムアタックも。 |
+| <img src="games/pedal-obby/cover-aad131fb.png" width="200"> | 83 | **Pedal Obby** | 自転車に乗ったままクリアするオビー。公園・キャニオン・雪山・ネオンの街の40ステージを、ジャンプ台とブースト床でとびこえろ。空中でトリックを決めるとコイン、ガレージで6台の自転車。 |
 | <img src="games/rising-flood-escape/cover-409cfeaa.png" width="200"> | 84 | **Rising Flood Escape** | 水がどんどん上がってくる！ みんなでボタンを順番に押してゲートを開け、てっぺんの出口へ。沈んだ神殿・おもちゃ工場・空の城の3マップ。水の中では息が続くまで。 |
 | <img src="games/trap-master-run/cover-ec7bfbe2.png" width="200"> | 85 | **Trap Master Run** | 1人がワナ師、ほかはランナー。ワナ師はバルコニーから10このワナ（落とし穴・トゲ・大岩・つぶし天井・矢…）を動かす。ランナーはゴールしたら剣でワナ師にしかえし！ |
 | <img src="games/speeding-wall-survival/cover-838ca2f9.png" width="200"> | 86 | **Speeding Wall Survival** | どんどん速くなるカベがつっこんでくる！ すきまに入る・とびこえる・キノコで小さくなって穴をくぐる。ニセモノのカベにだまされるな。最後の1人まで生きのこれ。 |
-| <img src="games/easy-peasy-obby/cover-60a66188.png" width="200"> | 87 | **Easy Peasy Obby** | 小さい子でもクリアできる、とってもやさしい100ステージ。草原・おかし・ビーチ・雪・宇宙など10のワールド。ついてくるペット、ワールドごとのシールとぼうし、コイン集め。 |
-| <img src="games/cart-ride-wonderland/cover-a54f8f02.png" width="200"> | 88 | **Cart Ride Wonderland** | カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！ |
+| <img src="games/easy-peasy-obby/cover-7a26b18d.png" width="200"> | 87 | **Easy Peasy Obby** | 小さい子でもクリアできる、とってもやさしい100ステージ。草原・おかし・ビーチ・雪・宇宙など10のワールド。ついてくるペット、ワールドごとのシールとぼうし、コイン集め。 |
+| <img src="games/cart-ride-wonderland/cover-d6019e4e.png" width="200"> | 88 | **Cart Ride Wonderland** | カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！ |
 | <img src="games/grapple-ascent/cover-65c19a96.png" width="200"> | 89 | **Grapple Ascent** | 光るフックにグラップルを打って、空高い塔を上へ上へ。フックをタップするか🪝ボタン。風の吹く場所、遠いフック、高さランキング。ロープの長さ・引っぱる力・連続グラップルを強化。 |
 | <img src="games/rooftop-parkour/cover-e36d6116.png" width="200"> | 90 | **Rooftop Parkour** | 街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。 |
-| <img src="games/swing-rope-obby/cover-5199846f.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
+| <img src="games/swing-rope-obby/cover-65b9cf7c.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
 | <img src="games/shrink-grow-obby/cover-15e93a42.png" width="200"> | 92 | **Shrink & Grow Obby** | 小さくなって穴をくぐり、大きくなって段差とすきまをこえる！ キッチン・お庭・おもちゃの城の30ステージ。小さいとわれないガラス、大きくないと押せないスイッチ。かくれた宝石も。 |
 | <img src="games/chased-by-stuff-obby/cover-8390f55c.png" width="200"> | 93 | **Chased by Stuff Obby** | 巨大なボール、アヒル、食パン、ボウリングの玉、パイナップル、目ざまし時計、ハンバーガー、クマのぬいぐるみ… 8つのコースで、うしろから追いかけてくる「なにか」から走ってにげろ！ |
 | <img src="games/rising-lava-rescue/cover-ba32dabd.png" width="200"> | 94 | **Rising Lava Rescue** | 火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。 |
-| <img src="games/fishy-obby/cover-e795e82d.png" width="200"> | 95 | **Fishy Obby** | きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。 |
+| <img src="games/fishy-obby/cover-63fead7d.png" width="200"> | 95 | **Fishy Obby** | きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。 |
 
 ### 🏎️ 乗り物・ドライブ
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
-| <img src="games/drag-strip-kings/cover-3cd478cf.png" width="200"> | 96 | **Drag Strip Kings** | 400mのドラッグレース！ メーターが🟩のときにシフトアップ、ここぞでニトロ。エンジン・ターボ・タイヤをチューニングして、10人のライバルに勝ちすすめ。ウイリーも。 |
-| <img src="games/midnight-highway-battle/cover-a417ca04.png" width="200"> | 97 | **Midnight Highway Battle** | 真夜中の高速道路。ライバルのうしろでパッシング🔦するとバトル開始！ はなされるほどSPがへって、先に0になったほうの負け。一般車をよけながら走れ。パーキングで車とチューニング。 |
-| <img src="games/dream-car-dealership/cover-a118f320.png" width="200"> | 98 | **Dream Car Dealership** | 自分の車屋さんをひらこう！ 工場から車を仕入れて並べると、お客さんが見に来て買っていく。店を大きく、スタッフをやとって、スーパーカーまで。自分の車はテストコースで試乗も。 |
-| <img src="games/green-valley-drive/cover-3f4c0245.png" width="200"> | 99 | **Green Valley Drive** | 緑の谷の町をドライブ！ ガソリンを入れて、信号とスピードを守って、宅配やピザ配達でお金をかせごう。免許試験に合格すると乗れる車がふえる。洗車もできるよ。 |
-| <img src="games/dusty-road-trip/cover-3784e7af.png" width="200"> | 100 | **Dusty Road Trip** | 砂漠の一本道を、どこまで行ける？ ガソリン・エンジン・水に気をつけて、とちゅうの廃墟でガソリン缶や部品をひろおう。夜は盗賊、昼は砂あらし。2.4km先のオアシスの町をめざせ！ |
-| <img src="games/build-a-plane/cover-5e0fea5f.png" width="200"> | 101 | **Build a Plane & Fly** | がけの上の格納庫で飛行機を組み立てて、海の向こうへ飛ばそう！ 遠くへ飛ぶほどお金が入る。つばさ・エンジン・タンク・しっぽ・ブースターを強くして、4つの島を見つけよう。 |
-| <img src="games/island-flight-school/cover-fcd55be5.png" width="200"> | 102 | **Island Flight School** | 島の空港でパイロットになろう！ スロットルで速さ、⬆⬇で上昇・下降。お客さんをのせて ほかの島の空港へ飛び、滑走路にふんわり着陸。ランクが上がると ジェット機や旅客機に乗れる。 |
-| <img src="games/county-line-railway/cover-6ebb9054.png" width="200"> | 103 | **County Line Railway** | 電車の運転士になろう！ ノッチで加速とブレーキ、信号を守って、6つの駅にぴったり止まる。ドアをあけてお客さんをのせ、時間どおりに次の駅へ。急行・特急にも乗れるようになる。 |
-| <img src="games/ice-cream-van/cover-d90ea7dc.png" width="200"> | 104 | **Ice Cream Van** | アイスクリームカーで町をまわろう！ 🔔チャイムを鳴らすとお客さんが集まってくる。注文どおりにコーン・味・トッピングを作ってわたそう。公園・ビーチ・学校・住宅街、アイスを仕入れて新しい味も。 |
+| <img src="games/drag-strip-kings/cover-4533b073.png" width="200"> | 96 | **Drag Strip Kings** | 400mのドラッグレース！ メーターが🟩のときにシフトアップ、ここぞでニトロ。エンジン・ターボ・タイヤをチューニングして、10人のライバルに勝ちすすめ。ウイリーも。 |
+| <img src="games/midnight-highway-battle/cover-834443ac.png" width="200"> | 97 | **Midnight Highway Battle** | 真夜中の高速道路。ライバルのうしろでパッシング🔦するとバトル開始！ はなされるほどSPがへって、先に0になったほうの負け。一般車をよけながら走れ。パーキングで車とチューニング。 |
+| <img src="games/dream-car-dealership/cover-47cac0ef.png" width="200"> | 98 | **Dream Car Dealership** | 自分の車屋さんをひらこう！ 工場から車を仕入れて並べると、お客さんが見に来て買っていく。店を大きく、スタッフをやとって、スーパーカーまで。自分の車はテストコースで試乗も。 |
+| <img src="games/green-valley-drive/cover-c7f9aacc.png" width="200"> | 99 | **Green Valley Drive** | 緑の谷の町をドライブ！ ガソリンを入れて、信号とスピードを守って、宅配やピザ配達でお金をかせごう。免許試験に合格すると乗れる車がふえる。洗車もできるよ。 |
+| <img src="games/dusty-road-trip/cover-10100a00.png" width="200"> | 100 | **Dusty Road Trip** | 砂漠の一本道を、どこまで行ける？ ガソリン・エンジン・水に気をつけて、とちゅうの廃墟でガソリン缶や部品をひろおう。夜は盗賊、昼は砂あらし。2.4km先のオアシスの町をめざせ！ |
+| <img src="games/build-a-plane/cover-aa146486.png" width="200"> | 101 | **Build a Plane & Fly** | がけの上の格納庫で飛行機を組み立てて、海の向こうへ飛ばそう！ 遠くへ飛ぶほどお金が入る。つばさ・エンジン・タンク・しっぽ・ブースターを強くして、4つの島を見つけよう。 |
+| <img src="games/island-flight-school/cover-f8e233b8.png" width="200"> | 102 | **Island Flight School** | 島の空港でパイロットになろう！ スロットルで速さ、⬆⬇で上昇・下降。お客さんをのせて ほかの島の空港へ飛び、滑走路にふんわり着陸。ランクが上がると ジェット機や旅客機に乗れる。 |
+| <img src="games/county-line-railway/cover-dd1adbaf.png" width="200"> | 103 | **County Line Railway** | 電車の運転士になろう！ ノッチで加速とブレーキ、信号を守って、6つの駅にぴったり止まる。ドアをあけてお客さんをのせ、時間どおりに次の駅へ。急行・特急にも乗れるようになる。 |
+| <img src="games/ice-cream-van/cover-baa47f5c.png" width="200"> | 104 | **Ice Cream Van** | アイスクリームカーで町をまわろう！ 🔔チャイムを鳴らすとお客さんが集まってくる。注文どおりにコーン・味・トッピングを作ってわたそう。公園・ビーチ・学校・住宅街、アイスを仕入れて新しい味も。 |
 | <img src="games/cabin-crew-service/cover-895fb426.png" width="200"> | 105 | **Cabin Crew Service** | 客室乗務員になって、みんなで空の旅をもりあげよう！ 搭乗・安全のデモ・離陸・機内サービス・着陸・おそうじ。お客さんの🔔にこたえて、ジュースやごはんを運ぼう。フライトの⭐をふやせ！ |
-| <img src="games/lawn-mower-kings/cover-c9b8b99c.png" width="200"> | 106 | **Lawn Mower Kings** | 芝かりでお金持ちに！ 草の上を走ると芝がかれてお金が入る。バッグがいっぱいになったら たい肥場へ。刃・エンジン・バッグを強くして、大きな庭やゴルフ場もピカピカに。金色の草はおたから！ |
-| <img src="games/grapple-cart-duo/cover-3e77496b.png" width="200"> | 107 | **Grapple Cart Duo** | カートでオビー！ すき間は🪝グラップルでびゅーん、ジャンプ台でひとっとび。ふたり組になると、落ちてもロープで引き上げてもらえる。ハンマーをよけて20ステージをゴールまで！ |
-| <img src="games/blast-off-rockets/cover-81355711.png" width="200"> | 108 | **Blast Off Rockets** | 燃料をためて、ロケットを空へ発射！ 高く上がるほどお金が入る。雲をぬけて宇宙ステーション、そして2000m上の月へ。部品を強くして、月に着いたら生まれかわってもっと上へ！ |
-| <img src="games/taxi-town/cover-3a65c281.png" width="200"> | 109 | **Taxi Town** | タクシーの運転手になって、大きな町でお客さんを運ぼう！ 🙋手をあげている人の前で止まって乗せ、目的地へ。はやく安全に着くとチップ。タクシー会社を大きくして、運転手をやとおう。 |
-| <img src="games/snow-plow-crew/cover-7fcb03c2.png" width="200"> | 110 | **Snow Plow Crew** | 雪の町の除雪車チーム！ 道や駐車場の雪をかいて、お仕事の時間内にピカピカに。ふぶきが来たらまた出動。こおった道には🧂塩をまこう。ブレードやタンクを強くして、空港の滑走路まで！ |
+| <img src="games/lawn-mower-kings/cover-11c3b5d3.png" width="200"> | 106 | **Lawn Mower Kings** | 芝かりでお金持ちに！ 草の上を走ると芝がかれてお金が入る。バッグがいっぱいになったら たい肥場へ。刃・エンジン・バッグを強くして、大きな庭やゴルフ場もピカピカに。金色の草はおたから！ |
+| <img src="games/grapple-cart-duo/cover-c1665834.png" width="200"> | 107 | **Grapple Cart Duo** | カートでオビー！ すき間は🪝グラップルでびゅーん、ジャンプ台でひとっとび。ふたり組になると、落ちてもロープで引き上げてもらえる。ハンマーをよけて20ステージをゴールまで！ |
+| <img src="games/blast-off-rockets/cover-f666c7e7.png" width="200"> | 108 | **Blast Off Rockets** | 燃料をためて、ロケットを空へ発射！ 高く上がるほどお金が入る。雲をぬけて宇宙ステーション、そして2000m上の月へ。部品を強くして、月に着いたら生まれかわってもっと上へ！ |
+| <img src="games/taxi-town/cover-df51a33c.png" width="200"> | 109 | **Taxi Town** | タクシーの運転手になって、大きな町でお客さんを運ぼう！ 🙋手をあげている人の前で止まって乗せ、目的地へ。はやく安全に着くとチップ。タクシー会社を大きくして、運転手をやとおう。 |
+| <img src="games/snow-plow-crew/cover-f9840d39.png" width="200"> | 110 | **Snow Plow Crew** | 雪の町の除雪車チーム！ 道や駐車場の雪をかいて、お仕事の時間内にピカピカに。ふぶきが来たらまた出動。こおった道には🧂塩をまこう。ブレードやタンクを強くして、空港の滑走路まで！ |
 
 ### 💪 シミュレーター
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
-| <img src="games/bubble-gum-legends/cover-9ac4d63d.png" width="200"> | 111 | **Bubble Gum Legends** | ガムをかんで大きなあわをふくらませて売ろう！ あわが大きいほどお金に。空にうかぶ島へバブルジャンプで上がると、もっと高く売れる。たまごからペット、生まれかわってもっと大きく！ |
-| <img src="games/mega-muscle-legends/cover-b382aea5.png" width="200"> | 112 | **Mega Muscle Legends** | タップでトレーニング、きんにくムキムキ！ パワーがつくほど体が大きくなる。浜辺のジムから、氷・神話・永遠のジムへ。岩をこわしてお金、アリーナでパンチ勝負。ペットと生まれかわりで最強へ！ |
+| <img src="games/bubble-gum-legends/cover-494687eb.png" width="200"> | 111 | **Bubble Gum Legends** | ガムをかんで大きなあわをふくらませて売ろう！ あわが大きいほどお金に。空にうかぶ島へバブルジャンプで上がると、もっと高く売れる。たまごからペット、生まれかわってもっと大きく！ |
+| <img src="games/mega-muscle-legends/cover-914e6a80.png" width="200"> | 112 | **Mega Muscle Legends** | タップでトレーニング、きんにくムキムキ！ パワーがつくほど体が大きくなる。浜辺のジムから、氷・神話・永遠のジムへ。岩をこわしてお金、アリーナでパンチ勝負。ペットと生まれかわりで最強へ！ |
 | <img src="games/shadow-ninja-legends/cover-c906d3e7.png" width="200"> | 113 | **Shadow Ninja Legends** | 刀をふって にんじゅつ をためよう！ 帯がいっぱいになったら ほこらで売ってお金に。ランクが上がると空中ジャンプの回数がふえて、空の修行島へ。刀・帯・ペットで、影の忍者をめざせ！ |
 | <img src="games/speed-legends-city/cover-61c5dc19.png" width="200"> | 114 | **Speed Legends City** | 走れば走るほど速くなる！ 町を走ってステップをため、光る玉とリングを集めよう。くつを強くしてもっと速く、さばくの町・ようがんの谷へ。🏁レースで1位をねらえ！ |
-| <img src="games/tap-race-clicker/cover-9e1f89d0.png" width="200"> | 115 | **Tap Race Clicker** | タップタイムに いっぱいタップして速さをためて、レースで いっきに走れ！ 50mごとのゲートをくぐるたびに ごほうび。ペットと生まれかわりで、1500mのコースを走りきろう。 |
-| <img src="games/arm-wrestle-champions/cover-c8ec5112.png" width="200"> | 116 | **Arm Wrestle Champions** | うでずもうチャンピオンをめざせ！ にぎる道具でうでをきたえて、テーブルのライバルに勝負。💪を連打して押しかえせ！ ボスに勝つと次のエリアへ。友だちとの対戦テーブルも。 |
-| <img src="games/deep-mine-simulator/cover-bf95d479.png" width="200"> | 117 | **Deep Mine Simulator** | つるはしで地下をほり進もう！ 深くなるほど かたい岩と レアな鉱石。リュックがいっぱいになったら地上で売る。つるはし・リュック・ペットで、いちばん下のマグマの宝石まで！ |
-| <img src="games/sand-treasure-hunt/cover-73729fa8.png" width="200"> | 118 | **Sand Treasure Hunt** | スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！ |
-| <img src="games/mega-magnet-sim/cover-fad07891.png" width="200"> | 119 | **Mega Magnet Sim** | マグネットでコインをすいよせろ！ 歩くだけで近くのコインがあつまる。リュックがいっぱいになったら銀行へ。強いマグネットほど遠くまで、大きなコイン。公園・町・金庫の部屋へ！ |
-| <img src="games/saber-swing-sim/cover-09d7bee1.png" width="200"> | 120 | **Saber Swing Sim** | セイバーをふって力をためよう！ DNAびんがいっぱいになったら 売ってお金に。力がつくほど体が大きくなる。ときどきあらわれるボスに みんなでいどめ！ セイバー・DNA・ペットで最強の騎士へ。 |
-| <img src="games/snowball-shovel-sim/cover-30aac8a5.png" width="200"> | 121 | **Snowball Shovel Sim** | スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！ |
+| <img src="games/tap-race-clicker/cover-e17a40b9.png" width="200"> | 115 | **Tap Race Clicker** | タップタイムに いっぱいタップして速さをためて、レースで いっきに走れ！ 50mごとのゲートをくぐるたびに ごほうび。ペットと生まれかわりで、1500mのコースを走りきろう。 |
+| <img src="games/arm-wrestle-champions/cover-05a6c779.png" width="200"> | 116 | **Arm Wrestle Champions** | うでずもうチャンピオンをめざせ！ にぎる道具でうでをきたえて、テーブルのライバルに勝負。💪を連打して押しかえせ！ ボスに勝つと次のエリアへ。友だちとの対戦テーブルも。 |
+| <img src="games/deep-mine-simulator/cover-3ec6dd0e.png" width="200"> | 117 | **Deep Mine Simulator** | つるはしで地下をほり進もう！ 深くなるほど かたい岩と レアな鉱石。リュックがいっぱいになったら地上で売る。つるはし・リュック・ペットで、いちばん下のマグマの宝石まで！ |
+| <img src="games/sand-treasure-hunt/cover-f5c07886.png" width="200"> | 118 | **Sand Treasure Hunt** | スコップで砂をほって、うまっている宝箱をさがそう！ 🔎たんちきが近いほど ピピピ。砂はリュックにためて売る。ビーチ・ジャングル・さばくへ、伝説の宝箱をほりあてろ！ |
+| <img src="games/mega-magnet-sim/cover-c40abe96.png" width="200"> | 119 | **Mega Magnet Sim** | マグネットでコインをすいよせろ！ 歩くだけで近くのコインがあつまる。リュックがいっぱいになったら銀行へ。強いマグネットほど遠くまで、大きなコイン。公園・町・金庫の部屋へ！ |
+| <img src="games/saber-swing-sim/cover-6ebd7994.png" width="200"> | 120 | **Saber Swing Sim** | セイバーをふって力をためよう！ DNAびんがいっぱいになったら 売ってお金に。力がつくほど体が大きくなる。ときどきあらわれるボスに みんなでいどめ！ セイバー・DNA・ペットで最強の騎士へ。 |
+| <img src="games/snowball-shovel-sim/cover-be270327.png" width="200"> | 121 | **Snowball Shovel Sim** | スコップで雪山をほって、雪をためて売ろう！ 雪で自分の雪だるまをつくると、ずっとボーナス。村・こおった湖・氷の山へ。スコップ・そり・ペットで、雪の王さまになろう！ |
 | <img src="games/gym-league-stars/cover-4d0d0ca0.png" width="200"> | 122 | **Gym League Stars** | うで・あし・むね・せなか、4つのマシンでバランスよくきたえよう！ スタミナがへったらプロテイン。3分ごとの大会では、しんぱんの言うポーズをすばやく決めろ！ ブロンズからダイヤリーグへ。 |
-| <img src="games/dig-it-deep/cover-325b88bd.png" width="200"> | 123 | **Dig It Deep** | どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！ |
-| <img src="games/ghost-vacuum-sim/cover-3fba1176.png" width="200"> | 124 | **Ghost Vacuum Sim** | そうじきで おばけをすいこもう！ ふわふわ動くおばけに近づいて🌀。つかまえたおばけのエクトプラズムを売って、強いそうじきへ。公園・おばけやしき・おはか・お城、そして大おばけ！ |
-| <img src="games/dice-heroes/cover-b1dd2b92.png" width="200"> | 125 | **Dice Heroes** | 🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！ |
+| <img src="games/dig-it-deep/cover-ba5ed054.png" width="200"> | 123 | **Dig It Deep** | どこでもほれる宝ほり！ ⛏をおすタイミングが みどりのときだと ザクザクほれる。化石・宝石・むかしの道具…なにが出るかな？ 図かんをうめて、のはら・はまべ・どうくつ・かざんへ！ |
+| <img src="games/ghost-vacuum-sim/cover-472fa4ce.png" width="200"> | 124 | **Ghost Vacuum Sim** | そうじきで おばけをすいこもう！ ふわふわ動くおばけに近づいて🌀。つかまえたおばけのエクトプラズムを売って、強いそうじきへ。公園・おばけやしき・おはか・お城、そして大おばけ！ |
+| <img src="games/dice-heroes/cover-cea058b8.png" width="200"> | 125 | **Dice Heroes** | 🎲サイコロをふってヒーローを仲間に！ 6が出たら レアのチャンス。同じヒーローが3人そろうと ★アップ。チームでボスに いどんで、30ステージを かちぬけ！ |
 
 ### 🏗️ タイクーン
 
@@ -198,10 +198,10 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/oil-baron-empire/cover-b36ed84b.png" width="200"> | 129 | **Oil Baron Empire** | 石油王になろう！ やぐらで石油をくみ上げて タンクにためる。石油のねだんは 上がったり下がったり。高いときに売るのがコツ！ 製油所・パイプライン・ガソリンスタンドで 大帝国へ。 |
 | <img src="games/build-your-island/cover-ccb12943.png" width="200"> | 130 | **Build Your Island** | 小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！ |
 | <img src="games/cruise-ship-tycoon/cover-0c6e16bd.png" width="200"> | 131 | **Cruise Ship Tycoon** | 自分だけの豪華客船をつくろう！ 客室・プール・レストラン・劇場をふやすと、お客さんがよろこんで乗ってくる。ときどき船が出航して、航海のボーナス！ 世界いちの客船へ。 |
-| <img src="games/build-a-zoo-park/cover-56683f48.png" width="200"> | 132 | **Build a Zoo Park** | どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！ |
+| <img src="games/build-a-zoo-park/cover-177d9f82.png" width="200"> | 132 | **Build a Zoo Park** | どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！ |
 | <img src="games/sword-forge-factory/cover-64d48879.png" width="200"> | 133 | **Sword Forge Factory** | 剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！ |
 | <img src="games/fish-farm-tycoon/cover-49cbe0ce.png" width="200"> | 134 | **Fish Farm Tycoon** | 魚の養殖場をつくろう！ 川を流れてくる魚を買って 自分の池へ。えさをあげると 大きくそだって もうけアップ。金の魚や にじ色の魚も 流れてくるかも？ キングコイをねらえ！ |
-| <img src="games/egg-heist/cover-31641b3a.png" width="200"> | 135 | **Egg Heist** | まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！ |
+| <img src="games/egg-heist/cover-e0aa137b.png" width="200"> | 135 | **Egg Heist** | まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！ |
 
 <!-- games:end -->
 

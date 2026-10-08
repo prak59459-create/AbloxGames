@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 82,
-  "bytes" : 82516,
-  "cover" : "games\/drag-strip-kings\/cover-3cd478cf.png",
+  "blockCount" : 106,
+  "bytes" : 93776,
+  "cover" : "games\/drag-strip-kings\/cover-4533b073.png",
   "id" : "drag-strip-kings",
   "maxPlayers" : 8,
   "schemaVersion" : 2,
@@ -16,8 +16,8 @@
     "games\/drag-strip-kings\/main.absc"
   ],
   "shots" : [
-    "games\/drag-strip-kings\/shot1-b23a1f78.png",
-    "games\/drag-strip-kings\/shot2-c10517c7.png"
+    "games\/drag-strip-kings\/shot1-3f8a22da.png",
+    "games\/drag-strip-kings\/shot2-2967ac17.png"
   ],
   "summary" : "400mのドラッグレース！ メーターが🟩のときにシフトアップ、ここぞでニトロ。エンジン・ターボ・タイヤをチューニングして、10人のライバルに勝ちすすめ。ウイリーも。",
   "tags" : [

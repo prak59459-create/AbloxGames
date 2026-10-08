@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 466,
-  "bytes" : 262746,
-  "cover" : "games\/dream-car-dealership\/cover-a118f320.png",
+  "blockCount" : 526,
+  "bytes" : 291545,
+  "cover" : "games\/dream-car-dealership\/cover-47cac0ef.png",
   "id" : "dream-car-dealership",
   "maxPlayers" : 6,
   "schemaVersion" : 2,
@@ -16,8 +16,8 @@
     "games\/dream-car-dealership\/main.absc"
   ],
   "shots" : [
-    "games\/dream-car-dealership\/shot1-6802dcab.png",
-    "games\/dream-car-dealership\/shot2-eef15e1e.png"
+    "games\/dream-car-dealership\/shot1-4ea83b4f.png",
+    "games\/dream-car-dealership\/shot2-4de4cb9e.png"
   ],
   "summary" : "自分の車屋さんをひらこう！ 工場から車を仕入れて並べると、お客さんが見に来て買っていく。店を大きく、スタッフをやとって、スーパーカーまで。自分の車はテストコースで試乗も。",
   "tags" : [

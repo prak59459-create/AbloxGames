@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 133,
-  "bytes" : 98824,
-  "cover" : "games\/raft-to-treasure\/cover-e88fd58f.png",
+  "blockCount" : 165,
+  "bytes" : 113955,
+  "cover" : "games\/raft-to-treasure\/cover-33cb5af3.png",
   "id" : "raft-to-treasure",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/raft-to-treasure\/main.absc"
   ],
   "shots" : [
-    "games\/raft-to-treasure\/shot1-211604ac.png",
-    "games\/raft-to-treasure\/shot2-52e4395b.png"
+    "games\/raft-to-treasure\/shot1-c982a15e.png",
+    "games\/raft-to-treasure\/shot2-36ae9619.png"
   ],
   "summary" : "ブロックで橋を作って川を下る工作アドベンチャー。岩・流れる丸太・うずしお・滝・ワニの沼・氷・溶岩の10ステージ。8つの材料を解放し、大洪水の前に宝島の宝箱へ。タイムもきそおう！",
   "tags" : [

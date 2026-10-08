@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 655,
-  "bytes" : 360841,
-  "cover" : "games\/build-a-zoo-park\/cover-56683f48.png",
+  "blockCount" : 686,
+  "bytes" : 375639,
+  "cover" : "games\/build-a-zoo-park\/cover-177d9f82.png",
   "id" : "build-a-zoo-park",
   "maxPlayers" : 6,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/build-a-zoo-park\/main.absc"
   ],
   "shots" : [
-    "games\/build-a-zoo-park\/shot1-ee6c8cea.png",
-    "games\/build-a-zoo-park\/shot2-78c74163.png"
+    "games\/build-a-zoo-park\/shot1-11d22e83.png",
+    "games\/build-a-zoo-park\/shot2-df920215.png"
   ],
   "summary" : "どうぶつ園をつくろう！ サバンナ・ジャングル・こおりの国・海のゾーンを建てて、たまごから どうぶつをかえそう。レアなどうぶつほど お客さんがよろこぶ。売店やおみやげ屋さんも！",
   "tags" : [

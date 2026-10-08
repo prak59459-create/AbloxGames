@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 254,
-  "bytes" : 160978,
-  "cover" : "games\/life-ville\/cover-38e62185.png",
+  "blockCount" : 332,
+  "bytes" : 197763,
+  "cover" : "games\/life-ville\/cover-3f9a3333.png",
   "id" : "life-ville",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -15,8 +15,8 @@
     "games\/life-ville\/main.absc"
   ],
   "shots" : [
-    "games\/life-ville\/shot1-99836838.png",
-    "games\/life-ville\/shot2-a0da77ca.png"
+    "games\/life-ville\/shot1-049a3bd0.png",
+    "games\/life-ville\/shot2-b104f3fd.png"
   ],
   "summary" : "5つのゲージと気分を整えながらくらすライフシム。オフィス・キッチン・公園・ジムの4つの仕事と昇進、料理・体力・創作・頭脳のスキル、家具のグレードアップ、お祭りも。",
   "tags" : [

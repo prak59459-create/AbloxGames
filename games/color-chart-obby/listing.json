@@ -2,7 +2,7 @@
   "author" : "Ablox Games",
   "blockCount" : 373,
   "bytes" : 219920,
-  "cover" : "games\/color-chart-obby\/cover-c5b2a869.png",
+  "cover" : "games\/color-chart-obby\/cover-5a5ce21e.png",
   "id" : "color-chart-obby",
   "maxPlayers" : 16,
   "schemaVersion" : 2,
@@ -16,8 +16,8 @@
     "games\/color-chart-obby\/main.absc"
   ],
   "shots" : [
-    "games\/color-chart-obby\/shot1-86201c62.png",
-    "games\/color-chart-obby\/shot2-73fb936b.png"
+    "games\/color-chart-obby\/shot1-20eef283.png",
+    "games\/color-chart-obby\/shot2-6bb0e14b.png"
   ],
   "summary" : "12段階の難しさを色で進む60ステージ。らくらく（緑）からだいさいがい（白）まで、ゾーンをこえるたびにバッジ。コイルと⏱ゾーンタイムアタックも。",
   "tags" : [

@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 277,
-  "bytes" : 195069,
-  "cover" : "games\/sprout-garden\/cover-571f726c.png",
+  "blockCount" : 347,
+  "bytes" : 228209,
+  "cover" : "games\/sprout-garden\/cover-09d97941.png",
   "id" : "sprout-garden",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
@@ -17,8 +17,8 @@
     "games\/sprout-garden\/main.absc"
   ],
   "shots" : [
-    "games\/sprout-garden\/shot1-02d5aad4.png",
-    "games\/sprout-garden\/shot2-079d6d26.png"
+    "games\/sprout-garden\/shot1-4fe7e66c.png",
+    "games\/sprout-garden\/shot2-31b31de2.png"
   ],
   "summary" : "自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。",
   "tags" : [

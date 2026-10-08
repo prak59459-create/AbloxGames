@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 251,
-  "bytes" : 232052,
-  "cover" : "games\/hero-academy-sim\/cover-037510ae.png",
+  "blockCount" : 313,
+  "bytes" : 261212,
+  "cover" : "games\/hero-academy-sim\/cover-ef2a127f.png",
   "id" : "hero-academy-sim",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -21,8 +21,8 @@
     "games\/hero-academy-sim\/main.absc"
   ],
   "shots" : [
-    "games\/hero-academy-sim\/shot1-781219ab.png",
-    "games\/hero-academy-sim\/shot2-72c21657.png"
+    "games\/hero-academy-sim\/shot1-436ab3c5.png",
+    "games\/hero-academy-sim\/shot2-193f73c8.png"
   ],
   "summary" : "ヒーローかヴィランか。16の個性をガチャで集めて熟練度を上げ、事件の解決や金庫やぶり、停電、改造怪人との戦い、昇格試験に挑む。",
   "tags" : [

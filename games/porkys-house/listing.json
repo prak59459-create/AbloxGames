@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 119,
-  "bytes" : 100967,
-  "cover" : "games\/porkys-house\/cover-e6344ecc.png",
+  "blockCount" : 129,
+  "bytes" : 105580,
+  "cover" : "games\/porkys-house\/cover-14c37ce6.png",
   "id" : "porkys-house",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
@@ -17,8 +17,8 @@
     "games\/porkys-house\/main.absc"
   ],
   "shots" : [
-    "games\/porkys-house\/shot1-c8946487.png",
-    "games\/porkys-house\/shot2-127e221e.png"
+    "games\/porkys-house\/shot1-ac37f4ce.png",
+    "games\/porkys-house\/shot2-865c14ac.png"
   ],
   "summary" : "毎回ちがう場所にあるカギ・ハンマー・レンチを見つけてドアを開け、玄関（出口のカギ＋暗号）か車庫の車で脱出するなぞ解きホラー。ブタの怪物はわなをしかけて追ってくる。クローゼットに隠れて、幽霊になっても仲間を助けよう！",
   "tags" : [

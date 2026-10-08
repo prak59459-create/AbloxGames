@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 99,
-  "bytes" : 93041,
-  "cover" : "games\/saber-swing-sim\/cover-09d7bee1.png",
+  "blockCount" : 121,
+  "bytes" : 103684,
+  "cover" : "games\/saber-swing-sim\/cover-6ebd7994.png",
   "id" : "saber-swing-sim",
   "maxPlayers" : 12,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/saber-swing-sim\/main.absc"
   ],
   "shots" : [
-    "games\/saber-swing-sim\/shot1-a2b60de7.png",
-    "games\/saber-swing-sim\/shot2-aee15e4e.png"
+    "games\/saber-swing-sim\/shot1-b7971a03.png",
+    "games\/saber-swing-sim\/shot2-d6369b90.png"
   ],
   "summary" : "セイバーをふって力をためよう！ DNAびんがいっぱいになったら 売ってお金に。力がつくほど体が大きくなる。ときどきあらわれるボスに みんなでいどめ！ セイバー・DNA・ペットで最強の騎士へ。",
   "tags" : [

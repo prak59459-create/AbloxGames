@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 307,
-  "bytes" : 186465,
-  "cover" : "games\/fishy-obby\/cover-e795e82d.png",
+  "blockCount" : 363,
+  "bytes" : 213329,
+  "cover" : "games\/fishy-obby\/cover-63fead7d.png",
   "id" : "fishy-obby",
   "maxPlayers" : 16,
   "schemaVersion" : 2,
@@ -16,8 +16,8 @@
     "games\/fishy-obby\/main.absc"
   ],
   "shots" : [
-    "games\/fishy-obby\/shot1-df210433.png",
-    "games\/fishy-obby\/shot2-318b8676.png"
+    "games\/fishy-obby\/shot1-5f0d4cf1.png",
+    "games\/fishy-obby\/shot2-ffa66c4b.png"
   ],
   "summary" : "きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。",
   "tags" : [

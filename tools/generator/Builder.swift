@@ -63,6 +63,16 @@ final class MapBuilder {
              behavior: behavior, tags: tags, solid: solid, rotation: rotation, opacity: opacity)
     }
 
+    /// `text` lighter (amount > 0) or darker (amount < 0), as "#RRGGBB".
+    static func shade(_ text: String, _ amount: Float) -> String {
+        let c = color(text)
+        func channel(_ v: Float) -> Int {
+            let moved = amount >= 0 ? v + (1 - v) * amount : v * (1 + amount)
+            return Int((Swift.max(0, Swift.min(1, moved)) * 255).rounded())
+        }
+        return String(format: "#%02X%02X%02X", channel(c.r), channel(c.g), channel(c.b))
+    }
+
     static func color(_ text: String) -> ColorRGBA {
         if let named = ScriptColor.named[text.lowercased()], let c = ColorRGBA(hex: named) { return c }
         guard let c = ColorRGBA(hex: text) else { fatalError("bad colour \(text)") }
@@ -146,12 +156,24 @@ final class MapBuilder {
               trunk: String = "#7A4A24", tags: [String] = ["tree"], name: String = "Tree") {
         part("\(name) Trunk", at: (x, y + height / 2, z), size: (0.6, height, 0.6), color: trunk, shape: .cylinder, tags: tags)
         part(name, at: (x, y + height + 0.8, z), size: (2.8, 2.6, 2.8), color: leaves, shape: .sphere, material: .matte, tags: tags)
+        // Scenery trees get a second, lighter clump and a root flare. A tree
+        // a script names (to chop or light it) stays two parts, so hiding
+        // those two still hides the whole tree.
+        guard name == "Tree" else { return }
+        part("Tree Canopy", at: (x + 0.5, y + height + 1.7, z - 0.3), size: (1.9, 1.7, 1.9), color: Self.shade(leaves, 0.18),
+             shape: .sphere, material: .matte, solid: false)
+        part("Tree Roots", at: (x, y + 0.15, z), size: (1.0, 0.3, 1.0), color: Self.shade(trunk, -0.15), shape: .cylinder,
+             material: .matte, solid: false)
     }
 
     func pine(_ x: Float, _ z: Float, y: Float = 0, height: Float = 6, leaves: String = "#1F5E3A", tags: [String] = ["tree"],
               name: String = "Pine") {
         part("\(name) Trunk", at: (x, y + 0.8, z), size: (0.5, 1.6, 0.5), color: "#5A3A1E", shape: .cylinder, tags: tags)
         part(name, at: (x, y + 1.6 + height / 2, z), size: (2.6, height, 2.6), color: leaves, shape: .cone, material: .matte, tags: tags)
+        // Scenery pines get a second tier of branches, lighter at the top.
+        guard name == "Pine" else { return }
+        part("Pine Tier", at: (x, y + 1.6 + height * 0.75, z), size: (1.8, height * 0.5, 1.8), color: Self.shade(leaves, 0.15),
+             shape: .cone, material: .matte, solid: false)
     }
 
     func rock(_ x: Float, _ z: Float, y: Float = 0, size: Float = 1.5, color: String = "#7C7C84", name: String = "Rock") {
@@ -161,6 +183,9 @@ final class MapBuilder {
     func lamp(_ x: Float, _ z: Float, y: Float = 0, glow: String = "#FFE9A8", name: String = "Lamp") {
         part("\(name) Post", at: (x, y + 1.6, z), size: (0.2, 3.2, 0.2), color: "#3A3A44", shape: .cylinder, material: .metal)
         part(name, at: (x, y + 3.4, z), size: (0.6, 0.6, 0.6), color: glow, shape: .sphere, material: .neon, solid: false)
+        // A cap over the light and a heavier foot, both only to look at.
+        part("\(name) Cap", at: (x, y + 3.75, z), size: (0.8, 0.12, 0.8), color: "#2A2A32", shape: .cylinder, material: .metal, solid: false)
+        part("\(name) Base", at: (x, y + 0.2, z), size: (0.45, 0.4, 0.45), color: "#2A2A32", shape: .cylinder, material: .metal, solid: false)
     }
 
     func water(_ x: Float, _ z: Float, w: Float, d: Float, y: Float = 0, name: String = "Water", color: String = "#2F8FE0",
@@ -255,6 +280,18 @@ final class MapBuilder {
              material: .glass, solid: false)
         part("\(name) Window", at: (x + w / 4 + 0.4, y + 1.7, z + facing * (d / 2 + 0.22)), size: (1.2, 1, 0.05), color: "#9ED8FF",
              material: .glass, solid: false)
+        // Trim: window sills, a door frame and a chimney. Only to look at, so
+        // nothing a player walks through or climbs changes.
+        for side in [Float(-1), 1] {
+            part("\(name) Sill", at: (x + side * (w / 4 + 0.4), y + 1.15, z + facing * (d / 2 + 0.26)), size: (1.4, 0.12, 0.16),
+                 color: "#FFFFFF", tags: tags, solid: false)
+            part("\(name) Frame", at: (x + side * 1.05, y + 1.2, z + facing * (d / 2 + 0.22)), size: (0.12, 2.4, 0.1),
+                 color: Self.shade(wall, -0.25), tags: tags, solid: false)
+        }
+        part("\(name) Frame", at: (x, y + 2.45, z + facing * (d / 2 + 0.22)), size: (2.2, 0.12, 0.1),
+             color: Self.shade(wall, -0.25), tags: tags, solid: false)
+        part("\(name) Chimney", at: (x + w * 0.28, y + h + 1.3, z - facing * d * 0.2), size: (0.7, 1.8, 0.7),
+             color: "#8C5A44", material: .matte, tags: tags, solid: false)
         if door {
             part("\(name) Door", at: (x, y + 1.1, z + facing * d / 2), size: (1.8, 2.2, 0.6), color: "#6B3F1F",
                  behavior: .trigger, tags: tags + ["door"], opacity: 0.35)
@@ -267,6 +304,11 @@ final class MapBuilder {
         house(name, x: x, z: z, w: w, d: d, h: 4, y: y, wall: color, roof: "#2B2B33", floor: "#DDD6CC", tags: ["shop"], facing: facing)
         slab("\(name) Counter", x: x, y: y, z: z - facing * 1, w: w * 0.6, h: 1.1, d: 0.8, color: "#8A5A36")
         part("\(name) Sign", at: (x, y + 4.6, z + facing * (d / 2 + 0.3)), size: (w * 0.7, 0.9, 0.2), color: sign, material: .neon, solid: false)
+        // A striped awning over the door.
+        for i in 0..<4 {
+            part("\(name) Awning", at: (x - 1.5 + Float(i), y + 3.0, z + facing * (d / 2 + 0.7)), size: (1, 0.1, 1.2),
+                 color: i % 2 == 0 ? color : "#FFFFFF", solid: false, rotation: (facing * 15, 0, 0))
+        }
     }
 
     /// Stairs going up along +x from (x, y, z).

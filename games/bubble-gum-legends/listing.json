@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 166,
-  "bytes" : 127313,
-  "cover" : "games\/bubble-gum-legends\/cover-9ac4d63d.png",
+  "blockCount" : 202,
+  "bytes" : 144616,
+  "cover" : "games\/bubble-gum-legends\/cover-494687eb.png",
   "id" : "bubble-gum-legends",
   "maxPlayers" : 12,
   "schemaVersion" : 2,
@@ -15,8 +15,8 @@
     "games\/bubble-gum-legends\/main.absc"
   ],
   "shots" : [
-    "games\/bubble-gum-legends\/shot1-f2926b7d.png",
-    "games\/bubble-gum-legends\/shot2-f335647d.png"
+    "games\/bubble-gum-legends\/shot1-16cb6490.png",
+    "games\/bubble-gum-legends\/shot2-9b4fc28d.png"
   ],
   "summary" : "ガムをかんで大きなあわをふくらませて売ろう！ あわが大きいほどお金に。空にうかぶ島へバブルジャンプで上がると、もっと高く売れる。たまごからペット、生まれかわってもっと大きく！",
   "tags" : [

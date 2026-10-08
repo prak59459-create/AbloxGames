@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 232,
-  "bytes" : 154870,
-  "cover" : "games\/island-drama-show\/cover-ee70cda8.png",
+  "blockCount" : 242,
+  "bytes" : 159645,
+  "cover" : "games\/island-drama-show\/cover-a0966407.png",
   "id" : "island-drama-show",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -15,8 +15,8 @@
     "games\/island-drama-show\/main.absc"
   ],
   "shots" : [
-    "games\/island-drama-show\/shot1-fe4a0621.png",
-    "games\/island-drama-show\/shot2-3ad9735e.png"
+    "games\/island-drama-show\/shot1-d31baaa7.png",
+    "games\/island-drama-show\/shot2-d0c4a233.png"
   ],
   "summary" : "無人島のサバイバル番組！ 丸太わたり・玉よけ・早押しクイズ・山の王さま・タワーのぼり・コイン集め・色の床・氷のゆか割り・記憶の道。1位はイミュニティ、下位2人はみんなの投票で…最後の1人がチャンピオン！",
   "tags" : [

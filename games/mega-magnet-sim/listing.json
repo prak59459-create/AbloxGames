@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 85,
-  "bytes" : 83470,
-  "cover" : "games\/mega-magnet-sim\/cover-fad07891.png",
+  "blockCount" : 115,
+  "bytes" : 97683,
+  "cover" : "games\/mega-magnet-sim\/cover-c40abe96.png",
   "id" : "mega-magnet-sim",
   "maxPlayers" : 12,
   "schemaVersion" : 2,
@@ -14,8 +14,8 @@
     "games\/mega-magnet-sim\/main.absc"
   ],
   "shots" : [
-    "games\/mega-magnet-sim\/shot1-a07628bf.png",
-    "games\/mega-magnet-sim\/shot2-83aca210.png"
+    "games\/mega-magnet-sim\/shot1-369ac1b0.png",
+    "games\/mega-magnet-sim\/shot2-51888725.png"
   ],
   "summary" : "マグネットでコインをすいよせろ！ 歩くだけで近くのコインがあつまる。リュックがいっぱいになったら銀行へ。強いマグネットほど遠くまで、大きなコイン。公園・町・金庫の部屋へ！",
   "tags" : [

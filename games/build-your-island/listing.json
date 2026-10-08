@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 368,
-  "bytes" : 217811,
+  "blockCount" : 375,
+  "bytes" : 221100,
   "cover" : "games\/build-your-island\/cover-ccb12943.png",
   "id" : "build-your-island",
   "maxPlayers" : 6,
@@ -14,8 +14,8 @@
     "games\/build-your-island\/main.absc"
   ],
   "shots" : [
-    "games\/build-your-island\/shot1-fa1a2c4e.png",
-    "games\/build-your-island\/shot2-5502f83a.png"
+    "games\/build-your-island\/shot1-34c186cb.png",
+    "games\/build-your-island\/shot2-1080e987.png"
   ],
   "summary" : "小さな島から はじめよう！ 木や石をとって 売ったり 加工したり。島を広げると 鉄や金も出てくる。自動のきかいで どんどん ふやして、自分だけの大きな島をつくろう！",
   "tags" : [

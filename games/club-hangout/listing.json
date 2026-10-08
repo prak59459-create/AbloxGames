@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 66,
-  "bytes" : 78474,
-  "cover" : "games\/club-hangout\/cover-6af370b0.png",
+  "blockCount" : 76,
+  "bytes" : 83197,
+  "cover" : "games\/club-hangout\/cover-5bbad756.png",
   "id" : "club-hangout",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
@@ -16,8 +16,8 @@
     "games\/club-hangout\/main.absc"
   ],
   "shots" : [
-    "games\/club-hangout\/shot1-64e3a46d.png",
-    "games\/club-hangout\/shot2-d089d44a.png"
+    "games\/club-hangout\/shot1-a0af831d.png",
+    "games\/club-hangout\/shot2-6dcdb3fe.png"
   ],
   "summary" : "空き地に20種類のパーツで家を建て、家族といっしょに作ろう。クラブではDJがジャンルを選び、リズムに合わせておどってコインを。家の見学といいね、ハウスツアーも。",
   "tags" : [

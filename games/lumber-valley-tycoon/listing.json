@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 568,
-  "bytes" : 317059,
+  "blockCount" : 598,
+  "bytes" : 331243,
   "cover" : "games\/lumber-valley-tycoon\/cover-6b93eac5.png",
   "id" : "lumber-valley-tycoon",
   "maxPlayers" : 6,
@@ -16,7 +16,7 @@
   ],
   "shots" : [
     "games\/lumber-valley-tycoon\/shot1-2535bc05.png",
-    "games\/lumber-valley-tycoon\/shot2-1dec5bd3.png"
+    "games\/lumber-valley-tycoon\/shot2-65437c4c.png"
   ],
   "summary" : "森で木をきって、トラックで自分の土地へ。製材所で板にすると お金になる。のこぎり・かま・家具工房をふやして、丸太小屋も建てよう。金の木やクリスタルの木もあるよ！",
   "tags" : [

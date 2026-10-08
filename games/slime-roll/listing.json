@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 128,
-  "bytes" : 123197,
-  "cover" : "games\/slime-roll\/cover-6e363cea.png",
+  "blockCount" : 152,
+  "bytes" : 134603,
+  "cover" : "games\/slime-roll\/cover-1c724817.png",
   "id" : "slime-roll",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
@@ -21,8 +21,8 @@
     "games\/slime-roll\/main.absc"
   ],
   "shots" : [
-    "games\/slime-roll\/shot1-04c04ee2.png",
-    "games\/slime-roll\/shot2-947ee768.png"
+    "games\/slime-roll\/shot1-88105cca.png",
+    "games\/slime-roll\/shot2-e925050d.png"
   ],
   "summary" : "運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？",
   "tags" : [

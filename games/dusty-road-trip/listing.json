@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 640,
-  "bytes" : 358214,
-  "cover" : "games\/dusty-road-trip\/cover-3784e7af.png",
+  "blockCount" : 752,
+  "bytes" : 411200,
+  "cover" : "games\/dusty-road-trip\/cover-10100a00.png",
   "id" : "dusty-road-trip",
   "maxPlayers" : 8,
   "schemaVersion" : 2,
@@ -18,8 +18,8 @@
     "games\/dusty-road-trip\/main.absc"
   ],
   "shots" : [
-    "games\/dusty-road-trip\/shot1-a6ca4f89.png",
-    "games\/dusty-road-trip\/shot2-548b2140.png"
+    "games\/dusty-road-trip\/shot1-b247339b.png",
+    "games\/dusty-road-trip\/shot2-36dbf62c.png"
   ],
   "summary" : "砂漠の一本道を、どこまで行ける？ ガソリン・エンジン・水に気をつけて、とちゅうの廃墟でガソリン缶や部品をひろおう。夜は盗賊、昼は砂あらし。2.4km先のオアシスの町をめざせ！",
   "tags" : [
