@@ -1,14 +1,16 @@
--- final.absc — 第5ゲーム「最後のタイル」
+-- final.absc — 「最後のタイル」
 --
 -- 7×7のタイルの上に全員が立つ。数秒ごとに何枚かが 黄 → オレンジ に光って落ちる。
--- 落ちる枚数はだんだんふえ、間かくは短くなる。最後の1人になるまで続く。
--- 最後の何人かが同時に落ちたときは、いちばん長く粘った（高いところにいた）人の勝ち。
+-- 落ちる枚数はだんだんふえ、間かくは短くなる。はじめの人数の半分が落ちるまで続く
+-- （安全なタイルがなくなったら、そのとき立っている人はみんな生きのこり）。
+-- 残っていた全員が同時に落ちたときは、いちばん長く粘った（高いところにいた）人だけ残る。
 
 let tile_state = []       -- タイルごとに "ok" / "warn" / "gone"
 let final_on = false
 let final_wave = 0
 let final_run = 0
 let wave_at = 0
+let tile_goal = 1         -- この人数まで減ったら終わり
 let TILE_COLORS = ["#F8FAFC", "#E2E8F0"]
 
 func tile(k)
@@ -58,6 +60,7 @@ func final_start()
   final_run = final_run + 1
   final_on = false
   final_wave = 0
+  tile_goal = max(1, floor(len(alive_cast()) / 2))
   tile_state = []
   for k in 1 to TILE_COUNT do
     append(tile_state, "ok")
@@ -81,7 +84,7 @@ func final_start()
     end
   end
   let run = final_run
-  announce("🟥 最後のタイル — 光ったら、となりへ逃げろ", 3)
+  announce("🟥 最後のタイル — 光ったら、となりへ逃げろ。" + tile_goal + " 人になるまで続く", 3)
   after(3, func()
     if run != final_run or not playing("final") then return end
     for p in alive_humans() do p.frozen = false end
@@ -95,10 +98,9 @@ func final_wave_step()
   final_wave = final_wave + 1
   let ok = shuffle(ok_tiles())
   if len(ok) == 0 then
-    -- タイルがもうない: いちばん高いところにいる人の勝ち
-    wave_at = time() + 999
-    let run = final_run
-    after(2, func() if run == final_run then last_one_by_height() end end)
+    -- 安全なタイルがもうない: いま立っている人はみんな生きのこり
+    announce("🟥 タイルがなくなった！ 立っている人は生きのこり", 2.5)
+    final_end()
     return
   end
   let count = min(len(ok), 2 + floor(final_wave / 2))
@@ -147,19 +149,6 @@ func npc_walk_tile(n, k)
   n.move_to({x: t.x + (random() - 0.5) * 1.6, y: 10.3, z: t.z + (random() - 0.5) * 1.6})
 end
 
-func last_one_by_height()
-  let alive = alive_cast()
-  if len(alive) == 0 then return end
-  let best = alive[1]
-  for c in alive do
-    if c.y > best.y then best = c end
-  end
-  for c in alive do
-    if c.id != best.id then eliminate(c, "落ちた") end
-  end
-  final_end()
-end
-
 -- タイルの上（か、その下の穴）にいるか。ほかの場所にいる人は場外
 func in_final_area(c)
   return abs(c.x - 200) < 18 and abs(c.z + 200) < 18
@@ -197,7 +186,7 @@ on tick(dt)
     end
     for c in fallen do eliminate(c, "落ちた") end
   end
-  if len(alive_cast()) <= 1 then
+  if len(alive_cast()) <= tile_goal then
     final_end()
     return
   end

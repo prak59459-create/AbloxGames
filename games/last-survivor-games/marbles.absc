@@ -1,0 +1,299 @@
+-- marbles.absc — 「ビー玉あて」
+--
+-- 2人1組でマットにすわる。2人とも MARBLE_START こずつビー玉を持っている。1回ごとに役が入れかわる:
+--   かくす人: 手の中に 1〜5 こ にぎる（持っている数まで）
+--   あてる人: 「奇数」か「偶数」かをえらぶ
+-- あたれば、あてる人がにぎられた数だけもらう。はずれなら、同じ数だけわたす（持っている分まで）。
+-- ビー玉が0こになったら失格。MARBLE_ROUNDS 回たっても決まらなければ、少ない方が失格（同じなら運）。
+-- 人数が奇数のときは、1人だけ相手がいなくて そのまま生きのこり。
+
+let marble_on = false
+let marble_run = 0
+let marble_round = 0
+let marble_state = "off"   -- off / hide / guess / reveal
+let marble_until = 0
+let marble_pairs = []      -- {a, b}
+
+func marble_mat(k)
+  return block("Marble Mat " + k)
+end
+
+func marbles_start()
+  marble_run = marble_run + 1
+  marble_on = true
+  marble_round = 0
+  marble_state = "off"
+  marble_pairs = []
+  let list = shuffle(alive_cast())
+  let k = 0
+  let i = 1
+  while i + 1 <= len(list) do
+    k = k + 1
+    let a = list[i]
+    let b = list[i + 1]
+    append(marble_pairs, {a: a, b: b})
+    marble_seat(a, b, k, -1)
+    marble_seat(b, a, k, 1)
+    i = i + 2
+  end
+  if i <= len(list) then
+    let lone = list[i]
+    lone.partner = nil
+    lone.mdone = true
+    lone.marbles = MARBLE_START
+    lone.teleport({x: -200, y: 1, z: 224})
+    if not lone.is_npc then lone.message("🍀 相手がいない…！ このゲームは そのまま生きのこり", 3) end
+  end
+  announce("🔮 ビー玉あて — 2人1組。奇数か偶数か、あてろ！", 3)
+  let run = marble_run
+  after(3.5, func() if run == marble_run then marble_next() end end)
+end
+
+func marble_seat(c, other, k, side)
+  let mat = marble_mat(k)
+  c.partner = other
+  c.marbles = MARBLE_START
+  c.mdone = false
+  c.hide_n = 0
+  c.guess = ""
+  c.teleport({x: mat.x, y: 1, z: mat.z + side * 1.4})
+  if c.is_npc then
+    c.stop()
+    c.yaw = yaw_to(c, mat)
+  else
+    c.frozen = true
+  end
+end
+
+func marble_live(c)
+  return kit_here(c) and not c.out and not c.mdone
+end
+
+-- その回に かくす人（奇数の回は a、偶数の回は b）
+func marble_hider(pair)
+  if marble_round % 2 == 1 then return pair.a end
+  return pair.b
+end
+
+func marble_guesser(pair)
+  if marble_round % 2 == 1 then return pair.b end
+  return pair.a
+end
+
+func marble_next()
+  if not playing("marbles") or not marble_on then return end
+  marble_round = marble_round + 1
+  let open = filter(marble_pairs, func(pr) return marble_live(pr.a) and marble_live(pr.b) end)
+  if marble_round > MARBLE_ROUNDS or len(open) == 0 then
+    marbles_end()
+    return
+  end
+  marble_state = "hide"
+  marble_until = time() + MARBLE_HIDE
+  for pr in open do
+    pr.a.hide_n = 0
+    pr.a.guess = ""
+    pr.b.hide_n = 0
+    pr.b.guess = ""
+    let h = marble_hider(pr)
+    let g = marble_guesser(pr)
+    if h.is_npc then h.hide_n = random(1, min(5, h.marbles)) else marble_hide_ui(h) end
+    if not g.is_npc then
+      marble_hud(g)
+      g.ui_text("marb_wait", "🤔 あいてが ビー玉を にぎっている…", {at: "bottom", dy: -150, size: 18, bold: true, color: "#C4B5FD"})
+    end
+  end
+  announce("🔮 " + marble_round + "/" + MARBLE_ROUNDS + " 回戦 — かくす人は にぎる数をえらべ", 2)
+  let run = marble_run
+  after(MARBLE_HIDE, func() if run == marble_run then marble_guess_time() end end)
+end
+
+func marble_hud(p)
+  let other = p.partner
+  let theirs = 0
+  if other != nil and kit_here(other) then theirs = other.marbles end
+  p.ui_text("marb_hud", "🔮 あなた " + p.marbles + " こ   あいて " + theirs + " こ   " + marble_round + "/" + MARBLE_ROUNDS + " 回戦",
+            {at: "top", dy: 104, size: 20, bold: true, color: "#E9D5FF"})
+end
+
+func marble_hide_ui(p)
+  marble_hud(p)
+  p.ui_remove("marb_wait")
+  p.ui_panel("marb_pick", {at: "bottom", dy: -60, w: 520, h: 130, bg: "#1E1B4BE0", radius: 18, layer: 18})
+  p.ui_text("marb_pick_t", "✊ 手の中に なんこ にぎる？", {parent: "marb_pick", y: 0.22, size: 18, bold: true, color: "gold"})
+  let top = min(5, p.marbles)
+  for n in 1 to top do
+    p.ui_button("marb_hide_" + n, n + " こ", {parent: "marb_pick", x: 0.12 + (n - 1) * 0.19, y: 0.68, w: 84, h: 52, size: 20,
+                bg: "#7C3AED", radius: 14})
+  end
+end
+
+func marble_guess_ui(p)
+  marble_hud(p)
+  p.ui_remove("marb_wait")
+  p.ui_panel("marb_pick", {at: "bottom", dy: -60, w: 420, h: 130, bg: "#1E1B4BE0", radius: 18, layer: 18})
+  p.ui_text("marb_pick_t", "🤔 あいてが にぎった数は？", {parent: "marb_pick", y: 0.22, size: 18, bold: true, color: "gold"})
+  p.ui_button("marb_odd", "🔵 奇数", {parent: "marb_pick", x: 0.27, y: 0.68, w: 150, h: 56, size: 22, bg: "#2563EB", radius: 14})
+  p.ui_button("marb_even", "🟢 偶数", {parent: "marb_pick", x: 0.73, y: 0.68, w: 150, h: 56, size: 22, bg: "#16A34A", radius: 14})
+end
+
+func marble_clear_ui(p)
+  for id in ["marb_pick", "marb_wait", "marb_hud"] do p.ui_remove(id) end
+end
+
+func marble_guess_time()
+  if not playing("marbles") or not marble_on then return end
+  marble_state = "guess"
+  marble_until = time() + MARBLE_GUESS
+  for pr in marble_pairs do
+    if marble_live(pr.a) and marble_live(pr.b) then
+      let h = marble_hider(pr)
+      let g = marble_guesser(pr)
+      if h.hide_n == 0 then h.hide_n = random(1, min(5, h.marbles)) end
+      if not h.is_npc then
+        h.ui_remove("marb_pick")
+        h.ui_text("marb_wait", "✊ " + h.hide_n + " こ にぎった。あいてが考えている…", {at: "bottom", dy: -150, size: 18, bold: true, color: "#C4B5FD"})
+      end
+      if g.is_npc then
+        if random() < 0.5 then g.guess = "odd" else g.guess = "even" end
+      else
+        marble_guess_ui(g)
+      end
+    end
+  end
+  let run = marble_run
+  after(MARBLE_GUESS, func() if run == marble_run then marble_reveal() end end)
+end
+
+func parity_name(key)
+  if key == "odd" then return "奇数" end
+  return "偶数"
+end
+
+func marble_reveal()
+  if not playing("marbles") or not marble_on then return end
+  marble_state = "reveal"
+  for pr in marble_pairs do
+    if marble_live(pr.a) and marble_live(pr.b) then
+      let h = marble_hider(pr)
+      let g = marble_guesser(pr)
+      if g.guess == "" then
+        if random() < 0.5 then g.guess = "odd" else g.guess = "even" end
+      end
+      let n = h.hide_n
+      let truth = "even"
+      if n % 2 == 1 then truth = "odd" end
+      let right = g.guess == truth
+      let moved = 0
+      if right then
+        moved = min(n, h.marbles)
+        h.marbles = h.marbles - moved
+        g.marbles = g.marbles + moved
+      else
+        moved = min(n, g.marbles)
+        g.marbles = g.marbles - moved
+        h.marbles = h.marbles + moved
+      end
+      for c in [h, g] do
+        if not c.is_npc then
+          c.ui_remove("marb_pick")
+          c.ui_remove("marb_wait")
+          let mine = (c.id == g.id) == right
+          let word = "😢 " + moved + " こ わたした"
+          if mine then
+            word = "🎉 " + moved + " こ もらった"
+            c.sound("collect")
+          end
+          c.message("🖐 " + n + " こ（" + parity_name(truth) + "）！ " + word, 2.5)
+          marble_hud(c)
+        end
+      end
+      if g.is_npc and not right then npc_line(g, "scared") end
+      marble_settle(pr, false)
+    end
+  end
+  let run = marble_run
+  after(2.5, func() if run == marble_run then marble_next() end end)
+end
+
+-- ビー玉が0こになった人、最後の回で少なかった人が失格
+func marble_settle(pr, last)
+  let a = pr.a
+  let b = pr.b
+  let loser = nil
+  if not kit_here(a) or a.out then
+    loser = a
+  elif not kit_here(b) or b.out then
+    loser = b
+  elif a.marbles <= 0 then
+    loser = a
+  elif b.marbles <= 0 then
+    loser = b
+  elif last then
+    if a.marbles < b.marbles then
+      loser = a
+    elif b.marbles < a.marbles then
+      loser = b
+    elif random() < 0.5 then
+      loser = a
+    else
+      loser = b
+    end
+  end
+  if loser == nil then return end
+  let winner = b
+  if loser.id == b.id then winner = a end
+  if kit_here(loser) and not loser.out then
+    if not loser.is_npc then marble_clear_ui(loser) end
+    eliminate(loser, "ビー玉で負けた")
+  end
+  if kit_here(winner) and not winner.out and not winner.mdone then
+    winner.mdone = true
+    if winner.is_npc then
+      npc_line(winner, "win")
+    else
+      marble_clear_ui(winner)
+      winner.message("✅ ビー玉あてに勝った！ 生きのこった", 2.5)
+      winner.sound("goal")
+      kit_give(winner, 80)
+      kit_quest_progress(winner, "marbles", 1)
+    end
+  end
+end
+
+func marbles_end()
+  if not playing("marbles") or not marble_on then return end
+  marble_on = false
+  marble_state = "off"
+  marble_run = marble_run + 1
+  for pr in marble_pairs do
+    if not pr.a.mdone and not pr.b.mdone then marble_settle(pr, true) end
+  end
+  for p in humans() do marble_clear_ui(p) end
+  for c in alive_humans() do c.frozen = false end
+  game_over()
+end
+
+on tick(dt)
+  if not playing("marbles") or not marble_on then return end
+  -- 相手がいなくなった組は、残った人の勝ち
+  for pr in marble_pairs do
+    if not pr.a.mdone and not pr.b.mdone and (not kit_here(pr.a) or not kit_here(pr.b)) then marble_settle(pr, false) end
+  end
+end
+
+on button(p, id)
+  if not playing("marbles") or not marble_on or p.out then return end
+  if starts_with(id, "marb_hide_") and marble_state == "hide" then
+    let n = num(replace(id, "marb_hide_", ""))
+    if n >= 1 and n <= min(5, p.marbles) then
+      p.hide_n = n
+      p.ui_remove("marb_pick")
+      p.ui_text("marb_wait", "✊ " + n + " こ にぎった", {at: "bottom", dy: -150, size: 18, bold: true, color: "#C4B5FD"})
+    end
+  elif (id == "marb_odd" or id == "marb_even") and marble_state == "guess" then
+    if id == "marb_odd" then p.guess = "odd" else p.guess = "even" end
+    p.ui_remove("marb_pick")
+    p.ui_text("marb_wait", "🤔 「" + parity_name(p.guess) + "」にした…", {at: "bottom", dy: -150, size: 18, bold: true, color: "#C4B5FD"})
+  end
+end

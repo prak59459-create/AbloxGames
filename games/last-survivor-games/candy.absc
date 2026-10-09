@@ -1,0 +1,201 @@
+-- candy.absc — 「型ぬき」
+--
+-- テーブルにすわって、4つの箱から1つえらぶ。中は ⚪ まる・🔺 さんかく・⭐ ほし・☂️ かさ のどれか（箱ごとにランダム）。
+-- メーターが緑のときに「けずる」を押すと1つ進む。緑でないときに押すと ひびが入り、CANDY_CRACKS 回で割れて失格。
+-- むずかしい形ほど けずる回数が多く 緑がせまいが、ぬけたときのごほうびが大きい。時間切れも失格。
+-- NPCは形ごとの確率で、時間の中のどこかで ぬけるか 割れるかが決まる。
+
+let candy_on = false
+let candy_run = 0
+let candy_boxes = []       -- 箱1〜4 → CANDY_SHAPES の番号
+let candy_ui_clock = 0
+
+func candy_meter()
+  return (sin(time() * 230) + 1) * 50
+end
+
+func shape_of(c)
+  return CANDY_SHAPES[c.shape_i or 1]
+end
+
+-- テーブル k の、すわる場所 j（1〜10。テーブルの両側に5つずつ）
+func candy_seat(k, j)
+  let t = block("Candy Table " + k)
+  let side = -1
+  if j > 5 then side = 1 end
+  let slot = (j - 1) % 5
+  return {x: t.x + (slot - 2) * 1.6, y: 1, z: t.z + side * 1.4}
+end
+
+func candy_start()
+  candy_run = candy_run + 1
+  candy_on = false
+  candy_boxes = shuffle([1, 2, 3, 4])
+  let i = 0
+  for c in alive_cast() do
+    i = i + 1
+    let k = (i - 1) % 10 + 1
+    let j = floor((i - 1) / 10) % 10 + 1
+    c.done = false
+    c.shape_i = 0
+    c.cracks = 0
+    c.carved = 0
+    c.teleport(candy_seat(k, j))
+    if c.is_npc then
+      c.stop()
+    else
+      c.frozen = true
+      candy_box_ui(c)
+    end
+  end
+  let run = candy_run
+  announce("🍪 型ぬき — 箱を1つえらべ。中の形は開けるまでわからない", 3)
+  after(6, func()
+    if run != candy_run or not playing("candy") then return end
+    for c in alive_cast() do
+      if (c.shape_i or 0) == 0 then candy_pick(c, random(1, 4)) end
+    end
+    candy_on = true
+    game_ends = time() + GAMES[game_index("candy")].time
+    announce("▶ けずれ！ 緑のときに押す。ひび3回で割れる", 2)
+    sound("goal")
+    for c in alive_npcs() do candy_npc_plan(c, run) end
+    for p in alive_humans() do candy_carve_ui(p) end
+  end)
+end
+
+func candy_box_ui(p)
+  p.ui_panel("candy_box", {at: "center", dy: 40, w: 460, h: 150, bg: "#000000C0", radius: 18, layer: 18})
+  p.ui_text("candy_box_t", "📦 どの箱にする？", {parent: "candy_box", y: 0.2, size: 20, bold: true, color: "gold"})
+  for k in 1 to 4 do
+    p.ui_button("candy_box_" + k, "📦 " + k, {parent: "candy_box", x: 0.14 + (k - 1) * 0.24, y: 0.65, w: 96, h: 64, size: 22,
+                bg: "#B45309", radius: 14})
+  end
+end
+
+func candy_pick(c, box)
+  if (c.shape_i or 0) != 0 then return end
+  c.shape_i = candy_boxes[box]
+  let s = shape_of(c)
+  if not c.is_npc then
+    c.ui_remove("candy_box")
+    c.message("📦 " + box + " の中は… " + s.emoji + " " + s.name + "！（" + s.steps + " 回けずる）", 3)
+  end
+end
+
+func candy_carve_ui(p)
+  let s = shape_of(p)
+  p.ui_text("candy_shape", s.emoji + " " + s.name + "  🪡 0/" + s.steps + "  💔 0/" + CANDY_CRACKS,
+            {at: "bottom", dy: -200, size: 20, bold: true, color: "#FDE68A"})
+  p.ui_bar("candy_meter", 0, 100, {at: "bottom_right", dx: -40, dy: -270, w: 190, h: 22, color: "#94A3B8", bg: "#00000099"})
+  p.ui_text("candy_meter_t", "緑で けずる！", {at: "bottom_right", dx: -70, dy: -300, size: 13, bold: true, color: "#86EFAC"})
+  p.ui_button("candy_carve", "🪡 けずる", {at: "bottom_right", dx: -40, dy: -140, w: 190, h: 110, size: 26, bg: "#D97706", radius: 24})
+end
+
+func candy_clear_ui(p)
+  for id in ["candy_box", "candy_shape", "candy_meter", "candy_meter_t", "candy_carve"] do p.ui_remove(id) end
+end
+
+func candy_carve(p)
+  if not candy_on or not playing("candy") or p.out or p.done or (p.shape_i or 0) == 0 then return end
+  if p.last_carve != nil and time() - p.last_carve < 0.25 then return end
+  p.last_carve = time()
+  let s = shape_of(p)
+  if candy_meter() >= s.sweet then
+    p.carved = p.carved + 1
+    p.sound("tick")
+    if p.carved >= s.steps then
+      candy_done(p)
+      return
+    end
+  else
+    p.cracks = p.cracks + 1
+    p.shake(0.15, 0.25)
+    p.sound("hurt")
+    if p.cracks >= CANDY_CRACKS then
+      candy_clear_ui(p)
+      eliminate(p, s.emoji + " が割れた")
+      candy_check_end()
+      return
+    end
+    p.message("💔 ピキッ… ひび " + p.cracks + "/" + CANDY_CRACKS, 1)
+  end
+  p.ui_set("candy_shape", {text: s.emoji + " " + s.name + "  🪡 " + p.carved + "/" + s.steps + "  💔 " + p.cracks + "/" + CANDY_CRACKS})
+end
+
+func candy_done(c)
+  c.done = true
+  let s = shape_of(c)
+  if c.is_npc then
+    npc_line(c, "win")
+  else
+    candy_clear_ui(c)
+    c.message("✅ " + s.emoji + " " + s.name + " がきれいにぬけた！ +" + s.prize, 3)
+    c.sound("goal")
+    kit_give(c, s.prize)
+    kit_quest_progress(c, "candy", 1)
+    if s.id == "umbrella" then kit_quest_progress(c, "umbrella", 1) end
+    announce("🍪 " + label_of(c) + " が " + s.emoji + " をぬいた！", 2)
+  end
+  candy_check_end()
+end
+
+-- NPC: 形の確率で ぬけるか割れるかを決めて、制限時間の中のどこかで そうなる
+func candy_npc_plan(n, run)
+  let s = shape_of(n)
+  let ok = random() < s.npc * (0.85 + n.calm * 0.15)
+  let limit = GAMES[game_index("candy")].time
+  let at = 6 + random() * (limit - 12)
+  after(at, func()
+    if run != candy_run or not candy_on or not kit_here(n) or n.out or n.done then return end
+    if ok then
+      candy_done(n)
+    else
+      n.say("あっ…！")
+      eliminate(n, s.emoji + " が割れた")
+      candy_check_end()
+    end
+  end)
+end
+
+func candy_check_end()
+  if not candy_on then return end
+  if len(filter(alive_cast(), func(c) return not c.done end)) == 0 then candy_end() end
+end
+
+func candy_end()
+  if not playing("candy") or not candy_on then return end
+  candy_on = false
+  candy_run = candy_run + 1
+  for p in humans() do candy_clear_ui(p) end
+  for c in alive_cast() do
+    if not c.done then eliminate(c, "時間切れ") end
+  end
+  for c in alive_humans() do c.frozen = false end
+  game_over()
+end
+
+on tick(dt)
+  if not playing("candy") or not candy_on then return end
+  candy_ui_clock = candy_ui_clock + dt
+  if candy_ui_clock >= 0.1 then
+    candy_ui_clock = 0
+    let m = candy_meter()
+    for p in alive_humans() do
+      if not p.done and (p.shape_i or 0) > 0 then
+        let color = "#94A3B8"
+        if m >= shape_of(p).sweet then color = "#22C55E" end
+        p.ui_set("candy_meter", {value: m, color: color})
+      end
+    end
+  end
+  if time() >= game_ends then candy_end() end
+end
+
+on button(p, id)
+  if id == "candy_carve" then
+    candy_carve(p)
+  elif starts_with(id, "candy_box_") and playing("candy") and not candy_on and not p.out then
+    candy_pick(p, num(replace(id, "candy_box_", "")))
+  end
+end

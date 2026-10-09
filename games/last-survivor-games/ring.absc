@@ -1,0 +1,244 @@
+-- ring.absc — 「決戦リング」（いつも最後のゲーム。残りが FINAL_AT 人より少なくなったら始まる）
+--
+-- まるいリングの上で、「ドン！」で近くの相手をおし出す。「ふんばる」の間は おされても少ししか動かない。
+-- リングは RING_SHRINK の秒数で 外の円から消えていく。落ちたら失格、最後に立っていた1人が優勝。
+-- 時間切れのときは、いちばんまん中に近い人が優勝。
+-- NPCは、いちばん近い相手に近づいて「ドン！」。ふちに近いと まん中へもどる。
+
+let ring_on = false
+let ring_run = 0
+let ring_started = 0
+let ring_size = 3          -- いま残っている円の数（3 → 2 → 1）
+let ring_ai_clock = 0
+let RING_RADII = [4, 7, 10]
+let RING_CENTER = {x: 200, y: 10, z: 200}
+
+func ring_disc(k)
+  return block("Ring Disc " + k)
+end
+
+func ring_dist(c)
+  let dx = c.x - RING_CENTER.x
+  let dz = c.z - RING_CENTER.z
+  return sqrt(dx * dx + dz * dz)
+end
+
+func ring_start()
+  ring_run = ring_run + 1
+  ring_on = false
+  ring_size = 3
+  for k in 1 to 3 do
+    let d = ring_disc(k)
+    d.visible = true
+    d.solid = true
+  end
+  let list = alive_cast()
+  let i = 0
+  for c in list do
+    i = i + 1
+    let a = 360 * i / len(list)
+    c.teleport({x: RING_CENTER.x + cos(a) * 6, y: 11.5, z: RING_CENTER.z + sin(a) * 6})
+    c.shove_until = 0
+    c.brace_until = 0
+    c.next_push = 0
+    if c.is_npc then
+      c.stop()
+      c.speed = 0.8
+    else
+      c.frozen = true
+      kit_quest_progress(c, "ring", 1)
+    end
+  end
+  let run = ring_run
+  announce("🥊 決戦リング！ 残り " + len(list) + " 人 — おし出して、最後まで立っていろ", 3)
+  after(3, func()
+    if run != ring_run or not playing("ring") then return end
+    ring_on = true
+    ring_started = time()
+    game_ends = time() + GAMES[game_index("ring")].time
+    sound("goal")
+    announce("▶ ファイト！", 1.5)
+    for p in alive_humans() do
+      p.frozen = false
+      ring_ui(p)
+    end
+    for t in RING_SHRINK do ring_shrink_later(run, t) end
+  end)
+end
+
+func ring_ui(p)
+  p.ui_button("ring_push", "👐 ドン！", {at: "bottom_right", dx: -40, dy: -140, w: 190, h: 110, size: 26, bg: "#DC2626", radius: 24})
+  p.ui_button("ring_brace", "🦶 ふんばる", {at: "bottom_right", dx: -250, dy: -150, w: 150, h: 80, size: 18, bg: "#1D4ED8", radius: 20})
+end
+
+func ring_clear_ui(p)
+  p.ui_remove("ring_push")
+  p.ui_remove("ring_brace")
+end
+
+func ring_shrink_later(run, t)
+  after(t, func()
+    if run != ring_run or not ring_on then return end
+    let d = ring_disc(ring_size)
+    d.color = "#F97316"
+    announce("⚠️ 外の円が消える！ まん中へ！", 2)
+    sound("hurt")
+    after(2, func()
+      if run != ring_run or not ring_on then return end
+      d.visible = false
+      d.solid = false
+      ring_size = ring_size - 1
+      shake(0.2, 0.4)
+    end)
+  end)
+end
+
+-- c が target をおす。ふんばっている相手は 0.3倍
+func ring_push(c, target)
+  let dx = target.x - c.x
+  let dz = target.z - c.z
+  let d = max(0.3, sqrt(dx * dx + dz * dz))
+  let power = RING_PUSH
+  if time() < (target.brace_until or 0) then power = power * 0.3 end
+  let dir = {x: dx / d, y: 0, z: dz / d}
+  if target.is_npc then
+    -- NPCは歩く速さで上書きされるので、少しの間 スクリプトがすべらせる
+    target.stop()
+    target.shove = dir * (power * 0.9)
+    target.shove_until = time() + 0.35
+  else
+    target.launch(dir.x * power, 5, dir.z * power)
+    target.shake(0.15, 0.2)
+  end
+  if not c.is_npc then c.sound("hit") end
+end
+
+func ring_nearest(c, reach)
+  let best = nil
+  let best_d = reach
+  for o in alive_cast() do
+    if o.id != c.id then
+      let d = distance(c, o)
+      if d < best_d then
+        best = o
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func ring_try_push(c)
+  if not ring_on or not playing("ring") or c.out then return end
+  if time() < (c.next_push or 0) then return end
+  c.next_push = time() + 0.8
+  let t = ring_nearest(c, RING_REACH)
+  if t == nil then
+    if not c.is_npc then c.message("👐 だれもいない…", 0.6) end
+    return
+  end
+  ring_push(c, t)
+end
+
+func ring_brace(c)
+  if not ring_on or c.out then return end
+  if time() < (c.brace_ready or 0) then return end
+  c.brace_until = time() + 1.2
+  c.brace_ready = time() + 3
+  if not c.is_npc then c.message("🦶 ふんばり！", 0.8) end
+end
+
+func ring_npc_ai()
+  for n in alive_npcs() do
+    if time() >= (n.shove_until or 0) then
+      if ring_dist(n) > RING_RADII[ring_size] - 1.5 and random() < n.calm then
+        n.move_to({x: RING_CENTER.x + (random() - 0.5) * 2, y: 10, z: RING_CENTER.z + (random() - 0.5) * 2})
+      else
+        let t = ring_nearest(n, 30)
+        if t != nil then
+          n.move_to(t.position)
+          if distance(n, t) < RING_REACH - 0.4 and random() < 0.4 + n.brave * 0.4 then ring_try_push(n) end
+          if distance(n, t) < RING_REACH and random() < 0.15 * n.calm then ring_brace(n) end
+        end
+      end
+    end
+  end
+end
+
+func ring_end()
+  if not playing("ring") or not ring_on then return end
+  ring_on = false
+  ring_run = ring_run + 1
+  for p in humans() do ring_clear_ui(p) end
+  let alive = alive_cast()
+  if len(alive) > 1 then
+    -- 時間切れ: いちばんまん中に近い人の勝ち
+    let best = alive[1]
+    for c in alive do
+      if ring_dist(c) < ring_dist(best) then best = c end
+    end
+    announce("⏱ 時間切れ！ まん中に近かったのは " + label_of(best) + "！", 3)
+    for c in alive do
+      if c.id != best.id then eliminate(c, "時間切れ") end
+    end
+  end
+  for k in 1 to 3 do
+    let d = ring_disc(k)
+    d.visible = true
+    d.solid = true
+  end
+  ring_disc(3).color = "#F1F5F9"
+  ring_disc(2).color = "#FDE68A"
+  ring_disc(1).color = "#F87171"
+  game_over()
+end
+
+on tick(dt)
+  if not playing("ring") then return end
+  for c in alive_cast() do
+    if c.is_npc and time() < (c.shove_until or 0) and c.shove != nil then
+      c.teleport(c.position + c.shove * dt)
+    end
+  end
+  let alive = alive_cast()
+  let fallen = filter(alive, func(c) return c.y < 6 end)
+  if len(fallen) > 0 then
+    if len(fallen) == len(alive) then
+      -- 全員いっしょに落ちた: いちばん高いところにいた人だけ残す
+      let best = fallen[1]
+      for c in fallen do
+        if c.y > best.y then best = c end
+      end
+      for c in fallen do
+        if c.id != best.id then eliminate(c, "リングから落ちた") end
+      end
+      best.teleport({x: RING_CENTER.x, y: 11.5, z: RING_CENTER.z})
+      ring_end()
+      return
+    end
+    for c in fallen do eliminate(c, "リングから落ちた") end
+  end
+  if not ring_on then return end
+  -- リングのまわりにいない人は場外
+  for c in alive_humans() do
+    if ring_dist(c) > 16 then eliminate(c, "場外") end
+  end
+  if len(alive_cast()) <= 1 then
+    ring_end()
+    return
+  end
+  ring_ai_clock = ring_ai_clock + dt
+  if ring_ai_clock >= 0.4 then
+    ring_ai_clock = 0
+    ring_npc_ai()
+  end
+  if time() >= game_ends then ring_end() end
+end
+
+on button(p, id)
+  if id == "ring_push" then
+    ring_try_push(p)
+  elif id == "ring_brace" then
+    ring_brace(p)
+  end
+end

@@ -77,15 +77,16 @@ func tug_join(c)
   end
 end
 
--- side: -1 = 赤（左）/ 1 = 青（右）。ロープに近い方から2列に並ぶ
+-- side: -1 = 赤（左）/ 1 = 青（右）。ロープに近い方から並ぶ。人数が多いほど列をふやす（床からはみ出さないように）
 func line_up(team, side)
+  let cols = clamp(ceil(len(team) / 8), 2, 6)
   let i = 0
   for c in team do
     i = i + 1
-    let row = floor((i - 1) / 2)
-    let z = -1.1
-    if i % 2 == 0 then z = 1.1 end
-    c.teleport({x: 200 + side * (8.5 + row * 1.3), y: 11, z: z})
+    let row = floor((i - 1) / cols)
+    let col = (i - 1) % cols
+    let z = (col - (cols - 1) / 2) * min(2.2, 10 / cols)
+    c.teleport({x: 200 + side * (8.5 + row * 1.2), y: 11, z: z})
     if c.is_npc then c.stop() end
   end
 end

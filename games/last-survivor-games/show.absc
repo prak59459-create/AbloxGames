@@ -1,6 +1,9 @@
--- show.absc — ショーの流れ: 寮で待つ → 5つのゲーム（人数が足りないゲームはとばす）→ 優勝 → また寮へ
+-- show.absc — ショーの流れ: 寮で待つ → だるまさんがころんだ → ランダムなゲームを、残りが FINAL_AT 人より
+-- 少なくなるまでくり返す → 決戦リング → 優勝 → また寮へ
 
 let break_until = 0
+let next_i = 0            -- 休けいのあとに遊ぶゲーム（GAMES の番号）
+let last_id = ""          -- 同じゲームが2回続かないように
 
 func is_spectator(p)
   return not in_cast(p) or p.out
@@ -21,6 +24,9 @@ func begin_show()
   show_no = show_no + 1
   phase = "intro"
   game_i = 0
+  round_no = 0
+  next_i = 0
+  last_id = ""
   cast = []
   used_numbers = {}
   clear_feed()
@@ -50,23 +56,37 @@ func begin_show()
   after(5, func() if show == show_no then next_game() end end)
 end
 
--- 人数が足りないと成り立たないゲームはとばす
-func skip_game(g)
-  let n = len(alive_cast())
-  if g.id == "tug" or g.id == "huddle" then return n < 4 end
-  if g.id == "final" then return n < 2 end
-  return false
+func game_index(id)
+  for k in 1 to len(GAMES) do
+    if GAMES[k].id == id then return k end
+  end
+  return 0
+end
+
+-- 次のゲーム: 最初はだるまさんがころんだ。残りが FINAL_AT 人より少ないか、MAX_ROUNDS 回遊んだら決戦リング。
+-- それまでは、まん中のゲームからランダムに（直前と同じものはえらばない）
+func pick_game()
+  if round_no == 0 then return game_index("field") end
+  if len(alive_cast()) < FINAL_AT or round_no >= MAX_ROUNDS then return game_index("ring") end
+  let options = []
+  for k in 1 to len(GAMES) do
+    if GAMES[k].turn == "middle" and GAMES[k].id != last_id then append(options, k) end
+  end
+  return options[random(1, len(options))]
 end
 
 func next_game()
   if phase == "lobby" or phase == "ending" then return end
-  game_i = game_i + 1
-  while game_i <= len(GAMES) and skip_game(GAMES[game_i]) do game_i = game_i + 1 end
-  if game_i > len(GAMES) or len(alive_cast()) <= 1 then
+  if len(alive_cast()) <= 1 or (game() != nil and game().turn == "last") then
     finish_show()
     return
   end
+  if next_i == 0 then next_i = pick_game() end
+  game_i = next_i
+  next_i = 0
+  round_no = round_no + 1
   let g = GAMES[game_i]
+  last_id = g.id
   phase = "play"
   outs_now = 0
   game_ends = 0
@@ -83,6 +103,12 @@ func next_game()
     huddle_start()
   elif g.id == "bridge" then
     bridge_start()
+  elif g.id == "candy" then
+    candy_start()
+  elif g.id == "marbles" then
+    marbles_start()
+  elif g.id == "ring" then
+    ring_start()
   else
     final_start()
   end
@@ -99,8 +125,8 @@ func game_over()
   for c in left do
     if not c.is_npc then
       c.cleared = (c.cleared or 0) + 1
-      c.best_game = max(c.best_game or 0, game_i)
-      kit_give(c, 20 * game_i)
+      c.best_game = max(c.best_game or 0, round_no)
+      kit_give(c, 20 * min(round_no, 8))
     end
   end
   update_orb()
@@ -119,16 +145,16 @@ func back_to_dorm()
     if is_spectator(p) then p.teleport(dorm_spot()) end
   end
   let show = show_no
-  if len(alive_cast()) <= 1 then
+  if len(alive_cast()) <= 1 or game().turn == "last" then
     after(2, func() if show == show_no then finish_show() end end)
     return
   end
   break_until = time() + BREAK_TIME
-  let upcoming = "つぎのゲーム"
-  let k = game_i + 1
-  while k <= len(GAMES) and skip_game(GAMES[k]) do k = k + 1 end
-  if k <= len(GAMES) then upcoming = GAMES[k].emoji + " " + GAMES[k].name end
-  announce("☕ 休けい " + BREAK_TIME + " 秒 — 次は " + upcoming, 3)
+  next_i = pick_game()
+  let upcoming = GAMES[next_i]
+  let line = "☕ 休けい " + BREAK_TIME + " 秒 — 次は " + upcoming.emoji + " " + upcoming.name
+  if upcoming.turn == "last" then line = line + "！ 残り " + len(alive_cast()) + " 人の決戦だ" end
+  announce(line, 3)
   after(BREAK_TIME, func() if show == show_no and phase == "between" then next_game() end end)
 end
 
@@ -166,7 +192,7 @@ func finish_show()
   end
   for p in humans() do
     if in_cast(p) then
-      p.message("📊 この回: " + (p.best_game or 0) + " ゲーム目まで進んだ", 3)
+      p.message("📊 この回: " + (p.best_game or 0) + " ゲーム生きのこった", 3)
     end
   end
   after(9, func() if show == show_no then reset_to_lobby() end end)
@@ -176,6 +202,8 @@ func reset_to_lobby()
   clear_npcs()
   cast = []
   game_i = 0
+  round_no = 0
+  next_i = 0
   phase = "lobby"
   pot = carry
   update_orb()

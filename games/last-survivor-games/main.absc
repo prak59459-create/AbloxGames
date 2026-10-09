@@ -1,22 +1,27 @@
--- Last Survivor Games — 24人で挑む5つのゲーム。最後の1人になれ
+-- Last Survivor Games — 100人で挑むサバイバル。最後の1人になれ
 --
 -- ファイル:
---   data.absc    ゲーム5つ・人数・賞金・NPCの性格
---   common.absc  ショーの状態・番号・脱落・賞金の玉・画面
---   bridge.absc  第4ゲーム ガラスの橋
---   field.absc   第1ゲーム だるまさんがころんだ
---   final.absc   第5ゲーム 最後のタイル
---   huddle.absc  第3ゲーム なかま集め
---   show.absc    ショーの流れ（寮 → ゲーム → 優勝）
---   tug.absc     第2ゲーム つなひき
---   main.absc    このファイル
+--   data.absc     ゲーム8つ・人数・賞金・NPCの性格
+--   bridge.absc   ガラスの橋
+--   candy.absc    型ぬき
+--   common.absc   ショーの状態・番号・脱落・賞金の玉・画面
+--   field.absc    だるまさんがころんだ（いつも最初）
+--   final.absc    最後のタイル
+--   huddle.absc   なかま集め
+--   marbles.absc  ビー玉あて
+--   ring.absc     決戦リング（いつも最後）
+--   show.absc     ショーの流れ（寮 → ゲーム → 優勝）
+--   tug.absc      つなひき
+--   main.absc     このファイル
 
 kit_setup("Last Survivor Games", "動くな。まちがえるな。生き残れ", [
-  "🎬 寮で待つとショー開幕。人が足りない分はNPCが参加して、いつも24人",
-  "🎎 だるまさんがころんだ: ふり向いたら止まれ。岩や人のかげなら動いてもバレない",
-  "🪢 つなひき: 緑のときに「引く！」で3倍。負けたら床ごと落ちる",
-  "🚪 なかま集め: よばれた人数ぴったりで部屋へ。黄色いランプは「あと1人」",
+  "🎬 寮で待つとショー開幕。人が足りない分はNPCが参加して、いつも100人",
+  "🎎 最初はだるまさんがころんだ: ふり向いたら止まれ。岩や人のかげなら動いてもバレない",
+  "🎲 そのあとはランダム。5人より少なくなるまで、どのゲームが何回来るかわからない",
+  "🪢 つなひき: 緑のときに「引く！」で3倍。🚪 なかま集め: よばれた人数ぴったりで部屋へ",
   "🌉 ガラスの橋: 前の人をよく見ろ。🟥 最後のタイル: 光ったら逃げろ",
+  "🍪 型ぬき: 箱をえらんで、緑のときに「けずる」。🔮 ビー玉あて: 奇数か偶数か",
+  "🥊 決戦リング: 残り4人以下で始まる。「ドン！」でおし出して、最後まで立っていろ",
   "💰 1人脱落するごとに賞金+100。優勝者が全部もらう（出なければ次の回へ持ちこし）"
 ])
 kit_currency = "コイン"
@@ -29,7 +34,11 @@ kit_quest("field", "だるまさんがころんだをクリア", 1, 150)
 kit_quest("tug", "つなひきで勝つ", 1, 200)
 kit_quest("huddle", "なかま集めを生きのこる", 2, 250)
 kit_quest("bridge", "ガラスの橋をわたりきる", 1, 400)
-kit_quest("final", "最後のタイルまで残る", 1, 400)
+kit_quest("final", "最後のタイルに出る", 1, 300)
+kit_quest("candy", "型ぬきで ぬききる", 1, 250)
+kit_quest("umbrella", "☂️ かさの型をぬききる", 1, 500)
+kit_quest("marbles", "ビー玉あてで勝つ", 1, 250)
+kit_quest("ring", "決戦リングまで残る", 1, 600)
 kit_quest("champion", "優勝する", 1, 1000)
 kit_quest("shows", "ショーに5回出る", 5, 300)
 kit_quest("hidden", "かげにかくれて人形をやりすごす", 5, 200)
@@ -60,12 +69,12 @@ func open_stats(p)
   p.ui_panel("stats", {at: "center", w: 420, h: 250, bg: "#0F172AF0", radius: 20, layer: 40})
   p.ui_text("stats_t", "📊 " + p.name + " の記録", {parent: "stats", y: 0.13, size: 20, bold: true, color: "gold"})
   let best = "まだ"
-  if (p.best_ever or 0) > 0 then best = GAMES[p.best_ever].emoji + " " + GAMES[p.best_ever].name end
+  if (p.best_ever or 0) > 0 then best = p.best_ever + " ゲーム生きのこった" end
   let lines = [
     "🎬 出たショー: " + p.shows + " 回",
     "🏆 優勝: " + p.wins + " 回",
     "✅ クリアしたゲーム: " + (p.cleared or 0),
-    "🚩 いちばん進んだ: " + best,
+    "🚩 いちばん長く: " + best,
     "🍀 お守り ×" + (p.charms or 0) + "   🧤 軍手 ×" + (p.gloves or 0)
   ]
   let i = 0

@@ -124,7 +124,7 @@ Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲー�
 | <img src="games/prop-hide-and-seek/cover-1890ba93.png" width="200"> | 75 | **Prop Hide & Seek** | 家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！ |
 | <img src="games/mega-minigames/cover-320873fe.png" width="200"> | 76 | **Mega Minigames** | 投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！ |
 | <img src="games/rhythm-battle/cover-81d9b098.png" width="200"> | 77 | **Rhythm Battle** | 8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ |
-| <img src="games/last-survivor-games/cover-ae48890b.png" width="200"> | 78 | **Last Survivor Games** | 24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！ |
+| <img src="games/last-survivor-games/cover-ae48890b.png" width="200"> | 78 | **Last Survivor Games** | 100人で挑むサバイバル。だるまさんがころんだから始まって、つなひき・なかま集め・ガラスの橋・最後のタイル・型ぬき・ビー玉あてがランダムに続く。5人より少なくなったら決戦リング！ 最後の1人になれ！ |
 | <img src="games/shark-attack-bay/cover-b023a82c.png" width="200"> | 79 | **Shark Attack Bay** | サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ |
 | <img src="games/tip-jar-plaza/cover-53b42369.png" width="200"> | 80 | **Tip Jar Plaza** | 広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです） |
 

@@ -1,20 +1,29 @@
--- data.absc — 5つのゲーム・参加者・賞金・NPCの性格
+-- data.absc — ゲーム・参加者・賞金・NPCの性格
 
 -- arena: そのゲームの場所（"<arena> Gallery" が観客席）/ time: 制限時間（0 = なし）
+-- turn: "first" = いつも最初 / "middle" = ランダムにくり返す / "last" = 残りが FINAL_AT 人より少なくなったら最後に
 let GAMES = [
-  {id: "field", name: "だるまさんがころんだ", emoji: "🎎", arena: "Field", time: 75,
+  {id: "field", name: "だるまさんがころんだ", emoji: "🎎", arena: "Field", time: 75, turn: "first",
    rule: "人形が「ころんだ！」でふり向いたら止まれ。見られている間に動いたら失格。岩や人のかげなら見えない"},
-  {id: "tug", name: "つなひき", emoji: "🪢", arena: "Tug", time: 45,
+  {id: "tug", name: "つなひき", emoji: "🪢", arena: "Tug", time: 45, turn: "middle",
    rule: "メーターが緑のときに「引く！」でパワー3倍。負けたチームは床ごと落ちる"},
-  {id: "huddle", name: "なかま集め", emoji: "🚪", arena: "Huddle", time: 0,
+  {id: "huddle", name: "なかま集め", emoji: "🚪", arena: "Huddle", time: 0, turn: "middle",
    rule: "よばれた人数ぴったりで部屋に入れ。ランプが黄色なら、あと1人足りない部屋"},
-  {id: "bridge", name: "ガラスの橋", emoji: "🌉", arena: "Bridge", time: 110,
+  {id: "bridge", name: "ガラスの橋", emoji: "🌉", arena: "Bridge", time: 110, turn: "middle",
    rule: "左右どちらかは割れるガラス。前の人をよく見て、安全な道をおぼえろ"},
-  {id: "final", name: "最後のタイル", emoji: "🟥", arena: "Final", time: 0,
-   rule: "黄色→オレンジに光ったタイルは落ちる。最後の1人になるまで立っていろ"}
+  {id: "final", name: "最後のタイル", emoji: "🟥", arena: "Final", time: 0, turn: "middle",
+   rule: "黄色→オレンジに光ったタイルは落ちる。半分の人が落ちるまで立っていろ"},
+  {id: "candy", name: "型ぬき", emoji: "🍪", arena: "Candy", time: 60, turn: "middle",
+   rule: "4つの箱から1つえらぶと、中は ⚪・🔺・⭐・☂️ のどれか。メーターが緑のときに「けずる」。3回ひびが入ると割れて失格"},
+  {id: "marbles", name: "ビー玉あて", emoji: "🔮", arena: "Marbles", time: 0, turn: "middle",
+   rule: "2人1組。かくす人は手の中のビー玉の数を、あてる人は「奇数か偶数か」をえらぶ。5回戦って、ビー玉が少ない方が失格"},
+  {id: "ring", name: "決戦リング", emoji: "🥊", arena: "Ring", time: 100, turn: "last",
+   rule: "「ドン！」で相手をおし出せ。「ふんばる」でおされにくくなる。リングは外からだんだん小さくなる。最後に立っていた1人が優勝"}
 ]
 
-let CAST_SIZE = 24          -- 1回のショーの参加者。足りない分はNPC
+let CAST_SIZE = 100         -- 1回のショーの参加者。足りない分はNPC（NPCの上限も100）
+let FINAL_AT = 5            -- 残りがこれより少なくなったら、決戦リングへ
+let MAX_ROUNDS = 14         -- これだけ遊んでもまだ多いときも、決戦リングへ
 let PRIZE_PER_OUT = 100     -- 1人脱落するごとに賞金がふえる
 let LOBBY_WAIT = 20         -- 寮で待つ秒数
 let BREAK_TIME = 10         -- ゲームとゲームの間
@@ -54,5 +63,25 @@ let TUG_GOAL = 100
 -- ガラスの橋の列の数
 let BRIDGE_ROWS = 12
 
--- 最後のタイル
+-- 最後のタイル（半分の人が落ちたら終わり）
 let TILE_COUNT = 49
+
+-- 型ぬき: 形ごとに、けずる回数・緑の広さ（メーターがこの値より上）・ごほうび・NPCが成功する確率
+let CANDY_SHAPES = [
+  {id: "circle", name: "まる", emoji: "⚪", steps: 6, sweet: 50, prize: 40, npc: 0.9},
+  {id: "triangle", name: "さんかく", emoji: "🔺", steps: 9, sweet: 58, prize: 70, npc: 0.78},
+  {id: "star", name: "ほし", emoji: "⭐", steps: 12, sweet: 64, prize: 110, npc: 0.64},
+  {id: "umbrella", name: "かさ", emoji: "☂️", steps: 15, sweet: 70, prize: 160, npc: 0.5}
+]
+let CANDY_CRACKS = 3        -- このひびの数で割れる
+
+-- ビー玉あて
+let MARBLE_START = 10       -- はじめに持っているビー玉
+let MARBLE_ROUNDS = 5       -- 何回戦うか
+let MARBLE_HIDE = 5         -- かくす数をえらぶ秒数
+let MARBLE_GUESS = 5        -- 奇数か偶数かをえらぶ秒数
+
+-- 決戦リング
+let RING_PUSH = 13          -- 「ドン！」でとばす速さ
+let RING_REACH = 3.2        -- 「ドン！」がとどくきょり
+let RING_SHRINK = [35, 65]  -- この秒数で、外の円から消える

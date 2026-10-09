@@ -25,7 +25,7 @@ let miniGames: [Game] = [
          summary: "8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ",
          tags: ["rhythm", "music", "1v1"], maxPlayers: 8, build: rhythmBattle),
     Game(number: 78, id: "last-survivor-games", title: "Last Survivor Games",
-         summary: "24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！",
+         summary: "100人で挑むサバイバル。だるまさんがころんだから始まって、つなひき・なかま集め・ガラスの橋・最後のタイル・型ぬき・ビー玉あてがランダムに続く。5人より少なくなったら決戦リング！ 最後の1人になれ！",
          tags: ["survival", "minigames", "tense"], maxPlayers: 16, build: survivorGames),
     Game(number: 79, id: "shark-attack-bay", title: "Shark Attack Bay",
          summary: "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",
@@ -675,6 +675,57 @@ func survivorGames(_ m: MapBuilder) {
         m.part("Final Torch", at: (q.0, 16.8, q.1), size: (1.4, 1.4, 1.4), color: "#F97316", shape: .sphere, material: .neon, solid: false)
     }
     m.slab("Final Gallery", x: 200, y: 16, z: -176, w: 30, h: 0.6, d: 5, color: "#1C1917")
+
+    // Candy carving: ten long tables, ten stools each. The script seats people along them.
+    m.ground(56, 44, color: "#FEF3C7", name: "Candy Floor", x: -200, z: -200, material: .plastic)
+    m.walls(-200, -200, w: 56, d: 44, h: 9, color: "#FDBA74", name: "Candy Wall")
+    for r in 0..<2 {
+        for c in 0..<5 {
+            let x = -200 + (Float(c) - 2) * 10, z = -200 + (Float(r) - 0.5) * 14
+            m.slab("Candy Table \(r * 5 + c + 1)", x: x, y: 0, z: z, w: 8.4, h: 1.1, d: 1.6, color: "#B45309", tags: ["candytable"])
+            m.part("Candy Cloth", at: (x, 1.12, z), size: (8.2, 0.04, 1.4), color: "#FDE68A", material: .matte, solid: false)
+            for k in 0..<5 {
+                let sx = x + (Float(k) - 2) * 1.6
+                m.part("Candy Tin", at: (sx, 1.2, z), size: (0.9, 0.12, 0.9), color: "#D97706", shape: .cylinder, material: .metal,
+                       solid: false)
+            }
+        }
+    }
+    for q in [(-224, -214), (-176, -214), (-224, -186), (-176, -186)] as [(Float, Float)] {
+        m.part("Candy Stove", at: (q.0, 0.6, q.1), size: (1.4, 1.2, 1.4), color: "#475569", material: .metal)
+        m.part("Candy Flame", at: (q.0, 1.4, q.1), size: (0.6, 0.5, 0.6), color: "#F97316", shape: .cone, material: .neon, solid: false)
+    }
+    m.part("Candy Sign", at: (-200, 6.5, -221.6), size: (14, 2.2, 0.3), color: "#F59E0B", material: .neon, solid: false)
+    m.slab("Candy Gallery", x: -200, y: 6, z: -180, w: 30, h: 0.6, d: 4, color: "#7C2D12")
+
+    // Marbles: fifty mats in pairs; the two players of a pair kneel on either side.
+    m.ground(64, 48, color: "#D9F99D", name: "Marble Yard", x: -200, z: 200)
+    m.walls(-200, 200, w: 64, d: 48, h: 6, color: "#A3A3A3", name: "Marble Wall")
+    for r in 0..<5 {
+        for c in 0..<10 {
+            let x = -200 + (Float(c) - 4.5) * 5.6, z = 200 + (Float(r) - 2) * 8
+            m.slab("Marble Mat \(r * 10 + c + 1)", x: x, y: 0, z: z, w: 2.4, h: 0.08, d: 4.2, color: (r + c) % 2 == 0 ? "#FCA5A5" : "#93C5FD",
+                   tags: ["marblemat"])
+            m.part("Marble Ring", at: (x, 0.1, z), size: (1.2, 0.04, 1.2), color: "#F8FAFC", shape: .cylinder, material: .matte, solid: false)
+        }
+    }
+    for q in ring(6, radius: 3, cx: -200, cz: 226) {
+        m.part("Marble Jar", at: (q.0, 0.5, q.1), size: (0.8, 1, 0.8), color: "#A5F3FC", shape: .cylinder, material: .glass, opacity: 0.6)
+    }
+    m.part("Marble Lamp Post", at: (-232, 3, 176), size: (0.3, 6, 0.3), color: "#334155", shape: .cylinder, material: .metal)
+    m.part("Marble Lamp Post", at: (-168, 3, 224), size: (0.3, 6, 0.3), color: "#334155", shape: .cylinder, material: .metal)
+    m.slab("Marbles Gallery", x: -200, y: 6, z: 172, w: 30, h: 0.6, d: 4, color: "#365314")
+
+    // The final ring: three stacked discs that go away from the outside in.
+    m.slab("Ring Pit", x: 200, y: -1, z: 200, w: 48, h: 1, d: 48, color: "#1E1B4B", tags: ["ground"])
+    m.part("Ring Disc 3", at: (200, 9.7, 200), size: (20, 0.6, 20), color: "#F1F5F9", shape: .cylinder, tags: ["ringdisc"])
+    m.part("Ring Disc 2", at: (200, 9.75, 200), size: (14, 0.6, 14), color: "#FDE68A", shape: .cylinder, tags: ["ringdisc"])
+    m.part("Ring Disc 1", at: (200, 9.8, 200), size: (8, 0.6, 8), color: "#F87171", shape: .cylinder, tags: ["ringdisc"])
+    for q in ring(8, radius: 15, cx: 200, cz: 200, phase: 0.39) {
+        m.pillar("Ring Post", x: q.0, z: q.1, height: 15, radius: 0.6, color: "#4338CA")
+        m.part("Ring Light", at: (q.0, 15.8, q.1), size: (1.4, 1.4, 1.4), color: "#A5B4FC", shape: .sphere, material: .neon, solid: false)
+    }
+    m.slab("Ring Gallery", x: 200, y: 15, z: 224, w: 30, h: 0.6, d: 5, color: "#312E81")
 }
 
 // MARK: 79 Shark Attack Bay

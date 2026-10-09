@@ -2473,8 +2473,8 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 425,
-      "bytes" : 268230,
+      "blockCount" : 645,
+      "bytes" : 400855,
       "cover" : "games\/last-survivor-games\/cover-ae48890b.png",
       "id" : "last-survivor-games",
       "maxPlayers" : 16,
@@ -2483,19 +2483,22 @@
         "lib\/kit.absc",
         "games\/last-survivor-games\/data.absc",
         "games\/last-survivor-games\/bridge.absc",
+        "games\/last-survivor-games\/candy.absc",
         "games\/last-survivor-games\/common.absc",
         "games\/last-survivor-games\/field.absc",
         "games\/last-survivor-games\/final.absc",
         "games\/last-survivor-games\/huddle.absc",
+        "games\/last-survivor-games\/marbles.absc",
+        "games\/last-survivor-games\/ring.absc",
         "games\/last-survivor-games\/show.absc",
         "games\/last-survivor-games\/tug.absc",
         "games\/last-survivor-games\/main.absc"
       ],
       "shots" : [
-        "games\/last-survivor-games\/shot1-f119247f.png",
+        "games\/last-survivor-games\/shot1-023d460e.png",
         "games\/last-survivor-games\/shot2-ae3c3614.png"
       ],
-      "summary" : "24人で挑む5つのゲーム。だるまさんがころんだ・つなひき・なかま集め・ガラスの橋・最後のタイル。脱落するほど賞金がふえる。最後の1人になれ！",
+      "summary" : "100人で挑むサバイバル。だるまさんがころんだから始まって、つなひき・なかま集め・ガラスの橋・最後のタイル・型ぬき・ビー玉あてがランダムに続く。5人より少なくなったら決戦リング！ 最後の1人になれ！",
       "tags" : [
         "survival",
         "minigames",
