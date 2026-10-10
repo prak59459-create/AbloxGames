@@ -15,6 +15,12 @@
 
 Ablox Studio の「公開ゲームを開く」からも、同じ一覧のゲームをプロジェクトとして開けます。
 
+## 効果音ライブラリ
+
+[`sounds/`](sounds/) に、ゲームで使える **効果音が 6,000 以上** 入っています。どれも [SFXMint](https://sfxmint.com) の CC0（自由に使える）の音です。
+Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコピーしたり、「すべてダウンロード」したりできます。
+スクリプトでは `sound("retro-game-coin-08")` のように名前で鳴らせます。くわしくは [sounds/README.md](sounds/README.md)。
+
 ## ゲーム一覧
 
 <!-- games:start -->
