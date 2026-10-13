@@ -3,7 +3,7 @@
 
 let break_until = 0
 let next_i = 0            -- 休けいのあとに遊ぶゲーム（GAMES の番号）
-let last_id = ""          -- 同じゲームが2回続かないように
+let played = {}           -- このショーで遊んだゲーム（同じゲームは1回だけ）
 
 func is_spectator(p)
   return not in_cast(p) or p.out
@@ -26,7 +26,7 @@ func begin_show()
   game_i = 0
   round_no = 0
   next_i = 0
-  last_id = ""
+  played = {}
   cast = []
   used_numbers = {}
   clear_feed()
@@ -64,14 +64,15 @@ func game_index(id)
 end
 
 -- 次のゲーム: 最初はだるまさんがころんだ。残りが FINAL_AT 人より少ないか、MAX_ROUNDS 回遊んだら決戦リング。
--- それまでは、まん中のゲームからランダムに（直前と同じものはえらばない）
+-- それまでは、まん中のゲームからランダムに（このショーでまだ遊んでいないものだけ。全部遊んだら決戦リング）
 func pick_game()
   if round_no == 0 then return game_index("field") end
   if len(alive_cast()) < FINAL_AT or round_no >= MAX_ROUNDS then return game_index("ring") end
   let options = []
   for k in 1 to len(GAMES) do
-    if GAMES[k].turn == "middle" and GAMES[k].id != last_id then append(options, k) end
+    if GAMES[k].turn == "middle" and played[GAMES[k].id] != true then append(options, k) end
   end
+  if len(options) == 0 then return game_index("ring") end
   return options[random(1, len(options))]
 end
 
@@ -86,7 +87,7 @@ func next_game()
   next_i = 0
   round_no = round_no + 1
   let g = GAMES[game_i]
-  last_id = g.id
+  played[g.id] = true
   phase = "play"
   outs_now = 0
   game_ends = 0

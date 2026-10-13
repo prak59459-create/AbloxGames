@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 645,
-  "bytes" : 400855,
+  "bytes" : 401000,
   "cover" : "games\/last-survivor-games\/cover-ae48890b.png",
   "id" : "last-survivor-games",
   "maxPlayers" : 16,
@@ -25,7 +25,7 @@
     "games\/last-survivor-games\/shot1-023d460e.png",
     "games\/last-survivor-games\/shot2-ae3c3614.png"
   ],
-  "summary" : "100人で挑むサバイバル。だるまさんがころんだから始まって、つなひき・なかま集め・ガラスの橋・最後のタイル・型ぬき・ビー玉あてがランダムに続く。5人より少なくなったら決戦リング！ 最後の1人になれ！",
+  "summary" : "100人で挑むサバイバル。だるまさんがころんだから始まって、つなひき・なかま集め・ガラスの橋・最後のタイル・型ぬき・ビー玉あてがランダムに続く（同じゲームは1回だけ）。5人より少なくなったら決戦リング！ 最後の1人になれ！",
   "tags" : [
     "survival",
     "minigames",
