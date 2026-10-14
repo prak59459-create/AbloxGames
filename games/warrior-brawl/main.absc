@@ -8,6 +8,7 @@
 --   combat.absc   はじく・回避・重い一撃・キル・賞金・2倍タイム
 --   items.absc    道具（包帯・救急箱・爆弾・投げナイフ・けむり玉・トラバサミ）
 --   armory.absc   武器庫と補給テント・噴水
+--   bots.absc     人が6人より少ないときに入る 🤖 BOT（lib/kit_bots.absc）
 --   main.absc     このファイル
 
 kit_setup("Warrior Brawl", "はじいて、かわして、斬りこめ", [
@@ -16,7 +17,8 @@ kit_setup("Warrior Brawl", "はじいて、かわして、斬りこめ", [
   "💨 「回避」: 横にステップ。どれも黄色いスタミナを使う",
   "🎒 道具は2つまで: 包帯・救急箱・爆弾・投げナイフ・けむり玉・トラバサミ",
   "🔴 武器庫（赤）で武器、🟢 補給テント（緑）で道具。⛲ 噴水で少し回復",
-  "🔥 5連続キルで賞金首に。💰 ときどきクレジット2倍タイム"
+  "🔥 5連続キルで賞金首に。💰 ときどきクレジット2倍タイム",
+  "🤖 人が6人より少ないときは BOT が入る（右上のボタンで オン/オフ）"
 ])
 kit_currency = "クレジット"
 
@@ -36,6 +38,7 @@ kit_quest("streak", "5連続キル", 1, 300)
 on start()
   game.respawn_time = 3
   double_next = time() + DOUBLE_EVERY
+  bot_start()
   every(8, func() kit_leaderboard("⚔️ キル") end)
 end
 
@@ -52,6 +55,7 @@ on join(p)
   kit_give(p, 0)
   kit_quest_button(p)
   kit_camera_button(p)
+  bot_button(p)
   p.give(weapon_info("katana").name)
   let buttons = [["parry", "はじく", "#F59E0B"], ["dodge", "回避", "#0EA5E9"]]
   let i = 0

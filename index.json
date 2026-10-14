@@ -754,15 +754,17 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 212,
-      "bytes" : 139240,
+      "bytes" : 148398,
       "cover" : "games\/gun-swap-arena\/cover-1ef2966f.png",
       "id" : "gun-swap-arena",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_bots.absc",
         "games\/gun-swap-arena\/data.absc",
         "games\/gun-swap-arena\/arena.absc",
+        "games\/gun-swap-arena\/bots.absc",
         "games\/gun-swap-arena\/common.absc",
         "games\/gun-swap-arena\/ladder.absc",
         "games\/gun-swap-arena\/locker.absc",
@@ -786,23 +788,25 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 97,
-      "bytes" : 83951,
-      "cover" : "games\/warrior-brawl\/cover-b6dcdbd6.png",
+      "bytes" : 92944,
+      "cover" : "games\/warrior-brawl\/cover-a7a39913.png",
       "id" : "warrior-brawl",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_bots.absc",
         "games\/warrior-brawl\/data.absc",
         "games\/warrior-brawl\/armory.absc",
+        "games\/warrior-brawl\/bots.absc",
         "games\/warrior-brawl\/combat.absc",
         "games\/warrior-brawl\/common.absc",
         "games\/warrior-brawl\/items.absc",
         "games\/warrior-brawl\/main.absc"
       ],
       "shots" : [
-        "games\/warrior-brawl\/shot1-975a4c88.png",
-        "games\/warrior-brawl\/shot2-75a43984.png"
+        "games\/warrior-brawl\/shot1-ddfb102d.png",
+        "games\/warrior-brawl\/shot2-97a9f811.png"
       ],
       "summary" : "やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。",
       "tags" : [
@@ -912,14 +916,16 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 57,
-      "bytes" : 61028,
+      "bytes" : 71288,
       "cover" : "games\/blade-and-revolver\/cover-3b0c7383.png",
       "id" : "blade-and-revolver",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_bots.absc",
         "games\/blade-and-revolver\/data.absc",
+        "games\/blade-and-revolver\/bots.absc",
         "games\/blade-and-revolver\/combat.absc",
         "games\/blade-and-revolver\/crate.absc",
         "games\/blade-and-revolver\/match.absc",

@@ -1,23 +1,25 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 97,
-  "bytes" : 83951,
-  "cover" : "games\/warrior-brawl\/cover-b6dcdbd6.png",
+  "bytes" : 92944,
+  "cover" : "games\/warrior-brawl\/cover-a7a39913.png",
   "id" : "warrior-brawl",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_bots.absc",
     "games\/warrior-brawl\/data.absc",
     "games\/warrior-brawl\/armory.absc",
+    "games\/warrior-brawl\/bots.absc",
     "games\/warrior-brawl\/combat.absc",
     "games\/warrior-brawl\/common.absc",
     "games\/warrior-brawl\/items.absc",
     "games\/warrior-brawl\/main.absc"
   ],
   "shots" : [
-    "games\/warrior-brawl\/shot1-975a4c88.png",
-    "games\/warrior-brawl\/shot2-75a43984.png"
+    "games\/warrior-brawl\/shot1-ddfb102d.png",
+    "games\/warrior-brawl\/shot2-97a9f811.png"
   ],
   "summary" : "やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。",
   "tags" : [

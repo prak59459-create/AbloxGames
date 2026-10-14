@@ -9,6 +9,7 @@
 --   ladder.absc   武器のならび・キル・ナイフ・連続キルのごほうび
 --   arena.absc    スポーン・無敵・回復キット
 --   locker.absc   スキン・成績・結果
+--   bots.absc     人が6人より少ないときに入る 🤖 BOT（lib/kit_bots.absc）
 --   main.absc     このファイル
 
 kit_setup("Gun Swap Arena", "武器をクリアして、黄金ナイフで決めろ", [
@@ -17,7 +18,8 @@ kit_setup("Gun Swap Arena", "武器をクリアして、黄金ナイフで決め
   "🔪 ナイフでたおされると1段階もどされる！",
   "🛡 スポーン直後の2びょうは無敵。💚 緑のキットで回復",
   "🔥 3・5・7連続キルでごほうび（スピード・体力・ダメージ）",
-  "⏱ 6分で時間切れ。いちばん進んだ人の勝ち。🎟 クレジットでスキン"
+  "⏱ 6分で時間切れ。いちばん進んだ人の勝ち。🎟 クレジットでスキン",
+  "🤖 人が6人より少ないときは BOT が入る。BOT をたおしても 次の武器へ（右上のボタンで オン/オフ）"
 ])
 
 
@@ -48,6 +50,7 @@ on join(p)
   p.in_match = false
   kit_quest_button(p)
   kit_camera_button(p)
+  bot_button(p)
   p.camera = "first"
   p.ui_button("knife", "🔪", {at: "bottom_right", dx: -120, dy: -160, w: 80, h: 70, size: 26, bg: "#57534E", radius: 35})
   p.ui_button("locker", "🎽", {at: "top_right", dy: 120, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})

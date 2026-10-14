@@ -1,15 +1,17 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 212,
-  "bytes" : 139240,
+  "bytes" : 148398,
   "cover" : "games\/gun-swap-arena\/cover-1ef2966f.png",
   "id" : "gun-swap-arena",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_bots.absc",
     "games\/gun-swap-arena\/data.absc",
     "games\/gun-swap-arena\/arena.absc",
+    "games\/gun-swap-arena\/bots.absc",
     "games\/gun-swap-arena\/common.absc",
     "games\/gun-swap-arena\/ladder.absc",
     "games\/gun-swap-arena\/locker.absc",

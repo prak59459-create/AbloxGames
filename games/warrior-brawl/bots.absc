@@ -1,0 +1,20 @@
+-- bots.absc — 人が少ないときの 🤖 BOT（lib/kit_bots.absc）
+-- 武器庫の安い武器を1つ持って、近くまで来て 斬りかかる。重い一撃・はじく・道具は 使わない。
+
+func bot_arm(n)
+  let list = filter(WEAPONS, func(w) return w.price <= 300 end)
+  let w = list[random(1, len(list))]
+  n.give(w.name)
+  n.bot_range = w.reach - 0.5
+  n.bot_rate = 1.4 / w.rate + 0.3
+  n.protect_until = time() + SPAWN_PROTECT
+end
+
+bot_setup({
+  fill: 6, health: 100, speed: 1, keep: 1.5, miss: 0.3,
+  spot: func(n)
+    let a = random(0, 359)
+    return {x: 45 * sin(a), y: 1.5, z: 45 * cos(a)}
+  end,
+  on_spawn: bot_arm
+})

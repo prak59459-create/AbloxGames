@@ -36,8 +36,9 @@ func item_info(id)
   return nil
 end
 
+-- 相手: ほかのプレイヤーと 🤖 BOT
 func foes_of(p)
-  return filter(players(), func(q) return q.id != p.id and q.alive end)
+  return filter(kit_everyone(), func(q) return q.id != p.id and q.alive and (not q.is_npc or bot_is(q)) end)
 end
 
 func use_stamina(p, amount)

@@ -92,12 +92,14 @@ func start_match()
       arm(p)
     end
   end
+  bot_start()
   announce("🔫 " + arena.name + " × " + set.name + "（" + len(ladder) + " 段階）スタート！", 4)
 end
 
 func end_match(winner, message)
   if phase != "match" then return end
   phase = "over"
+  bot_stop()
   let ranked = sort(filter(players(), func(p) return ready(p) and p.in_match end), func(a, b)
     if a.tier != b.tier then return a.tier > b.tier end
     return (a.match_kills or 0) > (b.match_kills or 0)

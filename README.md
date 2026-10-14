@@ -56,7 +56,7 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/power-training-sim/cover-14ec11d1.png" width="200"> | 21 | **Power Training Sim** | 力・気・速さ・耐久の4つを修行できたえる育成バトル。岩場や滝の修行場でパワーアップして、ボスや友だちと戦おう。 |
 | <img src="games/deflect-ball/cover-e14bc4e1.png" width="200"> | 22 | **Deflect Ball** | ねらった相手を追いかける光のボール。ギリギリで「はじく」を押して打ち返せ！最後まで残った人の勝ち。 |
 | <img src="games/gun-swap-arena/cover-1ef2966f.png" width="200"> | 23 | **Gun Swap Arena** | たおすたびに武器が変わるスピードFPS。12の武器を順番にクリアして、最後の黄金ナイフで決めた人の勝ち。 |
-| <img src="games/warrior-brawl/cover-b6dcdbd6.png" width="200"> | 24 | **Warrior Brawl** | やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。 |
+| <img src="games/warrior-brawl/cover-a7a39913.png" width="200"> | 24 | **Warrior Brawl** | やり・大剣・刀・爆弾で戦う近接バトル。タイミングよく「はじく」で相手をよろめかせ、回避と包帯で生きのこれ。 |
 | <img src="games/ring-boxing-league/cover-67a4e0a2.png" width="200"> | 25 | **Ring Boxing League** | リングで1対1のボクシング。ジャブ、ストレート、アッパー、ガード。スタミナを考えて打ち合い、ランキングを上げよう。 |
 | <img src="games/power-roulette/cover-2e950cfc.png" width="200"> | 26 | **Power Roulette** | ラウンドごとにルーレットで能力が決まる！炎、巨大化、ワープ、分身…運と工夫で最後まで生きのこれ。 |
 | <img src="games/armed-racers/cover-9f7ac916.png" width="200"> | 27 | **Armed Racers** | 武装したレースカーでコースを3周。アイテム箱からミサイル、オイル、ブーストを手に入れて、ライバルをじゃましろ！ |
@@ -216,6 +216,7 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 ```
 index.json                      アプリが読む一覧
 lib/kit.absc                    全ゲーム共通の道具（お金・ショップ・クエスト・レベル・実績・遊び方表示…）
+lib/kit_bots.absc               人が少ないときに入る 🤖 BOT（Gun Swap Arena・Warrior Brawl・Blade & Revolver。右上のボタンで オン/オフ）
 games/<id>/world.ablox          マップ（ブロック）
 games/<id>/*.absc               そのゲームのスクリプト（data → ほか → main の順に読む）
 games/<id>/cover-<指紋>.png      一覧に出るカバー画像（マップから自動で描く）

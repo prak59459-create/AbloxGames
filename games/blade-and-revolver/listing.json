@@ -1,14 +1,16 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 57,
-  "bytes" : 61028,
+  "bytes" : 71288,
   "cover" : "games\/blade-and-revolver\/cover-3b0c7383.png",
   "id" : "blade-and-revolver",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_bots.absc",
     "games\/blade-and-revolver\/data.absc",
+    "games\/blade-and-revolver\/bots.absc",
     "games\/blade-and-revolver\/combat.absc",
     "games\/blade-and-revolver\/crate.absc",
     "games\/blade-and-revolver\/match.absc",

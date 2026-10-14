@@ -38,14 +38,21 @@ on hit(victim, attacker, damage)
 end
 
 on death(victim, killer)
-  if victim.is_npc or phase != "match" then return end
+  if phase != "match" then return end
+  if victim.is_npc and not bot_is(victim) then return end
   let bounty = 0
-  if (victim.streak or 0) >= 5 then bounty = victim.streak * 5 end
-  victim.streak = 0
-  victim.deaths = (victim.deaths or 0) + 1
-  victim.head_color = victim.own_head or victim.head_color
-  hud(victim)
-  if killer == nil or killer.id == victim.id or killer.is_npc then return end
+  if not victim.is_npc then
+    if (victim.streak or 0) >= 5 then bounty = victim.streak * 5 end
+    victim.streak = 0
+    victim.deaths = (victim.deaths or 0) + 1
+    victim.head_color = victim.own_head or victim.head_color
+    hud(victim)
+  end
+  if killer == nil or killer.id == victim.id then return end
+  if killer.is_npc then
+    if bot_is(killer) then bot_kill(killer, victim) end
+    return
+  end
   killer.kills_match = (killer.kills_match or 0) + 1
   killer.kills = (killer.kills or 0) + 1
   killer.streak = (killer.streak or 0) + 1
@@ -84,6 +91,23 @@ on death(victim, killer)
   else
     hud(killer)
     if killer.kills_match >= mode.goal then end_match("🏆 " + killer.name + " の勝ち！") end
+  end
+end
+
+-- 🤖 BOT がたおした（人と同じように 数える）
+func bot_kill(n, victim)
+  let k = bot_scored(n)
+  chat("🔫 " + n.name + " → " + victim.name)
+  if mode.id == "tdm" and n.team != nil then
+    team_kills[n.team] = team_kills[n.team] + 1
+    for p in players() do hud(p) end
+    if team_kills[n.team] >= mode.goal then
+      let name = "🔴 赤チーム"
+      if n.team == "blue" then name = "🔵 青チーム" end
+      end_match("🏆 " + name + " の勝ち！")
+    end
+  elif k >= mode.goal then
+    end_match("🏆 " + n.name + " の勝ち！ つぎは まけないぞ！")
   end
 end
 

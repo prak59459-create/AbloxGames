@@ -108,12 +108,16 @@ func start_match()
     end
   end
   game.friendly_fire = false
+  bot_scores = {}
+  bot_start()
   announce(mode.name + " — " + mode.text, 4)
 end
 
 func end_match(message)
   if phase != "match" then return end
   phase = "over"
+  let bot_best = bot_best_kills()
+  bot_stop()
   let ranked = sort(filter(players(), func(p) return ready(p) end), func(a, b) return (a.kills_match or 0) > (b.kills_match or 0) end)
   for p in players() do
     if ready(p) then
@@ -122,7 +126,7 @@ func end_match(message)
       if mode.id == "tdm" then
         won = p.team != nil and team_kills[p.team] >= team_kills[other_team(p.team)]
       else
-        won = len(ranked) > 0 and ranked[1].id == p.id
+        won = len(ranked) > 0 and ranked[1].id == p.id and (p.kills_match or 0) > bot_best
       end
       if won then
         earned = earned + 40

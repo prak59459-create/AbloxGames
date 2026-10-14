@@ -1,0 +1,225 @@
+-- kit_bots.absc — 人数が足りないときに入る BOT（Ablox Games の共通エンジン）
+-- ひとりや少ない人数でも 対戦ゲームが遊べるように、NPC の BOT が 相手になる。
+-- 人が来たら そのぶん BOT がへり、人がへったら また入る。
+--
+-- ゲームは bot_setup で決めて、試合のあいだだけ bot_start / bot_stop する:
+--
+--   bot_setup({fill: 6, weapon: "リボルバー", spot: func(n) return block("Spawn 1").position end})
+--   bot_start()                         -- 試合スタート（BOT が入りはじめる）
+--   bot_stop()                          -- 試合おわり（BOT はみんな帰る）
+--
+-- えらべること（なくてもよい）:
+--   fill      人と BOT あわせて この人数になるまで入る（4）
+--   weapon    持たせる武器の名前、または func(n) で名前を返す
+--   health    体力（100）   speed  はやさ（1）   respawn  やられてから次が入るまでの秒（3）
+--   sight     この距離までの相手をねらう（60）   range  うつ距離（40）   keep  相手との間（10）
+--   rate      うつ間かく（秒、0.9）   miss  外れる確率（0〜1、0.35。子ども向けに やさしめ）
+--   spot      func(n) で 入る場所を返す（なければ 最初のプレイヤーのそば）
+--   team      func(n) で チームを返す（チーム戦。nil ならチームなし）
+--   foe       func(n, c) で c をねらってよいかを返す（なければ 自分と味方以外）
+--   on_spawn  func(n) 入ったときに呼ばれる（服の色・ゲームの値など）
+--   names     BOT の名前のリスト
+-- BOT ごとに変えるなら on_spawn で n.bot_keep / n.bot_range / n.bot_rate を入れる（ナイフの BOT は近くまで来る など）。
+--
+-- やられたときの点数などは ゲームの on death で: bot_is(victim) / bot_is(killer)。
+-- 設定画面のかわりに、bot_button(p) で「🤖 BOT」ボタン（だれでも オン/オフ）。
+
+let bot_cfg = {fill: 4, weapon: nil, health: 100, speed: 1, respawn: 3, sight: 60, range: 40, keep: 10,
+               rate: 0.9, miss: 0.35, spot: nil, team: nil, foe: nil, on_spawn: nil,
+               names: ["ピコ", "ボルト", "ミント", "ナッツ", "ジャム", "ココ", "ラムネ", "チップ", "モカ", "ソラマメ",
+                       "ポン", "キキ", "ルル", "ダイフク", "ゴマ", "メロン"]}
+let bot_running = false
+let bot_enabled = true
+let bot_all = []
+let bot_serial = 0
+let bot_next_fill = 0
+let bot_clock = 0
+
+let BOT_COLORS = ["#64748B", "#0EA5E9", "#22C55E", "#F59E0B", "#A855F7", "#EF4444", "#14B8A6", "#EC4899"]
+let BOT_HELLO = ["よろしく！", "がんばるぞ！", "まけないよ！", "いくよー！", "よーし！"]
+
+func bot_setup(o)
+  for k in keys(o) do bot_cfg[k] = o[k] end
+end
+
+func bot_is(x)
+  return x != nil and x.is_npc and x.bot == true
+end
+
+-- いま 入っている BOT（やられたものは入らない）
+func bot_list()
+  bot_all = filter(bot_all, func(n) return kit_here(n) and n.alive end)
+  return bot_all
+end
+
+func bot_people()
+  return len(filter(players(), func(p) return kit_here(p) end))
+end
+
+func bot_want()
+  if not bot_running or not bot_enabled then return 0 end
+  return max(0, bot_cfg.fill - bot_people())
+end
+
+func bot_start()
+  bot_running = true
+  bot_next_fill = time() + 1
+end
+
+func bot_stop()
+  bot_running = false
+  bot_clear()
+end
+
+func bot_clear()
+  for n in bot_all do kit_gone(n) end
+  bot_all = []
+end
+
+func bot_weapon(n)
+  let w = bot_cfg.weapon
+  if type(w) == "function" then return w(n) end
+  return w
+end
+
+func bot_spot(n)
+  if bot_cfg.spot != nil then return bot_cfg.spot(n) end
+  let p = random_player()
+  if p != nil then return p.position + {x: random(-8, 8), y: 1, z: random(-8, 8)} end
+  return {x: 0, y: 2, z: 0}
+end
+
+func bot_spawn()
+  bot_serial = bot_serial + 1
+  let names = bot_cfg.names
+  let name = "🤖 " + names[(bot_serial - 1) % len(names) + 1]
+  let color = BOT_COLORS[(bot_serial - 1) % len(BOT_COLORS) + 1]
+  let n = create_npc({name: name, position: {x: 0, y: 2, z: 0}, color: color, head_color: "#F8FAFC",
+                      health: bot_cfg.health, speed: bot_cfg.speed})
+  n.bot = true
+  n.bot_next_shot = time() + 1.5
+  n.bot_next_move = 0
+  n.bot_side = 1
+  if bot_cfg.team != nil then n.team = bot_cfg.team(n) end
+  n.teleport(bot_spot(n))
+  let w = bot_weapon(n)
+  if w != nil then n.give(w) end
+  if bot_cfg.on_spawn != nil then bot_cfg.on_spawn(n) end
+  append(bot_all, n)
+  if chance(40) then n.say(BOT_HELLO[random(1, len(BOT_HELLO))]) end
+  return n
+end
+
+-- 人がふえたら いちばん新しい BOT から帰る
+func bot_trim(want)
+  let list = bot_list()
+  while len(list) > want do
+    let n = list[len(list)]
+    kit_gone(n)
+    list = slice(list, 1, len(list) - 1)
+  end
+  bot_all = list
+end
+
+func bot_can_hit(n, c)
+  if c == nil or not kit_here(c) or not c.alive or c.id == n.id then return false end
+  if bot_cfg.foe != nil then return bot_cfg.foe(n, c) end
+  return not kit_same_team(n, c)
+end
+
+func bot_target(n)
+  let best = nil
+  let best_d = bot_cfg.sight
+  for c in kit_everyone() do
+    if bot_can_hit(n, c) then
+      let d = distance(n, c)
+      if d <= best_d then
+        best = c
+        best_d = d
+      end
+    end
+  end
+  return best
+end
+
+func bot_think(n)
+  -- 同じ見回りの中で ほかの BOT にやられて もういないことがある
+  if not kit_here(n) or not n.alive then return end
+  let t = bot_target(n)
+  if t == nil then
+    if time() > n.bot_next_move then
+      n.bot_next_move = time() + 2 + random() * 2
+      n.move_to(n.position + {x: random(-10, 10), y: 0, z: random(-10, 10)})
+    end
+    return
+  end
+  let d = distance(n, t)
+  let keep = n.bot_keep or bot_cfg.keep
+  let range = n.bot_range or bot_cfg.range
+  if time() > n.bot_next_move then
+    n.bot_next_move = time() + 0.7 + random() * 0.8
+    if keep <= 3 then
+      n.follow(t)
+    else
+      -- 相手との間を keep くらいにして、横に動いて よける
+      if chance(30) then n.bot_side = 0 - n.bot_side end
+      let away = normalize(n.position - t.position)
+      let side = kit_dir(n.yaw + 90) * (n.bot_side * random(2, 6))
+      n.move_to(t.position + away * keep + side)
+      if chance(10) then n.jump_now() end
+    end
+  end
+  if d <= range and time() >= n.bot_next_shot then
+    n.bot_next_shot = time() + (n.bot_rate or bot_cfg.rate) * (0.8 + random() * 0.6)
+    n.look_at(t)
+    if random() < bot_cfg.miss then
+      n.shoot(t.position + {x: random_float(-3, 3), y: 2.5, z: random_float(-3, 3)})
+    else
+      n.shoot(t)
+    end
+  end
+end
+
+on tick(dt)
+  bot_clock = bot_clock + dt
+  if bot_clock < 0.3 then return end
+  bot_clock = 0
+  let want = bot_want()
+  let list = bot_list()
+  if len(list) > want then
+    bot_trim(want)
+  elif len(list) < want and time() >= bot_next_fill then
+    bot_next_fill = time() + 1
+    bot_spawn()
+  end
+  for n in bot_list() do bot_think(n) end
+end
+
+on death(victim, killer)
+  if bot_is(victim) then
+    bot_next_fill = max(bot_next_fill, time() + bot_cfg.respawn)
+  end
+end
+
+func bot_button_label()
+  if bot_enabled then return "🤖 BOT オン" end
+  return "🤖 BOT オフ"
+end
+
+func bot_button(p)
+  p.bot_button_shown = true
+  let bg = "#334155"
+  if bot_enabled then bg = "#0F766E" end
+  p.ui_button("bot_toggle", bot_button_label(), {at: "top_right", dy: 240, w: 120, h: 44, size: 14, bg: bg, radius: 22})
+end
+
+on button(p, id)
+  if id == "bot_toggle" then
+    bot_enabled = not bot_enabled
+    if not bot_enabled then bot_clear() end
+    for q in players() do
+      if q.bot_button_shown then bot_button(q) end
+    end
+    announce(p.name + ": " + bot_button_label(), 2)
+  end
+end

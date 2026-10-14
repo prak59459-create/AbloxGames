@@ -1,0 +1,48 @@
+-- bots.absc — 人が少ないときの 🤖 BOT（lib/kit_bots.absc）
+-- 試合のあいだだけ入る。キルは人と同じように数え、BOT が先に目標に着いたら BOT の勝ち。
+
+func bot_team(n)
+  if mode.id != "tdm" then return nil end
+  let reds = 0
+  let blues = 0
+  for c in kit_everyone() do
+    if c.team == "red" then reds = reds + 1 end
+    if c.team == "blue" then blues = blues + 1 end
+  end
+  if reds <= blues then return "red" end
+  return "blue"
+end
+
+func bot_dress(n)
+  if n.team == "red" then n.color = "#DC2626" end
+  if n.team == "blue" then n.color = "#2563EB" end
+  n.protect_until = time() + PROTECT_SECS
+  if mode.id == "knife" or chance(30) then
+    n.give("ナイフ")
+    n.bot_keep = 1.5
+    n.bot_range = 4
+  end
+end
+
+bot_setup({
+  fill: 6, health: 100, speed: 1, range: 40, keep: 12, rate: 1.1, miss: 0.4,
+  weapon: func(n) return gun_name() end,
+  spot: func(n) return block("Spawn " + random(1, 12)).position + {x: 0, y: 1, z: 0} end,
+  team: bot_team,
+  on_spawn: bot_dress
+})
+
+-- BOT のキル（BOT はやられると帰るので、名前ごとに 試合のあいだ おぼえておく）
+let bot_scores = {}
+
+func bot_scored(n)
+  let k = (bot_scores[n.name] or 0) + 1
+  bot_scores[n.name] = k
+  return k
+end
+
+func bot_best_kills()
+  let best = 0
+  for name in keys(bot_scores) do best = max(best, bot_scores[name]) end
+  return best
+end

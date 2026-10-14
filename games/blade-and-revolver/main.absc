@@ -7,6 +7,7 @@
 --   match.absc    武器・投票・試合・結果・画面
 --   combat.absc   持ちかえ・投げナイフ・ダッシュ・キル・賞金首
 --   crate.absc    スキンガチャ・成績
+--   bots.absc     人が6人より少ないときに入る 🤖 BOT（lib/kit_bots.absc）
 --   main.absc     このファイル
 
 kit_setup("Blade & Revolver", "ナイフとリボルバーで勝ちぬけ", [
@@ -15,7 +16,8 @@ kit_setup("Blade & Revolver", "ナイフとリボルバーで勝ちぬけ", [
   "🎯 「投げる」でナイフが飛ぶ（3びょうに1回）。💨 ダッシュで一気に近づく",
   "🛡 復活してから2びょうは無敵",
   "🔥 5連続キルで賞金首。たおした人は賞金ゲット",
-  "🎁 金色のパッドでスキンガチャ（頭＝ナイフ、足＝リボルバー）"
+  "🎁 金色のパッドでスキンガチャ（頭＝ナイフ、足＝リボルバー）",
+  "🤖 人が6人より少ないときは BOT が入る（右上のボタンで オン/オフ）"
 ])
 
 
@@ -40,6 +42,7 @@ on join(p)
   kit_welcome(p)
   kit_quest_button(p)
   kit_camera_button(p)
+  bot_button(p)
   kit_show_money(p)
   p.skins = ["steel"]
   p.knife_skin = "steel"

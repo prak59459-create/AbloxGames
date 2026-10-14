@@ -1,0 +1,16 @@
+-- bots.absc — 人が少ないときの 🤖 BOT（lib/kit_bots.absc）
+-- 試合のあいだだけ入る。BOT は 武器のならびの前半の武器を1つ持つ（黄金ナイフは持たない）。
+-- BOT をたおしても 1キル（次の武器へ）。BOT は 段階を上がらないので 勝つのは 人だけ。
+
+func bot_gun(n)
+  if len(ladder) < 2 then return nil end
+  let top = max(1, floor((len(ladder) - 1) / 2))
+  n.protect_until = time() + PROTECT_SECS
+  return ladder[random(1, top)]
+end
+
+bot_setup({
+  fill: 6, health: 100, speed: 1, range: 45, keep: 12, rate: 1, miss: 0.4,
+  weapon: bot_gun,
+  spot: func(n) return block(arena.prefix + " Spot " + random(1, arena.spots)).position + {x: 0, y: 1, z: 0} end
+})

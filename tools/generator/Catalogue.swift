@@ -44,7 +44,7 @@ enum Catalogue {
     /// What each shared engine needs loaded before it.
     static let libNeeds: [String: [String]] = [
         "race": ["rounds"], "ball": ["rounds"], "quiz": ["rounds"], "waves": [], "obby": [], "ride": [],
-        "sim": [], "tycoon": [], "move": [], "rounds": []
+        "sim": [], "tycoon": [], "move": [], "rounds": [], "bots": []
     ]
 
     /// The engines' files in the order they run: each after what it needs.

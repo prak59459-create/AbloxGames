@@ -23,7 +23,7 @@ end
 func parried(victim, attacker)
   attacker.frozen = true
   kit_later(attacker, 1.2, func() attacker.frozen = false end)
-  attacker.message("💫 はじかれた！", 1)
+  if not attacker.is_npc then attacker.message("💫 はじかれた！", 1) end
   victim.message("✨ はじき成功！", 1)
   victim.sound("bounce")
   victim.stamina = min(STAMINA_MAX, victim.stamina + 20)
@@ -108,7 +108,8 @@ end
 
 -- ふつうのこうげき（武器の弾）
 on hit(victim, attacker, damage)
-  if attacker == nil or attacker.is_npc or victim.is_npc then return damage end
+  if attacker == nil or victim.is_npc then return damage end
+  if attacker.is_npc and not bot_is(attacker) then return damage end
   if active_until(victim.protect_until) then return 0 end
   attacker.protect_until = 0
   if active_until(victim.parry_until) then
@@ -125,11 +126,17 @@ func credits_for(killer)
 end
 
 on death(victim, killer)
-  if victim.is_npc then return end
+  if victim.is_npc and not bot_is(victim) then return end
   let bounty = 0
-  if victim.streak >= 5 then bounty = victim.streak * 20 end
-  victim.streak = 0
-  victim.deaths = (victim.deaths or 0) + 1
+  if not victim.is_npc then
+    if victim.streak >= 5 then bounty = victim.streak * 20 end
+    victim.streak = 0
+    victim.deaths = (victim.deaths or 0) + 1
+  end
+  if bot_is(killer) and killer.id != victim.id then
+    chat("⚔ " + killer.name + " → " + victim.name)
+    return
+  end
   if killer != nil and killer.id != victim.id and not killer.is_npc then
     killer.streak = killer.streak + 1
     killer.kills = (killer.kills or 0) + 1
