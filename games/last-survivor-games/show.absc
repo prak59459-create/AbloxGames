@@ -1,9 +1,11 @@
--- show.absc — ショーの流れ: 寮で待つ → だるまさんがころんだ → ランダムなゲームを、残りが FINAL_AT 人より
--- 少なくなるまでくり返す → 決戦リング → 優勝 → また寮へ
+-- show.absc — ショーの流れ: 寮で待つ → STAGES の順に第1〜第6ゲーム（ステージごとに2つのうちどちらか）
+-- → 優勝 → また寮へ。残りが FINAL_AT 人より少なくなったら、とちゅうでも最終ゲームへ。
+-- 最終ゲームの前に FINAL_CROWD 人より多く残っていたら、延長の「最後のタイル」で半分にする
 
 let break_until = 0
 let next_i = 0            -- 休けいのあとに遊ぶゲーム（GAMES の番号）
-let played = {}           -- このショーで遊んだゲーム（同じゲームは1回だけ）
+let stage_no = 0          -- いま遊んでいる／さっき遊んだステージ（STAGES の番号）
+let extra_done = false    -- このショーで延長の「最後のタイル」を遊んだか（1回だけ）
 
 func is_spectator(p)
   return not in_cast(p) or p.out
@@ -26,7 +28,8 @@ func begin_show()
   game_i = 0
   round_no = 0
   next_i = 0
-  played = {}
+  stage_no = 0
+  extra_done = false
   cast = []
   used_numbers = {}
   clear_feed()
@@ -63,17 +66,45 @@ func game_index(id)
   return 0
 end
 
--- 次のゲーム: 最初はだるまさんがころんだ。残りが FINAL_AT 人より少ないか、MAX_ROUNDS 回遊んだら決戦リング。
--- それまでは、まん中のゲームからランダムに（このショーでまだ遊んでいないものだけ。全部遊んだら決戦リング）
-func pick_game()
-  if round_no == 0 then return game_index("field") end
-  if len(alive_cast()) < FINAL_AT or round_no >= MAX_ROUNDS then return game_index("ring") end
-  let options = []
-  for k in 1 to len(GAMES) do
-    if GAMES[k].turn == "middle" and played[GAMES[k].id] != true then append(options, k) end
+-- そのゲームが入っているステージ（延長のゲームは 0）
+func stage_of(id)
+  for s in 1 to len(STAGES) do
+    for gid in STAGES[s] do
+      if gid == id then return s end
+    end
   end
-  if len(options) == 0 then return game_index("ring") end
+  return 0
+end
+
+-- ステージの中から1つ、ランダムに
+func pick_in_stage(s)
+  let options = []
+  for gid in STAGES[s] do
+    let k = game_index(gid)
+    if k != 0 then append(options, k) end
+  end
   return options[random(1, len(options))]
+end
+
+-- 画面に出す「第◯ゲーム」
+func stage_label(g)
+  let s = stage_of(g.id)
+  if s == 0 then return "延長ゲーム" end
+  if s == len(STAGES) then return "第" + s + "（最終）ゲーム" end
+  return "第" + s + "ゲーム"
+end
+
+-- 次のゲーム: STAGES の順に1つずつ。残りが FINAL_AT 人より少ないか、MAX_ROUNDS 回遊んだら最終ゲーム。
+-- 最終ゲームの前にまだ多すぎたら、1回だけ延長の「最後のタイル」
+func pick_game()
+  let last = len(STAGES)
+  if round_no == 0 then return pick_in_stage(1) end
+  if len(alive_cast()) < FINAL_AT or round_no >= MAX_ROUNDS then return pick_in_stage(last) end
+  let next_stage = min(stage_no + 1, last)
+  if next_stage == last and len(alive_cast()) > FINAL_CROWD and not extra_done then
+    return game_index("final")
+  end
+  return pick_in_stage(next_stage)
 end
 
 func next_game()
@@ -87,7 +118,8 @@ func next_game()
   next_i = 0
   round_no = round_no + 1
   let g = GAMES[game_i]
-  played[g.id] = true
+  let s = stage_of(g.id)
+  if s == 0 then extra_done = true else stage_no = s end
   phase = "play"
   outs_now = 0
   game_ends = 0
@@ -153,7 +185,7 @@ func back_to_dorm()
   break_until = time() + BREAK_TIME
   next_i = pick_game()
   let upcoming = GAMES[next_i]
-  let line = "☕ 休けい " + BREAK_TIME + " 秒 — 次は " + upcoming.emoji + " " + upcoming.name
+  let line = "☕ 休けい " + BREAK_TIME + " 秒 — 次は " + stage_label(upcoming) + " " + upcoming.emoji + " " + upcoming.name
   if upcoming.turn == "last" then line = line + "！ 残り " + len(alive_cast()) + " 人の決戦だ" end
   announce(line, 3)
   after(BREAK_TIME, func() if show == show_no and phase == "between" then next_game() end end)
@@ -205,6 +237,8 @@ func reset_to_lobby()
   game_i = 0
   round_no = 0
   next_i = 0
+  stage_no = 0
+  extra_done = false
   phase = "lobby"
   pot = carry
   update_orb()

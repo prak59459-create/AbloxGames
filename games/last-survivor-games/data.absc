@@ -1,7 +1,8 @@
 -- data.absc — ゲーム・参加者・賞金・NPCの性格
 
 -- arena: そのゲームの場所（"<arena> Gallery" が観客席）/ time: 制限時間（0 = なし）
--- turn: "first" = いつも最初 / "middle" = ランダムにくり返す / "last" = 残りが FINAL_AT 人より少なくなったら最後に
+-- turn: "first" = いつも最初 / "middle" = まん中のステージ / "extra" = 決勝の前に人が多すぎるときだけ /
+--       "last" = いつも最後（残りが FINAL_AT 人より少なくなったら すぐ）
 let GAMES = [
   {id: "field", name: "だるまさんがころんだ", emoji: "🎎", arena: "Field", time: 75, turn: "first",
    rule: "人形が「ころんだ！」でふり向いたら止まれ。見られている間に動いたら失格。岩や人のかげなら見えない"},
@@ -11,7 +12,7 @@ let GAMES = [
    rule: "よばれた人数ぴったりで部屋に入れ。ランプが黄色なら、あと1人足りない部屋"},
   {id: "bridge", name: "ガラスの橋", emoji: "🌉", arena: "Bridge", time: 110, turn: "middle",
    rule: "左右どちらかは割れるガラス。前の人をよく見て、安全な道をおぼえろ"},
-  {id: "final", name: "最後のタイル", emoji: "🟥", arena: "Final", time: 0, turn: "middle",
+  {id: "final", name: "最後のタイル", emoji: "🟥", arena: "Final", time: 0, turn: "extra",
    rule: "黄色→オレンジに光ったタイルは落ちる。半分の人が落ちるまで立っていろ"},
   {id: "candy", name: "型ぬき", emoji: "🍪", arena: "Candy", time: 60, turn: "middle",
    rule: "4つの箱から1つえらぶと、中は ⚪・🔺・⭐・☂️ のどれか。メーターが緑のときに「けずる」。3回ひびが入ると割れて失格"},
@@ -21,9 +22,22 @@ let GAMES = [
    rule: "「ドン！」で相手をおし出せ。「ふんばる」でおされにくくなる。リングは外からだんだん小さくなる。最後に立っていた1人が優勝"}
 ]
 
+-- ショーの順番。ステージごとに、games のどれか1つをランダムに遊ぶ（まだ作っていないゲームは入れない）
+-- 第1: だるまさんがころんだ / 第2: 型ぬき か 5人6脚 / 第3: つなひき か なかま集め /
+-- 第4: ビー玉あて か かくれんぼ / 第5: ガラスの橋 か 大なわとびの橋 / 第6（最終）: 決戦リング か 空のタワー
+let STAGES = [
+  ["field"],
+  ["candy"],
+  ["tug", "huddle"],
+  ["marbles"],
+  ["bridge"],
+  ["ring"]
+]
+
 let CAST_SIZE = 100         -- 1回のショーの参加者。足りない分はNPC（NPCの上限も100）
-let FINAL_AT = 5            -- 残りがこれより少なくなったら、決戦リングへ
-let MAX_ROUNDS = 14         -- これだけ遊んでもまだ多いときも、決戦リングへ
+let FINAL_AT = 5            -- 残りがこれより少なくなったら、最終ゲームへ
+let FINAL_CROWD = 16        -- 最終ゲームの前にこれより多く残っていたら、先に「最後のタイル」で半分にする
+let MAX_ROUNDS = 14         -- これだけ遊んでもまだ多いときも、最終ゲームへ
 let PRIZE_PER_OUT = 100     -- 1人脱落するごとに賞金がふえる
 let LOBBY_WAIT = 20         -- 寮で待つ秒数
 let BREAK_TIME = 10         -- ゲームとゲームの間

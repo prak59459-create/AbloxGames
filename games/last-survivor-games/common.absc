@@ -2,7 +2,7 @@
 
 let phase = "lobby"       -- lobby / intro / play / between / ending
 let game_i = 0            -- いまのゲーム（GAMES の番号）
-let round_no = 0          -- この回で何ゲーム目か（ゲームはランダムにくり返す）
+let round_no = 0          -- この回で何ゲーム目か（延長も数える）
 let cast = []             -- この回の参加者（プレイヤーとNPC）
 let pot = 0               -- 賞金（ゲーム内コイン）
 let carry = 0             -- 優勝者が出なかった回の持ちこし
@@ -201,7 +201,7 @@ func refresh_hud()
   if phase == "lobby" then
     head = "🏠 寮  次のショーまで " + max(0, ceil(lobby_until - time())) + "秒  💰賞金スタート " + kit_short(pot)
   else
-    if g != nil then head = head + "  " + g.emoji + " 第" + round_no + "ゲーム " + g.name end
+    if g != nil then head = head + "  " + g.emoji + " " + stage_label(g) + " " + g.name end
     if phase == "play" and game_ends > 0 then head = head + "  ⏱ " + kit_clock(game_ends - time()) end
     if phase == "between" then head = head + "  ☕ 休けい" end
     head = head + "  👥 " + len(alive_cast()) + "/" + len(cast) + "  💰 " + kit_short(pot)
@@ -213,7 +213,7 @@ end
 func rule_card(p, g)
   p.ui_remove("rule")
   p.ui_panel("rule", {at: "center", dy: -60, w: 560, h: 120, bg: "#000000C8", radius: 18, layer: 20})
-  p.ui_text("rule_t", g.emoji + " 第" + round_no + "ゲーム  " + g.name, {parent: "rule", y: 0.3, size: 24, bold: true, color: "gold"})
+  p.ui_text("rule_t", g.emoji + " " + stage_label(g) + "  " + g.name, {parent: "rule", y: 0.3, size: 24, bold: true, color: "gold"})
   p.ui_text("rule_b", g.rule, {parent: "rule", y: 0.72, size: 14, color: "#E5E7EB"})
   kit_later(p, 5, func() p.ui_remove("rule") end)
 end
