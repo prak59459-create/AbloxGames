@@ -10,7 +10,7 @@ import { weaponPresets } from '../src/core/model/combat';
 import { decodeAction, encodeAction, eventRule } from '../src/core/model/rules';
 import { decodeInput, decodeSnapshot, encodeInput, encodeSnapshot, playerSnapshot, type PlayerInput } from '../src/core/model/player';
 import { uiElement, type ScriptEffect } from '../src/core/model/effects';
-import { v3 } from '../src/core/model/math';
+import { f32v, v3 } from '../src/core/model/math';
 import { emptyWorld, makeBlock, placed } from '../src/core/model/world';
 
 const oneVersusOne = `let goal = 3
@@ -435,7 +435,9 @@ describe('wire format', () => {
       { kind: 'fire', origin: v3(0, 1.6, 0), direction: v3(0, 0, -1) }, { kind: 'button', id: 'shop' }, { kind: 'reload' },
       { kind: 'text', id: 'name', value: 'Mika' }, { kind: 'gesture', wire: 'wave' },
     ];
-    for (const input of inputs) expect(decodeInput(JSON.parse(JSON.stringify(encodeInput(input))))).toEqual(input);
+    // Positions travel as 32-bit floats, as the iPads keep them.
+    const asFloats = (i: PlayerInput): PlayerInput => (i.kind === 'fire' ? { ...i, origin: f32v(i.origin), direction: f32v(i.direction) } : i);
+    for (const input of inputs) expect(decodeInput(JSON.parse(JSON.stringify(encodeInput(input))))).toEqual(asFloats(input));
     const json = encodeSnapshot(playerSnapshot(alice)) as Record<string, unknown>;
     delete json.isNPC;
     delete json.isHidden;

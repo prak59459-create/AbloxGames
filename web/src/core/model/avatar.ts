@@ -76,7 +76,7 @@ export function decodeProfile(v: unknown): AvatarProfile {
     headColor: decodeColor(o.headColor, d.headColor),
     accentColor: decodeColor(o.accentColor, d.accentColor),
     hat: pick(hats, o.hatNew) ?? pick(hats, o.hat) ?? 'none',
-    height: typeof o.height === 'number' ? o.height : 1,
+    height: typeof o.height === 'number' ? Math.fround(o.height) : 1,
     ride: pick(rides, o.ride) ?? 'none',
     rideColor: decodeColor(o.rideColor, d.rideColor),
     title: typeof o.title === 'string' ? o.title : '',

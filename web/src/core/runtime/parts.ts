@@ -461,7 +461,7 @@ export function setPartsWorldMember(rt: GameRuntime, name: string, value: Script
       // The hour it is now stays; only the speed changes.
       const now = worldHour(e, rt.wallClock()) ?? 12;
       e.dayLengthMinutes = Math.fround(Math.max(0, Math.min(1440, number(value, name, line))));
-      e.timeOfDay = now;
+      e.timeOfDay = Math.fround(now);
       e.dayEpoch = rt.wallClock();
       return true;
     }

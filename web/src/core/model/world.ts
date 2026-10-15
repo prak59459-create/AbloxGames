@@ -141,8 +141,8 @@ export interface EnvironmentSettings {
 }
 
 export const defaultEnvironment = (): EnvironmentSettings => ({
-  skyTop: colorFromHex('#0B1026')!, skyBottom: colorFromHex('#1B2A4A')!, ambientIntensity: 0.55,
-  sunPitchDegrees: -45, sunYawDegrees: 35, gravity: -9.81, killPlaneHeight: -50, showGroundPlane: true,
+  skyTop: colorFromHex('#0B1026')!, skyBottom: colorFromHex('#1B2A4A')!, ambientIntensity: Math.fround(0.55),
+  sunPitchDegrees: -45, sunYawDegrees: 35, gravity: Math.fround(-9.81), killPlaneHeight: -50, showGroundPlane: true,
   groundColor: defaultGroundColor, weather: 'clear', dayLengthMinutes: 0, skyStyle: 'gradient', screenEffect: 'none', shadows: true,
 });
 
@@ -172,6 +172,8 @@ export const currentSchemaVersion = 2;
 type Json = Record<string, unknown>;
 const obj = (v: unknown): Json | null => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Json) : null);
 const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+/** A Swift `Float`: read as the 32-bit value the iPad holds. */
+const float = (v: unknown, fallback: number): number => Math.fround(num(v, fallback));
 const bool = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean' ? v : fallback);
 const str = (v: unknown, fallback: string): string => (typeof v === 'string' ? v : fallback);
 const oneOf = <T extends string>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
@@ -180,7 +182,7 @@ const oneOf = <T extends string>(v: unknown, list: readonly T[], fallback: T): T
 export function decodeVec(v: unknown, fallback: Vec3 = v3()): Vec3 {
   const o = obj(v);
   if (!o) return { ...fallback };
-  return v3(num(o.x, fallback.x), num(o.y, fallback.y), num(o.z, fallback.z));
+  return v3(float(o.x, fallback.x), float(o.y, fallback.y), float(o.z, fallback.z));
 }
 
 export function decodeTransform(v: unknown): Transform3D {
@@ -189,7 +191,7 @@ export function decodeTransform(v: unknown): Transform3D {
   if (!o) return t;
   t.position = decodeVec(o.position);
   const r = obj(o.rotation);
-  if (r) t.rotation = { x: num(r.x, 0), y: num(r.y, 0), z: num(r.z, 0), w: num(r.w, 1) };
+  if (r) t.rotation = { x: float(r.x, 0), y: float(r.y, 0), z: float(r.z, 0), w: float(r.w, 1) };
   t.scale = decodeVec(o.scale, v3(1, 1, 1));
   return t;
 }
@@ -199,7 +201,7 @@ function decodeGimmick(v: unknown): GimmickSettings {
   const o = obj(v);
   if (!o) return d;
   return {
-    bounceSpeed: num(o.bounceSpeed, d.bounceSpeed),
+    bounceSpeed: float(o.bounceSpeed, d.bounceSpeed),
     disappearDelay: num(o.disappearDelay, d.disappearDelay),
     respawnDelay: num(o.respawnDelay, d.respawnDelay),
     teleportTargetID: typeof o.teleportTargetID === 'string' ? o.teleportTargetID.toUpperCase() : undefined,
@@ -209,7 +211,7 @@ function decodeGimmick(v: unknown): GimmickSettings {
     moveSeconds: num(o.moveSeconds, d.moveSeconds),
     movePause: num(o.movePause, d.movePause),
     vehicle: str(o.vehicle, d.vehicle),
-    vehicleSpeed: num(o.vehicleSpeed, d.vehicleSpeed),
+    vehicleSpeed: float(o.vehicleSpeed, d.vehicleSpeed),
     stage: num(o.stage, d.stage),
   };
 }
@@ -225,9 +227,9 @@ function decodeLabel(v: unknown): BlockLabel | undefined {
       const lo = obj(l) ?? {};
       return { text: [...str(lo.text, '')].slice(0, 60).join(''), color: decodeColor(lo.color, { r: 1, g: 1, b: 1, a: 1 }) };
     }),
-    height: clampTo(num(o.height, 0.6), 0, 40),
-    size: clampTo(num(o.size, 1), 0.3, 4),
-    range: clampTo(num(o.range, 60), 4, 250),
+    height: Math.fround(clampTo(num(o.height, 0.6), 0, 40)),
+    size: Math.fround(clampTo(num(o.size, 1), 0.3, 4)),
+    range: Math.fround(clampTo(num(o.range, 60), 4, 250)),
   };
 }
 
@@ -237,8 +239,8 @@ function decodeLight(v: unknown): BlockLight | undefined {
   return {
     kind: o.kind === 'spot' ? 'spot' : 'point',
     color: decodeColor(o.color, { r: 1, g: 0.9, b: 0.7, a: 1 }),
-    intensity: Math.max(0, Math.min(1, num(o.intensity, 0.6))),
-    range: Math.max(1, Math.min(50, num(o.range, 10))),
+    intensity: Math.fround(Math.max(0, Math.min(1, num(o.intensity, 0.6)))),
+    range: Math.fround(Math.max(1, Math.min(50, num(o.range, 10)))),
   };
 }
 
@@ -247,7 +249,7 @@ function decodeAnimation(v: unknown): BlockAnimation | undefined {
   if (!o) return undefined;
   const kinds: AnimationKind[] = ['spin', 'sway', 'dance', 'bounce', 'pulse', 'wobble'];
   if (!kinds.includes(o.kind as AnimationKind)) return undefined;
-  return { kind: o.kind as AnimationKind, speed: clampTo(num(o.speed, 1), 0.1, 5) };
+  return { kind: o.kind as AnimationKind, speed: Math.fround(clampTo(num(o.speed, 1), 0.1, 5)) };
 }
 
 
@@ -285,16 +287,16 @@ export function decodeEnvironment(v: unknown): EnvironmentSettings {
   return {
     skyTop: decodeColor(o.skyTop, d.skyTop),
     skyBottom: decodeColor(o.skyBottom, d.skyBottom),
-    ambientIntensity: num(o.ambientIntensity, d.ambientIntensity),
-    sunPitchDegrees: num(o.sunPitchDegrees, d.sunPitchDegrees),
-    sunYawDegrees: num(o.sunYawDegrees, d.sunYawDegrees),
-    gravity: num(o.gravity, d.gravity),
-    killPlaneHeight: num(o.killPlaneHeight, d.killPlaneHeight),
+    ambientIntensity: float(o.ambientIntensity, d.ambientIntensity),
+    sunPitchDegrees: float(o.sunPitchDegrees, d.sunPitchDegrees),
+    sunYawDegrees: float(o.sunYawDegrees, d.sunYawDegrees),
+    gravity: float(o.gravity, d.gravity),
+    killPlaneHeight: float(o.killPlaneHeight, d.killPlaneHeight),
     showGroundPlane: bool(o.showGroundPlane, d.showGroundPlane),
     groundColor: decodeColor(o.groundColor, d.groundColor),
     weather: oneOf(o.weather, ['clear', 'rain', 'snow', 'fog', 'storm'] as const, 'clear'),
-    timeOfDay: typeof o.timeOfDay === 'number' ? o.timeOfDay : undefined,
-    dayLengthMinutes: num(o.dayLengthMinutes, 0),
+    timeOfDay: typeof o.timeOfDay === 'number' ? Math.fround(o.timeOfDay) : undefined,
+    dayLengthMinutes: float(o.dayLengthMinutes, 0),
     dayEpoch: typeof o.dayEpoch === 'number' ? o.dayEpoch : undefined,
     skyStyle: oneOf(o.skyStyle, ['gradient', 'clouds', 'sunset', 'stars', 'aurora', 'space'] as const, 'gradient'),
     screenEffect: oneOf(o.screenEffect, ['none', 'bloom', 'vivid', 'warm', 'cool', 'noir', 'retro', 'dream'] as const, 'none'),

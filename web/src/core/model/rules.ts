@@ -53,7 +53,7 @@ const vec = (v: unknown): Vec3 | undefined => {
   const o = obj(v);
   if (!o) return undefined;
   const x = num(o.x), y = num(o.y), z = num(o.z);
-  return x === undefined || y === undefined || z === undefined ? undefined : v3(x, y, z);
+  return x === undefined || y === undefined || z === undefined ? undefined : v3(Math.fround(x), Math.fround(y), Math.fround(z));
 };
 const id = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v.toUpperCase() : undefined);
 

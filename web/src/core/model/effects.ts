@@ -222,7 +222,7 @@ const o = (v: unknown): Json => (v && typeof v === 'object' && !Array.isArray(v)
 const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const str = (v: unknown, d = '') => (typeof v === 'string' ? v : d);
 const bool = (v: unknown, d = false) => (typeof v === 'boolean' ? v : d);
-const vec = (v: unknown): Vec3 => { const x = o(v); return v3(num(x.x), num(x.y), num(x.z)); };
+const vec = (v: unknown): Vec3 => { const x = o(v); return v3(Math.fround(num(x.x)), Math.fround(num(x.y)), Math.fround(num(x.z))); };
 const optVec = (v: unknown): Vec3 | undefined => (v && typeof v === 'object' ? vec(v) : undefined);
 const color = (v: unknown): ColorRGBA | undefined => (v && typeof v === 'object' ? decodeColor(v, { r: 1, g: 1, b: 1, a: 1 }) : undefined);
 const white: ColorRGBA = { r: 1, g: 1, b: 1, a: 1 };

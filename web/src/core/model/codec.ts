@@ -22,5 +22,5 @@ export function decodeColor(v: unknown, fallback: ColorRGBA): ColorRGBA {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return fallback;
   const o = v as Record<string, unknown>;
   const n = (x: unknown, d: number) => (typeof x === 'number' && Number.isFinite(x) ? x : d);
-  return { r: n(o.r, fallback.r), g: n(o.g, fallback.g), b: n(o.b, fallback.b), a: n(o.a, 1) };
+  return { r: Math.fround(n(o.r, fallback.r)), g: Math.fround(n(o.g, fallback.g)), b: Math.fround(n(o.b, fallback.b)), a: Math.fround(n(o.a, 1)) };
 }

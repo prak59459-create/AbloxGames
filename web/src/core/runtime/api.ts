@@ -10,7 +10,7 @@ import {
   UILimits, cameraModes, placeUI, standardCamera, uiElement, uiKinds, uiPresets,
   type CameraMode, type CameraSettings, type ScriptEffect, type UIElement, type UIKind,
 } from '../model/effects';
-import { add, eulerDegrees, quatEulerDegrees, quatYaw, rotate, sub, v3, type Vec3 } from '../model/math';
+import { add, eulerDegrees, f32q, f32v, quatEulerDegrees, quatYaw, rotate, sub, v3, type Vec3 } from '../model/math';
 import { parseGesture, playerSnapshot } from '../model/player';
 import { prefix, trimmed, trimmedSpaces } from '../model/text';
 import {
@@ -535,7 +535,7 @@ function blockMember(rt: GameRuntime, object: ScriptObject, name: string, line: 
     });
     case 'rotate': return method(name, (a, l) => {
       const turn = vectorArgument(a, l, 'rotate');
-      changeBlock(rt, id, (b) => { b.transform = { ...b.transform, rotation: quatEulerDegrees(add(eulerDegrees(b.transform.rotation), turn)) }; });
+      changeBlock(rt, id, (b) => { b.transform = { ...b.transform, rotation: f32q(quatEulerDegrees(f32v(add(eulerDegrees(b.transform.rotation), turn)))) }; });
       return null;
     });
     case 'destroy': return method(name, () => {
@@ -565,7 +565,7 @@ function setBlockMember(rt: GameRuntime, object: ScriptObject, name: string, val
   changeBlock(rt, id, (block) => applyBlockOption(rt, name, value, block, id, line));
 }
 
-const clampSize = (n: number) => Math.min(Math.max(n, 0.01), 2000);
+const clampSize = (n: number) => Math.fround(Math.min(Math.max(n, 0.01), 2000));
 
 /** One block property, shared by `b.color = …` and `create_block({color: …})`. */
 function applyBlockOption(rt: GameRuntime, name: string, value: ScriptValue, block: BlockData, id: string | null, line: number): void {
@@ -576,11 +576,11 @@ function applyBlockOption(rt: GameRuntime, name: string, value: ScriptValue, blo
       const target = point(rt, value, line);
       // A block inside another is placed relative to it.
       const parentOffset = id ? sub(rt.live.worldPosition(id), t.position) : v3();
-      block.transform = { ...t, position: sub(target, parentOffset) };
+      block.transform = { ...t, position: f32v(sub(target, parentOffset)) };
       return;
     }
     case 'x': case 'y': case 'z': {
-      const n = number(value, name, line);
+      const n = Math.fround(number(value, name, line));
       block.transform = { ...t, position: { ...t.position, [name]: n } };
       return;
     }
@@ -594,7 +594,7 @@ function applyBlockOption(rt: GameRuntime, name: string, value: ScriptValue, blo
       }
       return;
     }
-    case 'rotation': block.transform = { ...t, rotation: quatEulerDegrees(vector(value, line)) }; return;
+    case 'rotation': block.transform = { ...t, rotation: f32q(quatEulerDegrees(vector(value, line))) }; return;
     case 'color': { const a = block.color.a; block.color = { ...color(value, line), a }; return; }
     case 'opacity': block.color = { ...block.color, a: Math.fround(Math.min(Math.max(number(value, name, line), 0), 1)) }; return;
     case 'material': {
@@ -647,7 +647,7 @@ export function moveBlock(rt: GameRuntime, id: string, offset: Vec3, seconds: nu
   if (!before) return;
   const block: BlockData = structuredClone(before);
   const from = { ...block.transform.position };
-  block.transform.position = add(from, offset);
+  block.transform.position = f32v(add(from, offset));
   if (!(seconds > 0)) {
     rt.travels.delete(id);
     rt.queue({ type: 'update', block });

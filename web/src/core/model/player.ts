@@ -37,7 +37,7 @@ export const copySnapshot = (s: PlayerSnapshot): PlayerSnapshot => ({
 type Json = Record<string, unknown>;
 const o = (v: unknown): Json => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Json) : {});
 const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
-const vec = (v: unknown): Vec3 => { const x = o(v); return v3(num(x.x), num(x.y), num(x.z)); };
+const vec = (v: unknown): Vec3 => { const x = o(v); return v3(Math.fround(num(x.x)), Math.fround(num(x.y)), Math.fround(num(x.z))); };
 
 export function decodeSnapshot(v: unknown): PlayerSnapshot | null {
   const x = o(v);

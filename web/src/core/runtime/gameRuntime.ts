@@ -10,7 +10,7 @@ import { ArmedState, Hitscan, PlayerHitBody, weaponPresets, type HitResult, type
 import { clone, deepEqual } from '../model/equal';
 import { Leaderboard, normalMovement, standardCamera, type ScriptEffect, type UIElement } from '../model/effects';
 import { LiveWorld, type WorldDelta } from '../model/liveWorld';
-import { add, distance, lengthSquared, normalized, sameVec, scale, v3, type Vec3 } from '../model/math';
+import { add, distance, f32v, lengthSquared, sameVec, v3, type Vec3 } from '../model/math';
 import { travelEnd, travelPosition, type BlockTravel } from '../model/motion';
 import {
   copySnapshot, parseGesture, playerSnapshot, sameProfile, transformOf, gestureInterval,
@@ -590,22 +590,31 @@ export class GameRuntime implements ScriptObjectResolver {
       const body = state.body;
       const still = !state.isAlive || state.movement.frozen;
 
+      // In 32-bit floats, as the iPad works it out: an NPC arriving exactly
+      // at the stopping distance must stop, or not, on both.
+      const f = Math.fround;
       let desired = v3();
       const target = still ? null : this.goalPosition(state);
       if (target) {
-        const offset = v3(target.x - body.position.x, 0, target.z - body.position.z);
+        const ox = f(target.x - body.position.x), oz = f(target.z - body.position.z);
+        const length = f(Math.sqrt(f(f(ox * ox) + f(oz * oz))));
         const arrive = state.isFollowing ? 1.6 : 0.25;
-        if (Math.sqrt(lengthSquared(offset)) > arrive) desired = scale(normalized(offset), config.walkSpeed * state.movement.speed);
-        else if (!state.isFollowing) state.goal = { kind: 'none' };
+        if (length > f(arrive)) {
+          const speed = f(config.walkSpeed * state.movement.speed);
+          desired = length > 1e-6 ? v3(f(f(ox / length) * speed), 0, f(f(oz / length) * speed)) : v3();
+        } else if (!state.isFollowing) {
+          state.goal = { kind: 'none' };
+        }
       }
 
       const velocity = v3(desired.x, body.velocity.y, desired.z);
-      if (state.wantsJump && body.isGrounded && !still) velocity.y = config.jumpSpeed * state.movement.jump;
-      else velocity.y = Math.max(config.maxFallSpeed, velocity.y + config.gravity * gravityScale * state.movement.gravity * step);
+      if (state.wantsJump && body.isGrounded && !still) velocity.y = f(config.jumpSpeed * state.movement.jump);
+      else velocity.y = Math.max(config.maxFallSpeed, f(velocity.y + f(f(f(config.gravity * f(gravityScale)) * state.movement.gravity) * f(step))));
       state.wantsJump = false;
 
       const size = state.profile.height;
-      const result = resolveCollision(body.position, velocity, { radius: 0.4 * size, height: 1.8 * size, stepHeight: 0.45 }, index, step);
+      const raw = resolveCollision(body.position, velocity, { radius: f(0.4 * size), height: f(1.8 * size), stepHeight: f(0.45) }, index, f(step));
+      const result = { ...raw, position: f32v(raw.position), velocity: f32v(raw.velocity) };
       // Walking into a step it cannot climb: hop, as a player would.
       const wanted = Math.hypot(desired.x, desired.z);
       const got = Math.hypot(result.velocity.x, result.velocity.z);

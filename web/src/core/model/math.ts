@@ -7,6 +7,11 @@ export interface Transform3D { position: Vec3; rotation: Quat; scale: Vec3 }
 export interface BoundingBox { min: Vec3; max: Vec3 }
 
 export const v3 = (x = 0, y = 0, z = 0): Vec3 => ({ x, y, z });
+
+/** As Swift keeps it: 32-bit floats, so equal values compare equal on both. */
+export const f32 = Math.fround;
+export const f32v = (v: Vec3): Vec3 => ({ x: Math.fround(v.x), y: Math.fround(v.y), z: Math.fround(v.z) });
+export const f32q = (q: Quat): Quat => ({ x: Math.fround(q.x), y: Math.fround(q.y), z: Math.fround(q.z), w: Math.fround(q.w) });
 export const ZERO: Readonly<Vec3> = Object.freeze(v3());
 export const ONE: Readonly<Vec3> = Object.freeze(v3(1, 1, 1));
 export const UP: Readonly<Vec3> = Object.freeze(v3(0, 1, 0));

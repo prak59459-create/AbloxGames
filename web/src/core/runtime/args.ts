@@ -3,7 +3,7 @@
 import { L } from '../../i18n';
 import { parseScriptColor, type ColorRGBA } from '../model/color';
 import { UILimits } from '../model/effects';
-import { v3, type Vec3 } from '../model/math';
+import { f32v, v3, type Vec3 } from '../model/math';
 import { isLibraryID, soundCueNamed } from '../model/player';
 import { prefix, trimmed } from '../model/text';
 import { ScriptError } from '../script/lexer';
@@ -65,14 +65,14 @@ export function vector(value: ScriptValue, line: number): Vec3 {
   if (!v || !Number.isFinite(v.x) || !Number.isFinite(v.y) || !Number.isFinite(v.z)) {
     throw runtimeError(line, L('That needs {x, y, z}, not {}.', typeName(value)));
   }
-  return v3(v.x, v.y, v.z);
+  return f32v(v);
 }
 
 /** Three numbers, or one `{x, y, z}`. */
 export function vectorArgument(args: ScriptValue[], line: number, what: string): Vec3 {
   if (args.length && toVector(args[0])) return vector(args[0], line);
   if (args.length < 3) throw runtimeError(line, L('“{}” needs {} values.', what, 3));
-  return v3(number(args[0], what, line), number(args[1], what, line), number(args[2], what, line));
+  return f32v(v3(number(args[0], what, line), number(args[1], what, line), number(args[2], what, line)));
 }
 
 export function color(value: ScriptValue, line: number): ColorRGBA {

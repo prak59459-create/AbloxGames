@@ -4,7 +4,7 @@
 // clock of its own; time is passed in, which is what makes it testable.
 import { copySnapshot, type PlayerSnapshot, type PlayerTransform } from '../model/player';
 import { LiveWorld, type WorldDelta } from '../model/liveWorld';
-import { horizontalDistance, sameVec, v3, type Vec3 } from '../model/math';
+import { f32v, horizontalDistance, sameVec, v3, type Vec3 } from '../model/math';
 import type { EventAction, EventRule, EventTrigger } from '../model/rules';
 import { sameIgnoringCase } from '../model/text';
 import { unitSize, type BlockData, type WorldDocument } from '../model/world';
@@ -54,7 +54,7 @@ export class EventMachine {
       const spawn = this.live.spawnPosition(this.players.size);
       this.respawnPoints.set(s.peerID, spawn);
       // Someone joining mid-round starts at the spawn, not wherever their handshake said.
-      s.position = { ...spawn };
+      s.position = f32v(spawn);
     }
     this.players.set(s.peerID, s);
   }
@@ -75,9 +75,9 @@ export class EventMachine {
   updateTransform(t: PlayerTransform): void {
     const p = this.players.get(t.peerID);
     if (!p) return;
-    p.position = { ...t.position };
-    p.yawDegrees = t.yawDegrees;
-    p.velocity = { ...t.velocity };
+    p.position = f32v(t.position);
+    p.yawDegrees = Math.fround(t.yawDegrees);
+    p.velocity = f32v(t.velocity);
     p.isGrounded = t.isGrounded;
   }
 
@@ -437,7 +437,7 @@ export class EventMachine {
           if (action.duration <= 0) {
             this.live.mutate(action.blockID, (b) => {
               const p = b.transform.position;
-              b.transform.position = v3(p.x + action.offset.x, p.y + action.offset.y, p.z + action.offset.z);
+              b.transform.position = f32v(v3(p.x + action.offset.x, p.y + action.offset.y, p.z + action.offset.z));
             });
           }
           effects.push({ ruleID: rule.id, action });
