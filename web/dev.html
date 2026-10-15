@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ablox dev</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,sans-serif}
+#stage{position:fixed;inset:0}
+.ab-canvas{display:block}
+.ab-overlays{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.ab-overlays>div{position:absolute;left:0;top:0;transform-origin:50% 100%;white-space:nowrap}
+.ab-nametag{padding:3px 8px;border-radius:8px;text-align:center;font-weight:700;font-size:13px}
+.ab-nametag-title{font-size:10px;font-weight:600}
+.ab-label{text-align:center;font-weight:900;font-size:15px;text-shadow:0 1px 3px #000,0 0 2px #000}
+.ab-haze,.ab-flash{position:absolute;inset:0;pointer-events:none}
+.ab-flash{background:#fff;opacity:0}
+.ab-stick{position:absolute;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;background:rgba(255,255,255,.18);display:none}
+.ab-stick-knob{position:absolute;left:31px;top:31px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.55)}
+#info{position:fixed;left:8px;top:8px;color:#fff;font:12px monospace;background:rgba(0,0,0,.5);padding:4px 8px;border-radius:6px}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="info"></div>
+<script type="module" src="/src/dev.ts"></script>
+</body>
+</html>
