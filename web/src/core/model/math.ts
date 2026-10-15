@@ -98,6 +98,58 @@ export function quatEulerDegrees(e: Vec3): Quat {
   return quatNormalized(quatMul(quatMul(yaw, pitch), roll));
 }
 
+// MARK: - The same turns in 32-bit floats
+//
+// What Swift's `Quat.euler(degrees:)` and `eulerDegrees` give, step for
+// step in `Float`. Used where the host keeps a block's rotation, so a ride
+// turned 15° at a time reads back the same angles as on an iPad — at 180°
+// the sign of a tiny cosine decides whether the next turn is 195° or -165°.
+
+const F = Math.fround;
+const FPI = Math.fround(Math.PI);
+
+function quatAxisAngle32(axis: Vec3, angle: number): Quat {
+  const half = F(angle * 0.5);
+  const s = F(Math.sin(half));
+  return { x: F(axis.x * s), y: F(axis.y * s), z: F(axis.z * s), w: F(Math.cos(half)) };
+}
+
+function quatMul32(a: Quat, b: Quat): Quat {
+  return {
+    x: F(F(F(F(a.w * b.x) + F(a.x * b.w)) + F(a.y * b.z)) - F(a.z * b.y)),
+    y: F(F(F(F(a.w * b.y) - F(a.x * b.z)) + F(a.y * b.w)) + F(a.z * b.x)),
+    z: F(F(F(F(a.w * b.z) + F(a.x * b.y)) - F(a.y * b.x)) + F(a.z * b.w)),
+    w: F(F(F(F(a.w * b.w) - F(a.x * b.x)) - F(a.y * b.y)) - F(a.z * b.z)),
+  };
+}
+
+function quatNormalized32(q: Quat): Quat {
+  const len = F(Math.sqrt(F(F(F(F(q.x * q.x) + F(q.y * q.y)) + F(q.z * q.z)) + F(q.w * q.w))));
+  if (!(len > 1e-6)) return { x: 0, y: 0, z: 0, w: 1 };
+  return { x: F(q.x / len), y: F(q.y / len), z: F(q.z / len), w: F(q.w / len) };
+}
+
+/** `Quat.euler(degrees:)` as an iPad works it out. */
+export function quatEulerDegrees32(e: Vec3): Quat {
+  const radians = (d: number) => F(F(F(d) * FPI) / 180);
+  const yaw = quatAxisAngle32(UP, radians(e.y));
+  const pitch = quatAxisAngle32(RIGHT, radians(e.x));
+  const roll = quatAxisAngle32(v3(0, 0, 1), radians(e.z));
+  return quatNormalized32(quatMul32(quatMul32(yaw, pitch), roll));
+}
+
+/** `Quat.eulerDegrees` as an iPad works it out. */
+export function eulerDegrees32(q: Quat): Vec3 {
+  const n = quatNormalized32({ x: F(q.x), y: F(q.y), z: F(q.z), w: F(q.w) });
+  const sinPitch = F(2 * F(F(n.w * n.x) - F(n.y * n.z)));
+  const yaw = F(Math.atan2(F(2 * F(F(n.w * n.y) + F(n.x * n.z))), F(1 - F(2 * F(F(n.x * n.x) + F(n.y * n.y))))));
+  const degrees = (r: number) => F(F(r * 180) / FPI);
+  if (Math.abs(sinPitch) >= F(0.99999)) return v3(degrees(sinPitch > 0 ? F(FPI / 2) : F(-FPI / 2)), degrees(yaw), 0);
+  const pitch = F(Math.asin(sinPitch));
+  const roll = F(Math.atan2(F(2 * F(F(n.w * n.z) + F(n.x * n.y))), F(1 - F(2 * F(F(n.x * n.x) + F(n.z * n.z))))));
+  return v3(degrees(pitch), degrees(yaw), degrees(roll));
+}
+
 export function eulerDegrees(q: Quat): Vec3 {
   const n = quatNormalized(q);
   const sinPitch = 2 * (n.w * n.x - n.y * n.z);

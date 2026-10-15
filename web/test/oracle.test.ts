@@ -137,6 +137,13 @@ function canonical(step: Step, rename: (s: string) => string) {
 
 /** Swift keeps positions in 32-bit floats; the web in 64-bit. Close is equal. */
 function close(a: unknown, b: unknown, path = ''): string | null {
+  // A rotation and its negation are the same turn. Which one comes out at
+  // exactly 180° rests on the last bit of the maths library's sin and atan2,
+  // which differs between machines (an iPad's is not this Linux one).
+  if (path.endsWith('.rotation') && isQuat(a) && isQuat(b)) {
+    const negated = { x: -b.x, y: -b.y, z: -b.z, w: -b.w };
+    return closeNumbers(a, b) || closeNumbers(a, negated) ? null : `${path}: ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`;
+  }
   if (typeof a === 'number' && typeof b === 'number') {
     return Math.abs(a - b) <= 2e-3 * Math.max(1, Math.abs(a), Math.abs(b)) ? null : `${path}: ${a} ≠ ${b}`;
   }
@@ -151,6 +158,10 @@ function close(a: unknown, b: unknown, path = ''): string | null {
   }
   return null;
 }
+
+type Q = { x: number; y: number; z: number; w: number };
+const isQuat = (v: unknown): v is Q => !!v && typeof v === 'object' && ['x', 'y', 'z', 'w'].every((k) => typeof (v as Record<string, unknown>)[k] === 'number');
+const closeNumbers = (a: Q, b: Q) => (['x', 'y', 'z', 'w'] as const).every((k) => Math.abs(a[k] - b[k]) <= 2e-3);
 
 /** Effects in a step may come in a different order (Swift's dictionaries); compare as sets. */
 function sameSet(a: unknown[], b: unknown[], what: string): string | null {

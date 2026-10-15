@@ -10,7 +10,7 @@ import {
   UILimits, cameraModes, placeUI, standardCamera, uiElement, uiKinds, uiPresets,
   type CameraMode, type CameraSettings, type ScriptEffect, type UIElement, type UIKind,
 } from '../model/effects';
-import { add, eulerDegrees, f32q, f32v, quatEulerDegrees, quatYaw, rotate, sub, v3, type Vec3 } from '../model/math';
+import { add, eulerDegrees32, f32v, quatEulerDegrees32, quatYaw, rotate, sub, v3, type Vec3 } from '../model/math';
 import { parseGesture, playerSnapshot } from '../model/player';
 import { prefix, trimmed, trimmedSpaces } from '../model/text';
 import {
@@ -511,7 +511,7 @@ function blockMember(rt: GameRuntime, object: ScriptObject, name: string, line: 
     case 'y': return rounded(position.y);
     case 'z': return rounded(position.z);
     case 'size': return roundedVector(block.transform.scale);
-    case 'rotation': return roundedVector(eulerDegrees(block.transform.rotation));
+    case 'rotation': return roundedVector(eulerDegrees32(block.transform.rotation));
     case 'color': return hexString(block.color);
     case 'material': return block.material;
     case 'shape': return block.shape;
@@ -535,7 +535,7 @@ function blockMember(rt: GameRuntime, object: ScriptObject, name: string, line: 
     });
     case 'rotate': return method(name, (a, l) => {
       const turn = vectorArgument(a, l, 'rotate');
-      changeBlock(rt, id, (b) => { b.transform = { ...b.transform, rotation: f32q(quatEulerDegrees(f32v(add(eulerDegrees(b.transform.rotation), turn)))) }; });
+      changeBlock(rt, id, (b) => { b.transform = { ...b.transform, rotation: quatEulerDegrees32(f32v(add(eulerDegrees32(b.transform.rotation), turn))) }; });
       return null;
     });
     case 'destroy': return method(name, () => {
@@ -594,7 +594,7 @@ function applyBlockOption(rt: GameRuntime, name: string, value: ScriptValue, blo
       }
       return;
     }
-    case 'rotation': block.transform = { ...t, rotation: f32q(quatEulerDegrees(vector(value, line))) }; return;
+    case 'rotation': block.transform = { ...t, rotation: quatEulerDegrees32(vector(value, line)) }; return;
     case 'color': { const a = block.color.a; block.color = { ...color(value, line), a }; return; }
     case 'opacity': block.color = { ...block.color, a: Math.fround(Math.min(Math.max(number(value, name, line), 0), 1)) }; return;
     case 'material': {
