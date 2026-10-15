@@ -1,7 +1,7 @@
 // A bare page for looking at a world while building the web version.
 import { defaultProfile } from './core/model/avatar';
 import { loadCatalogue, loadGame } from './net/catalogue';
-import { LiveWorld } from './play/liveWorld';
+import { LiveWorld } from './core/model/liveWorld';
 import { PlayView } from './play/view';
 
 const params = new URLSearchParams(location.search);

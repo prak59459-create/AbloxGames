@@ -16,7 +16,7 @@ import { AvatarModel } from '../engine/avatar';
 import { animationPhase, animationPose, posedRotation, type LocalOverride } from '../engine/blocks';
 import { GameScene, type GraphicsLevel } from '../engine/scene';
 import { PlayInput } from './input';
-import type { LiveWorld } from './liveWorld';
+import type { LiveWorld } from '../core/model/liveWorld';
 
 export type CameraMode = 'third' | 'first' | 'top' | 'fixed';
 

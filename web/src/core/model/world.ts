@@ -3,6 +3,8 @@
 // field takes the default the iPad would), and encoding writes what an iPad
 // needs to read it back — the web can host a game an iPad joins.
 import { colorFromHex, defaultBlockColor, defaultGroundColor, type ColorRGBA } from './color';
+import { decodeColor, encodeColor, encodeVec, newID, particleKinds, type ParticleKind } from './codec';
+import { decodeRule, encodeRule, type EventRule } from './rules';
 import {
   boxAround, concatenate, identityTransform, rotate, v3, type BoundingBox, type Transform3D, type Vec3,
 } from './math';
@@ -73,9 +75,7 @@ export const defaultGimmick = (): GimmickSettings => ({
   moveOffset: v3(0, 6, 0), moveSeconds: 3, movePause: 1.5, vehicle: 'car', vehicleSpeed: 2, stage: 0,
 });
 
-export type ParticleKind = 'fire' | 'smoke' | 'sparkles' | 'confetti' | 'rain' | 'snow' | 'bubbles' | 'hearts' | 'stars'
-  | 'leaves' | 'magic' | 'dust';
-export const particleKinds: ParticleKind[] = ['fire', 'smoke', 'sparkles', 'confetti', 'rain', 'snow', 'bubbles', 'hearts', 'stars', 'leaves', 'magic', 'dust'];
+export { decodeColor, encodeColor, encodeVec, newID, particleKinds, type ParticleKind };
 
 export interface BlockLight { kind: 'point' | 'spot'; color: ColorRGBA; intensity: number; range: number }
 export interface BlockLabelLine { text: string; color: ColorRGBA }
@@ -158,8 +158,8 @@ export interface WorldDocument {
   modifiedAt: string;
   environment: EnvironmentSettings;
   blocks: BlockData[];
-  /** Kept as the JSON says; the rule machine reads them (see runtime/rules.ts). */
-  rules: unknown[];
+  /** The picker-made rules (see rules.ts); one that cannot be read is left out. */
+  rules: EventRule[];
   scripts: ScriptFile[];
   scriptSource?: unknown;
   images: WorldImage[];
@@ -176,11 +176,6 @@ const bool = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean'
 const str = (v: unknown, fallback: string): string => (typeof v === 'string' ? v : fallback);
 const oneOf = <T extends string>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
 
-export function decodeColor(v: unknown, fallback: ColorRGBA): ColorRGBA {
-  const o = obj(v);
-  if (!o) return fallback;
-  return { r: num(o.r, fallback.r), g: num(o.g, fallback.g), b: num(o.b, fallback.b), a: num(o.a, 1) };
-}
 
 export function decodeVec(v: unknown, fallback: Vec3 = v3()): Vec3 {
   const o = obj(v);
@@ -207,7 +202,7 @@ function decodeGimmick(v: unknown): GimmickSettings {
     bounceSpeed: num(o.bounceSpeed, d.bounceSpeed),
     disappearDelay: num(o.disappearDelay, d.disappearDelay),
     respawnDelay: num(o.respawnDelay, d.respawnDelay),
-    teleportTargetID: typeof o.teleportTargetID === 'string' ? o.teleportTargetID : undefined,
+    teleportTargetID: typeof o.teleportTargetID === 'string' ? o.teleportTargetID.toUpperCase() : undefined,
     cooldown: num(o.cooldown, d.cooldown),
     doorSeconds: num(o.doorSeconds, d.doorSeconds),
     moveOffset: decodeVec(o.moveOffset, d.moveOffset),
@@ -255,14 +250,11 @@ function decodeAnimation(v: unknown): BlockAnimation | undefined {
   return { kind: o.kind as AnimationKind, speed: clampTo(num(o.speed, 1), 0.1, 5) };
 }
 
-export function newID(): string {
-  return crypto.randomUUID().toUpperCase();
-}
 
 export function decodeBlock(v: unknown): BlockData {
   const o = obj(v) ?? {};
   return {
-    id: str(o.id, '') || newID(),
+    id: str(o.id, '').toUpperCase() || newID(),
     name: str(o.name, 'Part'),
     shape: oneOf(o.shape, blockShapes, 'box'),
     transform: decodeTransform(o.transform),
@@ -273,11 +265,11 @@ export function decodeBlock(v: unknown): BlockData {
     isVisible: bool(o.isVisible, true),
     behavior: oneOf(o.behavior, blockBehaviors, 'none'),
     scoreValue: num(o.scoreValue, 0),
-    parentID: typeof o.parentID === 'string' ? o.parentID : undefined,
+    parentID: typeof o.parentID === 'string' ? o.parentID.toUpperCase() : undefined,
     tags: Array.isArray(o.tags) ? o.tags.filter((t): t is string => typeof t === 'string') : [],
     gimmick: decodeGimmick(o.gimmick),
     particles: particleKinds.includes(o.particles as ParticleKind) ? (o.particles as ParticleKind) : undefined,
-    imageID: typeof o.imageID === 'string' ? o.imageID : undefined,
+    imageID: typeof o.imageID === 'string' ? o.imageID.toUpperCase() : undefined,
     light: decodeLight(o.light),
     label: decodeLabel(o.label),
     animation: decodeAnimation(o.animation),
@@ -334,8 +326,8 @@ export function decodeWorld(json: unknown): WorldDocument {
       .map((i) => ({ id: i.id as string, name: str(i.name, ''), data: i.data as string }))
       .filter((i) => i.data.length <= 340_000).slice(0, 12)
     : [];
-  return {
-    id: str(o.id, '') || newID(),
+  return repairWorld({
+    id: str(o.id, '').toUpperCase() || newID(),
     schemaVersion: Math.max(schemaVersion, currentSchemaVersion),
     name: str(o.name, 'Untitled World'),
     authorName: str(o.authorName, ''),
@@ -343,11 +335,90 @@ export function decodeWorld(json: unknown): WorldDocument {
     modifiedAt: str(o.modifiedAt, isoNow()),
     environment: decodeEnvironment(o.environment),
     blocks: Array.isArray(o.blocks) ? o.blocks.map(decodeBlock) : [],
-    rules: Array.isArray(o.rules) ? o.rules : [],
+    rules: Array.isArray(o.rules) ? o.rules.map(decodeRule).filter((r): r is EventRule => r !== null) : [],
     scripts,
     scriptSource: o.scriptSource ?? undefined,
     images,
-  };
+  }).world;
+}
+
+// MARK: - Repair
+
+export interface RepairReport { badNumbers: number; badSizes: number; duplicateIDs: number; brokenParents: number; badColours: number }
+
+const farthest = 1_000_000;
+const sizeFixed = (v: number) => (Number.isFinite(v) ? Math.min(2000, Math.max(0.01, Math.abs(v))) : 1);
+const unitFixed = (v: number, fallback = 0) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback);
+
+/**
+ * Mends what would misbehave — WorldRepair.swift: a size or a place that is
+ * not a number, two parts sharing an id, a part whose parent is gone or is
+ * its own grandchild. A world with nothing wrong comes out as it went in.
+ */
+export function repairWorld(world: WorldDocument): { world: WorldDocument; report: RepairReport } {
+  const report: RepairReport = { badNumbers: 0, badSizes: 0, duplicateIDs: 0, brokenParents: 0, badColours: 0 };
+  const seen = new Set<string>();
+  const blocks = world.blocks.map((original) => {
+    let block = original;
+    const edit = () => { if (block === original) block = { ...original, transform: { ...original.transform } }; };
+    if (seen.has(block.id)) {
+      edit();
+      block.id = newID();
+      report.duplicateIDs++;
+    }
+    seen.add(block.id);
+    const p = block.transform.position;
+    if (![p.x, p.y, p.z].every((n) => Number.isFinite(n) && Math.abs(n) <= farthest)) {
+      edit();
+      block.transform.position = v3();
+      report.badNumbers++;
+    }
+    const q = block.transform.rotation;
+    if (![q.x, q.y, q.z, q.w].every(Number.isFinite) || q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w < 1e-6) {
+      edit();
+      block.transform.rotation = { x: 0, y: 0, z: 0, w: 1 };
+      report.badNumbers++;
+    }
+    const sc = block.transform.scale;
+    const fixed = v3(sizeFixed(sc.x), sizeFixed(sc.y), sizeFixed(sc.z));
+    if (fixed.x !== sc.x || fixed.y !== sc.y || fixed.z !== sc.z) {
+      edit();
+      block.transform.scale = fixed;
+      report.badSizes++;
+    }
+    const c = block.color;
+    const colour = { r: unitFixed(c.r), g: unitFixed(c.g), b: unitFixed(c.b), a: unitFixed(c.a, 1) };
+    if (colour.r !== c.r || colour.g !== c.g || colour.b !== c.b || colour.a !== c.a) {
+      edit();
+      block.color = colour;
+      report.badColours++;
+    }
+    return block;
+  });
+  const ids = new Set(blocks.map((b) => b.id));
+  const parentOf = new Map<string, string | undefined>();
+  for (const b of blocks) if (!parentOf.has(b.id)) parentOf.set(b.id, b.parentID);
+  blocks.forEach((b, index) => {
+    const parent = b.parentID;
+    if (!parent) return;
+    let broken = !ids.has(parent) || parent === b.id;
+    if (!broken) {
+      const visited = new Set([b.id]);
+      let next: string | undefined = parent;
+      while (next) {
+        if (visited.has(next)) { broken = true; break; }
+        visited.add(next);
+        next = parentOf.get(next);
+      }
+    }
+    if (broken) {
+      blocks[index] = { ...b, parentID: undefined };
+      parentOf.set(b.id, undefined);
+      report.brokenParents++;
+    }
+  });
+  const total = report.badNumbers + report.badSizes + report.duplicateIDs + report.brokenParents + report.badColours;
+  return { world: total ? { ...world, blocks } : world, report };
 }
 
 /** ISO 8601 without fractions: what Swift's `.iso8601` reads. */
@@ -383,10 +454,6 @@ export function hasScript(world: WorldDocument): boolean {
 
 // MARK: - Encoding (for iPads)
 
-const round7 = (n: number) => (Number.isFinite(n) ? n : 0);
-
-export function encodeColor(c: ColorRGBA) { return { a: round7(c.a), b: round7(c.b), g: round7(c.g), r: round7(c.r) }; }
-export function encodeVec(v: Vec3) { return { x: round7(v.x), y: round7(v.y), z: round7(v.z) }; }
 
 export function encodeBlock(b: BlockData): Json {
   const out: Json = {
@@ -440,7 +507,7 @@ export function encodeEnvironment(e: EnvironmentSettings): Json {
 export function encodeWorld(w: WorldDocument): Json {
   const out: Json = {
     authorName: w.authorName, blocks: w.blocks.map(encodeBlock), createdAt: w.createdAt, environment: encodeEnvironment(w.environment),
-    id: w.id, modifiedAt: w.modifiedAt, name: w.name, rules: w.rules, schemaVersion: neededSchemaVersion(w),
+    id: w.id, modifiedAt: w.modifiedAt, name: w.name, rules: w.rules.map(encodeRule), schemaVersion: neededSchemaVersion(w),
   };
   if (w.scripts.length) out.scripts = w.scripts.map((s) => ({ id: s.id, isEnabled: s.isEnabled, name: s.name, source: s.source }));
   if (w.scriptSource !== undefined) out.scriptSource = w.scriptSource;
@@ -519,4 +586,29 @@ export function blockMap(world: WorldDocument): Map<string, BlockData> {
   const map = new Map<string, BlockData>();
   for (const b of world.blocks) if (!map.has(b.id)) map.set(b.id, b);
   return map;
+}
+
+/** `BlockData(…)` with Swift's defaults: a grey plastic box at the origin. */
+export function makeBlock(o: Partial<BlockData> = {}): BlockData {
+  return {
+    id: o.id ?? newID(), name: o.name ?? 'Part', shape: o.shape ?? 'box', transform: o.transform ?? identityTransform(),
+    color: o.color ?? { ...defaultBlockColor }, material: o.material ?? 'plastic', isAnchored: o.isAnchored ?? true,
+    hasCollision: o.hasCollision ?? true, isVisible: o.isVisible ?? true, behavior: o.behavior ?? 'none', scoreValue: o.scoreValue ?? 0,
+    parentID: o.parentID, tags: o.tags ?? [], gimmick: o.gimmick ?? defaultGimmick(), particles: o.particles, imageID: o.imageID,
+    light: o.light, label: o.label, animation: o.animation, layer: o.layer, lockedFlag: o.lockedFlag,
+  };
+}
+
+/** A transform at `position`, optionally scaled and turned (Euler degrees). */
+export function placed(position: Vec3, size: Vec3 = v3(1, 1, 1), rotation?: Transform3D['rotation']): Transform3D {
+  return { position, rotation: rotation ?? { x: 0, y: 0, z: 0, w: 1 }, scale: size };
+}
+
+/** A world with nothing in it, as `WorldDocument(name:)` makes. */
+export function emptyWorld(name = 'Untitled World', author = ''): WorldDocument {
+  const now = isoNow();
+  return {
+    id: newID(), schemaVersion: currentSchemaVersion, name, authorName: author, createdAt: now, modifiedAt: now,
+    environment: defaultEnvironment(), blocks: [], rules: [], scripts: [], images: [],
+  };
 }
