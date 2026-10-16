@@ -1,0 +1,234 @@
+-- towers.absc — 第6（最終）ゲーム（もう1つ）「空のタワー」
+--
+-- 空に 3つのタワー。だんだん 高く、せまくなる。「👐 ドン！」で 近くの相手を おし出す（決戦リングと同じ）。
+-- いまのタワーから だれか1人でも 落ちたら、のこった人は 次のタワーへ。
+-- 3つ目のタワーでは、最後の1人になるまで おしあい。長く だれも落ちないと、タワーの ふちが くずれていく。
+-- 時間切れのときは、タワーの まん中に いちばん近い人が 優勝。
+
+let towers_on = false
+let towers_run = 0
+let tower_no = 1
+let tower_outs = 0
+let tower_since = 0
+let tower_radius = 0
+let towers_ai_clock = 0
+let TOWERS = [{x: 360, y: 36, r: 8}, {x: 400, y: 46, r: 6.5}, {x: 440, y: 56, r: 5}]
+let TOWERS_Z = 300
+let TOWER_CRUMBLE = 20      -- だれも落ちないと この秒数ごとに ふちが くずれる
+
+func tower_now()
+  return TOWERS[tower_no]
+end
+
+func tower_dist(c)
+  let t = tower_now()
+  let dx = c.x - t.x
+  let dz = c.z - TOWERS_Z
+  return sqrt(dx * dx + dz * dz)
+end
+
+func tower_reset_discs()
+  for k in 1 to 3 do
+    let t = TOWERS[k]
+    let d = block("Sky Tower " + k)
+    d.size = {x: t.r * 2, y: 0.6, z: t.r * 2}
+    d.visible = true
+    d.solid = true
+  end
+end
+
+func towers_start()
+  towers_run = towers_run + 1
+  towers_on = false
+  tower_no = 1
+  tower_reset_discs()
+  for c in alive_cast() do
+    c.shove_until = 0
+    c.brace_until = 0
+    c.next_push = 0
+    if c.is_npc then
+      c.stop()
+      c.speed = 0.8
+    else
+      c.frozen = true
+      kit_quest_progress(c, "ring", 1)
+    end
+  end
+  towers_move_to(1)
+  let run = towers_run
+  announce("🗼 空のタワー！ だれか1人 落ちたら 次のタワーへ。3つ目で 最後の1人に", 3.5)
+  after(3.5, func()
+    if run != towers_run or not playing("towers") then return end
+    towers_on = true
+    game_ends = time() + GAMES[game_index("towers")].time
+    sound("goal")
+    announce("▶ ファイト！", 1.2)
+    for p in alive_humans() do
+      p.frozen = false
+      towers_ui(p)
+    end
+  end)
+end
+
+-- のこっている人を k ばんめの タワーへ
+func towers_move_to(k)
+  tower_no = k
+  tower_outs = 0
+  tower_since = time()
+  let t = tower_now()
+  tower_radius = t.r
+  let list = alive_cast()
+  let i = 0
+  for c in list do
+    i = i + 1
+    let a = 360 * i / max(1, len(list))
+    c.teleport({x: t.x + cos(a) * t.r * 0.6, y: t.y + 1.5, z: TOWERS_Z + sin(a) * t.r * 0.6})
+    if c.is_npc then c.stop() end
+  end
+end
+
+func towers_ui(p)
+  p.ui_button("tower_push", "👐 ドン！", {at: "bottom_right", dx: -40, dy: -140, w: 190, h: 110, size: 26, bg: "#DC2626", radius: 24})
+  p.ui_button("tower_brace", "🦶 ふんばる", {at: "bottom_right", dx: -250, dy: -150, w: 150, h: 80, size: 18, bg: "#1D4ED8", radius: 20})
+end
+
+func towers_clear_ui(p)
+  p.ui_remove("tower_push")
+  p.ui_remove("tower_brace")
+end
+
+func tower_try_push(c)
+  if not towers_on or not playing("towers") or c.out then return end
+  if time() < (c.next_push or 0) then return end
+  c.next_push = time() + 0.8
+  let t = ring_nearest(c, RING_REACH)
+  if t == nil then
+    if not c.is_npc then c.message("👐 だれもいない…", 0.6) end
+    return
+  end
+  ring_push(c, t)
+end
+
+func tower_brace(c)
+  if not towers_on or c.out then return end
+  if time() < (c.brace_ready or 0) then return end
+  c.brace_until = time() + 1.2
+  c.brace_ready = time() + 3
+  if not c.is_npc then c.message("🦶 ふんばり！", 0.8) end
+end
+
+func towers_npc_ai()
+  let t = tower_now()
+  for n in alive_npcs() do
+    if time() >= (n.shove_until or 0) then
+      if tower_dist(n) > tower_radius - 1.4 and random() < n.calm then
+        n.move_to({x: t.x + (random() - 0.5) * 2, y: t.y, z: TOWERS_Z + (random() - 0.5) * 2})
+      else
+        let target = ring_nearest(n, 25)
+        if target != nil then
+          n.move_to(target.position)
+          if distance(n, target) < RING_REACH - 0.4 and random() < 0.4 + n.brave * 0.4 then tower_try_push(n) end
+          if distance(n, target) < RING_REACH and random() < 0.15 * n.calm then tower_brace(n) end
+        end
+      end
+    end
+  end
+end
+
+-- だれも落ちないと、タワーの ふちが くずれる
+func tower_crumble()
+  if time() - tower_since < TOWER_CRUMBLE then return end
+  tower_since = time()
+  let k = tower_no
+  if tower_radius <= 2.2 then return end
+  tower_radius = tower_radius - 1
+  let d = block("Sky Tower " + k)
+  d.size = {x: tower_radius * 2, y: 0.6, z: tower_radius * 2}
+  announce("⚠️ タワーの ふちが くずれた！", 2)
+  sound("hurt")
+  shake(0.2, 0.4)
+end
+
+func towers_end()
+  if not playing("towers") or not towers_on then return end
+  towers_on = false
+  towers_run = towers_run + 1
+  for p in humans() do towers_clear_ui(p) end
+  let alive = alive_cast()
+  if len(alive) > 1 then
+    let best = alive[1]
+    for c in alive do
+      if tower_dist(c) < tower_dist(best) then best = c end
+    end
+    announce("⏱ 時間切れ！ まん中に近かったのは " + label_of(best) + "！", 3)
+    for c in alive do
+      if c.id != best.id then eliminate(c, "時間切れ") end
+    end
+  end
+  tower_reset_discs()
+  game_over()
+end
+
+on tick(dt)
+  if not playing("towers") then return end
+  for c in alive_cast() do
+    if c.is_npc and time() < (c.shove_until or 0) and c.shove != nil then
+      c.teleport(c.position + c.shove * dt)
+    end
+  end
+  let t = tower_now()
+  let alive = alive_cast()
+  let fallen = filter(alive, func(c) return c.y < t.y - 6 end)
+  if len(fallen) > 0 then
+    if len(fallen) == len(alive) then
+      -- 全員いっしょに落ちた: いちばん高いところにいた人だけ のこす
+      let best = fallen[1]
+      for c in fallen do
+        if c.y > best.y then best = c end
+      end
+      for c in fallen do
+        if c.id != best.id then eliminate(c, "タワーから落ちた") end
+      end
+      best.teleport({x: t.x, y: t.y + 1.5, z: TOWERS_Z})
+    else
+      for c in fallen do eliminate(c, "タワーから落ちた") end
+    end
+    tower_outs = tower_outs + len(fallen)
+    tower_since = time()
+  end
+  if not towers_on then return end
+  if len(alive_cast()) <= 1 then
+    towers_end()
+    return
+  end
+  -- だれか落ちたら 次のタワーへ（3つ目は 最後まで）
+  if tower_outs > 0 and tower_no < 3 then
+    let next = tower_no + 1
+    tower_outs = 0
+    announce("🌈 だれかが落ちた！ " + next + " つ目の タワーへ", 2)
+    sound("magic")
+    let run = towers_run
+    towers_on = false
+    after(2, func()
+      if run != towers_run or not playing("towers") then return end
+      towers_move_to(next)
+      towers_on = true
+    end)
+    return
+  end
+  tower_crumble()
+  towers_ai_clock = towers_ai_clock + dt
+  if towers_ai_clock >= 0.4 then
+    towers_ai_clock = 0
+    towers_npc_ai()
+  end
+  if time() >= game_ends then towers_end() end
+end
+
+on button(p, id)
+  if id == "tower_push" then
+    tower_try_push(p)
+  elif id == "tower_brace" then
+    tower_brace(p)
+  end
+end
