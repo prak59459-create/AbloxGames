@@ -205,6 +205,9 @@ describe('the Plaza', () => {
     const recent = picked.slice(1, 3).map((g) => g.id);
     for (const id of ['c', 'e']) if (id !== picked[0].id) expect(picked.map((g) => g.id)).toContain(id);
     expect(recent.length).toBe(2);
+    // A game played twice, or one gone from the list, does not use up a door (as on the iPad).
+    const few = plazaGames(games, ['c', 'c', 'zz', 'e'], 3).map((g) => g.id);
+    for (const id of ['c', 'e']) expect(few).toContain(id);
     expect(plazaGames([], [])).toEqual([]);
   });
 

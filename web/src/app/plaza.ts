@@ -42,7 +42,14 @@ export function plazaGames(games: GameListing[], recent: string[], count = 8): G
   const out: GameListing[] = [];
   const add = (g: GameListing | undefined | null) => { if (g && !out.some((x) => x.id === g.id) && out.length < count) out.push(g); };
   add(dailyPick(games));
-  for (const id of recent.slice(0, 3)) add(games.find((g) => g.id === id));
+  // Three games played lately: a game played twice, or one no longer in the list, does not use up a door.
+  let lately = 0;
+  for (const id of recent) {
+    if (lately >= 3) break;
+    const before = out.length;
+    add(games.find((g) => g.id === id));
+    if (out.length > before) lately++;
+  }
   for (const g of games.filter((x) => x.tags.includes('top20'))) add(g);
   for (const g of games) add(g);
   return out;
