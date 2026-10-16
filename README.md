@@ -1,9 +1,9 @@
 # Ablox Games
 
 [Ablox](https://github.com/prak59459-create/Ablox) の「ゲーム」タブが読むゲーム一覧です。
-80本のゲームが入っています。どれも Ablox Studio で開いて、そのまま改造できます。
+136本のゲームが入っています。どれも Ablox Studio で開いて、そのまま改造できます。
 
-> The public game list for Ablox: 80 games, each a world plus `.absc` scripts.
+> The public game list for Ablox: 136 games, each a world plus `.absc` scripts.
 > The app reads `index.json` straight from this repository.
 
 ## 遊び方
@@ -208,6 +208,12 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/sword-forge-factory/cover-64d48879.png" width="200"> | 133 | **Sword Forge Factory** | 剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！ |
 | <img src="games/fish-farm-tycoon/cover-49cbe0ce.png" width="200"> | 134 | **Fish Farm Tycoon** | 魚の養殖場をつくろう！ 川を流れてくる魚を買って 自分の池へ。えさをあげると 大きくそだって もうけアップ。金の魚や にじ色の魚も 流れてくるかも？ キングコイをねらえ！ |
 | <img src="games/egg-heist/cover-e0aa137b.png" width="200"> | 135 | **Egg Heist** | まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！ |
+
+### 💡 みんなのアイデアから
+
+| | # | ゲーム | 内容 |
+|---|---|---|---|
+| <img src="games/lucky-chip-party/cover-8eacd3a0.png" width="200"> | 231 | **Lucky Chip Party** | 4人でテーブルをかこむ ゲームショー！ サイコロ・カード・ルーレット・どうぶつレース・コイン・ブラフ・ミステリーボックス・ばくだんカード・「わける？ひとりじめ？」の9種類で チップをかけて ふやせ。ひみつのヒント、レイズとブラフ、0になったら OUT。たりない席には BOT（チップは このゲームの中だけのもの） |
 
 <!-- games:end -->
 

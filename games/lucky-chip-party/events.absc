@@ -1,0 +1,860 @@
+-- events.absc — 9つのイベント
+--
+-- どのイベントも 同じ5つで動く:
+--   event_setup(id)      ラウンドの はじめ（道具を出す・答えを先に決める）
+--   event_options(id)    えらべるもの {id, label, mult}
+--   event_hint(id)       ひとりだけに こっそり見せるヒント（なければ nil）
+--   event_reveal(id)     かけおわったら 結果を見せはじめる
+--   event_tick(id, now)  結果を見せている間、毎フレーム
+-- 結果が出たら、それぞれの c.result（もどってくるチップ）を決めて result_start(ひとこと) をよぶ。
+
+let ev = {}
+
+func event_takes_bet(id)
+  return id != "bluff" and id != "share"
+end
+
+-- かけ金の行（金額をえらぶボタン）を 出すか
+func event_has_amount(id)
+  return event_takes_bet(id)
+end
+
+func bonus()
+  if is_final_round() then return FINAL_BONUS end
+  return 1
+end
+
+func payout(c, mult)
+  return floor(c.paid * mult * bonus())
+end
+
+func odds(p)
+  return clamp(floor(0.93 / p * 10) / 10, 1.1, 12)
+end
+
+func set_label(name, lines)
+  block(name).label = lines
+end
+
+func show_prop(name, lines)
+  let b = block(name)
+  b.visible = true
+  if lines != nil then b.label = lines end
+  return b
+end
+
+-- MARK: はじめ
+
+func event_setup(id)
+  ev = {stage: "", t0: 0, next_at: 0}
+  if id == "dice" then
+    ev.d1 = random(1, 6)
+    ev.d2 = random(1, 6)
+    show_prop("Die 1", [{text: "？", color: "#FFFFFF"}])
+    show_prop("Die 2", [{text: "？", color: "#FFFFFF"}])
+  elif id == "card" then
+    ev.v = random(2, 12)
+    ev.next = random(1, 13)
+    show_prop("Card 1", [{text: "🃏 " + ev.v, color: "#FFFFFF"}])
+    show_prop("Card 2", [{text: "？", color: "#FFFFFF"}])
+    sound("paper-fabric-card-shuffle-01", {volume: 0.7})
+  elif id == "wheel" then
+    ev.target = random(1, 12)
+    ev.at = 1
+    ev.hops = 24 + ev.target - 1
+    ev.hop = 0
+    wheel_light(1)
+    block("Wheel Light").visible = true
+  elif id == "race" then
+    race_setup()
+  elif id == "coin" then
+    ev.flips = 0
+    show_prop("Coin", [{text: "🌞 / 🌙", color: "#FDE047"}])
+  elif id == "bluff" then
+    bluff_setup()
+  elif id == "box" then
+    ev.contents = shuffle(copy(BOX_SETS[random(1, len(BOX_SETS))]))
+    for k in 1 to 3 do
+      show_prop("Box " + k, [{text: k + "ばん", color: "#FFFFFF"}])
+      block("Box Lid " + k).visible = true
+    end
+  elif id == "bomb" then
+    let deck = []
+    for k in 1 to BOMB_DECK do
+      if k <= BOMB_COUNT then append(deck, "bomb") else append(deck, "safe") end
+    end
+    ev.deck = shuffle(deck)
+    ev.drawn = 0
+    ev.safe = 0
+    show_prop("Deck", [{text: "🃏 のこり " + BOMB_DECK + " まい（💣 " + BOMB_COUNT + "）", color: "#FCA5A5"}])
+    sound("paper-fabric-card-shuffle-08", {volume: 0.7})
+  elif id == "share" then
+    share_setup()
+  end
+end
+
+-- MARK: えらべるもの
+
+func event_options(id)
+  if id == "dice" then
+    return [{id: "high", label: "⬆ 8以上 ×2.3", mult: 2.3}, {id: "low", label: "⬇ 6以下 ×2.3", mult: 2.3},
+            {id: "seven", label: "7️⃣ ぴったり7 ×5.5", mult: 5.5}, {id: "double", label: "👯 ゾロ目 ×5.5", mult: 5.5}]
+  elif id == "card" then
+    let up = odds((13 - ev.v) / 13)
+    let down = odds((ev.v - 1) / 13)
+    return [{id: "up", label: "⬆ 上 ×" + up, mult: up}, {id: "down", label: "⬇ 下 ×" + down, mult: down},
+            {id: "same", label: "＝ 同じ ×12", mult: 12}]
+  elif id == "wheel" then
+    return [{id: "red", label: "🔴 赤 ×2.3", mult: 2.3}, {id: "blue", label: "🔵 青 ×2.3", mult: 2.3},
+            {id: "gold", label: "🟡 金 ×11", mult: 11}, {id: "rainbow", label: "🌈 虹 ×11", mult: 11}]
+  elif id == "race" then
+    let list = []
+    for k in 1 to 4 do
+      let r = RACERS[k]
+      append(list, {id: "r" + k, label: r.emoji + " " + r.name + " ×" + ev.mult[k], mult: ev.mult[k]})
+    end
+    return list
+  elif id == "coin" then
+    return [{id: "heads", label: "🌞 表 ×2", mult: 2}, {id: "tails", label: "🌙 裏 ×2", mult: 2}]
+  elif id == "bluff" then
+    return [{id: "r0", label: "✋ チェック", mult: 0}, {id: "r10", label: "⬆ レイズ +10", mult: 0},
+            {id: "r25", label: "⏫ レイズ +25", mult: 0}, {id: "fold", label: "🏳 おりる", mult: 0}]
+  elif id == "box" then
+    return [{id: "b1", label: "🎁 1ばん", mult: 0}, {id: "b2", label: "🎁 2ばん", mult: 0}, {id: "b3", label: "🎁 3ばん", mult: 0}]
+  elif id == "bomb" then
+    return [{id: "draw", label: "🃏 ひく！（さいしょは ×" + BOMB_STEPS[1] + "）", mult: 0}]
+  elif id == "share" then
+    return [{id: "share", label: "🤝 わける", mult: 0}, {id: "steal", label: "😈 ひとりじめ", mult: 0}]
+  end
+  return []
+end
+
+func option_of(id, key)
+  for o in event_options(id) do
+    if o.id == key then return o end
+  end
+  return nil
+end
+
+-- MARK: ひみつのヒント
+
+func event_hint(id)
+  if id == "dice" then
+    return "1つめのサイコロは " + DIE_FACES[ev.d1] + "（" + ev.d1 + "）"
+  elif id == "card" then
+    if ev.next % 2 == 0 then return "つぎのカードは 偶数（2・4・6…）" end
+    return "つぎのカードは 奇数（1・3・5…）"
+  elif id == "wheel" then
+    let rare = "gold"
+    if WHEEL[ev.target] == "gold" then rare = "rainbow"
+    elif WHEEL[ev.target] != "rainbow" and chance(50) then rare = "rainbow" end
+    return "光は " + WHEEL_NAMES[rare] + " には 止まらない"
+  elif id == "race" then
+    let bad = random(1, 4)
+    while bad == ev.winner do bad = random(1, 4) end
+    ev.bad = bad
+    return RACERS[bad].emoji + " " + RACERS[bad].name + " は 今日 おなかが いたい（1着には ならない）"
+  elif id == "box" then
+    let k = random(1, 3)
+    ev.known = k
+    return k + "ばんの箱の中身は ×" + ev.contents[k]
+  elif id == "bomb" then
+    if ev.deck[1] == "bomb" then return "1まいめは 💣 ばくだん！" end
+    return "1まいめは あんぜん"
+  end
+  return nil
+end
+
+-- 生きのこっている人の中から 1人だけに ヒント
+func give_hints()
+  let text = event_hint(event.id)
+  if text == nil then return end
+  let list = live_seats()
+  if len(list) == 0 then return end
+  let lucky = list[random(1, len(list))]
+  lucky.hint = text
+  for c in list do
+    if c == lucky then
+      if not c.is_npc then
+        c.message("🤫 ひみつのヒント: " + text, 4)
+        c.sound("magic")
+        kit_badge(c, "first_hint", "ひみつを知る者")
+      end
+    elif not c.is_npc then
+      c.message("🤫 だれかが ひみつのヒントを もらった…", 2.5)
+    end
+  end
+end
+
+-- MARK: 結果を見せる
+
+func event_reveal(id)
+  ev.stage = "show"
+  ev.t0 = time()
+  if id == "dice" then
+    block("Die 1").animation = "spin"
+    block("Die 2").animation = "spin"
+    block("Die 1").animation_speed = 3
+    block("Die 2").animation_speed = 3
+    sound("impact-dice-roll-06", {volume: 0.9})
+  elif id == "card" then
+    sound("paper-fabric-card-flip-06", {volume: 0.9})
+    block("Card 2").animation = "wobble"
+  elif id == "wheel" then
+    ev.next_at = time()
+    sound("mechanical-slot-machine-08", {volume: 0.6})
+  elif id == "race" then
+    race_go()
+  elif id == "coin" then
+    coin_flip()
+  elif id == "bluff" then
+    bluff_bets()
+  elif id == "box" then
+    ev.opened = 0
+    ev.next_at = time() + 1
+  elif id == "bomb" then
+    bomb_join()
+  elif id == "share" then
+    ev.next_at = time() + 2.5
+    board([{text: "🤝 わける？ 😈 ひとりじめ？", color: "#FDE047"}, "ドキドキ… せーの！"])
+    sound("drum")
+  end
+end
+
+func event_tick(id, now)
+  if id == "dice" then
+    if ev.stage == "show" and now - ev.t0 >= 2.4 then
+      ev.stage = "faces"
+      for k in 1 to 2 do
+        let b = block("Die " + k)
+        b.animation = nil
+        let v = ev.d1
+        if k == 2 then v = ev.d2 end
+        b.label = [{text: DIE_FACES[v] + " " + v, color: "#FFFFFF"}]
+      end
+      sound("coin-dropped-on-wooden-table-01", {volume: 0.8})
+    elif ev.stage == "faces" and now - ev.t0 >= 3.6 then
+      ev.stage = "done"
+      dice_resolve()
+    end
+  elif id == "card" then
+    if ev.stage == "show" and now - ev.t0 >= 2 then
+      ev.stage = "faces"
+      let b = block("Card 2")
+      b.animation = nil
+      b.label = [{text: "🃏 " + ev.next, color: "#FDE047"}]
+      sound("paper-fabric-card-flip-07", {volume: 0.9})
+    elif ev.stage == "faces" and now - ev.t0 >= 3.2 then
+      ev.stage = "done"
+      card_resolve()
+    end
+  elif id == "wheel" then
+    wheel_tick(now)
+  elif id == "race" then
+    race_tick(now)
+  elif id == "coin" then
+    coin_tick(now)
+  elif id == "bluff" then
+    bluff_tick(now)
+  elif id == "box" then
+    box_tick(now)
+  elif id == "bomb" then
+    bomb_tick(now)
+  elif id == "share" then
+    if ev.stage == "show" and now >= ev.next_at then
+      ev.stage = "done"
+      share_resolve()
+    end
+  end
+end
+
+-- 長くかかりすぎたとき（ふつうは来ない）
+func event_timeout(id)
+  for c in live_seats() do
+    if c.result == nil then c.result = c.paid end
+  end
+  result_start("時間切れ — かけたチップは もどります")
+end
+
+-- MARK: 🎲 サイコロ
+
+func dice_resolve()
+  let sum = ev.d1 + ev.d2
+  for c in live_seats() do
+    c.result = 0
+    let ok = false
+    if c.pick == "high" then ok = sum >= 8
+    elif c.pick == "low" then ok = sum <= 6
+    elif c.pick == "seven" then ok = sum == 7
+    elif c.pick == "double" then ok = ev.d1 == ev.d2 end
+    if ok and c.paid > 0 then c.result = payout(c, option_of("dice", c.pick).mult) end
+  end
+  let note = "サイコロは " + DIE_FACES[ev.d1] + DIE_FACES[ev.d2] + " = " + sum
+  if ev.d1 == ev.d2 then note = note + "（ゾロ目！）" end
+  result_start(note)
+end
+
+-- MARK: 🃏 つぎのカード
+
+func card_resolve()
+  let way = "same"
+  if ev.next > ev.v then way = "up" elif ev.next < ev.v then way = "down" end
+  for c in live_seats() do
+    c.result = 0
+    if c.pick == way and c.paid > 0 then c.result = payout(c, option_of("card", c.pick).mult) end
+  end
+  let names = {up: "上", down: "下", same: "同じ"}
+  result_start("つぎのカードは " + ev.next + "（" + names[way] + "）")
+end
+
+-- MARK: 🎡 ルーレット
+
+func wheel_light(k)
+  let s = block("Slot " + k)
+  let light = block("Wheel Light")
+  light.position = {x: s.x, y: 1.75, z: s.z}
+  light.color = WHEEL_COLORS[WHEEL[k]]
+end
+
+func wheel_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    if ev.hop >= ev.hops then
+      ev.stage = "stop"
+      ev.next_at = now + 1.2
+      let color = WHEEL[ev.at]
+      block("Wheel Light").label = [{text: WHEEL_NAMES[color] + "！", color: WHEEL_COLORS[color]}]
+      particles("sparkles", block("Wheel Light"), {amount: 40})
+      sound("bell")
+      return
+    end
+    ev.hop = ev.hop + 1
+    ev.at = ev.at % 12 + 1
+    wheel_light(ev.at)
+    sound("tick", {volume: 0.4, pitch: 1 + ev.hop / 60})
+    ev.next_at = now + 0.05 + ev.hop * 0.007
+  elif ev.stage == "stop" and now >= ev.next_at then
+    ev.stage = "done"
+    let color = WHEEL[ev.at]
+    for c in live_seats() do
+      c.result = 0
+      if c.pick == color and c.paid > 0 then c.result = payout(c, option_of("wheel", c.pick).mult) end
+    end
+    result_start("ルーレットは " + WHEEL_NAMES[color])
+  end
+end
+
+-- MARK: 🐢 どうぶつレース
+
+func racer_start(k)
+  let lane = block("Lane " + k)
+  return {x: lane.x - RACE_LENGTH / 2, y: 0.6, z: lane.z}
+end
+
+func race_setup()
+  let perm = shuffle([1, 2, 3, 4])
+  ev.weight = []
+  ev.mult = []
+  for k in 1 to 4 do
+    let w = RACE_WEIGHTS[perm[k]]
+    append(ev.weight, w)
+    append(ev.mult, clamp(floor(0.92 / (w / 100) * 10) / 10, 1.2, 12))
+  end
+  ev.winner = pick_weighted(ev.weight)
+  ev.progress = [0, 0, 0, 0]
+  for k in 1 to 4 do
+    let r = block("Racer " + k)
+    r.position = racer_start(k)
+    r.label = [{text: RACERS[k].emoji + " " + RACERS[k].name, color: RACERS[k].color}, {text: "×" + ev.mult[k], color: "#FDE047"}]
+    r.animation = nil
+  end
+end
+
+func race_go()
+  for p in seat_humans() do
+    if not p.out then race_camera(p) end
+  end
+  for p in players() do
+    if p.seat == nil then race_camera(p) end
+  end
+  for k in 1 to 4 do block("Racer " + k).animation = "bounce" end
+  ev.next_at = time() + 1
+  board([{text: "🐢 どうぶつレース", color: "#FDE047"}, "よーい… ドン！"])
+  sound("drum")
+end
+
+func race_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    ev.next_at = now + 0.3
+    let done = false
+    for k in 1 to 4 do
+      let gain = random_float(0.25, 1.05)
+      if k == ev.winner then gain = gain + 0.12 end
+      let p = ev.progress[k] + gain
+      -- 1着は 決まっている。ほかの子は ゴールの手前で 追いぬかれる
+      if k != ev.winner and p >= RACE_LENGTH - 0.7 then p = RACE_LENGTH - 0.7 - random_float(0, 0.6) end
+      if k == ev.winner and p >= RACE_LENGTH then
+        p = RACE_LENGTH
+        done = true
+      end
+      ev.progress[k] = p
+      let s = racer_start(k)
+      block("Racer " + k).move_to({x: s.x + p, y: s.y, z: s.z}, 0.3)
+    end
+    if done then
+      ev.stage = "finish"
+      ev.next_at = now + 1.6
+      let r = RACERS[ev.winner]
+      board([{text: "🏁 1着は " + r.emoji + " " + r.name + "！", color: "#FDE047"}])
+      particles("confetti", block("Racer " + ev.winner), {amount: 60})
+      sound("crowd-cheer-44", {volume: 0.6})
+      for k in 1 to 4 do block("Racer " + k).animation = nil end
+      block("Racer " + ev.winner).animation = "dance"
+    end
+  elif ev.stage == "finish" and now >= ev.next_at then
+    ev.stage = "done"
+    for c in live_seats() do
+      c.result = 0
+      if c.pick == "r" + ev.winner and c.paid > 0 then c.result = payout(c, ev.mult[ev.winner]) end
+      if not c.is_npc then table_camera(c) end
+    end
+    for p in players() do
+      if p.seat == nil then gallery_camera(p) end
+    end
+    let r = RACERS[ev.winner]
+    result_start("1着は " + r.emoji + " " + r.name + "（×" + ev.mult[ev.winner] + "）")
+  end
+end
+
+-- MARK: 🪙 コイン ダブルアップ
+--
+-- c.cstate: "in"（コインを待つ）/ "won"（つづけるか 決める）/ "stop"（やめた）/ "lost"（はずれ）
+
+func coin_players()
+  return filter(live_seats(), func(c) return c.cstate == "in" end)
+end
+
+func coin_flip()
+  if ev.flips == 0 then
+    for c in live_seats() do
+      if c.pick != nil and c.paid > 0 then
+        c.cstate = "in"
+        c.pot = c.paid
+      else
+        c.cstate = "stop"
+        c.pot = 0
+      end
+    end
+  end
+  ev.flips = ev.flips + 1
+  ev.side = "heads"
+  if chance(50) then ev.side = "tails" end
+  ev.stage = "flip"
+  ev.next_at = time() + 1.8
+  let coin = block("Coin")
+  coin.animation = "spin"
+  coin.animation_speed = 4
+  coin.label = [{text: ev.flips + "回目…", color: "#FDE047"}]
+  sound("impact-coins-03", {volume: 0.8})
+end
+
+func coin_tick(now)
+  if ev.stage == "flip" and now >= ev.next_at then
+    let coin = block("Coin")
+    coin.animation = nil
+    let face = "🌞 表"
+    if ev.side == "tails" then face = "🌙 裏" end
+    coin.label = [{text: face + "！", color: "#FDE047"}]
+    sound("coin-dropped-on-wooden-table-02", {volume: 0.8})
+    let any = false
+    for c in coin_players() do
+      if c.pick == ev.side then
+        c.pot = c.pot * 2
+        c.cstate = "won"
+        any = true
+        if not c.is_npc then c.message("✨ あたり！ 🪙 " + c.pot, 1.5) end
+      else
+        c.pot = 0
+        c.cstate = "lost"
+        if not c.is_npc then c.message("💦 はずれ…", 1.5) end
+      end
+    end
+    if not any or ev.flips >= 4 then
+      coin_finish()
+      return
+    end
+    ev.stage = "decide"
+    ev.next_at = now + STEP_TIME
+    for c in filter(live_seats(), func(c) return c.cstate == "won" end) do
+      c.decided = false
+      if c.is_npc then
+        bot_coin(c)
+      else
+        open_step_panel(c, "🪙 いま 🪙 " + c.pot + "。 つぎは ×2！ つづける？",
+                        [{id: "coin_heads", label: "🌞 表で つづける", bg: "#D97706"},
+                         {id: "coin_tails", label: "🌙 裏で つづける", bg: "#4338CA"},
+                         {id: "coin_stop", label: "✋ やめる（🪙 " + c.pot + "）", bg: "#16A34A"}])
+      end
+    end
+  elif ev.stage == "decide" then
+    let waiting = filter(live_seats(), func(c) return c.cstate == "won" and not c.decided end)
+    if len(waiting) == 0 or now >= ev.next_at then
+      for c in waiting do coin_choose(c, "stop") end
+      if len(coin_players()) == 0 then
+        coin_finish()
+      else
+        coin_flip()
+      end
+    end
+  end
+end
+
+func coin_choose(c, what)
+  if c.cstate != "won" or c.decided then return end
+  c.decided = true
+  if not c.is_npc then close_step_panel(c) end
+  if what == "stop" then
+    c.cstate = "stop"
+  else
+    c.cstate = "in"
+    c.pick = what
+  end
+end
+
+func coin_finish()
+  ev.stage = "done"
+  for c in live_seats() do
+    c.result = 0
+    if c.cstate == "stop" or c.cstate == "won" then c.result = floor(c.pot * bonus()) end
+    if not c.is_npc then close_step_panel(c) end
+  end
+  result_start("コインを " + ev.flips + " 回 なげた")
+end
+
+-- MARK: 🤫 ブラフ・カード
+
+func bluff_setup()
+  let deck = shuffle(range(1, 10))
+  ev.pot = 0
+  ev.level = 0
+  let i = 0
+  for c in live_seats() do
+    i = i + 1
+    c.card = deck[i]
+    c.put = min(MIN_BET, c.chips)
+    c.chips = c.chips - c.put
+    ev.pot = ev.pot + c.put
+    if not c.is_npc then
+      c.ui_text("my_card", "🂠 あなたのカード: " + c.card + "（1〜10）",
+                {at: "top", dy: 44, size: 22, bold: true, color: "#FDE047", bg: "#7C2D12E0", radius: 12})
+    end
+  end
+  show_pot(ev.pot)
+end
+
+func bluff_live()
+  return filter(live_seats(), func(c) return not c.folded end)
+end
+
+-- かけおわったら: レイズを はらう → いちばん高い人に そろえる（コール か おりる）
+func bluff_bets()
+  for c in live_seats() do
+    if c.pick == "fold" then
+      c.folded = true
+      if c.is_npc then bot_say(c, "fold", 60) end
+    else
+      let r = 0
+      if c.pick == "r10" then r = 10 elif c.pick == "r25" then r = 25 end
+      r = min(r, c.chips)
+      c.chips = c.chips - r
+      c.put = c.put + r
+      ev.pot = ev.pot + r
+      if r > 0 and c.is_npc then bot_say(c, "raise", 60) end
+    end
+  end
+  ev.level = 0
+  for c in bluff_live() do ev.level = max(ev.level, c.put) end
+  show_pot(ev.pot)
+  show_all_chips()
+  ev.stage = "call"
+  ev.next_at = time() + STEP_TIME
+  let calling = 0
+  for c in bluff_live() do
+    c.decided = true
+    if c.put < ev.level and c.chips > 0 then
+      c.decided = false
+      calling = calling + 1
+      let need = min(ev.level - c.put, c.chips)
+      if c.is_npc then
+        bot_call(c, need)
+      else
+        open_step_panel(c, "🤫 だれかが レイズした！ あなたのカードは " + c.card,
+                        [{id: "bluff_call", label: "📞 コール（🪙 " + need + "）", bg: "#2563EB"},
+                         {id: "bluff_fold", label: "🏳 おりる", bg: "#6B7280"}])
+      end
+    end
+  end
+  board([{text: "🤫 ブラフ・カード", color: "#FDE047"}, "ポット 🪙 " + ev.pot, {text: "コールか おりるか…", color: "#E9D5FF"}])
+  if calling == 0 then ev.next_at = time() + 1 end
+end
+
+func bluff_choose(c, what)
+  if c.decided or c.folded then return end
+  c.decided = true
+  if not c.is_npc then close_step_panel(c) end
+  if what == "fold" then
+    c.folded = true
+    if c.is_npc then bot_say(c, "fold", 60) end
+  else
+    let need = min(ev.level - c.put, c.chips)
+    c.chips = c.chips - need
+    c.put = c.put + need
+    ev.pot = ev.pot + need
+  end
+  show_pot(ev.pot)
+  show_all_chips()
+end
+
+func bluff_tick(now)
+  if ev.stage != "call" then return end
+  let waiting = filter(bluff_live(), func(c) return not c.decided end)
+  if len(waiting) > 0 and now < ev.next_at then return end
+  for c in waiting do bluff_choose(c, "fold") end
+  ev.stage = "done"
+  bluff_showdown()
+end
+
+func bluff_showdown()
+  let live = bluff_live()
+  let cards = []
+  for c in live_seats() do
+    let mark = ""
+    if c.folded then mark = "🏳" end
+    append(cards, c.name + " " + c.card + mark)
+    c.result = 0
+    if not c.is_npc then c.ui_remove("my_card") end
+  end
+  if len(live) == 0 then
+    -- 全員おりたら、出した分を それぞれに もどす
+    for c in live_seats() do c.result = c.put end
+    show_pot(0)
+    result_start("全員 おりた！ チップは もどります")
+    return
+  end
+  let best = 0
+  for c in live do best = max(best, c.card) end
+  let winners = filter(live, func(c) return c.card == best end)
+  let share = floor(ev.pot * bonus() / len(winners))
+  for w in winners do w.result = share end
+  let w = winners[1]
+  let note = w.name + " が ポット 🪙 " + floor(ev.pot * bonus()) + " を 取った！"
+  if len(live) == 1 and len(live_seats()) > 1 then
+    note = w.name + " 以外 みんな おりた！ 🪙 " + share
+    if w.card <= 4 then
+      note = note + "（カードは " + w.card + " … ブラフ成功！）"
+      if not w.is_npc then kit_badge(w, "bluff", "ブラフの達人") end
+    end
+  end
+  board([{text: "🤫 " + note, color: "#FDE047"}, join(cards, "   ")])
+  show_pot(0)
+  result_start(note)
+end
+
+-- MARK: 🎁 ミステリーボックス
+
+func box_tick(now)
+  if ev.stage != "show" or now < ev.next_at then return end
+  if ev.opened < 3 then
+    ev.opened = ev.opened + 1
+    let k = ev.opened
+    block("Box Lid " + k).visible = false
+    let m = ev.contents[k]
+    let color = "#F87171"
+    if m >= 2 then color = "#FDE047" elif m >= 1 then color = "#86EFAC" end
+    block("Box " + k).label = [{text: k + "ばん: ×" + m, color: color}]
+    if m >= 2 then particles("stars", block("Box " + k), {amount: 30}) end
+    sound("cardboard-box-open-01", {volume: 0.8})
+    ev.next_at = now + 1
+    return
+  end
+  ev.stage = "done"
+  for c in live_seats() do
+    c.result = 0
+    if c.pick != nil and c.paid > 0 then
+      let k = num(replace(c.pick, "b", ""))
+      c.result = payout(c, ev.contents[k])
+    end
+  end
+  result_start("箱の中身は ×" + ev.contents[1] + " ・ ×" + ev.contents[2] + " ・ ×" + ev.contents[3])
+end
+
+-- MARK: 💣 ばくだんカード
+--
+-- c.bstate: "in"（ひく）/ "stop"（やめた）/ "boom"（ばくだん）
+
+func bomb_join()
+  for c in live_seats() do
+    if c.pick != nil and c.paid > 0 then c.bstate = "in" else c.bstate = "stop" end
+  end
+  bomb_draw()
+end
+
+func bomb_mult()
+  if ev.safe == 0 then return 1 end
+  return BOMB_STEPS[min(ev.safe, len(BOMB_STEPS))]
+end
+
+func bomb_draw()
+  ev.drawn = ev.drawn + 1
+  ev.stage = "draw"
+  ev.next_at = time() + 1.5
+  let card = show_prop("Card 1", [{text: "🃏 " + ev.drawn + "まいめ…", color: "#FFFFFF"}])
+  card.animation = "wobble"
+  sound("card-deal-slide-01", {volume: 0.9})
+end
+
+func bomb_tick(now)
+  if ev.stage == "draw" and now >= ev.next_at then
+    let card = block("Card 1")
+    card.animation = nil
+    let left = BOMB_DECK - ev.drawn
+    if ev.deck[ev.drawn] == "bomb" then
+      card.label = [{text: "💣 ドカーン！", color: "#F87171"}]
+      particles("smoke", card, {amount: 60})
+      shake(0.6)
+      sound("retro-game-explosion-31", {volume: 0.8})
+      for c in live_seats() do
+        if c.bstate == "in" then
+          c.bstate = "boom"
+          if not c.is_npc then c.message("💣 ばくだん！ かけたチップが…", 2) end
+        end
+      end
+      bomb_finish("💣 " + ev.drawn + "まいめで ばくだん！")
+      return
+    end
+    ev.safe = ev.safe + 1
+    card.label = [{text: "✨ あんぜん！ ×" + bomb_mult(), color: "#86EFAC"}]
+    block("Deck").label = [{text: "🃏 のこり " + left + " まい", color: "#FCA5A5"}]
+    sound("feedback-success-01", {volume: 0.6})
+    if ev.safe >= len(BOMB_STEPS) or left <= 0 then
+      bomb_finish("さいごまで あんぜん！ ×" + bomb_mult())
+      return
+    end
+    ev.stage = "decide"
+    ev.next_at = now + STEP_TIME
+    let nxt = BOMB_STEPS[ev.safe + 1]
+    for c in filter(live_seats(), func(c) return c.bstate == "in" end) do
+      c.decided = false
+      if c.is_npc then
+        bot_bomb(c)
+      else
+        open_step_panel(c, "💣 いま ×" + bomb_mult() + "（🪙 " + payout(c, bomb_mult()) + "）。 つぎは ×" + nxt,
+                        [{id: "bomb_go", label: "🃏 もう1まい！", bg: "#DC2626"},
+                         {id: "bomb_stop", label: "✋ やめる", bg: "#16A34A"}])
+      end
+    end
+  elif ev.stage == "decide" then
+    let waiting = filter(live_seats(), func(c) return c.bstate == "in" and not c.decided end)
+    if len(waiting) == 0 or now >= ev.next_at then
+      for c in waiting do bomb_choose(c, "stop") end
+      if len(filter(live_seats(), func(c) return c.bstate == "in" end)) == 0 then
+        bomb_finish("みんな やめた！ ×" + bomb_mult())
+      else
+        bomb_draw()
+      end
+    end
+  end
+end
+
+func bomb_choose(c, what)
+  if c.bstate != "in" or c.decided then return end
+  c.decided = true
+  if not c.is_npc then close_step_panel(c) end
+  if what == "stop" then
+    c.bstate = "stop"
+    c.result = payout(c, bomb_mult())
+    if not c.is_npc then c.message("✋ ×" + bomb_mult() + " で やめた！ 🪙 " + c.result, 2) end
+  end
+end
+
+func bomb_finish(note)
+  ev.stage = "done"
+  for c in live_seats() do
+    if c.bstate == "in" then c.result = payout(c, bomb_mult()) end
+    if c.bstate == "boom" then c.result = 0 end
+    if c.result == nil then c.result = 0 end
+    if not c.is_npc then close_step_panel(c) end
+  end
+  result_start(note)
+end
+
+-- MARK: 🤝 わける？ ひとりじめ？
+
+func share_setup()
+  ev.pairs = []
+  let list = shuffle(live_seats())
+  let i = 1
+  while i + 1 <= len(list) do
+    append(ev.pairs, {a: list[i], b: list[i + 1]})
+    list[i].partner = list[i + 1]
+    list[i + 1].partner = list[i]
+    i = i + 2
+  end
+  ev.lone = nil
+  if i <= len(list) then
+    ev.lone = list[i]
+    list[i].partner = nil
+  end
+  for pr in ev.pairs do
+    for c in [pr.a, pr.b] do
+      if not c.is_npc then
+        let other = pr.b
+        if c == pr.b then other = pr.a end
+        c.message("🤝 あいては " + other.name + "。 チャットで 話しあってもOK！", 3)
+      end
+    end
+  end
+  if ev.lone != nil and not ev.lone.is_npc then ev.lone.message("🍀 あいてがいない…！ ボーナス +10", 3) end
+end
+
+func share_resolve()
+  let lines = []
+  for pr in ev.pairs do
+    let a = pr.a
+    let b = pr.b
+    -- ぬけた人の あとには BOT がすわっている
+    if not kit_here(a) and a.seat != nil then a = seats[a.seat] end
+    if not kit_here(b) and b.seat != nil then b = seats[b.seat] end
+    if a == nil or b == nil or not kit_here(a) or not kit_here(b) then
+      for c in [a, b] do
+        if c != nil and kit_here(c) then c.result = 10 end
+      end
+      continue
+    end
+    let ma = "🤝"
+    let mb = "🤝"
+    if a.pick == "steal" then ma = "😈" end
+    if b.pick == "steal" then mb = "😈" end
+    a.result = 0
+    b.result = 0
+    if a.pick != "steal" and b.pick != "steal" then
+      a.result = floor(SHARE_POT / 2 * bonus())
+      b.result = floor(SHARE_POT / 2 * bonus())
+    elif a.pick == "steal" and b.pick != "steal" then
+      a.result = floor(SHARE_POT * bonus())
+    elif b.pick == "steal" and a.pick != "steal" then
+      b.result = floor(SHARE_POT * bonus())
+    else
+      a.chips = max(0, a.chips - SHARE_BOTH_STEAL)
+      b.chips = max(0, b.chips - SHARE_BOTH_STEAL)
+    end
+    append(lines, a.name + ma + " × " + mb + b.name)
+    for c in [a, b] do
+      if c.is_npc then
+        if c.pick == "steal" then bot_say(c, "raise", 50) else bot_say(c, "share", 50) end
+      end
+    end
+  end
+  if ev.lone != nil then ev.lone.result = 10 end
+  board([{text: "🤝 わける？ 😈 ひとりじめ？", color: "#FDE047"}, join(lines, "   ")])
+  result_start(join(lines, "  "))
+end

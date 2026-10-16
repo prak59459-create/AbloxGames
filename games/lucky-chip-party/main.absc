@@ -1,0 +1,82 @@
+-- main.absc — ラッキーチップ・パーティー
+--
+-- 4人でテーブルをかこむ ゲームショー。毎ラウンドちがう ミニゲーム（サイコロ・カード・ルーレット・
+-- レース・コイン・ブラフ・箱・ばくだん・わける？）で チップを かけて ふやす。
+-- いちばん チップを ふやした人が 優勝。たりない席には BOT がすわるので、ひとりでも遊べる。
+-- チップは このゲームの中だけのもの（ほかのゲームのコインとも 本物のお金とも 関係ありません）。
+
+kit_setup("ラッキーチップ・パーティー", "チップをかけて ふやせ！ 4人の ゲームショー", [
+  "🪙 みんな チップ " + START_CHIPS + " から スタート。全" + ROUNDS + "ラウンド",
+  "毎ラウンド ちがうゲーム。えらんで、かけて、「✅ けってい」",
+  "当たりにくいものほど 倍率が高い。0になったら OUT（見学）",
+  "🤫 ひみつのヒントは 1人だけ。チャットで ほんとか うそか 言ってもいい",
+  "ブラフ・カード: 弱いカードでも レイズで おどかせば 勝てるかも",
+  "⭐ 最後のラウンドは 配当 ×" + FINAL_BONUS + "。いちばん多い人が 優勝！",
+  "チップは このゲームの中だけのものです（コインや お金とは 関係なし）"
+])
+
+-- このゲームは コインを使わない（チップは 1回のショーだけ）
+kit_save_coins = false
+kit_keep(["wins", "best_chips", "shows"])
+
+let arrivals = 0
+
+on start()
+  world.time = 21
+  world.day_length = 0
+  world.music = "party"
+  lobby_start()
+end
+
+on join(p)
+  arrivals = arrivals + 1
+  p.arrived = arrivals
+  p.free_cam = false
+  kit_welcome(p)
+  p.ui_button("cam_toggle", "🎥", {at: "top_right", dy: 66, w: 48, h: 48, size: 20, bg: "#00000099", radius: 24})
+  gallery_camera(p)
+  show_chips(p)
+  show_ranking()
+  if phase == "lobby" then
+    p.message("🎰 ようこそ！ もうすぐ ショーが はじまるよ", 3)
+  else
+    p.message(watchers_note + "（🙋 で BOT と こうたい できます）", 4)
+    watch_panel(p)
+  end
+end
+
+on loaded(p)
+  if (p.wins or 0) > 0 then p.message("🏆 これまでの優勝 " + p.wins + " 回", 2.5) end
+end
+
+-- 席の人が ぬけたら、BOT が チップを ひきついで すわる
+on leave(p)
+  let k = p.seat
+  if k == nil or seats[k] != p then return end
+  seats[k] = nil
+  if phase == "lobby" or phase == "final" then
+    show_stack(k)
+    return
+  end
+  let chips = p.chips or START_CHIPS
+  let n = bot_sit(k, chips)
+  -- そのラウンドの とちゅうの ようすも そのまま
+  for key in ["out", "round_start", "pick", "bet", "paid", "result", "card", "put", "folded", "decided",
+              "cstate", "pot", "bstate", "hint"] do
+    n[key] = p[key]
+  end
+  n.locked = true
+  if n.round_start == nil then n.round_start = chips end
+  if n.paid == nil then n.paid = 0 end
+  if n.out == nil then n.out = false end
+  announce("🤖 " + n.name + " が " + SEAT_NAMES[k] + " の席を ひきついだ", 2)
+  show_all_chips()
+end
+
+on chat(p, text)
+  -- チャットは ブラフの道具。ショーの席の人の ひとことを 看板の下にも出す
+  if p.seat != nil and seats[p.seat] == p and phase != "lobby" then
+    let sign = block("Seat Sign " + p.seat)
+    if sign != nil then particles("sparkles", sign, {amount: 6}) end
+  end
+end

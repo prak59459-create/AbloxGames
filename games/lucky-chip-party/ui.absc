@@ -1,0 +1,233 @@
+-- ui.absc — かけるパネル・決めるパネル・見学の人のボタン
+
+let PANEL_W = 580
+let OPTION_BG = "#4338CA"
+let PICKED_BG = "#F59E0B"
+
+func clear_panels(p)
+  if p.is_npc then return end
+  close_bet_panel(p)
+  close_step_panel(p)
+  p.ui_remove("rule_card")
+  p.ui_remove("my_card")
+  p.ui_remove("my_stats")
+  p.ui_remove("lobby_clock")
+  watch_panel(p)
+end
+
+-- MARK: かけるパネル
+
+func open_bet_panel(p)
+  p.bet_open = true
+  let id = event.id
+  let opts = event_options(id)
+  let h = 196
+  if not event_has_amount(id) then h = 150 end
+  p.ui_remove("bet_wait")
+  p.ui_panel("bet_panel", {at: "bottom", dy: -18, w: PANEL_W, h: h, bg: "#1E1B4BEE", radius: 18, layer: 18})
+  p.ui_text("bet_title", event.emoji + " " + event.name, {parent: "bet_panel", x: 0.42, y: 22 / h, size: 18, bold: true, color: "gold"})
+  p.ui_text("bet_clock", "⏱ " + left_seconds(), {parent: "bet_panel", x: 0.9, y: 22 / h, size: 18, bold: true, color: "#FDE68A"})
+  let hint = ""
+  if p.hint != nil then hint = "🤫 ヒント: " + p.hint end
+  if id == "bluff" then hint = "🂠 あなたのカード: " + p.card + "（大きいほど強い）" end
+  p.ui_text("bet_hint", hint, {parent: "bet_panel", y: 50 / h, size: 14, bold: true, color: "#C4B5FD"})
+  let n = len(opts)
+  let i = 0
+  for o in opts do
+    i = i + 1
+    p.ui_button("opt_" + o.id, o.label, {parent: "bet_panel", x: (i - 0.5) / n, y: 88 / h, w: min(170, PANEL_W / n - 10), h: 44,
+                size: 14, bg: OPTION_BG, radius: 12})
+  end
+  if event_has_amount(id) then
+    let y = 148 / h
+    p.ui_button("bet_minus", "−", {parent: "bet_panel", x: 0.07, y: y, w: 52, h: 44, size: 22, bg: "#334155", radius: 12})
+    p.ui_text("bet_amt", "", {parent: "bet_panel", x: 0.21, y: y, size: 20, bold: true, color: "#FDE047"})
+    p.ui_button("bet_plus", "＋", {parent: "bet_panel", x: 0.35, y: y, w: 52, h: 44, size: 22, bg: "#334155", radius: 12})
+    p.ui_button("bet_half", "半分", {parent: "bet_panel", x: 0.49, y: y, w: 70, h: 44, size: 15, bg: "#0F766E", radius: 12})
+    p.ui_button("bet_all", "オールイン", {parent: "bet_panel", x: 0.64, y: y, w: 96, h: 44, size: 14, bg: "#B91C1C", radius: 12})
+    p.ui_button("bet_ok", "✅ けってい", {parent: "bet_panel", x: 0.86, y: y, w: 130, h: 44, size: 16, bg: "#16A34A", radius: 12})
+  else
+    p.ui_button("bet_ok", "✅ けってい", {parent: "bet_panel", x: 0.5, y: 128 / h, w: 160, h: 38, size: 16, bg: "#16A34A", radius: 12})
+  end
+  show_bet(p)
+end
+
+func show_bet(p)
+  if not p.bet_open then return end
+  if event_has_amount(event.id) then
+    let text = "🪙 " + p.bet
+    if p.bet >= p.chips then text = "🪙 " + p.bet + "（全部）" end
+    p.ui_text("bet_amt", text)
+  end
+  for o in event_options(event.id) do
+    let bg = OPTION_BG
+    if p.pick == o.id then bg = PICKED_BG end
+    p.ui_button("opt_" + o.id, o.label, {bg: bg})
+  end
+end
+
+func close_bet_panel(p)
+  if p.is_npc then return end
+  p.bet_open = false
+  p.ui_remove("bet_panel")
+  p.ui_remove("bet_wait")
+end
+
+func lock_bet(p)
+  if p.locked then return end
+  if p.pick == nil then
+    p.message("先に どれかを えらんでね", 1.2)
+    p.sound("error")
+    return
+  end
+  p.locked = true
+  close_bet_panel(p)
+  let text = "✅ けってい！ ほかの人を 待っています…"
+  if event_takes_bet(event.id) then text = "✅ 🪙 " + p.bet + " を かけた！ ほかの人を 待っています…" end
+  p.ui_text("bet_wait", text, {at: "bottom", dy: -40, size: 17, bold: true, color: "#86EFAC", bg: "#00000099", radius: 12})
+  p.sound("coin")
+  show_stack(p.seat)
+end
+
+-- 時間切れ: えらんでいれば そのまま、えらんでいなければ パス
+func auto_lock(c)
+  if c.locked then return end
+  c.locked = true
+  if c.pick == nil then
+    c.bet = 0
+    if event.id == "bluff" then c.pick = "r0" end
+    if event.id == "share" then c.pick = "share" end
+    if not c.is_npc and event_takes_bet(event.id) then c.message("⏱ 時間切れ — 今回は パス", 2) end
+  end
+end
+
+func change_bet(p, amount)
+  p.bet = clamp(amount, min(MIN_BET, p.chips), p.chips)
+  show_bet(p)
+end
+
+-- MARK: 決めるパネル（つづける？ コール？）
+
+func open_step_panel(p, title, buttons)
+  p.ui_remove("step_panel")
+  p.ui_panel("step_panel", {at: "bottom", dy: -18, w: PANEL_W, h: 120, bg: "#3B0764EE", radius: 18, layer: 19})
+  p.ui_text("step_title", title, {parent: "step_panel", y: 0.22, size: 16, bold: true, color: "gold"})
+  let n = len(buttons)
+  let i = 0
+  for b in buttons do
+    i = i + 1
+    p.ui_button("step_" + b.id, b.label, {parent: "step_panel", x: (i - 0.5) / n, y: 0.68, w: min(180, PANEL_W / n - 12), h: 46,
+                size: 15, bg: b.bg, radius: 12})
+  end
+  p.sound("bell")
+end
+
+func close_step_panel(p)
+  if p.is_npc then return end
+  p.ui_remove("step_panel")
+end
+
+-- MARK: 見学の人
+
+func watch_panel(p)
+  if p.is_npc then return end
+  let watching = p.seat == nil or seats[p.seat] != p
+  if not watching or phase == "lobby" or phase == "final" then
+    p.ui_remove("watch_panel")
+    return
+  end
+  p.ui_panel("watch_panel", {at: "bottom", dy: -18, w: 520, h: 96, bg: "#0F172ACC", radius: 16, layer: 10})
+  p.ui_text("watch_title", "👀 見学中 — 📣 で おうえん！", {parent: "watch_panel", y: 0.24, size: 15, bold: true, color: "#C4B5FD"})
+  for k in 1 to SEATS do
+    p.ui_button("cheer_" + k, "📣 " + SEAT_NAMES[k], {parent: "watch_panel", x: (k - 0.5) / 5, y: 0.68, w: 92, h: 38, size: 13,
+                bg: SEAT_COLORS[k], radius: 10})
+  end
+  p.ui_button("take_seat", "🙋 BOTと こうたい", {parent: "watch_panel", x: 0.9, y: 0.68, w: 96, h: 38, size: 12, bg: "#7C3AED", radius: 10})
+end
+
+func cheer(p, k)
+  if not kit_ready(p, "cheer", 3) then return end
+  let c = seats[k]
+  if c == nil or not kit_here(c) then return end
+  particles("hearts", block("Seat Sign " + k), {amount: 20})
+  sound("pop", {volume: 0.6})
+  if not c.is_npc then c.message("📣 " + p.name + " が おうえん してくれた！", 2) end
+  p.message("📣 " + c.name + " を おうえんした！", 1.2)
+end
+
+-- 見学の人が BOT の席に すわる（チップは BOT のを ひきつぐ）。ラウンドとラウンドの間だけ
+func take_seat(p)
+  if p.seat != nil and seats[p.seat] == p then return end
+  if phase != "intro" and phase != "result" then
+    p.message("ラウンドの あいだに こうたい できます", 1.5)
+    return
+  end
+  for k in 1 to SEATS do
+    let c = seats[k]
+    if c != nil and kit_here(c) and c.is_npc and not c.out then
+      let chips = c.chips
+      seats[k] = nil
+      kit_gone(c)
+      sit(p, k)
+      p.chips = chips
+      p.round_start = chips
+      p.ui_remove("watch_panel")
+      announce("🙋 " + p.name + " が " + SEAT_NAMES[k] + " の席に すわった！", 2)
+      show_all_chips()
+      return
+    end
+  end
+  p.message("こうたいできる BOT が いません", 1.5)
+end
+
+-- MARK: ボタン
+
+on button(p, id)
+  if starts_with(id, "cheer_") then
+    cheer(p, num(replace(id, "cheer_", "")))
+    return
+  end
+  if id == "take_seat" then
+    take_seat(p)
+    return
+  end
+  if id == "cam_toggle" then
+    p.free_cam = not p.free_cam
+    if p.seat != nil and seats[p.seat] == p and not p.out then table_camera(p) elif p.free_cam then p.camera_reset() else gallery_camera(p) end
+    return
+  end
+  if p.seat == nil or seats[p.seat] != p or p.out then return end
+  if phase == "bet" and not p.locked then
+    if starts_with(id, "opt_") then
+      let key = replace(id, "opt_", "")
+      if option_of(event.id, key) != nil then
+        p.pick = key
+        p.sound("click")
+        show_bet(p)
+      end
+    elif id == "bet_minus" then change_bet(p, p.bet - 10)
+    elif id == "bet_plus" then change_bet(p, p.bet + 10)
+    elif id == "bet_half" then change_bet(p, max(MIN_BET, floor(p.chips / 2 / 5) * 5))
+    elif id == "bet_all" then
+      change_bet(p, p.chips)
+      p.sound("drum")
+    elif id == "bet_ok" then
+      lock_bet(p)
+      if p.locked and p.bet >= p.chips and event_takes_bet(event.id) then announce("🔥 " + p.name + " が オールイン！", 2) end
+    end
+    return
+  end
+  if phase == "reveal" and starts_with(id, "step_") then
+    let what = replace(id, "step_", "")
+    -- ほかのイベントのボタンが おくれて とどいても 何もしない
+    if not starts_with(what, event.id + "_") then return end
+    if what == "coin_heads" then coin_choose(p, "heads")
+    elif what == "coin_tails" then coin_choose(p, "tails")
+    elif what == "coin_stop" then coin_choose(p, "stop")
+    elif what == "bomb_go" then bomb_choose(p, "go")
+    elif what == "bomb_stop" then bomb_choose(p, "stop")
+    elif what == "bluff_call" then bluff_choose(p, "call")
+    elif what == "bluff_fold" then bluff_choose(p, "fold")
+    end
+  end
+end
