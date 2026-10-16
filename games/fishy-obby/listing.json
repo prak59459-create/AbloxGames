@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 363,
-  "bytes" : 213344,
+  "bytes" : 224362,
   "cover" : "games\/fishy-obby\/cover-63fead7d.png",
   "id" : "fishy-obby",
   "maxPlayers" : 16,
@@ -10,6 +10,7 @@
     "lib\/kit.absc",
     "lib\/kit_obby.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/fishy-obby\/data.absc",
     "games\/fishy-obby\/skins.absc",
     "games\/fishy-obby\/water.absc",

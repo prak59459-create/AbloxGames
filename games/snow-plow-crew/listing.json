@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 719,
-  "bytes" : 370427,
+  "bytes" : 381445,
   "cover" : "games\/snow-plow-crew\/cover-f9840d39.png",
   "id" : "snow-plow-crew",
   "maxPlayers" : 8,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_ride.absc",
+    "lib\/kit_crowd.absc",
     "games\/snow-plow-crew\/data.absc",
     "games\/snow-plow-crew\/jobs.absc",
     "games\/snow-plow-crew\/plow.absc",

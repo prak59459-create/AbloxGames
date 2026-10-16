@@ -1,21 +1,22 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 294,
-  "bytes" : 171684,
-  "cover" : "games\/swing-rope-obby\/cover-65b9cf7c.png",
+  "bytes" : 182702,
+  "cover" : "games\/swing-rope-obby\/cover-169e383d.png",
   "id" : "swing-rope-obby",
   "maxPlayers" : 8,
   "schemaVersion" : 2,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/swing-rope-obby\/data.absc",
     "games\/swing-rope-obby\/memes.absc",
     "games\/swing-rope-obby\/swing.absc",
     "games\/swing-rope-obby\/main.absc"
   ],
   "shots" : [
-    "games\/swing-rope-obby\/shot1-d02b8f9f.png",
-    "games\/swing-rope-obby\/shot2-b85b5a56.png"
+    "games\/swing-rope-obby\/shot1-5ff7b1e3.png",
+    "games\/swing-rope-obby\/shot2-1ea6bb89.png"
   ],
   "summary" : "ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。",
   "tags" : [

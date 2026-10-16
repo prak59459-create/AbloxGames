@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 53,
-  "bytes" : 63804,
+  "bytes" : 74822,
   "cover" : "games\/speeding-wall-survival\/cover-838ca2f9.png",
   "id" : "speeding-wall-survival",
   "maxPlayers" : 16,
@@ -10,6 +10,7 @@
     "lib\/kit.absc",
     "lib\/kit_rounds.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/speeding-wall-survival\/data.absc",
     "games\/speeding-wall-survival\/rounds.absc",
     "games\/speeding-wall-survival\/walls.absc",

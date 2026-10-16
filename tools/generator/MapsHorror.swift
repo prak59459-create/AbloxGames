@@ -38,7 +38,7 @@ let horrorGames: [Game] = [
          tags: ["survival", "build", "horror"], maxPlayers: 10, build: infiniteStore),
     Game(number: 57, id: "smile-outbreak", title: "Smile Outbreak",
          summary: "笑顔がうつる学校の鬼ごっこ。3つのモード（アウトブレイク・さいごの一人・特効薬ラッシュ）を投票、4つの役割の技、ロッカーにかくれ、教室のドアを閉め、ワクチン銃で元にもどせ。笑顔は とびかかる・高笑い で追いつめる！",
-         tags: ["tag", "infection", "party"], maxPlayers: 12, build: smileOutbreak),
+         tags: ["tag", "infection", "party"], maxPlayers: 12, libs: ["crowd"], build: smileOutbreak),
     Game(number: 58, id: "watch-the-house", title: "Watch The House",
          summary: "田中さん一家の家で5日間の留守番。窓にひびを入れにくるものをカメラで探してライトで追い払い、玄関の来客はご近所リストとくらべてニセものを見やぶれ。家のしごと・猫のタマ・停電・スマホ通販も！",
          tags: ["horror", "cameras", "hard"], maxPlayers: 6, build: watchHouse),

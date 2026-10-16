@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 119,
-  "bytes" : 94505,
+  "bytes" : 105523,
   "cover" : "games\/academy-days\/cover-982ef03c.png",
   "id" : "academy-days",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/academy-days\/data.absc",
     "games\/academy-days\/campus.absc",
     "games\/academy-days\/classes.absc",

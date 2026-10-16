@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 264,
-  "bytes" : 173251,
+  "bytes" : 184269,
   "cover" : "games\/crusher-yard\/cover-eaf7503a.png",
   "id" : "crusher-yard",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/crusher-yard\/data.absc",
     "games\/crusher-yard\/cars.absc",
     "games\/crusher-yard\/common.absc",

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 375,
-  "bytes" : 221115,
+  "bytes" : 232133,
   "cover" : "games\/build-your-island\/cover-ccb12943.png",
   "id" : "build-your-island",
   "maxPlayers" : 6,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_tycoon.absc",
+    "lib\/kit_crowd.absc",
     "games\/build-your-island\/data.absc",
     "games\/build-your-island\/island.absc",
     "games\/build-your-island\/main.absc"

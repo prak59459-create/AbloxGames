@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 341,
-  "bytes" : 197592,
+  "bytes" : 208610,
   "cover" : "games\/build-a-plane\/cover-aa146486.png",
   "id" : "build-a-plane",
   "maxPlayers" : 8,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_ride.absc",
+    "lib\/kit_crowd.absc",
     "games\/build-a-plane\/data.absc",
     "games\/build-a-plane\/flight.absc",
     "games\/build-a-plane\/hangar.absc",

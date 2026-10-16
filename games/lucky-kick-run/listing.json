@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 115,
-  "bytes" : 96135,
+  "bytes" : 107153,
   "cover" : "games\/lucky-kick-run\/cover-6cf4b7fd.png",
   "id" : "lucky-kick-run",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/lucky-kick-run\/data.absc",
     "games\/lucky-kick-run\/bank.absc",
     "games\/lucky-kick-run\/common.absc",

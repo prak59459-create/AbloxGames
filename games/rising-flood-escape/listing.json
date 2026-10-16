@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 263,
-  "bytes" : 161720,
+  "bytes" : 172738,
   "cover" : "games\/rising-flood-escape\/cover-409cfeaa.png",
   "id" : "rising-flood-escape",
   "maxPlayers" : 12,
@@ -10,6 +10,7 @@
     "lib\/kit.absc",
     "lib\/kit_rounds.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/rising-flood-escape\/data.absc",
     "games\/rising-flood-escape\/flood.absc",
     "games\/rising-flood-escape\/main.absc"

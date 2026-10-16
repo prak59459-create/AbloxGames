@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 182,
-  "bytes" : 151559,
+  "bytes" : 162577,
   "cover" : "games\/reel-legends\/cover-5a0ae04d.png",
   "id" : "reel-legends",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/reel-legends\/data.absc",
     "games\/reel-legends\/bag.absc",
     "games\/reel-legends\/common.absc",

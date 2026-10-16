@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 430,
-  "bytes" : 242466,
+  "bytes" : 253484,
   "cover" : "games\/island-flight-school\/cover-f8e233b8.png",
   "id" : "island-flight-school",
   "maxPlayers" : 12,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_ride.absc",
+    "lib\/kit_crowd.absc",
     "games\/island-flight-school\/data.absc",
     "games\/island-flight-school\/flight.absc",
     "games\/island-flight-school\/missions.absc",

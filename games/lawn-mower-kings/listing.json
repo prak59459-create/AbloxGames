@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 729,
-  "bytes" : 377364,
+  "bytes" : 388382,
   "cover" : "games\/lawn-mower-kings\/cover-11c3b5d3.png",
   "id" : "lawn-mower-kings",
   "maxPlayers" : 8,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_ride.absc",
+    "lib\/kit_crowd.absc",
     "games\/lawn-mower-kings\/data.absc",
     "games\/lawn-mower-kings\/mow.absc",
     "games\/lawn-mower-kings\/shop.absc",

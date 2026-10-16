@@ -151,13 +151,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 182,
-      "bytes" : 151559,
+      "bytes" : 162577,
       "cover" : "games\/reel-legends\/cover-5a0ae04d.png",
       "id" : "reel-legends",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/reel-legends\/data.absc",
         "games\/reel-legends\/bag.absc",
         "games\/reel-legends\/common.absc",
@@ -283,13 +284,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 163,
-      "bytes" : 123699,
+      "bytes" : 134717,
       "cover" : "games\/mystery-manor\/cover-756a1df5.png",
       "id" : "mystery-manor",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/mystery-manor\/data.absc",
         "games\/mystery-manor\/collection.absc",
         "games\/mystery-manor\/common.absc",
@@ -350,13 +352,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 115,
-      "bytes" : 96135,
+      "bytes" : 107153,
       "cover" : "games\/lucky-kick-run\/cover-6cf4b7fd.png",
       "id" : "lucky-kick-run",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/lucky-kick-run\/data.absc",
         "games\/lucky-kick-run\/bank.absc",
         "games\/lucky-kick-run\/common.absc",
@@ -477,13 +480,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 18,
-      "bytes" : 57578,
-      "cover" : "games\/tower-of-chaos\/cover-054858ae.png",
+      "bytes" : 68596,
+      "cover" : "games\/tower-of-chaos\/cover-56850875.png",
       "id" : "tower-of-chaos",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/tower-of-chaos\/data.absc",
         "games\/tower-of-chaos\/events.absc",
         "games\/tower-of-chaos\/round.absc",
@@ -493,8 +497,8 @@
         "games\/tower-of-chaos\/main.absc"
       ],
       "shots" : [
-        "games\/tower-of-chaos\/shot1-c5e24303.png",
-        "games\/tower-of-chaos\/shot2-320645b1.png"
+        "games\/tower-of-chaos\/shot1-2e6f5dce.png",
+        "games\/tower-of-chaos\/shot2-3328f8cf.png"
       ],
       "summary" : "チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！",
       "tags" : [
@@ -655,13 +659,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 296,
-      "bytes" : 183061,
+      "bytes" : 194079,
       "cover" : "games\/tsunami-dash\/cover-a33973d9.png",
       "id" : "tsunami-dash",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/tsunami-dash\/data.absc",
         "games\/tsunami-dash\/common.absc",
         "games\/tsunami-dash\/race.absc",
@@ -721,13 +726,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 44,
-      "bytes" : 63195,
+      "bytes" : 74213,
       "cover" : "games\/deflect-ball\/cover-e14bc4e1.png",
       "id" : "deflect-ball",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/deflect-ball\/data.absc",
         "games\/deflect-ball\/abilities.absc",
         "games\/deflect-ball\/ball.absc",
@@ -885,13 +891,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 389,
-      "bytes" : 229100,
+      "bytes" : 240118,
       "cover" : "games\/armed-racers\/cover-9f7ac916.png",
       "id" : "armed-racers",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/armed-racers\/data.absc",
         "games\/armed-racers\/common.absc",
         "games\/armed-racers\/garage.absc",
@@ -980,13 +987,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 51,
-      "bytes" : 60586,
+      "bytes" : 71604,
       "cover" : "games\/style-boxing\/cover-86903e41.png",
       "id" : "style-boxing",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/style-boxing\/data.absc",
         "games\/style-boxing\/common.absc",
         "games\/style-boxing\/modes.absc",
@@ -1207,13 +1215,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 76,
-      "bytes" : 83212,
+      "bytes" : 94230,
       "cover" : "games\/club-hangout\/cover-5bbad756.png",
       "id" : "club-hangout",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/club-hangout\/data.absc",
         "games\/club-hangout\/build.absc",
         "games\/club-hangout\/club.absc",
@@ -1238,13 +1247,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 350,
-      "bytes" : 213793,
+      "bytes" : 224811,
       "cover" : "games\/ridgeport-cops\/cover-beb7b9ba.png",
       "id" : "ridgeport-cops",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/ridgeport-cops\/data.absc",
         "games\/ridgeport-cops\/common.absc",
         "games\/ridgeport-cops\/gear.absc",
@@ -1330,13 +1340,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 332,
-      "bytes" : 197778,
+      "bytes" : 208796,
       "cover" : "games\/life-ville\/cover-3f9a3333.png",
       "id" : "life-ville",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/life-ville\/data.absc",
         "games\/life-ville\/common.absc",
         "games\/life-ville\/jobs.absc",
@@ -1393,13 +1404,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 119,
-      "bytes" : 94505,
+      "bytes" : 105523,
       "cover" : "games\/academy-days\/cover-982ef03c.png",
       "id" : "academy-days",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/academy-days\/data.absc",
         "games\/academy-days\/campus.absc",
         "games\/academy-days\/classes.absc",
@@ -1834,13 +1846,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 238,
-      "bytes" : 150098,
+      "bytes" : 161116,
       "cover" : "games\/smile-outbreak\/cover-163337e5.png",
       "id" : "smile-outbreak",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/smile-outbreak\/data.absc",
         "games\/smile-outbreak\/abilities.absc",
         "games\/smile-outbreak\/common.absc",
@@ -1959,13 +1972,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 79,
-      "bytes" : 76908,
+      "bytes" : 87926,
       "cover" : "games\/obby-maker\/cover-5fdbb1a6.png",
       "id" : "obby-maker",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/obby-maker\/data.absc",
         "games\/obby-maker\/build.absc",
         "games\/obby-maker\/common.absc",
@@ -2149,13 +2163,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 264,
-      "bytes" : 173251,
+      "bytes" : 184269,
       "cover" : "games\/crusher-yard\/cover-eaf7503a.png",
       "id" : "crusher-yard",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/crusher-yard\/data.absc",
         "games\/crusher-yard\/cars.absc",
         "games\/crusher-yard\/common.absc",
@@ -2303,13 +2318,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 168,
-      "bytes" : 120640,
+      "bytes" : 131658,
       "cover" : "games\/chaos-golf\/cover-3cdce0ba.png",
       "id" : "chaos-golf",
       "maxPlayers" : 8,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/chaos-golf\/data.absc",
         "games\/chaos-golf\/golf.absc",
         "games\/chaos-golf\/items.absc",
@@ -2393,13 +2409,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 176,
-      "bytes" : 115650,
+      "bytes" : 126668,
       "cover" : "games\/prop-hide-and-seek\/cover-1890ba93.png",
       "id" : "prop-hide-and-seek",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/prop-hide-and-seek\/game.absc",
         "games\/prop-hide-and-seek\/tools.absc",
         "games\/prop-hide-and-seek\/main.absc"
@@ -2617,7 +2634,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 373,
-      "bytes" : 219935,
+      "bytes" : 230953,
       "cover" : "games\/color-chart-obby\/cover-5a5ce21e.png",
       "id" : "color-chart-obby",
       "maxPlayers" : 16,
@@ -2625,6 +2642,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
+        "lib\/kit_crowd.absc",
         "games\/color-chart-obby\/data.absc",
         "games\/color-chart-obby\/chart.absc",
         "games\/color-chart-obby\/coils.absc",
@@ -2648,7 +2666,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 348,
-      "bytes" : 209972,
+      "bytes" : 220990,
       "cover" : "games\/pedal-obby\/cover-aad131fb.png",
       "id" : "pedal-obby",
       "maxPlayers" : 16,
@@ -2657,6 +2675,7 @@
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/pedal-obby\/data.absc",
         "games\/pedal-obby\/bikes.absc",
         "games\/pedal-obby\/stunts.absc",
@@ -2679,7 +2698,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 263,
-      "bytes" : 161720,
+      "bytes" : 172738,
       "cover" : "games\/rising-flood-escape\/cover-409cfeaa.png",
       "id" : "rising-flood-escape",
       "maxPlayers" : 12,
@@ -2688,6 +2707,7 @@
         "lib\/kit.absc",
         "lib\/kit_rounds.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/rising-flood-escape\/data.absc",
         "games\/rising-flood-escape\/flood.absc",
         "games\/rising-flood-escape\/main.absc"
@@ -2709,7 +2729,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 135,
-      "bytes" : 104809,
+      "bytes" : 115827,
       "cover" : "games\/trap-master-run\/cover-ec7bfbe2.png",
       "id" : "trap-master-run",
       "maxPlayers" : 12,
@@ -2718,6 +2738,7 @@
         "lib\/kit.absc",
         "lib\/kit_rounds.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/trap-master-run\/data.absc",
         "games\/trap-master-run\/roles.absc",
         "games\/trap-master-run\/traps.absc",
@@ -2740,7 +2761,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 53,
-      "bytes" : 63804,
+      "bytes" : 74822,
       "cover" : "games\/speeding-wall-survival\/cover-838ca2f9.png",
       "id" : "speeding-wall-survival",
       "maxPlayers" : 16,
@@ -2749,6 +2770,7 @@
         "lib\/kit.absc",
         "lib\/kit_rounds.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/speeding-wall-survival\/data.absc",
         "games\/speeding-wall-survival\/rounds.absc",
         "games\/speeding-wall-survival\/walls.absc",
@@ -2801,7 +2823,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 577,
-      "bytes" : 310762,
+      "bytes" : 321780,
       "cover" : "games\/cart-ride-wonderland\/cover-d6019e4e.png",
       "id" : "cart-ride-wonderland",
       "maxPlayers" : 16,
@@ -2810,6 +2832,7 @@
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/cart-ride-wonderland\/data.absc",
         "games\/cart-ride-wonderland\/carts.absc",
         "games\/cart-ride-wonderland\/track.absc",
@@ -2832,7 +2855,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 162,
-      "bytes" : 115049,
+      "bytes" : 126067,
       "cover" : "games\/grapple-ascent\/cover-65c19a96.png",
       "id" : "grapple-ascent",
       "maxPlayers" : 16,
@@ -2840,6 +2863,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
+        "lib\/kit_crowd.absc",
         "games\/grapple-ascent\/data.absc",
         "games\/grapple-ascent\/grapple.absc",
         "games\/grapple-ascent\/upgrades.absc",
@@ -2862,7 +2886,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 1615,
-      "bytes" : 808400,
+      "bytes" : 819418,
       "cover" : "games\/rooftop-parkour\/cover-e36d6116.png",
       "id" : "rooftop-parkour",
       "maxPlayers" : 16,
@@ -2870,6 +2894,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
+        "lib\/kit_crowd.absc",
         "games\/rooftop-parkour\/data.absc",
         "games\/rooftop-parkour\/jobs.absc",
         "games\/rooftop-parkour\/moves.absc",
@@ -2892,21 +2917,22 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 294,
-      "bytes" : 171684,
-      "cover" : "games\/swing-rope-obby\/cover-65b9cf7c.png",
+      "bytes" : 182702,
+      "cover" : "games\/swing-rope-obby\/cover-169e383d.png",
       "id" : "swing-rope-obby",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_crowd.absc",
         "games\/swing-rope-obby\/data.absc",
         "games\/swing-rope-obby\/memes.absc",
         "games\/swing-rope-obby\/swing.absc",
         "games\/swing-rope-obby\/main.absc"
       ],
       "shots" : [
-        "games\/swing-rope-obby\/shot1-d02b8f9f.png",
-        "games\/swing-rope-obby\/shot2-b85b5a56.png"
+        "games\/swing-rope-obby\/shot1-5ff7b1e3.png",
+        "games\/swing-rope-obby\/shot2-1ea6bb89.png"
       ],
       "summary" : "ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。",
       "tags" : [
@@ -2921,7 +2947,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 356,
-      "bytes" : 199298,
+      "bytes" : 210316,
       "cover" : "games\/shrink-grow-obby\/cover-15e93a42.png",
       "id" : "shrink-grow-obby",
       "maxPlayers" : 16,
@@ -2929,6 +2955,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
+        "lib\/kit_crowd.absc",
         "games\/shrink-grow-obby\/data.absc",
         "games\/shrink-grow-obby\/sizes.absc",
         "games\/shrink-grow-obby\/main.absc"
@@ -2950,7 +2977,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 141,
-      "bytes" : 104090,
+      "bytes" : 115108,
       "cover" : "games\/chased-by-stuff-obby\/cover-8390f55c.png",
       "id" : "chased-by-stuff-obby",
       "maxPlayers" : 16,
@@ -2959,6 +2986,7 @@
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/chased-by-stuff-obby\/data.absc",
         "games\/chased-by-stuff-obby\/chase.absc",
         "games\/chased-by-stuff-obby\/main.absc"
@@ -2980,22 +3008,23 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 129,
-      "bytes" : 96618,
-      "cover" : "games\/rising-lava-rescue\/cover-ba32dabd.png",
+      "bytes" : 107636,
+      "cover" : "games\/rising-lava-rescue\/cover-498606a1.png",
       "id" : "rising-lava-rescue",
       "maxPlayers" : 8,
       "schemaVersion" : 2,
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/rising-lava-rescue\/data.absc",
         "games\/rising-lava-rescue\/lava.absc",
         "games\/rising-lava-rescue\/rescue.absc",
         "games\/rising-lava-rescue\/main.absc"
       ],
       "shots" : [
-        "games\/rising-lava-rescue\/shot1-2f480564.png",
-        "games\/rising-lava-rescue\/shot2-3faf8a18.png"
+        "games\/rising-lava-rescue\/shot1-ce9474ff.png",
+        "games\/rising-lava-rescue\/shot2-19ca766e.png"
       ],
       "summary" : "火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。",
       "tags" : [
@@ -3010,7 +3039,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 363,
-      "bytes" : 213344,
+      "bytes" : 224362,
       "cover" : "games\/fishy-obby\/cover-63fead7d.png",
       "id" : "fishy-obby",
       "maxPlayers" : 16,
@@ -3019,6 +3048,7 @@
         "lib\/kit.absc",
         "lib\/kit_obby.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/fishy-obby\/data.absc",
         "games\/fishy-obby\/skins.absc",
         "games\/fishy-obby\/water.absc",
@@ -3201,7 +3231,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 341,
-      "bytes" : 197592,
+      "bytes" : 208610,
       "cover" : "games\/build-a-plane\/cover-aa146486.png",
       "id" : "build-a-plane",
       "maxPlayers" : 8,
@@ -3209,6 +3239,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_ride.absc",
+        "lib\/kit_crowd.absc",
         "games\/build-a-plane\/data.absc",
         "games\/build-a-plane\/flight.absc",
         "games\/build-a-plane\/hangar.absc",
@@ -3231,7 +3262,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 430,
-      "bytes" : 242466,
+      "bytes" : 253484,
       "cover" : "games\/island-flight-school\/cover-f8e233b8.png",
       "id" : "island-flight-school",
       "maxPlayers" : 12,
@@ -3239,6 +3270,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_ride.absc",
+        "lib\/kit_crowd.absc",
         "games\/island-flight-school\/data.absc",
         "games\/island-flight-school\/flight.absc",
         "games\/island-flight-school\/missions.absc",
@@ -3352,7 +3384,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 729,
-      "bytes" : 377364,
+      "bytes" : 388382,
       "cover" : "games\/lawn-mower-kings\/cover-11c3b5d3.png",
       "id" : "lawn-mower-kings",
       "maxPlayers" : 8,
@@ -3360,6 +3392,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_ride.absc",
+        "lib\/kit_crowd.absc",
         "games\/lawn-mower-kings\/data.absc",
         "games\/lawn-mower-kings\/mow.absc",
         "games\/lawn-mower-kings\/shop.absc",
@@ -3382,7 +3415,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 234,
-      "bytes" : 156257,
+      "bytes" : 167275,
       "cover" : "games\/grapple-cart-duo\/cover-c1665834.png",
       "id" : "grapple-cart-duo",
       "maxPlayers" : 10,
@@ -3392,6 +3425,7 @@
         "lib\/kit_obby.absc",
         "lib\/kit_ride.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/grapple-cart-duo\/data.absc",
         "games\/grapple-cart-duo\/carts.absc",
         "games\/grapple-cart-duo\/duo.absc",
@@ -3414,7 +3448,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 252,
-      "bytes" : 166092,
+      "bytes" : 177110,
       "cover" : "games\/blast-off-rockets\/cover-f666c7e7.png",
       "id" : "blast-off-rockets",
       "maxPlayers" : 8,
@@ -3423,6 +3457,7 @@
         "lib\/kit.absc",
         "lib\/kit_ride.absc",
         "lib\/kit_move.absc",
+        "lib\/kit_crowd.absc",
         "games\/blast-off-rockets\/data.absc",
         "games\/blast-off-rockets\/flight.absc",
         "games\/blast-off-rockets\/lab.absc",
@@ -3476,7 +3511,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 719,
-      "bytes" : 370427,
+      "bytes" : 381445,
       "cover" : "games\/snow-plow-crew\/cover-f9840d39.png",
       "id" : "snow-plow-crew",
       "maxPlayers" : 8,
@@ -3484,6 +3519,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_ride.absc",
+        "lib\/kit_crowd.absc",
         "games\/snow-plow-crew\/data.absc",
         "games\/snow-plow-crew\/jobs.absc",
         "games\/snow-plow-crew\/plow.absc",
@@ -3536,7 +3572,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 155,
-      "bytes" : 117693,
+      "bytes" : 128711,
       "cover" : "games\/mega-muscle-legends\/cover-914e6a80.png",
       "id" : "mega-muscle-legends",
       "maxPlayers" : 12,
@@ -3544,6 +3580,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_sim.absc",
+        "lib\/kit_crowd.absc",
         "games\/mega-muscle-legends\/data.absc",
         "games\/mega-muscle-legends\/gym.absc",
         "games\/mega-muscle-legends\/main.absc"
@@ -3683,7 +3720,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 920,
-      "bytes" : 482057,
+      "bytes" : 493075,
       "cover" : "games\/deep-mine-simulator\/cover-3ec6dd0e.png",
       "id" : "deep-mine-simulator",
       "maxPlayers" : 10,
@@ -3691,6 +3728,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_sim.absc",
+        "lib\/kit_crowd.absc",
         "games\/deep-mine-simulator\/data.absc",
         "games\/deep-mine-simulator\/mine.absc",
         "games\/deep-mine-simulator\/main.absc"
@@ -3799,7 +3837,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 293,
-      "bytes" : 185642,
+      "bytes" : 196660,
       "cover" : "games\/snowball-shovel-sim\/cover-be270327.png",
       "id" : "snowball-shovel-sim",
       "maxPlayers" : 8,
@@ -3807,6 +3845,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_sim.absc",
+        "lib\/kit_crowd.absc",
         "games\/snowball-shovel-sim\/data.absc",
         "games\/snowball-shovel-sim\/snow.absc",
         "games\/snowball-shovel-sim\/main.absc"
@@ -3858,7 +3897,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 169,
-      "bytes" : 127830,
+      "bytes" : 138848,
       "cover" : "games\/dig-it-deep\/cover-ba5ed054.png",
       "id" : "dig-it-deep",
       "maxPlayers" : 10,
@@ -3866,6 +3905,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_sim.absc",
+        "lib\/kit_crowd.absc",
         "games\/dig-it-deep\/data.absc",
         "games\/dig-it-deep\/dig.absc",
         "games\/dig-it-deep\/main.absc"
@@ -3945,7 +3985,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 598,
-      "bytes" : 331258,
+      "bytes" : 342276,
       "cover" : "games\/lumber-valley-tycoon\/cover-6b93eac5.png",
       "id" : "lumber-valley-tycoon",
       "maxPlayers" : 6,
@@ -3953,6 +3993,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_tycoon.absc",
+        "lib\/kit_crowd.absc",
         "games\/lumber-valley-tycoon\/data.absc",
         "games\/lumber-valley-tycoon\/forest.absc",
         "games\/lumber-valley-tycoon\/mill.absc",
@@ -4004,7 +4045,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 386,
-      "bytes" : 219538,
+      "bytes" : 230556,
       "cover" : "games\/ore-factory-haven\/cover-f4677c17.png",
       "id" : "ore-factory-haven",
       "maxPlayers" : 6,
@@ -4012,6 +4053,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_tycoon.absc",
+        "lib\/kit_crowd.absc",
         "games\/ore-factory-haven\/data.absc",
         "games\/ore-factory-haven\/factory.absc",
         "games\/ore-factory-haven\/main.absc"
@@ -4033,7 +4075,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 533,
-      "bytes" : 292631,
+      "bytes" : 303649,
       "cover" : "games\/oil-baron-empire\/cover-b36ed84b.png",
       "id" : "oil-baron-empire",
       "maxPlayers" : 6,
@@ -4041,6 +4083,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_tycoon.absc",
+        "lib\/kit_crowd.absc",
         "games\/oil-baron-empire\/data.absc",
         "games\/oil-baron-empire\/oil.absc",
         "games\/oil-baron-empire\/main.absc"
@@ -4062,7 +4105,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 375,
-      "bytes" : 221115,
+      "bytes" : 232133,
       "cover" : "games\/build-your-island\/cover-ccb12943.png",
       "id" : "build-your-island",
       "maxPlayers" : 6,
@@ -4070,6 +4113,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_tycoon.absc",
+        "lib\/kit_crowd.absc",
         "games\/build-your-island\/data.absc",
         "games\/build-your-island\/island.absc",
         "games\/build-your-island\/main.absc"
@@ -4179,7 +4223,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 626,
-      "bytes" : 350615,
+      "bytes" : 361633,
       "cover" : "games\/fish-farm-tycoon\/cover-49cbe0ce.png",
       "id" : "fish-farm-tycoon",
       "maxPlayers" : 6,
@@ -4187,6 +4231,7 @@
       "scripts" : [
         "lib\/kit.absc",
         "lib\/kit_tycoon.absc",
+        "lib\/kit_crowd.absc",
         "games\/fish-farm-tycoon\/data.absc",
         "games\/fish-farm-tycoon\/ponds.absc",
         "games\/fish-farm-tycoon\/river.absc",

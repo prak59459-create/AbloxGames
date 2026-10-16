@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 533,
-  "bytes" : 292631,
+  "bytes" : 303649,
   "cover" : "games\/oil-baron-empire\/cover-b36ed84b.png",
   "id" : "oil-baron-empire",
   "maxPlayers" : 6,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_tycoon.absc",
+    "lib\/kit_crowd.absc",
     "games\/oil-baron-empire\/data.absc",
     "games\/oil-baron-empire\/oil.absc",
     "games\/oil-baron-empire\/main.absc"

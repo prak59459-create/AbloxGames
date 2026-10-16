@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 238,
-  "bytes" : 150098,
+  "bytes" : 161116,
   "cover" : "games\/smile-outbreak\/cover-163337e5.png",
   "id" : "smile-outbreak",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/smile-outbreak\/data.absc",
     "games\/smile-outbreak\/abilities.absc",
     "games\/smile-outbreak\/common.absc",

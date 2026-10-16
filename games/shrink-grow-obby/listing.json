@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 356,
-  "bytes" : 199298,
+  "bytes" : 210316,
   "cover" : "games\/shrink-grow-obby\/cover-15e93a42.png",
   "id" : "shrink-grow-obby",
   "maxPlayers" : 16,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_obby.absc",
+    "lib\/kit_crowd.absc",
     "games\/shrink-grow-obby\/data.absc",
     "games\/shrink-grow-obby\/sizes.absc",
     "games\/shrink-grow-obby\/main.absc"

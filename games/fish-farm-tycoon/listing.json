@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 626,
-  "bytes" : 350615,
+  "bytes" : 361633,
   "cover" : "games\/fish-farm-tycoon\/cover-49cbe0ce.png",
   "id" : "fish-farm-tycoon",
   "maxPlayers" : 6,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_tycoon.absc",
+    "lib\/kit_crowd.absc",
     "games\/fish-farm-tycoon\/data.absc",
     "games\/fish-farm-tycoon\/ponds.absc",
     "games\/fish-farm-tycoon\/river.absc",
