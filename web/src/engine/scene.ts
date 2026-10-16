@@ -226,8 +226,9 @@ export class GameScene {
       fog.far = 260 - hazeAmount * 210;
       fog.near = Math.max(4, fog.far * 0.15);
     } else {
-      fog.near = 180;
       fog.far = this.profile.viewDistance ? this.profile.viewDistance * 1.6 : 520;
+      // Clear air fades only toward the far edge; never starting past where it ends.
+      fog.near = Math.min(180, fog.far * 0.55);
     }
     this.haze.style.background = `rgba(${Math.round(bottom.r * 255)},${Math.round(bottom.g * 255)},${Math.round(bottom.b * 255)},${hazeAmount * 0.25})`;
 

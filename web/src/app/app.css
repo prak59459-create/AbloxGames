@@ -1,0 +1,99 @@
+/* The pages around the game: the list, a game's page, loading. */
+html, body { margin: 0; height: 100%; background: #070a18; color: #fff; font-family: var(--ab-font); }
+body { overflow: hidden; -webkit-font-smoothing: antialiased; }
+#app { position: fixed; inset: 0; }
+#stage { position: fixed; inset: 0; background: #000; }
+#stage.ab-hidden { display: none; }
+.ab-canvas { display: block; touch-action: none; }
+.ab-overlays { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.ab-overlays > div { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; white-space: nowrap; }
+.ab-nametag { padding: 3px 9px; border-radius: 9px; text-align: center; font-weight: 800; font-size: 13px; font-family: var(--ab-font); }
+.ab-nametag-title { font-size: 10px; font-weight: 700; }
+.ab-label { text-align: center; font-weight: 900; font-size: 15px; text-shadow: 0 1px 3px #000, 0 0 2px #000; font-family: var(--ab-font); }
+.ab-haze, .ab-flash { position: absolute; inset: 0; pointer-events: none; }
+.ab-flash { background: #fff; opacity: 0; }
+.ab-stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); border: 2px solid rgba(255, 255, 255, 0.28); display: none; z-index: 2; }
+.ab-stick-knob { position: absolute; left: 33px; top: 33px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3); }
+
+.ab-page {
+  position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.35), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(244, 114, 182, 0.22), transparent 60%),
+    #0a0f22;
+}
+.ab-page.ab-hidden { display: none; }
+.ab-header {
+  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left));
+  background: linear-gradient(180deg, rgba(10, 15, 34, 0.96), rgba(10, 15, 34, 0.78));
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
+}
+.ab-brand { display: flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 900; letter-spacing: -0.01em; }
+.ab-brand img { width: 44px; height: 44px; filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.55)); }
+.ab-brand small { font-size: 12px; font-weight: 800; color: var(--ab-accent); margin-left: 2px; align-self: flex-end; margin-bottom: 6px; }
+.ab-search {
+  flex: 1; min-width: 180px; display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 14px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08); border: 1.5px solid rgba(255, 255, 255, 0.12);
+}
+.ab-search input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: #fff; font: 700 16px var(--ab-font); }
+.ab-search:focus-within { border-color: var(--ab-accent); }
+.ab-head-button { height: 46px; padding: 0 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.1); color: #fff; border: none; font: 800 14px var(--ab-font); cursor: pointer; }
+.ab-chips { display: flex; gap: 8px; overflow-x: auto; padding: 14px max(18px, env(safe-area-inset-left)) 6px; scrollbar-width: none; }
+.ab-chips::-webkit-scrollbar, .ab-shots::-webkit-scrollbar { display: none; }
+.ab-cat {
+  flex: none; display: flex; align-items: center; gap: 7px; height: 44px; padding: 0 14px 0 8px; border-radius: 16px; border: none;
+  background: rgba(255, 255, 255, 0.08); color: #fff; font: 800 15px var(--ab-font); cursor: pointer; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+.ab-cat img { width: 30px; height: 30px; }
+.ab-cat.on { background: linear-gradient(180deg, #4f8ff8, #3b82f6); box-shadow: 0 3px 0 #1d4fb8; }
+.ab-count { padding: 6px max(18px, env(safe-area-inset-left)) 0; color: rgba(255, 255, 255, 0.55); font-weight: 800; font-size: 13px; }
+.ab-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px;
+  padding: 12px max(18px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+.ab-game {
+  display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: rgba(255, 255, 255, 0.06); cursor: pointer;
+  border: 1.5px solid rgba(255, 255, 255, 0.08); box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3); transition: transform 0.12s, box-shadow 0.12s;
+  text-align: left; color: #fff; padding: 0; font-family: var(--ab-font);
+}
+.ab-game:hover { transform: translateY(-3px); box-shadow: 0 9px 0 rgba(0, 0, 0, 0.3); }
+.ab-game:active { transform: translateY(2px); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3); }
+.ab-game:focus-visible { outline: 3px solid var(--ab-gold); }
+.ab-cover { position: relative; aspect-ratio: 16 / 10; background: linear-gradient(135deg, #1e3a8a, #312e81); }
+.ab-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ab-cover .players {
+  position: absolute; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 4px; padding: 3px 9px 3px 4px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6); font-size: 12px; font-weight: 900;
+}
+.ab-cover .players img { width: 22px; height: 22px; }
+.ab-cover .top { position: absolute; right: 10px; top: 10px; padding: 3px 10px; border-radius: 999px; background: var(--ab-gold); color: #3a2400; font-size: 12px; font-weight: 900; }
+.ab-game .info { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+.ab-game .title { font-size: 17px; font-weight: 900; line-height: 1.25; }
+.ab-game .summary { font-size: 13px; color: rgba(255, 255, 255, 0.66); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ab-empty { padding: 60px 20px; text-align: center; color: rgba(255, 255, 255, 0.6); font-weight: 800; }
+
+.ab-sheet-scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 10; }
+.ab-sheet {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100% - 24px)); max-height: calc(100% - 24px);
+  overflow-y: auto; border-radius: 28px; background: #111833; border: 1.5px solid rgba(255, 255, 255, 0.1); z-index: 11;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); animation: ab-pop 0.18s ease-out;
+}
+.ab-sheet .hero { position: relative; aspect-ratio: 16 / 9; background: #1e293b; }
+.ab-sheet .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ab-sheet .close { position: absolute; right: 12px; top: 12px; width: 44px; height: 44px; border-radius: 14px; border: none; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 18px; font-weight: 900; cursor: pointer; }
+.ab-sheet .body { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 12px; }
+.ab-sheet h1 { margin: 0; font-size: 28px; font-weight: 900; line-height: 1.2; }
+.ab-sheet .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.ab-sheet .meta span { display: flex; align-items: center; gap: 5px; padding: 4px 10px 4px 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); font-weight: 800; font-size: 13px; }
+.ab-sheet .meta img { width: 22px; height: 22px; }
+.ab-sheet p { margin: 0; color: rgba(255, 255, 255, 0.78); line-height: 1.6; font-size: 15px; white-space: pre-wrap; }
+.ab-shots { display: flex; gap: 10px; overflow-x: auto; }
+.ab-shots img { height: 120px; border-radius: 14px; flex: none; }
+.ab-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.ab-actions .ab-block { font-size: 19px; padding: 14px 24px; border-radius: 18px; }
+.ab-actions .ab-block img { width: 30px; height: 30px; }
+.ab-actions .note { align-self: center; color: rgba(255, 255, 255, 0.5); font-size: 13px; font-weight: 700; }
+.ab-error { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; background: #0a0f22; z-index: 6; }
+.ab-error b { font-size: 22px; }
+.ab-error span { color: rgba(255, 255, 255, 0.7); max-width: 520px; }

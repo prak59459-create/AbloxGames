@@ -101,6 +101,24 @@ export async function loadCatalogue(source?: CatalogueSource): Promise<GameListi
 
 const worldCache = new Map<string, WorldDocument>();
 
+/**
+ * The id this browser gives a catalogue game, kept from visit to visit, so
+ * what a game saves (and its leaderboards) are found again next time — even
+ * after the game is updated on GitHub.
+ */
+export function stableGameID(listingID: string): string {
+  const key = 'ablox.gameIDs';
+  let ids: Record<string, string> = {};
+  try { ids = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, string>; } catch { /* none yet */ }
+  let id = ids[listingID];
+  if (typeof id !== 'string' || !/^[0-9A-F-]{36}$/.test(id)) {
+    id = crypto.randomUUID().toUpperCase();
+    ids[listingID] = id;
+    try { localStorage.setItem(key, JSON.stringify(ids)); } catch { /* private mode: a new id each visit */ }
+  }
+  return id;
+}
+
 /** A game ready to play: its world, with the repository's script files merged in. */
 export async function loadGame(listing: GameListing, source?: CatalogueSource,
   progress?: (received: number, expected: number) => void): Promise<WorldDocument> {
@@ -113,7 +131,7 @@ export async function loadGame(listing: GameListing, source?: CatalogueSource,
   const worldBytes = await fetchLimited(fileURL(listing.world, source), 40 * 1024 * 1024, note);
   const world = decodeWorld(JSON.parse(new TextDecoder().decode(worldBytes)));
   if (world.blocks.length > 20000) throw new Error('That world has too many parts to open safely.');
-  world.id = crypto.randomUUID().toUpperCase();
+  world.id = stableGameID(listing.id);
   const scripts = await Promise.all((listing.scripts ?? []).map(async (path) => {
     const bytes = await fetchLimited(fileURL(path, source), 2 * 1024 * 1024, note);
     return { name: path.split('/').pop() ?? 'main.absc', source: new TextDecoder().decode(bytes) };

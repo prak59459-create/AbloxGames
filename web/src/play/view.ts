@@ -7,7 +7,7 @@ import type { AvatarProfile, Emote } from '../core/model/avatar';
 import { emotes, trailColor, trailParticles } from '../core/model/avatar';
 import { BlockTrips, movingOffset } from '../core/model/motion';
 import {
-  add, boxAround, expanded, intersects, normalizeDegrees, quatEulerDegrees, rayHitsBox, rotate, scale, sub, v3, type Vec3,
+  add, boxAround, distance, expanded, intersects, normalizeDegrees, quatEulerDegrees, rayHitsBox, rotate, scale, sub, v3, type Vec3,
 } from '../core/model/math';
 import { defaultBody, defaultMovement, resolve, solveMovement, surroundingsAt, type CharacterBody, type Surroundings } from '../core/physics/collider';
 import type { WorldIndex } from '../core/physics/worldIndex';
@@ -15,16 +15,15 @@ import { spawnPosition, type ParticleKind } from '../core/model/world';
 import { AvatarModel } from '../engine/avatar';
 import { animationPhase, animationPose, posedRotation, type LocalOverride } from '../engine/blocks';
 import { GameScene, type GraphicsLevel } from '../engine/scene';
+import { makeWeapon, weaponMuzzle } from '../engine/weapons';
 import { PlayInput } from './input';
 import type { LiveWorld } from '../core/model/liveWorld';
+import { normalMovement, standardCamera, type CameraSettings, type MovementScale, type ParticleBurst } from '../core/model/effects';
+import { Hitscan, PlayerHitBody } from '../core/model/combat';
+import type { ColorRGBA } from '../core/model/color';
 
-export type CameraMode = 'third' | 'first' | 'top' | 'fixed';
-
-export interface CameraSettings { mode: CameraMode; distance: number; fieldOfView: number; position?: Vec3; target?: Vec3 }
-export const standardCamera = (): CameraSettings => ({ mode: 'third', distance: 6.5, fieldOfView: 65 });
-
-export interface MovementScale { speed: number; jump: number; gravity: number; frozen: boolean }
-export const normalMovement = (): MovementScale => ({ speed: 1, jump: 1, gravity: 1, frozen: false });
+export type { CameraMode, CameraSettings, MovementScale } from '../core/model/effects';
+export { normalMovement, standardCamera };
 
 export interface RemotePlayer {
   id: string;
@@ -63,6 +62,8 @@ export class PlayView {
   movement: MovementScale = normalMovement();
   hidden = false;
   preferFirstPerson = false;
+  /** Holding a weapon: the body faces where the camera looks, so walking sideways strafes. */
+  aiming = false;
   options: Required<ViewOptions>;
 
   private remotes = new Map<string, Remote>();
@@ -84,6 +85,14 @@ export class PlayView {
   private followSeenYaw: number | null = null;
   private emitters: { id: string; kind: ParticleKind; position: Vec3 }[] = [];
   private emitterClock = 10;
+  private tracers: { mesh: THREE.Mesh; age: number }[] = [];
+  private viewModel: THREE.Group | null = null;
+  private viewModelKind: string | null = null;
+  private heldKind: string | null = null;
+  private recoil = 0;
+  private fellFor = 0;
+  /** Where the camera looks, for aiming and the waypoint arrow. */
+  viewDirection: Vec3 = v3(0, 0, -1);
   fps = 60;
 
   onTouched: (blockID: string) => void = () => {};
@@ -107,6 +116,8 @@ export class PlayView {
     this.input.attach(container);
     this.input.onTap = (x, y) => this.tap(x, y);
     window.addEventListener('resize', this.resize);
+    // The camera carries the first-person weapon, so it is part of the scene.
+    this.scene.scene.add(this.scene.camera);
   }
 
   private resize = () => this.scene.resize();
@@ -210,7 +221,105 @@ export class PlayView {
     this.position = { ...position };
     this.velocity = v3();
     this.local.teleport(new THREE.Vector3(position.x, position.y, position.z), this.yaw);
+    // The blocks we stood in are no longer under us, and must be able to fire again.
+    this.touching.clear();
+    this.fellFor = 0;
   }
+
+  /** A script's push: the whole velocity, not added to. */
+  launch(velocity: Vec3): void {
+    this.velocity = { ...velocity };
+    this.grounded = false;
+  }
+
+  /** Turns us to face `yaw`, the camera with us, or the next frame would turn us back. */
+  face(yaw: number): void {
+    this.yaw = yaw;
+    this.input.look.yaw = -yaw;
+  }
+
+  burst(b: ParticleBurst): void {
+    this.scene.particles.burst(b.kind, b.position, b.amount, b.seconds, b.color);
+  }
+
+  tint(id: string, color: ColorRGBA, duration: number): void {
+    this.scene.blocks.tint(id, color, duration, this.clock);
+  }
+
+  /** Our eyes, where shots leave from. */
+  get eyes(): Vec3 {
+    return add(this.position, v3(0, PlayerHitBody.eyeHeight * this.localProfile.height, 0));
+  }
+
+  get eyePosition(): Vec3 { return v3(this.eye.x, this.eye.y, this.eye.z); }
+
+  /**
+   * The shot leaves the eyes but must land under the crosshair, which in
+   * third person sits on a ray from a camera several metres behind them:
+   * find what the crosshair is on, then aim at that.
+   */
+  aimDirection(range: number): Vec3 {
+    const origin = this.eyePosition;
+    const eyes = this.eyes;
+    const blocks = this.live.currentIndex().entries.filter((e) => e.hasCollision && e.isVisible);
+    const players = [...this.remotes.entries()].filter(([, r]) => !r.player.isHidden).map(([peer, r]) => ({ peer, position: r.player.position }));
+    const hit = Hitscan.cast(origin, this.viewDirection, range + distance(origin, eyes), this.localID, players, blocks);
+    const direction = sub(hit.point, eyes);
+    const l = Math.hypot(direction.x, direction.y, direction.z);
+    if (l * l <= 0.25) return this.viewDirection;
+    const unit = scale(direction, 1 / l);
+    if (unit.x * this.viewDirection.x + unit.y * this.viewDirection.y + unit.z * this.viewDirection.z <= 0) return this.viewDirection;
+    return unit;
+  }
+
+  /** A shot's line, gone in a tenth of a second. Our own starts at the gun, not the eyes. */
+  spawnTracer(start: Vec3, end: Vec3): void {
+    let from = new THREE.Vector3(start.x, start.y, start.z);
+    if (distance(start, this.eyes) < 0.8) {
+      const gun = this.viewModel ?? this.local.heldWeapon;
+      const kind = this.viewModel ? this.viewModelKind : this.heldKind;
+      if (gun && kind) {
+        gun.updateWorldMatrix(true, false);
+        from = gun.localToWorld(weaponMuzzle(kind));
+      }
+    }
+    const to = new THREE.Vector3(end.x, end.y, end.z);
+    const length = from.distanceTo(to);
+    if (length <= 0.05) return;
+    if (this.tracers.length >= 32) {
+      const oldest = this.tracers.shift()!;
+      oldest.mesh.removeFromParent();
+    }
+    const mesh = new THREE.Mesh(tracerGeometry, tracerMaterial);
+    mesh.scale.set(1, 1, length);
+    mesh.position.copy(from).add(to).multiplyScalar(0.5);
+    mesh.lookAt(to);
+    this.scene.effects.add(mesh);
+    this.tracers.push({ mesh, age: 0 });
+  }
+
+  /** The script's weapon in our hand, and at the bottom of the screen in first person. */
+  setWeapon(model: string | null): void {
+    if (model !== this.heldKind) {
+      this.heldKind = model;
+      this.local.hold(model, makeWeapon);
+    }
+    const wanted = this.effectiveCamera().mode === 'first' ? model : null;
+    if (wanted === this.viewModelKind) return;
+    this.viewModel?.removeFromParent();
+    this.viewModel = null;
+    this.viewModelKind = wanted;
+    if (wanted) {
+      this.viewModel = makeWeapon(wanted);
+      this.viewModel.traverse((o) => { o.renderOrder = 10; });
+      this.scene.camera.add(this.viewModel);
+    }
+  }
+
+  /** A shot went: the gun kicks. */
+  kick(): void { this.recoil = 1; }
+
+  get cameraMode() { return this.effectiveCamera().mode; }
 
   bounce(speed: number): void {
     this.velocity = { ...this.velocity, y: speed };
@@ -279,8 +388,8 @@ export class PlayView {
       config, this.surroundings, this.localProfile.ride === 'hoverboard', dt);
     this.velocity = motion.velocity;
     const firstPerson = this.effectiveCamera().mode === 'first';
-    this.yaw = firstPerson ? normalizeDegrees(-this.input.look.yaw) : motion.yawDegrees;
-    if (!firstPerson) this.followCamera(stick, dt);
+    this.yaw = firstPerson || this.aiming ? normalizeDegrees(-this.input.look.yaw) : motion.yawDegrees;
+    if (!firstPerson && !this.aiming) this.followCamera(stick, dt);
 
     // 2. Carried by the platform underfoot.
     if (this.standingOn) {
@@ -302,9 +411,12 @@ export class PlayView {
     for (const id of now) if (!this.touching.has(id)) this.onTouched(id);
     this.touching = now;
 
+    // Below the kill plane the host sends us back; if nobody does, we are put back ourselves.
     if (this.position.y < this.live.world.environment.killPlaneHeight) {
-      this.velocity = v3();
-      this.onFell();
+      this.fellFor += dt;
+      if (this.fellFor > 2.5) { this.fellFor = 0; this.onFell(); }
+    } else {
+      this.fellFor = 0;
     }
 
     // 5. Our avatar, directly; everyone else eased.
@@ -343,6 +455,13 @@ export class PlayView {
     this.updateEmitters(dt);
     this.emitTrails(dt);
     this.scene.particles.update(dt);
+    this.fadeTracers(dt);
+    this.recoil = Math.max(0, this.recoil - dt * 9);
+    if (this.viewModel) {
+      // Lower right, like every shooter; knocked back by each shot.
+      this.viewModel.position.set(0.2, -0.2 + this.recoil * 0.02, -0.42 + this.recoil * 0.06);
+      this.viewModel.rotation.set(this.recoil * 0.12, 0, 0);
+    }
     this.updateOverlays();
     this.cullClock += dt;
     this.scene.render();
@@ -505,6 +624,16 @@ export class PlayView {
       }
     }
     this.eye.copy(cam.position);
+    const dir = new THREE.Vector3();
+    cam.getWorldDirection(dir);
+    this.viewDirection = v3(dir.x, dir.y, dir.z);
+  }
+
+  private fadeTracers(dt: number): void {
+    if (!this.tracers.length) return;
+    for (const t of this.tracers) t.age += dt;
+    for (const t of this.tracers) if (t.age > 0.12) t.mesh.removeFromParent();
+    this.tracers = this.tracers.filter((t) => t.age <= 0.12);
   }
 
   /** Blocks that keep giving off bits: the nearest sixteen, looked for twice a second. */
@@ -609,6 +738,9 @@ export class PlayView {
     if (best) this.onTapped(best.id);
   }
 }
+
+const tracerGeometry = new THREE.BoxGeometry(0.03, 0.03, 1);
+const tracerMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.86, 0.35), toneMapped: false });
 
 function particleRate(kind: ParticleKind): number {
   const rates: Record<ParticleKind, number> = { fire: 40, smoke: 14, sparkles: 24, confetti: 60, rain: 220, snow: 90, bubbles: 12, hearts: 10, stars: 18, leaves: 8, magic: 30, dust: 16 };

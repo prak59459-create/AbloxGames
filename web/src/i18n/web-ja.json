@@ -1,0 +1,21 @@
+{
+  "(filtered)": "（フィルター）",
+  "Back to the games": "ゲームのリストへもどる",
+  "Building the world…": "せかいをつくっています…",
+  "Drag: look · Wheel: zoom · T: chat · F: fire · V: view": "ドラッグ: みまわす · ホイール: ズーム · T: チャット · F: うつ · V: してん",
+  "Getting the game ready…": "ゲームをじゅんびしています…",
+  "Jump up steps by myself": "だんさを じどうで ジャンプ",
+  "Keep playing": "つづける",
+  "No games match that.": "あうゲームが ありません。",
+  "Paused — playing alone": "ひとりでプレイ中 — ストップしています",
+  "Picture saved": "しゃしんを ほぞんしました",
+  "Playing with friends in the browser is coming next.": "ブラウザで ともだちと あそぶきのうは もうすぐ できます。",
+  "Read lines aloud": "セリフを よみあげる",
+  "Start the round again": "ラウンドを さいしょから",
+  "That game could not be opened.": "そのゲームを ひらけませんでした。",
+  "The game list could not be loaded: {}": "ゲームのリストを よみこめませんでした: {}",
+  "Up to {} players": "{}人まで",
+  "W A S D: walk · Space: jump · Shift: run": "W A S D: あるく · スペース: ジャンプ · Shift: はしる",
+  "{} MB of {} MB": "{} MB / {} MB",
+  "The script went too deep (a function calling itself without end?).": "スクリプトが ふかく なりすぎました（かんすうが じぶんを よびつづけて いませんか？）。"
+}

@@ -2,10 +2,12 @@
 // table made from AbloxCore/Strings.swift (tools/strings.mjs). An unknown
 // string comes back as itself, in English, never as a key.
 import ja from './ja.json';
+// Words only the web version uses, which the iPad apps' table does not have.
+import webJa from './web-ja.json';
 
 export type Language = 'en' | 'ja';
 
-const table = ja as Record<string, string>;
+const table = { ...(ja as Record<string, string>), ...(webJa as Record<string, string>) };
 let current: Language = pickLanguage();
 
 function pickLanguage(): Language {

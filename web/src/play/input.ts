@@ -11,6 +11,10 @@ export class PlayInput {
   jumpHeld = false;
   running = false;
   firing = false;
+  /** Held by the screen's fire button. */
+  fireButton = false;
+  /** Aiming: a click locks the mouse, which then turns the camera, and its button fires. Esc lets go. */
+  wantsPointerLock = false;
   look: CameraLook = { yaw: 0, pitch: -18, zoom: 1 };
   /** Set by the player turning the camera, for the follow camera to wait. */
   lastLookAt = 0;
@@ -23,6 +27,8 @@ export class PlayInput {
   private touchLook: { id: number; x: number; y: number } | null = null;
   private pinch: { a: number; b: number; distance: number; zoom: number } | null = null;
   private mouseDrag: { x: number; y: number } | null = null;
+  private mouseFire = false;
+  private surface: HTMLElement | null = null;
   private stickEl: HTMLDivElement | null = null;
   private knobEl: HTMLDivElement | null = null;
   private cleanup: (() => void)[] = [];
@@ -30,10 +36,17 @@ export class PlayInput {
   onTap: (x: number, y: number) => void = () => {};
 
   attach(surface: HTMLElement): void {
+    this.surface = surface;
     const on = <K extends keyof HTMLElementEventMap>(el: HTMLElement | Window, type: K, fn: (e: HTMLElementEventMap[K]) => void,
       opts?: AddEventListenerOptions) => {
       el.addEventListener(type, fn as EventListener, opts);
       this.cleanup.push(() => el.removeEventListener(type, fn as EventListener, opts));
+    };
+    // Presses on the screen's own buttons and panels are theirs, not the camera's:
+    // capturing them here would take the click away from the button.
+    const onUI = (e: Event) => {
+      const t = e.target as Element | null;
+      return !!t?.closest?.('button, input, textarea, select, a, .ab-chat, .ab-shop, .ab-menu, .ab-players, .ab-emotes, .ab-board, .ab-inventory, .ab-dialog, .ab-scriptlog');
     };
     const typing = (e: Event) => {
       const t = e.target as HTMLElement | null;
@@ -51,10 +64,24 @@ export class PlayInput {
       this.keys.delete(k);
       if (k === ' ') this.jumpHeld = false;
     });
-    on(window, 'blur', () => { this.keys.clear(); this.jumpHeld = false; });
+    on(window, 'blur', () => { this.keys.clear(); this.jumpHeld = false; this.mouseFire = false; });
+    const lockChange = () => { if (!this.isLocked) this.mouseFire = false; };
+    document.addEventListener('pointerlockchange', lockChange);
+    this.cleanup.push(() => document.removeEventListener('pointerlockchange', lockChange));
+    on(document as unknown as HTMLElement, 'mousemove', (e: MouseEvent) => {
+      if (this.isLocked) this.turn(e.movementX, e.movementY, 0.18);
+    });
 
     on(surface, 'pointerdown', (e: PointerEvent) => {
-      if (!this.enabled) return;
+      if (!this.enabled || onUI(e)) return;
+      if (e.pointerType === 'mouse' && this.isLocked) {
+        if (e.button === 0) this.mouseFire = true;
+        return;
+      }
+      if (e.pointerType === 'mouse' && this.wantsPointerLock && e.button === 0) {
+        surface.requestPointerLock?.();
+        return;
+      }
       if (e.pointerType === 'mouse') {
         this.mouseDrag = { x: e.clientX, y: e.clientY };
         surface.setPointerCapture(e.pointerId);
@@ -104,6 +131,10 @@ export class PlayInput {
       }
     });
     const end = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && this.isLocked) {
+        if (e.button === 0) this.mouseFire = false;
+        return;
+      }
       if (this.tapStart && Math.hypot(e.clientX - this.tapStart.x, e.clientY - this.tapStart.y) < 8
         && performance.now() - this.tapStart.t < 350) {
         const rect = surface.getBoundingClientRect();
@@ -124,6 +155,7 @@ export class PlayInput {
     on(surface, 'pointerup', end);
     on(surface, 'pointercancel', end);
     on(surface, 'wheel', (e: WheelEvent) => {
+      if (onUI(e)) return;
       e.preventDefault();
       this.look.zoom = Math.max(0.4, Math.min(2.2, this.look.zoom * Math.exp(e.deltaY * 0.0015)));
     }, { passive: false });
@@ -144,6 +176,25 @@ export class PlayInput {
     for (const c of this.cleanup) c();
     this.cleanup = [];
     this.stickEl?.remove();
+    if (this.isLocked) document.exitPointerLock?.();
+  }
+
+  get isLocked(): boolean {
+    return typeof document !== 'undefined' && !!this.surface && document.pointerLockElement === this.surface;
+  }
+
+  releasePointer(): void {
+    if (this.isLocked) document.exitPointerLock?.();
+  }
+
+  /** Stops walking and firing at once: a menu opened, the tab hidden. */
+  clearHeld(): void {
+    this.keys.clear();
+    this.jumpHeld = false;
+    this.mouseFire = false;
+    this.fireButton = false;
+    this.touchStick = null;
+    this.hideStick();
   }
 
   private turn(dx: number, dy: number, speed: number): void {
@@ -187,6 +238,7 @@ export class PlayInput {
     if (k.has('e')) this.look.yaw -= 2;
     let jump = this.jumpHeld;
     let run = k.has('shift');
+    let fire = k.has('f') || this.mouseFire || this.fireButton;
     if (this.touchStick) {
       const radius = 56;
       const dx = (this.touchStick.x - this.touchStick.ox) / radius, dy = (this.touchStick.y - this.touchStick.oy) / radius;
@@ -204,13 +256,14 @@ export class PlayInput {
       if (lx || ly) this.turn(lx * 14, ly * 10, 0.5);
       if (pad.buttons[0]?.pressed) jump = true;
       if (pad.buttons[10]?.pressed || pad.buttons[4]?.pressed) run = true;
-      if (pad.buttons[7]?.pressed) this.firing = true;
+      if (pad.buttons[7]?.pressed) fire = true;
     }
     const m = Math.hypot(x, z);
     if (m > 1) { x /= m; z /= m; }
     this.stick = this.enabled ? { x, y: 0, z } : { x: 0, y: 0, z: 0 };
     this.running = this.enabled && run;
     this.jumpWanted = this.enabled && jump;
+    this.firing = this.enabled && fire;
   }
 
   jumpWanted = false;
