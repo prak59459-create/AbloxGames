@@ -435,6 +435,15 @@
   .ab-top { gap: 7px; }
   .ab-announce { font-size: 17px; bottom: 34%; }
 }
+/* A phone held upright: the view and players buttons move into the menu, so the coins keep their number. */
+.ab-menu-more { display: none; flex-direction: column; gap: inherit; }
+.ab-hud-easy .ab-menu-more { display: flex; }
+@media (max-width: 460px) {
+  .ab-round.ab-more { display: none; }
+  .ab-menu-more { display: flex; }
+  .ab-top { gap: 6px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+  .ab-chip { padding: 0 10px; gap: 5px; flex-shrink: 0; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .ab-hud *, .ab-loading .cube { animation: none !important; transition: none !important; }

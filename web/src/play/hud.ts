@@ -207,6 +207,8 @@ export class PlayHUD {
   private uiRevision = -1;
   private limiter = new ChatRateLimiter();
   readonly coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  private uiScale = 1;
+  private resizing: ResizeObserver | null = null;
 
   constructor(container: HTMLElement, private session: PlaySession, private host: HUDHost) {
     this.root = el('div', 'ab-hud', container);
@@ -214,6 +216,10 @@ export class PlayHUD {
 
     this.damage = el('div', 'ab-damage', r);
     this.canvasLayer = el('div', 'ab-canvas-layer below-bar', r);
+    if (typeof ResizeObserver === 'function') {
+      this.resizing = new ResizeObserver(() => this.fitScriptUI());
+      this.resizing.observe(r);
+    }
     this.crosshair = el('div', 'ab-crosshair ab-hidden', r);
     this.hitmark = el('div', 'ab-hitmark', r, '✕');
     this.health = el('div', 'ab-health ab-glass ab-hidden', r);
@@ -487,6 +493,18 @@ export class PlayHUD {
     }
     const link = this.host.inviteLink();
     if (link) item('secondary', 'bell', L('Invite a friend'), () => void this.invite(link));
+    // The two buttons the bar leaves out on a narrow phone, or in the easy layout.
+    const more = el('div', 'ab-menu-more', stack);
+    const moreItem = (iconName: string, text: string, action: () => void) => {
+      const b = el('button', 'ab-block secondary', more);
+      icon(iconName, b);
+      el('span', '', b, text);
+      b.onclick = action;
+    };
+    moreItem('hud-players', L('Scoreboard'), () => { this.setMenu(false); this.showPlayers = true; this.showEmotes = false; this.render(); });
+    if (this.session.scripted.camera.mode === 'third') {
+      moreItem('hud-camera', L('First or third person'), () => { this.setMenu(false); this.host.setFirstPerson(!this.host.firstPerson()); this.render(); });
+    }
     m.appendChild(el('hr'));
 
     const s = this.host.settings();
@@ -587,7 +605,10 @@ export class PlayHUD {
     this.top.classList.toggle('ab-hidden', !defaultUI);
     this.smallLeave.classList.toggle('ab-hidden', defaultUI);
     this.side.classList.toggle('ab-hidden', !defaultUI && !scripted.leaderboard);
-    this.canvasLayer.classList.toggle('below-bar', defaultUI);
+    if (this.canvasLayer.classList.contains('below-bar') !== defaultUI) {
+      this.canvasLayer.classList.toggle('below-bar', defaultUI);
+      this.fitScriptUI();
+    }
     this.countdown.classList.toggle('bare', !defaultUI);
 
     this.worldName.textContent = s.world.name;
@@ -697,6 +718,32 @@ export class PlayHUD {
   }
 
   // MARK: The script's own elements
+
+  /**
+   * Games lay out their screens for an iPad. On a smaller screen (a phone)
+   * the game's screen is laid out as if it were at least 600 × 450 and
+   * shown smaller, so its pieces keep their places instead of landing on
+   * top of each other.
+   */
+  private fitScriptUI(): void {
+    const layer = this.canvasLayer;
+    const top = layer.classList.contains('below-bar') ? barHeight : 0;
+    const width = this.root.clientWidth, height = this.root.clientHeight - top;
+    if (width <= 0 || height <= 0) return;
+    const scale = scriptUIScale(width, height);
+    if (scale === this.uiScale && (scale === 1 || layer.style.width === `${width / scale}px`)) return;
+    this.uiScale = scale;
+    const st = layer.style;
+    if (scale === 1) {
+      st.transform = st.transformOrigin = st.width = st.height = st.right = st.bottom = '';
+      return;
+    }
+    st.transformOrigin = '0 0';
+    st.transform = `scale(${scale})`;
+    st.right = st.bottom = 'auto';
+    st.width = `${width / scale}px`;
+    st.height = `${height / scale}px`;
+  }
 
   private renderScriptUI(): void {
     const scripted = this.session.scripted;
@@ -1021,6 +1068,16 @@ export class PlayHUD {
   }
 
   dispose(): void {
+    this.resizing?.disconnect();
     this.root.remove();
   }
+}
+
+/** The height of the bar along the top, which a game's screen sits below (hud.css: .below-bar). */
+const barHeight = 64;
+
+/** How much smaller a game's screen is shown on a screen of `width` × `height`: never below 0.65, to stay readable. */
+export function scriptUIScale(width: number, height: number): number {
+  const scale = Math.min(1, width / 600, height / 450);
+  return Math.round(Math.max(0.65, scale) * 1000) / 1000;
 }

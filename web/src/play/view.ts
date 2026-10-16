@@ -144,10 +144,13 @@ export class PlayView {
   start(): void {
     if (this.running) return;
     this.running = true;
-    this.lastFrame = performance.now();
+    this.lastFrame = -1;
     const frame = (now: number) => {
       if (!this.running) return;
-      const raw = (now - this.lastFrame) / 1000;
+      // A frame's time can be from before start() was called (it is when the
+      // frame began), and a step back in time throws the camera's easing far
+      // off — into the sky, on a slow phone. Time only goes forward.
+      const raw = this.lastFrame < 0 ? 0 : Math.max(0, (now - this.lastFrame) / 1000);
       this.lastFrame = now;
       this.fps += (1 / Math.max(raw, 1 / 240) - this.fps) * 0.05;
       this.tick(Math.min(raw, 1 / 20));
