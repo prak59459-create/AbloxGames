@@ -16,10 +16,38 @@ A port of the iPad app's engine to TypeScript, kept identical on purpose:
 | `src/engine` | three.js rendering: blocks, avatars, sky and weather, particles, sound |
 | `src/play` | The play screen: the host that runs a game, the session, the HUD |
 | `src/net` | The catalogue, the wire format, TLS 1.3 keyed by the room code, Firebase |
-| `src/app` | The pages around the game: the list, a game's page, Settings, Family |
+| `src/app` | The menu around the game (below), Settings and Family |
 
 The games are read from this repository (`main`), the same files the iPads
 read. Translations come from the iPad app's own table (`npm run strings`).
+
+## The menu
+
+A dock of four tabs, with your coins and level along the top:
+
+- **Home** — a greeting and your avatar on a little stage, the daily bonus
+  (more for days in a row), today's three missions (the same three as on an
+  iPad that day, with one swap), the badges you are nearest to, today's pick,
+  the games you were playing and the internet rooms open now.
+- **Play** — every game by kind, a search, the games you liked, internet rooms.
+- **Me** — your avatar on a stage you can spin, and everything it can wear:
+  colours, hats, faces, pets, trails, auras, name cards and chat bubbles.
+  Pictures of hats, faces, pets and auras are drawn from your own avatar.
+  Anything not yet yours can be tried on before it is bought with coins.
+  Then the emotes, the badges, the title under your name and your records.
+- **Create** — play a world file from Ablox Studio (or drop one on the page),
+  alone or with friends, and the sound library, with names to copy into scripts.
+
+The **Plaza** is a small world to walk around in between games: a ring of
+doors with game covers on them (today's pick, what you played last, the most
+popular), and doors to your closet and the whole list. Walking into a door
+opens what is behind it.
+
+Coins, missions, levels and badges follow the iPad's rules (`PlayerProgress`,
+`DailyMissions`, `Economy`): a coin a point and a bonus for finishing a round,
+10 for the first visit to a game, play time counted only while the game is in
+front. They are kept in this browser (`ablox.player`). Nothing in the shop
+changes how a game plays — only how you look.
 
 ## Playing together
 

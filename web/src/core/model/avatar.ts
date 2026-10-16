@@ -194,7 +194,7 @@ export const bubblePrice: Record<BubbleStyle, number> = {
   classic: 0, sky: 100, mint: 100, sun: 100, cloud: 100, candy: 150, night: 150, comic: 150, lava: 200, grape: 200, gold: 350,
 };
 
-const hatNames: Record<Hat, string> = {
+export const hatNames: Record<Hat, string> = {
   none: 'None', cap: 'Cap', crown: 'Crown', antenna: 'Antenna', halo: 'Halo', top_hat: 'Top hat', beanie: 'Beanie', cowboy: 'Cowboy hat',
   wizard: 'Wizard hat', pirate: 'Pirate hat', chef: "Chef's hat", party: 'Party hat', headphones: 'Headphones', bunny_ears: 'Bunny ears',
   horns: 'Horns', flower_crown: 'Flower crown', bow: 'Ribbon bow', helmet: 'Helmet', viking: 'Viking helmet', beret: 'Beret',
@@ -202,7 +202,7 @@ const hatNames: Record<Hat, string> = {
 };
 export const hatName = (h: Hat) => L(hatNames[h]);
 
-const faceNames: Record<Face, string> = {
+export const faceNames: Record<Face, string> = {
   smile: 'Smile', grin: 'Grin', wink: 'Wink', cool: 'Sunglasses', surprised: 'Surprised', sleepy: 'Sleepy', cat: 'Cat', robot: 'Robot',
   heart: 'Heart eyes', angry: 'Angry', sad: 'Sad', tongue: 'Tongue out', star_eyes: 'Star eyes', dizzy: 'Dizzy', glasses: 'Round glasses',
   monocle: 'Monocle', blush: 'Blushing', alien: 'Alien', eyepatch: 'Eyepatch', ninja: 'Ninja mask', joy: 'Tears of joy',
@@ -212,13 +212,19 @@ export const faceName = (f: Face) => L(faceNames[f]);
 
 export const petName = (p: Pet) => L(p === 'none' ? 'None' : p[0].toUpperCase() + p.slice(1));
 
-const trailNames: Record<Trail, string> = {
+export const trailNames: Record<Trail, string> = {
   none: 'None', sparkle: 'Sparkle trail', fire: 'Fire trail', bubbles: 'Bubble trail', hearts: 'Heart trail', stars: 'Star trail',
   rainbow: 'Rainbow trail', snow: 'Snow trail', leaves: 'Leaf trail', smoke: 'Smoke trail', confetti: 'Confetti trail',
   magic: 'Magic trail', sand: 'Sand trail',
 };
 export const trailName = (t: Trail) => L(trailNames[t]);
 export const auraName = (a: Aura) => L(a === 'none' ? 'None' : a[0].toUpperCase() + a.slice(1) + ' aura');
+/** English names, as the shop keeps them (translated when shown). */
+export const capitalized = (raw: string) => raw[0].toUpperCase() + raw.slice(1);
+export const petEnglish = (p: Pet) => (p === 'none' ? 'None' : capitalized(p));
+export const auraEnglish = (a: Aura) => (a === 'none' ? 'None' : capitalized(a) + ' aura');
+export const namePlateEnglish = (n: NamePlate) => (n === 'classic' ? 'Classic' : capitalized(n) + ' name');
+export const bubbleEnglish = (b: BubbleStyle) => (b === 'classic' ? 'Classic' : capitalized(b) + ' bubble');
 export const namePlateName = (n: NamePlate) => L(n === 'classic' ? 'Classic' : n[0].toUpperCase() + n.slice(1) + ' name');
 export const bubbleName = (b: BubbleStyle) => L(b === 'classic' ? 'Classic' : b[0].toUpperCase() + b.slice(1) + ' bubble');
 

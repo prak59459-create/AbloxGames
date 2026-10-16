@@ -64,13 +64,13 @@ const symbolGlyphs: Record<string, string> = {
   'rosette': '🏵️', 'seal.fill': '🏵️', 'atom': '⚛️', 'tornado': '🌪️', 'hurricane': '🌀', 'rainbow': '🌈', 'flame': '🔥',
 };
 
-const emoteGlyphs: Record<Emote, string> = {
+export const emoteGlyphs: Record<Emote, string> = {
   wave: '👋', dance: '💃', clap: '👏', cheer: '🙌', bow: '🙇', point: '👉', laugh: '😂', sit: '🪑', hop: '🦘', spin: '🌀', flex: '💪',
   shrug: '🤷', think: '🤔', facepalm: '🤦', salute: '🫡', thumbs_up: '👍', heart_hands: '🫶', yawn: '🥱', stretch: '🧘', dab: '🙆',
   floss: '🕺', robot: '🤖', flip: '🤸', cry: '😢', stomp: '🦶', victory: '✌️', guitar: '🎸', peace: '☮️',
 };
 
-const emoteNames: Record<Emote, string> = {
+export const emoteNames: Record<Emote, string> = {
   wave: 'Wave', dance: 'Dance', clap: 'Clap', cheer: 'Cheer', bow: 'Bow', point: 'Point', laugh: 'Laugh', sit: 'Sit', hop: 'Hop for joy',
   spin: 'Spin', flex: 'Flex', shrug: 'Shrug', think: 'Think', facepalm: 'Facepalm', salute: 'Salute', thumbs_up: 'Thumbs up',
   heart_hands: 'Heart hands', yawn: 'Yawn', stretch: 'Stretch', dab: 'Dab', floss: 'Floss', robot: 'Robot dance', flip: 'Flip', cry: 'Cry',
@@ -501,6 +501,17 @@ export class PlayHUD {
   }
 
   // MARK: Showing
+
+  /** Coins, a mission done, a new level: a gold line under the top bar, apart from the game's own words. */
+  showReward(text: string, seconds = 3.5): void {
+    let stack = this.root.querySelector('.ab-rewards') as HTMLElement | null;
+    stack ??= el('div', 'ab-rewards', this.root);
+    const r = el('div', 'ab-reward', stack);
+    icon('coin', r);
+    el('span', '', r, text);
+    while (stack.children.length > 3) stack.firstElementChild?.remove();
+    setTimeout(() => { r.classList.add('going'); setTimeout(() => r.remove(), 400); }, seconds * 1000);
+  }
 
   /** Brief words in the middle of the screen. */
   showToast(text: string, seconds = 2.2): void {

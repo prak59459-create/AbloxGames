@@ -1,4 +1,4 @@
-/* The pages around the game: the list, a game's page, loading. */
+/* The pages around the game: the list, a game's page, loading (the shell itself is in next.css). */
 html, body { margin: 0; height: 100%; background: #070a18; color: #fff; font-family: var(--ab-font); }
 body { overflow: hidden; -webkit-font-smoothing: antialiased; }
 #app { position: fixed; inset: 0; }
@@ -15,20 +15,6 @@ body { overflow: hidden; -webkit-font-smoothing: antialiased; }
 .ab-stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); border: 2px solid rgba(255, 255, 255, 0.28); display: none; z-index: 2; }
 .ab-stick-knob { position: absolute; left: 33px; top: 33px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3); }
 
-.ab-page {
-  position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.35), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(244, 114, 182, 0.22), transparent 60%),
-    #0a0f22;
-}
-.ab-page.ab-hidden { display: none; }
-.ab-header {
-  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left));
-  background: linear-gradient(180deg, rgba(10, 15, 34, 0.96), rgba(10, 15, 34, 0.78));
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
-}
 .ab-brand { display: flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 900; letter-spacing: -0.01em; }
 .ab-brand img { width: 44px; height: 44px; filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.55)); }
 .ab-brand small { font-size: 12px; font-weight: 800; color: var(--ab-accent); margin-left: 2px; align-self: flex-end; margin-bottom: 6px; }

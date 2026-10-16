@@ -38,6 +38,23 @@ export interface PlayNetwork {
   findMovedRoom(move: HostMove): Promise<RoomRoute | null>;
 }
 
+/**
+ * What playing adds to the player's record (the iPad's PlayScreen →
+ * AppSettings calls). Each returns what to say about it: coins, a finished
+ * mission, a new level.
+ */
+export interface PlayProgress {
+  /** The first five seconds in front: the game counts as played. */
+  started(): string[];
+  played(seconds: number): string[];
+  together(): string[];
+  /** The round's score as coins, once a round. */
+  roundOver(score: number, completed: boolean): string[];
+  emote(): string[];
+  picture(): string[];
+  hosted(): string[];
+}
+
 interface PlaySettings { graphics: GraphicsLevel; autoJump: boolean; cameraFollows: boolean; names: boolean; firstPerson: boolean }
 
 function loadSettings(): PlaySettings {
@@ -80,7 +97,20 @@ export class PlayScreen implements HUDHost {
   };
   private readonly room: RoomOverlay;
   private readonly start: PlayStart;
+  // What has been counted for the player's record.
+  private countedStart = false;
+  private countedTogether = false;
+  private bankedThisRound = false;
+  private announcementSeen: unknown = null;
+  private playClock: ReturnType<typeof setInterval> | null = null;
   onExit: () => void = () => {};
+  /** Set before the first five seconds pass. */
+  progress: PlayProgress | null = null;
+  /** A block walked into, before the game hears of it; true when it was handled here (the Plaza's doors). */
+  onTouch: ((blockID: string) => boolean) | null = null;
+  /** What there was to say as the screen closed (the last round's coins), for the page behind it to show. */
+  onParting: (lines: string[]) => void = () => {};
+  private leaving = false;
 
   constructor(readonly container: HTMLElement, start: PlayStart | WorldDocument, readonly localPeerID: string, profile: AvatarProfile,
     readonly sound: SoundPlayer = new SoundPlayer(), readonly network: PlayNetwork | null = null) {
@@ -92,6 +122,8 @@ export class PlayScreen implements HUDHost {
       Promise.resolve(this.network?.list(room, this.session.world, this.session.profile)).catch((e: unknown) => {
         this.hud?.showToast(L("This room couldn't go on the internet: {}", (e as Error)?.message ?? String(e)), 6);
       });
+      // A room that moved here was opened by someone else: only one opened here earns the bonus.
+      if (!this.session.roomMove && this.start.kind === 'solo') queueMicrotask(() => this.say(this.progress?.hosted()));
     };
     const begin = this.start;
     if (begin.kind === 'solo') {
@@ -112,7 +144,7 @@ export class PlayScreen implements HUDHost {
       roomTitle: () => (begin.kind === 'join' ? begin.title : this.session.world.name),
     });
 
-    this.view.onTouched = (id) => this.session.report(id, 'touched');
+    this.view.onTouched = (id) => { if (!this.onTouch?.(id)) this.session.report(id, 'touched'); };
     this.view.onTapped = (id) => this.session.report(id, 'tapped');
     this.view.onFell = () => this.view.respawnAtStart();
     this.view.onFrame = (dt) => this.beforeMoving(dt);
@@ -124,6 +156,43 @@ export class PlayScreen implements HUDHost {
     this.sound.prepare(world);
     document.addEventListener('visibilitychange', this.visibility);
     this.view.start();
+    this.playClock = setInterval(() => this.countPlay(5), 5000);
+  }
+
+  // MARK: The player's record
+
+  /** Time played, only while the game is in front and running (the iPad's playClock). */
+  private countPlay(seconds: number): void {
+    const p = this.progress;
+    if (!p || document.visibilityState !== 'visible' || this.session.live !== this.view.live) return;
+    const status = this.session.status.kind;
+    if (status === 'connecting' || status === 'reconnecting' || this.session.isWaitingForHost) return;
+    const said: string[] = [];
+    if (!this.countedStart) {
+      this.countedStart = true;
+      said.push(...p.started());
+    }
+    said.push(...p.played(seconds));
+    if (!this.countedTogether && !this.session.isSolo && this.session.people.length > 1) {
+      this.countedTogether = true;
+      said.push(...p.together());
+    }
+    this.say(said);
+  }
+
+  /** The round's score as coins: from the end-of-round banner (the one signal that reaches host and guests alike), or on leaving. */
+  private bankCoins(completed: boolean): void {
+    const score = this.session.localPlayer?.score;
+    if (score === undefined || this.bankedThisRound || !this.progress) return;
+    this.bankedThisRound = true;
+    this.say(this.progress.roundOver(score, completed));
+  }
+
+  private say(lines: string[] | undefined): void {
+    if (!lines?.length || this.disposed) return;
+    if (this.leaving) { this.onParting(lines); return; }
+    for (const line of lines) this.hud.showReward(line);
+    if (lines.some((l) => /coin|コイン/i.test(l))) this.sound.play('coin');
   }
 
   // MARK: The frame
@@ -179,6 +248,12 @@ export class PlayScreen implements HUDHost {
     this.updateMusic();
     this.publishIfDue();
     this.hud.frame(this.waypoint());
+    // The end-of-round banner: a goal reached or a round won.
+    const a = s.announcement;
+    if (a && a !== this.announcementSeen) {
+      this.announcementSeen = a;
+      if (a.message.includes('goal') || /win/i.test(a.message)) this.bankCoins(true);
+    }
   }
 
   /** What the host told this player's body and screen to do. */
@@ -337,10 +412,15 @@ export class PlayScreen implements HUDHost {
   pressButton(id: string): void { this.session.send({ kind: 'button', id }); }
   submitText(id: string, text: string): void { this.session.send({ kind: 'text', id, value: text }); }
   sendChat(text: string): void { this.session.sendChat(text); }
-  gesture(wire: string): void { this.session.send({ kind: 'gesture', wire }); }
+  gesture(wire: string): void {
+    this.session.send({ kind: 'gesture', wire });
+    if (!wire.startsWith('stamp:')) this.say(this.progress?.emote());
+  }
   reload(): void { this.session.send({ kind: 'reload' }); }
   restartRound(): void {
     this.sound.reset();
+    this.bankCoins(false);
+    this.bankedThisRound = false;
     this.session.startNewRound();
   }
 
@@ -356,6 +436,7 @@ export class PlayScreen implements HUDHost {
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       this.sound.play('click');
       this.hud.showToast(L('Picture saved'));
+      this.say(this.progress?.picture());
     }, 'image/png');
   }
 
@@ -403,7 +484,10 @@ export class PlayScreen implements HUDHost {
 
   dispose(): void {
     if (this.disposed) return;
+    this.leaving = true;
+    this.bankCoins(false);
     this.disposed = true;
+    if (this.playClock) clearInterval(this.playClock);
     document.removeEventListener('visibilitychange', this.visibility);
     this.room.dispose();
     this.session.leave();

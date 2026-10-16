@@ -52,6 +52,34 @@ func reencode(kind: PacketKind, payload: Data, name: String) throws -> String {
 
 let mode = CommandLine.arguments[1]
 
+if mode == "missions" {
+    // Today's missions and pick for every day of two years, as the iPad
+    // works them out, for the web's own sums to be compared with.
+    let out = CommandLine.arguments[2]
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    var days: [[String: Any]] = []
+    var date = calendar.date(from: DateComponents(year: 2026, month: 1, day: 1))!
+    let listings = (1...37).map { GameListing(id: "game-\($0)", title: "Game \($0)", world: "games/game-\($0)/world.ablox", tags: [], blockCount: 1, maxPlayers: 4) }
+    for _ in 0..<730 {
+        let key = PlaytimeLog.dayKey(date, calendar: calendar)
+        var book = MissionBook()
+        let missions = book.missions(on: key)
+        let swapped = missions.count > 1 ? book.swap(missions[1], on: key) : nil
+        days.append([
+            "day": key,
+            "missions": missions.map { ["kind": $0.kind.rawValue, "target": $0.target, "reward": $0.reward] },
+            "swap": swapped.map { ["kind": $0.kind.rawValue, "target": $0.target, "reward": $0.reward] } ?? NSNull(),
+            "pick": CatalogueShelf.dailyPick(from: listings, on: date, calendar: calendar)?.id ?? "",
+        ])
+        date = calendar.date(byAdding: .day, value: 1, to: date)!
+    }
+    let data = try! JSONSerialization.data(withJSONObject: ["days": days], options: [.sortedKeys])
+    try! data.write(to: URL(fileURLWithPath: out))
+    print("wrote \(days.count) days")
+    exit(0)
+}
+
 if mode == "emit" {
     let games = CommandLine.arguments[2]
     let out = CommandLine.arguments[3]
