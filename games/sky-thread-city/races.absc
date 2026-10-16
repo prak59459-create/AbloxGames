@@ -1,0 +1,104 @@
+-- races.absc — 🏁 スイングレース
+--
+-- スタートの床（Race A Start）にのると はじまる。空のゲートを 順番に くぐって ゴール。
+-- 1人ずつ 自分のタイム。ベストタイムは ランキングに のこる。
+
+func race_of(id)
+  for r in RACES do
+    if r.id == id then return r end
+  end
+  return nil
+end
+
+func race_gate(r, k)
+  return block("Race " + r.id + " Gate " + k)
+end
+
+func race_begin(p, r)
+  if p.race != nil then return end
+  if not kit_ready(p, "race_" + r.id, 4) then return end
+  p.race = {id: r.id, next: 1, t0: time()}
+  p.chasing = nil
+  announce("🏁 " + p.name + " が スイングレース「" + r.name + "」に スタート！", 2)
+  p.message("🏁 3… 2… 1… GO! ゲートを順番に くぐれ", 2)
+  p.sound("goal")
+  race_point(p)
+end
+
+func race_point(p)
+  let r = race_of(p.race.id)
+  let g = race_gate(r, p.race.next)
+  p.waypoint(g.position, "ゲート " + p.race.next + " / " + r.gates, r.color)
+  p.ui_text("race_clock", "🏁 " + r.name + "  ゲート " + p.race.next + "/" + r.gates,
+            {at: "top", dy: 10, size: 17, bold: true, color: "#FFFFFF", bg: "#00000099", radius: 10})
+end
+
+func race_gate_touched(p, b)
+  if p.race == nil then return end
+  let r = race_of(p.race.id)
+  if b.name != "Race " + r.id + " Gate " + p.race.next then return end
+  p.sound("checkpoint")
+  particles("stars", b, {amount: 20})
+  p.race.next = p.race.next + 1
+  if p.race.next > r.gates then
+    race_finish(p, r)
+  else
+    race_point(p)
+  end
+end
+
+func race_finish(p, r)
+  let secs = floor((time() - p.race.t0) * 100) / 100
+  p.race = nil
+  p.waypoint(nil)
+  p.ui_remove("race_clock")
+  let place = leaderboard("race_" + r.id, p, secs, {lower: true})
+  let best = get(p.race_best, r.id, 0)
+  if p.race_best == nil then p.race_best = {} end
+  let line = "🏁 ゴール！ " + secs + " 秒"
+  if best == 0 or secs < best then
+    p.race_best[r.id] = secs
+    line = line + "（じこベスト！）"
+  end
+  if place != nil and place <= 3 then line = line + "  ランキング " + place + " 位" end
+  p.message(line, 4)
+  announce("🏁 " + p.name + " が「" + r.name + "」を " + secs + " 秒で ゴール！", 3)
+  kit_give(p, r.reward)
+  kit_xp(p, 60)
+  kit_quest_progress(p, "race", 1)
+  kit_badge(p, "race_" + r.id, r.name + " 完走")
+  show_leaderboard("race_" + r.id)
+  sound("win")
+end
+
+-- 時間がかかりすぎたら やめる（3分）
+func races_step()
+  for p in players() do
+    if kit_here(p) and p.race != nil then
+      let r = race_of(p.race.id)
+      let t = time() - p.race.t0
+      if t > 180 then
+        p.race = nil
+        p.waypoint(nil)
+        p.ui_remove("race_clock")
+        p.message("⏱ 時間切れ… また スタートの床から 挑戦しよう", 2.5)
+      else
+        p.ui_text("race_clock", "🏁 " + r.name + "  ゲート " + p.race.next + "/" + r.gates + "   ⏱ " + floor(t) + " 秒")
+      end
+    end
+  end
+end
+
+on touch(p, b)
+  if b == nil then return end
+  if starts_with(b.name, "Race ") and ends_with(b.name, " Start") then
+    let r = race_of(replace(replace(b.name, "Race ", ""), " Start", ""))
+    if r != nil then race_begin(p, r) end
+  elif contains(b.tags, "gate") then
+    race_gate_touched(p, b)
+  end
+end
+
+on start()
+  every(1, func() races_step() end)
+end

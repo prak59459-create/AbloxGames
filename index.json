@@ -4264,6 +4264,37 @@
       "title" : "Lucky Chip Party",
       "updatedAt" : "2026-09-24T00:00:00Z",
       "world" : "games\/lucky-chip-party\/world.ablox"
+    },
+    {
+      "author" : "Ablox Games",
+      "blockCount" : 1660,
+      "bytes" : 848300,
+      "cover" : "games\/sky-thread-city\/cover-369cae48.png",
+      "id" : "sky-thread-city",
+      "maxPlayers" : 12,
+      "schemaVersion" : 2,
+      "scripts" : [
+        "lib\/kit.absc",
+        "games\/sky-thread-city\/data.absc",
+        "games\/sky-thread-city\/missions.absc",
+        "games\/sky-thread-city\/races.absc",
+        "games\/sky-thread-city\/swing.absc",
+        "games\/sky-thread-city\/main.absc"
+      ],
+      "shots" : [
+        "games\/sky-thread-city\/shot1-6c187a2e.png",
+        "games\/sky-thread-city\/shot2-92df6553.png"
+      ],
+      "summary" : "糸のヒーロー「スレッドランナー」になって、たて1000m の大都会を 🕸 スイング・🧗 かべのぼり・⚡ ジップで かけまわれ！ 超高層ビル・ランドマークタワー・公園・港・駐車場。どろぼうロボを ネットでつかまえ、屋上の 🆘 をたすけ、💎 スカイトークン60こと スイングレースに挑戦。スーツと ロープの強化も",
+      "tags" : [
+        "superhero",
+        "open-world",
+        "swing",
+        "city"
+      ],
+      "title" : "Sky Thread City",
+      "updatedAt" : "2026-09-24T00:00:00Z",
+      "world" : "games\/sky-thread-city\/world.ablox"
     }
   ],
   "updatedAt" : "2026-09-24T00:00:00Z"

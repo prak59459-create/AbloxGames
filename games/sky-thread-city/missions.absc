@@ -1,0 +1,201 @@
+-- missions.absc — どろぼうロボ・まちの人・屋上の 🆘・💎 スカイトークン
+
+let robbers = []
+let citizens = []
+let rescue = nil
+let robber_serial = 0
+let spots = []
+
+func random_spot()
+  if len(spots) == 0 then spots = blocks("spot") end
+  return spots[random(1, len(spots))]
+end
+
+-- MARK: まちの人（歩きまわる NPC）
+
+func citizen_spawn(k)
+  let s = random_spot()
+  let n = create_npc({name: "🧑 " + CITIZEN_NAMES[(k - 1) % len(CITIZEN_NAMES) + 1], position: {x: s.x, y: 1, z: s.z},
+                      color: random_color(), head_color: "#FCD34D", health: 100, speed: 0.55})
+  n.citizen = true
+  n.team = HERO_TEAM
+  n.next_walk = 0
+  append(citizens, n)
+end
+
+func citizens_step()
+  citizens = filter(citizens, func(n) return kit_here(n) end)
+  while len(citizens) < CITIZEN_COUNT do citizen_spawn(len(citizens) + 1) end
+  for n in citizens do
+    if time() >= n.next_walk then
+      n.next_walk = time() + random_float(8, 16)
+      -- 近くの 道の場所へ（遠くまで行かない）
+      let near = blocks_near(n, 60, "spot")
+      if len(near) > 0 then n.move_to(near[random(1, len(near))]) end
+      let p = nearest_player(n, 10)
+      if p != nil and chance(25) then n.say(CITIZEN_LINES[random(1, len(CITIZEN_LINES))]) end
+    end
+  end
+end
+
+-- MARK: 🦹 どろぼうロボ
+
+func robber_spawn()
+  robber_serial = robber_serial + 1
+  let s = random_spot()
+  let name = "🦹 どろぼうロボ・" + ROBBER_NAMES[(robber_serial - 1) % len(ROBBER_NAMES) + 1]
+  let n = create_npc({name: name, position: {x: s.x, y: 1, z: s.z}, color: "#57534E", head_color: "#A8A29E", health: 90, speed: 1.15})
+  n.robber = true
+  n.team = "villain"
+  n.next_run = 0
+  append(robbers, n)
+  n.say(ROBBER_LINES[random(1, len(ROBBER_LINES))])
+  -- ちかくの ヒーローに しらせる
+  for p in players() do
+    if kit_here(p) and distance(p, n) < 250 then
+      p.message("🚨 どろぼうロボが でた！ 🕸 ネットで つかまえろ！", 2.5)
+      p.waypoint(n.position, "🦹 どろぼう", "#EF4444")
+      p.chasing = n
+    end
+  end
+end
+
+func robbers_step()
+  robbers = filter(robbers, func(n) return kit_here(n) and n.alive end)
+  for n in robbers do
+    if time() >= n.next_run then
+      n.next_run = time() + random_float(3, 6)
+      -- ヒーローが近いと 遠くへ にげる
+      let hero = nearest_player(n, 30)
+      let near = blocks_near(n, 90, "spot")
+      if len(near) > 0 then
+        let goal = near[random(1, len(near))]
+        if hero != nil then goal = max_by(near, func(b) return distance(b, hero) end) end
+        n.move_to(goal)
+      end
+      if hero != nil and chance(30) then n.say(ROBBER_LINES[random(1, len(ROBBER_LINES))]) end
+    end
+  end
+  -- 追いかけている どろぼうの 矢印を 動かす
+  for p in players() do
+    if kit_here(p) and p.chasing != nil then
+      if kit_here(p.chasing) and p.chasing.alive then
+        p.waypoint(p.chasing.position, "🦹 どろぼう", "#EF4444")
+      else
+        p.chasing = nil
+        p.waypoint(nil)
+      end
+    end
+  end
+end
+
+on death(victim, killer)
+  if victim.robber and killer != nil and not killer.is_npc then
+    particles("magic", victim, {amount: 50})
+    sound("pop")
+    announce("🕸 " + killer.name + " が " + victim.name + " を つかまえた！", 2.5)
+    kit_give(killer, ROBBER_REWARD)
+    kit_xp(killer, 25)
+    killer.caught = (killer.caught or 0) + 1
+    kit_quest_progress(killer, "robber", 1)
+    if killer.caught >= 25 then kit_badge(killer, "catcher", "まちの まもりて") end
+    show_status(killer)
+  end
+end
+
+-- MARK: 🆘 屋上の人を たすける
+
+func rescue_spawn()
+  let tops = blocks("rescue")
+  if len(tops) == 0 then return end
+  let s = tops[random(1, len(tops))]
+  let n = create_npc({name: "🆘 たすけて！", position: s.position + {x: 0, y: 0.6, z: 0}, color: "#FDE68A", head_color: "#FCD34D",
+                      health: 100, speed: 0})
+  n.stuck = true
+  n.team = HERO_TEAM
+  rescue = n
+  n.say(RESCUE_LINES[random(1, len(RESCUE_LINES))])
+  for p in players() do
+    if kit_here(p) then
+      p.message("🆘 ビルの屋上に 取りのこされた人が いる！", 2.5)
+      if p.chasing == nil then p.waypoint(n.position, "🆘 たすけて", "#FACC15") end
+    end
+  end
+end
+
+func rescue_step()
+  if rescue == nil or not kit_here(rescue) then
+    rescue = nil
+    return
+  end
+  let p = nearest_player(rescue, 3.2)
+  if p == nil then
+    if chance(6) then rescue.say(RESCUE_LINES[random(1, len(RESCUE_LINES))]) end
+    return
+  end
+  rescue.say("ありがとう、スレッドランナー！")
+  particles("hearts", rescue, {amount: 40})
+  announce("🆘 " + p.name + " が 屋上の人を たすけた！", 2.5)
+  kit_give(p, RESCUE_REWARD)
+  kit_xp(p, 35)
+  p.rescued = (p.rescued or 0) + 1
+  kit_quest_progress(p, "rescue", 1)
+  if p.rescued >= 10 then kit_badge(p, "rescuer", "空のレスキュー隊") end
+  let n = rescue
+  rescue = nil
+  for q in players() do
+    if kit_here(q) and q.chasing == nil then q.waypoint(nil) end
+  end
+  show_status(p)
+  after(2, func() if kit_here(n) then kit_gone(n) end end)
+end
+
+-- MARK: 💎 スカイトークン（ひとりずつ 自分の分を集める）
+
+let token_total = 0
+
+func count_tokens()
+  token_total = len(blocks("token"))
+end
+
+on touch(p, b)
+  if b == nil or not starts_with(b.name, "Sky Token") then return end
+  if p.tokens == nil then p.tokens = [] end
+  let key = replace(b.name, "Sky Token ", "")
+  if contains(p.tokens, key) then return end
+  append(p.tokens, key)
+  kit_give(p, TOKEN_REWARD)
+  kit_xp(p, 8)
+  p.sound("collect")
+  particles("sparkles", b, {amount: 25})
+  p.message("💎 スカイトークン " + len(p.tokens) + " / " + token_total, 1.5)
+  kit_quest_progress(p, "token", 1)
+  if len(p.tokens) >= token_total then
+    kit_badge(p, "tokens", "スカイトークン コンプリート")
+    kit_give(p, 1000)
+    announce("💎 " + p.name + " が スカイトークンを ぜんぶ集めた！", 4)
+  end
+  show_status(p)
+end
+
+-- MARK: 時計
+
+let next_robber = 8
+let next_rescue = 20
+
+on start()
+  count_tokens()
+  every(1, func()
+    citizens_step()
+    robbers_step()
+    rescue_step()
+    if time() >= next_robber then
+      next_robber = time() + ROBBER_EVERY
+      if len(robbers) < ROBBER_MAX and len(players()) > 0 then robber_spawn() end
+    end
+    if time() >= next_rescue then
+      next_rescue = time() + RESCUE_EVERY
+      if rescue == nil and len(players()) > 0 then rescue_spawn() end
+    end
+  end)
+end
