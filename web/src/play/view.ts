@@ -102,7 +102,7 @@ export class PlayView {
   onMoved: (position: Vec3, yaw: number, velocity: Vec3, grounded: boolean) => void = () => {};
   onFrame: (dt: number) => void = () => {};
 
-  constructor(readonly container: HTMLElement, readonly live: LiveWorld, localID: string, profile: AvatarProfile, options: ViewOptions = {}) {
+  constructor(readonly container: HTMLElement, public live: LiveWorld, localID: string, profile: AvatarProfile, options: ViewOptions = {}) {
     this.options = { level: options.level ?? 'high', autoJump: options.autoJump ?? true, cameraFollows: options.cameraFollows ?? true, showNames: options.showNames ?? true };
     this.scene = new GameScene(container, this.options.level);
     this.scene.overlays.showNames = this.options.showNames;
@@ -121,6 +121,25 @@ export class PlayView {
   }
 
   private resize = () => this.scene.resize();
+
+  /**
+   * Plays a different copy of the world: the host's, once it arrives, and
+   * again after a reconnect or the room moving. A different world also puts
+   * the player at its spawn point.
+   */
+  replaceWorld(live: LiveWorld): void {
+    const isDifferent = live.world.id !== this.live.world.id;
+    this.live = live;
+    this.physicsBlocks = null;
+    this.physicsRevision = -1;
+    this.touching.clear();
+    this.trips = new BlockTrips();
+    this.standingOn = null;
+    this.elevatorLast.clear();
+    this.emitterClock = 10;
+    this.scene.load(live.world);
+    if (isDifferent) this.respawnAtStart();
+  }
 
   start(): void {
     if (this.running) return;

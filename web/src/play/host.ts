@@ -39,7 +39,8 @@ function detached(action: EventAction): EventAction {
 
 export class LocalHost {
   readonly game: GameRuntime;
-  private profile: AvatarProfile;
+  /** How the host's own player looks. */
+  profile: AvatarProfile;
   private timer: ReturnType<typeof setInterval> | null = null;
   private startedAt = performance.now();
   private pausedAt: number | null = null;
@@ -135,16 +136,34 @@ export class LocalHost {
 
   // MARK: Other players (for the network side)
 
-  /** Someone came in: added to the game, given the world as it is, welcomed by the script. */
-  admit(peer: string, rawProfile: AvatarProfile): { world: WorldDocument; roster: PlayerSnapshot[] } {
+  /**
+   * Someone came in: added to the game, with the world as they should see
+   * it (blocks on their way somewhere, where they have got to). The network
+   * side sends that world, then `announceRoster`, then `welcome` with the
+   * script's greeting — in that order, as the iPad's host does, because a
+   * guest throws effects away until it has a world to apply them to.
+   */
+  admit(peer: string, rawProfile: AvatarProfile): { world: WorldDocument; welcome: Effect[] } {
     const profile = sanitizedProfile(rawProfile, ChatModerator.cleanName);
     const travelling = new Map(this.game.travels);
     const welcome = this.game.addPlayer(playerSnapshot(peer, { profile }));
     const joining = this.game.joiningWorld(peer, travelling);
-    this.publishRoster();
-    queueMicrotask(() => this.dispatch([...welcome, ...joining.effects]));
-    return { world: joining.world, roster: this.game.roster };
+    return { world: joining.world, welcome: [...welcome, ...joining.effects] };
   }
+
+  announceRoster(): void { this.publishRoster(); }
+
+  welcome(effects: Effect[]): void { this.dispatch(effects); }
+
+  /** A guest already playing sent a new look. */
+  updateRemoteProfile(peer: string, rawProfile: AvatarProfile): void {
+    const profile = sanitizedProfile(rawProfile, ChatModerator.cleanName);
+    this.dispatch(this.game.addPlayer(playerSnapshot(peer, { profile })));
+    this.publishRoster();
+  }
+
+  /** Nobody else is in the game: only then may the clock stop. */
+  get hasGuests(): boolean { return this.game.roster.some((p) => !p.isNPC && p.peerID !== this.localPeerID); }
 
   remoteLeft(peer: string): void {
     const farewell = this.game.removePlayer(peer);

@@ -244,6 +244,9 @@ export class TLSConnection {
 
   get isConnected(): boolean { return this.state === 'connected'; }
 
+  /** Settles once everything received so far has been read (decrypting takes a moment). */
+  get settled(): Promise<void> { return this.work; }
+
   /** A client says hello; a server waits for one. */
   start(): void {
     if (this.state !== 'start') return;
@@ -345,9 +348,10 @@ export class TLSConnection {
       const length = (this.inbound[3] << 8) | this.inbound[4];
       if (length > MAX_FRAGMENT + 256) throw new TLSError('record too long', Alert.decodeError);
       if (this.inbound.length < 5 + length) return;
-      const header = this.inbound.slice(0, 5);
-      const fragment = this.inbound.slice(5, 5 + length);
-      this.inbound = this.inbound.slice(5 + length);
+      // Views, not copies: a world arrives as hundreds of records at once.
+      const header = this.inbound.subarray(0, 5);
+      const fragment = this.inbound.subarray(5, 5 + length);
+      this.inbound = this.inbound.subarray(5 + length);
       await this.readRecord(type, header, fragment);
     }
   }
