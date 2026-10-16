@@ -93,7 +93,13 @@ function formatSeconds(seconds: number): string {
 const formatValue = (v: number) => (Math.round(v) === v ? String(v) : v.toFixed(2));
 
 export interface HUDHost {
-  leave(): void;
+  /** Leaves the game; a host with others here may hand the room on instead of closing it. */
+  leave(handOver?: boolean): void;
+  /** Playing alone, with internet rooms allowed: the game can be opened to others. */
+  canOpenRoom(): boolean;
+  openRoom(): void;
+  /** Who would host if this host left now, or null. */
+  successorName(): string | null;
   setMenuOpen(open: boolean): void;
   pressButton(id: string): void;
   submitText(id: string, text: string): void;
@@ -405,7 +411,10 @@ export class PlayHUD {
     const h = el('h2', '', m);
     icon('continue', h, true);
     el('span', '', h, this.session.world.name);
-    el('div', 'sub', m, this.session.isSolo ? L('Paused — playing alone') : L('Menu'));
+    const s0 = this.session;
+    el('div', 'sub', m, s0.isSolo ? L('Paused — playing alone')
+      : s0.role === 'hosting' && s0.room ? L('Your internet room · {}', s0.roomCode)
+      : s0.role === 'joined' ? L('In an internet room') : L('Menu'));
     const stack = el('div', 'stack', m);
     const item = (cls: string, iconName: string, text: string, action: () => void) => {
       const b = el('button', 'ab-block ' + cls, stack);
@@ -415,7 +424,12 @@ export class PlayHUD {
       return b;
     };
     item('green', 'tool-play', L('Keep playing'), () => this.setMenu(false)).focus();
-    item('secondary', 'tool-rotate', L('Start the round again'), () => { this.host.restartRound(); this.setMenu(false); });
+    if (this.session.role === 'hosting') {
+      item('secondary', 'tool-rotate', L('Start the round again'), () => { this.host.restartRound(); this.setMenu(false); });
+    }
+    if (this.host.canOpenRoom()) {
+      item('secondary', 'friends', L('Let friends join over the internet'), () => { this.host.openRoom(); this.setMenu(false); });
+    }
     m.appendChild(el('hr'));
 
     const s = this.host.settings();
@@ -472,9 +486,17 @@ export class PlayHUD {
       this.render();
     });
     m.appendChild(el('hr'));
+    const next = this.host.successorName();
+    if (next) {
+      const hand = el('button', 'ab-block secondary', m);
+      hand.style.width = '100%';
+      hand.style.marginBottom = '10px';
+      el('span', '', hand, L('Leave, and let {} host', next));
+      hand.onclick = () => this.host.leave(true);
+    }
     const leave = el('button', 'ab-block danger', m);
     leave.style.width = '100%';
-    el('span', '', leave, '✕ ' + L('Leave world'));
+    el('span', '', leave, '✕ ' + (next ? L('Close the room for everyone') : L('Leave world')));
     leave.onclick = () => this.host.leave();
   }
 

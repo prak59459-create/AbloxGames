@@ -51,7 +51,7 @@ export class InternetRooms {
   rooms: CloudRoom[] = [];
   /** Someone who has been blocked: their rooms are not shown. */
   blocked = new Set<string>();
-  onChange: () => void = () => {};
+  private listeners = new Set<() => void>();
 
   private settings: CloudSettings;
   private database: CloudDatabase | null = null;
@@ -62,6 +62,16 @@ export class InternetRooms {
   constructor(settings: CloudSettings = loadCloudSettings(), private readonly storage: Storage | null = browserStorage(), private readonly fetcher?: Fetcher) {
     this.settings = settings;
     try { for (const id of JSON.parse(storage?.getItem('ablox.cloud.blocked') ?? '[]') as string[]) this.blocked.add(id); } catch { /* none */ }
+  }
+
+  /** Told whenever the state, the list or the hosted room changes. */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  private onChange(): void {
+    for (const l of [...this.listeners]) l();
   }
 
   get allowsInternetPlay(): boolean { return this.settings.allowInternetPlay && this.settings.config.isUsable; }
@@ -85,7 +95,7 @@ export class InternetRooms {
     if (this.state.kind === 'ready') return Promise.resolve();
     if (this.starting) return this.starting;
     this.state = { kind: 'connecting' };
-    this.onChange();
+    // Kept before anyone is told: a listener asking for the rooms must find this sign-in, not start another.
     this.starting = (async () => {
       try {
         const auth = new CloudAuth(this.settings.config, this.storage, this.fetcher);
@@ -100,6 +110,7 @@ export class InternetRooms {
         this.onChange();
       }
     })();
+    this.onChange();
     return this.starting;
   }
 

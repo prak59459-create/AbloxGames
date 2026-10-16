@@ -350,6 +350,57 @@
 .ab-toggle.on::after { transform: translateX(22px); }
 .ab-menu hr { border: none; border-top: 1.5px solid var(--ab-line); margin: 14px 0; }
 
+/* MARK: The room */
+.ab-room-pill {
+  position: absolute; left: max(14px, env(safe-area-inset-left)); top: calc(max(12px, env(safe-area-inset-top)) + 62px);
+  display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px 0 10px; border-radius: 999px; font-weight: 900; font-size: 14px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+.ab-room-pill.on { border-color: var(--ab-accent); }
+.ab-room-pill .code { letter-spacing: 0.08em; color: var(--ab-gold); }
+.ab-room-pill .count { font-variant-numeric: tabular-nums; }
+.ab-room-pill .ping { color: var(--ab-ink-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ab-room-pill .ping.slow { color: var(--ab-warning); }
+.ab-room-card {
+  position: absolute; left: max(14px, env(safe-area-inset-left)); top: calc(max(12px, env(safe-area-inset-top)) + 108px);
+  width: min(330px, calc(100% - 28px)); max-height: calc(100% - 200px); overflow-y: auto; pointer-events: auto; animation: ab-up 0.16s ease-out;
+}
+.ab-room-card .head { display: flex; align-items: center; }
+.ab-room-card .head h3 { flex: 1; margin: 0; }
+.ab-close { width: 34px; height: 34px; border-radius: 11px; background: rgba(255, 255, 255, 0.1); font-weight: 900; }
+.ab-room-code { display: flex; flex-direction: column; align-items: flex-start; margin: 10px 0 2px; }
+.ab-room-code small { color: var(--ab-ink-muted); font-weight: 800; font-size: 12px; }
+.ab-room-code b { font-size: 30px; letter-spacing: 0.12em; color: var(--ab-gold); }
+.ab-room-card .hint { color: var(--ab-ink-muted); font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+.ab-room-card .people { margin: 6px 0; }
+.ab-room-card .ab-player .ready { color: var(--ab-success); font-weight: 900; }
+.ab-room-card .ab-player button.small { padding: 5px 9px; border-radius: 9px; background: rgba(255, 255, 255, 0.12); font-size: 12px; font-weight: 800; min-height: 32px; }
+.ab-room-card .ab-player button.small.danger { background: rgba(255, 90, 95, 0.3); }
+.ab-room-card .actions { border-top: 1.5px solid var(--ab-line); margin-top: 6px; padding-top: 4px; }
+.ab-room-banner {
+  position: absolute; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 62px); transform: translateX(-50%); padding: 9px 18px; border-radius: 999px;
+  font-weight: 900; font-size: 15px; white-space: nowrap; border-color: var(--ab-warning); animation: ab-banner 0.2s ease-out; z-index: 4;
+}
+.ab-room-requests { position: absolute; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 110px); transform: translateX(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 4; }
+.ab-request { width: min(360px, calc(100vw - 28px)); pointer-events: auto; animation: ab-up 0.18s ease-out; }
+.ab-request .who { font-weight: 900; font-size: 16px; margin-bottom: 10px; }
+.ab-request .row, .ab-poll .row { display: flex; gap: 10px; }
+.ab-request .row .ab-block, .ab-poll .row .ab-block { flex: 1; font-size: 15px; padding: 10px 12px; }
+.ab-poll {
+  position: absolute; right: max(14px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 62px);
+  width: min(300px, calc(100% - 28px)); pointer-events: auto; animation: ab-up 0.18s ease-out; z-index: 3;
+}
+.ab-poll .question { font-weight: 900; font-size: 16px; margin-bottom: 10px; }
+.ab-poll .option {
+  position: relative; display: flex; align-items: center; width: 100%; min-height: 42px; margin-bottom: 7px; padding: 0 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08); overflow: hidden; font-weight: 800; text-align: left;
+}
+.ab-poll .option .fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(34, 211, 238, 0.25); transition: width 0.3s; }
+.ab-poll .option .text { position: relative; flex: 1; }
+.ab-poll .option .n { position: relative; font-variant-numeric: tabular-nums; color: var(--ab-accent); }
+.ab-poll .option.mine { outline: 2px solid var(--ab-accent); }
+.ab-room-cover .ab-block { margin-top: 8px; }
+
 /* MARK: Loading */
 .ab-loading {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;

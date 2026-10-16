@@ -74,6 +74,8 @@ export class RoomClient {
 
   hostPeerID: string | null = null;
   worldName = '';
+  /** How many the room takes, as its host said. */
+  capacity: number | null = null;
   private _state: ClientState = { kind: 'idle' };
   private readonly codec: PacketCodec;
   private link: PeerLink | null = null;
@@ -137,7 +139,14 @@ export class RoomClient {
       psk = await keyFor(route.code, route.salt);
       pipe = await route.open();
     } catch (e) {
-      if (attempt === this.attempt) this.setState({ kind: 'disconnected', reason: Disconnect.unknown(String((e as Error)?.message ?? e)) });
+      if (attempt !== this.attempt) return;
+      // A room that has closed is not tried again; anything else (no network yet) may be.
+      if ((e as Error)?.name === 'RoomClosedError') {
+        this.lastRoute = null;
+        this.setState({ kind: 'disconnected', reason: Disconnect.hostClosed });
+      } else {
+        this.setState({ kind: 'disconnected', reason: Disconnect.unknown(String((e as Error)?.message ?? e)) });
+      }
       return;
     }
     if (attempt !== this.attempt) {
@@ -188,6 +197,7 @@ export class RoomClient {
         }
         this.hostPeerID = message.handshake.peerID;
         this.worldName = message.handshake.worldName;
+        this.capacity = message.handshake.capacity;
         return;
       }
       case PacketKind.worldSnapshot:

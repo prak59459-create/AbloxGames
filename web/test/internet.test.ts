@@ -166,3 +166,24 @@ describe('internet rooms', () => {
     expect(fake.realRefusals).toEqual([]);
   });
 });
+
+describe('signing in once', () => {
+  it('signs in once however often it is asked while it is signing in, even by its own listeners', async () => {
+    const fake = new FakeFirebase();
+    let signUps = 0;
+    const counting = (input: string, init?: RequestInit) => {
+      if (input.includes('accounts:signUp')) signUps++;
+      return fake.fetch(input, init);
+    };
+    const internet = new InternetRooms(allowed(), new MemoryStorage() as unknown as Storage, counting);
+    // A page that asks for the list whenever it is told something changed.
+    let told = 0;
+    const stopListening = internet.subscribe(() => { if (++told < 6) void internet.refreshRooms().catch(() => {}); });
+    await Promise.all([internet.start(), internet.refreshRooms(), internet.start()]);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(signUps).toBe(1);
+    expect(internet.state.kind).toBe('ready');
+    stopListening();
+    internet.stop();
+  });
+});

@@ -13,7 +13,15 @@
 //
 // One "link" per connection; a reconnect is simply a new link.
 import { CloudIDs, CloudMirror, CloudPath, RelayInbox, RelayOutbox, jsonObject, serverTime, type Json } from '../core/model/cloud';
-import type { CloudDatabase, CloudStream } from './cloud';
+import { CloudError, type CloudDatabase, type CloudStream } from './cloud';
+
+/** The room is no longer in the list: its host has gone. */
+export class RoomClosedError extends Error {
+  constructor() {
+    super('That room has closed.');
+    this.name = 'RoomClosedError';
+  }
+}
 
 /** Bytes both ways between two ends, however they travel. */
 export interface BytePipe {
@@ -131,7 +139,13 @@ export async function openGuestLink(database: CloudDatabase, room: string): Prom
   if (!CloudPath.isSafeKey(room)) throw new Error('not a room');
   const uid = await database.auth.signIn();
   const link = CloudIDs.newLinkID();
-  await database.put(CloudPath.link(room, link), { guest: uid, at: serverTime });
+  try {
+    await database.put(CloudPath.link(room, link), { guest: uid, at: serverTime });
+  } catch (e) {
+    // The rules let a guest claim a link only while the room is listed: refused means it has closed.
+    if (e instanceof CloudError && e.kind === 'denied') throw new RoomClosedError();
+    throw e;
+  }
   const pipe = new RelayPipe(database, CloudPath.up(room, link), CloudPath.down(room, link));
   const streams: CloudStream[] = [];
   pipe.whenClosed(() => {

@@ -14,9 +14,29 @@ import type { WorldDocument } from '../core/model/world';
 import { SoundPlayer } from '../engine/audio';
 import type { GraphicsLevel } from '../engine/scene';
 import { L } from '../i18n';
+import type { RoomRoute } from '../net/client';
+import type { HostMove } from '../net/packets';
+import type { RoomHost } from '../net/roomHost';
 import { PlayHUD, type HUDHost, type WaypointView } from './hud';
+import { RoomOverlay } from './roomUI';
 import { PlaySession, gamePeerID } from './session';
 import { PlayView, type RemotePlayer } from './view';
+
+/** How a play screen begins: a game here, alone (it can be opened to others later), or someone else's room. */
+export type PlayStart =
+  | { kind: 'solo'; world: WorldDocument; openRoom?: boolean }
+  | { kind: 'join'; route: RoomRoute; title: string };
+
+/** What the screen needs from the internet side, when internet rooms are allowed. */
+export interface PlayNetwork {
+  /** A grown-up allowed internet rooms on this browser. */
+  readonly allowsRooms: boolean;
+  /** List a room this screen hosts (opened here, or moved here). */
+  list(room: RoomHost, world: WorldDocument, profile: AvatarProfile): Promise<unknown> | void;
+  /** Take it out of the list again. */
+  unlist(): void;
+  findMovedRoom(move: HostMove): Promise<RoomRoute | null>;
+}
 
 interface PlaySettings { graphics: GraphicsLevel; autoJump: boolean; cameraFollows: boolean; names: boolean; firstPerson: boolean }
 
@@ -54,19 +74,43 @@ export class PlayScreen implements HUDHost {
   private paused = false;
   private typingCount = 0;
   private disposed = false;
-  private visibility = () => this.updatePause();
+  private visibility = () => {
+    this.updatePause();
+    if (document.visibilityState === 'visible') this.session.becameVisible();
+  };
+  private readonly room: RoomOverlay;
+  private readonly start: PlayStart;
   onExit: () => void = () => {};
 
-  constructor(readonly container: HTMLElement, world: WorldDocument, readonly localPeerID: string, profile: AvatarProfile,
-    readonly sound: SoundPlayer = new SoundPlayer()) {
+  constructor(readonly container: HTMLElement, start: PlayStart | WorldDocument, readonly localPeerID: string, profile: AvatarProfile,
+    readonly sound: SoundPlayer = new SoundPlayer(), readonly network: PlayNetwork | null = null) {
+    this.start = 'kind' in start && (start.kind === 'solo' || start.kind === 'join') ? start : { kind: 'solo', world: start as WorldDocument };
     this.session = new PlaySession(localPeerID, profile);
-    this.session.startSolo(world);
+    this.session.findMovedRoom = (move) => this.network?.findMovedRoom(move) ?? Promise.resolve(null);
+    this.session.onHosting = (room) => {
+      // The game goes on either way; the host is told the room is not on the internet.
+      Promise.resolve(this.network?.list(room, this.session.world, this.session.profile)).catch((e: unknown) => {
+        this.hud?.showToast(L("This room couldn't go on the internet: {}", (e as Error)?.message ?? String(e)), 6);
+      });
+    };
+    const begin = this.start;
+    if (begin.kind === 'solo') {
+      this.session.startSolo(begin.world);
+      if (begin.openRoom && network?.allowsRooms) this.session.openRoom();
+    } else {
+      this.session.joinRoom(begin.route);
+    }
+    const world = this.session.world;
     this.view = new PlayView(container, this.session.live, localPeerID, profile, {
       level: this.settingsState.graphics, autoJump: this.settingsState.autoJump,
       cameraFollows: this.settingsState.cameraFollows, showNames: this.settingsState.names,
     });
     this.view.preferFirstPerson = this.settingsState.firstPerson;
     this.hud = new PlayHUD(container, this.session, this);
+    this.room = new RoomOverlay(this.hud.root, this.session, {
+      leave: () => this.leave(),
+      roomTitle: () => (begin.kind === 'join' ? begin.title : this.session.world.name),
+    });
 
     this.view.onTouched = (id) => this.session.report(id, 'touched');
     this.view.onTapped = (id) => this.session.report(id, 'tapped');
@@ -87,6 +131,13 @@ export class PlayScreen implements HUDHost {
   private beforeMoving(dt: number): void {
     this.elapsed += dt;
     const s = this.session;
+    // The host's world arrived (or arrived again, after a reconnect or the room moving).
+    if (this.view.live !== s.live) {
+      this.view.replaceWorld(s.live);
+      this.sound.prepare(s.world);
+      this.rosterSeen = null;
+      this.musicKey = '';
+    }
     const scripted = s.scripted;
     this.view.camera = scripted.camera;
     this.view.movement = scripted.movement;
@@ -243,9 +294,27 @@ export class PlayScreen implements HUDHost {
 
   // MARK: HUDHost
 
-  leave(): void {
+  leave(handOver = false): void {
+    // A host with others here can hand the room on instead of closing it on them.
+    if (handOver) this.session.handOverAndLeave();
     this.dispose();
     this.onExit();
+  }
+
+  canOpenRoom(): boolean {
+    return !!this.network?.allowsRooms && this.session.role === 'hosting' && !this.session.room;
+  }
+
+  openRoom(): void {
+    if (!this.canOpenRoom()) return;
+    this.session.openRoom();
+    this.hud.showToast(L('Your room is on the internet now'), 3);
+  }
+
+  /** Who would take the room on, if the host left now. */
+  successorName(): string | null {
+    if (!this.session.canHandOver) return null;
+    return this.session.people.find((p) => p.peerID !== this.localPeerID)?.profile.displayName ?? null;
   }
 
   setMenuOpen(open: boolean): void {
@@ -336,7 +405,9 @@ export class PlayScreen implements HUDHost {
     if (this.disposed) return;
     this.disposed = true;
     document.removeEventListener('visibilitychange', this.visibility);
+    this.room.dispose();
     this.session.leave();
+    this.network?.unlist();
     this.sound.stopAll();
     this.sound.detach();
     this.hud.dispose();

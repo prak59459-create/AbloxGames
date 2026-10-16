@@ -254,6 +254,8 @@ export class PlaySession {
   // MARK: Rooms
 
   get room(): RoomHost | null { return this.roomHost; }
+  /** How many the room takes: this host's choice, or what the host said. */
+  get roomCapacity(): number | null { return this.roomHost?.capacity ?? (this.role === 'joined' ? this.client?.capacity ?? null : null); }
   /** Round trip to the host, while joined. */
   get pingMilliseconds(): number | null { return this.role === 'joined' ? this.client?.pingMilliseconds ?? null : null; }
   get isInRoom(): boolean { return this.roomHost !== null || this.role === 'joined'; }
