@@ -105,24 +105,24 @@ func luckyChipParty(_ m: MapBuilder) {
     }
 
     // The big board behind the race track, and the sign over it.
-    m.slab("Board Back", x: 0, y: 4, z: -32, w: 26, h: 9, d: 0.6, color: "#0F172A")
-    m.part("Board Screen", at: (0, 8.5, -31.6), size: (24, 7.6, 0.1), color: "#1E1B4B", solid: false)
-    for (y, h) in [(Float(4.6), Float(0.3)), (12.4, 0.3)] {
+    m.slab("Board Back", x: 0, y: 2, z: -32, w: 26, h: 9, d: 0.6, color: "#0F172A")
+    m.part("Board Screen", at: (0, 6.5, -31.6), size: (24, 7.6, 0.1), color: "#1E1B4B", solid: false)
+    for (y, h) in [(Float(2.6), Float(0.3)), (10.4, 0.3)] {
         m.part("Board Frame", at: (0, y, -31.5), size: (24.6, h, 0.12), color: "#F472B6", material: .neon, solid: false)
     }
     for x: Float in [-12.2, 12.2] {
-        m.part("Board Frame", at: (x, 8.5, -31.5), size: (0.3, 8, 0.12), color: "#F472B6", material: .neon, solid: false)
+        m.part("Board Frame", at: (x, 6.5, -31.5), size: (0.3, 8, 0.12), color: "#F472B6", material: .neon, solid: false)
     }
     for (i, x) in stride(from: Float(-10), through: 10, by: 2.5).enumerated() {
-        m.part("Board Bulb", at: (x, 12.9, -31.4), size: (0.5, 0.5, 0.5), color: i % 2 == 0 ? "#FDE047" : "#FFFFFF", shape: .sphere,
+        m.part("Board Bulb", at: (x, 10.9, -31.4), size: (0.5, 0.5, 0.5), color: i % 2 == 0 ? "#FDE047" : "#FFFFFF", shape: .sphere,
                material: .neon, solid: false)
     }
-    let boardText = m.part("Board Text", at: (0, 6.2, -31.4), size: (0.4, 0.4, 0.4), color: "#4C1D95", solid: false, opacity: 0.05)
-    m.label(boardText, [("🎰 ラッキーチップ・パーティー", "#FDE047"), ("まもなく はじまります", "#FFFFFF")], height: 2.4, size: 2.2, range: 120)
-    let title = m.part("Title Sign", at: (0, 13.4, -31.4), size: (0.4, 0.4, 0.4), color: "#000000", solid: false, opacity: 0.05)
+    let boardText = m.part("Board Text", at: (0, 5.4, -31.4), size: (0.4, 0.4, 0.4), color: "#4C1D95", solid: false, opacity: 0.05)
+    m.label(boardText, [("🎰 ラッキーチップ・パーティー", "#FDE047"), ("まもなく はじまります", "#FFFFFF")], height: 0.4, size: 2.0, range: 120)
+    let title = m.part("Title Sign", at: (0, 11.6, -31.4), size: (0.4, 0.4, 0.4), color: "#000000", solid: false, opacity: 0.05)
     m.label(title, [("LUCKY CHIP PARTY", "#F472B6")], height: 0.2, size: 2.6, range: 140)
     for x: Float in [-13.5, 13.5] {
-        m.pillar("Board Pillar", x: x, z: -31.5, height: 13, radius: 0.5, color: "#FDE047", material: .neon)
+        m.pillar("Board Pillar", x: x, z: -31.5, height: 11.4, radius: 0.5, color: "#FDE047", material: .neon)
     }
 
     // The race track: four lanes, a start and a finish.

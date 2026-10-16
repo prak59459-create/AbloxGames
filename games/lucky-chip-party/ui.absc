@@ -44,7 +44,7 @@ func open_bet_panel(p)
     p.ui_text("bet_amt", "", {parent: "bet_panel", x: 0.21, y: y, size: 20, bold: true, color: "#FDE047"})
     p.ui_button("bet_plus", "＋", {parent: "bet_panel", x: 0.35, y: y, w: 52, h: 44, size: 22, bg: "#334155", radius: 12})
     p.ui_button("bet_half", "半分", {parent: "bet_panel", x: 0.49, y: y, w: 70, h: 44, size: 15, bg: "#0F766E", radius: 12})
-    p.ui_button("bet_all", "オールイン", {parent: "bet_panel", x: 0.64, y: y, w: 96, h: 44, size: 14, bg: "#B91C1C", radius: 12})
+    p.ui_button("bet_all", "オールイン", {parent: "bet_panel", x: 0.645, y: y, w: 108, h: 44, size: 13, bg: "#B91C1C", radius: 12})
     p.ui_button("bet_ok", "✅ けってい", {parent: "bet_panel", x: 0.86, y: y, w: 130, h: 44, size: 16, bg: "#16A34A", radius: 12})
   else
     p.ui_button("bet_ok", "✅ けってい", {parent: "bet_panel", x: 0.5, y: 128 / h, w: 160, h: 38, size: 16, bg: "#16A34A", radius: 12})

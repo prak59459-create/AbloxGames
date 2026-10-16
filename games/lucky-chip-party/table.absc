@@ -169,7 +169,7 @@ end
 
 -- MARK: いまの順位
 
-func ranking_line()
+func ranking_parts()
   let list = sort(seated(), func(a, b) return a.chips > b.chips end)
   let medals = ["🥇", "🥈", "🥉", "4."]
   let parts = []
@@ -180,11 +180,21 @@ func ranking_line()
     if c.out then name = name + "💸" end
     append(parts, medals[i] + " " + name + " " + c.chips)
   end
-  return join(parts, "   ")
+  return parts
 end
 
+func ranking_line()
+  return join(ranking_parts(), "   ")
+end
+
+-- 左上、自分のチップの下に 順位の表
 func show_ranking()
-  ui_text("rank_line", ranking_line(), {at: "top", dy: 10, size: 15, bold: true, color: "#FDE68A", bg: "#00000088", radius: 10})
+  let parts = ranking_parts()
+  if len(parts) == 0 then
+    ui_remove("rank_line")
+    return
+  end
+  ui_text("rank_line", join(parts, "\n"), {at: "top_left", dy: 62, size: 14, bold: true, color: "#FDE68A", bg: "#00000077", radius: 10})
 end
 
 -- 自分のチップ（左上）

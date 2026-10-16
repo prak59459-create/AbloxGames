@@ -176,7 +176,7 @@ func give_hints()
   for c in list do
     if c == lucky then
       if not c.is_npc then
-        c.message("🤫 ひみつのヒント: " + text, 4)
+        c.message("🤫 ひみつのヒント: " + text, 2.5)
         c.sound("magic")
         kit_badge(c, "first_hint", "ひみつを知る者")
       end
@@ -365,6 +365,8 @@ func race_setup()
     let r = block("Racer " + k)
     r.position = racer_start(k)
     r.label = [{text: RACERS[k].emoji + " " + RACERS[k].name, color: RACERS[k].color}, {text: "×" + ev.mult[k], color: "#FDE047"}]
+    -- 遠い テーブルからは 見えない（4ひきの字が かさなるので）。レースのカメラで見える
+    r.label_range = 26
     r.animation = nil
   end
 end
