@@ -66,7 +66,7 @@ func kit_money(p)
 end
 
 func kit_show_money(p)
-  p.ui_text("kit_money", "💰 " + kit_short(kit_money(p)), {at: "top_left", size: 24, bold: true, color: "gold"})
+  p.ui_text("kit_money", "💰 " + kit_short(kit_money(p)), {at: "top_left", dy: 6, size: 22, bold: true, color: "gold"})
 end
 
 func kit_give(p, amount)
@@ -96,7 +96,7 @@ func kit_welcome(p)
   p.ui_text("kit_card_title", kit_title, {parent: "kit_card", y: 0.36, size: 34, bold: true, color: "gold"})
   p.ui_text("kit_card_sub", kit_subtitle, {parent: "kit_card", y: 0.74, size: 17})
   kit_later(p, 4, func() p.ui_remove("kit_card") end)
-  p.ui_button("kit_help", "？", {at: "top_right", w: 52, h: 52, size: 24, bg: "#00000099", radius: 26})
+  p.ui_button("kit_help", "？", {at: "top_right", dy: 12, w: 48, h: 48, size: 22, bg: "#00000099", radius: 24})
 end
 
 func kit_open_help(p)
@@ -343,8 +343,8 @@ func kit_level_need(level)
 end
 
 func kit_show_level(p)
-  p.ui_text("kit_lv", "Lv." + p.level, {at: "top_left", dy: 34, size: 18, bold: true, color: "#A7F3D0"})
-  p.ui_bar("kit_xp", p.xp, kit_level_need(p.level), {at: "top_left", dy: 58, dx: 2, w: 150, h: 8, color: "#34D399"})
+  p.ui_text("kit_lv", "Lv." + p.level, {at: "top_left", dy: 36, size: 17, bold: true, color: "#A7F3D0"})
+  p.ui_bar("kit_xp", p.xp, kit_level_need(p.level), {at: "top_left", dy: 60, dx: 2, w: 150, h: 8, color: "#34D399"})
 end
 
 func kit_xp(p, amount)
@@ -457,7 +457,7 @@ end
 -- MARK: 視点とエモート
 
 func kit_camera_button(p)
-  p.ui_button("kit_cam", "👁", {at: "top_right", dy: 60, w: 52, h: 52, size: 22, bg: "#00000099", radius: 26})
+  p.ui_button("kit_cam", "👁", {at: "top_right", dy: 66, w: 48, h: 48, size: 20, bg: "#00000099", radius: 24})
 end
 
 on chat(p, text)

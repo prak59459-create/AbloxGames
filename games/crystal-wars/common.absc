@@ -66,9 +66,9 @@ end
 
 func hud(p)
   if p.money == nil or p.team == nil then return end
-  p.ui_text("hud_money", money_line(p), {at: "top_left", dy: 34, size: 20, bold: true})
+  p.ui_text("hud_money", money_line(p), {at: "top_left", dy: 6, size: 20, bold: true})
   let gear = "⚔ " + SWORDS[p.sword].name + "   🛡 " + ARMORS[p.armor].name + "   ⛏ " + PICKS[p.pick].name
-  p.ui_text("hud_team", TEAM_JP[p.team] + "チーム  " + gear, {at: "top_left", dy: 64, size: 14, color: TEAM_COLOR[p.team]})
+  p.ui_text("hud_team", TEAM_JP[p.team] + "チーム  " + gear, {at: "top_left", dy: 74, size: 14, color: TEAM_COLOR[p.team]})
   block_button(p)
 end
 
