@@ -435,6 +435,13 @@
   .ab-top { gap: 7px; }
   .ab-announce { font-size: 17px; bottom: 34%; }
 }
+/* A phone on its side is short: smaller touch buttons, closer to the corner, so a game's own buttons down the right have room. */
+@media (max-height: 460px) and (pointer: coarse) {
+  .ab-touch { right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); gap: 10px; }
+  .ab-jump { width: 64px; height: 64px; border-radius: 22px; }
+  .ab-jump .ab-icon { width: 36px; height: 36px; }
+  .ab-hud-easy .ab-jump { width: 80px; height: 80px; border-radius: 26px; }
+}
 /* A phone held upright: the view and players buttons move into the menu, so the coins keep their number. */
 .ab-menu-more { display: none; flex-direction: column; gap: inherit; }
 .ab-hud-easy .ab-menu-more { display: flex; }

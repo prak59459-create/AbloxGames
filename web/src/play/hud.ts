@@ -728,13 +728,16 @@ export class PlayHUD {
   private fitScriptUI(): void {
     const layer = this.canvasLayer;
     const top = layer.classList.contains('below-bar') ? barHeight : 0;
-    const width = this.root.clientWidth, height = this.root.clientHeight - top;
+    // A short touch screen (a phone on its side): the bottom strip is the
+    // stick's and the jump button's, so the game's screen ends above it.
+    const reserve = this.coarse && this.root.clientHeight < 460 ? touchStrip : 0;
+    const width = this.root.clientWidth, height = this.root.clientHeight - top - reserve;
     if (width <= 0 || height <= 0) return;
     const scale = scriptUIScale(width, height);
-    if (scale === this.uiScale && (scale === 1 || layer.style.width === `${width / scale}px`)) return;
+    if (scale === this.uiScale && layer.style.height === (scale === 1 && !reserve ? '' : `${height / scale}px`)) return;
     this.uiScale = scale;
     const st = layer.style;
-    if (scale === 1) {
+    if (scale === 1 && !reserve) {
       st.transform = st.transformOrigin = st.width = st.height = st.right = st.bottom = '';
       return;
     }
@@ -1075,6 +1078,8 @@ export class PlayHUD {
 
 /** The height of the bar along the top, which a game's screen sits below (hud.css: .below-bar). */
 const barHeight = 64;
+/** The strip along the bottom of a short touch screen kept for the stick and jump (hud.css: .ab-touch). */
+const touchStrip = 70;
 
 /** How much smaller a game's screen is shown on a screen of `width` × `height`: never below 0.65, to stay readable. */
 export function scriptUIScale(width: number, height: number): number {
