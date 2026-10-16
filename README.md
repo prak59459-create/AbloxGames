@@ -42,7 +42,7 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/battleground-legends/cover-b92161e3.png" width="200"> | 12 | **Battleground Legends** | パンチ、アッパー、衝撃波、そして必殺の覚醒！技を組み合わせてオープンフィールドで戦う爽快バトル。 |
 | <img src="games/hotel-100-doors/cover-a1eb89ca.png" width="200"> | 13 | **Hotel 100 Doors** | なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。 |
 | <img src="games/pet-coin-frenzy/cover-42850825.png" width="200"> | 14 | **Pet Coin Frenzy** | コインの山をタップしてこわし、たまごからペットを出してパワーアップ。新しいエリアを開いて、巨大ペットを引き当てろ！ |
-| <img src="games/tower-of-chaos/cover-054858ae.png" width="200"> | 15 | **Tower of Chaos** | チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！ |
+| <img src="games/tower-of-chaos/cover-56850875.png" width="200"> | 15 | **Tower of Chaos** | チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！ |
 | <img src="games/crystal-wars/cover-a5772ead.png" width="200"> | 16 | **Crystal Wars** | 浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。 |
 | <img src="games/slime-roll/cover-1c724817.png" width="200"> | 17 | **Slime Roll** | 運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？ |
 | <img src="games/hero-tower-defense/cover-36132369.png" width="200"> | 18 | **Hero Tower Defense** | 道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。 |
@@ -148,10 +148,10 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/cart-ride-wonderland/cover-d6019e4e.png" width="200"> | 88 | **Cart Ride Wonderland** | カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！ |
 | <img src="games/grapple-ascent/cover-65c19a96.png" width="200"> | 89 | **Grapple Ascent** | 光るフックにグラップルを打って、空高い塔を上へ上へ。フックをタップするか🪝ボタン。風の吹く場所、遠いフック、高さランキング。ロープの長さ・引っぱる力・連続グラップルを強化。 |
 | <img src="games/rooftop-parkour/cover-e36d6116.png" width="200"> | 90 | **Rooftop Parkour** | 街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。 |
-| <img src="games/swing-rope-obby/cover-65b9cf7c.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
+| <img src="games/swing-rope-obby/cover-169e383d.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
 | <img src="games/shrink-grow-obby/cover-15e93a42.png" width="200"> | 92 | **Shrink & Grow Obby** | 小さくなって穴をくぐり、大きくなって段差とすきまをこえる！ キッチン・お庭・おもちゃの城の30ステージ。小さいとわれないガラス、大きくないと押せないスイッチ。かくれた宝石も。 |
 | <img src="games/chased-by-stuff-obby/cover-8390f55c.png" width="200"> | 93 | **Chased by Stuff Obby** | 巨大なボール、アヒル、食パン、ボウリングの玉、パイナップル、目ざまし時計、ハンバーガー、クマのぬいぐるみ… 8つのコースで、うしろから追いかけてくる「なにか」から走ってにげろ！ |
-| <img src="games/rising-lava-rescue/cover-ba32dabd.png" width="200"> | 94 | **Rising Lava Rescue** | 火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。 |
+| <img src="games/rising-lava-rescue/cover-498606a1.png" width="200"> | 94 | **Rising Lava Rescue** | 火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。 |
 | <img src="games/fishy-obby/cover-63fead7d.png" width="200"> | 95 | **Fishy Obby** | きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。 |
 
 ### 🏎️ 乗り物・ドライブ
