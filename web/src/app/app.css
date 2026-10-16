@@ -140,3 +140,17 @@ body { overflow: hidden; -webkit-font-smoothing: antialiased; }
 .ab-pad button:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
 .ab-pad button.ok { background: linear-gradient(180deg, #6ee79a, #22c55e); color: #05310f; }
 .ab-pad button:disabled { opacity: 0.45; }
+
+/* The AI helper (aihelper.ts): bubbles, question buttons and the box to type in. */
+.ab-ai { display: flex; flex-direction: column; gap: 10px; }
+.ab-ai-log { display: flex; flex-direction: column; gap: 8px; max-height: min(52vh, 420px); overflow-y: auto; padding: 4px 2px; }
+.ab-ai-bubble { max-width: 86%; padding: 10px 12px; border-radius: 16px; background: var(--ab-glass-strong); line-height: 1.5; font-size: 15px; }
+.ab-ai-bubble small { display: block; font-size: 11px; font-weight: 800; color: var(--ab-ink-muted); margin-bottom: 2px; }
+.ab-ai-bubble.child { align-self: flex-end; background: color-mix(in srgb, var(--ab-accent) 28%, transparent); }
+.ab-ai-bubble.note { color: var(--ab-ink-muted); }
+.ab-ai-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.ab-ai-chips::-webkit-scrollbar { display: none; }
+.ab-ai-chips .ab-chip { flex: none; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--ab-line); background: var(--ab-glass); color: var(--ab-ink); font: 700 13px var(--ab-font); cursor: pointer; }
+.ab-ai-form { display: flex; gap: 8px; }
+.ab-ai-form input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--ab-line); background: var(--ab-glass); color: var(--ab-ink); font: 600 15px var(--ab-font); }
+.ab-ok-note { color: var(--ab-success); font-weight: 800; font-size: 13px; align-self: center; }

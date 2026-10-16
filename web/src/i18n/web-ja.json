@@ -154,5 +154,8 @@
   "Everyone is coming to {}": "みんなで「{}」へ！",
   "Everyone in your room comes along — on iPads too.": "ルームのみんながいっしょに来ます（iPad の人も）。",
   "Getting {} ready…": "「{}」を準備中…",
-  "Easy: big buttons and fewer of them. Pro: small buttons, with frames a second and ping.": "かんたん：大きなボタンで、数は少なめ。プロ：小さなボタンで、FPS と ping も表示。"
+  "Easy: big buttons and fewer of them. Pro: small buttons, with frames a second and ping.": "かんたん：大きなボタンで、数は少なめ。プロ：小さなボタンで、FPS と ping も表示。",
+  "Key saved in this browser": "キーは この ブラウザに 保存されています",
+  "The key stays in this browser only. Questions go to the provider with it; nothing else is sent. Get a free key at console.groq.com.": "キーは この ブラウザにだけ 保存されます。しつもんは このキーで サービスに 送られ、ほかの データは 送りません。無料の キーは console.groq.com で 作れます。",
+  "Ask Ablobo about Ablox": "アブロボに Ablox のことを 聞く"
 }

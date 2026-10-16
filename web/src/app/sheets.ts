@@ -8,6 +8,7 @@ import type { AvatarProfile } from '../core/model/avatar';
 import { L, language, setLanguage } from '../i18n';
 import type { InternetRooms } from '../net/internet';
 import { FamilyLock, grownUpQuestion } from './family';
+import { aiFamilySection, aiHelperSheet } from './aihelper';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', parent?: HTMLElement, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -155,6 +156,7 @@ export function familySheet(lock: FamilyLock, internet: InternetRooms, onChange:
       set.onclick = () => choosePasscode(lock, draw);
       el('small', 'ab-pad-note', b, L('With a passcode, Family needs it to open. Without one, a grown-up’s question guards it.'));
     }
+    aiFamilySection(b, draw);
     if (internet.uid) {
       el('h3', '', b, L('This browser'));
       const forget = el('button', 'ab-block danger', el('div', 'ab-actions', b), L('Forget this browser on the internet'));
@@ -246,6 +248,13 @@ export function settingsSheet(lock: FamilyLock, internet: InternetRooms, hooks: 
       button.onclick = () => { writePlaySettings({ ...readPlaySettings(), layout: key }); draw(); };
     }
     el('small', 'ab-pad-note', b, L('Easy: big buttons and fewer of them. Pro: small buttons, with frames a second and ping.'));
+
+    el('h3', '', b, L('AI helper'));
+    const helper = el('div', 'ab-row', b);
+    const helperText = el('div', 'text', helper);
+    el('b', '', helperText, L("Hi! I'm Ablobo. Ask me how to use Ablox."));
+    const askButton = el('button', 'ab-block secondary', helper, L('Ask Ablobo'));
+    askButton.onclick = () => aiHelperSheet();
 
     el('h3', '', b, L('Family'));
     const family = el('div', 'ab-row', b);
