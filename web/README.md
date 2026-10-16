@@ -77,6 +77,24 @@ npx vitest run     # every test
 npm run build      # dist/, what GitHub Pages serves
 ```
 
+## Publishing
+
+`.github/workflows/web-pages.yml` tests and builds the site on every push
+that touches `web/`, and publishes it from the default branch or from the
+branch the web version is made on. It publishes `web/dist` and nothing else
+— never the repository itself, whose `index.json` would then be the home
+page — together with a copy of the games as they are on the default branch
+(`catalogue/`: `index.json`, `games/`, `lib/`, about 75 MB).
+
+The page reads the game list from GitHub, and each game from that copy
+when its listing is the same, word for word, as when the site was
+published; a game changed since is read from GitHub, all its files. That
+keeps a classroom on one connection from being turned away by
+raw.githubusercontent.com, and the list still works when GitHub cannot be
+reached. Every file is tried up to three times (a dropped connection, 429,
+5xx), gives up after 20 seconds with nothing arriving, and a game's scripts
+are fetched six at a time.
+
 - `test/oracle.test.ts` and `test/wire.test.ts` compare against the iPad's own
   Swift code (AbloxCore built on Linux; see `tools/wireoracle/build.sh`).
 - `test/internet.test.ts` runs rooms through a Firebase in memory that keeps

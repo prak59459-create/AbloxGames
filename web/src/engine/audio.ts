@@ -14,7 +14,7 @@ import {
   renderTones, tidyClip, type Feedback, type LibrarySound, type MusicTrack,
 } from '../core/model/sound';
 import { trimmed } from '../core/model/text';
-import { fileURL, type CatalogueSource } from '../net/catalogue';
+import { fileURL, inTurn, type CatalogueSource } from '../net/catalogue';
 
 const masterLevel = 0.6;
 const libraryLateness = 0.8;
@@ -252,7 +252,8 @@ export class SoundPlayer {
     const ids = libraryIDsInWorld(world);
     if (!ids.length) return;
     if (!this.start()) return;
-    for (const id of ids.slice(0, 60)) void this.libraryClip(id);
+    // Four at a time, so a world full of sounds does not ask for sixty files at once.
+    void inTurn(ids.slice(0, 60), 4, (id) => this.libraryClip(id));
   }
 
   private soundIndex(): Promise<Map<string, LibrarySound>> {

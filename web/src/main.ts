@@ -22,7 +22,7 @@ import { roomIsCompatible, roomIsFull } from './core/model/cloud';
 import { PlayerLevel } from './core/model/progress';
 import type { AvatarProfile } from './core/model/avatar';
 import type { WorldDocument } from './core/model/world';
-import { coverURL, fileURL, loadCatalogue, loadGame, stableGameID, type GameListing } from './net/catalogue';
+import { coverURL, gameFileURL, loadCatalogue, loadGame, stableGameID, type GameListing } from './net/catalogue';
 import { InternetRooms } from './net/internet';
 import { SoundPlayer } from './engine/audio';
 import { PlayScreen, type PlayNetwork, type PlayProgress, type PlayStart } from './play/screen';
@@ -283,7 +283,7 @@ function showGame(g: GameListing): void {
   el('p', '', body, g.summary);
   if (g.shots?.length) {
     const shots = el('div', 'ab-shots', body);
-    for (const s of g.shots) img(fileURL(s), shots);
+    for (const s of g.shots) img(gameFileURL(g, s), shots);
   }
   const actions = el('div', 'ab-actions', body);
   const play = el('button', 'ab-block green', actions);

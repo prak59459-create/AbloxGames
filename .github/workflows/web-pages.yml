@@ -1,5 +1,7 @@
 # The browser version (web/): tested and built on every push that touches
-# it, and published to GitHub Pages from the default branch.
+# it, and published to GitHub Pages — the built site in web/dist, never the
+# repository itself (whose index.json would then be the home page) — from
+# the default branch or from the branch the browser version is made on.
 name: Web (GitHub Pages)
 
 on:
@@ -13,8 +15,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: web-pages-${{ github.ref }}
-  cancel-in-progress: true
+  group: web-pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -38,6 +40,24 @@ jobs:
         run: npx vitest run
       - name: Build
         run: npx vite build
+      # The games as they are on the default branch (where the iPads read
+      # them), published with the site: the page reads a game from here when
+      # it is unchanged on GitHub, and from GitHub when it has changed since.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: catalogue-source
+          sparse-checkout: |
+            games
+            lib
+      - name: Copy the games into the site
+        run: |
+          mkdir -p dist/catalogue
+          cp ../catalogue-source/index.json dist/catalogue/
+          cp -R ../catalogue-source/games ../catalogue-source/lib dist/catalogue/
+          rm -rf ../catalogue-source
+          du -sh dist dist/catalogue
+          test -s dist/index.html && test -s dist/catalogue/index.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
@@ -57,7 +77,9 @@ jobs:
 
   deploy:
     needs: build
-    if: github.ref_name == github.event.repository.default_branch && needs.build.outputs.pages == 'true'
+    if: >-
+      needs.build.outputs.pages == 'true' &&
+      (github.ref_name == github.event.repository.default_branch || github.ref_name == 'claude/ablox-ipad-platform-8e8d8m')
     runs-on: ubuntu-latest
     environment:
       name: github-pages
