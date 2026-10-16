@@ -11,18 +11,18 @@
     #0a0f22;
 }
 .ab-shell.ab-hidden { display: none; }
-.ab-icon { width: 28px; height: 28px; flex: none; }
+:is(.ab-shell, .ab-sheet, .ab-page-toasts) .ab-icon { width: 28px; height: 28px; flex: none; }
 
 /* The bar along the top. */
-.ab-top {
+.ab-bar {
   flex: none; position: relative; z-index: 4; display: flex; align-items: center; gap: 10px;
   padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
   background: linear-gradient(180deg, rgba(10, 15, 34, 0.96), rgba(10, 15, 34, 0.72));
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1.5px solid rgba(255, 255, 255, 0.07);
 }
-.ab-top .ab-brand { background: none; border: none; color: #fff; cursor: pointer; padding: 0; font-family: var(--ab-font); font-size: 24px; }
-.ab-top .ab-brand img { width: 40px; height: 40px; }
-.ab-top .spacer { flex: 1; }
+.ab-bar .ab-brand { background: none; border: none; color: #fff; cursor: pointer; padding: 0; font-family: var(--ab-font); font-size: 24px; }
+.ab-bar .ab-brand img { width: 40px; height: 40px; }
+.ab-bar .spacer { flex: 1; }
 .ab-pill {
   display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px 0 6px; border-radius: 999px; border: none;
   background: rgba(255, 255, 255, 0.09); color: #fff; font: 900 16px var(--ab-font); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.1);
@@ -34,8 +34,8 @@ button.ab-pill:active { transform: translateY(1px); }
 .ab-pill.coins { background: linear-gradient(180deg, rgba(255, 201, 60, 0.28), rgba(255, 201, 60, 0.12)); box-shadow: inset 0 0 0 1.5px rgba(255, 201, 60, 0.4); }
 .ab-pill.level { background: linear-gradient(180deg, rgba(34, 211, 238, 0.26), rgba(34, 211, 238, 0.1)); box-shadow: inset 0 0 0 1.5px rgba(34, 211, 238, 0.4); }
 .ab-pill.streak { background: rgba(255, 159, 28, 0.18); box-shadow: inset 0 0 0 1.5px rgba(255, 159, 28, 0.4); padding-left: 12px; }
-.ab-top .ab-head-button { height: 40px; border-radius: 14px; }
-.ab-top .ab-head-button.icon { width: 40px; }
+.ab-bar .ab-head-button { height: 40px; border-radius: 14px; }
+.ab-bar .ab-head-button.icon { width: 40px; }
 
 /* The page between the bar and the dock. */
 .ab-view {
@@ -87,8 +87,8 @@ button.ab-pill:active { transform: translateY(1px); }
 .ab-meter { height: 12px; border-radius: 6px; background: rgba(0, 0, 0, 0.35); overflow: hidden; box-shadow: inset 0 1.5px 0 rgba(0, 0, 0, 0.3); }
 .ab-meter > div { height: 100%; border-radius: 6px; background: linear-gradient(90deg, #22d3ee, #4ade80); transition: width 0.5s cubic-bezier(.3, 1.3, .5, 1); }
 .ab-meter.xp > div { background: linear-gradient(90deg, #22d3ee, #a855f7); }
-.ab-block.big { font-size: 20px; padding: 14px 22px; border-radius: 18px; }
-.ab-block .ab-icon { width: 30px; height: 30px; }
+:is(.ab-shell, .ab-sheet) .ab-block.big { font-size: 20px; padding: 14px 22px; border-radius: 18px; }
+:is(.ab-shell, .ab-sheet) .ab-block .ab-icon { width: 30px; height: 30px; }
 .ab-tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .ab-tag {
   height: 38px; padding: 0 14px; border-radius: 14px; border: none; background: rgba(255, 255, 255, 0.09); color: #fff;
@@ -265,22 +265,22 @@ button.ab-pill:active { transform: translateY(1px); }
 @keyframes ab-shine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
 .ab-looks.emotes .pic { font-size: 46px; }
 
-.ab-badge-summary { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 20px; background: rgba(255, 255, 255, 0.06); }
-.ab-badge-summary b { font-size: 18px; }
+.ab-medal-summary { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 20px; background: rgba(255, 255, 255, 0.06); }
+.ab-medal-summary b { font-size: 18px; }
 .ab-titles { display: flex; flex-direction: column; gap: 8px; }
-.ab-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.ab-badge {
+.ab-medals { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.ab-medal {
   display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 12px 10px; border-radius: 20px;
   background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.6); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
 }
-.ab-badge .emoji { font-size: 36px; filter: grayscale(1) opacity(0.45); }
-.ab-badge b { font-size: 14px; color: rgba(255, 255, 255, 0.75); }
-.ab-badge small { font-size: 11px; font-weight: 700; line-height: 1.35; }
-.ab-badge .ab-meter { width: 100%; height: 7px; margin-top: 4px; }
-.ab-badge .count { font-size: 11px; font-weight: 900; }
-.ab-badge.got { background: linear-gradient(180deg, rgba(255, 201, 60, 0.2), rgba(255, 201, 60, 0.06)); color: #fff; box-shadow: inset 0 0 0 2px rgba(255, 201, 60, 0.5), 0 4px 0 rgba(0, 0, 0, 0.25); }
-.ab-badge.got .emoji { filter: drop-shadow(0 3px 6px rgba(255, 201, 60, 0.45)); }
-.ab-badge.got b { color: var(--ab-gold); }
+.ab-medal .emoji { font-size: 36px; filter: grayscale(1) opacity(0.45); }
+.ab-medal b { font-size: 14px; color: rgba(255, 255, 255, 0.75); }
+.ab-medal small { font-size: 11px; font-weight: 700; line-height: 1.35; }
+.ab-medal .ab-meter { width: 100%; height: 7px; margin-top: 4px; }
+.ab-medal .count { font-size: 11px; font-weight: 900; }
+.ab-medal.got { background: linear-gradient(180deg, rgba(255, 201, 60, 0.2), rgba(255, 201, 60, 0.06)); color: #fff; box-shadow: inset 0 0 0 2px rgba(255, 201, 60, 0.5), 0 4px 0 rgba(0, 0, 0, 0.25); }
+.ab-medal.got .emoji { filter: drop-shadow(0 3px 6px rgba(255, 201, 60, 0.45)); }
+.ab-medal.got b { color: var(--ab-gold); }
 .ab-records { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .ab-record { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.06); }
 .ab-record .emoji { font-size: 22px; }
@@ -344,8 +344,8 @@ button.ab-pill:active { transform: translateY(1px); }
 .ab-steps span.on { background: var(--ab-accent); }
 .ab-steps span.done { background: rgba(34, 211, 238, 0.45); }
 .ab-welcome-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
-.ab-welcome-hero .mascot { width: 150px; height: 150px; animation: ab-bob 2.4s ease-in-out infinite; }
-@keyframes ab-bob { 50% { transform: translateY(-8px) rotate(-3deg); } }
+.ab-welcome-hero .mascot { width: 150px; height: 150px; animation: ab-mascot-bob 2.4s ease-in-out infinite; }
+@keyframes ab-mascot-bob { 50% { transform: translateY(-8px) rotate(-3deg); } }
 .ab-welcome-hero p { margin: 0; font-size: 17px; line-height: 1.6; color: rgba(255, 255, 255, 0.85); }
 .ab-welcome-look { display: grid; grid-template-columns: 200px 1fr; gap: 14px; align-items: center; }
 .ab-welcome-look .stage { height: 240px; border-radius: 22px; overflow: hidden; background: radial-gradient(circle at 50% 70%, rgba(34, 211, 238, 0.25), transparent 60%), #141c3d; }
@@ -360,8 +360,8 @@ button.ab-pill:active { transform: translateY(1px); }
 
 /* Phones. */
 @media (max-width: 760px) {
-  .ab-top { gap: 6px; }
-  .ab-top .ab-brand span, .ab-top .ab-brand small { display: none; }
+  .ab-bar { gap: 6px; }
+  .ab-bar .ab-brand span, .ab-bar .ab-brand small { display: none; }
   .ab-pill { height: 36px; font-size: 15px; padding-right: 11px; }
   .ab-pill img { width: 26px; height: 26px; }
   .ab-dock { left: 0; right: 0; bottom: 0; transform: none; border-radius: 22px 22px 0 0; justify-content: space-around; padding: 6px 6px max(8px, env(safe-area-inset-bottom)); }
@@ -388,3 +388,8 @@ button.ab-pill:active { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) {
   .ab-tab, .ab-page-toast, .ab-welcome-hero .mascot, .ab-week .day.today, .ab-dock-tab .dot, .ab-mission .side .ab-block, .ab-look.legendary::before { animation: none; }
 }
+
+/* The next game, for everyone in the room. */
+.ab-picker { width: min(760px, calc(100% - 24px)); }
+.ab-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; max-height: 56vh; overflow-y: auto; padding: 2px 2px 8px; }
+.ab-picker-grid .ab-tile { width: auto; }

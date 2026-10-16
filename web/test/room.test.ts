@@ -275,4 +275,49 @@ describe('a room in the browser', () => {
     guest.joinRoom(routeTo(host));
     await until(() => guest.role === 'joined' && guest.people.length === 2, 'the guest');
   });
+
+  it('takes everyone on to another game together (a party), under a new code', async () => {
+    const host = session(hostID, 'Hana');
+    host.hostRoom(world());
+    const firstCode = host.roomCode;
+    const a = session(guestID, 'Gus');
+    const b = session(thirdID, 'Cleo');
+    // Where a moved room is found: the lobby, which here is the host itself.
+    let lookedFor = '';
+    for (const g of [a, b]) {
+      g.findMovedRoom = async (move) => {
+        lookedFor = move.roomCode;
+        return host.room && host.roomCode === move.roomCode ? routeTo(host) : null;
+      };
+      g.joinRoom(routeTo(host));
+    }
+    await until(() => a.role === 'joined' && b.role === 'joined' && host.people.length === 3, 'both guests');
+
+    const next = blankWorld();
+    next.name = 'Second Game';
+    next.id = 'SECOND00-0000-4000-8000-000000000002';
+    expect(host.moveRoomTo(next)).toBe(true);
+    expect(host.role).toBe('hosting');
+    expect(host.world.name).toBe('Second Game');
+    expect(host.roomCode).not.toBe(firstCode);
+    await until(() => a.status.kind === 'reconnecting' || a.world.name === 'Second Game', 'the guest to be told');
+    await until(() => a.world.name === 'Second Game' && a.role === 'joined' && a.status.kind === 'active', 'Gus in the next game', 15000);
+    await until(() => b.world.name === 'Second Game' && b.role === 'joined' && b.status.kind === 'active', 'Cleo in the next game', 15000);
+    expect(lookedFor).toBe(host.roomCode);
+    // Let straight in: they had been let in before.
+    await until(() => host.people.length === 3 && a.people.length === 3, 'everyone together again');
+    expect(host.joinRequests).toEqual([]);
+  });
+
+  it('says a party move is not a hand-over', async () => {
+    const host = session(hostID, 'Hana');
+    host.hostRoom(world());
+    const guest = session(guestID, 'Gus');
+    guest.findMovedRoom = async () => null;
+    guest.joinRoom(routeTo(host));
+    await until(() => guest.role === 'joined', 'the guest');
+    host.moveRoomTo(blankWorld());
+    await until(() => guest.status.kind === 'reconnecting', 'moving');
+    expect((guest.status as { text: string }).text).toBe('Going on to the next game with Hana…');
+  });
 });

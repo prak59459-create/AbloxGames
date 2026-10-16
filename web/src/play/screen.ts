@@ -17,7 +17,7 @@ import { L } from '../i18n';
 import type { RoomRoute } from '../net/client';
 import type { HostMove } from '../net/packets';
 import type { RoomHost } from '../net/roomHost';
-import { PlayHUD, type HUDHost, type WaypointView } from './hud';
+import { PlayHUD, type HUDHost, type HUDLayout, type WaypointView } from './hud';
 import { RoomOverlay } from './roomUI';
 import { PlaySession, gamePeerID } from './session';
 import { PlayView, type RemotePlayer } from './view';
@@ -36,6 +36,8 @@ export interface PlayNetwork {
   /** Take it out of the list again. */
   unlist(): void;
   findMovedRoom(move: HostMove): Promise<RoomRoute | null>;
+  /** A link into the internet room this browser is in (hosting or joined), or null. */
+  inviteLink(): string | null;
 }
 
 /**
@@ -55,10 +57,10 @@ export interface PlayProgress {
   hosted(): string[];
 }
 
-interface PlaySettings { graphics: GraphicsLevel; autoJump: boolean; cameraFollows: boolean; names: boolean; firstPerson: boolean }
+interface PlaySettings { graphics: GraphicsLevel; autoJump: boolean; cameraFollows: boolean; names: boolean; firstPerson: boolean; layout: HUDLayout }
 
 function loadSettings(): PlaySettings {
-  const fallback: PlaySettings = { graphics: defaultGraphics(), autoJump: true, cameraFollows: true, names: true, firstPerson: false };
+  const fallback: PlaySettings = { graphics: defaultGraphics(), autoJump: true, cameraFollows: true, names: true, firstPerson: false, layout: 'normal' };
   try {
     return { ...fallback, ...(JSON.parse(localStorage.getItem('ablox.play') ?? 'null') ?? {}) };
   } catch {
@@ -106,6 +108,11 @@ export class PlayScreen implements HUDHost {
   onExit: () => void = () => {};
   /** Set before the first five seconds pass. */
   progress: PlayProgress | null = null;
+  /** Hosting: the player chose to take everyone on to another game (the page behind picks which). */
+  onTakeEveryone: (() => void) | null = null;
+  /** Joined: the host took the room on to another game; what to count it as. */
+  onNewWorld: ((world: WorldDocument) => PlayProgress | null) | null = null;
+  private worldID: string | null = null;
   /** A block walked into, before the game hears of it; true when it was handled here (the Plaza's doors). */
   onTouch: ((blockID: string) => boolean) | null = null;
   /** What there was to say as the screen closed (the last round's coins), for the page behind it to show. */
@@ -139,6 +146,8 @@ export class PlayScreen implements HUDHost {
     });
     this.view.preferFirstPerson = this.settingsState.firstPerson;
     this.hud = new PlayHUD(container, this.session, this);
+    this.hud.setLayout(this.settingsState.layout);
+    if (begin.kind === 'solo') this.worldID = world.id;
     this.room = new RoomOverlay(this.hud.root, this.session, {
       leave: () => this.leave(),
       roomTitle: () => (begin.kind === 'join' ? begin.title : this.session.world.name),
@@ -188,6 +197,27 @@ export class PlayScreen implements HUDHost {
     this.say(this.progress.roundOver(score, completed));
   }
 
+  /** Counting starts again, for another game. */
+  private newGame(progress: PlayProgress | null): void {
+    this.progress = progress;
+    this.countedStart = false;
+    this.countedTogether = false;
+    this.bankedThisRound = false;
+    this.announcementSeen = null;
+  }
+
+  /** A party: everyone here goes on to `world` together, this browser still the host. */
+  moveEveryoneTo(world: WorldDocument, progress: PlayProgress | null): boolean {
+    if (!this.canTakeEveryone()) return false;
+    this.bankCoins(false);
+    this.sound.reset();
+    if (!this.session.moveRoomTo(world)) return false;
+    this.newGame(progress);
+    this.worldID = world.id;
+    this.hud.showToast(L('Everyone is coming to {}', world.name), 3);
+    return true;
+  }
+
   private say(lines: string[] | undefined): void {
     if (!lines?.length || this.disposed) return;
     if (this.leaving) { this.onParting(lines); return; }
@@ -206,6 +236,11 @@ export class PlayScreen implements HUDHost {
       this.sound.prepare(s.world);
       this.rosterSeen = null;
       this.musicKey = '';
+      // A different game, not the same one again after a reconnect: counted as a game of its own.
+      if (s.role !== 'offline' && s.world.id !== this.worldID) {
+        if (this.worldID !== null) this.newGame(this.onNewWorld?.(s.world) ?? this.progress);
+        this.worldID = s.world.id;
+      }
     }
     const scripted = s.scripted;
     this.view.camera = scripted.camera;
@@ -376,6 +411,16 @@ export class PlayScreen implements HUDHost {
     this.onExit();
   }
 
+  inviteLink(): string | null {
+    return this.session.isInRoom ? this.network?.inviteLink() ?? null : null;
+  }
+
+  canTakeEveryone(): boolean {
+    return !!this.onTakeEveryone && !!this.network?.allowsRooms && this.session.role === 'hosting' && !!this.session.room;
+  }
+
+  takeEveryone(): void { if (this.canTakeEveryone()) this.onTakeEveryone?.(); }
+
   canOpenRoom(): boolean {
     return !!this.network?.allowsRooms && this.session.role === 'hosting' && !this.session.room;
   }
@@ -460,6 +505,7 @@ export class PlayScreen implements HUDHost {
       case 'autoJump': this.view.options.autoJump = Boolean(value); this.change({ autoJump: Boolean(value) }); break;
       case 'cameraFollows': this.view.options.cameraFollows = Boolean(value); this.change({ cameraFollows: Boolean(value) }); break;
       case 'names': this.view.scene.overlays.showNames = Boolean(value); this.change({ names: Boolean(value) }); break;
+      case 'layout': this.hud.setLayout(value as HUDLayout); this.change({ layout: value as HUDLayout }); break;
     }
   }
 
@@ -467,7 +513,7 @@ export class PlayScreen implements HUDHost {
     return {
       effects: this.sound.effectsVolume, music: this.sound.musicVolume, sound: this.sound.soundEnabled, readLines: this.sound.readsLines,
       graphics: this.view.options.level, autoJump: this.view.options.autoJump, cameraFollows: this.view.options.cameraFollows,
-      names: this.view.scene.overlays.showNames,
+      names: this.view.scene.overlays.showNames, layout: this.settingsState.layout,
     };
   }
 

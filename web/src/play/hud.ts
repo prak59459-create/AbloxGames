@@ -112,11 +112,20 @@ export interface HUDHost {
   setFire(held: boolean): void;
   setFirstPerson(on: boolean): void;
   firstPerson(): boolean;
-  setting(name: 'effects' | 'music' | 'sound' | 'readLines' | 'graphics' | 'autoJump' | 'cameraFollows' | 'names', value: number | boolean | string): void;
-  settings(): { effects: number; music: number; sound: boolean; readLines: boolean; graphics: string; autoJump: boolean; cameraFollows: boolean; names: boolean };
+  setting(name: 'effects' | 'music' | 'sound' | 'readLines' | 'graphics' | 'autoJump' | 'cameraFollows' | 'names' | 'layout', value: number | boolean | string): void;
+  settings(): { effects: number; music: number; sound: boolean; readLines: boolean; graphics: string; autoJump: boolean; cameraFollows: boolean; names: boolean; layout: HUDLayout };
   /** Keyboard focus left the game for a text box, or came back. */
   typing(on: boolean): void;
+  /** A link that brings a friend into this internet room, or null when there is no room to bring them to. */
+  inviteLink(): string | null;
+  /** Hosting a room: everyone can be taken on to another game together. */
+  canTakeEveryone(): boolean;
+  takeEveryone(): void;
 }
+
+/** How much the screen shows: big and few buttons, the usual, or small with the numbers. */
+export type HUDLayout = 'easy' | 'normal' | 'pro';
+export const hudLayouts: HUDLayout[] = ['easy', 'normal', 'pro'];
 
 export interface WaypointView { x: number; y: number; onScreen: boolean; angle: number; distance: number; label: string }
 
@@ -173,6 +182,10 @@ export class PlayHUD {
   private menuScrim: HTMLDivElement;
   private hint: HTMLDivElement;
   private toast: HTMLDivElement | null = null;
+  private fps: HTMLDivElement;
+  private frames: number[] = [];
+  private fpsShown = 0;
+  private layout: HUDLayout = 'normal';
 
   private showPlayers = false;
   private showEmotes = false;
@@ -230,6 +243,9 @@ export class PlayHUD {
     });
     this.emotesButton = this.roundButton('', L('Emotes'), () => { this.showEmotes = !this.showEmotes; this.showPlayers = false; this.render(); }, 'hud-emote');
     this.playersButton = this.roundButton('', L('Scoreboard'), () => { this.showPlayers = !this.showPlayers; this.showEmotes = false; this.render(); }, 'hud-players');
+    // Easy shows fewer buttons: these two are for players who want them.
+    this.viewButton.classList.add('ab-more');
+    this.playersButton.classList.add('ab-more');
     this.roundButton('', L('Take a picture'), () => this.host.takePicture(), 'hud-camera');
     this.chatButton = this.roundButton('', L('Chat'), () => this.toggleChat(), 'hud-chat');
     this.chatBadge = el('span', 'ab-badge ab-hidden', this.chatButton);
@@ -310,6 +326,8 @@ export class PlayHUD {
     for (const line of [L('W A S D: walk · Space: jump · Shift: run'), L('Drag: look · Wheel: zoom · T: chat · F: fire · V: view')]) el('div', '', this.hint, line);
     setTimeout(() => this.hint.classList.add('ab-hidden'), 12000);
 
+    // Pro: frames a second, and the ping when in a room.
+    this.fps = el('div', 'ab-fps ab-glass', r);
     this.fade = el('div', 'ab-fade', r);
     this.menuScrim = el('div', 'ab-scrim ab-hidden', r);
     this.menuScrim.onclick = () => this.setMenu(false);
@@ -369,6 +387,25 @@ export class PlayHUD {
 
   get isMenuOpen(): boolean { return this.menuOpen; }
 
+  /** Easy, normal or pro: the buttons' size and how much is on screen. */
+  setLayout(layout: HUDLayout): void {
+    this.layout = hudLayouts.includes(layout) ? layout : 'normal';
+    for (const l of hudLayouts) this.root.classList.toggle('ab-hud-' + l, l === this.layout);
+    // Easy keeps the keys on screen; pro does without them.
+    if (this.layout === 'easy') this.hint.classList.toggle('ab-hidden', this.coarse);
+    if (this.layout === 'pro') this.hint.classList.add('ab-hidden');
+  }
+
+  private countFrame(): void {
+    const now = performance.now();
+    this.frames.push(now);
+    while (this.frames.length && now - this.frames[0] > 1000) this.frames.shift();
+    if (now - this.fpsShown < 500) return;
+    this.fpsShown = now;
+    const ping = this.session.pingMilliseconds;
+    this.fps.textContent = `${this.frames.length} FPS` + (ping !== null ? ` · ${Math.round(ping)} ms` : '');
+  }
+
   // MARK: Chat
 
   private toggleChat(): void {
@@ -392,6 +429,21 @@ export class PlayHUD {
   private note(text: string): void {
     this.chatNote.textContent = text;
     this.chatNote.classList.remove('ab-hidden');
+  }
+
+  /** The room's link, to a friend: shared where the device can, copied where it cannot. */
+  private async invite(link: string): Promise<void> {
+    const text = L('Come and play {} with me in Ablox!', this.session.world.name);
+    try {
+      if (typeof navigator.share === 'function' && this.coarse) {
+        await navigator.share({ title: 'Ablox', text, url: link });
+        return;
+      }
+      await navigator.clipboard.writeText(`${text} ${link}`);
+      this.showToast(L('Invite link copied. Send it to a friend who has Ablox.'), 4);
+    } catch {
+      this.showToast(link, 8);
+    }
   }
 
   // MARK: Menu
@@ -430,6 +482,11 @@ export class PlayHUD {
     if (this.host.canOpenRoom()) {
       item('secondary', 'friends', L('Let friends join over the internet'), () => { this.host.openRoom(); this.setMenu(false); });
     }
+    if (this.host.canTakeEveryone()) {
+      item('secondary', 'continue', L('Take everyone to another game'), () => { this.setMenu(false); this.host.takeEveryone(); });
+    }
+    const link = this.host.inviteLink();
+    if (link) item('secondary', 'bell', L('Invite a friend'), () => void this.invite(link));
     m.appendChild(el('hr'));
 
     const s = this.host.settings();
@@ -475,6 +532,7 @@ export class PlayHUD {
     toggle(L('Sound'), s.sound, (v) => this.host.setting('sound', v));
     range(L('Sound effects'), s.effects, (v) => this.host.setting('effects', v));
     range(L('Music'), s.music, (v) => this.host.setting('music', v));
+    segments(L('Screen layout'), [['easy', L('Easy')], ['normal', L('Normal')], ['pro', L('Pro')]], s.layout, (v) => this.host.setting('layout', v));
     segments(L('Graphics'), [['low', L('Low')], ['medium', L('Medium')], ['high', L('High')]], s.graphics, (v) => this.host.setting('graphics', v));
     toggle(L('Jump up steps by myself'), s.autoJump, (v) => this.host.setting('autoJump', v));
     toggle(L('Camera follows behind me'), s.cameraFollows, (v) => this.host.setting('cameraFollows', v));
@@ -932,6 +990,7 @@ export class PlayHUD {
 
   /** The parts that move with time or the camera. */
   frame(waypoint: WaypointView | null): void {
+    if (this.layout === 'pro') this.countFrame();
     const scripted = this.session.scripted;
     if (scripted.countdown) {
       const left = Math.max(0, (this.countdownEnds - performance.now()) / 1000);

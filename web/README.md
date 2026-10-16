@@ -43,6 +43,13 @@ doors with game covers on them (today's pick, what you played last, the most
 popular), and doors to your closet and the whole list. Walking into a door
 opens what is behind it.
 
+While playing, the menu has a **screen layout** (easy: big buttons and fewer
+of them; normal; pro: small buttons with frames a second and ping), **Invite
+a friend** (a `#join/<room>` link) in an internet room, and, for a host,
+**Take everyone to another game**: a party. The room tells everyone it is
+moving to this host under a new code — the message a hand-over sends — and
+opens the next game there, so iPads in the room come along too.
+
 Coins, missions, levels and badges follow the iPad's rules (`PlayerProgress`,
 `DailyMissions`, `Economy`): a coin a point and a bonus for finishing a round,
 10 for the first visit to a game, play time counted only while the game is in

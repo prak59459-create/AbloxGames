@@ -77,6 +77,8 @@ export class InternetRooms {
   get allowsInternetPlay(): boolean { return this.settings.allowInternetPlay && this.settings.config.isUsable; }
   get isReady(): boolean { return this.state.kind === 'ready'; }
   get hostedRoom(): string | null { return this.hosted?.key ?? null; }
+  /** The room last joined from the list (or followed to). */
+  get joinedRoom(): string | null { return this.joined; }
   get cloudSettings(): CloudSettings { return this.settings; }
 
   /** Applies Settings → Family → Internet. Switching it off ends anything open. */

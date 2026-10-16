@@ -192,6 +192,14 @@ function choosePasscode(lock: FamilyLock, done: () => void): void {
   });
 }
 
+/** What the play screen keeps (`ablox.play`): read and changed here too. */
+function readPlaySettings(): Record<string, unknown> {
+  try { return JSON.parse(localStorage.getItem('ablox.play') ?? '{}') ?? {}; } catch { return {}; }
+}
+function writePlaySettings(v: Record<string, unknown>): void {
+  try { localStorage.setItem('ablox.play', JSON.stringify(v)); } catch { /* private mode */ }
+}
+
 export interface SettingsHooks {
   profile: () => AvatarProfile;
   saveProfile: (p: AvatarProfile) => void;
@@ -229,6 +237,15 @@ export function settingsSheet(lock: FamilyLock, internet: InternetRooms, hooks: 
       const button = el('button', key === language() ? 'on' : '', seg, text);
       button.onclick = () => { setLanguage(key); hooks.redraw(); draw(); };
     }
+
+    el('h3', '', b, L('Screen layout'));
+    const layouts = el('div', 'ab-seg big', b);
+    const play = readPlaySettings();
+    for (const [key, text] of [['easy', L('Easy')], ['normal', L('Normal')], ['pro', L('Pro')]] as const) {
+      const button = el('button', key === (play.layout ?? 'normal') ? 'on' : '', layouts, text);
+      button.onclick = () => { writePlaySettings({ ...readPlaySettings(), layout: key }); draw(); };
+    }
+    el('small', 'ab-pad-note', b, L('Easy: big buttons and fewer of them. Pro: small buttons, with frames a second and ping.'));
 
     el('h3', '', b, L('Family'));
     const family = el('div', 'ab-row', b);

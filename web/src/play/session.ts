@@ -419,6 +419,27 @@ export class PlaySession {
     return true;
   }
 
+  /**
+   * A party: everyone here goes on to another game together. The room says
+   * it is moving to this host under a new code (the message a hand-over
+   * sends, so iPads follow too), and the new game opens here under it.
+   */
+  moveRoomTo(world: WorldDocument): boolean {
+    const room = this.roomHost;
+    if (this.role !== 'hosting' || !room) return false;
+    const code = RoomCode.generate();
+    const members = this.people.map((p) => p.peerID);
+    const options = { roomCode: code, capacity: room.capacity, needsApproval: this.roomState.needsApproval, alreadyApproved: members };
+    room.handOver({
+      newHost: this.localPeerID, newHostName: this.profile.displayName, roomCode: code, isPublic: true,
+      capacity: room.capacity, needsApproval: options.needsApproval, members,
+    });
+    // The old room closes itself once the news has gone out.
+    this.roomHost = null;
+    this.hostRoom(world, options);
+    return true;
+  }
+
   get canHandOver(): boolean {
     return this.role === 'hosting' && this.roomHost !== null && this.people.some((p) => p.peerID !== this.localPeerID);
   }
@@ -429,6 +450,8 @@ export class PlaySession {
     this.roomMove = move;
     const world = this.world;
     const old = this.client;
+    // The host moving its own room on to the next game: a party, not a hand-over.
+    const party = !!old && old.hostPeerID === move.newHost;
     this.client = null;
     old?.disconnect();
     this.stopReconnecting();
@@ -443,7 +466,7 @@ export class PlaySession {
       this.changed();
       return;
     }
-    this.status = { kind: 'reconnecting', text: L("Moving to {}'s iPad…", move.newHostName) };
+    this.status = { kind: 'reconnecting', text: party ? L('Going on to the next game with {}…', move.newHostName) : L("Moving to {}'s iPad…", move.newHostName) };
     this.changed();
     const deadline = Date.now() + 25_000;
     while (serial === this.moveSerial && Date.now() < deadline) {
@@ -460,7 +483,7 @@ export class PlaySession {
     }
     if (serial !== this.moveSerial) return;
     this.roomMove = null;
-    this.status = { kind: 'error', text: L("Couldn't find the room on {}'s iPad.", move.newHostName) };
+    this.status = { kind: 'error', text: party ? L("Couldn't find {}'s next game.", move.newHostName) : L("Couldn't find the room on {}'s iPad.", move.newHostName) };
     this.role = 'offline';
     this.changed();
   }

@@ -140,5 +140,19 @@
   "Liked": "いいね済み",
   "The Plaza could not be opened.": "プラザを開けませんでした。",
   "Create": "つくる",
-  "Details": "くわしく"
+  "Details": "くわしく",
+  "Going on to the next game with {}…": "{}といっしょに次のゲームへ移動中…",
+  "Couldn't find {}'s next game.": "{}の次のゲームが見つかりませんでした。",
+  "Take everyone to another game": "みんなで別のゲームへ行く",
+  "Invite a friend": "友だちを招待",
+  "Screen layout": "画面のレイアウト",
+  "Easy": "かんたん",
+  "Normal": "ふつう",
+  "Pro": "プロ",
+  "Come and play {} with me in Ablox!": "Ablox でいっしょに「{}」を遊ぼう！",
+  "Invite link copied. Send it to a friend who has Ablox.": "招待リンクをコピーしました。Ablox を持っている友だちに送ってね。",
+  "Everyone is coming to {}": "みんなで「{}」へ！",
+  "Everyone in your room comes along — on iPads too.": "ルームのみんながいっしょに来ます（iPad の人も）。",
+  "Getting {} ready…": "「{}」を準備中…",
+  "Easy: big buttons and fewer of them. Pro: small buttons, with frames a second and ping.": "かんたん：大きなボタンで、数は少なめ。プロ：小さなボタンで、FPS と ping も表示。"
 }

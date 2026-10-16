@@ -8,7 +8,7 @@ const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-r
 /** Coins from `from` to the coin count at the top. */
 export function coinBurst(from: HTMLElement, count = 9): void {
   if (reduced()) return;
-  const target = document.querySelector('.ab-top .ab-pill.coins img') as HTMLElement | null;
+  const target = document.querySelector('.ab-bar .ab-pill.coins img') as HTMLElement | null;
   const a = from.getBoundingClientRect();
   const b = target?.getBoundingClientRect() ?? { left: innerWidth - 80, top: 20, width: 24, height: 24 };
   const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2;

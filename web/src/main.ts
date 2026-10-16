@@ -8,7 +8,7 @@ import './app/app.css';
 import './app/next.css';
 import { loadProfile, localPeerID, saveProfile } from './app/identity';
 import { FamilyLock } from './app/family';
-import { askGrownUp, el, familySheet, settingsSheet } from './app/sheets';
+import { askGrownUp, el, familySheet, openSheet, settingsSheet } from './app/sheets';
 import { PlayerRecord } from './app/player';
 import { HomePage } from './app/home';
 import { GamesPage, gameFor, roomsFor } from './app/games';
@@ -22,7 +22,7 @@ import { roomIsCompatible, roomIsFull } from './core/model/cloud';
 import { PlayerLevel } from './core/model/progress';
 import type { AvatarProfile } from './core/model/avatar';
 import type { WorldDocument } from './core/model/world';
-import { coverURL, fileURL, loadCatalogue, loadGame, type GameListing } from './net/catalogue';
+import { coverURL, fileURL, loadCatalogue, loadGame, stableGameID, type GameListing } from './net/catalogue';
 import { InternetRooms } from './net/internet';
 import { SoundPlayer } from './engine/audio';
 import { PlayScreen, type PlayNetwork, type PlayProgress, type PlayStart } from './play/screen';
@@ -49,6 +49,10 @@ const network: PlayNetwork = {
   list: (room, world, who) => internet.host(room, world, who),
   unlist: () => internet.stopHosting(),
   findMovedRoom: (move) => internet.findMovedRoom(move),
+  inviteLink: () => {
+    const id = internet.hostedRoom ?? internet.joinedRoom;
+    return id ? `${location.origin}${location.pathname}#join/${id}` : null;
+  },
 };
 
 let roomWatchers = 0;
@@ -74,7 +78,7 @@ function watchRooms(): () => void {
 
 type Tab = 'home' | 'games' | 'me' | 'create';
 const shell = el('div', 'ab-shell', app);
-const top = el('header', 'ab-top', shell);
+const top = el('header', 'ab-bar', shell);
 const view = el('main', 'ab-view', shell);
 const dock = el('nav', 'ab-dock', shell);
 dock.setAttribute('aria-label', 'Ablox');
@@ -372,9 +376,20 @@ const plazaProgress: PlayProgress = {
   emote: () => record.emote(), picture: () => record.picture(), hosted: () => record.hosted(),
 };
 
+/** The game a world is, when it is one from the list. */
+function listingFor(world: WorldDocument): GameListing | undefined {
+  return games.find((g) => stableGameID(g.id) === world.id) ?? games.find((g) => g.title === world.name);
+}
+
 function startScreen(start: PlayStart, progress: PlayProgress | null): PlayScreen {
   const screen = new PlayScreen(stage, start, localPeerID(), profile, sound, network);
   screen.progress = progress;
+  screen.onTakeEveryone = () => pickNextGame(screen);
+  // A guest whose host took the room on to another game: that game is counted now.
+  screen.onNewWorld = (world) => {
+    const g = listingFor(world);
+    return progressFor(g?.id ?? 'room:' + world.id, g?.title ?? world.name);
+  };
   screen.onParting = (lines) => toast(lines.join('  ·  '), lines.some((l) => /coin|コイン/i.test(l)) ? 'coins' : 'plain');
   screen.onExit = () => {
     playing = null;
@@ -383,6 +398,51 @@ function startScreen(start: PlayStart, progress: PlayProgress | null): PlayScree
   };
   playing = screen;
   return screen;
+}
+
+/** A party: the host picks the next game, and everyone in the room goes there together. */
+function pickNextGame(screen: PlayScreen): void {
+  const sheet = openSheet(L('Take everyone to another game'), () => screen.setMenuOpen(false));
+  screen.setMenuOpen(true);
+  sheet.body.parentElement?.classList.add('ab-picker');
+  el('p', 'ab-note', sheet.body, L('Everyone in your room comes along — on iPads too.'));
+  const search = el('label', 'ab-search small', sheet.body);
+  el('span', '', search, '🔍');
+  const input = el('input', '', search);
+  input.type = 'search';
+  input.placeholder = L('Search games');
+  input.onfocus = () => screen.typing(true);
+  input.onblur = () => screen.typing(false);
+  const grid = el('div', 'ab-picker-grid', sheet.body);
+  const current = screen.session.world.id;
+  const draw = () => {
+    grid.innerHTML = '';
+    const q = input.value.trim().toLowerCase();
+    const list = games.filter((g) => g.maxPlayers > 1 && stableGameID(g.id) !== current
+      && (!q || [g.title, g.summary, ...g.tags].some((t) => t.toLowerCase().includes(q)))).slice(0, 60);
+    if (!list.length) { el('div', 'ab-note', grid, L('No games match that.')); return; }
+    for (const g of list) {
+      const tile = el('button', 'ab-tile', grid);
+      const cover = el('div', 'cover', tile);
+      const url = coverURL(g);
+      if (url) img(url, cover, g.title);
+      el('span', 'plays', cover, L('Up to {} players', g.maxPlayers));
+      el('b', '', tile, g.title);
+      tile.onclick = async () => {
+        sheet.close();
+        screen.hud.showToast(L('Getting {} ready…', g.title), 10);
+        try {
+          const world = await loadGame(g);
+          if (playing !== screen) return;
+          if (screen.moveEveryoneTo(world, progressFor(g.id, g.title))) history.replaceState(null, '', `#host/${g.id}`);
+        } catch (e) {
+          screen.hud.showToast(L('That game could not be opened.') + ' ' + String((e as Error)?.message ?? e), 5);
+        }
+      };
+    }
+  };
+  input.oninput = draw;
+  draw();
 }
 
 function loadingCard(title: string, iconName = 'continue'): { fill: HTMLElement; note: HTMLElement; box: HTMLElement } {

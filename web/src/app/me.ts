@@ -315,7 +315,7 @@ export class MePage implements ShellPage {
     const r = this.ctx.record;
     const stats = r.stats();
     const earned = earnedBadges(stats);
-    const top = el('div', 'ab-badge-summary', body);
+    const top = el('div', 'ab-medal-summary', body);
     el('b', '', top, L('{} of {} badges', earned.length, achievements.length));
     meter(top, earned.length / achievements.length);
 
@@ -335,11 +335,11 @@ export class MePage implements ShellPage {
     }
     if (!earned.length) el('div', 'ab-note', titles, L('Earn a badge to wear its title.'));
 
-    const grid = el('div', 'ab-badges', body);
+    const grid = el('div', 'ab-medals', body);
     for (const a of achievements) {
       const got = isEarned(a, stats);
       const [c, t] = badgeProgress(a, stats);
-      const b = el('div', 'ab-badge' + (got ? ' got' : ''), grid);
+      const b = el('div', 'ab-medal' + (got ? ' got' : ''), grid);
       el('div', 'emoji', b, badges[a].icon);
       el('b', '', b, badgeTitle(a));
       el('small', '', b, badgeDetail(a));
