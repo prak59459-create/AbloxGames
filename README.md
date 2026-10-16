@@ -6,6 +6,12 @@
 > The public game list for Ablox: 80 games, each a world plus `.absc` scripts.
 > The app reads `index.json` straight from this repository.
 
+## ブラウザで遊ぶ
+
+**https://prak59459-create.github.io/AbloxGames/** — iPad がなくても、ブラウザで同じゲームが遊べます。
+インターネットルームを使えば、iPad ともほかのブラウザとも一緒に遊べます（最初はオフ。設定 → ファミリーで、おとなの人がオンにします）。
+しくみは [web/README.md](web/README.md)。
+
 ## 遊び方
 
 1. iPad の Ablox で **設定 → ゲーム一覧** を開く
