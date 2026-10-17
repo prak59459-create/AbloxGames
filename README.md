@@ -1,9 +1,9 @@
 # Ablox Games
 
 [Ablox](https://github.com/prak59459-create/Ablox) の「ゲーム」タブが読むゲーム一覧です。
-136本のゲームが入っています。どれも Ablox Studio で開いて、そのまま改造できます。
+137本のゲームが入っています。どれも Ablox Studio で開いて、そのまま改造できます。
 
-> The public game list for Ablox: 136 games, each a world plus `.absc` scripts.
+> The public game list for Ablox: 137 games, each a world plus `.absc` scripts.
 > The app reads `index.json` straight from this repository.
 
 ## 遊び方
