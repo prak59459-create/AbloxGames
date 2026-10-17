@@ -9,10 +9,12 @@ import { el, openSheet } from './sheets';
 
 export const AI = {
   endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-  model: 'llama-3.1-8b-instant',
-  /** Tried in order: the next one only when the provider no longer has a model (404). */
-  models: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
-  maximumTokens: 260,
+  model: 'qwen/qwen3.8-27b',
+  /** Tried in order: the next one only when the provider no longer has a model (404);
+   *  then a chat model is picked from the account's own list (modelsURL). */
+  models: ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'llama-3.1-8b-instant'],
+  modelsURL: 'https://api.groq.com/openai/v1/models',
+  maximumTokens: 400,
   historyTurns: 2,
   maximumQuestionLength: 300,
   cooldownSeconds: 4,
@@ -93,7 +95,7 @@ export function failureMessage(f: Failure): string {
 }
 
 export function clean(text: string): string {
-  let t = text.trim();
+  let t = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   for (const mark of ['**', '__', '```', '##', '#']) t = t.split(mark).join('');
   t = t.replace(/https?:\/\/\S+/g, '').trim();
   return [...t].length > 700 ? [...t].slice(0, 700).join('') + '…' : t;
@@ -205,11 +207,34 @@ function coolingDown(now = Date.now() / 1000): boolean {
   return now - readUsage().last < AI.cooldownSeconds;
 }
 
+/** A chat model from the provider's list: one we know, else the first that is not speech, a guard or Arabic-only. */
+export function chooseModel(list: unknown): string | null {
+  const data = (list as { data?: { id?: unknown }[] } | null)?.data;
+  if (!Array.isArray(data)) return null;
+  const ids = data.map((m) => m?.id).filter((id): id is string => typeof id === 'string');
+  const known = AI.models.find((m) => ids.includes(m));
+  if (known) return known;
+  const notChat = ['whisper', 'orpheus', 'tts', 'guard', 'embed', 'allam', 'vision'];
+  return [...ids].sort().find((id) => !notChat.some((w) => id.toLowerCase().includes(w))) ?? null;
+}
+
+async function listedModel(key: string, fetcher: typeof fetch): Promise<string | null> {
+  try {
+    const r = await fetcher(AI.modelsURL, { headers: { Authorization: `Bearer ${key}` } });
+    return r.status === 200 ? chooseModel(await r.json()) : null;
+  } catch { return null; }
+}
+
 export async function askAI(question: string, history: Turn[], fetcher: typeof fetch = fetch): Promise<{ ok: true; text: string } | { ok: false; failure: Failure }> {
   const key = readKey();
   if (!key) return { ok: false, failure: 'badKey' };
   let result: { ok: true; text: string } | { ok: false; failure: Failure } = { ok: false, failure: 'unreadable' };
-  for (const model of AI.models) {
+  let last: string | null = null;
+  try { last = store()?.getItem('ablox.ai.model') ?? null; } catch { last = null; }
+  const queue: string[] = [...new Set([...(last ? [last] : []), ...AI.models])];
+  let readList = false;
+  for (let i = 0; i < queue.length; i++) {
+    const model = queue[i];
     let status: number;
     try {
       const response = await fetcher(AI.endpoint, {
@@ -225,7 +250,15 @@ export async function askAI(question: string, history: Turn[], fetcher: typeof f
       return { ok: false, failure: 'offline' };
     }
     // A model the provider no longer has: try the next one.
-    if (status !== 404 && status !== 400) return result;
+    if (status !== 404 && status !== 400) {
+      if (result.ok) { try { store()?.setItem('ablox.ai.model', model); } catch { /* private mode */ } }
+      return result;
+    }
+    if (i === queue.length - 1 && !readList) {
+      readList = true;
+      const found = await listedModel(key, fetcher);
+      if (found && !queue.includes(found)) queue.push(found);
+    }
   }
   return result;
 }

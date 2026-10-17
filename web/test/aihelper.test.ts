@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { AI, askAI, check, clean, faqAnswer, isPlausibleKey, looksPersonal, questionsLeft, readSettings, reply, requestBody,
+import { AI, askAI, check, chooseModel, clean, faqAnswer, isPlausibleKey, looksPersonal, questionsLeft, readSettings, reply, requestBody,
   saveKey, SUGGESTIONS, writeSettings } from '../src/app/aihelper';
 import { useLanguageForTests } from '../src/i18n';
 
@@ -75,11 +75,16 @@ describe('AI helper (as AbloxCore/AIHelper.swift)', () => {
     expect(questionsLeft(5)).toBe(5);
     const tried: string[] = [];
     const gone = (async (_url: string, init: RequestInit) => {
-      tried.push(JSON.parse(String(init.body)).model);
-      return tried.length === 1 ? new Response('{}', { status: 404 }) : new Response(JSON.stringify({ choices: [{ message: { content: 'Hi.' } }] }), { status: 200 });
+      if (!init.body) return new Response(JSON.stringify({ data: [{ id: 'whisper-large-v3' }, { id: 'new-chat-9b' }] }), { status: 200 });
+      const model = JSON.parse(String(init.body)).model;
+      tried.push(model);
+      return model === 'new-chat-9b' ? new Response(JSON.stringify({ choices: [{ message: { content: '<think>x</think>Hi.' } }] }), { status: 200 }) : new Response('{}', { status: 404 });
     }) as unknown as typeof fetch;
+    localStorage.removeItem('ablox.ai.model');
     expect(await askAI('hello', [], gone)).toEqual({ ok: true, text: 'Hi.' });
-    expect(tried).toEqual(AI.models);
+    expect(tried.slice(-AI.models.length - 1)).toEqual([...AI.models, 'new-chat-9b']);
+    expect(localStorage.getItem('ablox.ai.model')).toBe('new-chat-9b');
+    expect(chooseModel({ data: [{ id: 'openai/gpt-oss-20b' }] })).toBe('openai/gpt-oss-20b');
     const offline = (async () => { throw new TypeError('fetch failed'); }) as unknown as typeof fetch;
     expect(await askAI('x', [], offline)).toEqual({ ok: false, failure: 'offline' });
   });
