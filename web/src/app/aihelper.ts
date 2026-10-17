@@ -9,7 +9,9 @@ import { el, openSheet } from './sheets';
 
 export const AI = {
   endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-  model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  model: 'llama-3.1-8b-instant',
+  /** Tried in order: the next one only when the provider no longer has a model (404). */
+  models: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
   maximumTokens: 260,
   historyTurns: 2,
   maximumQuestionLength: 300,
@@ -68,14 +70,14 @@ export function systemPrompt(japanese: boolean): string {
     + 'Rules: only help with using Ablox and playing its games. Never ask for or repeat names, addresses, schools, phone numbers or photos. Nothing scary, violent or grown-up. If unsure, say "ask a grown-up". Never send anyone to other apps or websites.';
 }
 
-export function requestBody(question: string, history: Turn[], japanese: boolean): string {
+export function requestBody(question: string, history: Turn[], japanese: boolean, model: string = AI.model): string {
   const messages: { role: string; content: string }[] = [{ role: 'system', content: systemPrompt(japanese) }];
   for (const t of history.slice(-AI.historyTurns)) {
     messages.push({ role: 'user', content: t.question.slice(0, AI.maximumQuestionLength) });
     messages.push({ role: 'assistant', content: t.answer.slice(0, 600) });
   }
   messages.push({ role: 'user', content: question.slice(0, AI.maximumQuestionLength) });
-  return JSON.stringify({ model: AI.model, messages, max_tokens: AI.maximumTokens, temperature: 0.3 });
+  return JSON.stringify({ model, messages, max_tokens: AI.maximumTokens, temperature: 0.3 });
 }
 
 export type Failure = 'badKey' | 'busy' | 'offline' | 'unreadable' | { server: number };
@@ -206,18 +208,26 @@ function coolingDown(now = Date.now() / 1000): boolean {
 export async function askAI(question: string, history: Turn[], fetcher: typeof fetch = fetch): Promise<{ ok: true; text: string } | { ok: false; failure: Failure }> {
   const key = readKey();
   if (!key) return { ok: false, failure: 'badKey' };
-  try {
-    const response = await fetcher(AI.endpoint, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: requestBody(question, history, language() === 'ja'),
-    });
-    let body: unknown = null;
-    try { body = await response.json(); } catch { body = null; }
-    return reply(response.status, body);
-  } catch {
-    return { ok: false, failure: 'offline' };
+  let result: { ok: true; text: string } | { ok: false; failure: Failure } = { ok: false, failure: 'unreadable' };
+  for (const model of AI.models) {
+    let status: number;
+    try {
+      const response = await fetcher(AI.endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: requestBody(question, history, language() === 'ja', model),
+      });
+      status = response.status;
+      let body: unknown = null;
+      try { body = await response.json(); } catch { body = null; }
+      result = reply(status, body);
+    } catch {
+      return { ok: false, failure: 'offline' };
+    }
+    // A model the provider no longer has: try the next one.
+    if (status !== 404 && status !== 400) return result;
   }
+  return result;
 }
 
 // MARK: The sheets

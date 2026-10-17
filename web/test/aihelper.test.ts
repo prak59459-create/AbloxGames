@@ -73,6 +73,13 @@ describe('AI helper (as AbloxCore/AIHelper.swift)', () => {
     expect(await askAI('How do I host?', [], fake)).toEqual({ ok: true, text: 'Tap Host.' });
     expect((sent?.headers as Record<string, string>).Authorization).toBe('Bearer ' + 'k'.repeat(30));
     expect(questionsLeft(5)).toBe(5);
+    const tried: string[] = [];
+    const gone = (async (_url: string, init: RequestInit) => {
+      tried.push(JSON.parse(String(init.body)).model);
+      return tried.length === 1 ? new Response('{}', { status: 404 }) : new Response(JSON.stringify({ choices: [{ message: { content: 'Hi.' } }] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(await askAI('hello', [], gone)).toEqual({ ok: true, text: 'Hi.' });
+    expect(tried).toEqual(AI.models);
     const offline = (async () => { throw new TypeError('fetch failed'); }) as unknown as typeof fetch;
     expect(await askAI('x', [], offline)).toEqual({ ok: false, failure: 'offline' });
   });
