@@ -4,8 +4,9 @@
 on hit(victim, attacker, damage)
   if attacker == nil then return damage end
   if attacker.is_npc then
-    -- BOT は同じモードのプレイヤーだけをうつ
-    if victim.is_npc or victim.mode != attacker.mode then return 0 end
+    -- BOT は同じモードの相手だけをうつ。乱戦の BOT どうしは 本物のプレイヤーのように うち合う
+    if victim.mode != attacker.mode then return 0 end
+    if victim.is_npc and not (ffa_bot(victim) and ffa_bot(attacker)) then return 0 end
     return damage
   end
   if victim.is_npc then
@@ -27,9 +28,11 @@ on death(victim, killer)
       feed_add(killer.name + " 🔫 BOT")
     end
     if victim.bot then duel_bot_died(victim) end
+    if ffa_bot(victim) then ffa_death(victim, killer) end
     if victim.dummy then dummy_died(victim) end
     return
   end
+  slide_stop(victim)
   victim.deaths = victim.deaths + 1
   victim.streak = 0
   if killer != nil and not killer.is_npc and killer.id != victim.id then
@@ -49,7 +52,7 @@ on death(victim, killer)
       end
     end
   elif killer != nil and killer.is_npc then
-    feed_add("BOT 🔫 " + victim.name)
+    feed_add(killer.name + " 🔫 " + victim.name)
   end
   let m = victim.mode
   if m == "team" then team_death(victim, killer)

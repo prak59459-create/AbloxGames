@@ -2,16 +2,17 @@
 
 -- MARK: 武器（slot: primary 主武器 / secondary 副武器 / melee 近接）
 -- price: 🔑カギの値段（0 ははじめから持っている）/ level: 買えるレベル
+-- spread: 弾の ブレ（2026-10-19 に だいたい 3分の2 に 弱めた）
 let WEAPONS = [
-  {id: "ar", name: "アサルトライフル", slot: "primary", model: "rifle", damage: 22, rate: 8, range: 150, ammo: 30, reload: 2, spread: 2, price: 0, level: 0},
-  {id: "burst", name: "バーストライフル", slot: "primary", model: "rifle", damage: 30, rate: 5, range: 160, ammo: 24, reload: 2.2, spread: 1, price: 150, level: 2},
-  {id: "shotgun", name: "ショットガン", slot: "primary", model: "shotgun", damage: 16, rate: 1.2, range: 32, ammo: 6, reload: 2.4, spread: 7, price: 200, level: 3},
-  {id: "smg", name: "サブマシンガン", slot: "primary", model: "pistol", damage: 14, rate: 12, range: 80, ammo: 32, reload: 1.6, spread: 4, price: 250, level: 4},
+  {id: "ar", name: "アサルトライフル", slot: "primary", model: "rifle", damage: 22, rate: 8, range: 150, ammo: 30, reload: 2, spread: 1.2, price: 0, level: 0},
+  {id: "burst", name: "バーストライフル", slot: "primary", model: "rifle", damage: 30, rate: 5, range: 160, ammo: 24, reload: 2.2, spread: 0.6, price: 150, level: 2},
+  {id: "shotgun", name: "ショットガン", slot: "primary", model: "shotgun", damage: 16, rate: 1.2, range: 32, ammo: 6, reload: 2.4, spread: 5.5, price: 200, level: 3},
+  {id: "smg", name: "サブマシンガン", slot: "primary", model: "pistol", damage: 14, rate: 12, range: 80, ammo: 32, reload: 1.6, spread: 2.6, price: 250, level: 4},
   {id: "sniper", name: "スナイパー", slot: "primary", model: "rifle", damage: 95, rate: 0.8, range: 400, ammo: 5, reload: 2.6, spread: 0, price: 300, level: 5},
-  {id: "blaster", name: "レーザーブラスター", slot: "primary", model: "blaster", damage: 32, rate: 3, range: 120, ammo: 20, reload: 2, spread: 1, price: 350, level: 7},
-  {id: "minigun", name: "ミニガン", slot: "primary", model: "blaster", damage: 9, rate: 18, range: 90, ammo: 150, reload: 4, spread: 6, price: 600, level: 10},
-  {id: "pistol", name: "ハンドガン", slot: "secondary", model: "pistol", damage: 20, rate: 4, range: 100, ammo: 12, reload: 1.2, spread: 2, price: 0, level: 0},
-  {id: "revolver", name: "リボルバー", slot: "secondary", model: "pistol", damage: 48, rate: 1.6, range: 120, ammo: 6, reload: 2, spread: 1, price: 180, level: 3},
+  {id: "blaster", name: "レーザーブラスター", slot: "primary", model: "blaster", damage: 32, rate: 3, range: 120, ammo: 20, reload: 2, spread: 0.6, price: 350, level: 7},
+  {id: "minigun", name: "ミニガン", slot: "primary", model: "blaster", damage: 9, rate: 18, range: 90, ammo: 150, reload: 4, spread: 4, price: 600, level: 10},
+  {id: "pistol", name: "ハンドガン", slot: "secondary", model: "pistol", damage: 20, rate: 4, range: 100, ammo: 12, reload: 1.2, spread: 1.2, price: 0, level: 0},
+  {id: "revolver", name: "リボルバー", slot: "secondary", model: "pistol", damage: 48, rate: 1.6, range: 120, ammo: 6, reload: 2, spread: 0.6, price: 180, level: 3},
   {id: "flare", name: "フレアガン", slot: "secondary", model: "pistol", damage: 35, rate: 1, range: 70, ammo: 1, reload: 1.4, spread: 0, price: 220, level: 6},
   {id: "knife", name: "ナイフ", slot: "melee", melee: true, damage: 35, rate: 2, range: 4.5, price: 0, level: 0},
   {id: "katana", name: "カタナ", slot: "melee", melee: true, damage: 55, rate: 1.4, range: 6, price: 250, level: 4},

@@ -20,7 +20,7 @@ let topGames: [Game] = [
          tags: ["fishing", "simulator", "collect", "top20"], maxPlayers: 12, libs: ["crowd"], build: reelLegends),
     Game(number: 6, id: "clash-duels", title: "Clash Duels",
          summary: "1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。",
-         tags: ["fps", "pvp", "teams", "top20"], maxPlayers: 10, build: clashDuels),
+         tags: ["fps", "pvp", "teams", "top20"], maxPlayers: 10, libs: ["bots"], build: clashDuels),
     Game(number: 7, id: "sprout-garden", title: "Sprout Garden",
          summary: "自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。",
          tags: ["farming", "simulator", "chill", "top20"], maxPlayers: 8, build: sproutGarden),

@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 118,
-  "bytes" : 118043,
+  "bytes" : 130332,
   "cover" : "games\/clash-duels\/cover-708781ad.png",
   "id" : "clash-duels",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_bots.absc",
     "games\/clash-duels\/data.absc",
     "games\/clash-duels\/combat.absc",
     "games\/clash-duels\/common.absc",
@@ -15,6 +16,7 @@
     "games\/clash-duels\/ffa.absc",
     "games\/clash-duels\/loadout.absc",
     "games\/clash-duels\/lobby.absc",
+    "games\/clash-duels\/slide.absc",
     "games\/clash-duels\/team.absc",
     "games\/clash-duels\/main.absc"
   ],

@@ -185,13 +185,14 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 118,
-      "bytes" : 118043,
+      "bytes" : 130332,
       "cover" : "games\/clash-duels\/cover-708781ad.png",
       "id" : "clash-duels",
       "maxPlayers" : 10,
       "schemaVersion" : 1,
       "scripts" : [
         "lib\/kit.absc",
+        "lib\/kit_bots.absc",
         "games\/clash-duels\/data.absc",
         "games\/clash-duels\/combat.absc",
         "games\/clash-duels\/common.absc",
@@ -199,6 +200,7 @@
         "games\/clash-duels\/ffa.absc",
         "games\/clash-duels\/loadout.absc",
         "games\/clash-duels\/lobby.absc",
+        "games\/clash-duels\/slide.absc",
         "games\/clash-duels\/team.absc",
         "games\/clash-duels\/main.absc"
       ],
@@ -760,7 +762,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 212,
-      "bytes" : 148413,
+      "bytes" : 148617,
       "cover" : "games\/gun-swap-arena\/cover-1ef2966f.png",
       "id" : "gun-swap-arena",
       "maxPlayers" : 12,
@@ -794,7 +796,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 97,
-      "bytes" : 92959,
+      "bytes" : 93163,
       "cover" : "games\/warrior-brawl\/cover-a7a39913.png",
       "id" : "warrior-brawl",
       "maxPlayers" : 12,
@@ -923,7 +925,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 57,
-      "bytes" : 71303,
+      "bytes" : 71507,
       "cover" : "games\/blade-and-revolver\/cover-3b0c7383.png",
       "id" : "blade-and-revolver",
       "maxPlayers" : 12,
