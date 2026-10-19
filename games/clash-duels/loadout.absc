@@ -1,7 +1,7 @@
 -- loadout.absc — 武器・装備・投げ物
 -- 主武器・副武器・近接・投げ物を1つずつえらぶ（ロビーの水色パッド）。
 -- 武器屋（黄色）で🔑カギを使って新しい武器・投げ物・見た目を買う。
--- 戦っている間は画面右下の 1 2 3 で持ちかえ、💣で投げ物。
+-- 戦っている間は画面の下のまん中の 1 2 3 で持ちかえ、💣で投げ物、右下の 🛝 でスライディング（slide.absc）。
 
 for w in WEAPONS do
   if w.melee then
@@ -43,13 +43,16 @@ func arm(p)
   p.give(weapon_by_id(p.load.primary).name)
   p.charges = utility_by_id(p.load.utility).charges
   slot_buttons(p)
+  slide_button(p)
 end
 
 func disarm(p)
   p.take()
   p.charges = 0
+  slide_stop(p)
   for s in SLOTS do set_btn(p, "slot_" + s, nil, nil) end
   set_btn(p, "use_util", nil, nil)
+  set_btn(p, "slide", nil, nil)
 end
 
 func switch_slot(p, s)
@@ -67,10 +70,11 @@ func slot_buttons(p)
     let label = i + " " + w.name
     let bg = "#334155"
     if p.slot == s then bg = "#2563EB" end
-    set_btn(p, "slot_" + s, label, {at: "bottom_right", dx: -110 - (3 - i) * 118, dy: -210, w: 112, h: 44, size: 13, bg: bg, radius: 12})
+    -- 下のまん中に 横ならび（右がわの クエストのボタンと 重ならないように）
+    set_btn(p, "slot_" + s, label, {at: "bottom", dx: (i - 2.5) * 106, dy: -18, w: 100, h: 40, size: 12, bg: bg, radius: 12})
   end
   let u = utility_by_id(p.load.utility)
-  set_btn(p, "use_util", u.name + " ×" + p.charges, {at: "bottom_right", dx: -110, dy: -260, w: 150, h: 44, size: 14, bg: "#9A3412", radius: 12})
+  set_btn(p, "use_util", u.name + " ×" + p.charges, {at: "bottom", dx: 1.5 * 106 + 12, dy: -18, w: 122, h: 40, size: 12, bg: "#9A3412", radius: 12})
 end
 
 -- MARK: 投げ物

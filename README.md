@@ -229,7 +229,7 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 ```
 index.json                      アプリが読む一覧
 lib/kit.absc                    全ゲーム共通の道具（お金・ショップ・クエスト・レベル・実績・遊び方表示…）
-lib/kit_bots.absc               人が少ないときに入る 🤖 BOT（Gun Swap Arena・Warrior Brawl・Blade & Revolver。右上のボタンで オン/オフ）
+lib/kit_bots.absc               人が少ないときに入る 🤖 BOT（Gun Swap Arena・Warrior Brawl・Blade & Revolver・Clash Duels の乱戦。右上のボタンで オン/オフ）
 games/<id>/world.ablox          マップ（ブロック）
 games/<id>/*.absc               そのゲームのスクリプト（data → ほか → main の順に読む）
 games/<id>/cover-<指紋>.png      一覧に出るカバー画像（マップから自動で描く）

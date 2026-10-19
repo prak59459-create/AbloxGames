@@ -353,7 +353,8 @@ enum Cover {
         case .bike: seat = 0.15
         case .scooter: seat = 0.1
         case .hoverboard: seat = 0.18
-        case .none, .jetpack: seat = 0
+        // none, jetpack, and anything newer (a slide is drawn standing).
+        default: seat = 0
         }
         var parts: [(Vec3, Vec3, ColorRGBA)] = [
             (Vec3(0, 0.95 + seat, 0), Vec3(0.6, 0.7, 0.35), profile.bodyColor),
@@ -389,7 +390,7 @@ enum Cover {
             parts.append((Vec3(0, 0.12, 0), Vec3(0.8, 0.1, 1.6), paint))
         case .jetpack:
             parts.append((Vec3(0, 1.0, 0.32), Vec3(0.5, 0.6, 0.25), paint))
-        case .none:
+        default:
             break
         }
         if [.car, .sports, .truck, .kart].contains(profile.ride) {

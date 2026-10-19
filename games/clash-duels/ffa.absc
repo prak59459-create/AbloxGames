@@ -1,5 +1,7 @@
 -- ffa.absc — 💥 乱戦（Temple）と 🎯 練習場
 -- 乱戦: 紫のパッドでいつでも参加。全員が敵。たおされても3秒で復活。先に15キルで優勝。
+-- 🤖 BOT: 人と BOT あわせて 6人になるまで BOT が入る（lib/kit_bots.absc）。BOT も 本物のプレイヤーのように
+-- キルを数えられ、ならび順に出て、優勝もする。右上の「🤖 BOT」で だれでも オン/オフ。
 -- 練習場: 緑のパッド。動かない的と動く的がある。当てるとダメージの数字が出る。
 
 let ffa_clock = 0
@@ -15,7 +17,7 @@ func ffa_spawn_point(p)
     let b = block("FFA Spawn " + i)
     if b != nil then
       let near = 999
-      for o in in_mode("ffa") do
+      for o in ffa_all() do
         if o.id != p.id and o.alive then near = min(near, distance(o, b)) end
       end
       if near > best_d then
@@ -27,6 +29,37 @@ func ffa_spawn_point(p)
   return best
 end
 
+let FFA_FILL = 6
+
+-- 乱戦の 🤖 BOT（タイマンの BOT とは別）
+func ffa_bot(n)
+  return bot_is(n) and n.mode == "ffa"
+end
+
+-- 乱戦にいる人と BOT
+func ffa_all()
+  return filter(kit_everyone(), func(c) return c.mode == "ffa" and (not c.is_npc or ffa_bot(c)) end)
+end
+
+bot_setup({fill: FFA_FILL, health: 100, speed: 1.05, sight: 70, range: 60, keep: 12, rate: 0.8,
+           people: func() return len(in_mode("ffa")) end,
+           weapon: func(n)
+             let guns = ["アサルトライフル", "サブマシンガン", "バーストライフル"]
+             return guns[random(1, len(guns))]
+           end,
+           spot: func(n)
+             let b = ffa_spawn_point(n)
+             if b == nil then return {x: 0, y: 2, z: 0} end
+             return b.position + {x: 0, y: 1, z: 0}
+           end,
+           foe: func(n, c) return c.mode == "ffa" and (not c.is_npc or ffa_bot(c)) end,
+           on_spawn: func(n)
+             n.mode = "ffa"
+             n.team = nil
+             n.ffa_kills = 0
+             after(0.1, func() ffa_board() end)
+           end})
+
 func ffa_join(p)
   enter_mode(p, "ffa")
   p.team = nil
@@ -34,6 +67,8 @@ func ffa_join(p)
   apply_look(p)
   ffa_place(p)
   p.message("💥 乱戦に参加！全員が敵。先に " + FFA_GOAL + " キルで優勝", 2.5)
+  bot_button(p)
+  bot_start()
   ffa_board()
 end
 
@@ -45,11 +80,13 @@ func ffa_place(p)
 end
 
 func ffa_death(victim, killer)
-  if killer != nil and not killer.is_npc and killer.mode == "ffa" and killer.id != victim.id then
+  if killer != nil and killer.mode == "ffa" and killer.id != victim.id and (not killer.is_npc or ffa_bot(killer)) then
     killer.ffa_kills = (killer.ffa_kills or 0) + 1
     if killer.ffa_kills >= FFA_GOAL then ffa_win(killer) end
   end
-  ffa_board()
+  after(0.1, func() ffa_board() end)
+  -- BOT は kit_bots が 3秒後に 新しく入れる
+  if victim.is_npc then return end
   kit_later(victim, 3, func()
     if victim.mode == "ffa" then
       victim.respawn()
@@ -60,17 +97,19 @@ end
 
 func ffa_win(p)
   announce("🏆 乱戦の優勝は " + p.name + "！（" + FFA_GOAL + " キル）", 4)
-  p.wins = p.wins + 1
-  gain(p, 150, 50, "🏆 乱戦優勝！")
-  kit_quest_progress(p, "ffawin", 1)
-  for o in in_mode("ffa") do
-    if o.id != p.id then gain(o, 30, 5, "乱戦おつかれさま") end
+  if not p.is_npc then
+    p.wins = p.wins + 1
+    gain(p, 150, 50, "🏆 乱戦優勝！")
+    kit_quest_progress(p, "ffawin", 1)
+  end
+  for o in ffa_all() do
+    if o.id != p.id and not o.is_npc then gain(o, 30, 5, "乱戦おつかれさま") end
     o.ffa_kills = 0
   end
 end
 
 func ffa_board()
-  let list = sort(in_mode("ffa"), func(a, b) return (a.ffa_kills or 0) > (b.ffa_kills or 0) end)
+  let list = sort(ffa_all(), func(a, b) return (a.ffa_kills or 0) > (b.ffa_kills or 0) end)
   let line = "💥 乱戦"
   let i = 0
   for p in slice(list, 1, 3) do
@@ -85,7 +124,13 @@ end
 func ffa_leave(p)
   p.ffa_kills = 0
   set_line(p, "fscore", nil, nil)
-  after(0.1, func() ffa_board() end)
+  p.ui_remove("bot_toggle")
+  p.bot_button_shown = false
+  after(0.1, func()
+    -- だれもいなくなったら BOT も帰る
+    if len(in_mode("ffa")) == 0 then bot_stop() end
+    ffa_board()
+  end)
 end
 
 -- MARK: 練習場

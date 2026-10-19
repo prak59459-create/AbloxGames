@@ -1,0 +1,51 @@
+-- slide.absc — 🛝 スライディング
+-- 戦っている間、右下の 🛝 で 1秒 すべる。いま進んでいる向き（ジャンプ中でも）に、今の 1.5倍の はやさ。
+-- 止まっていたら 前に。あおむけで 足から すべって、目の高さは 半分（Ablox 8.3 の ride "slide"）。
+-- 更新していない iPad がホストのときは slide を知らないので、ボタンを出さない。
+
+let SLIDE_TIME = 1
+let SLIDE_BOOST = 1.5
+let SLIDE_REST = 1.2   -- 立ち上がってから 次に すべれるまで（秒）
+
+func can_slide(p)
+  return p.ride_kinds != nil and contains(p.ride_kinds, "slide")
+end
+
+func slide_button(p)
+  if not can_slide(p) then return end
+  set_btn(p, "slide", "🛝", {at: "bottom_right", dx: -120, dy: -160, w: 80, h: 60, size: 26, bg: "#0E7490", radius: 14})
+end
+
+-- 立ち上がる（時間・やられた・ロビーにもどった）
+func slide_stop(p)
+  if p.sliding then
+    p.sliding = false
+    p.ride = "none"
+  end
+end
+
+func slide(p)
+  if p.mode == "lobby" or not p.alive or p.frozen or p.sliding or not can_slide(p) then return end
+  if cooldown_left(p, "slide") > 0 then return end
+  start_cooldown(p, "slide", SLIDE_TIME + SLIDE_REST)
+  let v = p.velocity
+  let flat = {x: v.x, y: 0, z: v.z}
+  let speed = distance(flat, {x: 0, y: 0, z: 0})
+  let dir = p.look
+  if speed > 1 then dir = normalize(flat) end
+  -- 止まっていても、ふつうに歩く はやさ（5）の 1.5倍
+  let s = max(speed, 5 * p.speed) * SLIDE_BOOST
+  p.sliding = true
+  p.ride = "slide"
+  p.launch(dir.x * s, v.y, dir.z * s)
+  p.sound("whoosh")
+  let started = time()
+  p.slide_started = started
+  kit_later(p, SLIDE_TIME, func()
+    if p.slide_started == started then slide_stop(p) end
+  end)
+end
+
+on button(p, id)
+  if id == "slide" then slide(p) end
+end

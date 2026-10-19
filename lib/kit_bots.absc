@@ -18,6 +18,7 @@
 --   team      func(n) で チームを返す（チーム戦。nil ならチームなし）
 --   foe       func(n, c) で c をねらってよいかを返す（なければ 自分と味方以外）
 --   on_spawn  func(n) 入ったときに呼ばれる（服の色・ゲームの値など）
+--   people    func() で 数える人の数を返す（なければ ゲームにいる人 全員。モードの中だけ 数えるときに）
 --   names     BOT の名前のリスト
 -- BOT ごとに変えるなら on_spawn で n.bot_keep / n.bot_range / n.bot_rate を入れる（ナイフの BOT は近くまで来る など）。
 --
@@ -53,6 +54,7 @@ func bot_list()
 end
 
 func bot_people()
+  if bot_cfg.people != nil then return bot_cfg.people() end
   return len(filter(players(), func(p) return kit_here(p) end))
 end
 
