@@ -1,9 +1,9 @@
 # Ablox Games
 
 [Ablox](https://github.com/prak59459-create/Ablox) の「ゲーム」タブが読むゲーム一覧です。
-80本のゲームが入っています。どれも Ablox Studio で開いて、そのまま改造できます。
+137本のゲームが入っています。どれも Ablox Studio で開いて、そのまま改造できます。
 
-> The public game list for Ablox: 80 games, each a world plus `.absc` scripts.
+> The public game list for Ablox: 137 games, each a world plus `.absc` scripts.
 > The app reads `index.json` straight from this repository.
 
 ## ブラウザで遊ぶ
@@ -48,7 +48,7 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/battleground-legends/cover-b92161e3.png" width="200"> | 12 | **Battleground Legends** | パンチ、アッパー、衝撃波、そして必殺の覚醒！技を組み合わせてオープンフィールドで戦う爽快バトル。 |
 | <img src="games/hotel-100-doors/cover-a1eb89ca.png" width="200"> | 13 | **Hotel 100 Doors** | なぞのホテルの100の部屋を進むホラー。明かりがチカチカしたらクローゼットへ！紫の目は見ちゃダメ。カギを見つけて先へ。 |
 | <img src="games/pet-coin-frenzy/cover-42850825.png" width="200"> | 14 | **Pet Coin Frenzy** | コインの山をタップしてこわし、たまごからペットを出してパワーアップ。新しいエリアを開いて、巨大ペットを引き当てろ！ |
-| <img src="games/tower-of-chaos/cover-054858ae.png" width="200"> | 15 | **Tower of Chaos** | チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！ |
+| <img src="games/tower-of-chaos/cover-56850875.png" width="200"> | 15 | **Tower of Chaos** | チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！ |
 | <img src="games/crystal-wars/cover-a5772ead.png" width="200"> | 16 | **Crystal Wars** | 浮島でチームに分かれて自分のクリスタルを守り、相手のクリスタルをこわせ。ブロックで橋をかけて、装備を強化して攻めこもう。 |
 | <img src="games/slime-roll/cover-1c724817.png" width="200"> | 17 | **Slime Roll** | 運だめしでスライムを引こう。レアなスライムほど強くて、勝手に戦ってコインをかせいでくれる。100万分の1を引けるか？ |
 | <img src="games/hero-tower-defense/cover-36132369.png" width="200"> | 18 | **Hero Tower Defense** | 道の横にヒーローを置いて、せまる敵の大群を止めろ。剣士、弓使い、魔法使い、氷使い。強化のタイミングが勝負のカギ。 |
@@ -136,7 +136,7 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/prop-hide-and-seek/cover-1890ba93.png" width="200"> | 75 | **Prop Hide & Seek** | 家具になりきってかくれんぼ！ 部屋ごとにちがう家具に「そっくり変身」、回転と固定、挑発でポイント。鬼は懐中電灯と探知機でさがす。見つかったら鬼の仲間に…！ |
 | <img src="games/mega-minigames/cover-320873fe.png" width="200"> | 76 | **Mega Minigames** | 投票で次のゲームを決めるパーティー！ 落ちる床・山の王・色あわせ・玉よけ・ハンマーよけ・たまご集め・リレー・床ぬり・的当て・にわとりつかまえ・いすとり・ばくだんパスの12種類で⭐を集めて総合優勝！ |
 | <img src="games/rhythm-battle/cover-81d9b098.png" width="200"> | 77 | **Rhythm Battle** | 8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ |
-| <img src="games/last-survivor-games/cover-ae48890b.png" width="200"> | 78 | **Last Survivor Games** | 100人で挑むサバイバル。第1ゲームは だるまさんがころんだ。第2は型ぬき、第3は つなひき か なかま集め、第4はビー玉あて、第5はガラスの橋。人が多すぎたら延長の最後のタイル。第6（最終）は決戦リング！ 最後の1人になれ！ |
+| <img src="games/last-survivor-games/cover-302d9555.png" width="200"> | 78 | **Last Survivor Games** | 100人で挑むサバイバル。第1は だるまさんがころんだ。第2は 型ぬき か 5人6脚、第3は つなひき か なかま集め、第4は ビー玉あて か 2かいだての かくれんぼ、第5は ガラスの橋 か 大なわとびの橋。人が多すぎたら延長の最後のタイル。第6（最終）は 決戦リング か 空のタワー！ 最後の1人になれ！ |
 | <img src="games/shark-attack-bay/cover-b023a82c.png" width="200"> | 79 | **Shark Attack Bay** | サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ |
 | <img src="games/tip-jar-plaza/cover-53b42369.png" width="200"> | 80 | **Tip Jar Plaza** | 広場にブースを出そう。うらない・おかし・音楽・アート・ゲーム・おしゃべりの6種類。遊んでたまったチップを気に入ったお店へ（ゲーム内のコインだけです） |
 
@@ -154,10 +154,10 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/cart-ride-wonderland/cover-d6019e4e.png" width="200"> | 88 | **Cart Ride Wonderland** | カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！ |
 | <img src="games/grapple-ascent/cover-65c19a96.png" width="200"> | 89 | **Grapple Ascent** | 光るフックにグラップルを打って、空高い塔を上へ上へ。フックをタップするか🪝ボタン。風の吹く場所、遠いフック、高さランキング。ロープの長さ・引っぱる力・連続グラップルを強化。 |
 | <img src="games/rooftop-parkour/cover-e36d6116.png" width="200"> | 90 | **Rooftop Parkour** | 街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。 |
-| <img src="games/swing-rope-obby/cover-65b9cf7c.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
+| <img src="games/swing-rope-obby/cover-169e383d.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
 | <img src="games/shrink-grow-obby/cover-15e93a42.png" width="200"> | 92 | **Shrink & Grow Obby** | 小さくなって穴をくぐり、大きくなって段差とすきまをこえる！ キッチン・お庭・おもちゃの城の30ステージ。小さいとわれないガラス、大きくないと押せないスイッチ。かくれた宝石も。 |
 | <img src="games/chased-by-stuff-obby/cover-8390f55c.png" width="200"> | 93 | **Chased by Stuff Obby** | 巨大なボール、アヒル、食パン、ボウリングの玉、パイナップル、目ざまし時計、ハンバーガー、クマのぬいぐるみ… 8つのコースで、うしろから追いかけてくる「なにか」から走ってにげろ！ |
-| <img src="games/rising-lava-rescue/cover-ba32dabd.png" width="200"> | 94 | **Rising Lava Rescue** | 火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。 |
+| <img src="games/rising-lava-rescue/cover-498606a1.png" width="200"> | 94 | **Rising Lava Rescue** | 火山の島でマグマが上がったり下がったり。マグマが低いうちに下のだんへおりて、取りのこされた動物を助けて山のてっぺんのシェルターへ！ 下ほどレアな動物。サイレンが鳴ったらいそいで上へ。 |
 | <img src="games/fishy-obby/cover-63fead7d.png" width="200"> | 95 | **Fishy Obby** | きみは魚！ 水の中はスイスイ、陸ではピチピチはねるだけ。水から出ると体がかわいていく…。池・川・パイプ・サンゴ礁・深海の25ステージ。流れ、泡、クラゲ、つり針、電気ウナギ。真珠を集めて魚をきせかえ。 |
 
 ### 🏎️ 乗り物・ドライブ
@@ -214,6 +214,13 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/sword-forge-factory/cover-64d48879.png" width="200"> | 133 | **Sword Forge Factory** | 剣の工場をつくろう！ 金床でカンカンきたえて、かまどで どんどん剣をつくる。ふつう・レア・エピック・レジェンド・ミシック…どんな剣ができるかな？ 自分の剣で 訓練場のかかしをきたえよう！ |
 | <img src="games/fish-farm-tycoon/cover-49cbe0ce.png" width="200"> | 134 | **Fish Farm Tycoon** | 魚の養殖場をつくろう！ 川を流れてくる魚を買って 自分の池へ。えさをあげると 大きくそだって もうけアップ。金の魚や にじ色の魚も 流れてくるかも？ キングコイをねらえ！ |
 | <img src="games/egg-heist/cover-e0aa137b.png" width="200"> | 135 | **Egg Heist** | まん中の道を ころがってくる たまごを買って、自分のアジトの台へ。たまごは かえると もうけ2ばい！ ほかのアジトから こっそり ぬすんだり、🔒 ロックで守ったり。アライグマどろぼうにも 気をつけて！ |
+
+### 💡 みんなのアイデアから
+
+| | # | ゲーム | 内容 |
+|---|---|---|---|
+| <img src="games/lucky-chip-party/cover-7b5aa429.png" width="200"> | 231 | **Lucky Chip Party** | 4人でテーブルをかこむ ゲームショー！ サイコロ・カード・ルーレット・どうぶつレース・ブラフ・ばくだんカード・カップシャッフル・ふうせん・あみだくじ・つり大会・じゃんけん・多数決・ひみつの入札・🎯ストップメーター・⏱ぴったり5びょう…など 25種類のミニゲームで チップをかけて ふやせ。毎回ちがうゲームが出る。ひみつのヒント、レイズとブラフ、0になったら OUT。たりない席には BOT（チップは このゲームの中だけのもの） |
+| <img src="games/sky-thread-city/cover-369cae48.png" width="200"> | 232 | **Sky Thread City** | 糸のヒーロー「スレッドランナー」になって、たて1000m の大都会を 🕸 スイング・🧗 かべのぼり・⚡ ジップで かけまわれ！ 超高層ビル・ランドマークタワー・公園・港・駐車場。どろぼうロボを ネットでつかまえ、屋上の 🆘 をたすけ、💎 スカイトークン60こと スイングレースに挑戦。スーツと ロープの強化も |
 
 <!-- games:end -->
 

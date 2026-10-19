@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 168,
-  "bytes" : 120625,
+  "bytes" : 131658,
   "cover" : "games\/chaos-golf\/cover-3cdce0ba.png",
   "id" : "chaos-golf",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/chaos-golf\/data.absc",
     "games\/chaos-golf\/golf.absc",
     "games\/chaos-golf\/items.absc",

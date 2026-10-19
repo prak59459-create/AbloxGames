@@ -1,0 +1,213 @@
+-- relay.absc — 第2ゲーム（もう1つ）「5人6脚」
+--
+-- 5人ずつのチームで 足をむすんで 110m を走る。「いち」「に」の かけ声が RELAY_BEAT 秒ごとに来る。
+-- かけ声のあいだに みんなが 同じ足のボタンを おすと、チームが 1歩すすむ（そろうほど 大きく）。
+-- そろわないと 小さく すすむか、ころんで 少し止まる。時間内に ゴールできなかったチームは 全員失格。
+-- NPCは calm（おちつき）の確率で 足をそろえる。人が入ったチームは、その人の ボタンしだい。
+
+let relay_on = false
+let relay_run = 0
+let relay_teams = []
+let relay_beat = 0
+let relay_next = 0
+let relay_place = 0
+let RELAY_BEAT = 0.8
+let RELAY_STEP = 1.45
+let RELAY_Z0 = -55
+let RELAY_Z1 = 55
+
+func relay_lane_x(k)
+  return block("Relay Lane " + k).x
+end
+
+func relay_foot(n)
+  if n % 2 == 1 then return 1 end
+  return 2
+end
+
+func relay_foot_name(f)
+  if f == 1 then return "いち（左）" end
+  return "に（右）"
+end
+
+func relay_start()
+  relay_run = relay_run + 1
+  relay_on = false
+  relay_teams = []
+  relay_beat = 0
+  relay_place = 0
+  let list = shuffle(alive_cast())
+  let k = 0
+  let i = 1
+  while i <= len(list) and k < 20 do
+    k = k + 1
+    let members = slice(list, i, min(i + 4, len(list)))
+    append(relay_teams, {lane: k, members: members, z: RELAY_Z0, rest_until: 0, done: false, place: 0})
+    i = i + 5
+  end
+  -- 20チームに 入りきらない人は いない（参加者は100人まで）
+  for t in relay_teams do
+    let tie = block("Relay Tie " + t.lane)
+    tie.visible = true
+    tie.position = {x: relay_lane_x(t.lane), y: 0.35, z: RELAY_Z0}
+    relay_place_team(t, true)
+    for c in t.members do
+      c.relay_press = 0
+      c.team_lane = t.lane
+      if c.is_npc then
+        c.stop()
+      else
+        c.frozen = true
+        c.message("👣 あなたは " + t.lane + " ばんのチーム（" + len(t.members) + " 人）", 3)
+      end
+    end
+  end
+  let run = relay_run
+  announce("👣 5人6脚！ 「いち」「に」に あわせて ボタン。足がそろうほど 速い", 3.5)
+  after(3.5, func()
+    if run != relay_run or not playing("relay") then return end
+    relay_on = true
+    relay_next = time() + RELAY_BEAT
+    game_ends = time() + GAMES[game_index("relay")].time
+    sound("goal")
+    announce("▶ スタート！", 1.2)
+    for p in alive_humans() do relay_ui(p) end
+  end)
+end
+
+-- チームの人を 横ならびに おく（まん中が チームの位置）
+func relay_place_team(t, now)
+  let x0 = relay_lane_x(t.lane)
+  let n = len(t.members)
+  let j = 0
+  for c in t.members do
+    j = j + 1
+    if kit_here(c) and not c.out then
+      let spot = {x: x0 + (j - (n + 1) / 2) * 0.85, y: 0.6, z: t.z}
+      if c.is_npc then
+        c.teleport(spot)
+        c.yaw = 0
+      else
+        c.teleport(spot)
+      end
+    end
+  end
+  let tie = block("Relay Tie " + t.lane)
+  if now then tie.position = {x: x0, y: 0.35, z: t.z} else tie.move_to({x: x0, y: 0.35, z: t.z}, RELAY_BEAT * 0.8) end
+end
+
+func relay_ui(p)
+  p.ui_button("relay_1", "👣 いち", {at: "bottom_left", dx: 40, dy: -150, w: 170, h: 110, size: 26, bg: "#2563EB", radius: 24})
+  p.ui_button("relay_2", "👣 に", {at: "bottom_right", dx: -40, dy: -150, w: 170, h: 110, size: 26, bg: "#DC2626", radius: 24})
+end
+
+func relay_clear_ui(p)
+  p.ui_remove("relay_1")
+  p.ui_remove("relay_2")
+  p.ui_remove("relay_call")
+end
+
+-- かけ声1回ぶん: さっきの かけ声に 足がそろったかを数えて、チームを動かす
+func relay_step()
+  let want = relay_foot(relay_beat)
+  for t in relay_teams do
+    if not t.done then
+      let alive = filter(t.members, func(c) return kit_here(c) and not c.out end)
+      if len(alive) == 0 then
+        t.done = true
+      else
+        let good = 0
+        for c in alive do
+          if c.is_npc then
+            if random() < c.calm - 0.08 then good = good + 1 end
+          elif c.relay_press == want then
+            good = good + 1
+          end
+          c.relay_press = 0
+        end
+        let share = good / len(alive)
+        if relay_beat > 0 and time() >= t.rest_until then
+          let gain = 0
+          if share >= 0.6 then
+            gain = RELAY_STEP * (0.75 + 0.25 * share)
+          elif share >= 0.3 then
+            gain = 0.5
+          else
+            -- ころんだ
+            t.rest_until = time() + RELAY_BEAT * 2
+            for c in alive do
+              if not c.is_npc then
+                c.message("🤕 ころんだ！ 足を そろえて", 1.2)
+                c.shake(0.2, 0.3)
+              end
+            end
+          end
+          t.z = min(RELAY_Z1 + 1, t.z + gain)
+          relay_place_team(t, false)
+          if t.z >= RELAY_Z1 then relay_goal(t) end
+        end
+      end
+    end
+  end
+  -- 次の かけ声
+  relay_beat = relay_beat + 1
+  let call = relay_foot(relay_beat)
+  for p in alive_humans() do
+    p.ui_text("relay_call", "👣 " + relay_foot_name(call) + "！", {at: "center", dy: -80, size: 40, bold: true, color: "#FDE047"})
+  end
+  if call == 1 then sound("drum", {volume: 0.5}) else sound("tick", {volume: 0.6}) end
+end
+
+func relay_goal(t)
+  t.done = true
+  relay_place = relay_place + 1
+  t.place = relay_place
+  for c in t.members do
+    if kit_here(c) and not c.out and not c.is_npc then
+      c.message("🏁 ゴール！ " + relay_place + " 位", 2.5)
+      c.sound("goal")
+      relay_clear_ui(c)
+      c.frozen = false
+    end
+  end
+  push_feed("🏁 " + t.lane + " ばんのチームが ゴール（" + relay_place + " 位）")
+end
+
+func relay_end()
+  if not playing("relay") then return end
+  relay_on = false
+  relay_run = relay_run + 1
+  for p in humans() do relay_clear_ui(p) end
+  for t in relay_teams do
+    if not t.done then
+      for c in t.members do eliminate(c, "時間内に ゴールできなかった") end
+    end
+    block("Relay Tie " + t.lane).visible = false
+  end
+  for c in alive_cast() do
+    c.frozen = false
+    c.team_lane = nil
+  end
+  game_over()
+end
+
+on tick(dt)
+  if not playing("relay") or not relay_on then return end
+  if time() >= relay_next then
+    relay_next = relay_next + RELAY_BEAT
+    relay_step()
+  end
+  let left = filter(relay_teams, func(t) return not t.done end)
+  if len(left) == 0 or time() >= game_ends then relay_end() end
+end
+
+on button(p, id)
+  if not playing("relay") or not relay_on or p.out then return end
+  if id == "relay_1" then
+    p.relay_press = 1
+    p.sound("click", {pitch: 0.9})
+  elif id == "relay_2" then
+    p.relay_press = 2
+    p.sound("click", {pitch: 1.2})
+  end
+end

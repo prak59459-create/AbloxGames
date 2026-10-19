@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 163,
-  "bytes" : 123684,
+  "bytes" : 134717,
   "cover" : "games\/mystery-manor\/cover-756a1df5.png",
   "id" : "mystery-manor",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/mystery-manor\/data.absc",
     "games\/mystery-manor\/collection.absc",
     "games\/mystery-manor\/common.absc",

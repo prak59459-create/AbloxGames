@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 350,
-  "bytes" : 213778,
+  "bytes" : 224811,
   "cover" : "games\/ridgeport-cops\/cover-beb7b9ba.png",
   "id" : "ridgeport-cops",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/ridgeport-cops\/data.absc",
     "games\/ridgeport-cops\/common.absc",
     "games\/ridgeport-cops\/gear.absc",

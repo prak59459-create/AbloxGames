@@ -1,0 +1,295 @@
+-- bots.absc — あいた席に すわる BOT
+--
+-- 性格（BOT_TYPES）で かけかたが かわる。考える時間は 少しずつ ちがう。
+-- ヒントをもらった BOT は ちゃんと使う（人と同じ 条件）。
+
+let bot_serial = 0
+
+func fill_bots()
+  let k = free_seat()
+  while k != nil do
+    bot_sit(k, START_CHIPS)
+    k = free_seat()
+  end
+end
+
+func bot_sit(k, chips)
+  bot_serial = bot_serial + 1
+  let name = "🤖 " + BOT_NAMES[(bot_serial - 1) % len(BOT_NAMES) + 1]
+  let spot = seat_spot(k)
+  let n = create_npc({name: name, position: spot, color: SEAT_COLORS[k], head_color: "#F8FAFC", health: 100, speed: 1})
+  n.bot = true
+  n.kind = BOT_TYPES[random(1, len(BOT_TYPES))]
+  sit(n, k)
+  n.chips = chips
+  show_stack(k)
+  bot_say(n, "hello", 40)
+  return n
+end
+
+func bot_say(c, key, odds_in_100)
+  if c == nil or not c.is_npc or not kit_here(c) then return end
+  if not chance(odds_in_100) then return end
+  let lines = BOT_LINES[key]
+  if lines == nil then return end
+  c.say(lines[random(1, len(lines))])
+end
+
+-- そのラウンドの「いつ・何を」決める
+func bot_plan(c)
+  let run = show_run
+  let r = round_no
+  let wait = random_float(2, BET_TIME - 4)
+  after(wait, func()
+    if run != show_run or r != round_no or phase != "bet" or not kit_here(c) or c.out or c.locked then return end
+    bot_choose(c)
+    c.locked = true
+    show_stack(c.seat)
+  end)
+end
+
+func bot_amount(c)
+  let k = c.kind
+  let want = floor(c.chips * k.risk * random_float(0.6, 1.4) / 5) * 5
+  if c.chips <= 20 or chance(k.greed * 8) then
+    bot_say(c, "allin", 70)
+    return c.chips
+  end
+  return clamp(want, min(MIN_BET, c.chips), c.chips)
+end
+
+func bot_choose(c)
+  let id = event.id
+  let k = c.kind
+  c.bet = bot_amount(c)
+  if id == "dice" then
+    let w = {high: 40, low: 40, seven: 10, double: 10}
+    if c.hint != nil then
+      if ev.d1 >= 4 then w = {high: 75, low: 5, seven: 10, double: 10} else w = {high: 5, low: 75, seven: 10, double: 10} end
+    end
+    if k.greed > 0.5 then
+      w.seven = w.seven + 10
+      w.double = w.double + 10
+    end
+    c.pick = pick_weighted(w)
+  elif id == "card" then
+    if ev.v <= 6 then c.pick = "up" elif ev.v >= 8 then c.pick = "down" else c.pick = random(["up", "down"]) end
+    if chance(k.greed * 10) then c.pick = "same" end
+  elif id == "wheel" then
+    let w = {red: 42, blue: 42, gold: 8, rainbow: 8}
+    if k.greed > 0.5 then
+      w.gold = 16
+      w.rainbow = 16
+    end
+    if c.hint != nil then
+      if contains(c.hint, "金") then w.gold = 0 else w.rainbow = 0 end
+    end
+    c.pick = pick_weighted(w)
+  elif id == "race" then
+    let w = {}
+    for i in 1 to 4 do
+      let base = ev.weight[i]
+      if k.greed > 0.5 then base = 100 - base end
+      if c.hint != nil and i == ev.bad then base = 0 end
+      w["r" + i] = base
+    end
+    c.pick = pick_weighted(w)
+  elif id == "coin" then
+    c.pick = random(["heads", "tails"])
+  elif id == "bluff" then
+    c.pick = "r0"
+    if c.card >= 9 then
+      c.pick = random(["r10", "r25"])
+    elif c.card >= 7 then
+      if chance(50) then c.pick = "r10" end
+    elif c.card <= 3 then
+      if chance(k.bluff * 100) then c.pick = random(["r10", "r25"])
+      elif chance(30) then c.pick = "fold" end
+    end
+  elif id == "box" then
+    c.pick = "b" + random(1, 3)
+    if c.hint != nil then
+      let m = ev.contents[ev.known]
+      if m >= 1.5 then
+        c.pick = "b" + ev.known
+      elif m < 1 then
+        let other = random(1, 3)
+        while other == ev.known do other = random(1, 3) end
+        c.pick = "b" + other
+      end
+    end
+  elif id == "bomb" then
+    c.pick = "draw"
+    if c.hint != nil and contains(c.hint, "💣") then c.pick = nil end
+  elif id == "share" then
+    let steal = 30
+    if k.tag == "だいたん" then steal = 50 elif k.tag == "ブラフ名人" then steal = 65 elif k.tag == "しんちょう" then steal = 15 end
+    if chance(steal) then c.pick = "steal" else c.pick = "share" end
+  else
+    bot_choose_more(c)
+  end
+  if not event_takes_bet(id) then c.bet = 0 end
+  if c.pick == nil then c.bet = 0 end
+end
+
+-- 結果のとちゅうで決めること（すこし考えてから）
+func bot_later(c, f)
+  let run = show_run
+  let r = round_no
+  after(random_float(1, 3.5), func()
+    if run != show_run or r != round_no or not kit_here(c) then return end
+    f()
+  end)
+end
+
+func bot_coin(c)
+  bot_later(c, func()
+    let keep = c.kind.brave * 100 - ev.flips * 15
+    if chance(keep) then coin_choose(c, random(["heads", "tails"])) else coin_choose(c, "stop") end
+  end)
+end
+
+func bot_bomb(c)
+  bot_later(c, func()
+    let keep = c.kind.brave * 100 - ev.safe * 14
+    if chance(keep) then bomb_choose(c, "go") else bomb_choose(c, "stop") end
+  end)
+end
+
+func bot_call(c, need)
+  bot_later(c, func()
+    let call = c.card >= 6 or (c.card >= 4 and need <= 10) or chance(c.kind.bluff * 40)
+    if call then bluff_choose(c, "call") else bluff_choose(c, "fold") end
+  end)
+end
+
+-- MARK: あとから ふえた ミニゲーム（minigames.absc）
+
+-- 重みつきで えらぶ。ヒントで「ない」と わかったものは 0 にする
+func bot_pick_odds(opts, weights, never)
+  let w = {}
+  for o in opts do
+    let base = weights[o.id] or 10
+    if o.id == never then base = 0 end
+    w[o.id] = base
+  end
+  return pick_weighted(w)
+end
+
+func bot_choose_more(c)
+  let id = event.id
+  let k = c.kind
+  if id == "cups" then
+    -- BOT も カップを 目で おう（半分くらい 見のがす）
+    let w = {s1: 10, s2: 10, s3: 10}
+    w["s" + ev.answer] = 10 + k.brave * 40
+    let never = nil
+    if c.hint != nil then never = "s" + ev.not_slot end
+    c.pick = bot_pick_odds(event_options(id), w, never)
+  elif id == "keys" then
+    let left = range(1, KEY_COUNT)
+    if c.hint != nil then left = filter(left, func(n) return not contains(ev.wrong, n) end) end
+    c.pick = "k" + left[random(1, len(left))]
+  elif id == "weather" then
+    let w = {}
+    for x in WEATHER do
+      let base = ev.fc[x.id]
+      if k.greed > 0.5 then base = 60 - base end
+      w[x.id] = max(1, base)
+    end
+    let never = nil
+    if c.hint != nil then never = ev.not_sky end
+    c.pick = bot_pick_odds(event_options(id), w, never)
+  elif id == "balloon" or id == "meter" or id == "watch" then
+    c.pick = "go"
+  elif id == "amida" then
+    c.pick = "l" + random(1, 4)
+    if c.hint != nil then
+      let m = ev.prizes[ev.end_of[ev.known]]
+      if m >= 1.5 then
+        c.pick = "l" + ev.known
+      elif m < 1 then
+        let other = random(1, 4)
+        while other == ev.known do other = random(1, 4) end
+        c.pick = "l" + other
+      end
+    end
+  elif id == "reels" then
+    let w = {diff: 45, two: 45, three: 10}
+    if k.greed > 0.5 then w.three = 25 end
+    if c.hint != nil then
+      if contains(c.hint, "同じ") then w = {diff: 0, two: 75, three: 25} else w = {diff: 65, two: 35, three: 0} end
+    end
+    c.pick = pick_weighted(w)
+  elif id == "fish" then
+    let deep = 25 + k.greed * 60
+    if c.hint != nil then
+      if ev.mood == "good" then deep = 85 else deep = 10 end
+    end
+    if chance(deep) then c.pick = "deep" else c.pick = "shallow" end
+  elif id == "duck" then
+    let left = [1, 2, 3, 4]
+    if c.hint != nil then left = filter(left, func(n) return n != ev.not_last end) end
+    c.pick = "d" + left[random(1, len(left))]
+  elif id == "vote" then
+    if chance(70) then c.pick = ev.lean elif ev.lean == "a" then c.pick = "b" else c.pick = "a" end
+  elif id == "minority" then
+    c.pick = "m" + random(1, 3)
+  elif id == "rps" then
+    c.pick = RPS[random(1, 3)].id
+    if ev.tell != nil and ev.tell.seat == c.seat then c.pick = ev.tell.hand end
+  elif id == "auction" then
+    let guess = 60
+    if c.hint != nil then guess = ev.value end
+    -- 中身より 高くは 入札しない。だいたんな BOT ほど 高め
+    let top = guess * (0.35 + k.risk)
+    let can = filter(AUCTION_BIDS, func(b) return b < guess and b <= top and b <= c.chips end)
+    if len(can) == 0 or chance(15) then
+      c.pick = "pass"
+    else
+      c.pick = "b" + can[random(max(1, len(can) - 1), len(can))]
+    end
+  elif id == "number" then
+    let w = {low: 42, high: 42, zoro: 8, one: 8}
+    if k.greed > 0.5 then
+      w.zoro = 16
+      w.one = 16
+    end
+    if c.hint != nil and ev.n % 10 == 0 then w.zoro = 0 end
+    c.pick = pick_weighted(w)
+  elif id == "bag" then
+    let w = {}
+    for b in BAG_BALLS do
+      let base = ev.counts[b.id]
+      if k.greed > 0.5 then base = 7 - base end
+      w[b.id] = max(1, base)
+    end
+    let never = nil
+    if c.hint != nil then never = ev.not_ball end
+    c.pick = bot_pick_odds(event_options(id), w, never)
+  end
+end
+
+func bot_balloon(c)
+  bot_later(c, func()
+    let keep = c.kind.brave * 100 - ev.pumps * 13
+    if c.hint != nil and contains(c.hint, "われない") and ev.pumps < 3 then keep = 100 end
+    if c.hint != nil and contains(c.hint, "かならず") then keep = keep - 40 end
+    if chance(keep) then balloon_choose(c, "go") else balloon_choose(c, "stop") end
+  end)
+end
+
+-- 🎯 ⏱ BOT は ねらった時間に 🛑（すこし ずれる）
+func bot_stop(c)
+  let spread = random_float(0.04, 0.35)
+  let target = 0
+  if event.id == "meter" then
+    -- ⭐ を通るのは 1往復に 2回。そのどれかを ねらう
+    target = ev.t0 + METER_PERIOD * (0.25 + 0.5 * random(1, 6)) + random_float(-1, 1) * spread * 0.4
+  else
+    target = ev.t0 + WATCH_GOAL + random_float(-1, 1) * spread * 2.5
+  end
+  ev_later(max(0.1, target - time()), func()
+    if kit_here(c) then stop_press(c) end
+  end)
+end

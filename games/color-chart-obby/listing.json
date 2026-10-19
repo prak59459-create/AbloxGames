@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 373,
-  "bytes" : 219920,
+  "bytes" : 230953,
   "cover" : "games\/color-chart-obby\/cover-5a5ce21e.png",
   "id" : "color-chart-obby",
   "maxPlayers" : 16,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_obby.absc",
+    "lib\/kit_crowd.absc",
     "games\/color-chart-obby\/data.absc",
     "games\/color-chart-obby\/chart.absc",
     "games\/color-chart-obby\/coils.absc",

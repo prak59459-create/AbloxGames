@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 234,
-  "bytes" : 156242,
+  "bytes" : 167275,
   "cover" : "games\/grapple-cart-duo\/cover-c1665834.png",
   "id" : "grapple-cart-duo",
   "maxPlayers" : 10,
@@ -11,6 +11,7 @@
     "lib\/kit_obby.absc",
     "lib\/kit_ride.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/grapple-cart-duo\/data.absc",
     "games\/grapple-cart-duo\/carts.absc",
     "games\/grapple-cart-duo\/duo.absc",

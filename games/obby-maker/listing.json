@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 79,
-  "bytes" : 76893,
+  "bytes" : 87926,
   "cover" : "games\/obby-maker\/cover-5fdbb1a6.png",
   "id" : "obby-maker",
   "maxPlayers" : 8,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/obby-maker\/data.absc",
     "games\/obby-maker\/build.absc",
     "games\/obby-maker\/common.absc",

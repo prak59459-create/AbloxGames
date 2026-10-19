@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 577,
-  "bytes" : 310747,
+  "bytes" : 321780,
   "cover" : "games\/cart-ride-wonderland\/cover-d6019e4e.png",
   "id" : "cart-ride-wonderland",
   "maxPlayers" : 16,
@@ -10,6 +10,7 @@
     "lib\/kit.absc",
     "lib\/kit_obby.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/cart-ride-wonderland\/data.absc",
     "games\/cart-ride-wonderland\/carts.absc",
     "games\/cart-ride-wonderland\/track.absc",

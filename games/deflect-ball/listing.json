@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 44,
-  "bytes" : 63180,
+  "bytes" : 74213,
   "cover" : "games\/deflect-ball\/cover-e14bc4e1.png",
   "id" : "deflect-ball",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/deflect-ball\/data.absc",
     "games\/deflect-ball\/abilities.absc",
     "games\/deflect-ball\/ball.absc",

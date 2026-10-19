@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 348,
-  "bytes" : 209957,
+  "bytes" : 220990,
   "cover" : "games\/pedal-obby\/cover-aad131fb.png",
   "id" : "pedal-obby",
   "maxPlayers" : 16,
@@ -10,6 +10,7 @@
     "lib\/kit.absc",
     "lib\/kit_obby.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/pedal-obby\/data.absc",
     "games\/pedal-obby\/bikes.absc",
     "games\/pedal-obby\/stunts.absc",

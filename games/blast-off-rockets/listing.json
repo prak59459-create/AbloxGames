@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 252,
-  "bytes" : 166077,
+  "bytes" : 177110,
   "cover" : "games\/blast-off-rockets\/cover-f666c7e7.png",
   "id" : "blast-off-rockets",
   "maxPlayers" : 8,
@@ -10,6 +10,7 @@
     "lib\/kit.absc",
     "lib\/kit_ride.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/blast-off-rockets\/data.absc",
     "games\/blast-off-rockets\/flight.absc",
     "games\/blast-off-rockets\/lab.absc",

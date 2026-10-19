@@ -1,0 +1,213 @@
+-- main.absc — スカイスレッド・シティ
+--
+-- 糸のヒーロー「スレッドランナー」になって、たて1000m の街を 自由に動きまわる オープンワールド。
+-- どろぼうロボを ネットでつかまえる・屋上の人をたすける・💎 を集める・レースに挑戦。
+-- 集めたコインで スーツと ガジェットを 強化。進みぐあいは 自分の iPad に保存される。
+
+kit_setup("スカイスレッド・シティ", "🕸 スイングで 大都会を かけぬけろ！", [
+  "🕸 スイング: ビルの近くで おすと 糸でゆれる。もう一度おすと 手をはなして とぶ",
+  "空中で つづけて スイングすると 🔥 コンボ。手をはなす 角度で とぶ方向が かわる",
+  "🧗 ビルに向かって 歩きつづけると かべのぼり。後ろを向くと はなれる",
+  "⚡ ジップ: 前のビルへ 一気に とぶ（少し まち時間あり）",
+  "🦹 どろぼうロボは 🕸 ネット（うつボタン）で 3回 当てると つかまえられる",
+  "🆘 屋上の人に さわると 救出。💎 スカイトークンは 60こ。🏁 スタートの床で レース",
+  "👕 スーツ と 🔧 ガジェット は 広場の床。コインで 強化しよう"
+])
+kit_keep(["level", "xp", "suit", "suits", "up_rope", "up_power", "up_zip", "tokens", "caught", "rescued", "best_combo", "race_best"])
+
+weapon("ネットシューター", {model: "pistol", damage: 30, rate: 3, range: 48, ammo: 1000, reload: 0, spread: 2})
+
+kit_quest("swing", "スイングを 50回", 50, 150)
+kit_quest("swing2", "スイングを 300回", 300, 600)
+kit_quest("robber", "どろぼうロボを 5体 つかまえる", 5, 200)
+kit_quest("rescue", "屋上の人を 3人 たすける", 3, 250)
+kit_quest("token", "💎 スカイトークンを 20こ", 20, 300)
+kit_quest("race", "スイングレースを 2回 ゴール", 2, 300)
+kit_quest("needle", "スカイニードルの てっぺんに 立つ", 1, 500)
+
+-- MARK: スーツ
+
+func suit_of(id)
+  for s in SUITS do
+    if s.id == id then return s end
+  end
+  return SUITS[1]
+end
+
+func wear(p, id)
+  let s = suit_of(id)
+  p.suit = s.id
+  p.color = s.body
+  p.head_color = s.head
+  p.leg_color = s.legs
+end
+
+func open_suits(p)
+  if p.suits == nil then p.suits = ["classic"] end
+  let h = 120 + len(SUITS) * 52
+  p.ui_remove("suit_box")
+  p.ui_panel("suit_box", {at: "center", w: 470, h: h, bg: "#0F172AF0", radius: 20, layer: 40})
+  p.ui_text("suit_title", "👕 スーツ（💰 " + kit_short(kit_money(p)) + "）", {parent: "suit_box", y: 30 / h, size: 22, bold: true, color: "gold"})
+  let i = 0
+  for s in SUITS do
+    i = i + 1
+    let label = s.name
+    let bg = "#334155"
+    if p.suit == s.id then
+      label = "✅ " + s.name + "（きている）"
+      bg = "#15803D"
+    elif contains(p.suits, s.id) then
+      label = "👕 " + s.name + "（きる）"
+      bg = "#2563EB"
+    else
+      label = "🔒 " + s.name + "   💰" + kit_short(s.price)
+    end
+    p.ui_button("suit_" + s.id, label, {parent: "suit_box", y: (40 + i * 52) / h, w: 420, h: 44, size: 16, bg: bg, radius: 12})
+  end
+  p.ui_button("suit_close", "閉じる", {parent: "suit_box", y: (h - 30) / h, w: 140, h: 40, size: 15, bg: "gray"})
+end
+
+func pick_suit(p, id)
+  let s = suit_of(id)
+  if p.suits == nil then p.suits = ["classic"] end
+  if not contains(p.suits, s.id) then
+    if not kit_pay(p, s.price) then return end
+    append(p.suits, s.id)
+    p.sound("powerup")
+    particles("confetti", p, {amount: 40})
+  end
+  wear(p, s.id)
+  open_suits(p)
+end
+
+-- MARK: ガジェット
+
+func open_lab(p)
+  let h = 120 + len(UPGRADES) * 70
+  p.ui_remove("lab_box")
+  p.ui_panel("lab_box", {at: "center", w: 500, h: h, bg: "#1E1B4BF0", radius: 20, layer: 40})
+  p.ui_text("lab_title", "🔧 ガジェット（💰 " + kit_short(kit_money(p)) + "）", {parent: "lab_box", y: 30 / h, size: 22, bold: true, color: "gold"})
+  let i = 0
+  for u in UPGRADES do
+    i = i + 1
+    let level = p["up_" + u.id] or 0
+    let label = u.name + "  Lv." + level + "/3"
+    if level >= 3 then label = label + "  ✅ MAX" else label = label + "   💰" + kit_short(u.prices[level + 1]) end
+    p.ui_button("up_" + u.id, label, {parent: "lab_box", y: (30 + i * 70) / h, w: 450, h: 44, size: 16, bg: "#6D28D9", radius: 12})
+    p.ui_text("up_info_" + u.id, u.info, {parent: "lab_box", y: (60 + i * 70) / h, size: 13, color: "#C4B5FD"})
+  end
+  p.ui_button("lab_close", "閉じる", {parent: "lab_box", y: (h - 30) / h, w: 140, h: 40, size: 15, bg: "gray"})
+end
+
+func buy_upgrade(p, id)
+  for u in UPGRADES do
+    if u.id == id then
+      let key = "up_" + u.id
+      let level = p[key] or 0
+      if level >= 3 then
+        p.message("もう 最高レベル！", 1.2)
+        return
+      end
+      if kit_pay(p, u.prices[level + 1]) then
+        p[key] = level + 1
+        p.sound("powerup")
+        p.message(u.name + " が Lv." + (level + 1) + " に！", 2)
+      end
+      open_lab(p)
+      return
+    end
+  end
+end
+
+-- MARK: 画面
+
+func show_status(p)
+  let n = 0
+  if p.tokens != nil then n = len(p.tokens) end
+  p.ui_text("status", "💎 " + n + "/" + token_total + "   🦹 " + (p.caught or 0) + "   🆘 " + (p.rescued or 0),
+            {at: "top_left", dy: 74, size: 15, bold: true, color: "#E0F2FE"})
+end
+
+func action_buttons(p)
+  p.ui_button("act_swing", "🕸 スイング", {at: "right", dy: 10, dx: -16, w: 150, h: 64, size: 17, bg: "#0284C7", radius: 32})
+  p.ui_button("act_zip", "⚡ ジップ", {at: "right", dy: 86, dx: -16, w: 150, h: 50, size: 16, bg: "#7C3AED", radius: 25})
+  let climb = "🧗 のぼる ON"
+  if p.no_climb then climb = "🧗 のぼる OFF" end
+  p.ui_button("act_climb", climb, {at: "right", dy: -56, dx: -16, w: 150, h: 42, size: 14, bg: "#0F766E", radius: 21})
+  p.ui_button("open_quests", "📜", {at: "top_right", dy: 120, w: 48, h: 48, size: 20, bg: "#00000099", radius: 24})
+end
+
+on join(p)
+  p.level = 1
+  p.xp = 0
+  p.team = HERO_TEAM
+  if p.suit == nil then wear(p, "classic") end
+  p.give("ネットシューター")
+  kit_welcome(p)
+  kit_show_money(p)
+  kit_show_level(p)
+  kit_camera_button(p)
+  action_buttons(p)
+  show_status(p)
+  p.message("🕸 ようこそ、スレッドランナー！ ビルの近くで「スイング」をおしてみよう", 4)
+end
+
+kit_on_load = func(p)
+  if p.level == nil then p.level = 1 end
+  if p.xp == nil then p.xp = 0 end
+  if p.suit != nil then wear(p, p.suit) end
+  kit_show_level(p)
+  show_status(p)
+end
+
+on respawn(p)
+  rope_hide(p)
+  p.swing = nil
+  p.give("ネットシューター")
+end
+
+on button(p, id)
+  if id == "act_swing" then swing_press(p)
+  elif id == "act_zip" then zip_press(p)
+  elif id == "act_climb" then
+    p.no_climb = not p.no_climb
+    action_buttons(p)
+  elif id == "open_quests" then
+    p.kit_quests_open = true
+    kit_open_quests(p)
+  elif id == "suit_close" then p.ui_remove("suit_box")
+  elif id == "lab_close" then p.ui_remove("lab_box")
+  elif starts_with(id, "suit_") then pick_suit(p, replace(id, "suit_", ""))
+  elif starts_with(id, "up_") then buy_upgrade(p, replace(id, "up_", ""))
+  end
+end
+
+on touch(p, b)
+  if b == nil then return end
+  if b.name == "Suit Shop" and kit_ready(p, "suit_shop", 2) then open_suits(p)
+  elif b.name == "Gadget Lab" and kit_ready(p, "lab", 2) then open_lab(p)
+  end
+end
+
+-- キーボードがある人は チャットでも: /swing /zip
+on chat(p, text)
+  if text == "/swing" or text == "/スイング" then swing_press(p)
+  elif text == "/zip" or text == "/ジップ" then zip_press(p)
+  end
+end
+
+on start()
+  game.friendly_fire = false
+  world.day_length = 18
+  world.time = 15
+  world.music = "adventure"
+  every(2, func()
+    for p in players() do
+      -- スカイニードルの てっぺん
+      if kit_here(p) and p.y > 168 and abs(p.x + 40) < 14 and abs(p.z - 30) < 14 then
+        kit_quest_progress(p, "needle", 1)
+        kit_badge(p, "needle", "スカイニードル 登頂")
+      end
+    end
+  end)
+end

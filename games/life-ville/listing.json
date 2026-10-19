@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 332,
-  "bytes" : 197763,
+  "bytes" : 208796,
   "cover" : "games\/life-ville\/cover-3f9a3333.png",
   "id" : "life-ville",
   "maxPlayers" : 12,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/life-ville\/data.absc",
     "games\/life-ville\/common.absc",
     "games\/life-ville\/jobs.absc",

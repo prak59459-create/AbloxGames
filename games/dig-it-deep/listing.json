@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 169,
-  "bytes" : 127815,
+  "bytes" : 138848,
   "cover" : "games\/dig-it-deep\/cover-ba5ed054.png",
   "id" : "dig-it-deep",
   "maxPlayers" : 10,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_sim.absc",
+    "lib\/kit_crowd.absc",
     "games\/dig-it-deep\/data.absc",
     "games\/dig-it-deep\/dig.absc",
     "games\/dig-it-deep\/main.absc"

@@ -1,0 +1,267 @@
+-- swing.absc — 🕸 スイング・🧗 かべのぼり・⚡ ジップ
+--
+-- ホストは 1秒に10回 動く。スイングは ふりこの式で「いま いるはずの場所」と「速さ」を出して、
+-- p.launch で その人の iPad に 速さを送る（ずれたぶんは 少しずつ もどす）。
+-- 糸は 1本のブロック（Rope）で、手と つけたところの間に のびる。
+
+let DEG = 180 / pi
+
+func flat(v)
+  let n = sqrt(v.x * v.x + v.z * v.z)
+  if n < 0.01 then return {x: 0, y: 0, z: -1} end
+  return {x: v.x / n, y: 0, z: v.z / n}
+end
+
+func is_building(hit)
+  return hit != nil and hit.block != nil and contains(hit.block.tags, "building")
+end
+
+func rope_max(p)
+  return ROPE_MAX + (p.up_rope or 0) * 8
+end
+
+func swing_boost(p)
+  return RELEASE_BOOST + (p.up_power or 0) * 0.12
+end
+
+func zip_wait(p)
+  return max(1, ZIP_COOLDOWN - (p.up_zip or 0) * 0.5)
+end
+
+-- MARK: 糸（ブロック）
+
+func hand(p)
+  return p.position + {x: 0, y: 1.6, z: 0}
+end
+
+func rope_draw(p, tip)
+  let from = hand(p)
+  let d = tip - from
+  let len = magnitude(d)
+  if len < 0.3 then return end
+  let dir = d * (1 / len)
+  let rot = {x: acos(clamp(dir.y, -1, 1)), y: atan2(dir.x, dir.z), z: 0}
+  let mid = from + d * 0.5
+  if p.rope == nil or p.rope.id == nil then
+    p.rope = create_block({name: "Rope", position: mid, size: {x: 0.12, y: len, z: 0.12}, rotation: rot, shape: "cylinder",
+                           color: "#F8FAFC", material: "neon", solid: false, anchored: true})
+  else
+    p.rope.position = mid
+    p.rope.size = {x: 0.12, y: len, z: 0.12}
+    p.rope.rotation = rot
+  end
+end
+
+func rope_hide(p)
+  if p.rope != nil and p.rope.id != nil then p.rope.destroy() end
+  p.rope = nil
+end
+
+-- MARK: 🕸 スイング
+
+-- スイングする向き: 動いていれば その向き、止まっていれば 見ている向き
+func swing_dir(p)
+  let v = p.velocity
+  if sqrt(v.x * v.x + v.z * v.z) > 6 then return flat(v) end
+  return flat(p.look)
+end
+
+-- 前の 左右上のほうで、糸がとどく ビルの場所。高くて 前にあるほど よい。
+-- まっすぐ前の かべ（ぶつかるだけ）は えらばない
+func find_anchor(p, f)
+  let best = nil
+  let best_score = 0
+  for yaw in [-55, -35, -18, 18, 35, 55, 0] do
+    for up in [62, 48, 74] do
+      let d = rotate_y(f, yaw)
+      let dir = {x: d.x * cos(up), y: sin(up), z: d.z * cos(up)}
+      let hit = raycast(p, dir, rope_max(p) + 3)
+      if is_building(hit) and hit.distance >= 6 then
+        let rel = hit.point - p.position
+        let ahead = dot(rel, f)
+        let height = rel.y
+        if ahead > 3 and height > 6 then
+          let score = height + ahead * 0.6 - abs(yaw) * 0.04
+          if best == nil or score > best_score then
+            best = hit.point
+            best_score = score
+          end
+        end
+      end
+    end
+    -- 左右どちらかで いい場所が 見つかったら それで十分
+    if best != nil and best_score > 30 then return best end
+  end
+  return best
+end
+
+func swing_press(p)
+  if p.swing != nil then
+    swing_release(p)
+    return
+  end
+  let f = swing_dir(p)
+  -- すぐ前が かべなら ゆれずに かべへ とびつく（そのまま かべのぼりになる）
+  let wall = raycast(p, f, 18)
+  if is_building(wall) then
+    let up_to = wall.point + {x: 0, y: 9, z: 0}
+    p.launch(normalize(up_to - p.position) * 22 + {x: 0, y: 4, z: 0})
+    rope_flash(p, up_to)
+    p.message("🧗 かべに とびつく！", 0.8)
+    return
+  end
+  let a = find_anchor(p, f)
+  if a == nil then
+    p.message("🕸 とどく ビルが ない…（ビルの近くで おしてね）", 1.2)
+    p.sound("error")
+    return
+  end
+  -- ふりこは 向いている方向（f）の 面の中で ゆれる。横の はなれは そのまま（かべと 平行に 進む）
+  let r = p.position - a
+  let along = dot(r, f)
+  let side = {x: r.x - f.x * along, y: 0, z: r.z - f.z * along}
+  let len = max(sqrt(along * along + r.y * r.y), ROPE_MIN)
+  let theta = clamp(atan2(along, 0 - r.y), -80, 20)
+  let tangent = {x: f.x * cos(theta), y: sin(theta), z: f.z * cos(theta)}
+  -- 止まっていても 秒速8m で 前へ
+  let omega = max(dot(p.velocity, tangent) / len * DEG, 8 / len * DEG)
+  p.swing = {a: a, side: side, len: len, f: f, theta: theta, omega: omega, t0: time(), stuck: 0}
+  p.climbing = false
+  rope_draw(p, a)
+  p.sound("whoosh", {volume: 0.6, pitch: 1.2})
+  p.swings = (p.swings or 0) + 1
+  kit_quest_progress(p, "swing", 1)
+  kit_quest_progress(p, "swing2", 1)
+  combo_add(p)
+end
+
+-- ふりこの いまの場所。道より下には 行かない（道すれすれを 走りぬける）
+func swing_point(s)
+  let pt = s.a + s.side + s.f * (s.len * sin(s.theta)) + {x: 0, y: 0 - s.len * cos(s.theta), z: 0}
+  if pt.y < 1.2 then pt.y = 1.2 end
+  return pt
+end
+
+func swing_velocity(s)
+  let speed = s.omega / DEG * s.len
+  return {x: s.f.x * cos(s.theta) * speed, y: sin(s.theta) * speed, z: s.f.z * cos(s.theta) * speed}
+end
+
+func swing_step(p, dt)
+  let s = p.swing
+  let alpha = 0 - (SWING_G / s.len) * sin(s.theta) * DEG
+  s.omega = s.omega + (alpha + SWING_PUMP) * dt
+  s.theta = s.theta + s.omega * dt
+  let target = swing_point(s)
+  let off = target - p.position
+  -- ビルに ぶつかって 動けないときは はなす
+  if magnitude(off) > 7 and time() - s.t0 > 0.3 then s.stuck = s.stuck + dt else s.stuck = 0 end
+  if s.theta >= RELEASE_ANGLE or time() - s.t0 > SWING_TIME or s.stuck > 0.5 or (s.omega < 5 and s.theta > 0) then
+    swing_release(p)
+    return
+  end
+  let fix = off * 2.4
+  if magnitude(fix) > 14 then fix = normalize(fix) * 14 end
+  p.launch(swing_velocity(s) + fix + {x: 0, y: 0.5, z: 0})
+  rope_draw(p, s.a)
+end
+
+func swing_release(p)
+  let s = p.swing
+  p.swing = nil
+  rope_hide(p)
+  if s == nil then return end
+  let v = swing_velocity(s) * swing_boost(p) + {x: 0, y: 4, z: 0}
+  p.launch(v)
+  p.sound("whoosh", {volume: 0.5, pitch: 0.9})
+end
+
+-- 空中で つづけて スイングすると コンボ
+func combo_add(p)
+  let now = time()
+  if p.combo_at != nil and now - p.combo_at < 4.5 then p.combo = (p.combo or 0) + 1 else p.combo = 1 end
+  p.combo_at = now
+  if p.combo >= 3 then
+    p.message("🔥 スイングコンボ ×" + p.combo, 1)
+    kit_xp(p, 2 + p.combo)
+  end
+  if p.combo > (p.best_combo or 0) then
+    p.best_combo = p.combo
+    if p.combo >= 10 then kit_badge(p, "combo10", "スイングの名人") end
+  end
+end
+
+-- MARK: ⚡ ジップ
+
+-- 糸を 一瞬だけ 見せる
+func rope_flash(p, tip)
+  if p.swing != nil then return end
+  rope_draw(p, tip)
+  let rope = p.rope
+  p.rope = nil
+  after(0.35, func() if rope != nil and rope.id != nil then rope.destroy() end end)
+end
+
+func zip_press(p)
+  if not kit_ready(p, "zip", zip_wait(p)) then return end
+  if p.swing != nil then swing_release(p) end
+  let f = flat(p.look)
+  for up in [6, 18, 32, 46] do
+    let dir = {x: f.x * cos(up), y: sin(up), z: f.z * cos(up)}
+    let hit = raycast(p, dir, 85)
+    if is_building(hit) and hit.distance > 3 then
+      let way = hit.point - p.position
+      let d = magnitude(way)
+      p.launch(normalize(way) * min(ZIP_SPEED, d * 2.4 + 6) + {x: 0, y: 5, z: 0})
+      rope_flash(p, hit.point)
+      p.sound("laser", {volume: 0.4, pitch: 1.6})
+      return
+    end
+  end
+  -- 前に何もないときは ダッシュ
+  p.launch(f * 22 + {x: 0, y: 9, z: 0})
+  p.sound("whoosh")
+end
+
+-- MARK: 🧗 かべのぼり
+
+func climb_step(p, dt)
+  if p.swing != nil or p.no_climb then
+    p.wall_time = 0
+    p.climbing = false
+    return
+  end
+  -- かべを さがすのは 1秒に5回（のぼっている間は 毎回）。ホストの iPad を かるくするため
+  p.climb_tick = not p.climb_tick
+  if not p.climbing and p.climb_tick then return end
+  let f = flat(p.look)
+  let hit = raycast(p, f, 1.5)
+  if is_building(hit) then
+    p.wall_time = (p.wall_time or 0) + dt * 2
+    if p.climbing or p.wall_time >= CLIMB_WAIT then
+      if not p.climbing then
+        p.climbing = true
+        p.sound("bounce", {volume: 0.3})
+      end
+      p.launch({x: f.x * 1.5, y: CLIMB_SPEED, z: f.z * 1.5})
+      p.climbed = (p.climbed or 0) + CLIMB_SPEED * dt
+    end
+  else
+    -- のぼりきったら 屋上へ ひょいっ
+    if p.climbing then p.launch({x: f.x * 6, y: 6.5, z: f.z * 6}) end
+    p.climbing = false
+    p.wall_time = 0
+  end
+end
+
+on tick(dt)
+  for p in players() do
+    if kit_here(p) and p.alive then
+      if p.swing != nil then swing_step(p, dt) else climb_step(p, dt) end
+    end
+  end
+end
+
+on leave(p)
+  rope_hide(p)
+end

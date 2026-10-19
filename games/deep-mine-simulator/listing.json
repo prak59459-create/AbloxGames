@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 920,
-  "bytes" : 482042,
+  "bytes" : 493075,
   "cover" : "games\/deep-mine-simulator\/cover-3ec6dd0e.png",
   "id" : "deep-mine-simulator",
   "maxPlayers" : 10,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_sim.absc",
+    "lib\/kit_crowd.absc",
     "games\/deep-mine-simulator\/data.absc",
     "games\/deep-mine-simulator\/mine.absc",
     "games\/deep-mine-simulator\/main.absc"

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 598,
-  "bytes" : 331243,
+  "bytes" : 342276,
   "cover" : "games\/lumber-valley-tycoon\/cover-6b93eac5.png",
   "id" : "lumber-valley-tycoon",
   "maxPlayers" : 6,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_tycoon.absc",
+    "lib\/kit_crowd.absc",
     "games\/lumber-valley-tycoon\/data.absc",
     "games\/lumber-valley-tycoon\/forest.absc",
     "games\/lumber-valley-tycoon\/mill.absc",

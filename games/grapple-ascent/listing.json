@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 162,
-  "bytes" : 115034,
+  "bytes" : 126067,
   "cover" : "games\/grapple-ascent\/cover-65c19a96.png",
   "id" : "grapple-ascent",
   "maxPlayers" : 16,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_obby.absc",
+    "lib\/kit_crowd.absc",
     "games\/grapple-ascent\/data.absc",
     "games\/grapple-ascent\/grapple.absc",
     "games\/grapple-ascent\/upgrades.absc",

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 386,
-  "bytes" : 219523,
+  "bytes" : 230556,
   "cover" : "games\/ore-factory-haven\/cover-f4677c17.png",
   "id" : "ore-factory-haven",
   "maxPlayers" : 6,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_tycoon.absc",
+    "lib\/kit_crowd.absc",
     "games\/ore-factory-haven\/data.absc",
     "games\/ore-factory-haven\/factory.absc",
     "games\/ore-factory-haven\/main.absc"

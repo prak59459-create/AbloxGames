@@ -1,0 +1,298 @@
+-- kit_crowd.absc — 人が少ないときに あそびに来る NPC の「なかま」（Ablox Games の共通エンジン）
+--
+-- ひとりで あそんでいても さびしくないように、NPC の なかまが 入ってくる。
+-- 人が ふえたら そのぶん 帰り、へったら また来る（人と なかま あわせて fill 人まで）。
+--   オビー（「Stage 1」「Stage 2」… のブロックがある）: なかまも ステージを 1つずつ ちょうせんする。
+--     落ちたら そのステージから やり直し。何回も 落ちると 「スキップ！」して 先へ。
+--   ほかのゲーム: マップの 気になる場所（パッド・チェックポイント・アイテム）を 見に行ったり、
+--     近くの人に ついて行ったり、あいさつしたりする。
+--
+-- ゲームは 何もしなくても動く。かえたいときだけ（main.absc で）:
+--   crowd_setup({fill: 4, mode: "walk", speed: 0.9, lines: ["いらっしゃい！"]})
+--   mode: "auto"（Stage があれば obby）/ "obby" / "walk"。 crowd_setup({fill: 0}) で なし。
+-- チャットで「/npc」（または「/なかま」）と言うと、だれでも オン／オフ できる。
+-- なかまの NPC には n.crowd = true がついている。ゲームの npcs() ループで よけたいときに使う。
+-- なかまは たおれない（体力が とても多い）。さわったブロックの on touch は いつもどおり来るので、
+-- ゲームの on touch は 「if p.is_npc then return end」で はじめると よい（このカタログは そうしている）。
+
+let crowd_cfg = {fill: 4, mode: "auto", speed: 0.85, lines: nil, prefix: "Stage"}
+let crowd_on = true
+let crowd_all = []
+let crowd_serial = 0
+let crowd_mode = "walk"
+let crowd_stages = 0
+let crowd_spots = []
+let crowd_spots_at = -100
+let crowd_next_fill = 3
+
+let CROWD_NAMES = ["ミント", "ソラ", "ピコ", "ハル", "ルナ", "コタ", "モモ", "リク", "ナギ", "ユズ", "タロ", "ポポ"]
+let CROWD_COLORS = ["#F472B6", "#60A5FA", "#34D399", "#FBBF24", "#A78BFA", "#F87171", "#2DD4BF", "#FB923C"]
+let CROWD_HI = ["やっほー！", "あそびに来たよ！", "よろしくね！", "いっしょに あそぼ！"]
+let CROWD_WALK = ["ここ たのしいね", "なにしてるの？", "まってー！", "すごい！", "あっちに 行ってみよう", "いいね！", "ふむふむ…"]
+let CROWD_OBBY = ["いける いける！", "おっとっと", "むずかしい…", "落ちた〜", "もうちょっと！", "ジャンプ！"]
+let CROWD_REPLY = ["こんにちは、{}！", "やあ、{}！", "{}、いっしょに あそぼ！"]
+
+func crowd_setup(o)
+  for k in keys(o) do crowd_cfg[k] = o[k] end
+end
+
+func crowd_is(n)
+  return n != nil and n.is_npc and n.crowd == true
+end
+
+func crowd_list()
+  crowd_all = filter(crowd_all, func(n) return kit_here(n) end)
+  return crowd_all
+end
+
+func crowd_people()
+  return len(filter(players(), func(p) return kit_here(p) end))
+end
+
+func crowd_line(n, list)
+  if kit_here(n) then n.say(list[random(1, len(list))]) end
+end
+
+-- MARK: どこへ行く？
+
+-- 見に行く場所: 見えていて、さわると何かあるブロック（あぶないものは のぞく）
+func crowd_refresh_spots()
+  if time() - crowd_spots_at < 30 and len(crowd_spots) > 0 then return end
+  crowd_spots_at = time()
+  crowd_spots = filter(blocks(), func(b)
+    let k = b.behavior
+    return b.visible and (k == "trigger" or k == "checkpoint" or k == "collectible" or k == "spawn" or k == "goal")
+  end)
+end
+
+func crowd_stage(k)
+  if k <= 0 then return nil end
+  return block(crowd_cfg.prefix + " " + k)
+end
+
+func crowd_count_stages()
+  let k = 0
+  while crowd_stage(k + 1) != nil and k < 400 do k = k + 1 end
+  crowd_stages = k
+end
+
+-- MARK: 入る・帰る
+
+func crowd_spawn()
+  crowd_serial = crowd_serial + 1
+  let name = "🤖 " + CROWD_NAMES[(crowd_serial - 1) % len(CROWD_NAMES) + 1]
+  let p = random_player()
+  let at = {x: 0, y: 3, z: 0}
+  if crowd_mode == "obby" then
+    let s = block("Spawn 1")
+    if s == nil then s = crowd_stage(1) end
+    if s != nil then at = s.position + {x: random(-2, 2), y: 2, z: random(-2, 2)} end
+  elif p != nil then
+    at = p.position + {x: random(-5, 5), y: 1, z: random(-5, 5)}
+  end
+  let n = create_npc({name: name, position: at, color: CROWD_COLORS[(crowd_serial - 1) % len(CROWD_COLORS) + 1],
+                      head_color: "#FDE68A", health: 1000000, speed: crowd_cfg.speed})
+  n.crowd = true
+  n.stage = 0
+  n.fails = 0
+  n.best_at = time()
+  n.next_think = time() + 1
+  n.plan = "look"
+  n.plan_until = 0
+  append(crowd_all, n)
+  if chance(60) then crowd_line(n, CROWD_HI) end
+  return n
+end
+
+func crowd_fill()
+  let want = 0
+  if crowd_on then want = max(0, crowd_cfg.fill - crowd_people()) end
+  if crowd_people() == 0 then want = 0 end
+  let list = crowd_list()
+  while len(list) > want do
+    let n = list[len(list)]
+    if chance(50) then n.say("またね〜！") end
+    kit_gone(n)
+    list = slice(list, 1, len(list) - 1)
+  end
+  crowd_all = list
+  if len(list) < want and time() >= crowd_next_fill then
+    crowd_next_fill = time() + 4
+    crowd_spawn()
+  end
+end
+
+-- MARK: オビー
+
+func crowd_obby(n)
+  let next = crowd_stage(n.stage + 1)
+  if next == nil then
+    next = block("Finish")
+    if next == nil or n.stage >= crowd_stages + 1 then
+      -- ゴールしたら 最初から もう一度
+      n.say("ゴール！ もう1回 いこう")
+      n.stage = 0
+      n.fails = 0
+      let s = block("Spawn 1")
+      if s != nil then n.teleport(s.position + {x: 0, y: 2, z: 0}) end
+      return
+    end
+  end
+  let here = crowd_stage(n.stage)
+  if here == nil then here = block("Spawn 1") end
+  -- 落ちた: いまのステージに もどる
+  if here != nil and n.y < here.y - 10 then
+    n.fails = n.fails + 1
+    n.teleport(here.position + {x: 0, y: 2, z: 0})
+    if chance(30) then crowd_line(n, CROWD_OBBY) end
+    if n.fails >= 5 then
+      -- 何回も 落ちたら スキップ（お金を はらった ことにする）
+      n.say("スキップ！")
+      n.stage = n.stage + 1
+      n.fails = 0
+      n.teleport(next.position + {x: 0, y: 2, z: 0})
+      n.best_at = time()
+    end
+    return
+  end
+  if distance(n, next) < 2.4 or (abs(n.x - next.x) < 1.6 and abs(n.z - next.z) < 1.6 and n.y >= next.y - 0.5) then
+    n.stage = n.stage + 1
+    n.fails = 0
+    n.best_at = time()
+    if chance(25) then n.say("ステージ " + n.stage + "！") end
+    return
+  end
+  -- 次の足場: 近くの ブロックのうち、高さが 近くて とどく きょりで、次のステージに いちばん近づくもの
+  let best = nil
+  let best_left = distance(n, next) - 0.5
+  for b in blocks_near(n, 7) do
+    if b.solid and b.visible and b.behavior != "hazard" then
+      let top = b.y + b.size.y / 2
+      let dy = top - n.y
+      let dx = b.x - n.x
+      let dz = b.z - n.z
+      let hd = sqrt(dx * dx + dz * dz)
+      if dy > -3 and dy < 1.6 and hd > 1 and hd < 6.5 then
+        let left = distance(b, next)
+        if left < best_left then
+          best = b
+          best_left = left
+        end
+      end
+    end
+  end
+  if best != nil then
+    let top = best.y + best.size.y / 2
+    n.move_to({x: best.x, y: top + 1, z: best.z})
+    let dx = best.x - n.x
+    let dz = best.z - n.z
+    let hd = sqrt(dx * dx + dz * dz)
+    -- すきまは ふちの近くまで来てから ジャンプ。段は すぐ ジャンプ
+    let edge = hd - max(best.size.x, best.size.z) / 2
+    if (hd > 1.6 and edge < 2.2) or top > n.y + 0.4 then n.jump_now() end
+  else
+    n.move_to(next.position + {x: 0, y: 1, z: 0})
+    if next.y > n.y + 0.6 or chance(20) then n.jump_now() end
+  end
+  -- 長く進めないときも やり直し
+  if time() - n.best_at > 14 and here != nil then
+    n.best_at = time()
+    n.fails = n.fails + 1
+    n.teleport(here.position + {x: 0, y: 2, z: 0})
+  end
+end
+
+-- MARK: 歩きまわる
+
+func crowd_walk(n)
+  let now = time()
+  if now >= n.plan_until then
+    let r = random()
+    let p = nearest_player(n, 40)
+    if p != nil and r < 0.35 then
+      n.plan = "follow"
+      n.target = p
+      n.plan_until = now + random_float(8, 16)
+    elif r < 0.8 and len(filter(crowd_spots, func(b) return b.id != nil end)) > 0 then
+      n.plan = "visit"
+      -- ゲームが こわした ブロックは のぞく
+      crowd_spots = filter(crowd_spots, func(b) return b.id != nil end)
+      let near = filter(crowd_spots, func(b) return distance(b, n) < 70 end)
+      if len(near) == 0 then near = crowd_spots end
+      n.goal = near[random(1, len(near))].position
+      n.plan_until = now + random_float(10, 18)
+    else
+      n.plan = "rest"
+      n.plan_until = now + random_float(3, 6)
+      n.stop()
+    end
+  end
+  if n.plan == "follow" then
+    if n.target == nil or not kit_here(n.target) then
+      n.plan_until = 0
+    elif distance(n, n.target) > 4 then
+      n.move_to(n.target.position)
+    else
+      n.stop()
+      n.yaw = yaw_to(n, n.target)
+    end
+  elif n.plan == "visit" and n.goal != nil then
+    if distance(n, n.goal) > 2.5 then n.move_to(n.goal) else n.plan_until = 0 end
+  elif n.plan == "rest" then
+    n.yaw = n.yaw + random(-40, 40)
+  end
+  if chance(4) then
+    let p = nearest_player(n, 12)
+    if p != nil then
+      let lines = CROWD_WALK
+      if crowd_cfg.lines != nil then lines = crowd_cfg.lines end
+      crowd_line(n, lines)
+    end
+  end
+  -- 下に 落ちすぎたら 人のそばに もどる
+  if n.y < -30 then
+    let p = random_player()
+    if p != nil then n.teleport(p.position + {x: random(-3, 3), y: 2, z: random(-3, 3)}) end
+  end
+end
+
+func crowd_step()
+  crowd_fill()
+  if crowd_mode == "walk" then crowd_refresh_spots() end
+  for n in crowd_list() do
+    if time() >= n.next_think then
+      -- オビーは 足もとを よく見るので こまめに
+      if crowd_mode == "obby" then n.next_think = time() + random_float(0.3, 0.45) else n.next_think = time() + random_float(0.9, 1.6) end
+      if crowd_mode == "obby" then crowd_obby(n) else crowd_walk(n) end
+    end
+  end
+end
+
+on start()
+  if crowd_cfg.fill <= 0 then return end
+  crowd_count_stages()
+  crowd_mode = crowd_cfg.mode
+  if crowd_mode == "auto" then
+    if crowd_stages >= 3 then crowd_mode = "obby" else crowd_mode = "walk" end
+  end
+  every(0.5, func() crowd_step() end)
+end
+
+on chat(p, text)
+  let t = lower(trim(text))
+  if t == "/npc" or t == "/なかま" then
+    crowd_on = not crowd_on
+    if crowd_on then announce("🤖 なかまの NPC: オン（" + p.name + "）", 2) else announce("🤖 なかまの NPC: オフ（" + p.name + "）", 2) end
+    return
+  end
+  -- あいさつには あいさつで
+  if contains(t, "こんにちは") or contains(t, "やあ") or t == "hi" or t == "hello" or contains(t, "よろしく") then
+    for n in crowd_list() do
+      if distance(n, p) < 18 then
+        n.say(replace(CROWD_REPLY[random(1, len(CROWD_REPLY))], "{}", p.name))
+        return
+      end
+    end
+  end
+end
+

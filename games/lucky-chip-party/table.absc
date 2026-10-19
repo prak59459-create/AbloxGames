@@ -1,0 +1,235 @@
+-- table.absc — 席・チップの山・看板・カメラ
+--
+-- 席は4つ（Seat 1〜4）。すわっている人（プレイヤーか BOT）は seats[k]。
+-- テーブルの上のチップの山（Stack k）は、持っているチップに合わせて高さがかわる。
+
+let seats = [nil, nil, nil, nil]
+let watchers_note = "👀 見学中 — 次のショーから すわれます"
+
+func seat_block(k)
+  return block("Seat " + k)
+end
+
+func seat_at(c)
+  if c == nil or c.seat == nil then return nil end
+  return seat_block(c.seat)
+end
+
+func seated()
+  let list = []
+  for k in 1 to SEATS do
+    let c = seats[k]
+    if c != nil and kit_here(c) then append(list, c) end
+  end
+  return list
+end
+
+-- まだチップがあって 勝負している人
+func live_seats()
+  return filter(seated(), func(c) return not c.out end)
+end
+
+func seat_humans()
+  return filter(seated(), func(c) return not c.is_npc end)
+end
+
+func free_seat()
+  for k in 1 to SEATS do
+    if seats[k] == nil or not kit_here(seats[k]) then return k end
+  end
+  return nil
+end
+
+-- 席の場所（テーブルの中心からの向き）
+func seat_spot(k)
+  let b = seat_block(k)
+  return {x: b.x, y: 1, z: b.z}
+end
+
+func sit(c, k)
+  seats[k] = c
+  c.seat = k
+  c.chips = START_CHIPS
+  c.out = false
+  c.bet = 0
+  c.pick = nil
+  c.locked = false
+  c.teleport(seat_spot(k))
+  c.yaw = yaw_to(seat_block(k), {x: 0, y: 0, z: 0})
+  if c.is_npc then
+    c.stop()
+  else
+    c.frozen = true
+    table_camera(c)
+  end
+  show_stack(k)
+end
+
+-- 席を かわるとき、そのラウンドの とちゅうの ようすを ひきつぐ
+let ROUND_KEYS = ["out", "round_start", "pick", "bet", "paid", "result", "card", "put", "folded", "decided",
+                  "cstate", "pot", "bstate", "hint", "stopped", "stop_v", "rps_w", "locked"]
+
+func hand_over(old, new_one)
+  for key in ROUND_KEYS do new_one[key] = old[key] end
+end
+
+func stand_up(c)
+  if c == nil then return end
+  if c.seat != nil and seats[c.seat] == c then seats[c.seat] = nil end
+  c.seat = nil
+  if kit_here(c) and not c.is_npc then
+    c.frozen = false
+    c.camera_reset()
+  end
+end
+
+-- MARK: カメラ
+
+-- 自分の席のうしろ、高いところから テーブルを見る
+func table_camera(p)
+  if p.is_npc or p.seat == nil then return end
+  if p.free_cam then
+    p.camera_reset()
+    return
+  end
+  let s = seat_spot(p.seat)
+  p.camera_look({x: s.x * 1.75, y: 9.5, z: s.z * 1.75}, {x: 0, y: 1.2, z: 0})
+end
+
+func race_camera(p)
+  if p.is_npc or p.free_cam then return end
+  p.camera_look({x: 0, y: 10, z: -9}, {x: 0, y: 0.6, z: -21})
+end
+
+func gallery_camera(p)
+  if p.is_npc then return end
+  p.camera_look({x: 0, y: 11, z: 24}, {x: 0, y: 1.2, z: -2})
+end
+
+-- MARK: チップの山と看板
+
+func stack_height(chips)
+  return clamp(0.15 + chips / 120, 0.15, 4)
+end
+
+func show_stack(k)
+  let c = seats[k]
+  let stack = block("Stack " + k)
+  let sign = block("Seat Sign " + k)
+  if c == nil or not kit_here(c) then
+    stack.visible = false
+    sign.label = [{text: SEAT_NAMES[k] + " の席", color: SEAT_COLORS[k]}, {text: "あいています", color: "#CBD5E1"}]
+    return
+  end
+  if c.out then
+    stack.visible = false
+    sign.label = [{text: c.name, color: SEAT_COLORS[k]}, {text: "💸 OUT", color: "#F87171"}]
+    return
+  end
+  let h = stack_height(c.chips)
+  stack.visible = true
+  stack.size = {x: 0.9, y: h, z: 0.9}
+  stack.y = 1.3 + h / 2
+  let line = "🪙 " + c.chips
+  if c.locked and phase == "bet" then line = line + "  ✅" end
+  sign.label = [{text: c.name, color: SEAT_COLORS[k]}, {text: line, color: "#FDE047"}]
+end
+
+func show_stacks()
+  for k in 1 to SEATS do show_stack(k) end
+end
+
+-- まん中のポット（ブラフ・カードで たまるチップ）
+func show_pot(amount)
+  let pot = block("Pot")
+  if amount <= 0 then
+    pot.visible = false
+    pot.label = nil
+    return
+  end
+  let h = stack_height(amount)
+  pot.visible = true
+  pot.size = {x: 1.3, y: h, z: 1.3}
+  pot.y = 1.3 + h / 2
+  pot.label = [{text: "ポット 🪙 " + amount, color: "#FDE047"}]
+end
+
+-- 大きな看板（Board）。lines は文字か {text, color} のリスト（4行まで）
+func board(lines)
+  block("Board Text").label = lines
+end
+
+-- テーブルの道具を ぜんぶ かたづける
+func clear_props()
+  for name in ["Die 1", "Die 2", "Card 1", "Card 2", "Box 1", "Box 2", "Box 3", "Box Lid 1", "Box Lid 2", "Box Lid 3",
+               "Wheel Light", "Deck", "Coin", "Big Balloon"] do
+    let b = block(name)
+    b.visible = false
+    b.label = nil
+    b.animation = nil
+  end
+  -- カップ シャッフル や リールで かわった 箱の色と場所を もとにもどす
+  for k in 1 to 3 do
+    let b = block("Box " + k)
+    b.color = BOX_COLORS[k]
+    b.position = {x: CUP_X[k], y: 1.95, z: 0.6}
+  end
+  for k in 1 to 4 do
+    let r = block("Racer " + k)
+    r.label = nil
+    r.color = RACERS[k].color
+  end
+  show_pot(0)
+end
+
+-- MARK: いまの順位
+
+func ranking_parts()
+  let list = sort(seated(), func(a, b) return a.chips > b.chips end)
+  let medals = ["🥇", "🥈", "🥉", "4."]
+  let parts = []
+  let i = 0
+  for c in list do
+    i = i + 1
+    let name = c.name
+    if c.out then name = name + "💸" end
+    append(parts, medals[i] + " " + name + " " + c.chips)
+  end
+  return parts
+end
+
+func ranking_line()
+  return join(ranking_parts(), "   ")
+end
+
+-- 左上、自分のチップの下に 順位の表
+func show_ranking()
+  let parts = ranking_parts()
+  if len(parts) == 0 then
+    ui_remove("rank_line")
+    return
+  end
+  ui_text("rank_line", join(parts, "\n"), {at: "top_left", dy: 62, size: 14, bold: true, color: "#FDE68A", bg: "#00000077", radius: 10})
+end
+
+-- 自分のチップ（左上）
+func show_chips(p)
+  if p.is_npc then return end
+  if p.seat == nil or seats[p.seat] != p then
+    p.ui_text("my_chips", watchers_note, {at: "top_left", dy: 6, size: 16, bold: true, color: "#C4B5FD"})
+    p.ui_remove("my_round")
+    return
+  end
+  let text = "🪙 チップ " + p.chips
+  if p.out then text = "💸 チップがなくなった（見学中）" end
+  p.ui_text("my_chips", text, {at: "top_left", dy: 6, size: 22, bold: true, color: "gold"})
+  let r = ""
+  if round_no > 0 and event != nil then r = "ラウンド " + round_no + "/" + ROUNDS + "  " + event.emoji + " " + event.name end
+  p.ui_text("my_round", r, {at: "top_left", dy: 36, size: 15, bold: true, color: "#E9D5FF"})
+end
+
+func show_all_chips()
+  for p in players() do show_chips(p) end
+  show_ranking()
+  show_stacks()
+end

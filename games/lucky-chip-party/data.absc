@@ -1,0 +1,219 @@
+-- data.absc — ルール・イベント・BOT の性格
+--
+-- ラッキーチップ・パーティー: 4人でテーブルをかこむ、運と読みあいのゲームショー。
+-- チップは このゲームの中だけのもので、ほかのゲームのコインとも 本物のお金とも 関係ありません。
+
+let START_CHIPS = 100     -- 1回のショーで はじめに持つチップ
+let MIN_BET = 5           -- いちばん少ない かけ金
+let SEATS = 4             -- テーブルの席（人がたりない席には BOT がすわる）
+let ROUNDS = 8            -- 1回のショーのラウンド数
+let LOBBY_WAIT = 15       -- ショーが始まるまで
+let INTRO_TIME = 4        -- ラウンドの説明
+let BET_TIME = 16         -- かけ金とえらぶ時間
+let STEP_TIME = 8         -- つづける／やめる、コール／おりる を決める時間
+let RESULT_TIME = 6       -- 結果を見る時間
+let FINAL_TIME = 14       -- 優勝のあと、次のショーまで
+let FINAL_BONUS = 1.5     -- 最後のラウンドは 配当がこの倍
+
+let SEAT_COLORS = ["#EF4444", "#3B82F6", "#22C55E", "#F59E0B"]
+let SEAT_NAMES = ["レッド", "ブルー", "グリーン", "イエロー"]
+
+-- どのイベントも同じ形: id・絵文字・名前・ルール（1行）
+let EVENTS = [
+  {id: "dice", emoji: "🎲", name: "サイコロ ハイ＆ロー",
+   rule: "2つのサイコロの合計は？ 8以上・6以下は ×2.3、ぴったり7・ゾロ目は ×5.5"},
+  {id: "card", emoji: "🃏", name: "つぎのカード",
+   rule: "つぎのカード（1〜13）は 今のより 上？ 下？ 同じ？ 当たりにくいほど 倍率が高い"},
+  {id: "wheel", emoji: "🎡", name: "ラッキールーレット",
+   rule: "光が止まる色をあてろ。赤・青は ×2.3、めったに来ない 金・虹は ×11"},
+  {id: "race", emoji: "🐢", name: "どうぶつレース",
+   rule: "1着をあてろ。人気のない子ほど 倍率が高い"},
+  {id: "coin", emoji: "🪙", name: "コイン ダブルアップ",
+   rule: "表か裏か。あたれば倍！ つづけるか やめるか（4回まで）。はずれたら 0"},
+  {id: "bluff", emoji: "🤫", name: "ブラフ・カード",
+   rule: "自分だけに見えるカード（1〜10）。レイズで おどかすか、おりるか。いちばん大きい人が ポットを取る"},
+  {id: "box", emoji: "🎁", name: "ミステリーボックス",
+   rule: "3つの箱の中身は ×0〜×3。だれかが ひみつのヒントを もらっているかも"},
+  {id: "bomb", emoji: "💣", name: "ばくだんカード",
+   rule: "1まい出るごとに 倍率アップ。💣が出たら かけたチップは なくなる。どこでやめる？"},
+  {id: "share", emoji: "🤝", name: "わける？ ひとりじめ？",
+   rule: "2人1組で ボーナス30。2人とも「わける」なら 15ずつ。かたほうだけ「ひとりじめ」なら その人が30"},
+  {id: "cups", emoji: "🥤", name: "カップ シャッフル",
+   rule: "ボールの入ったカップを 目で おいかけろ。まぜたあと 何ばんにある？ あたれば ×2.7"},
+  {id: "keys", emoji: "🗝", name: "たからばこの カギ",
+   rule: "5本のカギのうち ほんものは 1本だけ。えらんだカギで 宝箱が あけば ×4.6"},
+  {id: "weather", emoji: "🌦", name: "あしたの 天気よほう",
+   rule: "よほうの％を見て あしたの天気を あてろ。めずらしい天気ほど 倍率が高い"},
+  {id: "balloon", emoji: "🎈", name: "ふうせん ふくらまし",
+   rule: "ひと押しごとに 倍率アップ。われる前に「やめる」で もらえる。われたら 0"},
+  {id: "amida", emoji: "🪜", name: "あみだくじ",
+   rule: "4本の線の下に ×0・×0.5・×1.5・×2。線をたどって ついたところが 倍率"},
+  {id: "reels", emoji: "🍒", name: "フルーツ リール",
+   rule: "3つのリールが止まると？ ぜんぶちがう・2つそろう は ×1.9、3つそろう は ×12"},
+  {id: "meter", emoji: "🎯", name: "ストップ・メーター",
+   rule: "行ったり来たりする 🔴 を まん中の ⭐ で 🛑 ストップ！ 近いほど 倍率アップ（×3まで）"},
+  {id: "watch", emoji: "⏱", name: "ぴったり 5びょう",
+   rule: "時計は 2びょうで 見えなくなる。心の中で数えて ぴったり 5.00びょうで 🛑！"},
+  {id: "fish", emoji: "🎣", name: "つり大会",
+   rule: "あさい池は 小さな魚が よくつれる。ふかい海は 長ぐつか 大物か！ つれた魚で 倍率が決まる"},
+  {id: "duck", emoji: "🦆", name: "アヒル ながし（びりは だれ？）",
+   rule: "4わの アヒルが 川をくだる。いちばん おそい「びり」を あてれば ×3.7"},
+  {id: "vote", emoji: "🗳", name: "みんなで 多数決",
+   rule: "2つのうち みんなが 多くえらぶほうを えらべ。多いほうは +15、同じ数なら みんな +5"},
+  {id: "minority", emoji: "🦄", name: "すくないほうが 勝ち",
+   rule: "3つから 1つ。えらんだ人が いちばん すくないものが 勝ち！ ボーナス40を 山分け"},
+  {id: "rps", emoji: "✊", name: "じゃんけん バトル",
+   rule: "ほかの みんなと 1回ずつ じゃんけん。勝つたびに +50%、負けるたびに −50%"},
+  {id: "auction", emoji: "💰", name: "ひみつの 入札",
+   rule: "なぞの おたから（🪙 30〜90）。いちばん高く 入札した人が はらって もらえる。同じ金額なら だれも もらえない"},
+  {id: "number", emoji: "🔢", name: "ひみつの数 1〜100",
+   rule: "ひみつの数は？ 50以下・51以上 は ×1.8、ゾロ目（11・22…）・1けた は ×10"},
+  {id: "bag", emoji: "👜", name: "ふくろの ボールびき",
+   rule: "ふくろの中の ボールの数は 毎回ちがう。引く1この色を あてろ。少ない色ほど 倍率が高い"}
+]
+
+-- ここまでで 25 種類。1回のショーでは そのうち ROUNDS こ（同じイベントは 2回 出ない）。
+-- 前のショーで出たものは あとまわし（つづけて遊んでも ちがうゲームが 出やすい）
+
+-- サイコロの目
+let DIE_FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
+
+-- ルーレットのマス（12こ）: 赤5・青5・金1・虹1
+let WHEEL = ["red", "blue", "red", "blue", "red", "blue", "red", "blue", "red", "blue", "gold", "rainbow"]
+let WHEEL_COLORS = {red: "#DC2626", blue: "#2563EB", gold: "#FACC15", rainbow: "#E879F9"}
+let WHEEL_NAMES = {red: "🔴 赤", blue: "🔵 青", gold: "🟡 金", rainbow: "🌈 虹"}
+
+-- レースに出る4ひき。強さ（勝ちやすさ）はラウンドごとに入れかわる
+let RACERS = [
+  {name: "カメ", emoji: "🐢", color: "#16A34A"},
+  {name: "ウサギ", emoji: "🐰", color: "#F9A8D4"},
+  {name: "カタツムリ", emoji: "🐌", color: "#A16207"},
+  {name: "ロボ", emoji: "🤖", color: "#94A3B8"}
+]
+let RACE_WEIGHTS = [40, 28, 20, 12]
+let RACE_LENGTH = 22
+
+-- ミステリーボックスの中身（どの組も 平均すると ×1）
+let BOX_SETS = [[0, 1, 2], [0, 0.5, 2.5], [0, 1.5, 1.5], [0.5, 0.5, 2], [0, 0, 3]]
+
+-- ばくだんカード: 10まいのうち 💣 が2まい。安全なカードが出るたびに倍率がこう上がる
+let BOMB_DECK = 10
+let BOMB_COUNT = 2
+let BOMB_STEPS = [1.3, 1.7, 2.2, 3, 4, 5.5]
+
+-- わける？ひとりじめ？
+let SHARE_POT = 30
+let SHARE_BOTH_STEAL = 5   -- 2人ともひとりじめなら、2人ともこれだけへる
+
+-- 🥤 カップ シャッフル: カップの場所（左・まん中・右）と、まぜる回数・はやさ
+let CUP_X = [-2.3, 0, 2.3]
+let CUP_SWAPS = 8
+let CUP_SWAP_TIME = 0.55
+let CUP_COLOR = "#F8FAFC"
+let BOX_COLORS = ["#DC2626", "#16A34A", "#2563EB"]
+
+-- 🗝 たからばこの カギ
+let KEY_COUNT = 5
+
+-- 🌦 天気よほう（毎回 どれか1つの よほう）
+let WEATHER = [
+  {id: "sun", emoji: "☀️", name: "はれ"},
+  {id: "cloud", emoji: "☁️", name: "くもり"},
+  {id: "rain", emoji: "☔", name: "あめ"},
+  {id: "snow", emoji: "⛄", name: "ゆき"}
+]
+let FORECASTS = [
+  {sun: 50, cloud: 25, rain: 20, snow: 5},
+  {sun: 20, cloud: 30, rain: 40, snow: 10},
+  {sun: 30, cloud: 40, rain: 20, snow: 10},
+  {sun: 60, cloud: 20, rain: 15, snow: 5},
+  {sun: 15, cloud: 25, rain: 25, snow: 35}
+]
+
+-- 🎈 ふうせん: ひと押しごとの倍率と、何回目で われるか（重み。9 = さいごまで われない）
+let BALLOON_STEPS = [1.2, 1.5, 1.9, 2.4, 3, 3.8, 4.8, 6]
+let BALLOON_POP = [8, 12, 15, 16, 15, 12, 9, 7, 6]
+
+-- 🪜 あみだくじの 下の倍率（どれも 平均 ×1）と 横線の数
+let AMIDA_PRIZES = [0, 0.5, 1.5, 2]
+let AMIDA_RUNGS = 7
+
+-- 🍒 フルーツ リール
+let REEL = ["🍒", "🍋", "🍇", "🍉", "⭐"]
+
+-- 🎯 ストップ・メーター（0〜100 を行ったり来たり）と ⏱ ぴったり5びょう
+let METER_PERIOD = 1.5    -- 1往復の秒数
+let METER_TIME = 7        -- 🛑 をおせる時間
+let WATCH_GOAL = 5
+let WATCH_SHOW = 2        -- 時計が見えている秒数
+let WATCH_TIME = 9
+-- 近さ → 倍率（meter はメーターのずれ、watch は秒のずれ）
+let METER_RANKS = [{near: 4, mult: 3, text: "🌟 ぴったり！"}, {near: 12, mult: 2, text: "✨ おしい！"},
+                   {near: 25, mult: 1.2, text: "🙂 まあまあ"}, {near: 999, mult: 0.3, text: "💦 とおい…"}]
+let WATCH_RANKS = [{near: 0.15, mult: 3, text: "🌟 ぴったり！"}, {near: 0.4, mult: 2, text: "✨ おしい！"},
+                   {near: 0.8, mult: 1.2, text: "🙂 まあまあ"}, {near: 999, mult: 0.3, text: "💦 とおい…"}]
+
+-- 🎣 つり大会: つれるもの（w は 出やすさ）
+let FISH_SHALLOW = [{emoji: "🥾", name: "長ぐつ", mult: 0, w: 15}, {emoji: "🐟", name: "小魚", mult: 1, w: 45},
+                    {emoji: "🐠", name: "ねったいぎょ", mult: 1.2, w: 30}, {emoji: "🦀", name: "カニ", mult: 2, w: 10}]
+let FISH_DEEP = [{emoji: "🥾", name: "長ぐつ", mult: 0, w: 47}, {emoji: "🐡", name: "フグ", mult: 1.5, w: 25},
+                 {emoji: "🐙", name: "タコ", mult: 2, w: 20}, {emoji: "🐋", name: "クジラ", mult: 3.5, w: 8}]
+
+-- 🦆 アヒル ながし
+let DUCKS = [
+  {name: "ピヨ", color: "#FDE047"},
+  {name: "ガーコ", color: "#FB923C"},
+  {name: "プカ", color: "#F9A8D4"},
+  {name: "チャプ", color: "#67E8F9"}
+]
+
+-- 🗳 多数決の おだい・🦄 すくないほうが勝ち の えらぶもの
+let VOTE_TOPICS = [
+  [{id: "a", label: "🍦 アイス"}, {id: "b", label: "🍰 ケーキ"}],
+  [{id: "a", label: "🐶 イヌ"}, {id: "b", label: "🐱 ネコ"}],
+  [{id: "a", label: "🏖 うみ"}, {id: "b", label: "⛰ やま"}],
+  [{id: "a", label: "🍙 おにぎり"}, {id: "b", label: "🍞 パン"}],
+  [{id: "a", label: "☀️ なつ"}, {id: "b", label: "❄️ ふゆ"}],
+  [{id: "a", label: "🚀 うちゅう"}, {id: "b", label: "🌊 海のそこ"}]
+]
+let VOTE_WIN = 15
+let VOTE_TIE = 5
+let MINORITY_SETS = [["🍎", "🍌", "🍇"], ["🐸", "🐧", "🦊"], ["🔺", "🟦", "🟡"], ["🚗", "🚲", "🚂"]]
+let MINORITY_POT = 40
+
+-- ✊ じゃんけん: 1勝ごと・1敗ごとに 倍率が これだけ かわる
+let RPS_STEP = 0.5
+let RPS = [{id: "rock", label: "✊ グー"}, {id: "scissors", label: "✌ チョキ"}, {id: "paper", label: "🖐 パー"}]
+
+-- 💰 ひみつの入札
+let AUCTION_BIDS = [10, 20, 30, 40, 50]
+
+-- 👜 ふくろの ボール
+let BAG_BALLS = [
+  {id: "red", emoji: "🔴", color: "#DC2626"},
+  {id: "blue", emoji: "🔵", color: "#2563EB"},
+  {id: "green", emoji: "🟢", color: "#16A34A"},
+  {id: "gold", emoji: "🟡", color: "#FACC15"}
+]
+
+-- BOT の性格。risk: 1回にかける わりあい / bluff: 弱いカードでレイズする確率 / brave: つづける気持ち
+let BOT_TYPES = [
+  {tag: "しんちょう", risk: 0.12, bluff: 0.05, brave: 0.25, greed: 0.2},
+  {tag: "ふつう", risk: 0.25, bluff: 0.15, brave: 0.45, greed: 0.4},
+  {tag: "だいたん", risk: 0.45, bluff: 0.3, brave: 0.7, greed: 0.6},
+  {tag: "ブラフ名人", risk: 0.3, bluff: 0.6, brave: 0.5, greed: 0.5}
+]
+let BOT_NAMES = ["ラッキー", "ダイス", "ジョーカー", "スペード", "ハート", "クラブ", "ダイヤ", "エース"]
+
+let BOT_LINES = {
+  hello: ["よろしく！", "今日はツイてる気がする", "まけないよ〜", "チップを ふやすぞ！"],
+  allin: ["オールイン！", "ぜんぶ いっちゃう！", "勝負だ！"],
+  raise: ["レイズ！", "ふふ…いいカードだ", "おりるなら 今のうちだよ？", "どうかな〜？"],
+  fold: ["おりる…", "今回は パス", "あぶないあぶない"],
+  win: ["やった！", "ツイてる〜！", "見たか！", "ラッキー！"],
+  lose: ["うそ〜", "つぎは勝つ…", "あちゃー", "くやしい！"],
+  share: ["なかよく わけよう！", "しんじてるよ？", "わけようね！"],
+  stop: ["ここだ！", "えいっ！", "ストップ！", "いまだ！"],
+  vote: ["こっちに きまってる！", "みんな どっち？", "うーん、まよう〜"],
+  out: ["チップが…なくなった", "また来るね〜", "おつかれさま！"]
+}

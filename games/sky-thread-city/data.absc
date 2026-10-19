@@ -1,0 +1,58 @@
+-- data.absc — スカイスレッド・シティの 数字と リスト
+--
+-- 糸のヒーロー「スレッドランナー」になって 大都会を 動きまわる。
+-- 🕸 スイング: 前の上のほうの ビルに 糸をつけて ふりこのように ゆれる（もう一度おすと 手をはなす）
+-- 🧗 かべのぼり: ビルに向かって 歩きつづけると のぼる。後ろを向くと はなれる
+-- ⚡ ジップ: 前のビルへ 一気に とんでいく
+
+let ROPE_MIN = 9
+let ROPE_MAX = 40          -- 強化で のびる
+let SWING_G = 17           -- ふりこの はやさ（大きいほど 速くゆれる）
+let SWING_PUMP = 22        -- 前へ こぐ力（度/秒²）
+let SWING_TIME = 3.4       -- 1回のスイングの 長さの上限
+let RELEASE_ANGLE = 62     -- ここまで ふれたら 自動で 手をはなす
+let RELEASE_BOOST = 1.12
+let CLIMB_SPEED = 6.5
+let CLIMB_WAIT = 0.3       -- かべの前に これだけいると のぼりはじめる
+let ZIP_SPEED = 36
+let ZIP_COOLDOWN = 2.5
+
+let ROBBER_MAX = 5
+let ROBBER_EVERY = 25
+let CITIZEN_COUNT = 8
+let RESCUE_EVERY = 55
+let TOKEN_REWARD = 15
+let ROBBER_REWARD = 30
+let RESCUE_REWARD = 45
+
+let HERO_TEAM = "hero"
+
+-- スーツ（色のくみあわせ）。price 0 は 最初から
+let SUITS = [
+  {id: "classic", name: "クラシック", price: 0, body: "#0EA5E9", head: "#0F172A", legs: "#F97316"},
+  {id: "crimson", name: "クリムゾン", price: 300, body: "#DC2626", head: "#7F1D1D", legs: "#1E3A8A"},
+  {id: "shadow", name: "シャドウ", price: 600, body: "#111827", head: "#030712", legs: "#F8FAFC"},
+  {id: "gold", name: "ゴールド", price: 1200, body: "#FACC15", head: "#78350F", legs: "#B45309"},
+  {id: "neon", name: "ネオン", price: 1800, body: "#22C55E", head: "#052E16", legs: "#E879F9"},
+  {id: "ice", name: "アイス", price: 2500, body: "#E0F2FE", head: "#0369A1", legs: "#7DD3FC"},
+  {id: "galaxy", name: "ギャラクシー", price: 4000, body: "#4C1D95", head: "#1E1B4B", legs: "#F472B6"}
+]
+
+-- ガジェットの強化（3だんかいずつ）
+let UPGRADES = [
+  {id: "rope", name: "🕸 ロングロープ", info: "糸が 8m のびる", prices: [250, 700, 1500]},
+  {id: "power", name: "💨 スイングパワー", info: "手をはなしたときの いきおい +12%", prices: [300, 800, 1700]},
+  {id: "zip", name: "⚡ クイックジップ", info: "ジップの まち時間 -0.5秒", prices: [200, 600, 1300]}
+]
+
+let ROBBER_NAMES = ["ガラクタ", "ボルト", "ナット", "ジャンク", "スパナ", "ネジ丸", "サビ", "カギ泥"]
+let ROBBER_LINES = ["へっへっへ！", "つかまらないよ〜", "おたからは いただいた！", "にげろ〜！"]
+let CITIZEN_NAMES = ["さんぽ中のおばあちゃん", "会社員", "おまわりさん", "パン屋さん", "学生", "犬のさんぽ", "観光客", "配達員"]
+let CITIZEN_LINES = ["スレッドランナーだ！", "がんばって〜！", "かっこいい！", "あ、とんでる！", "ありがとう！"]
+let RESCUE_LINES = ["たすけて〜！", "おりられない…", "だれか〜！"]
+
+-- 2つの スイングレース（ゲートは マップの Race A Gate 1… / Race B Gate 1…）
+let RACES = [
+  {id: "A", name: "ダウンタウン・ダッシュ", gates: 10, color: "#F97316", reward: 200},
+  {id: "B", name: "シティ・クロス", gates: 12, color: "#22C55E", reward: 350}
+]

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 135,
-  "bytes" : 104794,
+  "bytes" : 115827,
   "cover" : "games\/trap-master-run\/cover-ec7bfbe2.png",
   "id" : "trap-master-run",
   "maxPlayers" : 12,
@@ -10,6 +10,7 @@
     "lib\/kit.absc",
     "lib\/kit_rounds.absc",
     "lib\/kit_move.absc",
+    "lib\/kit_crowd.absc",
     "games\/trap-master-run\/data.absc",
     "games\/trap-master-run\/roles.absc",
     "games\/trap-master-run\/traps.absc",

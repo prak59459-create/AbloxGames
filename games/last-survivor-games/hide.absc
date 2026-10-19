@@ -1,0 +1,331 @@
+-- hide.absc — 第4ゲーム（もう1つ）「かくれんぼ」
+--
+-- 2かいだての家（天井には 夜空の絵）。参加者の 半分が 鬼🔴、半分が かくれる人🔵。
+-- 鬼は はじめの HIDE_HEADSTART 秒 まん中の おりの中。そのあと 3分。
+-- かくれる人: 3分 にげきれば 生きのこり。家のどこかの 🔑 を 3つ 集めて 🚪 出口から出ても 生きのこり。
+-- 鬼: 「👊 タッチ」を 3回 当てると その人を つかまえる（脱落）。3分のうちに だれも つかまえられなかった鬼は 失格。
+-- NPCの鬼は いちばん近い かくれる人を 追いかける。NPCの かくれる人は 鬼から にげるか、🔑 を取りに行く。
+
+let hide_on = false
+let hide_run = 0
+let hide_open = false
+let hide_ai_clock = 0
+let HIDE_HEADSTART = 20
+let HIDE_TIME = 180
+let HIDE_HITS = 3
+let HIDE_REACH = 2.6
+let HIDE_UP = 6.4          -- 2かいの ゆかの高さ
+let HIDE_X = -400
+let HIDE_Z = 0
+let SEEK_COLOR = "#DC2626"
+let HIDER_COLOR = "#2563EB"
+
+func hide_upstairs(c)
+  return c.y > HIDE_UP - 1.5
+end
+
+-- 階だん: 西は 1かい (x -428) → 2かい (x -415.5)、東は 1かい (x -384.5) → 2かい (x -371.5)
+func hide_stair_foot(west)
+  if west then return {x: HIDE_X - 28.8, y: 0.5, z: HIDE_Z - 16} end
+  return {x: HIDE_X + 15.2, y: 0.5, z: HIDE_Z + 16}
+end
+
+func hide_stair_head(west)
+  if west then return {x: HIDE_X - 15.2, y: HIDE_UP + 0.4, z: HIDE_Z - 16} end
+  return {x: HIDE_X + 29.2, y: HIDE_UP + 0.4, z: HIDE_Z + 16}
+end
+
+-- NPC を goal へ。階がちがうときは 近いほうの 階だんを使う
+func hide_walk(n, goal)
+  let up_now = hide_upstairs(n)
+  let up_goal = goal.y > HIDE_UP - 1.5
+  if up_now == up_goal then
+    n.move_to(goal)
+    return
+  end
+  let west = abs(n.x - (HIDE_X - 22)) + abs(n.z - (HIDE_Z - 16)) < abs(n.x - (HIDE_X + 22)) + abs(n.z - (HIDE_Z + 16))
+  if up_now then
+    let head = hide_stair_head(west)
+    if distance(n, head) < 2.5 then n.move_to(hide_stair_foot(west)) else n.move_to(head) end
+  else
+    let foot = hide_stair_foot(west)
+    if distance(n, foot) < 2.5 then n.move_to(hide_stair_head(west)) else n.move_to(foot) end
+  end
+end
+
+func hide_spot()
+  let list = blocks("hidespawn")
+  return list[random(1, len(list))].position + {x: 0, y: 0.6, z: 0}
+end
+
+func hide_key_spot()
+  let list = blocks("keyspot")
+  return list[random(1, len(list))].position
+end
+
+func seekers()
+  return filter(alive_cast(), func(c) return c.seeker == true end)
+end
+
+func hiders()
+  return filter(alive_cast(), func(c) return c.seeker != true and not c.escaped end)
+end
+
+func hide_start()
+  hide_run = hide_run + 1
+  hide_on = false
+  hide_open = false
+  let list = shuffle(alive_cast())
+  let count = max(1, floor(len(list) / 2))
+  let i = 0
+  for c in list do
+    i = i + 1
+    c.hits = 0
+    c.keys = 0
+    c.catches = 0
+    c.escaped = false
+    c.hit_until = 0
+    c.next_tag = 0
+    if i <= count then
+      c.seeker = true
+      c.color = SEEK_COLOR
+      c.teleport({x: HIDE_X + (random() - 0.5) * 4, y: 0.8, z: HIDE_Z + (random() - 0.5) * 4})
+    else
+      c.seeker = false
+      c.color = HIDER_COLOR
+      c.teleport(hide_spot())
+    end
+    if c.is_npc then
+      c.stop()
+      c.speed = 0.75
+    end
+  end
+  for k in 1 to 3 do
+    let key = block("Hide Key " + k)
+    key.position = hide_key_spot() + {x: 0, y: 0.6, z: 0}
+    key.visible = true
+  end
+  for b in blocks("bars") do
+    b.solid = true
+    b.visible = true
+  end
+  for p in alive_humans() do
+    p.frozen = false
+    if p.seeker then
+      p.message("🔴 あなたは 鬼！ " + HIDE_HEADSTART + " 秒後に おりが あく。3回タッチで つかまえろ", 4)
+    else
+      p.message("🔵 あなたは かくれる人！ にげきるか、🔑 3つで 🚪 脱出", 4)
+    end
+    hide_ui(p)
+  end
+  hide_on = true
+  game_ends = time() + HIDE_HEADSTART + HIDE_TIME
+  announce("🙈 かくれんぼ！ 鬼 " + count + " 人・かくれる人 " + (len(list) - count) + " 人", 3)
+  let run = hide_run
+  after(HIDE_HEADSTART, func()
+    if run != hide_run or not playing("hide") then return end
+    hide_open = true
+    for b in blocks("bars") do
+      b.solid = false
+      b.visible = false
+    end
+    sound("alarm")
+    announce("🔴 鬼が 出てきた！ あと 3分", 2.5)
+  end)
+end
+
+func hide_ui(p)
+  if p.seeker then
+    p.ui_button("hide_tag", "👊 タッチ", {at: "bottom_right", dx: -40, dy: -140, w: 190, h: 110, size: 26, bg: "#DC2626", radius: 24})
+    p.ui_text("hide_info", "🔴 鬼  つかまえた " + (p.catches or 0) + " 人", {at: "top", dy: 56, size: 18, bold: true, color: "#FCA5A5"})
+  else
+    p.ui_text("hide_info", "🔵 かくれる人  🔑 " + (p.keys or 0) + "/3   タッチ " + (p.hits or 0) + "/" + HIDE_HITS,
+              {at: "top", dy: 56, size: 18, bold: true, color: "#93C5FD"})
+  end
+end
+
+func hide_clear_ui(p)
+  p.ui_remove("hide_tag")
+  p.ui_remove("hide_info")
+end
+
+-- 鬼 c が いちばん近い かくれる人に タッチ
+func hide_tag(c)
+  if not hide_on or not hide_open or not c.seeker or c.out then return end
+  if time() < (c.next_tag or 0) then return end
+  c.next_tag = time() + 0.7
+  let best = nil
+  let best_d = HIDE_REACH
+  for h in hiders() do
+    let d = distance(c, h)
+    if d < best_d and abs(h.y - c.y) < 2 then
+      best = h
+      best_d = d
+    end
+  end
+  if best == nil then
+    if not c.is_npc then c.message("👊 とどかない…", 0.6) end
+    return
+  end
+  if time() < (best.hit_until or 0) then return end
+  best.hit_until = time() + 1.2
+  best.hits = (best.hits or 0) + 1
+  -- タッチされると すこし とばされる
+  let away = best.position - c.position
+  let len = max(0.5, magnitude(away))
+  if best.is_npc then
+    best.teleport(best.position + away * (1.6 / len))
+  else
+    best.launch(away.x / len * 9, 5, away.z / len * 9)
+    best.shake(0.2, 0.3)
+    best.message("💥 タッチされた！ " + best.hits + "/" + HIDE_HITS, 1.2)
+    hide_ui(best)
+  end
+  if not c.is_npc then c.sound("hit") end
+  if best.hits >= HIDE_HITS then
+    c.catches = (c.catches or 0) + 1
+    eliminate(best, "鬼に つかまった")
+    if not c.is_npc then
+      c.message("🔴 つかまえた！（" + c.catches + " 人）", 1.5)
+      hide_ui(c)
+    end
+  end
+end
+
+func hide_take_key(p, key)
+  if not key.visible or p.seeker or p.out or p.escaped then return end
+  key.visible = false
+  key.position = {x: HIDE_X, y: -20, z: HIDE_Z}
+  p.keys = (p.keys or 0) + 1
+  if not p.is_npc then
+    p.sound("collect")
+    p.message("🔑 カギ " + p.keys + "/3", 1.5)
+    hide_ui(p)
+  end
+  if p.keys >= 3 then push_feed("🔑 " + label_of(p) + " が カギを3つ 集めた！") end
+  -- しばらくすると 別の場所に また出る
+  let run = hide_run
+  after(25, func()
+    if run != hide_run or not hide_on then return end
+    key.position = hide_key_spot() + {x: 0, y: 0.6, z: 0}
+    key.visible = true
+  end)
+end
+
+func hide_escape(p)
+  if p.seeker or p.out or p.escaped or (p.keys or 0) < 3 then
+    if not p.is_npc and not p.seeker and (p.keys or 0) < 3 then p.message("🚪 カギが 3つ いる（いま " + (p.keys or 0) + "）", 1) end
+    return
+  end
+  p.escaped = true
+  p.teleport(gallery_spot("Hide"))
+  push_feed("🚪 " + label_of(p) + " が 脱出！")
+  if not p.is_npc then
+    p.message("🚪 脱出せいこう！ 生きのこり", 3)
+    p.sound("goal")
+    hide_clear_ui(p)
+  end
+end
+
+func hide_npc_ai()
+  let hs = hiders()
+  let ss = seekers()
+  for n in alive_npcs() do
+    if not kit_here(n) or n.out then
+      -- このループの間に つかまった
+    elif n.seeker then
+      if hide_open then
+        let target = nil
+        let best = 9999
+        for h in hs do
+          -- このループの間に つかまった人は もういない
+          if kit_here(h) and not h.out and not h.escaped then
+            -- 同じ階の人を 先に ねらう
+            let d = distance(n, h)
+            if hide_upstairs(h) != hide_upstairs(n) then d = d + 30 end
+            if d < best then
+              best = d
+              target = h
+            end
+          end
+        end
+        if target != nil then
+          hide_walk(n, target.position)
+          if distance(n, target) < HIDE_REACH - 0.3 and random() < 0.55 + n.brave * 0.3 then hide_tag(n) end
+        end
+      end
+    elif not n.escaped then
+      let danger = nil
+      for s in ss do
+        if kit_here(s) and hide_open and distance(n, s) < 12 and abs(s.y - n.y) < 3 then danger = s end
+      end
+      if danger != nil then
+        -- にげる: 鬼から いちばん遠い かくれ場所へ
+        let spots = blocks("hidespawn")
+        let far = max_by(spots, func(b) return distance(b, danger) end)
+        hide_walk(n, far.position)
+      elif (n.keys or 0) >= 3 then
+        hide_walk(n, block("Exit Pad").position)
+      elif random() < n.brave * 0.25 then
+        let keys = filter(blocks("hidekey"), func(k) return k.visible end)
+        if len(keys) > 0 then hide_walk(n, keys[random(1, len(keys))].position) end
+      elif random() < 0.08 then
+        hide_walk(n, hide_spot())
+      end
+      -- NPC が カギや 出口のそばに来たら さわったことにする
+      for k in blocks("hidekey") do
+        if k.visible and distance(n, k) < 1.6 then hide_take_key(n, k) end
+      end
+      if (n.keys or 0) >= 3 and distance(n, block("Exit Pad")) < 2.4 then hide_escape(n) end
+    end
+  end
+end
+
+func hide_end()
+  if not playing("hide") or not hide_on then return end
+  hide_on = false
+  hide_run = hide_run + 1
+  for p in humans() do hide_clear_ui(p) end
+  for s in seekers() do
+    if (s.catches or 0) == 0 then eliminate(s, "だれも つかまえられなかった") end
+  end
+  for k in 1 to 3 do block("Hide Key " + k).visible = false end
+  for b in blocks("bars") do
+    b.solid = true
+    b.visible = true
+  end
+  for c in alive_cast() do
+    c.color = JERSEY
+    c.seeker = nil
+    c.escaped = false
+    if c.is_npc then c.speed = 0.6 end
+  end
+  game_over()
+end
+
+on touch(p, b)
+  if not playing("hide") or not hide_on or b == nil then return end
+  if contains(b.tags, "hidekey") then
+    hide_take_key(p, b)
+  elif contains(b.tags, "exit") then
+    hide_escape(p)
+  end
+end
+
+on tick(dt)
+  if not playing("hide") or not hide_on then return end
+  -- 家から出てしまった人は もどす（出口から 出た人は べつ）
+  for c in alive_humans() do
+    if not c.escaped and (abs(c.x - HIDE_X) > 31 or abs(c.z - HIDE_Z) > 23 or c.y < -3) then c.teleport(hide_spot()) end
+  end
+  hide_ai_clock = hide_ai_clock + dt
+  if hide_ai_clock >= 0.5 then
+    hide_ai_clock = 0
+    hide_npc_ai()
+  end
+  if len(hiders()) == 0 or time() >= game_ends then hide_end() end
+end
+
+on button(p, id)
+  if id == "hide_tag" then hide_tag(p) end
+end

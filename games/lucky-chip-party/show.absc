@@ -1,0 +1,314 @@
+-- show.absc — ショーの進みかた
+--
+-- lobby（すわって待つ）→ ラウンドを ROUNDS 回: intro（説明）→ bet（かける）→ reveal（結果が出るまで）
+-- → result（チップのやりとり）→ … → final（優勝）→ lobby
+-- チップが0になった人は OUT（見学）。勝負している人が1人になったら、そこで優勝。
+
+let phase = "lobby"
+let phase_until = 0
+let show_run = 0
+let round_no = 0
+let order = []
+let event = nil
+let last_tick_label = 0
+
+func set_phase(name, seconds)
+  phase = name
+  phase_until = time() + seconds
+end
+
+func left_seconds()
+  return max(0, ceil(phase_until - time()))
+end
+
+-- MARK: ロビー
+
+func lobby_start()
+  show_run = show_run + 1
+  round_no = 0
+  event = nil
+  clear_props()
+  for c in seated() do
+    if c.is_npc then
+      seats[c.seat] = nil
+      kit_gone(c)
+    else
+      stand_up(c)
+    end
+  end
+  seats = [nil, nil, nil, nil]
+  set_phase("lobby", LOBBY_WAIT)
+  for p in players() do
+    p.frozen = false
+    clear_panels(p)
+    gallery_camera(p)
+    show_chips(p)
+  end
+  board([{text: "🎰 ラッキーチップ・パーティー", color: "#FDE047"}, "まもなく ショーが はじまります",
+         {text: "チップは このゲームの中だけのものです", color: "#C4B5FD"}])
+  show_all_chips()
+end
+
+func show_start()
+  show_run = show_run + 1
+  -- 先に来た人から すわる。あいた席には BOT
+  let humans = sort(filter(players(), func(p) return kit_here(p) end), func(a, b) return (a.arrived or 0) < (b.arrived or 0) end)
+  for p in humans do
+    let k = free_seat()
+    if k != nil then
+      sit(p, k)
+      p.shows = (p.shows or 0) + 1
+      p.message("🎰 " + SEAT_NAMES[k] + " の席に すわった！ チップ " + START_CHIPS + " から スタート", 3)
+    else
+      p.message(watchers_note, 3)
+      gallery_camera(p)
+    end
+  end
+  fill_bots()
+  pick_order()
+  round_no = 0
+  sound("goal")
+  sound("crowd-cheer-43", {volume: 0.6})
+  announce("🎰 ラッキーチップ・パーティー、スタート！ チップを いちばん ふやした人が 優勝！", 3)
+  next_round()
+end
+
+-- MARK: ラウンドの順番
+--
+-- 全部の中から ROUNDS こ。1回のショーで 同じイベントは 出ない。
+-- 前の2回のショーで 出たものは あとまわし（つづけて遊んでも ちがうゲームが 出る）。
+-- ブラフ・カードは かならず入れる。
+
+let recent_shows = []
+
+func pick_order()
+  let recent = []
+  for list in recent_shows do
+    for id in list do append(recent, id) end
+  end
+  let ids = shuffle(map(EVENTS, func(e) return e.id end))
+  let fresh = filter(ids, func(id) return not contains(recent, id) end)
+  for id in filter(ids, func(id) return contains(recent, id) end) do append(fresh, id) end
+  order = slice(fresh, 1, min(ROUNDS, len(fresh)))
+  if not contains(order, "bluff") then order[random(2, len(order))] = "bluff" end
+  append(recent_shows, copy(order))
+  if len(recent_shows) > 2 then remove(recent_shows, 1) end
+end
+
+-- MARK: ラウンド
+
+func event_by_id(id)
+  for e in EVENTS do
+    if e.id == id then return e end
+  end
+  return EVENTS[1]
+end
+
+func is_final_round()
+  return round_no == ROUNDS
+end
+
+func next_round()
+  if len(live_seats()) <= 1 or round_no >= ROUNDS then
+    final_start()
+    return
+  end
+  round_no = round_no + 1
+  event = event_by_id(order[round_no])
+  clear_props()
+  for c in seated() do
+    c.bet = 0
+    c.pick = nil
+    c.locked = false
+    c.hint = nil
+    c.paid = 0
+    c.folded = false
+    c.result = nil
+    c.round_start = c.chips
+  end
+  set_phase("intro", INTRO_TIME)
+  let head = "ラウンド " + round_no + " / " + ROUNDS
+  if is_final_round() then head = "⭐ ファイナル（配当 ×" + FINAL_BONUS + "）" end
+  board([{text: head, color: "#FDE047"}, event.emoji + " " + event.name, {text: event.rule, color: "#E9D5FF"}])
+  announce(event.emoji + " " + event.name, 2.5)
+  sound("bell")
+  for p in players() do
+    clear_panels(p)
+    if p.seat != nil and not p.out then table_camera(p) end
+    p.ui_text("rule_card", event.emoji + " " + event.name + "\n" + event.rule,
+              {at: "center", dy: -120, w: 620, size: 18, bold: true, color: "#FFFFFF", bg: "#1E1B4BE8", radius: 16, layer: 20})
+  end
+  event_setup(event.id)
+  show_all_chips()
+end
+
+func bet_start()
+  for p in players() do p.ui_remove("rule_card") end
+  set_phase("bet", BET_TIME)
+  -- ヒントが先（BOT もヒントを見て決める）
+  give_hints()
+  for c in live_seats() do
+    c.bet = 0
+    if event_takes_bet(event.id) then c.bet = min(c.chips, max(MIN_BET, floor(c.chips / 10 / 5) * 5)) end
+    if c.is_npc then bot_plan(c) else open_bet_panel(c) end
+  end
+  show_stacks()
+end
+
+-- かけおわった人が全員なら 早めに進む
+func all_locked()
+  for c in live_seats() do
+    if not c.locked then return false end
+  end
+  return true
+end
+
+func reveal_start()
+  for c in live_seats() do
+    if not c.locked then auto_lock(c) end
+    if not c.is_npc then close_bet_panel(c) end
+    -- かけたチップを 先にテーブルへ
+    if c.pick != nil and c.bet > 0 and event_takes_bet(event.id) then
+      c.chips = c.chips - c.bet
+      c.paid = c.bet
+    end
+  end
+  show_all_chips()
+  set_phase("reveal", 30)
+  event_reveal(event.id)
+end
+
+-- 結果: 各イベントが c.result（もどってくるチップ、0ならなし）を決めてから よぶ
+func result_start(note)
+  set_phase("result", RESULT_TIME)
+  let lines = []
+  for c in live_seats() do
+    let back = c.result or 0
+    if back > 0 then c.chips = c.chips + back end
+    let diff = c.chips - (c.round_start or c.chips)
+    if diff > 0 then
+      append(lines, "🟢 " + c.name + " +" + diff)
+      if c.is_npc then bot_say(c, "win", 50) end
+      if diff >= 100 and not c.is_npc then kit_badge(c, "big_win", "ひと晩で大もうけ") end
+    elif diff < 0 then
+      append(lines, "🔴 " + c.name + " " + diff)
+      if c.is_npc then bot_say(c, "lose", 35) end
+    end
+    if not c.is_npc then
+      let text = "± 0"
+      if diff > 0 then text = "🎉 +" + diff + " チップ！"
+      elif diff < 0 then text = "💦 " + diff + " チップ" end
+      c.message(text, 2.5)
+      if diff > 0 then c.sound("coin") elif diff < 0 then c.sound("lose") end
+    end
+  end
+  let shown = [{text: event.emoji + " " + note, color: "#FDE047"}]
+  if len(lines) > 0 then append(shown, join(slice(lines, 1, 2), "   ")) end
+  if len(lines) > 2 then append(shown, join(slice(lines, 3, 4), "   ")) end
+  board(shown)
+  -- チップが0なら OUT
+  for c in live_seats() do
+    if c.chips <= 0 then
+      c.chips = 0
+      c.out = true
+      announce("💸 " + c.name + " は チップが なくなった…！", 2.5)
+      if c.is_npc then
+        bot_say(c, "out", 100)
+      else
+        c.message("💸 チップが なくなった… のこりは 見学しよう", 3)
+        gallery_camera(c)
+      end
+    end
+  end
+  show_all_chips()
+end
+
+-- MARK: 優勝
+
+func final_start()
+  set_phase("final", FINAL_TIME)
+  clear_props()
+  let list = sort(seated(), func(a, b) return a.chips > b.chips end)
+  if len(list) == 0 then
+    lobby_start()
+    return
+  end
+  let best = list[1].chips
+  let winners = filter(list, func(c) return c.chips == best end)
+  let names = join(map(winners, func(c) return c.name end), " と ")
+  announce("🏆 優勝は " + names + "！ チップ " + best, 5)
+  board([{text: "🏆 優勝", color: "#FDE047"}, names, {text: "🪙 " + best + " チップ", color: "#FDE047"}, ranking_line()])
+  sound("win")
+  for w in winners do
+    particles("confetti", w, {amount: 120})
+    if w.is_npc then bot_say(w, "win", 100) end
+  end
+  for p in players() do
+    clear_panels(p)
+    p.frozen = false
+    gallery_camera(p)
+    if p.seat != nil and seats[p.seat] == p then
+      p.best_chips = max(p.best_chips or 0, p.chips)
+      if contains(winners, p) then
+        p.wins = (p.wins or 0) + 1
+        p.message("🏆 優勝！ おめでとう！", 4)
+        kit_badge(p, "first_win", "はじめての優勝")
+        if p.wins >= 5 then kit_badge(p, "five_wins", "チップの王さま") end
+        if best >= 300 then kit_badge(p, "rich", "チップ300まい") end
+      else
+        p.message("おつかれさま！ のこったチップ " + p.chips, 3)
+      end
+      p.ui_text("my_stats", "🏆 優勝 " + (p.wins or 0) + " 回   いちばん多いチップ " + (p.best_chips or 0),
+                {at: "bottom", dy: -24, size: 15, bold: true, color: "#FDE68A", bg: "#00000088", radius: 10})
+    end
+  end
+  show_all_chips()
+end
+
+-- MARK: 時計
+
+on tick(dt)
+  let now = time()
+  if phase == "lobby" then
+    if len(filter(players(), func(p) return kit_here(p) end)) == 0 then
+      phase_until = now + LOBBY_WAIT
+      return
+    end
+    if now >= phase_until then show_start() end
+  elif phase == "intro" then
+    if now >= phase_until then bet_start() end
+  elif phase == "bet" then
+    if now >= phase_until or all_locked() then reveal_start() end
+  elif phase == "reveal" then
+    event_tick(event.id, now)
+    if now >= phase_until then event_timeout(event.id) end
+  elif phase == "result" then
+    if now >= phase_until then next_round() end
+  elif phase == "final" then
+    if now >= phase_until then lobby_start() end
+  end
+  -- 看板の のこり秒数（1秒に1回だけ）
+  if now - last_tick_label >= 1 then
+    last_tick_label = now
+    tick_labels()
+  end
+end
+
+func tick_labels()
+  if phase == "lobby" then
+    let n = len(filter(players(), func(p) return kit_here(p) end))
+    board([{text: "🎰 ラッキーチップ・パーティー", color: "#FDE047"}, "スタートまで " + left_seconds() + " 秒",
+           {text: "いまの参加者 " + n + " 人（たりない席には 🤖 BOT）", color: "#C4B5FD"}])
+    for p in players() do
+      p.ui_text("lobby_clock", "🎰 つぎのショーまで " + left_seconds() + " 秒",
+                {at: "bottom", dy: -60, size: 20, bold: true, color: "#FDE047", bg: "#1E1B4BCC", radius: 12})
+    end
+  else
+    for p in players() do p.ui_remove("lobby_clock") end
+  end
+  if phase == "bet" then
+    for p in seat_humans() do
+      if not p.out and p.bet_open then p.ui_text("bet_clock", "⏱ " + left_seconds()) end
+    end
+  end
+end

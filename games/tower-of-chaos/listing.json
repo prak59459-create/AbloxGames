@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 18,
-  "bytes" : 57563,
-  "cover" : "games\/tower-of-chaos\/cover-054858ae.png",
+  "bytes" : 68596,
+  "cover" : "games\/tower-of-chaos\/cover-56850875.png",
   "id" : "tower-of-chaos",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/tower-of-chaos\/data.absc",
     "games\/tower-of-chaos\/events.absc",
     "games\/tower-of-chaos\/round.absc",
@@ -17,8 +18,8 @@
     "games\/tower-of-chaos\/main.absc"
   ],
   "shots" : [
-    "games\/tower-of-chaos\/shot1-c5e24303.png",
-    "games\/tower-of-chaos\/shot2-320645b1.png"
+    "games\/tower-of-chaos\/shot1-2e6f5dce.png",
+    "games\/tower-of-chaos\/shot2-3328f8cf.png"
   ],
   "summary" : "チェックポイントなしの超むずかしいタワー。毎回ランダムに組み上がる障害物を、時間内にてっぺんまで登りきれ！",
   "tags" : [

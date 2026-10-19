@@ -1,13 +1,14 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 76,
-  "bytes" : 83197,
+  "bytes" : 94230,
   "cover" : "games\/club-hangout\/cover-5bbad756.png",
   "id" : "club-hangout",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
   "scripts" : [
     "lib\/kit.absc",
+    "lib\/kit_crowd.absc",
     "games\/club-hangout\/data.absc",
     "games\/club-hangout\/build.absc",
     "games\/club-hangout\/club.absc",

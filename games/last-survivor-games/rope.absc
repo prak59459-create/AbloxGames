@@ -1,0 +1,192 @@
+-- rope.absc — 第5ゲーム（もう1つ）「大なわとびの橋」
+--
+-- 50m の 木の橋（1か所だけ あながあいている）。橋の両はしに 大きな人形が立って、
+-- 橋ぜんぶの長さの 大なわを ROPE_PERIOD 秒で 1回 まわす。なわが 下に来たとき（橋の上を とおるとき）に
+-- ジャンプしていないと、なわに当たって 橋から とばされる。あなに 落ちても 失格。
+-- 時間内に 向こうがわ（🟢 ゴール）まで わたれば 生きのこり。
+-- NPCは なわが来る前に calm の確率で ジャンプする。あなの前では brave の確率で とびこえる。
+
+let rope_on = false
+let rope_run = 0
+let rope_angle = 0         -- 0 = まうえ、180 = ました（橋の上）
+let rope_swept = false     -- この1回で もう当たり判定をしたか
+let rope_hole = 0
+let ROPE_PERIOD = 3
+let ROPE_AXIS_Y = 25.6
+let ROPE_R = 4.4
+let ROPE_DECK = 21         -- 橋の上の高さ
+let ROPE_Z0 = 374          -- 橋のはじまり
+let ROPE_Z1 = 424          -- 橋のおわり
+let ROPE_JUMP = 0.55       -- これより高ければ ジャンプ中
+
+func rope_on_bridge(c)
+  return c.z > ROPE_Z0 - 0.5 and c.z < ROPE_Z1 + 0.5 and abs(c.x) < 2.6 and c.y > ROPE_DECK - 1.5
+end
+
+func rope_start()
+  rope_run = rope_run + 1
+  rope_on = false
+  rope_angle = 0
+  rope_swept = false
+  for k in 1 to 25 do
+    let b = block("Rope Bridge " + k)
+    b.visible = true
+    b.solid = true
+  end
+  rope_hole = random(6, 20)
+  let hole = block("Rope Bridge " + rope_hole)
+  hole.visible = false
+  hole.solid = false
+  rope_place()
+  for c in alive_cast() do
+    c.rope_done = false
+    c.shove_until = 0
+    c.hole_try = false
+    c.teleport({x: (random() - 0.5) * 9, y: ROPE_DECK + 0.6, z: ROPE_Z0 - 2 - random() * 6})
+    if c.is_npc then
+      c.stop()
+      c.speed = 0.55 + random() * 0.15
+    else
+      c.frozen = true
+    end
+  end
+  let run = rope_run
+  announce("🪢 大なわとびの橋！ なわが 下に来たら ジャンプ。あなに 気をつけて", 3)
+  after(3, func()
+    if run != rope_run or not playing("rope") then return end
+    rope_on = true
+    game_ends = time() + GAMES[game_index("rope")].time
+    sound("goal")
+    announce("▶ わたれ！", 1.2)
+    for p in alive_humans() do p.frozen = false end
+    -- NPCは まず 橋の入り口へ（ななめに 歩くと 橋のはしから 落ちるので）
+    for n in alive_npcs() do
+      n.rope_lane = (random() - 0.5) * 2
+      n.rope_stage = 1
+      n.move_to({x: n.rope_lane, y: ROPE_DECK, z: ROPE_Z0 - 1})
+    end
+  end)
+end
+
+-- なわを いまの角度の 場所へ
+func rope_place()
+  let x = sin(rope_angle) * ROPE_R
+  let y = ROPE_AXIS_Y + cos(rope_angle) * ROPE_R
+  block("Jump Rope").move_to({x: x, y: y, z: (ROPE_Z0 + ROPE_Z1) / 2}, 0.1)
+end
+
+-- なわが 橋を とおる: ジャンプしていない人を とばす
+func rope_sweep()
+  let side = 1
+  if sin(rope_angle) > 0 then side = -1 end
+  for c in alive_cast() do
+    if not c.rope_done and rope_on_bridge(c) and c.y < ROPE_DECK + ROPE_JUMP then
+      if c.is_npc then
+        c.stop()
+        c.shove = {x: side * 10, y: 0, z: 0}
+        c.shove_until = time() + 0.5
+      else
+        c.launch(side * 11, 6, 0)
+        c.shake(0.25, 0.3)
+        c.message("💥 なわに 当たった！", 1)
+      end
+    end
+  end
+  sound("whoosh")
+end
+
+func rope_npc_ai()
+  for n in alive_npcs() do
+    -- 入り口に ついたら まっすぐ ゴールへ
+    if n.rope_stage == 1 and abs(n.x - n.rope_lane) < 0.8 and n.z > ROPE_Z0 - 2.2 and time() >= (n.shove_until or 0) then
+      n.rope_stage = 2
+      n.move_to({x: n.rope_lane, y: ROPE_DECK, z: ROPE_Z1 + 4})
+    end
+  end
+  for n in alive_npcs() do
+    if not n.rope_done and time() >= (n.shove_until or 0) and rope_on_bridge(n) then
+      -- なわが来る 少し前に ジャンプ
+      let a = rope_angle % 360
+      if a > 140 and a < 165 and random() < n.calm then n.jump_now() end
+      -- あなの前で とびこえる（brave なほど うまい）
+      let hz = ROPE_Z0 + 1 + (rope_hole - 1) * 2
+      if not n.hole_try and n.z > hz - 2.4 and n.z < hz - 1 then
+        n.hole_try = true
+        if random() < 0.55 + n.brave * 0.4 then
+          n.teleport({x: n.x, y: ROPE_DECK + 0.6, z: hz + 1.4})
+          n.jump_now()
+        end
+      end
+    end
+  end
+end
+
+func rope_end()
+  if not playing("rope") or not rope_on then return end
+  rope_on = false
+  rope_run = rope_run + 1
+  for c in alive_cast() do
+    if not c.rope_done then eliminate(c, "時間内に わたれなかった") end
+  end
+  let hole = block("Rope Bridge " + rope_hole)
+  hole.visible = true
+  hole.solid = true
+  rope_angle = 0
+  rope_place()
+  game_over()
+end
+
+on touch(p, b)
+  if b != nil and contains(b.tags, "ropegoal") and playing("rope") and not p.rope_done and not p.out then
+    p.rope_done = true
+    if not p.is_npc then
+      p.message("🟢 わたりきった！", 2)
+      p.sound("goal")
+    end
+  end
+end
+
+on tick(dt)
+  if not playing("rope") then return end
+  for c in alive_cast() do
+    if c.is_npc and time() < (c.shove_until or 0) and c.shove != nil then
+      c.teleport(c.position + c.shove * dt)
+    end
+  end
+  -- 落ちた人
+  for c in alive_cast() do
+    if c.y < ROPE_DECK - 6 then eliminate(c, "橋から 落ちた") end
+  end
+  -- ゴールの台に のった NPC
+  for n in alive_npcs() do
+    if not n.rope_done and n.z > ROPE_Z1 + 1.5 and n.y > ROPE_DECK - 1 then n.rope_done = true end
+  end
+  if not rope_on then return end
+  for p in alive_humans() do
+    if not p.rope_done and p.z > ROPE_Z1 + 1.5 and p.y > ROPE_DECK - 1 then
+      p.rope_done = true
+      p.message("🟢 わたりきった！", 2)
+      p.sound("goal")
+    end
+  end
+  let before = rope_angle % 360
+  rope_angle = rope_angle + 360 / ROPE_PERIOD * dt
+  let now = rope_angle % 360
+  rope_place()
+  -- いちばん下を とおる 一瞬（175〜215度）に 1回だけ 当たり判定
+  if now >= 175 and now <= 215 and not rope_swept then
+    rope_swept = true
+    rope_sweep()
+  end
+  if now < before then rope_swept = false end
+  if now > 100 and now < 175 then
+    for p in alive_humans() do
+      if not p.rope_done and rope_on_bridge(p) then p.ui_text("rope_warn", "⤵ なわが来る！ ジャンプ！", {at: "center", dy: -90, size: 30, bold: true, color: "#FB923C"}) end
+    end
+  else
+    for p in humans() do p.ui_remove("rope_warn") end
+  end
+  rope_npc_ai()
+  let left = filter(alive_cast(), func(c) return not c.rope_done end)
+  if len(left) == 0 or time() >= game_ends then rope_end() end
+end

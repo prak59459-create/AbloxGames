@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
   "blockCount" : 1615,
-  "bytes" : 808385,
+  "bytes" : 819418,
   "cover" : "games\/rooftop-parkour\/cover-e36d6116.png",
   "id" : "rooftop-parkour",
   "maxPlayers" : 16,
@@ -9,6 +9,7 @@
   "scripts" : [
     "lib\/kit.absc",
     "lib\/kit_obby.absc",
+    "lib\/kit_crowd.absc",
     "games\/rooftop-parkour\/data.absc",
     "games\/rooftop-parkour\/jobs.absc",
     "games\/rooftop-parkour\/moves.absc",
