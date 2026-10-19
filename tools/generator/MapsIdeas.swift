@@ -5,7 +5,7 @@ import Foundation
 
 let ideaGames: [Game] = [
     Game(number: 231, id: "lucky-chip-party", title: "Lucky Chip Party",
-         summary: "4人でテーブルをかこむ ゲームショー！ サイコロ・カード・ルーレット・どうぶつレース・コイン・ブラフ・ミステリーボックス・ばくだんカード・「わける？ひとりじめ？」の9種類で チップをかけて ふやせ。ひみつのヒント、レイズとブラフ、0になったら OUT。たりない席には BOT（チップは このゲームの中だけのもの）",
+         summary: "4人でテーブルをかこむ ゲームショー！ サイコロ・カード・ルーレット・どうぶつレース・ブラフ・ばくだんカード・カップシャッフル・ふうせん・あみだくじ・つり大会・じゃんけん・多数決・ひみつの入札・🎯ストップメーター・⏱ぴったり5びょう…など 25種類のミニゲームで チップをかけて ふやせ。毎回ちがうゲームが出る。ひみつのヒント、レイズとブラフ、0になったら OUT。たりない席には BOT（チップは このゲームの中だけのもの）",
          tags: ["party", "cards", "dice", "bluff"], maxPlayers: 8, build: luckyChipParty),
     Game(number: 232, id: "sky-thread-city", title: "Sky Thread City",
          summary: "糸のヒーロー「スレッドランナー」になって、たて1000m の大都会を 🕸 スイング・🧗 かべのぼり・⚡ ジップで かけまわれ！ 超高層ビル・ランドマークタワー・公園・港・駐車場。どろぼうロボを ネットでつかまえ、屋上の 🆘 をたすけ、💎 スカイトークン60こと スイングレースに挑戦。スーツと ロープの強化も",
@@ -82,6 +82,8 @@ func luckyChipParty(_ m: MapBuilder) {
     m.part("Deck", at: (0, 1.6, 1.6), size: (1.0, 0.5, 1.4), color: "#7F1D1D", solid: false, visible: false)
     m.part("Coin", at: (0, 2.3, 0), size: (1.4, 0.18, 1.4), color: "#FACC15", shape: .cylinder, material: .metal,
            solid: false, visible: false, rotation: (90, 0, 0))
+    m.part("Big Balloon", at: (0, 2.1, 0), size: (0.8, 0.95, 0.8), color: "#F472B6", shape: .sphere, material: .glass,
+           solid: false, visible: false)
 
     // Four seats: a podium, a stand for the player, a stack of chips on the
     // table and a sign that shows the chips.

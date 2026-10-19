@@ -65,15 +65,34 @@ func show_start()
     end
   end
   fill_bots()
-  -- ラウンドの順番: 9つから8つ。ブラフ・カードは かならず入れる
-  order = shuffle(map(EVENTS, func(e) return e.id end))
-  order = slice(order, 1, ROUNDS)
-  if not contains(order, "bluff") then order[random(2, ROUNDS)] = "bluff" end
+  pick_order()
   round_no = 0
   sound("goal")
   sound("crowd-cheer-43", {volume: 0.6})
   announce("🎰 ラッキーチップ・パーティー、スタート！ チップを いちばん ふやした人が 優勝！", 3)
   next_round()
+end
+
+-- MARK: ラウンドの順番
+--
+-- 全部の中から ROUNDS こ。1回のショーで 同じイベントは 出ない。
+-- 前の2回のショーで 出たものは あとまわし（つづけて遊んでも ちがうゲームが 出る）。
+-- ブラフ・カードは かならず入れる。
+
+let recent_shows = []
+
+func pick_order()
+  let recent = []
+  for list in recent_shows do
+    for id in list do append(recent, id) end
+  end
+  let ids = shuffle(map(EVENTS, func(e) return e.id end))
+  let fresh = filter(ids, func(id) return not contains(recent, id) end)
+  for id in filter(ids, func(id) return contains(recent, id) end) do append(fresh, id) end
+  order = slice(fresh, 1, min(ROUNDS, len(fresh)))
+  if not contains(order, "bluff") then order[random(2, len(order))] = "bluff" end
+  append(recent_shows, copy(order))
+  if len(recent_shows) > 2 then remove(recent_shows, 1) end
 end
 
 -- MARK: ラウンド

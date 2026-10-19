@@ -12,6 +12,7 @@ func clear_panels(p)
   p.ui_remove("my_card")
   p.ui_remove("my_stats")
   p.ui_remove("lobby_clock")
+  p.ui_remove("stop_view")
   watch_panel(p)
 end
 
@@ -167,10 +168,18 @@ func take_seat(p)
     if c != nil and kit_here(c) and c.is_npc and not c.out then
       let chips = c.chips
       seats[k] = nil
-      kit_gone(c)
       sit(p, k)
+      -- ラウンドの説明中なら、BOT が もらったカード（ブラフ）なども ひきつぐ
+      hand_over(c, p)
+      kit_gone(c)
       p.chips = chips
-      p.round_start = chips
+      if p.round_start == nil then p.round_start = chips end
+      if p.paid == nil then p.paid = 0 end
+      p.out = false
+      if event != nil and event.id == "bluff" and p.card != nil and phase == "intro" then
+        p.ui_text("my_card", "🂠 あなたのカード: " + p.card + "（1〜10）",
+                  {at: "top", dy: 44, size: 22, bold: true, color: "#FDE047", bg: "#7C2D12E0", radius: 12})
+      end
       p.ui_remove("watch_panel")
       announce("🙋 " + p.name + " が " + SEAT_NAMES[k] + " の席に すわった！", 2)
       show_all_chips()
@@ -228,6 +237,9 @@ on button(p, id)
     elif what == "bomb_stop" then bomb_choose(p, "stop")
     elif what == "bluff_call" then bluff_choose(p, "call")
     elif what == "bluff_fold" then bluff_choose(p, "fold")
+    elif what == "balloon_go" then balloon_choose(p, "go")
+    elif what == "balloon_stop" then balloon_choose(p, "stop")
+    elif what == "meter_stop" or what == "watch_stop" then stop_press(p)
     end
   end
 end

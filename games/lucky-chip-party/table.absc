@@ -65,6 +65,14 @@ func sit(c, k)
   show_stack(k)
 end
 
+-- 席を かわるとき、そのラウンドの とちゅうの ようすを ひきつぐ
+let ROUND_KEYS = ["out", "round_start", "pick", "bet", "paid", "result", "card", "put", "folded", "decided",
+                  "cstate", "pot", "bstate", "hint", "stopped", "stop_v", "rps_w", "locked"]
+
+func hand_over(old, new_one)
+  for key in ROUND_KEYS do new_one[key] = old[key] end
+end
+
 func stand_up(c)
   if c == nil then return end
   if c.seat != nil and seats[c.seat] == c then seats[c.seat] = nil end
@@ -154,15 +162,22 @@ end
 -- テーブルの道具を ぜんぶ かたづける
 func clear_props()
   for name in ["Die 1", "Die 2", "Card 1", "Card 2", "Box 1", "Box 2", "Box 3", "Box Lid 1", "Box Lid 2", "Box Lid 3",
-               "Wheel Light", "Deck", "Coin"] do
+               "Wheel Light", "Deck", "Coin", "Big Balloon"] do
     let b = block(name)
     b.visible = false
     b.label = nil
     b.animation = nil
   end
+  -- カップ シャッフル や リールで かわった 箱の色と場所を もとにもどす
+  for k in 1 to 3 do
+    let b = block("Box " + k)
+    b.color = BOX_COLORS[k]
+    b.position = {x: CUP_X[k], y: 1.95, z: 0.6}
+  end
   for k in 1 to 4 do
     let r = block("Racer " + k)
     r.label = nil
+    r.color = RACERS[k].color
   end
   show_pot(0)
 end

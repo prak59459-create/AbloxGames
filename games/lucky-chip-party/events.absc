@@ -1,4 +1,4 @@
--- events.absc — 9つのイベント
+-- events.absc — はじめからある 9つのイベント（ほかの 16 は minigames.absc）
 --
 -- どのイベントも 同じ5つで動く:
 --   event_setup(id)      ラウンドの はじめ（道具を出す・答えを先に決める）
@@ -11,7 +11,7 @@
 let ev = {}
 
 func event_takes_bet(id)
-  return id != "bluff" and id != "share"
+  return not contains(["bluff", "share", "vote", "minority", "auction"], id)
 end
 
 -- かけ金の行（金額をえらぶボタン）を 出すか
@@ -90,6 +90,8 @@ func event_setup(id)
     sound("paper-fabric-card-shuffle-08", {volume: 0.7})
   elif id == "share" then
     share_setup()
+  else
+    mg_setup(id)
   end
 end
 
@@ -126,7 +128,7 @@ func event_options(id)
   elif id == "share" then
     return [{id: "share", label: "🤝 わける", mult: 0}, {id: "steal", label: "😈 ひとりじめ", mult: 0}]
   end
-  return []
+  return mg_options(id)
 end
 
 func option_of(id, key)
@@ -162,7 +164,7 @@ func event_hint(id)
     if ev.deck[1] == "bomb" then return "1まいめは 💣 ばくだん！" end
     return "1まいめは あんぜん"
   end
-  return nil
+  return mg_hint(id)
 end
 
 -- 生きのこっている人の中から 1人だけに ヒント
@@ -218,6 +220,8 @@ func event_reveal(id)
     ev.next_at = time() + 2.5
     board([{text: "🤝 わける？ 😈 ひとりじめ？", color: "#FDE047"}, "ドキドキ… せーの！"])
     sound("drum")
+  else
+    mg_reveal(id)
   end
 end
 
@@ -265,6 +269,8 @@ func event_tick(id, now)
       ev.stage = "done"
       share_resolve()
     end
+  else
+    mg_tick(id, now)
   end
 end
 

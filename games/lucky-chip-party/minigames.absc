@@ -1,0 +1,1169 @@
+-- minigames.absc — あとから ふえた 16 のミニゲーム
+--
+-- events.absc の 9つと 同じ形で動く（events.absc から よばれる）:
+--   mg_setup(id)  mg_options(id)  mg_hint(id)  mg_reveal(id)  mg_tick(id, now)
+-- 結果が出たら、それぞれの c.result（もどってくるチップ）を決めて result_start(ひとこと) をよぶ。
+--
+-- 運:     🥤 カップ・🗝 カギ・🌦 天気・🪜 あみだ・🍒 リール・🔢 ひみつの数・👜 ボールびき・🦆 アヒル
+-- 度胸:   🎈 ふうせん・🎣 つり
+-- うで:   🎯 ストップ・メーター・⏱ ぴったり5びょう
+-- 読みあい: 🗳 多数決・🦄 すくないほうが勝ち・✊ じゃんけん・💰 ひみつの入札
+
+-- このラウンドのあいだだけ、少しあとに f をよぶ（ラウンドが かわっていたら 何もしない）
+func ev_later(seconds, f)
+  let run = show_run
+  let r = round_no
+  let id = event.id
+  after(seconds, func()
+    if run != show_run or r != round_no or event == nil or event.id != id then return end
+    f()
+  end)
+end
+
+-- かけて えらんだ人（このラウンドに さんかしている人）
+func joined(c)
+  return c.pick != nil and c.paid > 0
+end
+
+func everyone_note(text)
+  for p in players() do
+    if not p.is_npc then p.message(text, 1.5) end
+  end
+end
+
+-- MARK: はじめ
+
+func mg_setup(id)
+  if id == "cups" then
+    cups_setup()
+  elif id == "keys" then
+    ev.key = random(1, KEY_COUNT)
+    ev.tries = shuffle(range(1, KEY_COUNT))
+    ev.tried = 0
+    let chest = show_prop("Box 2", [{text: "💎 たからばこ", color: "#FDE047"}, {text: "🗝 × " + KEY_COUNT, color: "#FFFFFF"}])
+    chest.color = "#B45309"
+    block("Box Lid 2").visible = true
+  elif id == "weather" then
+    ev.fc = FORECASTS[random(1, len(FORECASTS))]
+    ev.sky = pick_weighted(ev.fc)
+    let parts = map(WEATHER, func(w) return w.emoji + " " + ev.fc[w.id] + "%" end)
+    show_prop("Card 1", [{text: "📺 よほう", color: "#FDE047"}, join(slice(parts, 1, 2), "  "), join(slice(parts, 3, 4), "  ")])
+    show_prop("Card 2", [{text: "あしたは？", color: "#FFFFFF"}])
+  elif id == "balloon" then
+    ev.pop_at = pick_weighted(BALLOON_POP)
+    ev.pumps = 0
+    let b = show_prop("Big Balloon", [{text: "🎈 ×1", color: "#FFFFFF"}])
+    b.size = {x: 0.8, y: 0.95, z: 0.8}
+    b.position = {x: 0, y: 2.1, z: 0}
+  elif id == "amida" then
+    ev.prizes = shuffle(copy(AMIDA_PRIZES))
+    let col = [1, 2, 3, 4]
+    for i in 1 to AMIDA_RUNGS do
+      let k = random(1, 3)
+      let t = col[k]
+      col[k] = col[k + 1]
+      col[k + 1] = t
+    end
+    -- 線 col[j] は 下の j ばんに つく
+    ev.end_of = [0, 0, 0, 0]
+    for j in 1 to 4 do ev.end_of[col[j]] = j end
+    show_prop("Deck", [{text: "🪜 下の倍率", color: "#FDE047"}, join(map(ev.prizes, func(m) return "×" + m end), "  ")])
+  elif id == "reels" then
+    ev.r = [random(1, len(REEL)), random(1, len(REEL)), random(1, len(REEL))]
+    ev.stopped = 0
+    for k in 1 to 3 do
+      let b = show_prop("Box " + k, [{text: "❔", color: "#FFFFFF"}])
+      b.color = "#F8FAFC"
+    end
+  elif id == "meter" or id == "watch" then
+    for c in live_seats() do
+      c.stopped = false
+      c.stop_v = nil
+    end
+    if id == "meter" then
+      show_prop("Deck", [{text: "🎯 ⭐ で ストップ！", color: "#FDE047"}])
+    else
+      show_prop("Deck", [{text: "⏱ 5.00 びょう", color: "#FDE047"}])
+    end
+  elif id == "fish" then
+    ev.mood = random(["good", "bad"])
+    ev.order = []
+    show_prop("Deck", [{text: "🎣 つり大会", color: "#FDE047"}, {text: "🌿 あさい池  🌊 ふかい海", color: "#BAE6FD"}])
+  elif id == "duck" then
+    duck_setup()
+  elif id == "vote" then
+    ev.topic = VOTE_TOPICS[random(1, len(VOTE_TOPICS))]
+    ev.lean = random(["a", "b"])
+    show_prop("Card 1", [{text: "🗳 " + ev.topic[1].label, color: "#FDE047"}])
+    show_prop("Card 2", [{text: "🗳 " + ev.topic[2].label, color: "#FDE047"}])
+  elif id == "minority" then
+    ev.set = MINORITY_SETS[random(1, len(MINORITY_SETS))]
+    for k in 1 to 3 do
+      let b = show_prop("Box " + k, [{text: ev.set[k], color: "#FFFFFF"}])
+      b.color = BOX_COLORS[k]
+    end
+  elif id == "rps" then
+    ev.tell = nil
+    show_prop("Card 1", [{text: "✊ ✌ 🖐", color: "#FDE047"}])
+  elif id == "auction" then
+    ev.value = random(3, 9) * 10
+    let chest = show_prop("Box 2", [{text: "💰 なぞの おたから", color: "#FDE047"}, {text: "🪙 30〜90", color: "#FFFFFF"}])
+    chest.color = "#7C3AED"
+    block("Box Lid 2").visible = true
+  elif id == "number" then
+    ev.n = random(1, 100)
+    show_prop("Card 1", [{text: "🔢 ？？", color: "#FFFFFF"}])
+  elif id == "bag" then
+    ev.counts = {red: random(3, 6), blue: random(2, 4), green: random(1, 3), gold: 1}
+    ev.total = ev.counts.red + ev.counts.blue + ev.counts.green + ev.counts.gold
+    ev.draw = pick_weighted(ev.counts)
+    show_prop("Deck", [{text: "👜 ふくろの中", color: "#FDE047"},
+                       join(map(BAG_BALLS, func(b) return b.emoji + "×" + ev.counts[b.id] end), " ")])
+  end
+end
+
+-- MARK: えらべるもの
+
+func mg_options(id)
+  if id == "cups" then
+    return [{id: "s1", label: "🥤 1ばん ×2.7", mult: 2.7}, {id: "s2", label: "🥤 2ばん ×2.7", mult: 2.7},
+            {id: "s3", label: "🥤 3ばん ×2.7", mult: 2.7}]
+  elif id == "keys" then
+    let m = odds(1 / KEY_COUNT)
+    let list = []
+    for k in 1 to KEY_COUNT do append(list, {id: "k" + k, label: "🗝 " + k + " ×" + m, mult: m}) end
+    return list
+  elif id == "weather" then
+    return map(WEATHER, func(w)
+      let m = odds(ev.fc[w.id] / 100)
+      return {id: w.id, label: w.emoji + " " + w.name + " ×" + m, mult: m}
+    end)
+  elif id == "balloon" then
+    return [{id: "pump", label: "🎈 さんか！（さいしょは ×" + BALLOON_STEPS[1] + "）", mult: 0}]
+  elif id == "amida" then
+    return [{id: "l1", label: "🪜 1ばん", mult: 0}, {id: "l2", label: "🪜 2ばん", mult: 0},
+            {id: "l3", label: "🪜 3ばん", mult: 0}, {id: "l4", label: "🪜 4ばん", mult: 0}]
+  elif id == "reels" then
+    return [{id: "diff", label: "🔀 ぜんぶちがう ×1.9", mult: 1.9}, {id: "two", label: "✌ 2つそろう ×1.9", mult: 1.9},
+            {id: "three", label: "🎉 3つそろう ×12", mult: 12}]
+  elif id == "meter" then
+    return [{id: "go", label: "🎯 ちょうせん！", mult: 0}]
+  elif id == "watch" then
+    return [{id: "go", label: "⏱ ちょうせん！", mult: 0}]
+  elif id == "fish" then
+    return [{id: "shallow", label: "🌿 あさい池", mult: 0}, {id: "deep", label: "🌊 ふかい海", mult: 0}]
+  elif id == "duck" then
+    let list = []
+    for k in 1 to 4 do append(list, {id: "d" + k, label: "🦆 " + DUCKS[k].name + " ×3.7", mult: 3.7}) end
+    return list
+  elif id == "vote" then
+    return [{id: "a", label: ev.topic[1].label, mult: 0}, {id: "b", label: ev.topic[2].label, mult: 0}]
+  elif id == "minority" then
+    return [{id: "m1", label: ev.set[1], mult: 0}, {id: "m2", label: ev.set[2], mult: 0}, {id: "m3", label: ev.set[3], mult: 0}]
+  elif id == "rps" then
+    return map(RPS, func(h) return {id: h.id, label: h.label, mult: 0} end)
+  elif id == "auction" then
+    let list = map(AUCTION_BIDS, func(b) return {id: "b" + b, label: "🪙 " + b, mult: 0} end)
+    append(list, {id: "pass", label: "🙅 パス", mult: 0})
+    return list
+  elif id == "number" then
+    return [{id: "low", label: "⬇ 1〜50 ×1.8", mult: 1.8}, {id: "high", label: "⬆ 51〜100 ×1.8", mult: 1.8},
+            {id: "zoro", label: "👯 ゾロ目 ×10", mult: 10}, {id: "one", label: "1️⃣ 1けた ×10", mult: 10}]
+  elif id == "bag" then
+    return map(BAG_BALLS, func(b)
+      let m = odds(ev.counts[b.id] / ev.total)
+      return {id: b.id, label: b.emoji + " ×" + m, mult: m}
+    end)
+  end
+  return []
+end
+
+-- MARK: ひみつのヒント
+
+func mg_hint(id)
+  if id == "cups" then
+    let k = random(1, 3)
+    while k == ev.answer do k = random(1, 3) end
+    ev.not_slot = k
+    return "ボールは " + k + "ばんの カップには ない"
+  elif id == "keys" then
+    let wrong = shuffle(filter(range(1, KEY_COUNT), func(k) return k != ev.key end))
+    ev.wrong = slice(wrong, 1, 2)
+    return "🗝 " + ev.wrong[1] + " と " + ev.wrong[2] + " は ハズレの カギ"
+  elif id == "weather" then
+    let others = filter(WEATHER, func(w) return w.id != ev.sky end)
+    let w = others[random(1, len(others))]
+    ev.not_sky = w.id
+    return "あしたは " + w.emoji + " " + w.name + " には ならない"
+  elif id == "balloon" then
+    if ev.pop_at >= 4 then return "ふうせんは 3回 押しても われない" end
+    return "ふうせんは 4回目までに かならず われる…"
+  elif id == "amida" then
+    let k = random(1, 4)
+    ev.known = k
+    return k + "ばんの線は ×" + ev.prizes[ev.end_of[k]] + " に つく"
+  elif id == "reels" then
+    if ev.r[2] == ev.r[3] then return "2つめと 3つめの リールは 同じ" end
+    return "2つめと 3つめの リールは ちがう"
+  elif id == "fish" then
+    if ev.mood == "good" then return "きょうは ふかい海の 長ぐつが すくない！" end
+    return "きょうは ふかい海に 長ぐつが いっぱい…"
+  elif id == "duck" then
+    let k = random(1, 4)
+    while k == ev.last do k = random(1, 4) end
+    ev.not_last = k
+    return "🦆 " + DUCKS[k].name + " は びりには ならない"
+  elif id == "vote" then
+    if len(filter(live_seats(), func(c) return c.is_npc end)) == 0 then return nil end
+    let o = ev.topic[1]
+    if ev.lean == "b" then o = ev.topic[2] end
+    return "🤖 BOT たちは " + o.label + " が すき みたい"
+  elif id == "rps" then
+    let bots = filter(live_seats(), func(c) return c.is_npc end)
+    if len(bots) == 0 then return nil end
+    let b = bots[random(1, len(bots))]
+    let h = RPS[random(1, 3)]
+    ev.tell = {seat: b.seat, hand: h.id}
+    return b.name + " は " + h.label + " を 出すつもり"
+  elif id == "auction" then
+    return "おたからの 中身は 🪙 " + ev.value
+  elif id == "number" then
+    return "ひみつの数の 一のくらいは " + (ev.n % 10)
+  elif id == "bag" then
+    let others = filter(BAG_BALLS, func(b) return b.id != ev.draw end)
+    let b = others[random(1, len(others))]
+    ev.not_ball = b.id
+    return "引くボールは " + b.emoji + " ではない"
+  end
+  return nil
+end
+
+-- MARK: 結果を見せる
+
+func mg_reveal(id)
+  if id == "cups" then
+    ev.stage = "wait"
+    ev.next_at = time() + 0.5
+  elif id == "keys" then
+    ev.next_at = time() + 0.8
+    board([{text: "🗝 たからばこの カギ", color: "#FDE047"}, "どのカギで あくかな…？"])
+  elif id == "weather" then
+    ev.next_at = time()
+    ev.spins = 0
+    sound("drum")
+  elif id == "balloon" then
+    balloon_join()
+  elif id == "amida" then
+    ev.shown = 0
+    ev.next_at = time() + 1
+    board([{text: "🪜 あみだくじ", color: "#FDE047"}, "線を たどると…"])
+    sound("paper-fabric-card-shuffle-01", {volume: 0.7})
+  elif id == "reels" then
+    ev.next_at = time()
+    sound("mechanical-slot-machine-08", {volume: 0.6})
+  elif id == "meter" or id == "watch" then
+    stop_start()
+  elif id == "fish" then
+    ev.order = filter(live_seats(), func(c) return joined(c) end)
+    ev.shown = 0
+    ev.next_at = time() + 1
+    board([{text: "🎣 つり大会", color: "#FDE047"}, "みんな いっせいに… えいっ！"])
+    sound("cartoon-slide-whistle-01", {volume: 0.6})
+  elif id == "duck" then
+    duck_go()
+  elif id == "vote" or id == "minority" or id == "auction" then
+    ev.next_at = time() + 2.5
+    board([{text: event.emoji + " " + event.name, color: "#FDE047"}, "ドキドキ… せーの！"])
+    sound("drum")
+  elif id == "rps" then
+    ev.next_at = time() + 1.4
+    board([{text: "✊ じゃんけん バトル", color: "#FDE047"}, "じゃん けん…"])
+    sound("drum")
+  elif id == "number" then
+    ev.next_at = time() + 1.4
+    block("Card 1").animation = "wobble"
+    sound("drum")
+  elif id == "bag" then
+    ev.next_at = time() + 2
+    block("Deck").animation = "wobble"
+    sound("impact-dice-roll-06", {volume: 0.7})
+  end
+end
+
+func mg_tick(id, now)
+  if id == "cups" then
+    cups_tick(now)
+  elif id == "keys" then
+    keys_tick(now)
+  elif id == "weather" then
+    weather_tick(now)
+  elif id == "balloon" then
+    balloon_tick(now)
+  elif id == "amida" then
+    amida_tick(now)
+  elif id == "reels" then
+    reels_tick(now)
+  elif id == "meter" or id == "watch" then
+    stop_tick(now)
+  elif id == "fish" then
+    fish_tick(now)
+  elif id == "duck" then
+    duck_tick(now)
+  elif id == "vote" then
+    if ev.stage == "show" and now >= ev.next_at then
+      ev.stage = "done"
+      vote_resolve()
+    end
+  elif id == "minority" then
+    if ev.stage == "show" and now >= ev.next_at then
+      ev.stage = "done"
+      minority_resolve()
+    end
+  elif id == "auction" then
+    if ev.stage == "show" and now >= ev.next_at then
+      ev.stage = "done"
+      auction_resolve()
+    end
+  elif id == "rps" then
+    rps_tick(now)
+  elif id == "number" then
+    number_tick(now)
+  elif id == "bag" then
+    bag_tick(now)
+  end
+end
+
+-- MARK: 🥤 カップ シャッフル
+--
+-- カップ（Box 1〜3）を 白くして、ボールの入ったカップを見せてから まぜる。
+-- まぜるのは 説明のあいだと かける時間の はじめ。ev.slot[k] は カップ k がいる場所（1〜3）。
+
+func cup_spot(slot)
+  return {x: CUP_X[slot], y: 1.95, z: 0.6}
+end
+
+func cups_setup()
+  ev.ball = random(1, 3)
+  ev.slot = [1, 2, 3]
+  ev.swaps = []
+  for i in 1 to CUP_SWAPS do
+    let a = random(1, 3)
+    let b = random(1, 3)
+    while b == a do b = random(1, 3) end
+    append(ev.swaps, [a, b])
+  end
+  -- 答え（さいごに ボールのカップが いる場所）を 先に計算
+  let at = ev.ball
+  for s in ev.swaps do
+    if at == s[1] then at = s[2] elif at == s[2] then at = s[1] end
+  end
+  ev.answer = at
+  ev.shuffled = false
+  for k in 1 to 3 do
+    let b = show_prop("Box " + k, [{text: k + "ばん", color: "#FFFFFF"}])
+    b.color = CUP_COLOR
+    b.position = cup_spot(k)
+  end
+  block("Box " + ev.ball).label = [{text: "⚪ ボールは ここ！", color: "#FDE047"}]
+  ev_later(2.2, func() cups_swap(1) end)
+end
+
+func cups_swap(i)
+  if i == 1 then
+    for k in 1 to 3 do block("Box " + k).label = [{text: "🥤", color: "#FFFFFF"}] end
+    sound("paper-fabric-card-shuffle-08", {volume: 0.6})
+  end
+  if i > len(ev.swaps) then
+    ev.shuffled = true
+    for k in 1 to 3 do block("Box " + k).label = [{text: ev.slot[k] + "ばん", color: "#FFFFFF"}] end
+    return
+  end
+  let s = ev.swaps[i]
+  let half = CUP_SWAP_TIME * 0.45
+  for k in 1 to 3 do
+    let dest = 0
+    if ev.slot[k] == s[1] then dest = s[2] elif ev.slot[k] == s[2] then dest = s[1] end
+    if dest > 0 then
+      let from = ev.slot[k]
+      ev.slot[k] = dest
+      -- 右へ行くカップは 手前、左へ行くカップは おくを通って すれちがう
+      let dz = 1.1
+      if dest < from then dz = -1.1 end
+      let b = block("Box " + k)
+      b.move_to({x: (CUP_X[from] + CUP_X[dest]) / 2, y: 1.95, z: 0.6 + dz}, half)
+      ev_later(half, func() b.move_to(cup_spot(dest), half) end)
+    end
+  end
+  sound("tick", {volume: 0.5, pitch: 1 + i / 10})
+  ev_later(CUP_SWAP_TIME, func() cups_swap(i + 1) end)
+end
+
+func cups_tick(now)
+  if ev.stage == "wait" and ev.shuffled and now >= ev.next_at then
+    ev.stage = "lift"
+    ev.lifted = 0
+    ev.next_at = now
+  elif ev.stage == "lift" and now >= ev.next_at then
+    if ev.lifted < 3 then
+      ev.lifted = ev.lifted + 1
+      for k in 1 to 3 do
+        if ev.slot[k] == ev.lifted then
+          let b = block("Box " + k)
+          b.move_to({x: CUP_X[ev.lifted], y: 2.9, z: 0.6}, 0.3)
+          if k == ev.ball then
+            b.label = [{text: ev.lifted + "ばん: ⚪ ボール！", color: "#FDE047"}]
+            particles("sparkles", b, {amount: 40})
+            sound("bell")
+          else
+            b.label = [{text: ev.lifted + "ばん: から", color: "#CBD5E1"}]
+            sound("cartoon-pop-01", {volume: 0.5})
+          end
+        end
+      end
+      ev.next_at = now + 0.9
+      return
+    end
+    ev.stage = "done"
+    for c in live_seats() do
+      c.result = 0
+      if joined(c) and c.pick == "s" + ev.answer then c.result = payout(c, 2.7) end
+    end
+    result_start("ボールは " + ev.answer + "ばんの カップ！")
+  end
+end
+
+-- MARK: 🗝 たからばこの カギ
+
+func keys_tick(now)
+  if ev.stage != "show" or now < ev.next_at then return end
+  ev.tried = ev.tried + 1
+  let k = ev.tries[ev.tried]
+  let chest = block("Box 2")
+  if k == ev.key then
+    ev.stage = "open"
+    block("Box Lid 2").visible = false
+    chest.label = [{text: "✨ " + k + "ばんの カギで あいた！", color: "#FDE047"}]
+    particles("stars", chest, {amount: 50})
+    sound("magic")
+    ev.stage = "done"
+    ev_later(1.4, func() keys_resolve() end)
+    return
+  end
+  chest.label = [{text: "🗝 " + k + "ばん… ✖ ちがう", color: "#FCA5A5"}]
+  chest.animation = "wobble"
+  sound("error", {volume: 0.5})
+  ev.next_at = now + 0.9
+end
+
+func keys_resolve()
+  block("Box 2").animation = nil
+  for c in live_seats() do
+    c.result = 0
+    if joined(c) and c.pick == "k" + ev.key then c.result = payout(c, odds(1 / KEY_COUNT)) end
+  end
+  result_start("ほんものの カギは 🗝 " + ev.key + "ばん")
+end
+
+-- MARK: 🌦 あしたの 天気よほう
+
+func weather_of(id)
+  for w in WEATHER do
+    if w.id == id then return w end
+  end
+  return WEATHER[1]
+end
+
+func weather_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    ev.spins = ev.spins + 1
+    if ev.spins >= 16 then
+      ev.stage = "stop"
+      ev.next_at = now + 1.4
+      let w = weather_of(ev.sky)
+      block("Card 2").label = [{text: w.emoji + " " + w.name + "！", color: "#FDE047"}]
+      particles("sparkles", block("Card 2"), {amount: 30})
+      sound("bell")
+      return
+    end
+    let w = WEATHER[ev.spins % 4 + 1]
+    block("Card 2").label = [{text: w.emoji, color: "#FFFFFF"}]
+    sound("tick", {volume: 0.4, pitch: 1 + ev.spins / 30})
+    ev.next_at = now + 0.12 + ev.spins * 0.01
+  elif ev.stage == "stop" and now >= ev.next_at then
+    ev.stage = "done"
+    for c in live_seats() do
+      c.result = 0
+      if joined(c) and c.pick == ev.sky then c.result = payout(c, option_of("weather", c.pick).mult) end
+    end
+    let w = weather_of(ev.sky)
+    result_start("あしたの天気は " + w.emoji + " " + w.name + "（よほう " + ev.fc[ev.sky] + "%）")
+  end
+end
+
+-- MARK: 🎈 ふうせん ふくらまし
+--
+-- c.bstate: "in"（ふくらませる）/ "stop"（やめた）/ "boom"（われた）。ばくだんカード と 同じ形
+
+func balloon_mult()
+  if ev.pumps == 0 then return 1 end
+  return BALLOON_STEPS[min(ev.pumps, len(BALLOON_STEPS))]
+end
+
+func balloon_join()
+  for c in live_seats() do
+    if joined(c) then c.bstate = "in" else c.bstate = "stop" end
+  end
+  balloon_pump()
+end
+
+func balloon_pump()
+  ev.pumps = ev.pumps + 1
+  ev.stage = "pump"
+  ev.next_at = time() + 1.3
+  let b = block("Big Balloon")
+  b.animation = "wobble"
+  b.label = [{text: "🎈 " + ev.pumps + "回目… シュッ シュッ", color: "#FFFFFF"}]
+  sound("cartoon-slide-whistle-03", {volume: 0.5})
+end
+
+func balloon_tick(now)
+  if ev.stage == "pump" and now >= ev.next_at then
+    let b = block("Big Balloon")
+    b.animation = nil
+    if ev.pumps >= ev.pop_at then
+      b.visible = false
+      particles("confetti", b, {amount: 60})
+      shake(0.3)
+      sound("cartoon-pop-04")
+      for c in live_seats() do
+        if c.bstate == "in" then
+          c.bstate = "boom"
+          if not c.is_npc then c.message("🎈 パーン！ われちゃった…", 2) end
+        end
+      end
+      balloon_finish("🎈 " + ev.pumps + "回目で パーン！")
+      return
+    end
+    let s = 0.8 + ev.pumps * 0.32
+    b.size = {x: s, y: s * 1.18, z: s}
+    b.position = {x: 0, y: 1.6 + s * 0.6, z: 0}
+    b.label = [{text: "🎈 ×" + balloon_mult(), color: "#86EFAC"}]
+    sound("feedback-success-01", {volume: 0.5})
+    if ev.pumps >= len(BALLOON_STEPS) then
+      balloon_finish("さいごまで われなかった！ ×" + balloon_mult())
+      return
+    end
+    ev.stage = "decide"
+    ev.next_at = now + STEP_TIME
+    let nxt = BALLOON_STEPS[ev.pumps + 1]
+    for c in filter(live_seats(), func(c) return c.bstate == "in" end) do
+      c.decided = false
+      if c.is_npc then
+        bot_balloon(c)
+      else
+        open_step_panel(c, "🎈 いま ×" + balloon_mult() + "（🪙 " + payout(c, balloon_mult()) + "）。 つぎは ×" + nxt,
+                        [{id: "balloon_go", label: "🎈 もうひと押し！", bg: "#DB2777"},
+                         {id: "balloon_stop", label: "✋ やめる", bg: "#16A34A"}])
+      end
+    end
+  elif ev.stage == "decide" then
+    let waiting = filter(live_seats(), func(c) return c.bstate == "in" and not c.decided end)
+    if len(waiting) == 0 or now >= ev.next_at then
+      for c in waiting do balloon_choose(c, "stop") end
+      if len(filter(live_seats(), func(c) return c.bstate == "in" end)) == 0 then
+        balloon_finish("みんな やめた！ ×" + balloon_mult())
+      else
+        balloon_pump()
+      end
+    end
+  end
+end
+
+func balloon_choose(c, what)
+  if c.bstate != "in" or c.decided then return end
+  c.decided = true
+  if not c.is_npc then close_step_panel(c) end
+  if what == "stop" then
+    c.bstate = "stop"
+    c.result = payout(c, balloon_mult())
+    if not c.is_npc then c.message("✋ ×" + balloon_mult() + " で やめた！ 🪙 " + c.result, 2) end
+  end
+end
+
+func balloon_finish(note)
+  ev.stage = "done"
+  for c in live_seats() do
+    if c.bstate == "in" then c.result = payout(c, balloon_mult()) end
+    if c.bstate == "boom" then c.result = 0 end
+    if c.result == nil then c.result = 0 end
+    if not c.is_npc then close_step_panel(c) end
+  end
+  result_start(note)
+end
+
+-- MARK: 🪜 あみだくじ
+
+func amida_tick(now)
+  if ev.stage != "show" or now < ev.next_at then return end
+  if ev.shown < 4 then
+    ev.shown = ev.shown + 1
+    let k = ev.shown
+    let m = ev.prizes[ev.end_of[k]]
+    let lines = [{text: "🪜 あみだくじ", color: "#FDE047"}]
+    let done = []
+    for j in 1 to ev.shown do append(done, j + "ばん→×" + ev.prizes[ev.end_of[j]]) end
+    append(lines, join(slice(done, 1, 2), "   "))
+    if len(done) > 2 then append(lines, join(slice(done, 3, 4), "   ")) end
+    board(lines)
+    let color = "#F87171"
+    if m >= 1.5 then color = "#FDE047" elif m >= 1 then color = "#86EFAC" end
+    block("Deck").label = [{text: "🪜 " + k + "ばん → ×" + m, color: color}]
+    sound("card-deal-slide-01", {volume: 0.7})
+    ev.next_at = now + 1
+    return
+  end
+  ev.stage = "done"
+  for c in live_seats() do
+    c.result = 0
+    if joined(c) then
+      let k = num(replace(c.pick, "l", ""))
+      c.result = payout(c, ev.prizes[ev.end_of[k]])
+    end
+  end
+  result_start("あみだくじ: " + join(map(range(1, 4), func(k) return k + "→×" + ev.prizes[ev.end_of[k]] end), " "))
+end
+
+-- MARK: 🍒 フルーツ リール
+
+func reels_kind()
+  let a = ev.r[1]
+  let b = ev.r[2]
+  let c = ev.r[3]
+  if a == b and b == c then return "three" end
+  if a == b or b == c or a == c then return "two" end
+  return "diff"
+end
+
+func reels_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    ev.next_at = now + 0.12
+    let t = now - ev.t0
+    -- 1.2 びょうから 0.8 びょうおきに 左から止まる
+    while ev.stopped < 3 and t >= 1.2 + ev.stopped * 0.8 do
+      ev.stopped = ev.stopped + 1
+      let b = block("Box " + ev.stopped)
+      b.label = [{text: REEL[ev.r[ev.stopped]], color: "#FFFFFF"}]
+      b.animation = nil
+      sound("coin-dropped-on-wooden-table-01", {volume: 0.7})
+    end
+    let k = ev.stopped + 1
+    while k <= 3 do
+      block("Box " + k).label = [{text: REEL[random(1, len(REEL))], color: "#E5E7EB"}]
+      k = k + 1
+    end
+    if ev.stopped >= 3 then
+      ev.stage = "stop"
+      ev.next_at = now + 1.2
+      if reels_kind() == "three" then
+        for k in 1 to 3 do particles("stars", block("Box " + k), {amount: 30}) end
+        sound("win")
+      end
+    end
+  elif ev.stage == "stop" and now >= ev.next_at then
+    ev.stage = "done"
+    let kind = reels_kind()
+    for c in live_seats() do
+      c.result = 0
+      if joined(c) and c.pick == kind then c.result = payout(c, option_of("reels", c.pick).mult) end
+    end
+    let names = {diff: "ぜんぶ ちがう", two: "2つ そろった", three: "3つ そろった！"}
+    result_start(REEL[ev.r[1]] + REEL[ev.r[2]] + REEL[ev.r[3]] + " " + names[kind])
+  end
+end
+
+-- MARK: 🎯 ストップ・メーター と ⏱ ぴったり 5びょう
+--
+-- さんかした人だけ 🛑 ボタン。c.stopped（もう押した）・c.stop_v（押したときの メーター か 秒）
+
+func stop_limit()
+  if event.id == "meter" then return METER_TIME end
+  return WATCH_TIME
+end
+
+-- 今の メーター（0〜100）か 秒
+func stop_value(now)
+  let t = max(0, now - ev.t0)
+  if event.id == "watch" then return t end
+  let ph = t / METER_PERIOD
+  ph = ph - floor(ph)
+  if ph < 0.5 then return ph * 200 end
+  return 200 - ph * 200
+end
+
+func stop_error(v)
+  if event.id == "watch" then return abs(v - WATCH_GOAL) end
+  return abs(v - 50)
+end
+
+func stop_rank(v)
+  let ranks = METER_RANKS
+  if event.id == "watch" then ranks = WATCH_RANKS end
+  let e = stop_error(v)
+  for r in ranks do
+    if e <= r.near then return r end
+  end
+  return ranks[len(ranks)]
+end
+
+func stop_text(v)
+  if event.id == "watch" then return fixed(v, 2) + " びょう" end
+  return "メーター " + round(v)
+end
+
+func stop_start()
+  ev.stage = "ready"
+  ev.t0 = time() + 2
+  ev.next_at = time()
+  for c in live_seats() do
+    c.stopped = not joined(c)
+    c.stop_v = nil
+    if joined(c) then
+      if c.is_npc then
+        bot_stop(c)
+      else
+        let title = "🎯 🔴 が ⭐ に来たら 🛑！"
+        if event.id == "watch" then title = "⏱ 心の中で 5びょう 数えて 🛑！" end
+        open_step_panel(c, title, [{id: event.id + "_stop", label: "🛑 ストップ！", bg: "#DC2626"}])
+      end
+    end
+  end
+  board([{text: event.emoji + " " + event.name, color: "#FDE047"}, "よーい…"])
+  sound("drum")
+end
+
+-- メーターの絵（11マス。まん中が ⭐）
+func meter_bar(v)
+  let at = round(v / 10) + 1
+  let cells = []
+  for k in 1 to 11 do
+    if k == at then append(cells, "🔴")
+    elif k == 6 then append(cells, "⭐")
+    else append(cells, "▫️") end
+  end
+  return join(cells, "")
+end
+
+func stop_view(now)
+  if now < ev.t0 then return "よーい… " + ceil(ev.t0 - now) end
+  let v = stop_value(now)
+  if event.id == "meter" then return meter_bar(v) end
+  if v < WATCH_SHOW then return "⏱ " + fixed(v, 2) end
+  return "⏱ ？.？？"
+end
+
+func stop_press(c)
+  if phase != "reveal" or event == nil or (event.id != "meter" and event.id != "watch") then return end
+  if c.stopped or ev.stage != "run" then return end
+  let now = time()
+  c.stopped = true
+  c.stop_v = stop_value(now)
+  let r = stop_rank(c.stop_v)
+  if c.is_npc then
+    bot_say(c, "stop", 40)
+  else
+    close_step_panel(c)
+    c.message("🛑 " + stop_text(c.stop_v) + "  " + r.text, 2)
+    c.sound("click")
+  end
+end
+
+func stop_tick(now)
+  if ev.stage == "ready" and now >= ev.t0 then
+    ev.stage = "run"
+    sound("bell")
+  end
+  if (ev.stage == "ready" or ev.stage == "run") and now >= ev.next_at then
+    ev.next_at = now + 0.1
+    let view = stop_view(now)
+    for p in players() do
+      if not p.is_npc then
+        p.ui_text("stop_view", view, {at: "center", dy: -150, size: 30, bold: true, color: "#FFFFFF", bg: "#1E1B4BDD", radius: 14, layer: 21})
+      end
+    end
+    block("Deck").label = [{text: view, color: "#FDE047"}]
+  end
+  if ev.stage != "run" then return end
+  let waiting = filter(live_seats(), func(c) return not c.stopped end)
+  if len(waiting) > 0 and now < ev.t0 + stop_limit() then return end
+  ev.stage = "done"
+  for c in waiting do
+    c.stopped = true
+    c.stop_v = stop_value(now)
+    if event.id == "watch" then c.stop_v = stop_limit() end
+  end
+  stop_resolve()
+end
+
+func stop_resolve()
+  for p in players() do p.ui_remove("stop_view") end
+  let best = nil
+  let parts = []
+  for c in live_seats() do
+    c.result = 0
+    if not c.is_npc then close_step_panel(c) end
+    if joined(c) and c.stop_v != nil then
+      let r = stop_rank(c.stop_v)
+      c.result = payout(c, r.mult)
+      append(parts, c.name + " " + stop_text(c.stop_v))
+      if best == nil or stop_error(c.stop_v) < stop_error(best.stop_v) then best = c end
+      if r.mult >= 3 and not c.is_npc then kit_badge(c, "perfect_stop", "ぴったりストップ") end
+    end
+  end
+  let lines = [{text: event.emoji + " " + event.name, color: "#FDE047"}]
+  if len(parts) > 0 then append(lines, join(slice(parts, 1, 2), "   ")) end
+  if len(parts) > 2 then append(lines, join(slice(parts, 3, 4), "   ")) end
+  board(lines)
+  if best == nil then
+    result_start("だれも ちょうせん しなかった")
+  else
+    result_start("いちばん 近かったのは " + best.name + "（" + stop_text(best.stop_v) + "）")
+  end
+end
+
+-- MARK: 🎣 つり大会
+
+func fish_table(spot)
+  if spot == "shallow" then return FISH_SHALLOW end
+  let list = copy(FISH_DEEP)
+  let boot = copy(list[1])
+  if ev.mood == "good" then boot.w = 30 else boot.w = 62 end
+  list[1] = boot
+  return list
+end
+
+func fish_tick(now)
+  if ev.stage != "show" or now < ev.next_at then return end
+  if ev.shown < len(ev.order) then
+    ev.shown = ev.shown + 1
+    let c = ev.order[ev.shown]
+    let list = fish_table(c.pick)
+    let f = list[pick_weighted(map(list, func(x) return x.w end))]
+    c.result = payout(c, f.mult)
+    let where = "🌿"
+    if c.pick == "deep" then where = "🌊" end
+    let text = where + " " + c.name + " … " + f.emoji + " " + f.name + " ×" + f.mult
+    board([{text: "🎣 つり大会", color: "#FDE047"}, text])
+    block("Deck").label = [{text: f.emoji + " " + f.name + "！", color: "#FDE047"}, {text: c.name, color: "#FFFFFF"}]
+    if f.mult >= 2 then
+      particles("stars", block("Deck"), {amount: 30})
+      sound("crowd-cheer-44", {volume: 0.5})
+    elif f.mult == 0 then
+      sound("lose", {volume: 0.6})
+    else
+      sound("coin", {volume: 0.6})
+    end
+    if not c.is_npc then
+      c.message("🎣 " + f.emoji + " " + f.name + " が つれた！ ×" + f.mult, 2)
+      if f.emoji == "🐋" then kit_badge(c, "whale", "クジラを つった！") end
+    end
+    ev.next_at = now + 1.3
+    return
+  end
+  ev.stage = "done"
+  for c in live_seats() do
+    if c.result == nil then c.result = 0 end
+  end
+  if len(ev.order) == 0 then
+    result_start("だれも つりを しなかった")
+  else
+    result_start("つり大会 おしまい！")
+  end
+end
+
+-- MARK: 🦆 アヒル ながし（びりを あてる）
+--
+-- レースのコースと 4つの Racer を使う。びりは 先に決まっていて、ほかの子より 前には 出ない。
+
+func duck_setup()
+  ev.last = random(1, 4)
+  ev.progress = [0, 0, 0, 0]
+  for k in 1 to 4 do
+    let r = block("Racer " + k)
+    r.position = racer_start(k)
+    r.color = DUCKS[k].color
+    r.label = [{text: "🦆 " + DUCKS[k].name, color: DUCKS[k].color}]
+    r.label_range = 26
+    r.animation = nil
+  end
+end
+
+func duck_go()
+  for p in players() do
+    if p.seat == nil or not p.out then race_camera(p) end
+  end
+  for k in 1 to 4 do block("Racer " + k).animation = "sway" end
+  ev.next_at = time() + 1
+  board([{text: "🦆 アヒル ながし", color: "#FDE047"}, "びりは だれだ？ スタート！"])
+  sound("cartoon-slide-whistle-05", {volume: 0.6})
+end
+
+func duck_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    ev.next_at = now + 0.3
+    let done = false
+    let low = RACE_LENGTH
+    for k in 1 to 4 do
+      if k != ev.last then
+        let p = min(RACE_LENGTH, ev.progress[k] + random_float(0.3, 1.0))
+        ev.progress[k] = p
+        if p >= RACE_LENGTH then done = true end
+        low = min(low, p)
+      end
+    end
+    ev.progress[ev.last] = max(0, min(ev.progress[ev.last] + random_float(0.3, 1.0), low - 0.5))
+    for k in 1 to 4 do
+      let s = racer_start(k)
+      block("Racer " + k).move_to({x: s.x + ev.progress[k], y: s.y, z: s.z}, 0.3)
+    end
+    if done then
+      ev.stage = "finish"
+      ev.next_at = now + 1.6
+      let d = DUCKS[ev.last]
+      board([{text: "🏁 びりは 🦆 " + d.name + "！", color: "#FDE047"}])
+      particles("sparkles", block("Racer " + ev.last), {amount: 50})
+      sound("cartoon-slide-whistle-07", {volume: 0.6})
+      for k in 1 to 4 do block("Racer " + k).animation = nil end
+      block("Racer " + ev.last).animation = "dance"
+    end
+  elif ev.stage == "finish" and now >= ev.next_at then
+    ev.stage = "done"
+    for c in live_seats() do
+      c.result = 0
+      if joined(c) and c.pick == "d" + ev.last then c.result = payout(c, 3.7) end
+      if not c.is_npc then table_camera(c) end
+    end
+    for p in players() do
+      if p.seat == nil then gallery_camera(p) end
+    end
+    result_start("びりは 🦆 " + DUCKS[ev.last].name + "（×3.7）")
+  end
+end
+
+-- MARK: 🗳 みんなで 多数決
+
+func vote_resolve()
+  let na = len(filter(live_seats(), func(c) return c.pick == "a" end))
+  let nb = len(filter(live_seats(), func(c) return c.pick == "b" end))
+  let win = "a"
+  if nb > na then win = "b" end
+  for c in live_seats() do
+    c.result = 0
+    if c.pick == "a" or c.pick == "b" then
+      if na == nb then
+        c.result = floor(VOTE_TIE * bonus())
+      elif c.pick == win then
+        c.result = floor(VOTE_WIN * bonus())
+      end
+    end
+    if c.is_npc then bot_say(c, "vote", 30) end
+  end
+  let text = ev.topic[1].label + " " + na + " : " + nb + " " + ev.topic[2].label
+  board([{text: "🗳 みんなで 多数決", color: "#FDE047"}, text])
+  if na == nb then
+    result_start(text + " — 同じ数！")
+  else
+    let o = ev.topic[1]
+    if win == "b" then o = ev.topic[2] end
+    result_start(text + " — " + o.label + " の勝ち！")
+  end
+end
+
+-- MARK: 🦄 すくないほうが 勝ち
+
+func minority_resolve()
+  let counts = [0, 0, 0]
+  for c in live_seats() do
+    if c.pick != nil then
+      let k = num(replace(c.pick, "m", ""))
+      counts[k] = counts[k] + 1
+    end
+  end
+  let used = filter(range(1, 3), func(k) return counts[k] > 0 end)
+  let low = 99
+  for k in used do low = min(low, counts[k]) end
+  let wins = []
+  if len(used) >= 2 then wins = filter(used, func(k) return counts[k] == low end) end
+  let winners = filter(live_seats(), func(c) return c.pick != nil and contains(wins, num(replace(c.pick, "m", ""))) end)
+  for c in live_seats() do c.result = 0 end
+  for k in 1 to 3 do block("Box " + k).label = [{text: ev.set[k] + " × " + counts[k], color: "#FFFFFF"}] end
+  let text = join(map(range(1, 3), func(k) return ev.set[k] + counts[k] end), "  ")
+  if len(winners) == 0 then
+    board([{text: "🦄 すくないほうが 勝ち", color: "#FDE047"}, text])
+    result_start(text + " — 勝ちは なし")
+    return
+  end
+  let share = floor(MINORITY_POT * bonus() / len(winners))
+  for w in winners do w.result = share end
+  let marks = join(map(wins, func(k) return ev.set[k] end), "")
+  board([{text: "🦄 すくないほうが 勝ち", color: "#FDE047"}, text, {text: marks + " の勝ち！ 🪙 " + share + " ずつ", color: "#86EFAC"}])
+  result_start(text + " — " + marks + " の勝ち！")
+end
+
+-- MARK: ✊ じゃんけん バトル
+
+func rps_beats(a, b)
+  return (a == "rock" and b == "scissors") or (a == "scissors" and b == "paper") or (a == "paper" and b == "rock")
+end
+
+func rps_label(id)
+  for h in RPS do
+    if h.id == id then return h.label end
+  end
+  return "？"
+end
+
+func rps_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    ev.stage = "pon"
+    ev.next_at = now + 1.8
+    let hands = []
+    for c in live_seats() do
+      if c.pick != nil then append(hands, c.name + " " + rps_label(c.pick)) end
+    end
+    let lines = [{text: "✊ ぽん！", color: "#FDE047"}]
+    if len(hands) > 0 then append(lines, join(slice(hands, 1, 2), "   ")) end
+    if len(hands) > 2 then append(lines, join(slice(hands, 3, 4), "   ")) end
+    board(lines)
+    sound("impact-coins-03", {volume: 0.6})
+  elif ev.stage == "pon" and now >= ev.next_at then
+    ev.stage = "done"
+    let players_in = filter(live_seats(), func(c) return c.pick != nil end)
+    let best = nil
+    for c in live_seats() do
+      c.result = 0
+      if joined(c) then
+        let w = 0
+        let l = 0
+        for o in players_in do
+          if o != c then
+            if rps_beats(c.pick, o.pick) then w = w + 1 elif rps_beats(o.pick, c.pick) then l = l + 1 end
+          end
+        end
+        c.result = payout(c, max(0, 1 + RPS_STEP * (w - l)))
+        c.rps_w = w
+        if best == nil or w > best.rps_w then best = c end
+        if not c.is_npc then c.message("✊ " + w + "勝 " + l + "敗", 2) end
+      end
+    end
+    if best == nil or best.rps_w == 0 then
+      result_start("じゃんけん おしまい！")
+    else
+      result_start("いちばん勝ったのは " + best.name + "（" + best.rps_w + "勝）")
+    end
+  end
+end
+
+-- MARK: 💰 ひみつの 入札
+
+func bid_of(c)
+  if c.pick == nil or c.pick == "pass" then return 0 end
+  return min(num(replace(c.pick, "b", "")), c.chips)
+end
+
+func auction_resolve()
+  let top = 0
+  for c in live_seats() do top = max(top, bid_of(c)) end
+  let tops = filter(live_seats(), func(c) return top > 0 and bid_of(c) == top end)
+  let bids = map(filter(live_seats(), func(c) return bid_of(c) > 0 end), func(c) return c.name + " 🪙" + bid_of(c) end)
+  for c in live_seats() do c.result = 0 end
+  block("Box Lid 2").visible = false
+  let chest = block("Box 2")
+  chest.label = [{text: "💰 おたからは 🪙 " + ev.value + "！", color: "#FDE047"}]
+  particles("stars", chest, {amount: 40})
+  sound("cardboard-box-open-01", {volume: 0.8})
+  let lines = [{text: "💰 おたからは 🪙 " + ev.value, color: "#FDE047"}]
+  if len(bids) > 0 then append(lines, join(slice(bids, 1, 2), "   ")) end
+  if len(bids) > 2 then append(lines, join(slice(bids, 3, 4), "   ")) end
+  board(lines)
+  if len(tops) == 0 then
+    result_start("だれも 入札しなかった（おたからは 🪙 " + ev.value + "）")
+  elif len(tops) > 1 then
+    result_start("🪙 " + top + " で 同じ金額！ だれも もらえない（おたからは 🪙 " + ev.value + "）")
+  else
+    let w = tops[1]
+    w.chips = w.chips - top
+    w.result = floor(ev.value * bonus())
+    result_start(w.name + " が 🪙 " + top + " で らくさつ！ 中身は 🪙 " + ev.value)
+  end
+end
+
+-- MARK: 🔢 ひみつの数
+
+func number_kind_ok(key)
+  let n = ev.n
+  if key == "low" then return n <= 50 end
+  if key == "high" then return n >= 51 end
+  if key == "zoro" then return n >= 11 and n <= 99 and n % 11 == 0 end
+  if key == "one" then return n <= 9 end
+  return false
+end
+
+func number_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    ev.stage = "half"
+    ev.next_at = now + 1.4
+    let tens = floor(ev.n / 10)
+    block("Card 1").label = [{text: "🔢 " + tens + "？", color: "#FDE047"}]
+    sound("paper-fabric-card-flip-06", {volume: 0.8})
+  elif ev.stage == "half" and now >= ev.next_at then
+    ev.stage = "full"
+    ev.next_at = now + 1.2
+    let b = block("Card 1")
+    b.animation = nil
+    b.label = [{text: "🔢 " + ev.n + "！", color: "#FDE047"}]
+    particles("sparkles", b, {amount: 30})
+    sound("bell")
+  elif ev.stage == "full" and now >= ev.next_at then
+    ev.stage = "done"
+    for c in live_seats() do
+      c.result = 0
+      if joined(c) and number_kind_ok(c.pick) then c.result = payout(c, option_of("number", c.pick).mult) end
+    end
+    let extra = ""
+    if number_kind_ok("zoro") then extra = "（ゾロ目！）" elif number_kind_ok("one") then extra = "（1けた！）" end
+    result_start("ひみつの数は " + ev.n + extra)
+  end
+end
+
+-- MARK: 👜 ふくろの ボールびき
+
+func ball_of(id)
+  for b in BAG_BALLS do
+    if b.id == id then return b end
+  end
+  return BAG_BALLS[1]
+end
+
+func bag_tick(now)
+  if ev.stage == "show" and now >= ev.next_at then
+    ev.stage = "drawn"
+    ev.next_at = now + 1.4
+    block("Deck").animation = nil
+    let b = ball_of(ev.draw)
+    let ball = block("Wheel Light")
+    ball.position = {x: 0, y: 2.6, z: 1.6}
+    ball.color = b.color
+    ball.visible = true
+    ball.label = [{text: b.emoji + " が出た！", color: b.color}]
+    particles("sparkles", ball, {amount: 30})
+    sound("cartoon-pop-07", {volume: 0.7})
+  elif ev.stage == "drawn" and now >= ev.next_at then
+    ev.stage = "done"
+    for c in live_seats() do
+      c.result = 0
+      if joined(c) and c.pick == ev.draw then c.result = payout(c, option_of("bag", c.pick).mult) end
+    end
+    let b = ball_of(ev.draw)
+    result_start("ふくろから 出たのは " + b.emoji + "（" + ev.counts[ev.draw] + "/" + ev.total + "）")
+  end
+end

@@ -1,7 +1,7 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 223,
-  "bytes" : 189689,
+  "blockCount" : 224,
+  "bytes" : 246048,
   "cover" : "games\/lucky-chip-party\/cover-7b5aa429.png",
   "id" : "lucky-chip-party",
   "maxPlayers" : 8,
@@ -11,6 +11,7 @@
     "games\/lucky-chip-party\/data.absc",
     "games\/lucky-chip-party\/bots.absc",
     "games\/lucky-chip-party\/events.absc",
+    "games\/lucky-chip-party\/minigames.absc",
     "games\/lucky-chip-party\/show.absc",
     "games\/lucky-chip-party\/table.absc",
     "games\/lucky-chip-party\/ui.absc",
@@ -20,7 +21,7 @@
     "games\/lucky-chip-party\/shot1-d13fdaaf.png",
     "games\/lucky-chip-party\/shot2-b640d1fa.png"
   ],
-  "summary" : "4人でテーブルをかこむ ゲームショー！ サイコロ・カード・ルーレット・どうぶつレース・コイン・ブラフ・ミステリーボックス・ばくだんカード・「わける？ひとりじめ？」の9種類で チップをかけて ふやせ。ひみつのヒント、レイズとブラフ、0になったら OUT。たりない席には BOT（チップは このゲームの中だけのもの）",
+  "summary" : "4人でテーブルをかこむ ゲームショー！ サイコロ・カード・ルーレット・どうぶつレース・ブラフ・ばくだんカード・カップシャッフル・ふうせん・あみだくじ・つり大会・じゃんけん・多数決・ひみつの入札・🎯ストップメーター・⏱ぴったり5びょう…など 25種類のミニゲームで チップをかけて ふやせ。毎回ちがうゲームが出る。ひみつのヒント、レイズとブラフ、0になったら OUT。たりない席には BOT（チップは このゲームの中だけのもの）",
   "tags" : [
     "party",
     "cards",
