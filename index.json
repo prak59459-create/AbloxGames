@@ -3,9 +3,9 @@
   "games" : [
     {
       "author" : "Ablox Games",
-      "blockCount" : 706,
-      "bytes" : 470595,
-      "cover" : "games\/maple-bay-life\/cover-cbe517d2.png",
+      "blockCount" : 2018,
+      "bytes" : 1100004,
+      "cover" : "games\/maple-bay-life\/cover-4771c703.png",
       "id" : "maple-bay-life",
       "maxPlayers" : 16,
       "schemaVersion" : 1,
@@ -21,8 +21,8 @@
         "games\/maple-bay-life\/main.absc"
       ],
       "shots" : [
-        "games\/maple-bay-life\/shot1-debd2583.png",
-        "games\/maple-bay-life\/shot2-787e19e7.png"
+        "games\/maple-bay-life\/shot1-1a955ee7.png",
+        "games\/maple-bay-life\/shot2-f1359392.png"
       ],
       "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",
       "tags" : [
@@ -37,9 +37,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 381,
-      "bytes" : 282024,
-      "cover" : "games\/fruit-seas\/cover-96d50579.png",
+      "blockCount" : 1410,
+      "bytes" : 784021,
+      "cover" : "games\/fruit-seas\/cover-3256390b.png",
       "id" : "fruit-seas",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -56,8 +56,8 @@
         "games\/fruit-seas\/main.absc"
       ],
       "shots" : [
-        "games\/fruit-seas\/shot1-135c072d.png",
-        "games\/fruit-seas\/shot2-50914e90.png"
+        "games\/fruit-seas\/shot1-13f3d06d.png",
+        "games\/fruit-seas\/shot2-2de35b5b.png"
       ],
       "summary" : "ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。",
       "tags" : [
@@ -72,9 +72,9 @@
     },
     {
       "author" : "Ablox Games",
-      "blockCount" : 400,
-      "bytes" : 269543,
-      "cover" : "games\/pet-home-paradise\/cover-f4b6388a.png",
+      "blockCount" : 1551,
+      "bytes" : 824575,
+      "cover" : "games\/pet-home-paradise\/cover-ca454097.png",
       "id" : "pet-home-paradise",
       "maxPlayers" : 12,
       "schemaVersion" : 1,
@@ -89,8 +89,8 @@
         "games\/pet-home-paradise\/main.absc"
       ],
       "shots" : [
-        "games\/pet-home-paradise\/shot1-2db5f9a0.png",
-        "games\/pet-home-paradise\/shot2-0a4a6c82.png"
+        "games\/pet-home-paradise\/shot1-4bd78b78.png",
+        "games\/pet-home-paradise\/shot2-646b7273.png"
       ],
       "summary" : "たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。",
       "tags" : [

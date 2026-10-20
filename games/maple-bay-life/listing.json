@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 706,
-  "bytes" : 470595,
-  "cover" : "games\/maple-bay-life\/cover-cbe517d2.png",
+  "blockCount" : 2018,
+  "bytes" : 1100004,
+  "cover" : "games\/maple-bay-life\/cover-4771c703.png",
   "id" : "maple-bay-life",
   "maxPlayers" : 16,
   "schemaVersion" : 1,
@@ -18,8 +18,8 @@
     "games\/maple-bay-life\/main.absc"
   ],
   "shots" : [
-    "games\/maple-bay-life\/shot1-debd2583.png",
-    "games\/maple-bay-life\/shot2-787e19e7.png"
+    "games\/maple-bay-life\/shot1-1a955ee7.png",
+    "games\/maple-bay-life\/shot2-f1359392.png"
   ],
   "summary" : "街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。",
   "tags" : [

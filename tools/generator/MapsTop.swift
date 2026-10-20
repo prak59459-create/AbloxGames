@@ -160,6 +160,328 @@ func mapleBay(_ m: MapBuilder) {
     m.part("Pond", at: (40, 0.02, 70), size: (10, 0.04, 8), color: "#3B9DEB", shape: .cylinder, material: .glass, solid: false)
     for p in [(10, 10), (-10, 10), (10, -10), (-10, -10)] { m.lamp(Float(p.0), Float(p.1)) }
     for i in 0..<10 { m.lamp(-85 + Float(i) * 19, 5) }
+    mapleBayDetail(m)
+}
+
+/// Finishing touches, only to look at (nothing here is solid or tagged, and
+/// no name is one a script looks for): sidewalks and crossings, a paved
+/// plaza with flowers, benches and bunting, front gardens, signs at every
+/// workplace, furniture inside them, and grass and wildflowers in between.
+func mapleBayDetail(_ m: MapBuilder) {
+    // Sidewalks with a curb and paving seams, between the crossings.
+    for side in [Float(-1), 1] {
+        // The main road (8 wide) leaves the plaza both ways.
+        for (a, b) in [(Float(11), Float(90)), (-90, -11)] {
+            m.sidewalk(x: a, b, z: side * 5, curbZ: side * 4.1)
+        }
+        // The north and south roads (6 wide) cross the town.
+        for road in [Float(45), -45] {
+            for (a, b) in [(Float(4), Float(90)), (-90, -4)] {
+                m.sidewalk(x: a, b, z: road + side * 4, curbZ: road + side * 3.1)
+            }
+        }
+        // The road through the middle, north to south.
+        for (a, b) in [(Float(11), Float(40)), (50, 90), (-40, -11), (-90, -50)] {
+            m.sidewalk(z: a, b, x: side * 5, curbX: side * 4.1)
+        }
+    }
+    // Zebra crossings at both junctions and where the roads meet the plaza.
+    for road in [Float(45), -45] {
+        m.crosswalk(0, road + 4.6, across: 8, yaw: 0, stripes: 6)
+        m.crosswalk(0, road - 4.6, across: 8, yaw: 0, stripes: 6)
+        m.crosswalk(5.6, road, across: 6, yaw: 90)
+        m.crosswalk(-5.6, road, across: 6, yaw: 90)
+    }
+    for s in [Float(-13), 13] {
+        m.crosswalk(s, 0, across: 8, yaw: 90, stripes: 6)
+        m.crosswalk(0, s, across: 8, yaw: 0, stripes: 6)
+    }
+
+    // The plaza: rings of paving, a flower ring round the fountain, benches,
+    // planters and bunting between the four lamps.
+    let stone = "#C9B48F", light = "#E3D6BC"
+    for (r, color, y) in [(Float(10), stone, Float(0.065)), (9, light, 0.07), (6, stone, 0.075), (5.2, light, 0.08)] {
+        m.deco("Plaza Paving", at: (0, y, 0), size: (r * 2, 0.01, r * 2), color: color, shape: .cylinder, material: .matte)
+    }
+    for p in ring(16, radius: 9.5, phase: .pi / 16) {
+        m.deco("Plaza Stone", at: (p.0, 0.075, p.1), size: (0.7, 0.01, 0.7), color: "#A8926C", shape: .cylinder, material: .matte)
+    }
+    m.deco("Fountain Bed Rim", at: (0, 0.12, 0), size: (8.4, 0.24, 8.4), color: "#B8AFA3", shape: .cylinder, material: .matte)
+    m.deco("Fountain Bed Soil", at: (0, 0.2, 0), size: (7.8, 0.1, 7.8), color: "#6B4A2E", shape: .cylinder, material: .matte)
+    let blooms = ["#F43F5E", "#FACC15", "#FFFFFF", "#A855F7", "#FB923C", "#38BDF8", "#F472B6"]
+    for (i, p) in ring(14, radius: 3.5).enumerated() { m.flower(p.0, p.1, y: 0.24, color: blooms[i % blooms.count]) }
+    for p in ring(4, radius: 10, phase: .pi / 4) {
+        m.bench(in: Frame(p.0, p.1, yaw: atan2(-p.0, -p.1) * 180 / .pi))
+    }
+    for (i, p) in ring(8, radius: 10.2, phase: .pi / 4 - 0.38).enumerated() where i % 2 == 0 {
+        m.planter(p.0, p.1, bloom: blooms[i % blooms.count])
+    }
+    for (i, p) in ring(8, radius: 10.2, phase: .pi / 4 + 0.38).enumerated() where i % 2 == 0 {
+        m.planter(p.0, p.1, bloom: blooms[(i + 3) % blooms.count])
+    }
+    let corners: [V] = [(10, 3.25, 10), (-10, 3.25, 10), (-10, 3.25, -10), (10, 3.25, -10)]
+    for i in 0..<4 {
+        m.pennants(from: corners[i], to: corners[(i + 1) % 4], count: 9, colors: ["#EF4444", "#FACC15", "#22C55E", "#3B82F6", "#F472B6"])
+    }
+    m.signboard("Welcome Sign", in: Frame(7.5, 13.5, yaw: 180 + 29), lines: [("🍁 メープルベイへようこそ", "#FFFFFF"), ("Maple Bay", "#FDE68A")],
+                board: "#B45309", width: 4)
+    m.deco("Clock Tower Roof", at: (10, 9.7, -12), size: (3, 1.4, 3), color: "#7C2D12", shape: .cone, material: .matte)
+    m.deco("Clock Tower Base", at: (10, 0.3, -12), size: (3, 0.6, 3), color: "#78716C", shape: .cylinder, material: .matte)
+
+    // Front gardens: a mat and a stepping-stone path to the sidewalk, a
+    // mailbox, flower boxes under the windows, bushes by the door and a bed
+    // of flowers by the fence. The same houses as the street above.
+    let mailColors = ["#2563EB", "#DC2626", "#16A34A", "#F59E0B"]
+    var n = 0
+    for (row, z) in [(0, 62), (1, 28), (2, -28), (3, -62)] {
+        for x in [-60, -30, 30, 60] where n < 8 && !(row == 1 && x == 30) && !(row == 2 && x == -30) {
+            let f: Float = (row == 0 || row == 2) ? -1 : 1
+            let hx = Float(x), front = Float(z) + f * 5
+            let out = Frame(hx, front, yaw: f > 0 ? 0 : 180)
+            m.deco("Doormat", at: (hx, 0.02, front + f * 0.7), size: (1.4, 0.03, 0.8), color: "#92400E", material: .matte)
+            for k in 0..<4 {
+                m.deco("Path Stone", at: (hx + (k % 2 == 0 ? 0.15 : -0.15), 0.02, front + f * (1.8 + Float(k) * 1.4)),
+                       size: (1.1, 0.03, 0.8), color: "#BDB5A6", shape: .cylinder, material: .matte)
+            }
+            m.mailbox(in: Frame(hx + 1.8, front + f * 6.3, yaw: f > 0 ? 0 : 180), color: mailColors[n % mailColors.count])
+            for side in [Float(-1), 1] {
+                m.deco("Flower Box", in: out, side * 3.4, 0.95, 0.38, size: (1.3, 0.25, 0.3), color: "#8B5A2B")
+                for k in 0..<3 {
+                    m.deco("Flower Box Bloom", in: out, side * 3.4 + Float(k - 1) * 0.4, 1.14, 0.38, size: (0.25, 0.2, 0.25),
+                           color: blooms[(n + k) % blooms.count], shape: .sphere)
+                }
+                m.bush(hx + side * 1.7, front + f * 0.8, color: "#3F8F3F", size: 0.9)
+            }
+            m.flowerBed(hx - 4.5, front + f * 1.2, w: 3, d: 0.9, colors: [blooms[n % 7], blooms[(n + 2) % 7]], seed: "maple bed \(n)")
+            n += 1
+        }
+    }
+
+    // Workplaces: a sign by every door, a mat inside, and what each one is for.
+    struct Place { let name: String, text: String, x: Float, z: Float, w: Float, d: Float, f: Float, board: String }
+    let places = [
+        Place(name: "Police", text: "👮 警察署", x: 30, z: 28, w: 14, d: 10, f: -1, board: "#1E3A8A"),
+        Place(name: "Hospital", text: "🏥 病院", x: -30, z: -28, w: 14, d: 10, f: 1, board: "#DC2626"),
+        Place(name: "Cafe", text: "☕ カフェ", x: -78, z: 12, w: 10, d: 10, f: -1, board: "#92400E"),
+        Place(name: "Fire", text: "🚒 消防署", x: 78, z: -12, w: 12, d: 10, f: 1, board: "#B91C1C"),
+        Place(name: "School", text: "🏫 学校", x: 78, z: 12, w: 14, d: 10, f: -1, board: "#15803D"),
+        Place(name: "Post", text: "📮 郵便局", x: -52, z: 12, w: 10, d: 8, f: -1, board: "#C2410C"),
+        Place(name: "Bank", text: "🏦 銀行", x: 52, z: -12, w: 12, d: 9, f: 1, board: "#A16207"),
+        Place(name: "Furniture", text: "🛋 家具屋", x: -52, z: -12, w: 12, d: 9, f: 1, board: "#BE185D"),
+        Place(name: "City Hall", text: "🏛 市役所", x: -12, z: -28, w: 12, d: 9, f: 1, board: "#1D4ED8"),
+    ]
+    for p in places {
+        // Local frame: +z out of the front door.
+        let inside = Frame(p.x, p.z, y: 0.15, yaw: p.f > 0 ? 0 : 180)
+        let side = p.w / 2 - 1.0, back = -(p.d / 2 - 0.7)
+        m.signboard("\(p.name) Entrance Sign", in: Frame(p.x + p.w / 2 - 1.4, p.z + p.f * (p.d / 2 + 1.3), yaw: p.f > 0 ? 0 : 180),
+                    lines: [(p.text, "#FFFFFF")], board: p.board, width: 2.4)
+        m.deco("Entrance Mat", in: inside, 0, 0.01, p.d / 2 - 0.9, size: (2.2, 0.02, 1.2), color: MapBuilder.shade(p.board, 0.2))
+        switch p.name {
+        case "Police":
+            for s in [Float(-1), 1] {
+                m.deco("Desk", in: inside, s * side, 0.75, back + 1.2, size: (1.6, 0.08, 0.9), color: "#E5E7EB")
+                m.deco("Desk Body", in: inside, s * side, 0.37, back + 1.2, size: (1.5, 0.72, 0.8), color: "#64748B")
+                m.deco("Computer", in: inside, s * side, 1.1, back + 1.0, size: (0.7, 0.45, 0.06), color: "#0F172A", material: .neon)
+                m.deco("Chair Seat", in: inside, s * side, 0.45, back + 2.1, size: (0.55, 0.08, 0.55), color: "#1E3A8A")
+            }
+            for k in 0..<3 {
+                m.deco("Wanted Poster", in: inside, Float(k - 1) * 1.1, 2.0, -(p.d / 2 - 0.25), size: (0.8, 1, 0.04),
+                       color: ["#FDE68A", "#FEF3C7", "#FDE68A"][k])
+            }
+            m.deco("Police Badge", in: inside, 0, 3.0, -(p.d / 2 - 0.25), size: (0.9, 0.9, 0.06), color: "#FACC15", shape: .cylinder,
+                   material: .metal, tilt: (90, 0))
+            for k in 0..<5 {
+                m.deco("Cell Bar", in: inside, side + 0.5 - Float(k) * 0.35, 1.2, 1.5, size: (0.06, 2.4, 0.06), color: "#4B5563",
+                       shape: .cylinder, material: .metal)
+            }
+        case "Hospital":
+            for s in [Float(-1), 1] {
+                m.bed(in: Frame(p.x + s * side, p.z + p.f * (back + 1.5), y: 0.15, yaw: p.f > 0 ? 0 : 180), blanket: "#93C5FD")
+                m.deco("Drip Stand", in: inside, s * (side - 1.1), 0.9, back + 0.8, size: (0.05, 1.8, 0.05), color: "#D1D5DB",
+                       shape: .cylinder, material: .metal)
+                m.deco("Drip Bag", in: inside, s * (side - 1.1), 1.75, back + 0.8, size: (0.25, 0.35, 0.1), color: "#BAE6FD",
+                       material: .glass, opacity: 0.8)
+                m.deco("Curtain", in: inside, s * (side - 1.5), 1.2, back + 1.5, size: (0.06, 2.0, 2.2), color: "#A7F3D0", opacity: 0.85)
+            }
+            m.deco("Red Cross", in: inside, 0, 2.6, -(p.d / 2 - 0.25), size: (1.2, 0.35, 0.05), color: "#EF4444", material: .neon)
+            m.deco("Red Cross", in: inside, 0, 2.6, -(p.d / 2 - 0.25), size: (0.35, 1.2, 0.05), color: "#EF4444", material: .neon)
+        case "Cafe":
+            for s in [Float(-1), 1] {
+                let t = inside.at(s * (side - 0.4), 0, 2.2)
+                m.table(t.0, t.2, y: 0.15, top: "#FEF3C7", chairs: 2, chair: "#92400E", phase: .pi / 2)
+            }
+            m.deco("Coffee Machine", in: inside, -1.5, 1.4, -1, size: (0.6, 0.9, 0.5), color: "#374151", material: .metal)
+            m.deco("Coffee Cup", in: inside, -0.6, 1.07, -1, size: (0.2, 0.24, 0.2), color: "#FFFFFF", shape: .cylinder)
+            m.deco("Cake Stand", in: inside, 1.2, 1.1, -1, size: (0.8, 0.3, 0.8), color: "#F9A8D4", shape: .cylinder)
+            m.deco("Cake Dome", in: inside, 1.2, 1.5, -1, size: (0.8, 0.5, 0.8), color: "#E0F2FE", shape: .sphere, material: .glass, opacity: 0.5)
+            m.deco("Menu Board", in: inside, 0, 2.4, -(p.d / 2 - 0.25), size: (2.6, 1.2, 0.05), color: "#1F2937")
+            for k in 0..<3 {
+                m.deco("Menu Line", in: inside, 0, 2.7 - Float(k) * 0.3, -(p.d / 2 - 0.29), size: (2.0, 0.07, 0.02), color: "#FDE68A")
+            }
+        case "Fire":
+            m.shelf(in: Frame(p.x - p.f * side, p.z, y: 0.15, yaw: p.f > 0 ? 90 : -90), width: 3, height: 2, color: "#7F1D1D",
+                    goods: ["#FACC15", "#EF4444"], goodsShape: .sphere)
+            m.deco("Hose Reel", in: inside, side - 0.3, 1.0, back + 0.4, size: (1.4, 0.5, 1.4), color: "#B91C1C", shape: .cylinder,
+                   tilt: (90, 0))
+            m.deco("Hose Reel Hub", in: inside, side - 0.3, 1.0, back + 0.4, size: (0.5, 0.6, 0.5), color: "#FACC15", shape: .cylinder,
+                   tilt: (90, 0))
+            m.deco("Fire Pole", in: inside, side - 0.6, 2.0, 1.8, size: (0.12, 4, 0.12), color: "#D1D5DB", shape: .cylinder, material: .metal)
+            m.deco("Fire Extinguisher", in: inside, -side + 0.3, 0.4, back + 0.3, size: (0.3, 0.8, 0.3), color: "#DC2626", shape: .cylinder)
+        case "School":
+            for s in [Float(-1), 1] {
+                for row in 0..<2 {
+                    for col in 0..<2 {
+                        let dx = s * (side - 0.3 - Float(col) * 1.4), dz = 1.2 + Float(row) * 1.6
+                        m.deco("School Desk", in: inside, dx, 0.6, dz, size: (1.0, 0.06, 0.6), color: "#F5DEB3")
+                        m.deco("School Desk Leg", in: inside, dx, 0.3, dz, size: (0.9, 0.56, 0.06), color: "#6B7280", material: .metal)
+                        m.deco("School Chair", in: inside, dx, 0.38, dz + 0.55, size: (0.45, 0.06, 0.45), color: "#16A34A")
+                    }
+                }
+            }
+            m.deco("Chalkboard", in: inside, 0, 2.2, -(p.d / 2 - 0.25), size: (4.4, 1.5, 0.05), color: "#14532D")
+            m.deco("Chalkboard Frame", in: inside, 0, 2.2, -(p.d / 2 - 0.28), size: (4.7, 1.8, 0.04), color: "#8B5A2B")
+            m.deco("Chalk Line", in: inside, -0.6, 2.4, -(p.d / 2 - 0.22), size: (2.2, 0.06, 0.02), color: "#FFFFFF")
+            m.deco("Globe", in: inside, side - 0.2, 1.3, back + 0.5, size: (0.7, 0.7, 0.7), color: "#38BDF8", shape: .sphere)
+            m.deco("Globe Stand", in: inside, side - 0.2, 0.5, back + 0.5, size: (0.1, 1, 0.1), color: "#A16207", shape: .cylinder)
+        case "Post":
+            for s in [Float(-1), 1] {
+                m.shelf(in: Frame(p.x + s * side, p.z + p.f * (back + 0.6), y: 0.15, yaw: p.f > 0 ? 0 : 180),
+                        width: 1.8, height: 2, color: "#78350F", goods: ["#D6A15E", "#C08A4B", "#E9C48A"])
+            }
+            m.deco("Parcel", in: inside, -side + 0.4, 0.4, 1.2, size: (0.8, 0.8, 0.8), color: "#C08A4B")
+            m.deco("Parcel", in: inside, -side + 0.5, 1.0, 1.2, size: (0.6, 0.45, 0.6), color: "#D6A15E")
+            m.mailbox(in: Frame(p.x - p.w / 2 + 1.2, p.z + p.f * (p.d / 2 + 1.2), yaw: p.f > 0 ? 0 : 180), color: "#DC2626")
+        case "Bank":
+            m.deco("Vault Door", in: inside, 0, 1.6, -(p.d / 2 - 0.28), size: (2.4, 0.15, 2.4), color: "#9CA3AF", shape: .cylinder,
+                   material: .metal, tilt: (90, 0))
+            m.deco("Vault Wheel", in: inside, 0, 1.6, -(p.d / 2 - 0.4), size: (0.9, 0.12, 0.9), color: "#FACC15", shape: .cylinder,
+                   material: .metal, tilt: (90, 0))
+            for s in [Float(-1), 1] {
+                for k in 0..<3 {
+                    m.deco("Gold Bar", in: inside, s * side + Float(k - 1) * 0.4, 0.25 + (k == 1 ? 0.18 : 0), back + 0.9,
+                           size: (0.35, 0.18, 0.6), color: "#FACC15", material: .metal)
+                }
+                m.deco("Rope Post", in: inside, s * 1.6, 0.5, 2.0, size: (0.14, 1, 0.14), color: "#FACC15", shape: .cylinder, material: .metal)
+            }
+            m.deco("Rope", in: inside, 0, 0.85, 2.0, size: (3.2, 0.08, 0.08), color: "#B91C1C")
+        case "Furniture":
+            for s in [Float(-1), 1] {
+                let c = s < 0 ? "#60A5FA" : "#F59E0B"
+                m.deco("Sofa Seat", in: inside, s * side, 0.35, back + 1.3, size: (1.0, 0.4, 2.0), color: c)
+                m.deco("Sofa Back", in: inside, s * (side + 0.45), 0.75, back + 1.3, size: (0.25, 0.8, 2.0), color: MapBuilder.shade(c, -0.15))
+                m.deco("Floor Lamp", in: inside, s * side, 0.8, back + 2.8, size: (0.08, 1.6, 0.08), color: "#3A3A44", shape: .cylinder)
+                m.deco("Floor Lamp Shade", in: inside, s * side, 1.65, back + 2.8, size: (0.5, 0.4, 0.5), color: "#FEF3C7", shape: .cone,
+                       material: .neon)
+            }
+            m.rug(p.x, p.z + p.f * 1.8, y: 0.15, w: 3, d: 2, color: "#FBCFE8", border: "#BE185D")
+        default:
+            for s in [Float(-1), 1] {
+                m.deco("Flag Pole", in: inside, s * side, 1.4, back + 0.3, size: (0.08, 2.8, 0.08), color: "#D1D5DB", shape: .cylinder)
+                m.deco("Flag", in: inside, s * side + s * 0.45, 2.4, back + 0.3, size: (0.8, 0.55, 0.03), color: s < 0 ? "#1D4ED8" : "#DC2626")
+            }
+            m.deco("Red Carpet", in: inside, 0, 0.02, 1.4, size: (1.4, 0.02, 3), color: "#B91C1C", material: .matte)
+            m.deco("Podium", in: inside, 3.5, 0.6, back + 1.0, size: (0.8, 1.2, 0.6), color: "#8B5A2B")
+        }
+    }
+
+    // The market: fruit and bread on the stalls, crates, a striped roof.
+    let produce = [["#EF4444", "#F87171"], ["#22C55E", "#84CC16"], ["#60A5FA", "#A78BFA"], ["#F59E0B", "#FDE68A"]]
+    for i in 0..<4 {
+        let sx = -18 + Float(i) * 4
+        for k in 0..<4 {
+            m.deco("Stall Goods", at: (sx - 0.9 + Float(k) * 0.6, 1.15, 34 + (k % 2 == 0 ? 0.3 : -0.3)), size: (0.35, 0.3, 0.35),
+                   color: produce[i][k % 2], shape: .sphere)
+        }
+        m.deco("Stall Stripe", at: (sx, 2.52, 34), size: (1.1, 0.06, 2.6), color: ["#EF4444", "#22C55E", "#3B82F6", "#F59E0B"][i])
+    }
+    m.deco("Market Crate", at: (-22.3, 0.35, 33), size: (0.7, 0.7, 0.7), color: "#A16207")
+    m.deco("Market Crate", at: (-22.3, 0.35, 35), size: (0.7, 0.7, 0.7), color: "#92400E")
+    m.signboard("Market Sign", in: Frame(-4, 32, yaw: 180), lines: [("🛍 市場", "#FFFFFF")], board: "#D97706", width: 2.4)
+
+    // The car lot, the gas station and the taxi stand.
+    for k in 0..<4 {
+        m.deco("Parking Line", at: (-85.5 + Float(k) * 5, 0.07, -14), size: (0.15, 0.01, 5), color: "#F8FAFC", material: .matte)
+    }
+    m.signboard("Car Lot Sign", in: Frame(-70, -7.5), lines: [("🚗 車屋", "#FFFFFF")], board: "#EA580C", width: 2.4)
+    m.signboard("Gas Sign", in: Frame(28, -53.5), lines: [("⛽ ガソリン", "#FFFFFF")], board: "#16A34A", width: 2.4)
+    for k in 0..<3 {
+        m.deco("Tire", at: (13, 0.17 + Float(k) * 0.3, -61), size: (0.9, 0.28, 0.9), color: "#1F2023", shape: .cylinder, material: .matte)
+    }
+    m.deco("Oil Can", at: (22, 0.3, -61.2), size: (0.4, 0.6, 0.4), color: "#2563EB", shape: .cylinder, material: .metal)
+    m.deco("Oil Can", at: (22.6, 0.3, -61.2), size: (0.4, 0.6, 0.4), color: "#DC2626", shape: .cylinder, material: .metal)
+    m.deco("Taxi Sign", at: (12, 2.7, -9), size: (1.6, 0.5, 0.35), color: "#111827")
+    m.label(m.deco("Taxi Sign Light", at: (12, 3.1, -9), size: (1.0, 0.3, 0.3), color: "#FDE047", material: .neon),
+            [("🚕 タクシー乗り場", "#FFFFFF")], height: 0.2, size: 0.9, range: 50)
+    m.bench(in: Frame(14.5, -9, yaw: 0), color: "#FACC15")
+
+    // On the sidewalks: bins and hydrants.
+    for (i, x) in [Float(-70), -40, -20, 20, 40, 70].enumerated() {
+        m.bin(x + 2, i % 2 == 0 ? 5.6 : -5.6)
+        m.hydrant(x - 3, i % 2 == 0 ? -5.4 : 5.4)
+        m.bin(x + 6, i % 2 == 0 ? 49.6 : -49.6, color: "#1E3A8A")
+    }
+
+    // The park: a ring of stepping stones round the pond, ducks, benches
+    // and a picnic table.
+    for (i, p) in ring(18, radius: 6.6, cx: 40, cz: 70).enumerated() {
+        m.deco("Park Path", at: (p.0, 0.02, p.1), size: (1.0, 0.03, 1.0), color: i % 2 == 0 ? "#D6CBB4" : "#C7BBA2",
+               shape: .cylinder, material: .matte)
+    }
+    for (k, p) in [(38.0, 69.0), (42.0, 71.5), (40.5, 67.8)].enumerated() {
+        let x = Float(p.0), z = Float(p.1), yaw = Float(k) * 120
+        m.deco("Duck", at: (x, 0.18, z), size: (0.5, 0.3, 0.7), color: "#FFFFFF", shape: .sphere, rotation: (0, yaw, 0))
+        let head = Frame(x, z, yaw: yaw).at(0, 0.42, 0.3)
+        m.deco("Duck Head", at: head, size: (0.26, 0.26, 0.26), color: k == 1 ? "#166534" : "#FFFFFF", shape: .sphere)
+        m.deco("Duck Beak", at: Frame(x, z, yaw: yaw).at(0, 0.4, 0.48), size: (0.12, 0.08, 0.16), color: "#F59E0B")
+    }
+    m.bench(in: Frame(40, 79, yaw: 180))
+    m.bench(in: Frame(49, 70, yaw: -90))
+    m.table(30, 76, top: "#A86A3A", chairs: 4, chair: "#78350F", phase: .pi / 4)
+    m.flowerBed(31, 64, w: 2.6, d: 1.6, colors: ["#F43F5E", "#FACC15", "#FFFFFF"], seed: "maple park 1")
+    m.flowerBed(49, 76, w: 2.6, d: 1.6, colors: ["#A855F7", "#38BDF8", "#F472B6"], seed: "maple park 2")
+
+    // Grass between it all: darker patches, tufts and wildflowers, kept off
+    // the roads, the paving and the buildings.
+    let keepOut: [(Float, Float, Float, Float)] = [
+        (0, 0, 92, 7.5), (0, 45, 92, 6.5), (0, -45, 92, 6.5), (0, 0, 7.5, 92),
+        (-60, 62, 8, 7), (-30, 62, 8, 7), (30, 62, 8, 7), (60, 62, 8, 7),
+        (-60, 28, 8, 7), (-30, 28, 8, 7), (30, 28, 9, 7), (60, 28, 8, 7),
+        (-60, -28, 8, 7), (-30, -28, 9, 7), (-12, -28, 8, 6.5), (40, 70, 15, 15),
+        (-78, 12, 7, 7), (-78, -12, 9, 7), (78, -12, 8, 7), (78, 12, 9, 7), (-52, 12, 7, 6), (52, -12, 8, 6.5),
+        (-52, -12, 8, 6.5), (-12, 34, 11, 6), (20, -58, 9, 7), (10, -12, 3, 3), (12, -8, 4, 3), (0, 0, 14, 14)
+    ]
+    func open(_ x: Float, _ z: Float, margin: Float) -> Bool {
+        guard abs(x) < 88 - margin, abs(z) < 88 - margin else { return false }
+        return !keepOut.contains { abs(x - $0.0) < $0.2 + margin && abs(z - $0.1) < $0.3 + margin }
+    }
+    var r = Seeded("maple bay grass")
+    var patches = 0, tries = 0
+    while patches < 36 && tries < 2000 {
+        tries += 1
+        let x = r.range(-86, 86), z = r.range(-86, 86), size = r.range(3, 7)
+        guard open(x, z, margin: size / 2) else { continue }
+        m.deco("Grass Patch", at: (x, 0.006 + Float(patches) * 0.0004, z), size: (size, 0.01, size * r.range(0.6, 1)),
+               color: patches % 2 == 0 ? "#5FAE4E" : "#7CC66A", shape: .cylinder, material: .matte)
+        patches += 1
+    }
+    var spots: [(Float, Float)] = []
+    tries = 0
+    while spots.count < 150 && tries < 4000 {
+        tries += 1
+        let x = r.range(-86, 86), z = r.range(-86, 86)
+        if open(x, z, margin: 0.5) { spots.append((x, z)) }
+    }
+    m.tufts(spots, color: "#4E9A3F")
+    var wild = 0
+    tries = 0
+    while wild < 45 && tries < 4000 {
+        tries += 1
+        let x = r.range(-86, 86), z = r.range(-86, 86)
+        guard open(x, z, margin: 0.5) else { continue }
+        m.flower(x, z, color: blooms[wild % blooms.count], size: 0.8)
+        wild += 1
+    }
 }
 
 
@@ -273,6 +595,344 @@ func fruitSeas(_ m: MapBuilder) {
     m.markers("Fruit Spot", points: [(8, 12), (-14, 6), (80, -30), (65, -52), (-70, -40), (-92, -62), (18, 88), (0, 104),
                                      (44, 36), (-88, 62), (104, 84), (-4, -110)],
               y: 0.6, color: "#FFFFFF", visible: false, behavior: .none)
+    fruitSeasDetail(m)
+}
+
+/// Finishing touches, only to look at (nothing here is solid or tagged, and
+/// no name is one a script looks for): surf round every beach with shells
+/// and palms, a sign and a stone path at every dock, posts under the piers,
+/// tents and a campfire where the enemies gather, torches round the boss
+/// arenas, a paved town square with shop signs and shop furniture on Start
+/// Island, and props that suit each island.
+func fruitSeasDetail(_ m: MapBuilder) {
+    struct Isle { let name: String, jp: String, level: String, x: Float, z: Float, r: Float, y: Float, beach: Bool, palms: Bool }
+    let isles = [
+        Isle(name: "Start Island", jp: "🏝 はじまりの島", level: "あんぜんな町", x: 0, z: 0, r: 22, y: 0.6, beach: true, palms: true),
+        Isle(name: "Pirate Islet", jp: "🏴‍☠️ 海賊の小島", level: "Lv.1〜", x: 40, z: 32, r: 12, y: 0.6, beach: true, palms: true),
+        Isle(name: "Jungle Island", jp: "🌴 ジャングル島", level: "Lv.10〜", x: 75, z: -40, r: 26, y: 0.6, beach: true, palms: true),
+        Isle(name: "Desert Island", jp: "🏜 砂漠の島", level: "Lv.30〜", x: -80, z: -55, r: 30, y: 0.6, beach: true, palms: true),
+        Isle(name: "Snow Island", jp: "❄️ 雪の島", level: "Lv.60〜", x: 10, z: 95, r: 22, y: 0.6, beach: true, palms: false),
+        Isle(name: "Marine Fort", jp: "⚓ 海軍のとりで", level: "Lv.90〜", x: -95, z: 55, r: 22, y: 0.6, beach: true, palms: true),
+        Isle(name: "Volcano Island", jp: "🌋 火山島", level: "Lv.130〜", x: 110, z: 75, r: 24, y: 0.6, beach: true, palms: false),
+        Isle(name: "Sky Island", jp: "☁️ 空島", level: "Lv.180〜", x: -10, z: -115, r: 20, y: 40.2, beach: false, palms: false),
+    ]
+    let shells = ["#FBCFE8", "#FFFFFF", "#FDBA74", "#FDE68A", "#F87171"]
+    for isle in isles {
+        let x = isle.x, z = isle.z, r = isle.r, y = isle.y
+        var rand = Seeded("fruit seas \(isle.name)")
+        if isle.beach {
+            // Surf round the beach, and shells and starfish on the sand.
+            m.deco("Surf", at: (x, -0.19, z), size: (r * 2 + 8, 0.02, r * 2 + 8), color: "#E0F2FE", shape: .cylinder, opacity: 0.75)
+            m.deco("Wet Sand", at: (x, 0.305, z), size: (r * 2 + 5.4, 0.01, r * 2 + 5.4), color: "#D9C48E", shape: .cylinder, material: .matte)
+            for k in 0..<10 {
+                let a = Float.pi / 2 + 0.5 + Float(k) * (2 * .pi - 1) / 10 + rand.range(-0.1, 0.1)
+                let d = r + rand.range(0.8, 2.2)
+                let star = k % 3 == 0
+                m.deco(star ? "Starfish" : "Shell", at: (x + cos(a) * d, 0.34, z + sin(a) * d),
+                       size: star ? (0.5, 0.06, 0.5) : (0.3, 0.14, 0.24), color: star ? "#FB923C" : shells[k % shells.count],
+                       shape: star ? .cylinder : .sphere, rotation: (0, rand.range(0, 360), 0))
+            }
+            if isle.palms {
+                for a: Float in [Float.pi / 2 + 1.4, Float.pi / 2 + 3.1, Float.pi / 2 + 4.6] {
+                    let px = x + cos(a) * (r + 1.2), pz = z + sin(a) * (r + 1.2)
+                    m.palm(px, pz, y: 0.3, height: rand.range(4.5, 6), lean: atan2(cos(a), sin(a)) * 180 / .pi)
+                }
+            }
+        }
+        // The dock: posts and bollards under the pier, a sign with the
+        // island's name, and a stone path in toward the middle.
+        let pierZ = z + r + 1
+        for sx in [Float(-2.2), 2.2] {
+            for dz in [Float(-2.5), 2.8] {
+                m.deco("Pier Post", at: (x + sx, y - 0.9, pierZ + dz), size: (0.35, 2.2, 0.35), color: "#5C3A1E", shape: .cylinder)
+            }
+            m.deco("Pier Rope", at: (x + sx, y + 0.5, pierZ + 0.2), size: (0.06, 0.06, 6.4), color: "#E7D3A8")
+            m.deco("Pier Bollard", at: (x + sx, y + 0.25, pierZ + 3.1), size: (0.3, 0.5, 0.3), color: "#374151", shape: .cylinder,
+                   material: .metal)
+        }
+        m.signboard("\(isle.name) Welcome Sign", in: Frame(x + 3.4, z + r - 1.2, y: y, yaw: 0),
+                    lines: [(isle.jp, "#FFFFFF"), (isle.level, "#FDE68A")], board: "#7C4A21", width: 3)
+        var pz = z + r - 4.4
+        var k = 0
+        while pz > z + r * 0.45 {
+            m.deco("Path Stone", at: (x + (k % 2 == 0 ? 0.25 : -0.25), y + 0.02, pz), size: (1.2, 0.04, 0.9),
+                   color: k % 2 == 0 ? "#A8A29E" : "#C4BDB4", shape: .cylinder, material: .matte)
+            pz -= 1.6
+            k += 1
+        }
+        // A notice board by the quest giver.
+        m.signboard("\(isle.name) Quest Board", in: Frame(x - 7, z + r - 6.8, y: y, yaw: 30), lines: [("❗ クエスト", "#FDE047")],
+                    board: "#78350F", width: 1.8, height: 1.8, size: 0.8)
+        guard isle.name != "Start Island" else { continue }
+        // The camp: two tents, a campfire and a barrel.
+        let cx = x + r * 0.35, cz = z - r * 0.3
+        for (i, side) in [Float(-1), 1].enumerated() {
+            let tx = cx + side * 2.6, tz = cz - 2.2
+            m.deco("Camp Tent", at: (tx, y + 1.0, tz), size: (2.4, 2.0, 2.4), color: i == 0 ? "#78716C" : "#A16207", shape: .cone,
+                   material: .matte)
+            m.deco("Camp Tent Door", at: (tx, y + 0.5, tz + 1.0), size: (0.7, 1.0, 0.05), color: "#292524")
+        }
+        for k in 0..<3 {
+            m.deco("Campfire Log", at: (cx, y + 0.12, cz + 0.6), size: (0.18, 0.18, 1.1), color: "#5C3A1E", shape: .cylinder,
+                   rotation: (90, Float(k) * 60, 0))
+        }
+        m.deco("Campfire Flame", at: (cx, y + 0.45, cz + 0.6), size: (0.6, 0.7, 0.6), color: "#F97316", shape: .cone, material: .neon)
+        m.barrel(cx + 3.2, cz + 1.6, y: y)
+        // Torches on the boss arena's pillars, and a darker ring inside it.
+        for p in ring(6, radius: 7, cx: x - r * 0.4, cz: z - r * 0.35) {
+            m.deco("Pillar Bowl", at: (p.0, y + 3.6, p.1), size: (0.9, 0.2, 0.9), color: "#3A3A44", shape: .cylinder, material: .metal)
+            m.deco("Pillar Flame", at: (p.0, y + 4.0, p.1), size: (0.55, 0.7, 0.55), color: isle.name == "Sky Island" ? "#A5F3FC" : "#FB923C",
+                   shape: .cone, material: .neon)
+        }
+        m.deco("Arena Ring", at: (x - r * 0.4, y + 0.125, z - r * 0.35), size: (7, 0.01, 7), color: "#7F1D1D", shape: .cylinder,
+               material: .matte)
+    }
+
+    // Start Island: a paved square round the spawn, signs and furniture in
+    // the shops, a roof over the well and lanterns.
+    let y: Float = 0.6
+    for (rad, color, h) in [(Float(8), "#D6CBB4", Float(0.005)), (6.6, "#C7BBA2", 0.01), (3.2, "#D6CBB4", 0.015)] {
+        m.deco("Town Square", at: (0, y + h, 0), size: (rad * 2, 0.01, rad * 2), color: color, shape: .cylinder, material: .matte)
+    }
+    for (i, p) in ring(12, radius: 7.3, phase: 0.26).enumerated() {
+        m.deco("Square Stone", at: (p.0, y + 0.018, p.1), size: (0.8, 0.01, 0.8), color: i % 2 == 0 ? "#A8A29E" : "#B8AFA3",
+               shape: .cylinder, material: .matte)
+    }
+    struct Stall { let name: String, text: String, x: Float, z: Float, f: Float, board: String }
+    let stalls = [
+        Stall(name: "Sword Dealer", text: "⚔️ 剣屋", x: -11, z: -11, f: 1, board: "#B45309"),
+        Stall(name: "Fruit Dealer", text: "🍎 果実屋", x: 11, z: -11, f: 1, board: "#BE185D"),
+        Stall(name: "Dojo", text: "🥋 道場", x: -12, z: 9, f: -1, board: "#1E3A8A"),
+        Stall(name: "Gun Shop", text: "🔫 銃屋", x: 12, z: 9, f: -1, board: "#374151"),
+    ]
+    for s in stalls {
+        let inside = Frame(s.x, s.z, y: y + 0.15, yaw: s.f > 0 ? 0 : 180)
+        m.signboard("\(s.name) Entrance Sign", in: Frame(s.x + 2.6, s.z + s.f * 4.3, y: y, yaw: s.f > 0 ? 0 : 180),
+                    lines: [(s.text, "#FFFFFF")], board: s.board, width: 2.2, height: 2)
+        m.deco("Entrance Mat", in: inside, 0, 0.01, 2.2, size: (1.8, 0.02, 1.0), color: MapBuilder.shade(s.board, 0.25))
+        switch s.name {
+        case "Sword Dealer":
+            for side in [Float(-1), 1] {
+                m.deco("Sword Rack", in: inside, side * 3.4, 1.4, 0.4, size: (0.1, 0.12, 3.0), color: "#5C3A1E")
+                for k in 0..<3 {
+                    let dz = -0.8 + Float(k) * 0.9
+                    m.deco("Sword Blade", in: inside, side * 3.5, 1.3, dz + 0.4, size: (0.05, 1.3, 0.14), color: "#E5E7EB", material: .metal)
+                    m.deco("Sword Guard", in: inside, side * 3.5, 0.62, dz + 0.4, size: (0.08, 0.08, 0.5), color: "#CA8A04", material: .metal)
+                    m.deco("Sword Hilt", in: inside, side * 3.5, 0.42, dz + 0.4, size: (0.09, 0.32, 0.09), color: ["#7F1D1D", "#1E3A8A", "#166534"][k],
+                           shape: .cylinder)
+                }
+            }
+            m.deco("Anvil", in: inside, 2.2, 0.35, 1.6, size: (0.9, 0.5, 0.45), color: "#4B5563", material: .metal)
+        case "Fruit Dealer":
+            for (i, side) in [Float(-1), 1].enumerated() {
+                for k in 0..<2 {
+                    let dz = Float(k) * 1.4 - 0.2
+                    m.deco("Fruit Basket", in: inside, side * 3.0, 0.3, dz, size: (0.9, 0.45, 0.9), color: "#A16207", shape: .cylinder,
+                           material: .matte)
+                    for j in 0..<3 {
+                        m.deco("Basket Fruit", in: inside, side * 3.0 + Float(j - 1) * 0.25, 0.6, dz + (j == 1 ? 0.15 : -0.1),
+                               size: (0.3, 0.3, 0.3), color: [["#EF4444", "#A855F7", "#F97316"], ["#22C55E", "#FACC15", "#3B82F6"]][i][(j + k) % 3],
+                               shape: .sphere, material: .neon)
+                    }
+                }
+            }
+            m.deco("Fruit Poster", in: inside, 0, 2.6, -2.75, size: (1.6, 1.0, 0.04), color: "#FBCFE8")
+            m.deco("Fruit Poster Fruit", in: inside, 0, 2.6, -2.7, size: (0.6, 0.6, 0.06), color: "#9333EA", shape: .sphere, material: .neon)
+        case "Dojo":
+            for side in [Float(-1), 1] {
+                m.deco("Tatami", in: inside, side * 2.2, 0.01, 0.6, size: (1.8, 0.03, 3.4), color: "#D9C48E", material: .matte)
+                m.deco("Tatami Edge", in: inside, side * 2.2, 0.02, 0.6, size: (1.85, 0.02, 0.12), color: "#14532D")
+            }
+            let d = inside.at(2.6, 0, 1.2)
+            m.deco("Dummy Post", at: (d.0, d.1 + 0.6, d.2), size: (0.16, 1.2, 0.16), color: "#5C3A1E", shape: .cylinder)
+            m.deco("Dummy Body", at: (d.0, d.1 + 1.3, d.2), size: (0.6, 0.8, 0.4), color: "#D6A15E", shape: .cylinder)
+            m.deco("Dummy Head", at: (d.0, d.1 + 1.9, d.2), size: (0.4, 0.4, 0.4), color: "#E9C48A", shape: .sphere)
+            m.deco("Dummy Arms", in: Frame(d.0, d.2, y: d.1, yaw: inside.yaw), 0, 1.45, 0, size: (1.2, 0.12, 0.12), color: "#5C3A1E")
+            m.deco("Dojo Scroll", in: inside, -1.4, 2.4, -2.75, size: (0.7, 1.4, 0.04), color: "#FEF3C7")
+            m.deco("Dojo Scroll Mark", in: inside, -1.4, 2.5, -2.71, size: (0.3, 0.6, 0.02), color: "#111827")
+        default:
+            m.deco("Gun Rack", in: inside, -3.5, 1.5, 0.4, size: (0.08, 1.4, 2.6), color: "#5C3A1E")
+            for k in 0..<3 {
+                m.deco("Rack Gun", in: inside, -3.42, 1.0 + Float(k) * 0.42, 0.4, size: (0.08, 0.16, 1.4), color: "#1F2937", material: .metal)
+                m.deco("Rack Gun Grip", in: inside, -3.42, 0.9 + Float(k) * 0.42, 0.85, size: (0.08, 0.3, 0.16), color: "#78350F")
+            }
+            for (k, c) in ["#FFFFFF", "#EF4444", "#FFFFFF", "#EF4444"].enumerated() {
+                m.deco("Target", in: inside, 1.6, 2.2, -2.73 + Float(k) * 0.01, size: (1.2 - Float(k) * 0.3, 0.02, 1.2 - Float(k) * 0.3),
+                       color: c, shape: .cylinder, tilt: (90, 0))
+            }
+        }
+    }
+    // The gacha well gets a roof on two posts and a bucket.
+    for side in [Float(-1), 1] {
+        m.deco("Well Post", at: (side * 1.4, y + 1.4, 8), size: (0.16, 2.8, 0.16), color: "#5C3A1E", shape: .cylinder)
+    }
+    m.deco("Well Roof", at: (0, y + 3.3, 8), size: (3.4, 1.0, 2.4), color: "#B45309", shape: .cone, material: .matte)
+    m.deco("Well Bucket", at: (0.5, y + 2.2, 8), size: (0.35, 0.35, 0.35), color: "#8B5A2B", shape: .cylinder)
+    m.deco("Stat Stone Ring", at: (0, y + 0.02, -6), size: (2.6, 0.02, 2.6), color: "#C4B5FD", shape: .cylinder, material: .neon)
+    for p in ring(6, radius: 9) { m.torch(p.0, p.1, y: y, height: 1.6) }
+    m.flowerBed(-5.5, 13, y: y, w: 2.6, d: 1.2, colors: ["#F43F5E", "#FACC15", "#FFFFFF"], seed: "start bed 1")
+    m.flowerBed(5.5, 13, y: y, w: 2.6, d: 1.2, colors: ["#FB923C", "#A855F7", "#38BDF8"], seed: "start bed 2")
+    for p in [(-6.5, -14.5), (6.5, -14.5), (-16, 3), (16, 3)] {
+        m.barrel(Float(p.0), Float(p.1), y: y)
+    }
+    for (i, p) in ring(5, radius: 11, phase: 2.2).enumerated() { m.bush(p.0, p.1, y: y, color: i % 2 == 0 ? "#2F8F3A" : "#4CAF50") }
+
+    // Pirate Islet: barrels, a pile of gold, a skull on the flag, a wreck.
+    for (i, p) in [(35.5, 34.0), (36.4, 35.0), (48.0, 31.0)].enumerated() { m.barrel(Float(p.0), Float(p.1), y: y, color: i == 2 ? "#78350F" : "#8B5A2B") }
+    for k in 0..<6 {
+        m.deco("Gold Coin Pile", at: (42 + Float(k % 3) * 0.35, y + 0.15 + Float(k / 3) * 0.2, 37 + Float(k % 2) * 0.3), size: (0.4, 0.25, 0.4),
+               color: "#FACC15", shape: .sphere, material: .metal)
+    }
+    m.deco("Pirate Skull", at: (45.2, 5.9, 36.08), size: (0.5, 0.5, 0.05), color: "#FFFFFF", shape: .cylinder, rotation: (90, 0, 0))
+    m.deco("Wreck Hull", at: (55, -0.1, 20), size: (2.2, 1.0, 5.5), color: "#5C3A1E", rotation: (0, 30, 18))
+    m.deco("Wreck Mast", at: (55.4, 1.0, 20.3), size: (0.2, 3.2, 0.2), color: "#78350F", shape: .cylinder, rotation: (0, 0, 35))
+    m.deco("Wreck Sail", at: (56.0, 1.6, 20.4), size: (0.05, 1.4, 1.6), color: "#E7E5E4", rotation: (0, 30, 30), opacity: 0.85)
+    m.deco("Pirate Cannon", at: (46.5, y + 0.4, 34.5), size: (0.5, 0.5, 1.6), color: "#1F2937", shape: .cylinder, material: .metal, rotation: (80, 40, 0))
+    m.deco("Pirate Cannon Wheels", at: (46.5, y + 0.25, 34.5), size: (1.0, 0.5, 0.5), color: "#5C3A1E", rotation: (0, 40, 0))
+
+    // Jungle Island: ferns, mushrooms, mossy rocks and an old stone idol.
+    var jr = Seeded("jungle props")
+    for k in 0..<14 {
+        let a = jr.range(0, 2 * .pi), d = jr.range(4, 22)
+        let px = 75 + cos(a) * d, pz = -40 + sin(a) * d
+        if k % 2 == 0 {
+            m.deco("Fern", at: (px, y + 0.35, pz), size: (1.4, 0.7, 1.4), color: "#15803D", shape: .cone, material: .matte)
+        } else {
+            m.deco("Mushroom Stem", at: (px, y + 0.25, pz), size: (0.2, 0.5, 0.2), color: "#FEF3C7", shape: .cylinder)
+            m.deco("Mushroom Cap", at: (px, y + 0.55, pz), size: (0.6, 0.3, 0.6), color: k % 4 == 1 ? "#DC2626" : "#F59E0B", shape: .sphere)
+        }
+    }
+    for p in [(62.0, -30.0), (88.0, -50.0), (70.0, -58.0), (90.0, -28.0)] {
+        m.deco("Mossy Rock", at: (Float(p.0), y + 0.4, Float(p.1)), size: (1.8, 1.0, 1.4), color: "#6B7280", shape: .sphere, material: .matte)
+        m.deco("Moss", at: (Float(p.0), y + 0.85, Float(p.1)), size: (1.3, 0.25, 1.0), color: "#4D7C0F", shape: .sphere, material: .matte)
+    }
+    m.deco("Idol Base", at: (75, y + 0.4, -30), size: (2.0, 0.8, 2.0), color: "#78716C", material: .matte)
+    m.deco("Idol", at: (75, y + 1.9, -30), size: (1.2, 2.2, 1.0), color: "#A8A29E", material: .matte)
+    for side in [Float(-1), 1] {
+        m.deco("Idol Eye", at: (75 + side * 0.28, y + 2.4, -29.48), size: (0.22, 0.22, 0.05), color: "#22C55E", material: .neon)
+    }
+    m.deco("Idol Mouth", at: (75, y + 1.7, -29.48), size: (0.6, 0.14, 0.05), color: "#292524")
+
+    // Desert Island: arms on the cacti, dunes, an oasis, bones, a door in
+    // the pyramid.
+    for p in ring(8, radius: 22, cx: -80, cz: -55) {
+        for (side, h) in [(Float(-1), Float(2.2)), (1, 2.7)] {
+            m.deco("Cactus Arm", at: (p.0 + side * 0.65, h, p.1), size: (0.9, 0.35, 0.35), color: "#4D7C0F", shape: .cylinder,
+                   rotation: (0, 0, 90))
+            m.deco("Cactus Arm", at: (p.0 + side * 1.0, h + 0.45, p.1), size: (0.35, 0.9, 0.35), color: "#4D7C0F", shape: .cylinder)
+        }
+        m.deco("Cactus Flower", at: (p.0, 3.5, p.1), size: (0.3, 0.2, 0.3), color: "#F472B6", shape: .sphere)
+    }
+    for (k, p) in [(-68.0, -70.0), (-95.0, -66.0), (-70.0, -45.0), (-86.0, -75.0), (-100.0, -50.0)].enumerated() {
+        m.deco("Dune", at: (Float(p.0), y - 0.1, Float(p.1)), size: (5 + Float(k), 1.2, 3.5), color: "#F0DFA8", shape: .sphere, material: .matte,
+               rotation: (0, Float(k) * 40, 0))
+    }
+    m.deco("Oasis", at: (-66, y + 0.02, -58), size: (6, 0.03, 4.5), color: "#38BDF8", shape: .cylinder, material: .glass, opacity: 0.85)
+    for (k, p) in [(-63.5, -60.0), (-68.5, -60.5), (-65.0, -55.5)].enumerated() {
+        m.palm(Float(p.0), Float(p.1), y: y, height: 4.5 + Float(k) * 0.6, lean: Float(k) * 120)
+    }
+    m.deco("Bone", at: (-74, y + 0.08, -64), size: (1.2, 0.14, 0.14), color: "#F5F5F4", shape: .cylinder, rotation: (0, 30, 90))
+    m.deco("Skull", at: (-73.3, y + 0.2, -64.8), size: (0.45, 0.4, 0.45), color: "#F5F5F4", shape: .sphere)
+    m.deco("Pyramid Door", at: (-92, y + 0.9, -34.6), size: (1.6, 1.8, 0.1), color: "#292524")
+
+    // Snow Island: snowmen, an igloo, ice crystals and snow drifts.
+    for (k, p) in [(2.0, 88.0), (20.0, 100.0), (4.0, 104.0)].enumerated() {
+        let sx = Float(p.0), sz = Float(p.1)
+        m.deco("Snowman", at: (sx, y + 0.5, sz), size: (1.1, 1.0, 1.1), color: "#FFFFFF", shape: .sphere, material: .matte)
+        m.deco("Snowman", at: (sx, y + 1.3, sz), size: (0.8, 0.75, 0.8), color: "#FFFFFF", shape: .sphere, material: .matte)
+        m.deco("Snowman Head", at: (sx, y + 1.9, sz), size: (0.55, 0.55, 0.55), color: "#FFFFFF", shape: .sphere, material: .matte)
+        m.deco("Snowman Nose", at: (sx, y + 1.9, sz + 0.35), size: (0.1, 0.1, 0.3), color: "#F97316", shape: .cone, rotation: (90, 0, 0))
+        m.deco("Snowman Hat", at: (sx, y + 2.25, sz), size: (0.45, 0.35, 0.45), color: ["#1F2937", "#DC2626", "#2563EB"][k], shape: .cylinder)
+    }
+    m.deco("Igloo", at: (-2, y, 98), size: (4, 3, 4), color: "#F1F5F9", shape: .sphere, material: .matte)
+    m.deco("Igloo Door", at: (-2, y + 0.6, 100.1), size: (1.2, 1.2, 0.8), color: "#CBD5E1", shape: .cylinder, rotation: (90, 0, 0))
+    for (k, p) in ring(6, radius: 9, cx: 10, cz: 95, phase: 0.4).enumerated() {
+        m.deco("Ice Crystal", at: (p.0, y + 0.7, p.1), size: (0.5, 1.4 + Float(k % 3) * 0.4, 0.5), color: "#A5F3FC", shape: .cone,
+               material: .glass, opacity: 0.8)
+    }
+    for p in ring(5, radius: 19, cx: 10, cz: 95, phase: 1.1) {
+        m.deco("Snow Drift", at: (p.0, y, p.1), size: (3, 0.8, 2), color: "#FFFFFF", shape: .sphere, material: .matte)
+    }
+
+    // Marine Fort: flags on the tower, crates, cannonballs and sandbags.
+    for p in ring(4, radius: 1.6, cx: -95, cz: 55, phase: .pi / 4) {
+        m.deco("Fort Flag Pole", at: (p.0, 11, p.1), size: (0.08, 3, 0.08), color: "#D1D5DB", shape: .cylinder)
+        m.deco("Fort Flag", at: (p.0 + 0.45, 12, p.1), size: (0.8, 0.5, 0.03), color: "#1D4ED8")
+    }
+    for (k, p) in [(-106.0, 64.0), (-86.0, 64.0), (-100.0, 66.0)].enumerated() {
+        m.deco("Fort Crate", at: (Float(p.0), y + 0.4, Float(p.1)), size: (0.8, 0.8, 0.8), color: "#A16207")
+        m.deco("Fort Crate", at: (Float(p.0) + 0.85, y + 0.4, Float(p.1)), size: (0.8, 0.8, 0.8), color: "#92400E")
+        if k != 1 { m.deco("Fort Crate", at: (Float(p.0) + 0.4, y + 1.2, Float(p.1)), size: (0.8, 0.8, 0.8), color: "#B45309") }
+    }
+    for p in ring(4, radius: 12, cx: -95, cz: 55) {
+        for k in 0..<3 {
+            m.deco("Cannonball", at: (p.0 + 0.9 + Float(k) * 0.3, y + 0.15, p.1 + 0.9), size: (0.3, 0.3, 0.3), color: "#111827",
+                   shape: .sphere, material: .metal)
+        }
+    }
+    for k in 0..<6 {
+        m.deco("Sandbag", at: (-99 + Float(k % 3) * 1.0, y + 0.2 + Float(k / 3) * 0.35, 40.6), size: (0.95, 0.35, 0.55),
+               color: "#C8B68A", shape: .sphere, material: .matte)
+    }
+
+    // Volcano Island: smoke over the crater, glowing cracks, rocks, dead trees.
+    for k in 0..<4 {
+        m.deco("Smoke", at: (118 + Float(k % 2) * 0.8, 11.2 + Float(k) * 1.4, 66 - Float(k) * 0.5), size: (2.4 + Float(k), 1.6 + Float(k) * 0.5, 2.4 + Float(k)),
+               color: "#57534E", shape: .sphere, material: .matte, opacity: 0.7 - Float(k) * 0.1)
+    }
+    var vr = Seeded("volcano props")
+    for k in 0..<10 {
+        let a = vr.range(0, 2 * .pi), d = vr.range(5, 21)
+        let px = 110 + cos(a) * d, pz = 75 + sin(a) * d
+        if k % 3 == 0 {
+            m.deco("Lava Crack", at: (px, y + 0.02, pz), size: (0.25, 0.02, 2.2), color: "#F97316", material: .neon, rotation: (0, vr.range(0, 180), 0))
+        } else {
+            m.deco("Volcanic Rock", at: (px, y + 0.3, pz), size: (1.0, 0.7, 0.8), color: "#1C1917", shape: .sphere, material: .matte)
+        }
+    }
+    for p in [(100.0, 84.0), (122.0, 82.0), (98.0, 68.0)] {
+        m.deco("Dead Tree", at: (Float(p.0), y + 1.4, Float(p.1)), size: (0.3, 2.8, 0.3), color: "#292524", shape: .cylinder)
+        m.deco("Dead Branch", at: (Float(p.0) + 0.4, y + 2.3, Float(p.1)), size: (0.14, 1.2, 0.14), color: "#292524", shape: .cylinder,
+               rotation: (0, 0, -40))
+    }
+
+    // Sky Island: a ring of columns, golden orbs and small clouds.
+    for (k, p) in ring(8, radius: 15, cx: -10, cz: -115, phase: 0.2).enumerated() {
+        let sy: Float = 40.2
+        m.deco("Sky Column Base", at: (p.0, sy + 0.2, p.1), size: (1.2, 0.4, 1.2), color: "#E9D5FF", material: .matte)
+        m.deco("Sky Column", at: (p.0, sy + 2.0, p.1), size: (0.7, 3.2, 0.7), color: "#F5F3FF", shape: .cylinder)
+        m.deco("Sky Column Top", at: (p.0, sy + 3.75, p.1), size: (1.2, 0.3, 1.2), color: "#E9D5FF", material: .matte)
+        if k % 2 == 0 {
+            m.deco("Sky Orb", at: (p.0, sy + 4.3, p.1), size: (0.6, 0.6, 0.6), color: "#FDE047", shape: .sphere, material: .neon)
+        }
+    }
+    for p in ring(5, radius: 9, cx: -10, cz: -115, phase: 0.9) {
+        m.deco("Sky Puff", at: (p.0, 40.6, p.1), size: (2.0, 0.8, 1.4), color: "#FFFFFF", shape: .sphere, material: .matte, opacity: 0.9)
+    }
+
+    // Out at sea: buoys, rocks and far-off sailboats, away from the islands.
+    var sr = Seeded("fruit seas sea")
+    var buoys = 0, tries = 0
+    while buoys < 14 && tries < 500 {
+        tries += 1
+        let bx = sr.range(-150, 150), bz = sr.range(-150, 150)
+        guard !isles.contains(where: { ((bx - $0.x) * (bx - $0.x) + (bz - $0.z) * (bz - $0.z)).squareRoot() < $0.r + 8 }) else { continue }
+        if buoys % 2 == 0 {
+            m.deco("Buoy", at: (bx, -0.05, bz), size: (0.7, 0.7, 0.7), color: buoys % 4 == 0 ? "#EF4444" : "#FACC15", shape: .sphere)
+            m.deco("Buoy Light", at: (bx, 0.45, bz), size: (0.12, 0.4, 0.12), color: "#F8FAFC", shape: .cylinder, material: .neon)
+        } else {
+            m.deco("Sea Rock", at: (bx, -0.2, bz), size: (2.4, 1.4, 1.8), color: "#6B7280", shape: .sphere, material: .matte)
+        }
+        buoys += 1
+    }
+    for (k, p) in [(140.0, -20.0), (-140.0, 0.0), (60.0, 140.0), (-60.0, -150.0)].enumerated() {
+        let bx = Float(p.0), bz = Float(p.1), yaw = Float(k) * 70
+        let f = Frame(bx, bz, y: 0, yaw: yaw)
+        m.deco("Sailboat Hull", in: f, 0, -0.05, 0, size: (1.6, 0.7, 4.5), color: k % 2 == 0 ? "#7C2D12" : "#1E3A8A")
+        m.deco("Sailboat Mast", in: f, 0, 2.2, 0, size: (0.15, 4, 0.15), color: "#5C3A1E", shape: .cylinder)
+        m.deco("Sailboat Sail", in: f, 0, 2.4, 0.5, size: (0.05, 3, 1.8), color: "#F8FAFC")
+        m.deco("Sailboat Flag", in: f, 0, 4.4, 0.2, size: (0.04, 0.35, 0.6), color: "#EF4444")
+    }
 }
 
 
@@ -334,11 +994,16 @@ func petHome(_ m: MapBuilder) {
         ("Campsite", "#65A30D", -80, 75, "camping"), ("School", "#FACC15", 80, 75, "school"),
         ("Pizza Place", "#DC2626", -75, -75, "pizza"), ("Beach", "#FDE68A", 0, -84, "beach")
     ]
+    // What each sign says: the place a pet asks for, as the game calls it.
+    let signWords = ["Food Stand": "🍖 フードスタンド", "Water Well": "💧 井戸", "Pet Beds": "💤 ペットベッド", "Bath House": "🛁 おふろ屋さん",
+                     "Playground": "⚽ 公園", "Vet Clinic": "🏥 どうぶつ病院", "Campsite": "⛺ キャンプ場", "School": "🏫 学校",
+                     "Pizza Place": "🍕 ピザ屋さん", "Beach": "🏖 ビーチ"]
     for n in needs {
         m.slab("\(n.0) Base", x: n.2, y: 0, z: n.3, w: 12, h: 0.3, d: 12, color: "#FFFFFF")
         m.pad(n.0, x: n.2, z: n.3, y: 0.3, size: 6, color: n.1, tags: ["need", n.4])
         m.pillar("\(n.0) Post", x: n.2 + 5, z: n.3 - 5, y: 0.3, height: 3.5, radius: 0.3, color: n.1)
-        m.part("\(n.0) Sign", at: (n.2 + 5, 4.2, n.3 - 5), size: (2.4, 1.2, 0.2), color: n.1, material: .neon, solid: false)
+        let sign = m.part("\(n.0) Sign", at: (n.2 + 5, 4.2, n.3 - 5), size: (2.4, 1.2, 0.2), color: n.1, material: .neon, solid: false)
+        m.label(sign, [(signWords[n.0] ?? n.0, "#FFFFFF")], height: 0.25, size: 1, range: 60)
     }
     m.part("Well Roof", at: (62, 3.6, 0), size: (6, 1.4, 6), color: "#1D4ED8", shape: .cone)
     for i in 0..<3 { m.slab("Slide \(i + 1)", x: -40 + Float(i) * 4, y: 0.3, z: 78, w: 2, h: 2 + Float(i), d: 2, color: "#FDE047") }
@@ -360,6 +1025,360 @@ func petHome(_ m: MapBuilder) {
         m.part("Flower", at: (p.0, 0.3, p.1), size: (0.8, 0.6, 0.8), color: "#F43F5E", shape: .sphere, solid: false)
     }
     for p in [(12, 12), (-12, 12), (12, -12), (-12, -12)] { m.lamp(Float(p.0), Float(p.1)) }
+    petHomeDetail(m)
+}
+
+/// Finishing touches, only to look at (nothing here is solid or tagged, and
+/// no name is one a script looks for): sidewalks and crossings on Pet Road,
+/// a plaza with a pet statue, balloons, benches and bunting, paw-print
+/// trails, signs at every building, nests and shelves inside, props at every
+/// place a pet asks for, and grass and wildflowers in between.
+func petHomeDetail(_ m: MapBuilder) {
+    let walk = "#F5E6E8", curb = "#E9B8C4", seam = "#E5CBD1"
+    for side in [Float(-1), 1] {
+        for (a, b) in [(Float(14.5), Float(55)), (69, 94), (-55, -14.5), (-94, -69)] {
+            m.sidewalk(x: a, b, z: side * 4.5, curbZ: side * 3.6, color: walk, curb: curb, seam: seam)
+        }
+        for (a, b) in [(Float(14.5), Float(22)), (34, 55), (68, 94), (-33, -14.5), (-78, -47)] {
+            m.sidewalk(z: a, b, x: side * 4.5, curbX: side * 3.6, color: walk, curb: curb, seam: seam)
+        }
+        m.crosswalk(side * 16.5, 0, across: 7, yaw: 90)
+        m.crosswalk(0, side * 16.5, across: 7, yaw: 0)
+    }
+
+    // The plaza: rings of pink paving, a golden pet on a pedestal in the
+    // middle, balloons, benches, planters and bunting between the lamps.
+    for (r, color, y) in [(Float(12.5), "#FBCFE8", Float(0.065)), (11, "#FDE2E4", 0.07), (3.6, "#F9A8D4", 0.075)] {
+        m.deco("Plaza Paving", at: (0, y, 0), size: (r * 2, 0.01, r * 2), color: color, shape: .cylinder, material: .matte)
+    }
+    let gold = "#FCD34D"
+    m.deco("Statue Pedestal", at: (0, 0.5, 0), size: (2.4, 1, 2.4), color: "#F5F5F4", shape: .cylinder, material: .matte)
+    m.deco("Statue Pedestal Trim", at: (0, 1.02, 0), size: (2.7, 0.12, 2.7), color: "#F9A8D4", shape: .cylinder)
+    m.deco("Statue Body", at: (0, 1.85, 0), size: (1.1, 0.9, 1.7), color: gold, shape: .sphere, material: .metal)
+    for (dx, dz) in [(Float(-0.35), Float(0.5)), (0.35, 0.5), (-0.35, -0.5), (0.35, -0.5)] {
+        m.deco("Statue Leg", at: (dx, 1.38, dz), size: (0.28, 0.6, 0.28), color: gold, shape: .cylinder, material: .metal)
+    }
+    m.deco("Statue Head", at: (0, 2.55, 0.85), size: (0.9, 0.85, 0.85), color: gold, shape: .sphere, material: .metal)
+    m.deco("Statue Snout", at: (0, 2.4, 1.3), size: (0.45, 0.35, 0.4), color: gold, shape: .sphere, material: .metal)
+    m.deco("Statue Nose", at: (0, 2.48, 1.5), size: (0.16, 0.12, 0.1), color: "#1F2937", shape: .sphere)
+    for side in [Float(-1), 1] {
+        m.deco("Statue Ear", at: (side * 0.38, 2.95, 0.75), size: (0.3, 0.45, 0.15), color: "#F59E0B", shape: .sphere, material: .metal,
+               rotation: (0, 0, side * 20))
+        m.deco("Statue Eye", at: (side * 0.2, 2.68, 1.24), size: (0.12, 0.12, 0.06), color: "#1F2937", shape: .sphere)
+    }
+    m.deco("Statue Tail", at: (0, 2.25, -0.95), size: (0.2, 0.7, 0.2), color: gold, shape: .cone, material: .metal, rotation: (-35, 0, 0))
+    m.deco("Statue Collar", at: (0, 2.2, 0.75), size: (0.75, 0.12, 0.6), color: "#EF4444", shape: .cylinder)
+    let balloons = ["#F43F5E", "#FACC15", "#38BDF8", "#A855F7", "#22C55E", "#FB923C", "#F472B6", "#FFFFFF"]
+    for (i, p) in ring(8, radius: 13.2, phase: .pi / 8).enumerated() {
+        m.deco("Balloon String", at: (p.0, 1.5, p.1), size: (0.03, 3, 0.03), color: "#E5E7EB", shape: .cylinder)
+        m.deco("Balloon", at: (p.0, 3.4, p.1), size: (0.8, 1.0, 0.8), color: balloons[i], shape: .sphere)
+    }
+    for p in ring(4, radius: 10, phase: .pi / 4) {
+        m.bench(in: Frame(p.0, p.1, yaw: atan2(-p.0, -p.1) * 180 / .pi), color: "#F9A8D4", metal: "#FFFFFF")
+    }
+    for (i, p) in ring(8, radius: 10.2, phase: .pi / 4 - 0.38).enumerated() where i % 2 == 0 {
+        m.planter(p.0, p.1, pot: "#F9A8D4", bloom: balloons[i])
+    }
+    for (i, p) in ring(8, radius: 10.2, phase: .pi / 4 + 0.38).enumerated() where i % 2 == 0 {
+        m.planter(p.0, p.1, pot: "#C4B5FD", bloom: balloons[i + 1])
+    }
+    let corners: [V] = [(12, 3.25, 12), (-12, 3.25, 12), (-12, 3.25, -12), (12, 3.25, -12)]
+    for i in 0..<4 {
+        m.pennants(from: corners[i], to: corners[(i + 1) % 4], count: 9, colors: ["#F472B6", "#FDE047", "#67E8F9", "#C4B5FD", "#86EFAC"])
+    }
+    m.signboard("Welcome Sign", in: Frame(9, 16.5, yaw: 180 + 28.6), lines: [("🐾 ペットホーム・パラダイス", "#FFFFFF"), ("Pet Home Paradise", "#FDE68A")],
+                board: "#DB2777", width: 4.4)
+
+    // Paw prints: a ring round the spawn, and trails out to the pet beds and
+    // the bath house.
+    for p in ring(10, radius: 8.4, phase: 0.31) {
+        m.pawPrint(p.0, p.1, y: 0.075, yaw: atan2(-p.1, p.0) * 180 / .pi, color: "#EC4899", size: 0.9)
+    }
+    for (from, to) in [((Float(-17), Float(8)), (Float(-54), Float(25))), ((17, 8), (54, 25))] {
+        let dx = to.0 - from.0, dz = to.1 - from.1
+        let length = (dx * dx + dz * dz).squareRoot()
+        let yaw = atan2(dx, dz) * 180 / .pi
+        for k in 0..<10 {
+            let t = Float(k) / 9
+            let off: Float = k % 2 == 0 ? 0.35 : -0.35
+            m.pawPrint(from.0 + dx * t + off * dz / length, from.1 + dz * t - off * dx / length, y: 0.012, yaw: yaw, color: "#F9A8D4")
+        }
+    }
+
+    // A sign by every building.
+    for (name, text, x, z, yaw, board) in [
+        ("Nursery", "🥚 ナーサリー", Float(8), Float(-32.6), Float(0), "#DB2777"),
+        ("Pet Shop", "🛒 ペットショップ", -34.4, -33.6, 0, "#EA580C"),
+        ("Neon Cave", "✨ ネオンの洞くつ", 47.5, -32.6, 0, "#6D28D9"),
+        ("Trade Plaza", "🤝 トレード", 9.6, 28, 90, "#D97706"),
+        ("Show Stage", "🏆 ペットショー", 12.5, 56, 180, "#E11D48"),
+    ] {
+        m.signboard("\(name) Entrance Sign", in: Frame(x, z, yaw: yaw), lines: [(text, "#FFFFFF")], board: board, width: 3)
+    }
+
+    // The nursery: a straw nest and a warm lamp over every egg, shelves of
+    // little eggs on the side walls, a rug and plants in the corners.
+    let floorY: Float = 0.15
+    for ex in [Float(-11), -5.5, 0, 5.5, 11] {
+        m.deco("Nest", at: (ex, 0.92, -43), size: (1.7, 0.28, 1.7), color: "#C08A4B", shape: .cylinder, material: .matte)
+        m.deco("Nest Straw", at: (ex, 1.07, -43), size: (1.4, 0.04, 1.4), color: "#E9C48A", shape: .cylinder, material: .matte)
+        m.deco("Lamp Cord", at: (ex, 3.95, -43), size: (0.04, 1.1, 0.04), color: "#3A3A44", shape: .cylinder)
+        m.deco("Warm Lamp Shade", at: (ex, 3.25, -43), size: (0.8, 0.45, 0.8), color: "#F472B6", shape: .cone)
+        m.deco("Warm Lamp", at: (ex, 3.0, -43), size: (0.3, 0.3, 0.3), color: "#FDE68A", shape: .sphere, material: .neon)
+    }
+    m.deco("Nursery Wall Band", at: (0, 1.0, -45.75), size: (29, 0.35, 0.05), color: "#F9A8D4")
+    for k in 0..<6 {
+        m.deco("Nursery Wall Dot", at: (-12.5 + Float(k) * 5, 2.6, -45.75), size: (0.7, 0.7, 0.04), color: balloons[k], shape: .cylinder,
+               rotation: (90, 0, 0))
+    }
+    m.rug(0, -36.6, y: floorY, w: 8, d: 2.4, color: "#FFE4E6", border: "#F472B6")
+    for p in [(-13.5, -35.6), (13.5, -35.6), (-13.5, -45.0), (13.5, -45.0)] {
+        m.planter(Float(p.0), Float(p.1), y: floorY, pot: "#FBCFE8", bloom: "#F43F5E")
+    }
+    for side in [Float(-1), 1] {
+        m.shelf(in: Frame(side * 14.4, -40, y: floorY, yaw: side < 0 ? 90 : -90), width: 3, height: 2, color: "#FBCFE8",
+                goods: ["#F5F5F4", "#FDE68A", "#4ADE80", "#38BDF8", "#C4B5FD"], goodsShape: .sphere)
+    }
+
+    // The pet shop: shelves of food, toys and potions behind the counters,
+    // a fish tank and a pet bed on show.
+    for (x, goods, shape) in [(Float(-48), ["#F97316", "#DC2626", "#FACC15"], BlockShape.cylinder),
+                              (-42, ["#22C55E", "#3B82F6", "#F43F5E"], .sphere),
+                              (-36, ["#A855F7", "#E879F9", "#67E8F9"], .cylinder)] {
+        m.shelf(in: Frame(x, -44.45, y: floorY), width: 3.4, height: 2.2, color: "#A16207", goods: goods, goodsShape: shape)
+    }
+    m.deco("Fish Tank Stand", at: (-49.6, 0.55, -37), size: (1.6, 0.8, 0.9), color: "#78350F")
+    m.deco("Fish Tank", at: (-49.6, 1.4, -37), size: (1.5, 0.9, 0.8), color: "#7DD3FC", material: .glass, opacity: 0.55)
+    m.deco("Fish Tank Gravel", at: (-49.6, 1.0, -37), size: (1.45, 0.08, 0.75), color: "#FDE68A", material: .matte)
+    m.deco("Fish", at: (-49.9, 1.45, -37), size: (0.3, 0.18, 0.1), color: "#F97316", shape: .sphere)
+    m.deco("Fish", at: (-49.2, 1.6, -36.9), size: (0.25, 0.15, 0.1), color: "#FACC15", shape: .sphere)
+    m.deco("Pet Cushion", at: (-35, 0.3, -37), size: (1.6, 0.3, 1.6), color: "#F472B6", shape: .cylinder)
+    m.deco("Pet Cushion Middle", at: (-35, 0.42, -37), size: (1.1, 0.1, 1.1), color: "#FBCFE8", shape: .cylinder)
+    m.deco("Bone Sign", at: (-42, 3.0, -44.75), size: (1.6, 0.35, 0.05), color: "#FFFFFF")
+    for side in [Float(-1), 1] {
+        m.deco("Bone Sign End", at: (-42 + side * 0.85, 3.0, -44.75), size: (0.5, 0.6, 0.06), color: "#FFFFFF", shape: .cylinder,
+               rotation: (90, 0, 0))
+    }
+
+    // The neon cave: glowing mushrooms, crystals on the walls, stars above
+    // and a glowing ring round the altar.
+    let glow = ["#22D3EE", "#E879F9", "#A3E635", "#FDE047"]
+    for (k, p) in [(35.5, -44.5), (48.5, -44.5), (35.5, -37.0), (48.5, -37.0), (39.0, -45.0), (45.0, -45.0)].enumerated() {
+        m.deco("Glow Mushroom Stem", at: (Float(p.0), 0.3, Float(p.1)), size: (0.2, 0.6, 0.2), color: "#E0E7FF", shape: .cylinder)
+        m.deco("Glow Mushroom Cap", at: (Float(p.0), 0.65, Float(p.1)), size: (0.7, 0.35, 0.7), color: glow[k % 4], shape: .sphere,
+               material: .neon)
+    }
+    for k in 0..<8 {
+        let onLeft = k < 4
+        let z = -44 + Float(k % 4) * 2.6
+        m.deco("Wall Crystal", at: (onLeft ? 34.7 : 49.3, 2.2 + Float(k % 2) * 0.8, z), size: (0.4, 1.1, 0.4), color: glow[k % 4],
+               shape: .cone, material: .neon, rotation: (0, 0, onLeft ? -30 : 30))
+    }
+    for p in grid(4, 2, spacing: 3.2, cx: 42, cz: -40) {
+        m.deco("Cave Star", at: (p.0, 4.85, p.1), size: (0.22, 0.22, 0.22), color: "#FFFFFF", shape: .sphere, material: .neon)
+    }
+    m.deco("Altar Glow", at: (42, 0.02, -41), size: (6, 0.02, 6), color: "#7C3AED", shape: .cylinder, material: .neon, opacity: 0.6)
+
+    // The show stage: posts under the arch, curtains, spotlights, stars,
+    // a carpet, and benches for the audience.
+    for side in [Float(-1), 1] {
+        m.deco("Show Arch Post", at: (side * 10, 3, 66), size: (0.6, 4, 0.6), color: "#F472B6", shape: .cylinder)
+        m.deco("Show Curtain", at: (side * 9.1, 2.9, 65.6), size: (1.4, 3.8, 0.15), color: "#BE123C", material: .matte)
+    }
+    m.deco("Show Valance", at: (0, 4.3, 65.6), size: (19, 0.5, 0.15), color: "#9F1239", material: .matte)
+    for k in 0..<4 {
+        let sx = -6 + Float(k) * 4
+        m.deco("Spotlight", at: (sx, 5.7, 66), size: (0.5, 0.6, 0.5), color: "#1F2937", shape: .cylinder, material: .metal, rotation: (-30, 0, 0))
+        m.deco("Spotlight Lens", at: (sx, 5.55, 65.75), size: (0.4, 0.05, 0.4), color: "#FEF9C3", shape: .cylinder, material: .neon,
+               rotation: (-30, 0, 0))
+    }
+    for k in 0..<5 {
+        m.deco("Show Star", at: (-8 + Float(k) * 4, 6.0, 66.3), size: (0.5, 0.5, 0.2), color: "#FDE047", shape: .sphere, material: .neon)
+    }
+    m.deco("Stage Carpet", at: (0, 1.01, 61), size: (5, 0.02, 7), color: "#E11D48", material: .matte)
+    for (bx, bz) in [(Float(-8), Float(47)), (8, 47), (-8, 50.5), (8, 50.5)] {
+        m.bench(in: Frame(bx, bz, yaw: 0), color: "#FDE68A", metal: "#F472B6")
+    }
+
+    // The trade plaza: two little stalls, gift boxes and a pair of scales.
+    for side in [Float(-1), 1] {
+        let sx = side * 6.3
+        m.deco("Trade Stall", at: (sx, 0.55, 30.5), size: (2.4, 0.9, 1.0), color: "#FDE68A")
+        for px in [Float(-1.1), 1.1] {
+            m.deco("Trade Stall Post", at: (sx + px, 1.4, 30.1), size: (0.1, 2.6, 0.1), color: "#FFFFFF", shape: .cylinder)
+        }
+        m.deco("Trade Stall Awning", at: (sx, 2.75, 30.3), size: (2.8, 0.12, 1.6), color: side < 0 ? "#F472B6" : "#38BDF8",
+               rotation: (12, 0, 0))
+    }
+    for (k, p) in [(-6.5, 24.6), (-4.9, 24.4), (5.0, 24.5), (6.6, 24.7), (-7.2, 26.3), (7.1, 26.2)].enumerated() {
+        let gx = Float(p.0), gz = Float(p.1), s: Float = k % 2 == 0 ? 0.7 : 0.55
+        m.deco("Gift Box", at: (gx, 0.08 + s / 2, gz), size: (s, s, s), color: balloons[k])
+        m.deco("Gift Ribbon", at: (gx, 0.08 + s / 2, gz), size: (s + 0.02, s + 0.02, 0.12), color: "#FFFFFF")
+        m.deco("Gift Ribbon", at: (gx, 0.08 + s / 2, gz), size: (0.12, s + 0.02, s + 0.02), color: "#FFFFFF")
+    }
+    m.deco("Scales Post", at: (0, 1.0, 31.8), size: (0.14, 1.9, 0.14), color: gold, shape: .cylinder, material: .metal)
+    m.deco("Scales Beam", at: (0, 1.9, 31.8), size: (1.8, 0.08, 0.08), color: gold, material: .metal)
+    for side in [Float(-1), 1] {
+        m.deco("Scales Pan", at: (side * 0.85, 1.6, 31.8), size: (0.6, 0.06, 0.6), color: gold, shape: .cylinder, material: .metal)
+    }
+
+    // The places pets ask for. Each base is 12 wide with the pad (6 wide) in
+    // the middle and the sign post at one corner, so props stand round the
+    // edge, and two bushes sit just off the corners.
+    m.deco("Food Sack", at: (-66.6, 0.75, 4.4), size: (0.9, 0.9, 0.7), color: "#D6A15E", shape: .cylinder, material: .matte)
+    m.deco("Food Sack Top", at: (-66.6, 1.25, 4.4), size: (0.5, 0.2, 0.4), color: "#C08A4B", shape: .sphere)
+    for p in [(-66.5, 0.0), (-66.5, -2.4), (-57.5, 2.4), (-57.5, 0.0)] {
+        m.deco("Pet Bowl", at: (Float(p.0), 0.42, Float(p.1)), size: (0.9, 0.24, 0.9), color: "#F97316", shape: .cylinder)
+        m.deco("Pet Bowl Food", at: (Float(p.0), 0.55, Float(p.1)), size: (0.7, 0.16, 0.7), color: "#92400E", shape: .sphere, material: .matte)
+    }
+    m.deco("Well Ring", at: (62, 0.75, 0), size: (3.2, 0.9, 3.2), color: "#A8A29E", shape: .cylinder, material: .matte, opacity: 0.9)
+    m.deco("Well Water", at: (62, 1.18, 0), size: (2.6, 0.04, 2.6), color: "#38BDF8", shape: .cylinder, material: .glass, opacity: 0.85)
+    for side in [Float(-1), 1] {
+        m.deco("Well Post", at: (62 + side * 2.3, 1.8, 0), size: (0.2, 3.0, 0.2), color: "#8B5A2B", shape: .cylinder)
+    }
+    m.deco("Well Rope", at: (62, 2.5, 0), size: (0.04, 1.4, 0.04), color: "#E7D3A8", shape: .cylinder)
+    m.deco("Well Bucket", at: (62, 1.65, 0), size: (0.45, 0.45, 0.45), color: "#78350F", shape: .cylinder)
+    for (k, bx) in [Float(-66), -63.3, -60.6, -57.9].enumerated() {
+        m.deco("Bed Pillow", at: (bx, 0.9, 35.1), size: (1.4, 0.2, 0.6), color: "#FFFFFF", shape: .sphere)
+        m.deco("Bed Blanket", at: (bx, 0.83, 33.3), size: (2.1, 0.06, 1.6), color: ["#F9A8D4", "#93C5FD", "#FDE68A", "#86EFAC"][k])
+    }
+    m.deco("Mobile Post", at: (-56.5, 1.8, 25.5), size: (0.1, 3.0, 0.1), color: "#FFFFFF", shape: .cylinder)
+    m.deco("Mobile Moon", at: (-56.5, 3.5, 25.5), size: (0.7, 0.7, 0.2), color: "#FDE047", shape: .sphere, material: .neon)
+    for side in [Float(-1), 1] {
+        m.deco("Mobile Star", at: (-56.5 + side * 0.7, 3.1, 25.5), size: (0.3, 0.3, 0.1), color: "#FFFFFF", shape: .sphere, material: .neon)
+    }
+    m.deco("Bath Tub", at: (62, 0.7, 34.6), size: (3.2, 0.8, 1.7), color: "#FFFFFF")
+    m.deco("Bath Water", at: (62, 1.08, 34.6), size: (2.8, 0.06, 1.3), color: "#67E8F9", material: .glass, opacity: 0.85)
+    for k in 0..<6 {
+        m.deco("Bubble", at: (60.9 + Float(k) * 0.45, 1.25 + Float(k % 2) * 0.2, 34.3 + Float(k % 3) * 0.3), size: (0.35, 0.35, 0.35),
+               color: "#FFFFFF", shape: .sphere, material: .glass, opacity: 0.7)
+    }
+    m.deco("Rubber Duck", at: (63.2, 1.25, 34.9), size: (0.4, 0.3, 0.45), color: "#FACC15", shape: .sphere)
+    m.deco("Rubber Duck Head", at: (63.2, 1.5, 35.1), size: (0.25, 0.25, 0.25), color: "#FACC15", shape: .sphere)
+    m.deco("Rubber Duck Beak", at: (63.2, 1.48, 35.27), size: (0.14, 0.06, 0.12), color: "#F97316")
+    m.deco("Shower Post", at: (57.2, 1.6, 34.5), size: (0.12, 2.6, 0.12), color: "#D1D5DB", shape: .cylinder, material: .metal)
+    m.deco("Shower Head", at: (57.6, 2.85, 34.5), size: (0.5, 0.12, 0.5), color: "#D1D5DB", shape: .cylinder, material: .metal)
+    m.deco("Ball Pit", at: (-40.5, 0.55, 67.2), size: (3.4, 0.5, 3.4), color: "#38BDF8", shape: .cylinder, opacity: 0.9)
+    for k in 0..<10 {
+        let a = Float(k) * 2.4, d: Float = k < 5 ? 0.6 : 1.2
+        m.deco("Pit Ball", at: (-40.5 + cos(a) * d, 0.85, 67.2 + sin(a) * d), size: (0.35, 0.35, 0.35), color: balloons[k % 8], shape: .sphere)
+    }
+    m.deco("Seesaw Base", at: (-40.5, 0.55, 74.6), size: (0.5, 0.5, 0.5), color: "#EF4444", shape: .cone)
+    m.deco("Seesaw Plank", at: (-40.5, 0.85, 74.6), size: (3.4, 0.1, 0.4), color: "#FACC15", rotation: (0, 0, 10))
+    for dx in [Float(-1.4), 1.4] {
+        m.deco("Seesaw Handle", at: (-40.5 + dx, 1.05 + dx * 0.17, 74.6), size: (0.08, 0.08, 0.6), color: "#3B82F6", shape: .cylinder,
+               rotation: (90, 0, 0))
+    }
+    m.deco("Exam Table", at: (40.5, 1.0, 69), size: (1.2, 0.12, 2.0), color: "#E0F2FE")
+    m.deco("Exam Table Leg", at: (40.5, 0.65, 69), size: (0.2, 0.7, 0.2), color: "#9CA3AF", shape: .cylinder, material: .metal)
+    m.deco("Clinic Board", at: (31.5, 1.6, 77.3), size: (1.6, 1.6, 0.08), color: "#FFFFFF")
+    m.deco("Clinic Cross", at: (31.5, 1.6, 77.25), size: (1.1, 0.35, 0.06), color: "#EF4444", material: .neon)
+    m.deco("Clinic Cross", at: (31.5, 1.6, 77.25), size: (0.35, 1.1, 0.06), color: "#EF4444", material: .neon)
+    m.shelf(in: Frame(30.8, 70, y: 0.3, yaw: 90), width: 2, height: 1.6, color: "#E5E7EB", goods: ["#F87171", "#FFFFFF", "#86EFAC"],
+            goodsShape: .cylinder)
+    for k in 0..<3 {
+        let a = Float(k) * 2.1 + 0.5
+        m.deco("Log Seat", at: (-80 + cos(a) * 2.0, 0.5, 78 + sin(a) * 2.0), size: (0.4, 1.3, 0.4), color: "#78350F", shape: .cylinder,
+               rotation: (0, -a * 180 / .pi, 90))
+    }
+    for p in ring(6, radius: 0.95, cx: -80, cz: 78) {
+        m.deco("Fire Stone", at: (p.0, 0.4, p.1), size: (0.4, 0.25, 0.35), color: "#78716C", shape: .sphere, material: .matte)
+    }
+    m.deco("Lantern Post", at: (-75.2, 1.3, 79.8), size: (0.1, 2.0, 0.1), color: "#3A3A44", shape: .cylinder)
+    m.deco("Lantern", at: (-75.2, 2.35, 79.8), size: (0.35, 0.45, 0.35), color: "#FDE68A", material: .neon)
+    for (k, p) in [(75.5, 71.0), (75.5, 79.0), (84.5, 79.0)].enumerated() {
+        m.deco("School Desk", at: (Float(p.0), 0.95, Float(p.1)), size: (1.2, 0.08, 0.7), color: "#F5DEB3")
+        m.deco("School Desk Leg", at: (Float(p.0), 0.62, Float(p.1)), size: (1.0, 0.6, 0.08), color: "#6B7280", material: .metal)
+        m.deco("School Chair", at: (Float(p.0), 0.72, Float(p.1) - 0.6), size: (0.5, 0.06, 0.5), color: balloons[k + 2])
+    }
+    m.deco("Easel Board", at: (85.5, 1.9, 72.5), size: (1.8, 1.2, 0.08), color: "#14532D", rotation: (-8, 0, 0))
+    for side in [Float(-1), 1] {
+        m.deco("Easel Leg", at: (85.5 + side * 0.7, 1.2, 72.4), size: (0.08, 1.8, 0.08), color: "#8B5A2B")
+    }
+    m.deco("School Bell", at: (80, 3.1, 83.6), size: (0.6, 0.6, 0.6), color: gold, shape: .cone, material: .metal)
+    for (k, p) in [(-79.6, -71.0), (-70.6, -71.0)].enumerated() {
+        let tx = Float(p.0), tz = Float(p.1)
+        m.table(tx, tz, y: 0.3, top: "#FFFFFF", chairs: 2, chair: "#DC2626", phase: .pi / 2)
+        m.deco("Pizza", at: (tx, 1.13, tz), size: (0.9, 0.04, 0.9), color: "#FBBF24", shape: .cylinder)
+        for j in 0..<3 {
+            let a = Float(j) * 2.1 + Float(k)
+            m.deco("Pepperoni", at: (tx + cos(a) * 0.22, 1.16, tz + sin(a) * 0.22), size: (0.18, 0.02, 0.18), color: "#B91C1C", shape: .cylinder)
+        }
+    }
+    // The beach: towels under the umbrellas, sandcastles, shells, a ball,
+    // foam at the water's edge and two loungers.
+    for (k, x) in [Float(-20), -10, 10, 20].enumerated() {
+        m.deco("Beach Towel", at: (x, 0.06, -87.6), size: (1.2, 0.02, 2.2), color: balloons[k])
+        m.deco("Beach Towel Stripe", at: (x, 0.075, -87.6), size: (1.22, 0.02, 0.4), color: "#FFFFFF")
+    }
+    for x in [Float(-14), 14] {
+        m.deco("Sandcastle", at: (x, 0.35, -90.5), size: (1.6, 0.6, 1.2), color: "#EAD08A", material: .matte)
+        for side in [Float(-1), 1] {
+            m.deco("Sandcastle Tower", at: (x + side * 0.6, 0.85, -90.5), size: (0.5, 0.6, 0.5), color: "#EAD08A", shape: .cylinder, material: .matte)
+            m.deco("Sandcastle Roof", at: (x + side * 0.6, 1.3, -90.5), size: (0.55, 0.35, 0.55), color: "#E3C477", shape: .cone, material: .matte)
+        }
+        m.deco("Sandcastle Flag", at: (x + 0.15, 1.55, -90.5), size: (0.35, 0.22, 0.03), color: "#EF4444")
+    }
+    var br = Seeded("pet beach")
+    for k in 0..<12 {
+        let sx = br.range(-28, 28), sz = br.range(-92, -80)
+        guard abs(sx) > 7 else { continue }
+        m.deco(k % 3 == 0 ? "Starfish" : "Shell", at: (sx, 0.08, sz), size: k % 3 == 0 ? (0.5, 0.04, 0.5) : (0.3, 0.12, 0.24),
+               color: k % 3 == 0 ? "#FB923C" : ["#FBCFE8", "#FFFFFF", "#FDE68A"][k % 3], shape: k % 3 == 0 ? .cylinder : .sphere)
+    }
+    m.deco("Beach Ball", at: (8.5, 0.4, -81), size: (0.7, 0.7, 0.7), color: "#F43F5E", shape: .sphere)
+    m.deco("Beach Ball Stripe", at: (8.5, 0.4, -81), size: (0.72, 0.2, 0.72), color: "#FFFFFF", shape: .sphere)
+    m.deco("Surf", at: (0, 0.045, -92.1), size: (120, 0.02, 0.6), color: "#F0F9FF", material: .matte, opacity: 0.9)
+    for x in [Float(-25), 25] {
+        m.deco("Lounger", at: (x, 0.3, -86), size: (0.9, 0.12, 2.0), color: "#38BDF8")
+        m.deco("Lounger Back", at: (x, 0.6, -85.1), size: (0.9, 0.12, 0.8), color: "#38BDF8", rotation: (-50, 0, 0))
+    }
+    let needSpots: [(Float, Float)] = [(-62, 0), (62, 0), (-62, 30), (62, 30), (-36, 72), (36, 72), (-80, 75), (80, 75), (-75, -75), (0, -84)]
+    for (k, p) in needSpots.enumerated() {
+        m.bush(p.0 - 6.8, p.1 - 6.8, color: k % 2 == 0 ? "#4CAF50" : "#65A30D", size: 1.1)
+        m.bush(p.0 + 6.8, p.1 + 6.8, color: k % 2 == 0 ? "#65A30D" : "#4CAF50", size: 1.1)
+    }
+
+    // Grass between it all: darker patches, tufts and wildflowers, kept off
+    // the roads, the paving, the buildings and the beach.
+    var keepOut: [(Float, Float, Float, Float)] = [
+        (0, 0, 102, 5.6), (0, 0, 5.6, 102), (0, 0, 16, 16), (0, -40, 16, 7.5), (-42, -40, 10, 6.5), (42, -40, 9, 7),
+        (0, 28, 9, 6), (0, 57, 11, 11), (80, 88, 8, 5), (-75, -88, 7, 5), (0, -90, 62, 10), (-14, 14, 6, 3.5),
+        (-36, 78, 6, 2), (9, 16.5, 3, 1.5)
+    ]
+    keepOut += needSpots.map { ($0.0, $0.1, 7.6, 7.6) }
+    func open(_ x: Float, _ z: Float, margin: Float) -> Bool {
+        guard abs(x) < 100 - margin, abs(z) < 100 - margin else { return false }
+        return !keepOut.contains { abs(x - $0.0) < $0.2 + margin && abs(z - $0.1) < $0.3 + margin }
+    }
+    var r = Seeded("pet home grass")
+    var patches = 0, tries = 0
+    while patches < 30 && tries < 2000 {
+        tries += 1
+        let x = r.range(-98, 98), z = r.range(-98, 98), size = r.range(3, 7)
+        guard open(x, z, margin: size / 2) else { continue }
+        m.deco("Grass Patch", at: (x, 0.006 + Float(patches) * 0.0004, z), size: (size, 0.01, size * r.range(0.6, 1)),
+               color: patches % 2 == 0 ? "#A3D98B" : "#C6EDB0", shape: .cylinder, material: .matte)
+        patches += 1
+    }
+    var spots: [(Float, Float)] = []
+    tries = 0
+    while spots.count < 140 && tries < 4000 {
+        tries += 1
+        let x = r.range(-98, 98), z = r.range(-98, 98)
+        if open(x, z, margin: 0.5) { spots.append((x, z)) }
+    }
+    m.tufts(spots, color: "#7CC66A")
+    var wild = 0
+    tries = 0
+    let wildColors = ["#F472B6", "#FDE047", "#FFFFFF", "#C4B5FD", "#FB923C", "#67E8F9"]
+    while wild < 45 && tries < 4000 {
+        tries += 1
+        let x = r.range(-98, 98), z = r.range(-98, 98)
+        guard open(x, z, margin: 0.5) else { continue }
+        m.flower(x, z, color: wildColors[wild % wildColors.count], size: 0.8)
+        wild += 1
+    }
 }
 
 // MARK: 4 Meme Heist

@@ -377,6 +377,280 @@ final class MapBuilder {
     }
 }
 
+// MARK: - Decoration
+
+/// Points around a spot, turned by `yaw` degrees about the up axis: local +z
+/// is the front, so a bench or a shelf built in a frame faces where it is
+/// turned.
+struct Frame {
+    let x: Float, y: Float, z: Float, yaw: Float
+    init(_ x: Float, _ z: Float, y: Float = 0, yaw: Float = 0) {
+        self.x = x
+        self.y = y
+        self.z = z
+        self.yaw = yaw
+    }
+    func at(_ dx: Float, _ dy: Float, _ dz: Float) -> V {
+        let p = Quat.yaw(degrees: yaw).act(Vec3(dx, dy, dz))
+        return (x + p.x, y + p.y, z + p.z)
+    }
+}
+
+/// Small parts that are only to look at: signs, benches, flower beds,
+/// furniture, paving. None of them is solid or tagged, so a route, a pad or
+/// anything a script looks for by name or tag stays as it was.
+extension MapBuilder {
+    @discardableResult
+    func deco(_ name: String, at p: V, size s: V, color: String, shape: BlockShape = .box, material: MaterialKind = .plastic,
+              rotation r: V? = nil, opacity: Float = 1) -> UUID {
+        part(name, at: p, size: s, color: color, shape: shape, material: material, solid: false, rotation: r, opacity: opacity)
+    }
+
+    /// A decoration placed in `f` and turned with it; `tilt` adds a pitch and a roll.
+    @discardableResult
+    func deco(_ name: String, in f: Frame, _ dx: Float, _ dy: Float, _ dz: Float, size s: V, color: String,
+              shape: BlockShape = .box, material: MaterialKind = .plastic, tilt: (Float, Float) = (0, 0),
+              opacity: Float = 1) -> UUID {
+        deco(name, at: f.at(dx, dy, dz), size: s, color: color, shape: shape, material: material,
+             rotation: (tilt.0, f.yaw, tilt.1), opacity: opacity)
+    }
+
+    /// A board on two posts with words over it, its face toward the frame's front.
+    func signboard(_ name: String, in f: Frame, lines: [(String, String)], board: String, width: Float = 3,
+                   height: Float = 2.2, post: String = "#6B4F33", size: Float = 1) {
+        for side in [Float(-1), 1] {
+            deco("\(name) Post", in: f, side * (width / 2 - 0.15), height / 2, 0, size: (0.16, height, 0.16), color: post,
+                 shape: .cylinder)
+        }
+        let face = deco("\(name) Board", in: f, 0, height - 0.45, 0.05, size: (width, 0.9, 0.12), color: board)
+        deco("\(name) Trim", in: f, 0, height + 0.05, 0.05, size: (width + 0.2, 0.12, 0.2), color: Self.shade(board, -0.3))
+        label(face, lines, height: 0.25, size: size, range: 60)
+    }
+
+    /// A park bench, the seat toward the frame's front.
+    func bench(in f: Frame, color: String = "#A86A3A", metal: String = "#3A3A44") {
+        deco("Bench Seat", in: f, 0, 0.5, 0.12, size: (1.8, 0.08, 0.3), color: color)
+        deco("Bench Seat", in: f, 0, 0.5, -0.2, size: (1.8, 0.08, 0.3), color: Self.shade(color, -0.1))
+        deco("Bench Back", in: f, 0, 0.85, -0.4, size: (1.8, 0.35, 0.07), color: color, tilt: (-10, 0))
+        for side in [Float(-1), 1] {
+            deco("Bench Leg", in: f, side * 0.8, 0.3, -0.05, size: (0.08, 0.6, 0.6), color: metal, material: .metal)
+        }
+    }
+
+    /// One flower: a bloom over a tuft of leaves.
+    func flower(_ x: Float, _ z: Float, y: Float = 0, color: String, leaves: String = "#3E8E3A", size: Float = 1) {
+        deco("Flower Leaves", at: (x, y + 0.1 * size, z), size: (0.45 * size, 0.2 * size, 0.45 * size), color: leaves,
+             shape: .sphere, material: .matte)
+        deco("Flower Bloom", at: (x, y + 0.32 * size, z), size: (0.3 * size, 0.22 * size, 0.3 * size), color: color, shape: .sphere)
+    }
+
+    /// A raised bed of flowers inside a stone rim.
+    func flowerBed(_ x: Float, _ z: Float, y: Float = 0, w: Float, d: Float, colors: [String], rim: String = "#B8AFA3",
+                   seed: String) {
+        deco("Flower Bed Rim", at: (x, y + 0.12, z), size: (w, 0.24, d), color: rim, material: .matte)
+        deco("Flower Bed Soil", at: (x, y + 0.2, z), size: (w - 0.3, 0.1, d - 0.3), color: "#6B4A2E", material: .matte)
+        var r = Seeded(seed)
+        let count = max(2, min(12, Int(w * d / 1.4)))
+        for i in 0..<count {
+            flower(x + r.range(-(w / 2 - 0.4), w / 2 - 0.4), z + r.range(-(d / 2 - 0.4), d / 2 - 0.4), y: y + 0.24,
+                   color: colors[i % colors.count])
+        }
+    }
+
+    /// A round pot with a bush and two blooms.
+    func planter(_ x: Float, _ z: Float, y: Float = 0, pot: String = "#C2703D", bush: String = "#3F8F3F", bloom: String = "#F472B6") {
+        deco("Planter", at: (x, y + 0.35, z), size: (0.9, 0.7, 0.9), color: pot, shape: .cylinder, material: .matte)
+        deco("Planter Rim", at: (x, y + 0.72, z), size: (1.05, 0.1, 1.05), color: Self.shade(pot, -0.15), shape: .cylinder)
+        deco("Planter Bush", at: (x, y + 1.05, z), size: (0.95, 0.75, 0.95), color: bush, shape: .sphere, material: .matte)
+        deco("Planter Bloom", at: (x + 0.25, y + 1.3, z + 0.15), size: (0.25, 0.2, 0.25), color: bloom, shape: .sphere)
+        deco("Planter Bloom", at: (x - 0.2, y + 1.25, z - 0.2), size: (0.25, 0.2, 0.25), color: Self.shade(bloom, 0.3), shape: .sphere)
+    }
+
+    /// A round shrub of two clumps.
+    func bush(_ x: Float, _ z: Float, y: Float = 0, color: String = "#3F8F3F", size: Float = 1.2) {
+        deco("Bush", at: (x, y + size * 0.4, z), size: (size, size * 0.8, size), color: color, shape: .sphere, material: .matte)
+        deco("Bush", at: (x + size * 0.35, y + size * 0.3, z + size * 0.2), size: (size * 0.7, size * 0.6, size * 0.7),
+             color: Self.shade(color, 0.12), shape: .sphere, material: .matte)
+    }
+
+    /// A round table on one leg, with `chairs` around it.
+    func table(_ x: Float, _ z: Float, y: Float = 0, top: String = "#F5F0E6", chairs: Int = 2, chair: String = "#A86A3A",
+               phase: Float = 0) {
+        deco("Table Top", at: (x, y + 0.78, z), size: (1.2, 0.08, 1.2), color: top, shape: .cylinder)
+        deco("Table Leg", at: (x, y + 0.4, z), size: (0.12, 0.76, 0.12), color: "#3A3A44", shape: .cylinder, material: .metal)
+        deco("Table Foot", at: (x, y + 0.03, z), size: (0.6, 0.06, 0.6), color: "#3A3A44", shape: .cylinder, material: .metal)
+        for i in 0..<chairs {
+            let a = phase + Float(i) / Float(chairs) * 2 * .pi
+            // Each chair sits out from the table and faces it.
+            let f = Frame(x + sin(a) * 1.05, z + cos(a) * 1.05, y: y, yaw: a * 180 / .pi + 180)
+            deco("Chair Seat", in: f, 0, 0.45, 0, size: (0.5, 0.08, 0.5), color: chair)
+            deco("Chair Back", in: f, 0, 0.75, -0.24, size: (0.5, 0.55, 0.07), color: chair)
+        }
+    }
+
+    /// A rug with a border.
+    func rug(_ x: Float, _ z: Float, y: Float = 0, w: Float, d: Float, color: String, border: String, round: Bool = false) {
+        deco("Rug Border", at: (x, y + 0.01, z), size: (w, 0.02, d), color: border, shape: round ? .cylinder : .box, material: .matte)
+        deco("Rug", at: (x, y + 0.025, z), size: (w - 0.4, 0.02, d - 0.4), color: color, shape: round ? .cylinder : .box,
+             material: .matte)
+    }
+
+    /// Shelves against a wall, the open side toward the frame's front, with
+    /// small goods in `goods` colours on every board.
+    func shelf(in f: Frame, width: Float = 3, height: Float = 2.2, color: String = "#8A5A36", goods: [String],
+               goodsShape: BlockShape = .box) {
+        deco("Shelf Back", in: f, 0, height / 2, -0.25, size: (width, height, 0.06), color: Self.shade(color, -0.15))
+        let boards = 3
+        for b in 0..<boards {
+            let y = 0.3 + Float(b) * (height - 0.4) / Float(boards - 1)
+            deco("Shelf Board", in: f, 0, y, 0, size: (width, 0.06, 0.5), color: color)
+            let n = max(1, Int(width / 0.55))
+            for i in 0..<n {
+                let dx = -width / 2 + 0.3 + Float(i) * (width - 0.6) / Float(max(1, n - 1))
+                let tall: Float = (i + b) % 3 == 0 ? 0.42 : 0.3
+                deco("Shelf Goods", in: f, dx, y + 0.03 + tall / 2, 0, size: (0.3, tall, 0.3), color: goods[(i + b) % goods.count],
+                     shape: goodsShape)
+            }
+        }
+    }
+
+    /// A bed with a headboard at the back of the frame.
+    func bed(in f: Frame, blanket: String, frame: String = "#8A5A36") {
+        deco("Bed Frame", in: f, 0, 0.25, 0, size: (1.4, 0.3, 2.2), color: frame)
+        deco("Bed Mattress", in: f, 0, 0.47, 0, size: (1.3, 0.16, 2.1), color: "#FFFFFF")
+        deco("Bed Blanket", in: f, 0, 0.57, 0.3, size: (1.36, 0.06, 1.4), color: blanket)
+        deco("Bed Pillow", in: f, 0, 0.62, -0.75, size: (0.9, 0.14, 0.4), color: "#F5F5F4")
+        deco("Bed Headboard", in: f, 0, 0.6, -1.08, size: (1.4, 1.0, 0.1), color: frame)
+    }
+
+    /// A 2 m sidewalk running along x from `a` to `b`, with a curb at
+    /// `curbZ` on the road side and a paving seam every 6 m.
+    func sidewalk(x a: Float, _ b: Float, z: Float, curbZ: Float, color: String = "#CFC8BC", curb: String = "#9CA3AF",
+                  seam: String = "#B3AB9E") {
+        deco("Sidewalk", at: ((a + b) / 2, 0.04, z), size: (b - a, 0.06, 2), color: color, material: .matte)
+        deco("Curb", at: ((a + b) / 2, 0.06, curbZ), size: (b - a, 0.1, 0.25), color: curb, material: .matte)
+        var s = a + 6
+        while s < b - 1 {
+            deco("Sidewalk Seam", at: (s, 0.075, z), size: (0.08, 0.01, 2), color: seam, material: .matte)
+            s += 6
+        }
+    }
+
+    /// The same, running along z from `a` to `b`.
+    func sidewalk(z a: Float, _ b: Float, x: Float, curbX: Float, color: String = "#CFC8BC", curb: String = "#9CA3AF",
+                  seam: String = "#B3AB9E") {
+        deco("Sidewalk", at: (x, 0.04, (a + b) / 2), size: (2, 0.06, b - a), color: color, material: .matte)
+        deco("Curb", at: (curbX, 0.06, (a + b) / 2), size: (0.25, 0.1, b - a), color: curb, material: .matte)
+        var s = a + 6
+        while s < b - 1 {
+            deco("Sidewalk Seam", at: (x, 0.075, s), size: (2, 0.01, 0.08), color: seam, material: .matte)
+            s += 6
+        }
+    }
+
+    /// A paw print on the ground, pointing along `yaw`: a pad and four toes.
+    func pawPrint(_ x: Float, _ z: Float, y: Float = 0, yaw: Float, color: String, size: Float = 1) {
+        let f = Frame(x, z, y: y, yaw: yaw)
+        deco("Paw Print", in: f, 0, 0, 0, size: (0.5 * size, 0.02, 0.42 * size), color: color, shape: .cylinder, material: .matte)
+        for (dx, dz) in [(Float(-0.3), Float(0.3)), (-0.11, 0.42), (0.11, 0.42), (0.3, 0.3)] {
+            deco("Paw Toe", in: f, dx * size, 0, dz * size, size: (0.18 * size, 0.02, 0.18 * size), color: color, shape: .cylinder,
+                 material: .matte)
+        }
+    }
+
+    /// Zebra stripes across a road running along `yaw`, centred on (x, z).
+    func crosswalk(_ x: Float, _ z: Float, y: Float = 0.06, across width: Float, yaw: Float, stripes: Int = 5) {
+        let f = Frame(x, z, y: y, yaw: yaw)
+        for i in 0..<stripes {
+            let dx = -width / 2 + width * (Float(i) + 0.5) / Float(stripes)
+            deco("Crosswalk", in: f, dx, 0, 0, size: (width / Float(stripes) * 0.55, 0.02, 2.6), color: "#F8FAFC", material: .matte)
+        }
+    }
+
+    /// A string of little flags from `a` to `b`, sagging in the middle.
+    func pennants(from a: V, to b: V, count: Int, colors: [String], sag: Float = 0.5) {
+        let dx = b.0 - a.0, dz = b.2 - a.2
+        let length = (dx * dx + dz * dz).squareRoot()
+        let yaw = atan2(dx, dz) * 180 / .pi
+        deco("Pennant String", at: ((a.0 + b.0) / 2, (a.1 + b.1) / 2 - sag * 0.6, (a.2 + b.2) / 2), size: (0.03, 0.03, length),
+             color: "#F8FAFC", rotation: (0, yaw, 0))
+        for i in 0..<count {
+            let t = (Float(i) + 0.5) / Float(count)
+            let droop = sag * 4 * t * (1 - t)
+            deco("Pennant", at: (a.0 + dx * t, a.1 + (b.1 - a.1) * t - droop - 0.25, a.2 + dz * t), size: (0.4, 0.45, 0.05),
+                 color: colors[i % colors.count], shape: .cone, rotation: (180, yaw + 90, 0))
+        }
+    }
+
+    /// A palm tree to look at: a bent trunk, a crown of fronds and coconuts.
+    func palm(_ x: Float, _ z: Float, y: Float = 0, height: Float = 5, lean: Float = 0, trunk: String = "#9C7A4E",
+              leaves: String = "#3FA34D") {
+        let lx = sin(lean * .pi / 180), lz = cos(lean * .pi / 180)
+        for i in 0..<3 {
+            let t = Float(i) / 3
+            let bend = t * t * 1.2
+            deco("Palm Trunk", at: (x + lx * bend, y + height * (t + 1 / 6), z + lz * bend), size: (0.42 - t * 0.08, height / 3 + 0.1, 0.42 - t * 0.08),
+                 color: i % 2 == 0 ? trunk : Self.shade(trunk, -0.12), shape: .cylinder, material: .matte)
+        }
+        let top: V = (x + lx * 1.4, y + height, z + lz * 1.4)
+        for k in 0..<6 {
+            let yaw = Float(k) * 60
+            let a = yaw * .pi / 180
+            deco("Palm Frond", at: (top.0 + sin(a) * 1.1, top.1 - 0.15, top.2 + cos(a) * 1.1), size: (0.7, 0.12, 2.4),
+                 color: k % 2 == 0 ? leaves : Self.shade(leaves, 0.15), shape: .sphere, material: .matte, rotation: (18, yaw, 0))
+        }
+        for k in 0..<2 {
+            let a = Float(k) * .pi + 0.6
+            deco("Coconut", at: (top.0 + sin(a) * 0.3, top.1 - 0.35, top.2 + cos(a) * 0.3), size: (0.32, 0.32, 0.32),
+                 color: "#5C3A1E", shape: .sphere)
+        }
+    }
+
+    /// A wooden barrel with two metal bands.
+    func barrel(_ x: Float, _ z: Float, y: Float = 0, color: String = "#8B5A2B") {
+        deco("Barrel", at: (x, y + 0.5, z), size: (0.8, 1, 0.8), color: color, shape: .cylinder, material: .matte)
+        for h in [Float(0.2), 0.8] {
+            deco("Barrel Band", at: (x, y + h, z), size: (0.86, 0.07, 0.86), color: "#4B5563", shape: .cylinder, material: .metal)
+        }
+    }
+
+    /// A torch on a post with a flame.
+    func torch(_ x: Float, _ z: Float, y: Float = 0, height: Float = 1.8, flame: String = "#FB923C") {
+        deco("Torch Post", at: (x, y + height / 2, z), size: (0.14, height, 0.14), color: "#5A3A1E", shape: .cylinder)
+        deco("Torch Bowl", at: (x, y + height + 0.05, z), size: (0.4, 0.2, 0.4), color: "#3A3A44", shape: .cylinder, material: .metal)
+        deco("Torch Flame", at: (x, y + height + 0.35, z), size: (0.3, 0.5, 0.3), color: flame, shape: .cone, material: .neon)
+    }
+
+    /// A mailbox on a post, its door toward the frame's front.
+    func mailbox(in f: Frame, color: String = "#2563EB") {
+        deco("Mailbox Post", in: f, 0, 0.5, 0, size: (0.12, 1, 0.12), color: "#6B4F33")
+        deco("Mailbox", in: f, 0, 1.1, 0, size: (0.36, 0.34, 0.6), color: color, material: .metal)
+        deco("Mailbox Flag", in: f, 0.21, 1.25, -0.1, size: (0.04, 0.22, 0.12), color: "#EF4444")
+    }
+
+    /// A street bin with a lid.
+    func bin(_ x: Float, _ z: Float, y: Float = 0, color: String = "#166534") {
+        deco("Bin", at: (x, y + 0.45, z), size: (0.6, 0.9, 0.6), color: color, shape: .cylinder, material: .metal)
+        deco("Bin Lid", at: (x, y + 0.93, z), size: (0.68, 0.08, 0.68), color: Self.shade(color, -0.25), shape: .cylinder, material: .metal)
+    }
+
+    /// A fire hydrant.
+    func hydrant(_ x: Float, _ z: Float, y: Float = 0) {
+        deco("Hydrant", at: (x, y + 0.35, z), size: (0.32, 0.7, 0.32), color: "#DC2626", shape: .cylinder)
+        deco("Hydrant Cap", at: (x, y + 0.75, z), size: (0.26, 0.18, 0.26), color: "#B91C1C", shape: .sphere)
+        deco("Hydrant Nozzle", at: (x, y + 0.45, z), size: (0.52, 0.12, 0.12), color: "#FACC15")
+    }
+
+    /// Little cones of grass, darker than the ground.
+    func tufts(_ points: [(Float, Float)], y: Float = 0, color: String) {
+        for (i, p) in points.enumerated() {
+            let h: Float = i % 3 == 0 ? 0.5 : 0.35
+            deco("Grass Tuft", at: (p.0, y + h / 2, p.1), size: (0.35, h, 0.35), color: i % 2 == 0 ? color : Self.shade(color, 0.1),
+                 shape: .cone, material: .matte)
+        }
+    }
+}
+
 // MARK: - Small helpers
 
 func ring(_ count: Int, radius: Float, cx: Float = 0, cz: Float = 0, phase: Float = 0) -> [(Float, Float)] {
