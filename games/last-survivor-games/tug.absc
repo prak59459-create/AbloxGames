@@ -133,7 +133,12 @@ func npc_pulls(dt)
 end
 
 func tug_surge()
-  if random() < 0.5 then surge_side = "red" else surge_side = "blue" end
+  if random() < 0.5 then tug_surge_on("red") else tug_surge_on("blue") end
+end
+
+-- そのチームの「せーの！」（ゲームマスターも使う）
+func tug_surge_on(side)
+  surge_side = side
   surge_until = time() + 1.6
   next_surge = time() + 4 + random() * 4
   let team = tug_red

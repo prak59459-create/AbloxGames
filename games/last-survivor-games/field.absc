@@ -7,6 +7,7 @@
 let doll_state = "off"    -- off / chant / fake / watch
 let doll_run = 0          -- 古いタイマーを止めるための番号
 let watch_count = 0
+let chant_at = 0          -- いまのかけ声が始まった時刻
 
 func field_start()
   doll_run = doll_run + 1
@@ -57,6 +58,7 @@ func chant()
   doll_run = doll_run + 1
   let run = doll_run
   doll_state = "chant"
+  chant_at = time()
   doll_face(false)
   let total = CHANT_SPEEDS[random(1, len(CHANT_SPEEDS))]
   -- 残り時間が少ないほど速くなる

@@ -98,6 +98,8 @@ end
 func huddle_call()
   if not playing("huddle") then return end
   let n = pick_number(len(alive_cast()))
+  let chosen = gm_take_huddle_n()
+  if chosen > 0 then n = min(chosen, max(2, len(alive_cast()))) end
   huddle_n = n
   huddle_state = "call"
   huddle_until = time() + CALL_TIME

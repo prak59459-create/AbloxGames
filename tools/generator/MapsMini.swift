@@ -25,7 +25,7 @@ let miniGames: [Game] = [
          summary: "8曲×3難易度のリズムゲーム。PERFECT判定・コンボ・フィーバー、ステージで対戦（おじゃま攻撃つき）かCPU戦、練習ブース、Sランクとファンで曲の解放！ 照明とダンサーがビートに合わせてノリノリ",
          tags: ["rhythm", "music", "1v1"], maxPlayers: 8, build: rhythmBattle),
     Game(number: 78, id: "last-survivor-games", title: "Last Survivor Games",
-         summary: "100人で挑むサバイバル。第1は だるまさんがころんだ。第2は 型ぬき か 5人6脚、第3は つなひき か なかま集め、第4は ビー玉あて か 2かいだての かくれんぼ、第5は ガラスの橋 か 大なわとびの橋。人が多すぎたら延長の最後のタイル。第6（最終）は 決戦リング か 空のタワー！ 最後の1人になれ！",
+         summary: "100人で挑むサバイバル。第1は だるまさんがころんだ。第2は 型ぬき か 5人6脚、第3は つなひき か なかま集め、第4は ビー玉あて か 2かいだての かくれんぼ、第5は ガラスの橋 か 大なわとびの橋。人が多すぎたら延長の最後のタイル。第6（最終）は 決戦リング か 空のタワー！ 50,000コインで 👑ゲームマスターになって ショーを動かす側にも。最後の1人になれ！",
          tags: ["survival", "minigames", "tense"], maxPlayers: 16, build: survivorGames),
     Game(number: 79, id: "shark-attack-bay", title: "Shark Attack Bay",
          summary: "サメ1匹 vs ボートの人間たち。ボートをこわして海へ落とせ／ハープーンとダイナマイトで撃退しろ。サメは3種類、技は4つ",

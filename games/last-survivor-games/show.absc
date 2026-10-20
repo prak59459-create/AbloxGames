@@ -17,6 +17,7 @@ func lobby_buttons(p)
   else
     p.ui_remove("go_now")
   end
+  gm_lobby_button(p)
 end
 
 func begin_show()
@@ -36,7 +37,10 @@ func begin_show()
   clear_npcs()
   pot = carry
   carry = 0
-  for p in hs do
+  gm_begin()
+  let players_in = filter(hs, func(p) return not is_gm(p) end)
+  for p in hs do p.ui_remove("go_now") end
+  for p in players_in do
     p.out = false
     p.num = fresh_number()
     p.lost_at = 0
@@ -48,15 +52,21 @@ func begin_show()
     kit_quest_progress(p, "shows", 1)
     p.message("あなたの番号は " + tag_of(p) + " — 生きのこれ", 3)
   end
-  let need = CAST_SIZE - len(cast)
-  if need > 0 then
-    for k in 1 to need do append(cast, make_npc(k)) end
-  end
+  let show = show_no
+  add_npcs(show, CAST_SIZE - len(cast))
+  if gm != nil then gm.teleport(gallery_spot("Field")) end
   update_orb()
   sound("goal")
-  announce("🎬 第" + show_no + "回 Last Survivor Games 開幕！ 参加者 " + len(cast) + " 人 — 賞金は脱落者1人につき 💰" + PRIZE_PER_OUT, 5)
-  let show = show_no
+  announce("🎬 第" + show_no + "回 Last Survivor Games 開幕！ 参加者 " + max(CAST_SIZE, len(players_in)) + " 人 — 賞金は脱落者1人につき 💰" + PRIZE_PER_OUT, 5)
   after(5, func() if show == show_no then next_game() end end)
+end
+
+-- 足りない分のNPCを NPC_BATCH 人ずつ入れる。100人を一度に作ると iPad が止まっていた
+func add_npcs(show, left)
+  if show != show_no or phase != "intro" or left <= 0 then return end
+  let batch = min(left, NPC_BATCH)
+  for k in 1 to batch do append(cast, make_npc(k)) end
+  after(NPC_BATCH_GAP, func() add_npcs(show, left - batch) end)
 end
 
 func game_index(id)
@@ -249,6 +259,7 @@ func reset_to_lobby()
   extra_done = false
   phase = "lobby"
   pot = carry
+  gm_end()
   update_orb()
   clear_feed()
   for p in humans() do

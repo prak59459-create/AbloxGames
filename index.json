@@ -2499,7 +2499,7 @@
     {
       "author" : "Ablox Games",
       "blockCount" : 1002,
-      "bytes" : 605334,
+      "bytes" : 615130,
       "cover" : "games\/last-survivor-games\/cover-302d9555.png",
       "id" : "last-survivor-games",
       "maxPlayers" : 16,
@@ -2512,6 +2512,7 @@
         "games\/last-survivor-games\/common.absc",
         "games\/last-survivor-games\/field.absc",
         "games\/last-survivor-games\/final.absc",
+        "games\/last-survivor-games\/gm.absc",
         "games\/last-survivor-games\/hide.absc",
         "games\/last-survivor-games\/huddle.absc",
         "games\/last-survivor-games\/marbles.absc",
@@ -2527,7 +2528,7 @@
         "games\/last-survivor-games\/shot1-023d460e.png",
         "games\/last-survivor-games\/shot2-ae3c3614.png"
       ],
-      "summary" : "100人で挑むサバイバル。第1は だるまさんがころんだ。第2は 型ぬき か 5人6脚、第3は つなひき か なかま集め、第4は ビー玉あて か 2かいだての かくれんぼ、第5は ガラスの橋 か 大なわとびの橋。人が多すぎたら延長の最後のタイル。第6（最終）は 決戦リング か 空のタワー！ 最後の1人になれ！",
+      "summary" : "100人で挑むサバイバル。第1は だるまさんがころんだ。第2は 型ぬき か 5人6脚、第3は つなひき か なかま集め、第4は ビー玉あて か 2かいだての かくれんぼ、第5は ガラスの橋 か 大なわとびの橋。人が多すぎたら延長の最後のタイル。第6（最終）は 決戦リング か 空のタワー！ 50,000コインで 👑ゲームマスターになって ショーを動かす側にも。最後の1人になれ！",
       "tags" : [
         "survival",
         "minigames",

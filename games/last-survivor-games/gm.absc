@@ -1,0 +1,274 @@
+-- gm.absc — 👑 ゲームマスター
+--
+-- 寮で GM_PRICE コインをはらうと、次のショーのゲームマスターになれる（1回のショーに1人）。
+-- ゲームマスターは参加者ではなく、観客席から ショーを動かす:
+--   休けい中: 次のゲームを2つのうちから えらぶ
+--   🎎 だるまさんがころんだ: 人形になって「ころんだ！」を 好きなときに言う
+--   🪢 つなひき: 「せーの！」のタイミングを 赤・青 えらんで 決める
+--   🚪 なかま集め: よぶ人数を 決める
+--   🍪 型ぬき: 箱1〜4に 何の形が入っているかを 決める
+-- 何もしなくても ショーは いつもどおり 自動で進む。
+
+let gm = nil              -- 次の／いまのショーのゲームマスター
+let gm_ui_key = ""        -- いま出しているボタンの組
+let gm_huddle_n = 0       -- なかま集めで次によぶ人数（0 = いつもどおり）
+let gm_cue_at = 0         -- 「ころんだ！」「せーの！」を最後に使った時刻
+
+func is_gm(p)
+  return gm != nil and kit_here(gm) and p != nil and gm.id == p.id
+end
+
+func gm_lobby_button(p)
+  p.ui_remove("gm_buy")
+  p.ui_remove("gm_cancel")
+  if phase != "lobby" then return end
+  if is_gm(p) then
+    p.ui_button("gm_cancel", "👑 GMをやめる（返金）", {at: "bottom", dx: 230, dy: -40, w: 220, h: 56, size: 15, bg: "#6B7280", radius: 16})
+  elif gm == nil or not kit_here(gm) then
+    p.ui_button("gm_buy", "👑 ゲームマスター 💰" + kit_short(GM_PRICE), {at: "bottom", dx: 230, dy: -40, w: 240, h: 56, size: 15, bg: "#7C3AED", radius: 16})
+  end
+end
+
+func gm_lobby_all()
+  for p in humans() do gm_lobby_button(p) end
+end
+
+func gm_buy(p)
+  if phase != "lobby" then return end
+  if gm != nil and kit_here(gm) then
+    p.message("👑 もう " + gm.name + " がゲームマスターです", 2)
+    return
+  end
+  if not kit_pay(p, GM_PRICE) then return end
+  gm = p
+  p.sound("goal")
+  p.message("👑 次のショーのゲームマスターになった！ 観客席から ゲームを動かそう", 4)
+  announce("👑 " + p.name + " が 次のショーの ゲームマスター！", 3)
+  gm_lobby_all()
+end
+
+func gm_cancel(p)
+  if phase != "lobby" or not is_gm(p) then return end
+  gm = nil
+  kit_give(p, GM_PRICE)
+  p.message("👑 ゲームマスターを やめた（💰" + kit_short(GM_PRICE) + " もどった）", 2.5)
+  gm_lobby_all()
+end
+
+-- ショーが始まるとき（show.absc の begin_show から）
+func gm_begin()
+  if gm == nil or not kit_here(gm) then
+    gm = nil
+    return
+  end
+  gm.out = true
+  gm.num = nil
+  gm.ui_remove("gm_buy")
+  gm.ui_remove("gm_cancel")
+  gm.ui_text("gm_title", "👑 ゲームマスター", {at: "right", dy: -200, size: 20, bold: true, color: "#C4B5FD"})
+  gm_ui_key = ""
+  gm_huddle_n = 0
+end
+
+-- ショーが終わって寮にもどるとき
+func gm_end()
+  if gm != nil and kit_here(gm) then
+    gm_clear(gm)
+    gm.ui_remove("gm_title")
+  end
+  gm = nil
+  gm_ui_key = ""
+  gm_huddle_n = 0
+end
+
+let GM_BUTTONS = ["gm_doll", "gm_heave_red", "gm_heave_blue", "gm_n2", "gm_n3", "gm_n4", "gm_n5",
+                  "gm_box1", "gm_box2", "gm_box3", "gm_box4", "gm_next1", "gm_next2", "gm_hint"]
+
+func gm_clear(p)
+  for id in GM_BUTTONS do p.ui_remove(id) end
+end
+
+func gm_button(id, label, k, color)
+  gm.ui_button(id, label, {at: "right", dx: -30, dy: -150 + k * 62, w: 230, h: 54, size: 16, bg: color, radius: 14})
+end
+
+func gm_hint(text)
+  gm.ui_text("gm_hint", text, {at: "right", dx: -30, dy: -165, size: 13, color: "#E9D5FF"})
+end
+
+-- いまの場面で出すボタンの組
+func gm_key()
+  let g = game()
+  if phase == "between" then return "between:" + next_i end
+  if phase != "play" or g == nil then return phase end
+  if g.id == "candy" then
+    if candy_on then return "candy:on" end
+    return "candy:boxes"
+  end
+  if g.id == "huddle" then return "huddle:" + huddle_state end
+  return "play:" + g.id
+end
+
+func gm_refresh()
+  if gm == nil or not kit_here(gm) then return end
+  let key = gm_key()
+  if key == gm_ui_key then return end
+  gm_ui_key = key
+  gm_clear(gm)
+  let g = game()
+  if phase == "between" then
+    gm_next_buttons()
+  elif phase != "play" or g == nil then
+    return
+  elif g.id == "field" then
+    gm_hint("あなたが人形。かけ声のとちゅうで…")
+    gm_button("gm_doll", "🔴 ころんだ！", 1, "#DC2626")
+  elif g.id == "tug" then
+    gm_hint("「せーの！」で そのチームの NPC が2倍の力")
+    gm_button("gm_heave_red", "📣 🟥 赤 せーの！", 1, "#DC2626")
+    gm_button("gm_heave_blue", "📣 🟦 青 せーの！", 2, "#2563EB")
+  elif g.id == "huddle" and huddle_state == "spin" then
+    gm_hint("次に よぶ人数を えらぶ")
+    for n in 2 to 5 do gm_button("gm_n" + n, "📢 " + n + " 人", n - 1, "#DB2777") end
+  elif g.id == "candy" and not candy_on then
+    gm_box_buttons()
+  end
+end
+
+-- MARK: 休けい中: 次のゲーム
+
+func gm_next_options()
+  if next_i == 0 then return [] end
+  let s = stage_of(GAMES[next_i].id)
+  if s == 0 then return [] end
+  let options = []
+  for gid in STAGES[s] do
+    let k = game_index(gid)
+    if k != 0 then append(options, k) end
+  end
+  if len(options) < 2 then return [] end
+  return options
+end
+
+func gm_next_buttons()
+  let options = gm_next_options()
+  if len(options) == 0 then return end
+  gm_hint("次のゲームを えらぶ")
+  let i = 0
+  for k in options do
+    i = i + 1
+    if i <= 2 then
+      let g = GAMES[k]
+      let label = g.emoji + " " + g.name
+      if k == next_i then label = "✅ " + label end
+      gm_button("gm_next" + i, label, i, "#7C3AED")
+    end
+  end
+end
+
+func gm_pick_next(i)
+  if phase != "between" then return end
+  let options = gm_next_options()
+  if i > len(options) then return end
+  next_i = options[i]
+  let g = GAMES[next_i]
+  announce("👑 ゲームマスターが えらんだ: 次は " + stage_label(g) + " " + g.emoji + " " + g.name, 3)
+  gm_ui_key = ""
+  gm_refresh()
+end
+
+-- MARK: だるまさんがころんだ
+
+func gm_doll()
+  if not playing("field") or doll_state != "chant" then return end
+  if time() - chant_at < GM_DOLL_WAIT then
+    gm.message("⏳ もう少し かけ声を 言ってから", 1)
+    return
+  end
+  doll_run = doll_run + 1
+  turn_around()
+end
+
+-- MARK: つなひき
+
+func gm_heave(side)
+  if not playing("tug") or not tug_on then return end
+  if time() - gm_cue_at < GM_HEAVE_WAIT then
+    gm.message("⏳ 少し 待ってから", 1)
+    return
+  end
+  gm_cue_at = time()
+  tug_surge_on(side)
+end
+
+-- MARK: なかま集め
+
+func gm_huddle(n)
+  if not playing("huddle") or huddle_state != "spin" then return end
+  gm_huddle_n = n
+  gm.message("📢 次は " + n + " 人を よぶ", 1.5)
+end
+
+-- huddle.absc の huddle_call から: ゲームマスターが決めた人数（なければ 0）
+func gm_take_huddle_n()
+  let n = gm_huddle_n
+  gm_huddle_n = 0
+  if gm == nil or not kit_here(gm) then return 0 end
+  return n
+end
+
+-- MARK: 型ぬき
+
+func gm_box_buttons()
+  gm_hint("箱の中の形を決める（おすと かわる）")
+  for k in 1 to 4 do
+    let s = CANDY_SHAPES[candy_boxes[k]]
+    gm_button("gm_box" + k, "📦 箱" + k + "  " + s.emoji + " " + s.name, k, "#B45309")
+  end
+end
+
+func gm_box(k)
+  if not playing("candy") or candy_on then return end
+  candy_boxes[k] = candy_boxes[k] % len(CANDY_SHAPES) + 1
+  gm_box_buttons()
+end
+
+on start()
+  every(0.5, func() gm_refresh() end)
+end
+
+on button(p, id)
+  if id == "gm_buy" then
+    gm_buy(p)
+  elif id == "gm_cancel" then
+    gm_cancel(p)
+  elif not is_gm(p) then
+    return
+  elif id == "gm_doll" then
+    gm_doll()
+  elif id == "gm_heave_red" then
+    gm_heave("red")
+  elif id == "gm_heave_blue" then
+    gm_heave("blue")
+  elif id == "gm_next1" then
+    gm_pick_next(1)
+  elif id == "gm_next2" then
+    gm_pick_next(2)
+  elif id == "gm_n2" then
+    gm_huddle(2)
+  elif id == "gm_n3" then
+    gm_huddle(3)
+  elif id == "gm_n4" then
+    gm_huddle(4)
+  elif id == "gm_n5" then
+    gm_huddle(5)
+  elif id == "gm_box1" then
+    gm_box(1)
+  elif id == "gm_box2" then
+    gm_box(2)
+  elif id == "gm_box3" then
+    gm_box(3)
+  elif id == "gm_box4" then
+    gm_box(4)
+  end
+end
