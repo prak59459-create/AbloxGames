@@ -38,8 +38,8 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/fruit-seas/cover-3256390b.png" width="200"> | 2 | **Fruit Seas Adventure** | ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。 |
 | <img src="games/pet-home-paradise/cover-ca454097.png" width="200"> | 3 | **Pet Home Paradise** | たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。 |
 | <img src="games/meme-heist/cover-c6ea7f29.png" width="200"> | 4 | **Meme Heist** | 赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。 |
-| <img src="games/reel-legends/cover-5a0ae04d.png" width="200"> | 5 | **Reel Legends** | つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。 |
-| <img src="games/clash-duels/cover-708781ad.png" width="200"> | 6 | **Clash Duels** | 1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。 |
+| <img src="games/reel-legends/cover-c924f5a7.png" width="200"> | 5 | **Reel Legends** | つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。 |
+| <img src="games/clash-duels/cover-292a2a1a.png" width="200"> | 6 | **Clash Duels** | 1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。 |
 | <img src="games/sprout-garden/cover-09d97941.png" width="200"> | 7 | **Sprout Garden** | 自分の畑にタネをまいて、育ったら収穫して売ろう。雨や虹のイベントで作物がパワーアップ。レアなタネで夢の庭園を。 |
 | <img src="games/runway-star/cover-9827a7d3.png" width="200"> | 8 | **Runway Star** | テーマに合わせて服の色や帽子をコーディネートしてランウェイへ。みんなで星をつけ合って、トップモデルを決めよう。 |
 | <img src="games/mystery-manor/cover-756a1df5.png" width="200"> | 9 | **Mystery Manor** | 市民・保安官・犯人に分かれる推理サバイバル。犯人は正体をかくして全員を、保安官は犯人を見つけてたおせ。市民は生きのこれ！ |
@@ -153,7 +153,7 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 | <img src="games/easy-peasy-obby/cover-7a26b18d.png" width="200"> | 87 | **Easy Peasy Obby** | 小さい子でもクリアできる、とってもやさしい100ステージ。草原・おかし・ビーチ・雪・宇宙など10のワールド。ついてくるペット、ワールドごとのシールとぼうし、コイン集め。 |
 | <img src="games/cart-ride-wonderland/cover-d6019e4e.png" width="200"> | 88 | **Cart Ride Wonderland** | カートに乗って長〜いコースをどこまでも。花畑・鉱山・おかし・雪・火山をぬけてお城まで20の駅。スピードは自分で調節、ジャンプ台・電車のふみきり・落石・マグマの橋に注意！ |
 | <img src="games/grapple-ascent/cover-65c19a96.png" width="200"> | 89 | **Grapple Ascent** | 光るフックにグラップルを打って、空高い塔を上へ上へ。フックをタップするか🪝ボタン。風の吹く場所、遠いフック、高さランキング。ロープの長さ・引っぱる力・連続グラップルを強化。 |
-| <img src="games/rooftop-parkour/cover-e36d6116.png" width="200"> | 90 | **Rooftop Parkour** | 街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。 |
+| <img src="games/rooftop-parkour/cover-328621e0.png" width="200"> | 90 | **Rooftop Parkour** | 街の屋根から屋根へ走るパルクール。ダッシュ・2段ジャンプ・カベキック・スライディングを組み合わせて30の屋根をこえろ。技をつなぐとフロー（速さ）が上がる。屋根の配達のお仕事も。 |
 | <img src="games/swing-rope-obby/cover-169e383d.png" width="200"> | 91 | **Swing Rope Obby** | ロープにつかまって、いいタイミングで「はなす」！ 遠くの島ほどレアなふしぎ生き物ミームリンがいる。つれて帰って自分の基地にならべるとコインがどんどん。ロープの力・持てる数・基地を強化。 |
 | <img src="games/shrink-grow-obby/cover-15e93a42.png" width="200"> | 92 | **Shrink & Grow Obby** | 小さくなって穴をくぐり、大きくなって段差とすきまをこえる！ キッチン・お庭・おもちゃの城の30ステージ。小さいとわれないガラス、大きくないと押せないスイッチ。かくれた宝石も。 |
 | <img src="games/chased-by-stuff-obby/cover-8390f55c.png" width="200"> | 93 | **Chased by Stuff Obby** | 巨大なボール、アヒル、食パン、ボウリングの玉、パイナップル、目ざまし時計、ハンバーガー、クマのぬいぐるみ… 8つのコースで、うしろから追いかけてくる「なにか」から走ってにげろ！ |

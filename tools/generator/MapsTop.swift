@@ -1440,6 +1440,202 @@ func reelLegends(_ m: MapBuilder) {
     }
     // Where a treasure map leads.
     m.markers("Treasure Spot", points: [(20, 18), (-22, -16), (8, -18), (-6, 16)], y: 0, color: "#FACC15", visible: false, behavior: .none)
+    reelLegendsDetail(m)
+}
+
+/// Finishing touches, only to look at (nothing here is solid or tagged, and
+/// no name is one a script looks for): a boardwalk round the harbour town,
+/// a cobbled square with a leaping-fish statue, a lighthouse, signs and
+/// goods at every shop, posts, ropes, lanterns and a moored boat at every
+/// dock, and what each fishing ground has round it.
+func reelLegendsDetail(_ m: MapBuilder) {
+    let plank = "#B07A45", plankDark = "#8B5A2B"
+    // A boardwalk along the town's edge, plank by plank.
+    for side in [Float(-1), 1] {
+        var x: Float = -24
+        var i = 0
+        while x <= 24 {
+            m.deco("Boardwalk Plank", at: (x, 0.03, side * 19), size: (0.9, 0.05, 2), color: i % 2 == 0 ? plank : plankDark, material: .matte)
+            x += 1
+            i += 1
+        }
+        var z: Float = -18
+        i = 0
+        while z <= 18 {
+            m.deco("Boardwalk Plank", at: (side * 24, 0.03, z), size: (2, 0.05, 0.9), color: i % 2 == 0 ? plank : plankDark, material: .matte)
+            z += 1
+            i += 1
+        }
+    }
+    for p in [(Float(-24), Float(-19)), (24, -19), (24, 19), (-24, 19)] {
+        m.deco("Mooring Bollard", at: (p.0, 0.3, p.1), size: (0.4, 0.6, 0.4), color: "#374151", shape: .cylinder, material: .metal)
+    }
+
+    // The square: rings of cobbles round the spawn, and a fish leaping from a fountain.
+    for (r, color, y) in [(Float(8), "#CBBF9F", Float(0.035)), (7.2, "#DDD3B8", 0.04), (3.2, "#CBBF9F", 0.045)] {
+        m.deco("Square Paving", at: (0, y, 0), size: (r * 2, 0.01, r * 2), color: color, shape: .cylinder, material: .matte)
+    }
+    for p in ring(20, radius: 7.6) {
+        m.deco("Square Cobble", at: (p.0, 0.05, p.1), size: (0.5, 0.01, 0.5), color: "#A8996F", shape: .cylinder, material: .matte)
+    }
+    m.deco("Fish Fountain Basin", at: (0, 0.3, 0), size: (2.6, 0.6, 2.6), color: "#94A3B8", shape: .cylinder, material: .matte)
+    m.deco("Fish Fountain Water", at: (0, 0.58, 0), size: (2.2, 0.06, 2.2), color: "#38BDF8", shape: .cylinder, material: .glass, opacity: 0.8)
+    m.deco("Fish Statue Body", at: (0, 1.6, 0), size: (0.6, 0.9, 1.6), color: "#F59E0B", shape: .sphere, material: .metal, rotation: (-35, 0, 0))
+    m.deco("Fish Statue Tail", at: (0, 1.0, 0.75), size: (0.1, 0.7, 0.6), color: "#D97706", material: .metal, rotation: (-35, 0, 0))
+    m.deco("Fish Statue Eye", at: (0.22, 2.0, -0.45), size: (0.12, 0.12, 0.12), color: "#111827", shape: .sphere)
+    m.deco("Fish Statue Eye", at: (-0.22, 2.0, -0.45), size: (0.12, 0.12, 0.12), color: "#111827", shape: .sphere)
+    for p in ring(4, radius: 7.6, phase: .pi / 4) {
+        m.bench(in: Frame(p.0, p.1, yaw: atan2(-p.0, -p.1) * 180 / .pi), color: "#7C4A21")
+    }
+
+    // A lighthouse on the town's corner, red and white.
+    for i in 0..<6 {
+        m.deco("Lighthouse Band", at: (21, 1 + Float(i) * 1.6, 16), size: (2.4 - Float(i) * 0.15, 1.6, 2.4 - Float(i) * 0.15),
+               color: i % 2 == 0 ? "#DC2626" : "#F8FAFC", shape: .cylinder, material: .matte)
+    }
+    m.deco("Lighthouse Gallery", at: (21, 10.3, 16), size: (2.4, 0.15, 2.4), color: "#1F2937", shape: .cylinder, material: .metal)
+    m.deco("Lighthouse Lamp", at: (21, 11, 16), size: (1.2, 1.2, 1.2), color: "#FDE68A", shape: .cylinder, material: .neon)
+    m.deco("Lighthouse Roof", at: (21, 12.1, 16), size: (1.8, 1.1, 1.8), color: "#991B1B", shape: .cone, material: .matte)
+
+    // Signs, and what each shop sells, out front.
+    m.signboard("Fish Market Board", in: Frame(-20, -4.5, yaw: 0), lines: [("🐟 魚市場", "#FFFFFF"), ("Fish Market", "#BAE6FD")], board: "#0369A1")
+    m.signboard("Rod Shop Board", in: Frame(20, -4.5, yaw: 0), lines: [("🎣 ロッド屋", "#FFFFFF"), ("Rod Shop", "#BFDBFE")], board: "#1E3A8A")
+    m.signboard("Bait Shop Board", in: Frame(20, 4.5, yaw: 180), lines: [("🪱 エサ屋", "#FFFFFF"), ("Bait Shop", "#BBF7D0")], board: "#166534")
+    m.signboard("Angler Board", in: Frame(-20, 9, yaw: 180), lines: [("🧑‍🦰 つり名人", "#FFFFFF"), ("Angler", "#FED7AA")], board: "#9A3412")
+    // Ice boxes of fish beside the market.
+    for (i, x) in [Float(-18.5), -9.5].enumerated() {
+        m.deco("Ice Box", at: (x, 0.4, -4.2), size: (1.6, 0.8, 1), color: "#E0F2FE", material: .matte)
+        m.deco("Ice", at: (x, 0.82, -4.2), size: (1.4, 0.06, 0.8), color: "#BAE6FD", material: .glass, opacity: 0.9)
+        for k in 0..<3 {
+            m.deco("Fish On Ice", at: (x - 0.45 + Float(k) * 0.45, 0.9, -4.2), size: (0.22, 0.12, 0.6),
+                   color: ["#94A3B8", "#F97316", "#38BDF8", "#F472B6"][(i + k) % 4], shape: .sphere)
+        }
+    }
+    // A rack of rods by the rod shop.
+    m.deco("Rod Rack", at: (8.5, 0.6, -4.6), size: (2.4, 0.15, 0.4), color: plankDark, material: .matte)
+    for k in 0..<5 {
+        m.deco("Rack Rod", at: (7.5 + Float(k) * 0.5, 1.4, -4.6), size: (0.06, 2.6, 0.06), color: ["#1D4ED8", "#DC2626", "#16A34A", "#F59E0B", "#7C3AED"][k],
+               shape: .cylinder, material: .metal, rotation: (8, 0, 0))
+    }
+    // Bait buckets by the bait shop.
+    for k in 0..<3 {
+        let x = 8.6 + Float(k) * 0.9
+        m.deco("Bait Bucket", at: (x, 0.3, 4.6), size: (0.6, 0.6, 0.6), color: ["#16A34A", "#F59E0B", "#2563EB"][k], shape: .cylinder)
+        m.deco("Bait", at: (x, 0.6, 4.6), size: (0.5, 0.05, 0.5), color: "#7C2D12", shape: .cylinder, material: .matte)
+    }
+    // Barrels, crates and a net drying by the angler's hut.
+    m.barrel(-19, 12.5)
+    m.barrel(-18, 13.6, color: "#6B4423")
+    m.deco("Hut Crate", at: (-9.5, 0.45, 13), size: (0.9, 0.9, 0.9), color: "#A16207", material: .matte)
+    m.deco("Hut Crate", at: (-9.6, 1.25, 13.1), size: (0.7, 0.7, 0.7), color: "#92400E", material: .matte, rotation: (0, 20, 0))
+    m.deco("Drying Net", at: (-14, 1.8, 12.4), size: (4.6, 1.8, 0.05), color: "#D6D3D1", material: .matte, opacity: 0.55)
+    for x in [Float(-16.4), -11.6] {
+        m.deco("Net Pole", at: (x, 1.4, 12.4), size: (0.12, 2.8, 0.12), color: plankDark, shape: .cylinder)
+    }
+    for p in [(Float(-6), Float(-15)), (6, -15), (-6, 15), (6, 15), (-22, 0), (22, 0)] {
+        m.lamp(p.0, p.1, name: "Harbor Lamp")
+    }
+
+    // The piers and docks: posts along both sides with a rope between, a
+    // lantern on each dock, a little boat moored alongside and buoys out on the water.
+    let zones: [(String, Float, Float, String)] = [
+        ("Pond", 0, 48, "#86EFAC"), ("River", 45, 45, "#7DD3FC"), ("Ocean", 64, 0, "#38BDF8"), ("Coral Reef", 45, -45, "#F472B6"),
+        ("Deep Trench", 0, -66, "#1E3A8A"), ("Frozen Lake", -45, -45, "#E0F2FE"), ("Volcano Lake", -64, 0, "#F97316"),
+        ("Sunken Ruins", -45, 45, "#A78BFA")
+    ]
+    let hulls = ["#EF4444", "#F8FAFC", "#2563EB", "#FACC15"]
+    for (n, z) in zones.enumerated() {
+        let len = (z.1 * z.1 + z.2 * z.2).squareRoot()
+        let ux = z.1 / len, uz = z.2 / len
+        let yaw = atan2(ux, uz) * 180 / .pi
+        let edge: Float = 18
+        let pierLength = len - edge - 5
+        var t: Float = edge + 1
+        while t < edge + pierLength {
+            for side in [Float(-1), 1] {
+                let f = Frame(ux * t, uz * t, yaw: yaw)
+                m.deco("Pier Post", in: f, side * 2.1, 0.35, 0, size: (0.22, 0.9, 0.22), color: plankDark, shape: .cylinder)
+            }
+            t += 4
+        }
+        let mid = Frame(ux * (edge + pierLength / 2), uz * (edge + pierLength / 2), yaw: yaw)
+        for side in [Float(-1), 1] {
+            m.deco("Pier Rope", in: mid, side * 2.1, 0.75, 0, size: (0.05, 0.05, pierLength - 2), color: "#E7D8B5")
+        }
+        let dock = Frame(z.1, z.2, yaw: yaw)
+        // Lanterns on the dock's far corners.
+        for side in [Float(-1), 1] {
+            m.deco("Dock Lantern Post", in: dock, side * 5.5, 0.7, 5.5, size: (0.15, 1.4, 0.15), color: "#3F3F46", shape: .cylinder, material: .metal)
+            m.deco("Dock Lantern", in: dock, side * 5.5, 1.55, 5.5, size: (0.4, 0.4, 0.4), color: "#FDE68A", material: .neon)
+        }
+        // A rowing boat tied up beside it.
+        let hull = hulls[n % hulls.count]
+        m.deco("Moored Boat", in: dock, 8, -0.25, 0, size: (1.6, 0.6, 4), color: hull, shape: .sphere, material: .matte)
+        m.deco("Moored Boat Seat", in: dock, 8, 0.02, 0, size: (1.3, 0.08, 0.4), color: plank)
+        m.deco("Moored Boat Rope", in: dock, 6.8, 0.0, 0, size: (2.4, 0.04, 0.04), color: "#E7D8B5")
+        // Buoys round the water, in the ground's colour.
+        for k in 0..<3 {
+            let a = Float(k - 1) * 0.5
+            let bx = z.1 + ux * 16 + cos(yaw * .pi / 180) * a * 10, bz = z.2 + uz * 16 - sin(yaw * .pi / 180) * a * 10
+            m.deco("Buoy", at: (bx, -0.05, bz), size: (0.6, 0.6, 0.6), color: k % 2 == 0 ? "#EF4444" : "#F8FAFC", shape: .sphere)
+            m.deco("Buoy Top", at: (bx, 0.35, bz), size: (0.12, 0.4, 0.12), color: z.3, shape: .cylinder, material: .neon)
+        }
+        // A small board naming the ground.
+        m.signboard("\(z.0) Board", in: Frame(z.1 + 4, z.2 - 5, yaw: yaw + 180), lines: [(z.0, "#FFFFFF")], board: MapBuilder.shade(z.3, -0.35),
+                    width: 2.6, height: 1.8)
+    }
+
+    // What each ground has round it.
+    // Pond: lily pads and flowers.
+    for (i, p) in ring(9, radius: 9, cx: 0, cz: 60).enumerated() {
+        m.deco("Lily Pad", at: (p.0, -0.17, p.1), size: (1.1, 0.03, 1.1), color: "#4D7C0F", shape: .cylinder, material: .matte)
+        if i % 3 == 0 { m.deco("Lily Flower", at: (p.0, -0.05, p.1), size: (0.35, 0.25, 0.35), color: "#F9A8D4", shape: .sphere) }
+    }
+    // River: stepping rocks and more reeds.
+    var r = Seeded("reel river")
+    for _ in 0..<8 {
+        let x = 54 + r.range(-7, 7), z = 54 + r.range(-7, 7)
+        m.deco("River Rock", at: (x, -0.1, z), size: (r.range(0.8, 1.6), 0.5, r.range(0.8, 1.4)), color: "#78716C", shape: .sphere, material: .matte)
+    }
+    for i in 0..<6 { m.deco("Reed", at: (36 + Float(i) * 1.3, 0.6, 38), size: (0.25, 2.2, 0.25), color: "#4D7C0F", shape: .cylinder) }
+    // Ocean: a far sailing boat and gulls.
+    m.deco("Sailboat Hull", at: (96, -0.1, 20), size: (2.4, 1, 7), color: "#F8FAFC", shape: .sphere, material: .matte)
+    m.deco("Sailboat Mast", at: (96, 3.2, 20), size: (0.15, 6, 0.15), color: "#78716C", shape: .cylinder)
+    m.deco("Sailboat Sail", at: (96, 3.4, 21.2), size: (0.06, 4.6, 2.4), color: "#FDE68A", shape: .cone)
+    for p in ring(4, radius: 6, cx: 74, cz: 4) {
+        m.deco("Gull", at: (p.0, 6 + p.1 * 0.05, p.1), size: (1.2, 0.12, 0.35), color: "#F8FAFC", rotation: (0, p.0 * 20, 0))
+    }
+    // Coral reef: little bright fish over the coral.
+    for (i, p) in ring(8, radius: 5, cx: 54, cz: -54).enumerated() {
+        m.deco("Reef Fish", at: (p.0, 0.9 + Float(i % 3) * 0.3, p.1), size: (0.2, 0.25, 0.5),
+               color: ["#FACC15", "#38BDF8", "#FB7185", "#A3E635"][i % 4], shape: .sphere, rotation: (0, Float(i) * 45, 0))
+    }
+    // Deep trench: dark rings going down, and glowing deep-sea lights.
+    for (k, rad) in [Float(10), 7, 4].enumerated() {
+        m.deco("Trench Ring", at: (0, -0.24 - Float(k) * 0.01, -78), size: (rad * 2, 0.02, rad * 2),
+               color: ["#1E3A8A", "#172554", "#0B1023"][k], shape: .cylinder, material: .glass, opacity: 0.6)
+    }
+    for p in ring(5, radius: 6, cx: 0, cz: -78) {
+        m.deco("Deep Glow", at: (p.0, -0.1, p.1), size: (0.3, 0.3, 0.3), color: "#22D3EE", shape: .sphere, material: .neon)
+    }
+    // Frozen lake: snow drifts and ice-fishing holes.
+    for p in ring(6, radius: 9, cx: -54, cz: -54, phase: 0.3) {
+        m.deco("Snow Drift", at: (p.0, 0.1, p.1), size: (2.2, 0.6, 1.4), color: "#F8FAFC", shape: .sphere, material: .matte)
+    }
+    for p in [(Float(-51), Float(-57)), (-57, -51)] {
+        m.deco("Ice Hole", at: (p.0, -0.03, p.1), size: (1.2, 0.02, 1.2), color: "#0C4A6E", shape: .cylinder, material: .matte)
+    }
+    // Volcano lake: dark rocks with glowing cracks.
+    for (i, p) in ring(6, radius: 9, cx: -76, cz: 0, phase: 0.4).enumerated() {
+        m.deco("Lava Rock", at: (p.0, 0.1, p.1), size: (1.6, 0.8, 1.3), color: "#292524", shape: .sphere, material: .matte)
+        if i % 2 == 0 { m.deco("Lava Crack", at: (p.0, 0.45, p.1), size: (0.9, 0.05, 0.12), color: "#FF5A1F", material: .neon) }
+    }
+    // Sunken ruins: a fallen arch and broken steps.
+    m.deco("Ruin Arch Top", at: (-56, 3.2, 56), size: (5, 0.8, 1), color: "#C4B5FD", material: .matte, rotation: (0, 45, 8))
+    for k in 0..<3 {
+        m.deco("Ruin Step", at: (-52 + Float(k) * 0.9, 0.1 + Float(k) * 0.15, 60 - Float(k) * 0.9), size: (1.8, 0.3, 0.9),
+               color: "#A78BFA", material: .matte, rotation: (0, 45, 0))
+    }
 }
 
 // MARK: 6 Clash Duels
@@ -1511,6 +1707,140 @@ func clashDuels(_ m: MapBuilder) {
     m.pad("Arena Exit", x: 0, z: -26, y: 0.4, size: 3, color: "#94A3B8", tags: ["lobby"])
     m.pad("Docks Exit", x: 0, z: 125, y: 0.4, size: 3, color: "#94A3B8", tags: ["lobby"])
     m.pad("Temple Exit", x: 130, z: -32, y: 0.4, size: 3, color: "#94A3B8", tags: ["lobby"])
+    clashDuelsDetail(m)
+}
+
+/// Finishing touches, only to look at (nothing here is solid or tagged, and
+/// no name is one a script looks for). Inside the arenas they are flat or on
+/// the walls, so nothing looks like cover that a shot would go through;
+/// bigger things stand outside the walls.
+func clashDuelsDetail(_ m: MapBuilder) {
+    // The lobby: a tiled floor, neon trim on the wall, team banners,
+    // benches, a trophy stand and planters.
+    let lobbyX: Float = -140
+    for i in -4...4 {
+        let o = Float(i) * 5.5
+        m.deco("Lobby Tile Line", at: (lobbyX + o, 0.41, 0), size: (0.06, 0.01, 49), color: "#3F4C63", material: .matte)
+        m.deco("Lobby Tile Line", at: (lobbyX, 0.41, o), size: (49, 0.01, 0.06), color: "#3F4C63", material: .matte)
+    }
+    m.deco("Lobby Centre Ring", at: (lobbyX, 0.415, 0), size: (16, 0.01, 16), color: "#22D3EE", shape: .cylinder, material: .neon, opacity: 0.35)
+    m.deco("Lobby Centre", at: (lobbyX, 0.42, 0), size: (15, 0.01, 15), color: "#1E293B", shape: .cylinder, material: .matte)
+    for side in [Float(-1), 1] {
+        m.deco("Lobby Wall Trim", at: (lobbyX, 2.45, side * 25), size: (50, 0.1, 0.5), color: "#22D3EE", material: .neon)
+        m.deco("Lobby Wall Trim", at: (lobbyX + side * 25, 2.45, 0), size: (0.5, 0.1, 50), color: "#22D3EE", material: .neon)
+    }
+    // Banners hanging on the back walls: red, blue and the duel's gold.
+    for (i, x) in [Float(-155), -147, -133, -125].enumerated() {
+        let color = ["#B91C1C", "#1D4ED8", "#B91C1C", "#1D4ED8"][i]
+        m.deco("Lobby Banner", at: (x, 3.6, 24.6), size: (2.2, 3.2, 0.08), color: color, material: .matte)
+        m.deco("Lobby Banner Point", at: (x, 1.85, 24.6), size: (1.2, 0.6, 0.08), color: color, shape: .cone, rotation: (180, 0, 0))
+        m.deco("Lobby Banner Badge", at: (x, 3.9, 24.5), size: (0.9, 0.9, 0.06), color: "#FACC15", shape: .cylinder, rotation: (90, 0, 0))
+    }
+    for x in [Float(-160), -120] {
+        for z in [Float(-6), 6] {
+            m.bench(in: Frame(x, z, y: 0.4, yaw: x < lobbyX ? 90 : -90), color: "#475569", metal: "#1F2937")
+        }
+        m.planter(x, 0, y: 0.4, pot: "#334155", bush: "#15803D", bloom: "#22D3EE")
+    }
+    m.deco("Trophy Stand", at: (lobbyX, 0.9, 22), size: (3, 1, 1.2), color: "#1F2937", material: .metal)
+    m.deco("Trophy Cup", at: (lobbyX, 1.9, 22), size: (0.8, 0.9, 0.8), color: "#FACC15", shape: .cylinder, material: .metal)
+    m.deco("Trophy Base", at: (lobbyX, 1.45, 22), size: (0.5, 0.2, 0.5), color: "#CA8A04", material: .metal)
+    for side in [Float(-1), 1] {
+        m.deco("Trophy Handle", at: (lobbyX + side * 0.5, 2.0, 22), size: (0.12, 0.45, 0.12), color: "#FACC15", shape: .cylinder, material: .metal,
+               rotation: (0, 0, side * 30))
+    }
+    // Targets painted on the training range floor, and a scoreboard behind.
+    for (i, x) in [Float(-156), -148, -140, -132, -124].enumerated() {
+        let z: Float = i % 2 == 0 ? 68 : 70
+        for (k, rad) in [Float(1.6), 1.1, 0.6].enumerated() {
+            m.deco("Range Target Ring", at: (x, 0.41 + Float(k) * 0.002, z), size: (rad * 2, 0.01, rad * 2),
+                   color: k % 2 == 0 ? "#F8FAFC" : "#DC2626", shape: .cylinder, material: .matte)
+        }
+    }
+    m.signboard("Range Board", in: Frame(-140, 73, y: 0.4, yaw: 180), lines: [("🎯 練習場", "#FFFFFF"), ("Training Range", "#BBF7D0")],
+                board: "#14532D", width: 5)
+
+    // Crossroads: lane lines, team colours at each base, lights on the walls.
+    for z in [Float(-15), 0, 15] {
+        m.deco("Arena Lane", at: (0, 0.41, z), size: (60, 0.01, 0.2), color: "#94A3B8", material: .matte, opacity: 0.7)
+    }
+    m.deco("Arena Centre Mark", at: (0, 0.412, 0), size: (12, 0.01, 12), color: "#FACC15", shape: .cylinder, material: .matte, opacity: 0.35)
+    for (x, color) in [(Float(-45.3), "#B91C1C"), (45.3, "#1D4ED8")] {
+        m.deco("Base Wall Banner", at: (x, 3.6, 0), size: (0.08, 3, 6), color: color, material: .matte)
+        m.deco("Base Wall Stripe", at: (x, 1.2, 0), size: (0.08, 0.3, 20), color: color, material: .neon)
+        m.deco("Base Floor Stripe", at: (x * 0.82, 0.71, -10.5), size: (10, 0.01, 0.6), color: color, material: .neon)
+        m.deco("Base Floor Stripe", at: (x * 0.82, 0.71, 10.5), size: (10, 0.01, 0.6), color: color, material: .neon)
+    }
+    for x in stride(from: Float(-36), through: 36, by: 12) {
+        for side in [Float(-1), 1] {
+            m.deco("Arena Wall Light", at: (x, 5.2, side * 30.3), size: (1.6, 0.4, 0.2), color: "#E0F2FE", material: .neon)
+        }
+    }
+    // Floodlight towers outside the arena's corners.
+    for (x, z) in [(Float(-50), Float(-35)), (50, -35), (-50, 35), (50, 35)] {
+        m.deco("Floodlight Mast", at: (x, 6, z), size: (0.5, 12, 0.5), color: "#334155", shape: .cylinder, material: .metal)
+        m.deco("Floodlight", at: (x, 12.2, z), size: (2.4, 1, 0.6), color: "#F8FAFC", material: .neon, rotation: (0, atan2(-x, -z) * 180 / .pi, 0))
+    }
+
+    // Docks: hazard stripes along the walls, painted bays, bollards on the
+    // edge, and a crane and the sea outside.
+    for side in [Float(-1), 1] {
+        var x: Float = -29
+        var i = 0
+        while x <= 29 {
+            m.deco("Hazard Stripe", at: (x, 0.6, 110 + side * 17.8), size: (1, 0.4, 0.06), color: i % 2 == 0 ? "#FACC15" : "#111827",
+                   material: .matte, rotation: (0, 0, 30))
+            x += 1
+            i += 1
+        }
+    }
+    for x in stride(from: Float(-20), through: 20, by: 8) {
+        m.deco("Bay Line", at: (x, 0.41, 110), size: (0.15, 0.01, 30), color: "#FDE68A", material: .matte, opacity: 0.8)
+    }
+    m.deco("Dock Sea", at: (0, -0.2, 140), size: (90, 0.1, 24), color: "#1E7AD1", material: .glass, opacity: 0.8)
+    for x in [Float(-12), 12] {
+        m.deco("Crane Leg", at: (x - 3, 9, 134), size: (0.8, 18, 0.8), color: "#F59E0B", material: .metal)
+        m.deco("Crane Leg", at: (x + 3, 9, 134), size: (0.8, 18, 0.8), color: "#F59E0B", material: .metal)
+        m.deco("Crane Beam", at: (x, 18.2, 128), size: (7, 1, 18), color: "#F59E0B", material: .metal)
+        m.deco("Crane Cab", at: (x, 16.6, 134), size: (3, 2.2, 3), color: "#1F2937", material: .metal)
+        m.deco("Crane Cable", at: (x, 13.5, 122), size: (0.08, 9, 0.08), color: "#111827")
+        m.deco("Hanging Container", at: (x, 8.6, 122), size: (6, 2.6, 2.6), color: x < 0 ? "#0EA5E9" : "#DC2626", material: .metal)
+    }
+    m.deco("Ship Hull", at: (0, 1.4, 150), size: (60, 4, 10), color: "#1F2937", material: .metal)
+    m.deco("Ship Deck Stack", at: (-10, 4.6, 150), size: (6, 2.6, 2.6), color: "#16A34A", material: .metal)
+    m.deco("Ship Deck Stack", at: (-3, 4.6, 150), size: (6, 2.6, 2.6), color: "#7C3AED", material: .metal)
+    m.deco("Ship Bridge", at: (20, 6, 150), size: (8, 5, 8), color: "#F8FAFC", material: .matte)
+
+    // Temple: a mosaic round the platform, vines up the pillars, torches
+    // and hanging cloths on the walls, trees outside.
+    for (k, rad) in [Float(18), 16, 12].enumerated() {
+        m.deco("Temple Mosaic", at: (130, 0.41 + Float(k) * 0.002, 0), size: (rad * 2, 0.01, rad * 2),
+               color: ["#C2B8A3", "#B45309", "#E7E5E4"][k], shape: .cylinder, material: .matte)
+    }
+    for (i, p) in ring(16, radius: 17, cx: 130, cz: 0).enumerated() {
+        m.deco("Mosaic Tile", at: (p.0, 0.418, p.1), size: (0.9, 0.01, 0.9), color: i % 2 == 0 ? "#0F766E" : "#B45309", material: .matte,
+               rotation: (0, Float(i) * 22.5, 0))
+    }
+    for p in ring(8, radius: 22, cx: 130, cz: 0) {
+        let out = (p.0 - 130, p.1)
+        let len = (out.0 * out.0 + out.1 * out.1).squareRoot()
+        for k in 0..<3 {
+            m.deco("Pillar Vine", at: (p.0 + out.0 / len * 1.02, 1.2 + Float(k) * 1.4, p.1 + out.1 / len * 1.02), size: (0.3, 1.1, 0.3),
+                   color: k % 2 == 0 ? "#166534" : "#15803D", shape: .sphere, material: .matte)
+        }
+    }
+    for side in [Float(-1), 1] {
+        for t in stride(from: Float(-24), through: 24, by: 12) {
+            m.deco("Temple Cloth", at: (130 + t, 4.2, side * 35.3), size: (2, 2.4, 0.06), color: "#9F1239", material: .matte)
+            m.deco("Temple Cloth", at: (130 + side * 35.3, 4.2, t), size: (0.06, 2.4, 2), color: "#9F1239", material: .matte)
+            m.deco("Wall Torch", at: (130 + t + 6, 4.4, side * 35.2), size: (0.3, 0.5, 0.3), color: "#FB923C", shape: .cone, material: .neon)
+        }
+    }
+    for p in ring(10, radius: 44, cx: 130, cz: 0, phase: 0.15) {
+        m.deco("Jungle Tree Trunk", at: (p.0, 3, p.1), size: (0.8, 6, 0.8), color: "#5A3A1E", shape: .cylinder)
+        m.deco("Jungle Tree", at: (p.0, 7, p.1), size: (5, 3.6, 5), color: "#166534", shape: .sphere, material: .matte)
+        m.deco("Jungle Tree Top", at: (p.0 + 0.6, 8.6, p.1 - 0.4), size: (3.4, 2.4, 3.4), color: "#15803D", shape: .sphere, material: .matte)
+    }
 }
 
 // MARK: 7 Sprout Garden

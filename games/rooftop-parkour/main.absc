@@ -67,7 +67,7 @@ on join(p)
   p.ui_button("mv_dash", "💨", {at: "bottom_right", dx: -30, dy: -180, w: 74, h: 74, size: 30, bg: "#F97316", radius: 37})
   p.ui_button("mv_double", "⤴", {at: "bottom_right", dx: -114, dy: -150, w: 64, h: 64, size: 28, bg: "#0EA5E9", radius: 32})
   p.ui_button("mv_wall", "🧗", {at: "bottom_right", dx: -30, dy: -266, w: 64, h: 64, size: 26, bg: "#16A34A", radius: 32})
-  p.ui_button("mv_slide", "🛝", {at: "bottom_right", dx: -108, dy: -226, w: 58, h: 58, size: 24, bg: "#7C3AED", radius: 29})
+  p.ui_button("slide", "⇩", {at: "bottom_right", dx: -108, dy: -226, w: 58, h: 58, size: 24, bg: "#7C3AED", radius: 29})
 end
 
 on start()

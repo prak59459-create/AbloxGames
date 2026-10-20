@@ -1,8 +1,8 @@
 {
   "author" : "Ablox Games",
-  "blockCount" : 118,
-  "bytes" : 130332,
-  "cover" : "games\/clash-duels\/cover-708781ad.png",
+  "blockCount" : 486,
+  "bytes" : 305568,
+  "cover" : "games\/clash-duels\/cover-292a2a1a.png",
   "id" : "clash-duels",
   "maxPlayers" : 10,
   "schemaVersion" : 1,
@@ -21,8 +21,8 @@
     "games\/clash-duels\/main.absc"
   ],
   "shots" : [
-    "games\/clash-duels\/shot1-994a043d.png",
-    "games\/clash-duels\/shot2-373f6eec.png"
+    "games\/clash-duels\/shot1-75fbb4cb.png",
+    "games\/clash-duels\/shot2-d5f9247e.png"
   ],
   "summary" : "1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。",
   "tags" : [

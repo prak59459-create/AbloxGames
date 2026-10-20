@@ -1,5 +1,5 @@
--- slide.absc — 🛝 スライディング
--- 戦っている間、右下の 🛝 で 1秒 すべる。いま進んでいる向き（ジャンプ中でも）に、今の 1.5倍の はやさ。
+-- slide.absc — ⇩ スライディング
+-- 戦っている間、右下の ⇩ で 1秒 すべる。いま進んでいる向き（ジャンプ中でも）に、今の 1.5倍の はやさ。
 -- 止まっていたら 前に。あおむけで 足から すべって、目の高さは 半分（Ablox 8.3 の ride "slide"）。
 -- 更新していない iPad がホストのときは slide を知らないので、ボタンを出さない。
 
@@ -13,7 +13,7 @@ end
 
 func slide_button(p)
   if not can_slide(p) then return end
-  set_btn(p, "slide", "🛝", {at: "bottom_right", dx: -120, dy: -160, w: 80, h: 60, size: 26, bg: "#0E7490", radius: 14})
+  set_btn(p, "slide", "⇩", {at: "bottom_right", dx: -120, dy: -160, w: 80, h: 60, size: 26, bg: "#0E7490", radius: 14})
 end
 
 -- 立ち上がる（時間・やられた・ロビーにもどった）

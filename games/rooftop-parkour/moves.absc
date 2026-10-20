@@ -123,6 +123,6 @@ on button(p, id)
   if id == "mv_dash" then dash(p)
   elif id == "mv_double" then double_jump(p)
   elif id == "mv_wall" then wall_kick(p)
-  elif id == "mv_slide" then slide(p)
+  elif id == "slide" then slide(p)
   end
 end
