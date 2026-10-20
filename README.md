@@ -28,9 +28,9 @@ Ablox の **設定 → 効果音ライブラリ** で聞いたり、名前をコ
 
 | | # | ゲーム | 内容 |
 |---|---|---|---|
-| <img src="games/maple-bay-life/cover-cbe517d2.png" width="200"> | 1 | **Maple Bay Life RP** | 街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。 |
-| <img src="games/fruit-seas/cover-96d50579.png" width="200"> | 2 | **Fruit Seas Adventure** | ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。 |
-| <img src="games/pet-home-paradise/cover-f4b6388a.png" width="200"> | 3 | **Pet Home Paradise** | たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。 |
+| <img src="games/maple-bay-life/cover-4771c703.png" width="200"> | 1 | **Maple Bay Life RP** | 街でくらすロールプレイ。家に住んで、仕事を選んで、車やジェットパックで走り回ろう。勝ち負けなし、友だちとのんびり交流。 |
+| <img src="games/fruit-seas/cover-3256390b.png" width="200"> | 2 | **Fruit Seas Adventure** | ふしぎな果実を食べて技を覚え、剣をきたえて島から島へ。山賊をたおしてレベルアップ、海の巨人ボスにみんなで挑もう。 |
+| <img src="games/pet-home-paradise/cover-ca454097.png" width="200"> | 3 | **Pet Home Paradise** | たまごを買ってかえし、ペットを育てよう。お世話をするとコインがもらえてペットが大きくなる。レアなペットを集めて友だちにプレゼントも。 |
 | <img src="games/meme-heist/cover-c6ea7f29.png" width="200"> | 4 | **Meme Heist** | 赤いカーペットを歩く300体のヘンなミームを買って、自分のきちの台にならべよう。ミームはお金をうむ。ライバルや友だちのきちからぬすみ出して、ロックで守れ！ 50のイベント・儀式・合体・転生15回・図鑑。 |
 | <img src="games/reel-legends/cover-5a0ae04d.png" width="200"> | 5 | **Reel Legends** | つりのアドベンチャー。タイミングよくリールを引いて魚をつり上げ、売ってロッドを強化。池、海、深海、火山湖で伝説の魚を探そう。 |
 | <img src="games/clash-duels/cover-708781ad.png" width="200"> | 6 | **Clash Duels** | 1対1から5対5まで、短い試合で勝負するFPS。ラウンドごとに武器を選んで、先に5ラウンド取ったチームの勝ち。 |
