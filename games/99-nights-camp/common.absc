@@ -75,7 +75,7 @@ func inv_line(p)
     if n > 0 then append(parts, ITEM_NAMES[key] + " " + n) end
   end
   let text = "🎒 " + join(parts, "  ")
-  if len(parts) == 0 then text = "🎒 からっぽ（木をタップして切ろう）" end
+  if len(parts) == 0 then text = "🎒 からっぽ（オノで 木を 切ろう）" end
   set_line(p, "inv", text, {at: "top_left", dy: 34, size: 14, color: "#FDE68A"})
 end
 

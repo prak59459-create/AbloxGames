@@ -88,6 +88,8 @@ func open_stats(p)
 end
 
 on start()
+  -- 100人だと ぶつかって 進めないので、人と NPC は すりぬける（意見箱 2026-10-21）
+  world.solid_players = false
   every(10, func() kit_leaderboard("🏆 優勝") end)
   every(2, func()
     for p in humans() do

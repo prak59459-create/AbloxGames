@@ -119,6 +119,30 @@ func slap(p, power, stun)
   kit_quest_progress(p, "slap", 1)
 end
 
+-- MARK: 🏏 バット（意見箱 2026-10-21「Meme Heist では バットで なぐれるように」）
+-- みんな さいしょから 手に もっている。右下の ボタンで ふる。当たった人は 👋 と同じで はじかれて
+-- はこんでいる ミームを おとす（体力は へらない）。どろぼうNPCなら おいはらう。はこんでいる時は ふれない
+kit_melee("🏏 バット", 1, 1, 6, "bat")
+
+func bat_hit(p, t)
+  if p.carry != nil then return end
+  if not kit_ready(p, "bat", 0.9) then return end
+  let dir = normalize({x: t.x - p.x, y: 0, z: t.z - p.z})
+  if not t.is_npc then t.launch(dir.x * 20, 9, dir.z * 20) end
+  gear_hit(p, t, "🏏 " + p.name + " の バットで ミームを おとした！")
+  particles("stars", t, {amount: 14})
+  kit_quest_progress(p, "slap", 1)
+end
+
+on hit(victim, attacker, damage)
+  if attacker != nil and not attacker.is_npc then bat_hit(attacker, victim) end
+  return 0
+end
+
+on join(p)
+  if not p.is_npc then p.give("🏏 バット") end
+end
+
 -- 2つの場所のあいだに 点々（糸・レーザー）
 func beam(a, b, color, secs)
   let list = []

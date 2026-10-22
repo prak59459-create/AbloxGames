@@ -2,6 +2,7 @@
 -- 材料で道具・武器・服・置くもの を作る。作業台とたき火はレベルアップできる。
 
 kit_melee("こんぼう", 22, 2, 5)
+kit_melee("🪓 オノ", 22, 2, 5, "axe")
 kit_melee("木のやり", 38, 1.8, 6.5)
 weapon("クロスボウ", {model: "rifle", damage: 70, rate: 1.2, range: 120, ammo: 6, reload: 2, spread: 0})
 

@@ -310,9 +310,28 @@ func kit_ready(p, key, seconds)
   return true
 end
 
--- 近接武器（ピストルの形で、射程が短い）
-func kit_melee(name, damage, rate, reach)
-  weapon(name, {model: "pistol", damage: damage, rate: rate, range: reach or 5, ammo: 1000, reload: 0, spread: 4})
+-- 近接武器（射程が短い）。手に持つ形は 名前から決まる（Ablox 8.8 から）:
+-- 剣・刀→sword、バット・棒・ハンマー→bat、オノ→axe、ナイフ・爪→knife、やり→spear、それ以外（パンチ・拳）→fist（素手）。
+-- model をわたせば そちらを使う。8.8 より前の iPad では ブラスターの形に見える（前のピストルの形と同じく）
+let KIT_MELEE_SHAPES = [
+  {model: "axe", words: ["オノ", "おの", "斧"]},
+  {model: "spear", words: ["やり", "ヤリ", "槍", "ハルバード"]},
+  {model: "knife", words: ["ナイフ", "爪"]},
+  {model: "sword", words: ["剣", "刀", "カタナ", "カトラス", "レイピア", "鎌"]},
+  {model: "bat", words: ["バット", "棒", "こんぼう", "ハンマー", "モップ", "フライパン", "スティック", "クラブ"]}
+]
+
+func kit_melee_model(name)
+  for shape in KIT_MELEE_SHAPES do
+    for w in shape.words do
+      if contains(name, w) then return shape.model end
+    end
+  end
+  return "fist"
+end
+
+func kit_melee(name, damage, rate, reach, model)
+  weapon(name, {model: model or kit_melee_model(name), damage: damage, rate: rate, range: reach or 5, ammo: 1000, reload: 0, spread: 4})
 end
 
 -- NPC の基本: sight 以内のプレイヤーを追いかけ、くっついたら1秒に dps のダメージ

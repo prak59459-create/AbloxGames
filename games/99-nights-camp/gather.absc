@@ -1,5 +1,5 @@
 -- gather.absc — 集める
--- 🌲 木をタップ（近くで）→ 木材。🪨 岩をタップ → 石。🫐 茂みにさわる → ベリー。⚙️ 鉄くずにさわる → 鉄くず。
+-- 🌲 木を 🪓 オノで たたく か タップ（近くで）→ 木材。🪨 岩をタップ → 石。🫐 茂みにさわる → ベリー。⚙️ 鉄くずにさわる → 鉄くず。
 -- 🎁 森のどこかに宝箱。🍲 なべ（たき火のそば）で 生肉 → 焼き肉、生肉＋ベリー → シチュー。
 
 let tree_hp = {}       -- "12" → のこり
@@ -164,6 +164,12 @@ on tap(p, b)
   elif contains(b.tags, "rock") then
     if distance(p, b) < 9 then harvest_spot(p, b, "stone", 2, 6, 120) end
   end
+end
+
+-- 🪓 オノ（どの武器でも）で 木を たたいても 切れる（意見箱 2026-10-21）
+on hit_block(p, b)
+  if p.is_npc or not p.alive then return end
+  if contains(b.tags, "tree") then chop(p, b) end
 end
 
 on touch(p, b)
